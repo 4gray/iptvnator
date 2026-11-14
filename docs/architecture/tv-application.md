@@ -264,11 +264,26 @@ The server controls linked source configuration. Edit/delete happen in the PWA;
 refresh applies changes and removes missing server entries, retaining local viewing
 data and restoring an original local source when one was linked. Disconnect restores
 original local configurations and keeps other downloaded sources as local copies.
-Favorites, history, progress and TV preferences are not synchronized in this phase.
+History, progress and TV preferences stay on the TV.
 Source credentials are cached locally just like manually entered TV sources.
 Custom header fields are retained for copying; only the existing M3U parser's
 User-Agent option is applied here. Native video still cannot attach arbitrary
 provider headers, and this change does not add Xtream header handling.
+
+### Shared favorites
+
+Library & sync offers a separate opt-in for favorites when the server advertises
+`favorites-v1`. The TV verifies the server instance and source incarnation,
+receives current memberships, and then sends queued edits. Operations and their
+optimistic projection commit together in IndexedDB. Conflict retries use fresh
+operation IDs and keep later edits queued. Disconnecting or changing consent ends
+the old scope; disabling sharing restores the TV's local favorites archive.
+
+Enabling sharing can import TV favorites with explicit confirmation. Previously
+recorded server choices are preserved. Episodes and favorites on unlinked sources
+stay local. M3U URL sources use the provider parser to match exact URL hashes.
+Shared Stalker snapshots carry no playback commands; the TV resolves the matching
+provider row when opening or playing an item.
 
 Copy to server is an explicit per-source action. It re-reads the library, keeps an
 existing provider account unchanged and creates missing records with stable IDs and

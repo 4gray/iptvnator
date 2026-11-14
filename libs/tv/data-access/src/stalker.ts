@@ -27,6 +27,8 @@ import {
     stalkerEpisodes,
     unwrap,
 } from './stalker-series';
+import { favoriteReferenceKey } from '@iptvnator/shared/interfaces/favorites-sync';
+import { stalkerMediaReference } from './favorites-refs';
 import { ProviderTransport } from './transport';
 export class StalkerProvider implements ProviderClient {
     readonly capabilities = {
@@ -140,7 +142,85 @@ export class StalkerProvider implements ProviderClient {
             categories,
         };
     }
-    async details(item: Media) {
+    private async hydrateShared(item: Media, signal: AbortSignal) {
+        if (!item.raw.sharedReference) return item;
+        const ref = stalkerMediaReference(item);
+        if (!ref) return item;
+        const key = favoriteReferenceKey(ref);
+        const type =
+            ref.kind === 'live'
+                ? 'itv'
+                : ref.kind === 'radio'
+                  ? 'radio'
+                  : ref.mode === 'regular'
+                    ? 'series'
+                    : 'vod';
+        const kind =
+            type === 'itv' || type === 'radio'
+                ? 'live'
+                : type === 'series'
+                  ? 'series'
+                  : 'movie';
+        const find = (data: Record<string, unknown>[]) => {
+            const matches = data
+                .map((raw) =>
+                    this.media(
+                        type === 'radio' ? { ...raw, radio: 'true' } : raw,
+                        kind
+                    )
+                )
+                .filter((candidate) => {
+                    const reference = stalkerMediaReference(candidate);
+                    return reference && favoriteReferenceKey(reference) === key;
+                });
+            if (new Set(matches.map((match) => text(match.raw.cmd))).size > 1)
+                throw new Error(
+                    'The provider returned ambiguous playback entries.'
+                );
+            return matches[0];
+        };
+        const attach = (match: Media) => ({ ...item, ...match, id: item.id });
+        if (type === 'itv' || type === 'radio') {
+            const response = await this.session
+                .request({ type, action: 'get_all_channels' }, signal)
+                .catch((error: unknown) => {
+                    if (signal.aborted) throw error;
+                    return undefined;
+                });
+            const match = find(rows(unwrap(response)));
+            if (match?.raw.cmd) return attach(match);
+        }
+        const category = item.category || '*';
+        const searches = item.title ? [item.title, ''] : [''];
+        // shortcut: bound a provider scan when it ignores search; reopen the title from its catalog.
+        for (const search of searches) {
+            for (let page = 0; page < 20; page++) {
+                const result = await this.pages.load(
+                    {
+                        type,
+                        category,
+                        genre: category,
+                        search,
+                    },
+                    page,
+                    signal
+                );
+                const match = find(result.data);
+                if (match && (match.kind === 'series' || match.raw.cmd))
+                    return attach(match);
+                if (
+                    !result.data.length ||
+                    (page + 1) * result.pageSize >= result.total
+                )
+                    break;
+            }
+        }
+        throw new Error('Favorite is unavailable from its provider.');
+    }
+
+    async details(item: Media, signal = new AbortController().signal) {
+        if (item.kind === 'movie' || Array.isArray(item.raw.series))
+            item = await this.hydrateShared(item, signal);
         return {
             ...item,
             poster:
@@ -154,8 +234,11 @@ export class StalkerProvider implements ProviderClient {
                 ),
         };
     }
-    episodes(item: Media, signal: AbortSignal) {
-        return stalkerEpisodes(this.session, this.source, item, signal);
+    async episodes(item: Media, signal: AbortSignal) {
+        const parent = Array.isArray(item.raw.series)
+            ? await this.hydrateShared(item, signal)
+            : item;
+        return stalkerEpisodes(this.session, this.source, parent, signal);
     }
     async epg(item: Media, signal: AbortSignal) {
         let bulk: Record<string, unknown> = {};
@@ -203,6 +286,7 @@ export class StalkerProvider implements ProviderClient {
     }
 
     async resolve(item: Media, signal: AbortSignal) {
+        item = await this.hydrateShared(item, signal);
         let cmd =
             item.kind === 'episode'
                 ? await stalkerEpisodeCommand(

@@ -187,7 +187,8 @@ separate address or token:
 | M3U URLs and uploaded/pasted M3U content, Xtream and Stalker source definitions | Read from the connected server library.                  |
 | Source edits and removals made in the PWA                                       | Applied to linked TV entries on refresh.                 |
 | A source entered locally on the TV                                              | Uploaded only when you select **Copy source to server**. |
-| Favorites, watch history and resume positions                                   | Stay local to the TV; not synchronized across devices.   |
+| Favorites                                                                       | Can sync through an opt-in in Library & sync.            |
+| Watch history and resume positions                                              | Stay local to the TV.                                    |
 | TV settings and TMDB preferences                                                | Stay local to the TV.                                    |
 
 Sources refresh on launch, when returning to the app and every minute while

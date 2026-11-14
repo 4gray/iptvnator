@@ -199,6 +199,9 @@ export function disconnectLibrary(data: UserData): UserData {
     return {
         ...data,
         library: undefined,
+        favoritesMode: 'local',
+        favoritesConsent: '',
+        sharedFavoriteContexts: {},
         sources: data.sources.map((s) => {
             const original = data.library?.originals[s.id];
             if (original) return original;

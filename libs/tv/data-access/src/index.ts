@@ -37,3 +37,4 @@ export * from './library-sources';
 export * from './favorites-projection';
 export * from './favorites-refs';
 export * from './favorites-sync';
+export * from './server-favorites';

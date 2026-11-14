@@ -1,51 +1,59 @@
 import type { Media, UserData } from '@iptvnator/tv/util';
 
-/** Shared members with a resolved item; local favorites are never included. */
+export function activeFavoriteEntries(data: UserData) {
+    if (data.favoritesMode !== 'shared' || !data.library) return [];
+    const sources = new Map(
+        data.sources.map((source) => [source.libraryId, source])
+    );
+    return Object.entries(data.sharedFavorites).filter(
+        ([, { address, media }]) => {
+            const source = sources.get(address.sourceId);
+            const context = data.sharedFavoriteContexts[address.sourceId];
+            return (
+                address.instanceId === data.library?.instanceId &&
+                address.sourceIncarnation === context?.sourceIncarnation &&
+                source?.provider === address.content.provider &&
+                (!media || media.sourceId === source.id)
+            );
+        }
+    );
+}
+
 export function sharedFavoriteMedia(data: UserData): Media[] {
-    return Object.values(data.sharedFavorites)
-        .filter((entry) => entry.record.state.member)
-        .map((entry) => entry.media)
-        .filter((media): media is Media => !!media);
+    return activeFavoriteEntries(data).flatMap(([, { record, media }]) =>
+        record.state.member && media ? [media] : []
+    );
 }
 
 export function isSharedFavorite(data: UserData, item: Media): boolean {
-    return Object.values(data.sharedFavorites).some(
-        (entry) => entry.record.state.member && entry.media?.id === item.id
-    );
+    return sharedFavoriteMedia(data).some((media) => media.id === item.id);
 }
 
-/** Displayed saved state: local favorites, plus shared members in shared mode. */
-export function isFavoriteItem(data: UserData, item: Media): boolean {
-    return (
-        data.favorites.some((m) => m.id === item.id) ||
-        (data.favoritesMode === 'shared' && isSharedFavorite(data, item))
-    );
-}
-
-/**
- * The favorites projection: local favorites, plus shared members that are not
- * already local and whose source is still linked.
- */
+/** Shared state takes precedence for items it knows; local copies remain intact. */
 export function favoriteItems(data: UserData): Media[] {
     if (data.favoritesMode !== 'shared') return data.favorites;
-    return [
-        ...data.favorites,
-        ...sharedFavoriteMedia(data).filter(
-            (m) =>
-                data.sources.some((s) => s.id === m.sourceId) &&
-                !data.favorites.some((local) => local.id === m.id)
-        ),
-    ];
+    const visible = new Map(data.favorites.map((item) => [item.id, item]));
+    for (const [, { record, media }] of activeFavoriteEntries(data)) {
+        if (!media) continue;
+        if (record.state.member) {
+            if (!visible.has(media.id)) visible.set(media.id, media);
+        } else if (record.base.revision || record.pending.length) {
+            visible.delete(media.id);
+        }
+    }
+    return [...visible.values()];
 }
 
 export function sharedFavoriteCounts(data: UserData) {
     let members = 0;
     let pending = 0;
     let conflicts = 0;
-    for (const entry of Object.values(data.sharedFavorites)) {
-        if (entry.record.state.member) members++;
-        pending += entry.record.pending.length;
-        if (entry.record.conflict) conflicts++;
+    for (const [, { record }] of activeFavoriteEntries(data)) {
+        if (record.state.member) members++;
+        pending += record.pending.filter(
+            (intent) => intent.consentGeneration === data.favoritesConsent
+        ).length;
+        if (record.conflict) conflicts++;
     }
     return { members, pending, conflicts };
 }

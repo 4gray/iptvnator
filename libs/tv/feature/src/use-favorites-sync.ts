@@ -1,168 +1,80 @@
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { createRandomId } from '@iptvnator/shared/interfaces';
-import {
-    favoriteReferenceKey,
-    type FavoriteList,
-} from '@iptvnator/shared/interfaces/favorites-sync';
+import { favoriteAddressKey } from '@iptvnator/shared/interfaces/favorites-sync';
 import {
     FavoritesError,
-    ServerFavorites,
-    commitFavoriteResult,
-    isSharedFavorite,
     mediaFavoriteReference,
-    mergeFavoriteSource,
-    pendingFavorites,
     queueFavorite,
-    resolveFavoriteEntries,
-    serverMemberKeys,
+    discardFavoriteIntents,
     sharedFavoriteCounts,
+    type UserDataRepository,
+    favoriteItems,
 } from '@iptvnator/tv/data-access';
+import {
+    contextFor,
+    deliver,
+    ownsLibrary,
+    ownsSource,
+    refreshSources,
+    retireContext,
+    serverFor,
+} from './favorites-network';
 import { LatestRequest, type Media, type UserData } from '@iptvnator/tv/util';
-import { useEffect, useRef, useState } from 'preact/hooks';
-
-/** Local favorites that can be shared: on a library-linked source and not an episode. */
-export function shareableFavorites(data: UserData): Media[] {
-    return data.favorites.filter(
-        (item) =>
-            item.kind !== 'episode' &&
-            data.sources.some((s) => s.id === item.sourceId && s.libraryId)
-    );
-}
 
 export function useFavoritesSync(
     data: UserData,
     ready: boolean,
     playing: boolean,
-    update: (change: (data: UserData) => UserData) => Promise<void>
+    repo: UserDataRepository,
+    saveLocal: (item: Media) => Promise<void>
 ) {
     const [busy, setBusy] = useState(false);
     const [status, setStatus] = useState('');
     const [error, setError] = useState('');
-    const latest = useRef({ data, playing, update });
-    latest.current = { data, playing, update };
+    const isPlaying = useRef(playing);
+    isPlaying.current = playing;
     const lane = useRef(new LatestRequest());
-    const running = useRef(false);
+    const running = useRef<AbortController>();
+    const sendAgain = useRef(false);
 
-    const client = () => {
-        const library = latest.current.data.library;
-        return library
-            ? new ServerFavorites(
-                  library.url,
-                  library.token,
-                  library.instanceId
-              )
-            : undefined;
-    };
-
-    async function deliver(server: ServerFavorites, signal: AbortSignal) {
-        for (;;) {
-            const pending = pendingFavorites(latest.current.data);
-            if (!pending.length) return;
-            const { key, entry } = pending[0];
-            const head = entry.record.pending[0];
-            const result = await server.apply(
-                head.address,
-                head.operation,
-                signal
-            );
-            await latest.current.update(
-                (current) =>
-                    commitFavoriteResult(
-                        current,
-                        key,
-                        head.operation.operationId,
-                        result
-                    ).data
-            );
-        }
-    }
-
-    async function contextFor(
-        server: ServerFavorites,
-        sourceId: string,
-        signal: AbortSignal
-    ) {
-        const cached =
-            latest.current.data.sharedFavoriteContexts[sourceId];
-        try {
-            const context = await server.context(sourceId, signal);
-            if (
-                context.sourceIncarnation !== cached?.sourceIncarnation ||
-                context.provider !== cached?.provider
-            )
-                await latest.current.update((current) => ({
-                    ...current,
-                    sharedFavoriteContexts: {
-                        ...current.sharedFavoriteContexts,
-                        [context.sourceId]: context,
-                    },
-                }));
-            return context;
-        } catch (error) {
-            // Offline writes can reuse a verified incarnation; server
-            // errors and job cancellation must not.
-            if (
-                cached &&
-                !signal.aborted &&
-                !(error instanceof FavoritesError)
-            )
-                return cached;
-            throw error;
-        }
-    }
-
-    async function sync(manual = false) {
-        const snapshot = latest.current;
-        if (snapshot.data.favoritesMode !== 'shared') return;
-        const server = client();
-        if (!server || running.current) return;
-        if (snapshot.playing) {
+    async function run(upload = false, manual = false) {
+        const start = repo.data;
+        const server = serverFor(start);
+        if (start.favoritesMode !== 'shared' || !server) return;
+        if (running.current) return;
+        if (isPlaying.current) {
             if (manual)
                 setError('Stop playback before refreshing shared favorites.');
             return;
         }
         const job = lane.current.start();
-        running.current = true;
+        running.current = job;
         setBusy(true);
         setError('');
         try {
-            await deliver(server, job.signal);
-            for (const source of latest.current.data.sources) {
-                if (!source.libraryId) continue;
-                const context = await contextFor(
-                    server,
-                    source.libraryId,
-                    job.signal
-                );
-                const entries: FavoriteList['entries'] = [];
-                let cursor: string | undefined;
-                do {
-                    const page = await server.list(
-                        source.libraryId,
-                        job.signal,
-                        cursor
-                    );
-                    entries.push(...page.entries);
-                    cursor = page.cursor;
-                } while (cursor);
-                const media = await resolveFavoriteEntries(source, entries);
-                await latest.current.update((current) =>
-                    mergeFavoriteSource(
-                        current,
-                        source,
-                        context,
-                        entries,
-                        media
-                    )
-                );
-            }
-            // Merges can unblock intents that were queued behind dead heads.
-            await deliver(server, job.signal);
-            if (lane.current.owns(job))
+            await server.verify(job.signal);
+            const unresolved = await refreshSources(
+                repo,
+                server,
+                start,
+                job.signal
+            );
+            const skipped = upload ? await uploadLocal(start, job.signal) : 0;
+            await deliver(repo, server, start, job.signal);
+            if (lane.current.owns(job) && ownsLibrary(repo.data, start))
                 setStatus(
-                    `Synced · ${sharedFavoriteCounts(latest.current.data).members} shared`
+                    [
+                        'Synced',
+                        unresolved
+                            ? `${unresolved} unavailable from the playlist`
+                            : '',
+                        skipped ? `${skipped} TV favorites kept local` : '',
+                    ]
+                        .filter(Boolean)
+                        .join(' · ')
                 );
         } catch (failure) {
-            if (lane.current.owns(job)) {
+            if (lane.current.owns(job) && ownsLibrary(repo.data, start)) {
                 setStatus('Not synchronized');
                 setError(
                     failure instanceof FavoritesError
@@ -171,181 +83,265 @@ export function useFavoritesSync(
                 );
             }
         } finally {
-            if (lane.current.owns(job)) {
-                running.current = false;
+            if (running.current === job) {
+                running.current = undefined;
+                setBusy(false);
+                if (sendAgain.current) {
+                    sendAgain.current = false;
+                    void run();
+                }
+            }
+        }
+    }
+
+    async function toggle(item: Media): Promise<boolean> {
+        const start = repo.data;
+        const source = start.sources.find(
+            (candidate) => candidate.id === item.sourceId
+        );
+        const server = serverFor(start);
+        if (
+            start.favoritesMode !== 'shared' ||
+            !server ||
+            !source?.libraryId ||
+            item.kind === 'episode'
+        )
+            return false;
+        const content = await mediaFavoriteReference(item, source);
+        if (!content) return false;
+        const sourceId = source.libraryId;
+        const savedContext = start.sharedFavoriteContexts[sourceId];
+        const signal = new AbortController().signal;
+        let handled = true;
+        try {
+            const context = await server
+                .verify(signal)
+                .then(() => contextFor(server, start, source, signal))
+                .catch((failure: unknown) => {
+                    if (savedContext && !(failure instanceof FavoritesError))
+                        return savedContext;
+                    throw failure;
+                });
+            await repo.update((current) => {
+                if (
+                    !ownsLibrary(current, start) ||
+                    !ownsSource(current, source)
+                )
+                    return current;
+                const cached = current.sharedFavoriteContexts[sourceId];
+                if (
+                    cached &&
+                    cached.sourceIncarnation !==
+                        savedContext?.sourceIncarnation &&
+                    cached.sourceIncarnation !== context.sourceIncarnation
+                )
+                    return current;
+                const key = favoriteAddressKey({
+                    instanceId: server.instanceId,
+                    scope: 'shared',
+                    sourceId,
+                    sourceIncarnation: context.sourceIncarnation,
+                    content,
+                });
+                const existing = current.sharedFavorites[key]?.record;
+                if (
+                    !existing?.state.member &&
+                    !existing?.base.revision &&
+                    !existing?.pending.length &&
+                    current.favorites.some(
+                        (favorite) => favorite.id === item.id
+                    )
+                ) {
+                    handled = false;
+                    return current;
+                }
+                const next = {
+                    ...current,
+                    sharedFavoriteContexts: {
+                        ...current.sharedFavoriteContexts,
+                        [sourceId]: context,
+                    },
+                };
+                return queueFavorite(
+                    next,
+                    source,
+                    item,
+                    !existing?.state.member,
+                    context,
+                    content,
+                    start.favoritesConsent,
+                    current.favoritesDeviceId
+                ).data;
+            });
+            if (handled) {
+                if (running.current) sendAgain.current = true;
+                else void run();
+            }
+        } catch (failure) {
+            if (failure instanceof FavoritesError && failure.sourceRetired)
+                await retireContext(repo, start, sourceId, signal).catch(
+                    () => undefined
+                );
+            setError('The shared favorite could not be changed.');
+        }
+        return handled;
+    }
+
+    async function uploadLocal(start: UserData, signal: AbortSignal) {
+        let skipped = 0;
+        for (const item of start.favorites) {
+            if (signal.aborted || !ownsLibrary(repo.data, start)) break;
+            const source = start.sources.find(
+                (candidate) => candidate.id === item.sourceId
+            );
+            const context =
+                source?.libraryId &&
+                repo.data.sharedFavoriteContexts[source.libraryId];
+            const content =
+                source &&
+                context &&
+                (await mediaFavoriteReference(item, source));
+            if (!source || !context || !content) {
+                skipped++;
+                continue;
+            }
+            await repo.update((current) => {
+                if (
+                    signal.aborted ||
+                    !ownsLibrary(current, start) ||
+                    !ownsSource(current, source) ||
+                    current.sharedFavoriteContexts[context.sourceId]
+                        ?.sourceIncarnation !== context.sourceIncarnation
+                )
+                    return current;
+                const record =
+                    current.sharedFavorites[
+                        favoriteAddressKey({
+                            instanceId: start.library!.instanceId,
+                            scope: 'shared',
+                            sourceId: context.sourceId,
+                            sourceIncarnation: context.sourceIncarnation,
+                            content,
+                        })
+                    ]?.record;
+                if (record?.state.member) return current;
+                if (record?.base.revision || record?.pending.length) {
+                    skipped++;
+                    return current;
+                }
+                return queueFavorite(
+                    current,
+                    source,
+                    item,
+                    true,
+                    context,
+                    content,
+                    start.favoritesConsent,
+                    current.favoritesDeviceId
+                ).data;
+            });
+        }
+        return skipped;
+    }
+
+    async function setShared(shared: boolean, upload = false) {
+        const start = repo.data;
+        const server = serverFor(start);
+        if (!server || (start.favoritesMode === 'shared') === shared) return;
+        const job = lane.current.start();
+        running.current = job;
+        setBusy(true);
+        setError('');
+        setStatus('');
+        const consent = shared ? createRandomId() : '';
+        try {
+            if (shared) await server.verify(job.signal);
+            await repo.update((current) =>
+                lane.current.owns(job) && ownsLibrary(current, start)
+                    ? discardFavoriteIntents({
+                          ...current,
+                          favoritesMode: shared ? 'shared' : 'local',
+                          favoritesConsent: consent,
+                          favoritesDeviceId:
+                              current.favoritesDeviceId || createRandomId(),
+                      })
+                    : current
+            );
+        } catch (failure) {
+            if (lane.current.owns(job))
+                setError(
+                    failure instanceof FavoritesError
+                        ? failure.message
+                        : 'Shared favorites settings could not be saved.'
+                );
+        } finally {
+            if (running.current === job) {
+                running.current = undefined;
                 setBusy(false);
             }
         }
-    }
-
-    /** Returns false so the caller stores the item as a TV-only favorite. */
-    async function toggle(item: Media): Promise<boolean> {
-        const snapshot = latest.current;
-        if (snapshot.data.favoritesMode !== 'shared') return false;
-        const source = snapshot.data.sources.find(
-            (s) => s.id === item.sourceId
-        );
-        if (!source?.libraryId || item.kind === 'episode') return false;
-        const server = client();
-        if (!server) return false;
-        try {
-            const content = await mediaFavoriteReference(item, source);
-            if (!content) return false;
-            const abort = new AbortController();
-            const context = await contextFor(
-                server,
-                source.libraryId,
-                abort.signal
-            );
-            const member = isSharedFavorite(snapshot.data, item);
-            if (
-                !member &&
-                snapshot.data.favorites.some((m) => m.id === item.id)
-            )
-                return false; // Local-only favorite: the local toggle removes it.
-            await latest.current.update(
-                (current) =>
-                    queueFavorite(
-                        current,
-                        source,
-                        item,
-                        !member,
-                        context,
-                        content,
-                        current.favoritesConsent,
-                        current.favoritesDeviceId || 'tv'
-                    ).data
-            );
-            if (!latest.current.playing) void sync();
-            return true;
-        } catch {
-            setError('The shared favorite could not be changed.');
-            return true;
-        }
-    }
-
-    /** Uploads local favorites that the server does not already have. */
-    async function uploadLocal(): Promise<number> {
-        const server = client();
-        if (!server || latest.current.data.favoritesMode !== 'shared')
-            return 0;
-        const abort = new AbortController();
-        let imported = 0;
-        for (const source of latest.current.data.sources) {
-            if (!source.libraryId) continue;
-            const context = await contextFor(
-                server,
-                source.libraryId,
-                abort.signal
-            );
-            const entries: FavoriteList['entries'] = [];
-            let cursor: string | undefined;
-            do {
-                const page = await server.list(
-                    source.libraryId,
-                    abort.signal,
-                    cursor
-                );
-                entries.push(...page.entries);
-                cursor = page.cursor;
-            } while (cursor);
-            const keys = serverMemberKeys(entries);
-            for (const item of latest.current.data.favorites.filter(
-                (m) => m.sourceId === source.id
-            )) {
-                const content = await mediaFavoriteReference(item, source);
-                if (
-                    !content ||
-                    keys.has(favoriteReferenceKey(content)) ||
-                    isSharedFavorite(latest.current.data, item)
-                )
-                    continue;
-                await latest.current.update(
-                    (current) =>
-                        queueFavorite(
-                            current,
-                            source,
-                            item,
-                            true,
-                            context,
-                            content,
-                            current.favoritesConsent,
-                            current.favoritesDeviceId || 'tv'
-                        ).data
-                );
-                imported++;
-            }
-        }
-        await sync();
-        return imported;
-    }
-
-    /** `uploadLocal` only applies when enabling; local rows are never deleted. */
-    async function setShared(shared: boolean, uploadLocalFavorites = false) {
-        try {
-            if (!shared) {
-                await latest.current.update((current) => ({
-                    ...current,
-                    favoritesMode: 'local',
-                    favoritesConsent: '',
-                }));
-                setError('');
-                setStatus('Favorites stay on this TV.');
-                return;
-            }
-            if (!latest.current.data.library) {
-                setError(
-                    'Connect the server library before sharing favorites.'
-                );
-                return;
-            }
-            await latest.current.update((current) => ({
-                ...current,
-                favoritesMode: 'shared',
-                favoritesConsent: createRandomId(),
-                favoritesDeviceId:
-                    current.favoritesDeviceId || createRandomId(),
-            }));
-            if (uploadLocalFavorites) await uploadLocal();
-            else await sync();
-        } catch {
-            setError('Shared favorites could not be enabled.');
-        }
-    }
-
-    const refresh = useRef(() => void sync());
-    refresh.current = () => {
         if (
-            !running.current &&
-            !latest.current.playing &&
-            document.visibilityState !== 'hidden'
+            shared &&
+            lane.current.owns(job) &&
+            repo.data.favoritesConsent === consent
         )
-            void sync();
+            await run(upload);
+    }
+
+    const refresh = useRef<() => void>(() => undefined);
+    refresh.current = () => {
+        if (document.visibilityState !== 'hidden') void run();
     };
     useEffect(() => {
-        if (!ready || data.favoritesMode !== 'shared') return;
-        refresh.current();
+        if (!ready || data.favoritesMode !== 'shared' || !data.library) return;
         const visible = () => refresh.current();
         const timer = setInterval(visible, 60000);
         document.addEventListener('visibilitychange', visible);
+        visible();
         return () => {
             clearInterval(timer);
             document.removeEventListener('visibilitychange', visible);
-            lane.current.cancel();
-            running.current = false;
         };
-    }, [ready, data.favoritesMode]);
+    }, [
+        ready,
+        data.favoritesMode,
+        data.library?.instanceId,
+        data.library?.url,
+        data.library?.token,
+    ]);
+    useEffect(() => {
+        if (playing) lane.current.cancel();
+    }, [playing]);
+    useEffect(() => {
+        if (running.current && !repo.data.library) lane.current.cancel();
+    }, [data.library?.instanceId]);
+    useEffect(() => () => lane.current.cancel(), []);
 
-    return {
+    const visible = favoriteItems(data);
+    const favoritesSync = {
         busy,
         status,
         error,
         mode: data.favoritesMode,
-        shareableCount: shareableFavorites(data).length,
+        shareableCount: data.favorites.filter(
+            (item) =>
+                item.kind !== 'episode' &&
+                data.sources.some(
+                    (source) => source.id === item.sourceId && source.libraryId
+                )
+        ).length,
         counts: sharedFavoriteCounts(data),
-        toggle,
         setShared,
-        uploadLocal,
-        sync: () => sync(true),
+        uploadLocal: () => run(true, true),
+        sync: () => run(false, true),
+    };
+    return {
+        favoritesSync,
+        favorite: async (item: Media) => {
+            if (!(await toggle(item))) await saveLocal(item);
+        },
+        isFavorite: (item: Media) =>
+            visible.some((favorite) => favorite.id === item.id),
+        favoriteItems: () => visible,
     };
 }

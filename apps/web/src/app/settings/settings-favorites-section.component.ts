@@ -69,7 +69,8 @@ export class SettingsFavoritesSectionComponent {
         // Enabling must not silently empty the list: offer the local
         // favorites for import before any upload can happen.
         await this.previewImport();
-        if (!this.count()) this.preview.set(null);
+        if (!this.count() && !this.preview()?.unresolved)
+            this.preview.set(null);
     }
     async previewImport() {
         await this.action(async () =>

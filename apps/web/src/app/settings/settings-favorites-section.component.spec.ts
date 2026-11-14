@@ -61,6 +61,18 @@ describe('independent favorite settings consent', () => {
         expect(f.component.count()).toBe(1);
         expect(f.runtime.importFavorites).not.toHaveBeenCalled();
     });
+    it('keeps the preview when only unresolved local favorites remain', async () => {
+        const f = fixture();
+        f.runtime.setEnabled.mockImplementation(async (enabled) => {
+            f.runtime.enabled.set(enabled);
+        });
+        const preview = { ...f.preview, sources: [], unresolved: 1 };
+        f.runtime.previewImport.mockResolvedValueOnce(preview);
+        await f.component.toggle({ checked: true, source: { checked: true } });
+        expect(f.component.count()).toBe(0);
+        expect(f.component.preview()).toEqual(preview);
+        expect(f.runtime.importFavorites).not.toHaveBeenCalled();
+    });
     it('does not offer an import after disabling', async () => {
         const f = fixture();
         f.runtime.setEnabled.mockImplementation(async () => {

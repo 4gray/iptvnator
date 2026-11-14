@@ -19,7 +19,6 @@ import {
     resumeSeconds,
 } from '@iptvnator/tv/util';
 import { focusKey, platformBack, restoreFocus } from '@iptvnator/tv/ui';
-import { favoriteItems, isFavoriteItem } from '@iptvnator/tv/data-access';
 export function useTv(video: { current: HTMLVideoElement | null }) {
     const [route, setRoute] = useState(firstRoute);
     const { error, errorRetry, errorRetryLabel, setError, clearError } =
@@ -65,7 +64,13 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         pendingScroll.current = undefined;
     });
     const library = useLibrary(data, storageReady, !!playing, update);
-    const favoritesSync = useFavoritesSync(data, storageReady, !!playing, update);
+    const favorites = useFavoritesSync(
+        data,
+        storageReady,
+        !!playing,
+        repo.current!,
+        user.favorite
+    );
     const backend = useBackend(data, storageReady, update);
     const { provider, ready, busy, connectionKey, enabled } = useProvider(
         data,
@@ -354,12 +359,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     return {
         ...user,
         library,
-        favoritesSync,
-        favorite: async (item: Media) => {
-            if (!(await favoritesSync.toggle(item))) await user.favorite(item);
-        },
-        isFavorite: (item: Media) => isFavoriteItem(data, item),
-        favoriteItems: () => favoriteItems(data),
+        ...favorites,
         guideClient: ready ? provider.current : undefined,
         retryPlayback,
         retryConnection,

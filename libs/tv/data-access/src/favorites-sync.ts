@@ -1,16 +1,16 @@
 import { createRandomId } from '@iptvnator/shared/interfaces';
 import {
+    applyFavoriteOperation,
     assertFavoriteState,
     emptyFavoriteState,
     favoriteAddressKey,
-    favoriteReferenceKey,
     parseFavoriteAddress,
     parseFavoriteOperation,
     type FavoriteAddress,
     type FavoriteList,
-    type FavoriteOperation,
     type FavoriteResult,
     type FavoriteSourceContext,
+    type FavoriteState,
 } from '@iptvnator/shared/interfaces/favorites-sync';
 import type {
     Media,
@@ -24,86 +24,10 @@ import {
     resolveFavoriteMedia,
     resolveM3uFavoriteMedia,
 } from './favorites-refs';
-import { backendUrl } from './backend';
-
-export class FavoritesError extends Error {}
-
-/** `/v1/favorites` client; transport errors stay retryable, record writes stay local. */
-export class ServerFavorites {
-    readonly url: string;
-    constructor(
-        url: string,
-        private token: string,
-        private instanceId: string
-    ) {
-        this.url = backendUrl(url);
-    }
-    private async request(
-        path: string,
-        signal: AbortSignal,
-        init: RequestInit = {}
-    ) {
-        const response = await fetch(`${this.url}/v1${path}`, {
-            ...init,
-            signal,
-            cache: 'no-store',
-            redirect: 'error',
-            headers: {
-                ...(this.token
-                    ? { Authorization: `Bearer ${this.token}` }
-                    : {}),
-                'x-iptvnator-instance-id': this.instanceId,
-                ...init.headers,
-            },
-        });
-        if (!response.ok)
-            throw new FavoritesError(
-                response.status === 401
-                    ? 'Server access denied. Check the library access token.'
-                    : 'The shared favorites request failed.'
-            );
-        return response.json();
-    }
-    async context(sourceId: string, signal: AbortSignal) {
-        const context = (await this.request(
-            `/favorites/sources/${encodeURIComponent(sourceId)}`,
-            signal
-        )) as FavoriteSourceContext;
-        if (
-            context.sourceId !== sourceId ||
-            !context.sourceIncarnation ||
-            !['m3u', 'xtream', 'stalker'].includes(context.provider)
-        )
-            throw new FavoritesError('Invalid shared favorite source.');
-        return context;
-    }
-    async list(sourceId: string, signal: AbortSignal, cursor?: string) {
-        const page = (await this.request(
-            `/favorites/sources/${encodeURIComponent(sourceId)}/items${
-                cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''
-            }`,
-            signal
-        )) as FavoriteList;
-        if (!Array.isArray(page.entries))
-            throw new FavoritesError('Invalid shared favorite list.');
-        return page;
-    }
-    async apply(
-        address: FavoriteAddress,
-        operation: FavoriteOperation,
-        signal: AbortSignal
-    ) {
-        const result = (await this.request(`/favorites/operations`, signal, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ address, operation }),
-        })) as FavoriteResult;
-        assertFavoriteState(result.state);
-        if (!['applied', 'conflict'].includes(result.status))
-            throw new FavoritesError('Invalid shared favorite receipt.');
-        return result;
-    }
-}
+import { activeFavoriteEntries } from './favorites-projection';
+import { FavoritesError } from './server-favorites';
+import { loadM3uItems } from './m3u';
+import type { ProviderTransport } from './transport';
 
 const latestBase = (entry: SharedFavoriteEntry) =>
     entry.record.conflict &&
@@ -133,7 +57,11 @@ export function queueFavorite(
     };
     const key = favoriteAddressKey(address);
     const current = data.sharedFavorites[key];
-    const state = current?.record.state ?? emptyFavoriteState();
+    const base = current ? latestBase(current) : emptyFavoriteState();
+    const pending = (current?.record.pending ?? []).filter(
+        (intent) => intent.consentGeneration === consent
+    );
+    const state = projectPending(base, pending);
     const operation = parseFavoriteOperation({
         operationId: createRandomId(),
         deviceId,
@@ -146,24 +74,22 @@ export function queueFavorite(
         address,
         record: {
             ...current?.record,
-            base: current?.record.base ?? emptyFavoriteState(),
+            base,
             state: {
                 revision: state.revision + 1,
                 member,
-                ...(operation.snapshot
-                    ? { snapshot: operation.snapshot }
-                    : {}),
+                ...(operation.snapshot ? { snapshot: operation.snapshot } : {}),
             },
             pending: [
-                ...(current?.record.pending ?? []),
+                ...pending,
                 { address, consentGeneration: consent, operation },
             ],
             conflict: undefined,
             local: undefined,
             localOnly: false,
         },
-        media: member ? item : current?.media,
-        retries: 0,
+        media: item,
+        retries: current?.retries ?? 0,
     };
     return {
         data: {
@@ -179,14 +105,11 @@ export function pendingFavorites(data: UserData): {
     key: string;
     entry: SharedFavoriteEntry;
 }[] {
-    return Object.entries(data.sharedFavorites)
+    return activeFavoriteEntries(data)
         .filter(
             ([, entry]) =>
                 entry.record.pending[0]?.consentGeneration ===
-                    data.favoritesConsent &&
-                entry.address.sourceIncarnation ===
-                    data.sharedFavoriteContexts[entry.address.sourceId]
-                        ?.sourceIncarnation
+                data.favoritesConsent
         )
         .map(([key, entry]) => ({ key, entry }));
 }
@@ -210,70 +133,32 @@ export function commitFavoriteResult(
         result.state.revision >= latestBase(entry).revision
             ? result.state
             : latestBase(entry);
-    if (result.status === 'conflict') {
-        const retries = entry.retries ?? 0;
-        if (head.operation.member !== result.state.member && retries < 2) {
-            const rebased: SharedFavoriteEntry = {
-                ...entry,
-                retries: retries + 1,
-                record: {
-                    ...entry.record,
-                    base,
-                    conflict: base,
-                    pending: [
-                        {
-                            ...head,
-                            operation: {
-                                ...head.operation,
-                                expectedRevision: base.revision,
-                            },
-                        },
-                        ...entry.record.pending.slice(1),
-                    ],
-                },
-            };
-            return {
-                data: {
-                    ...data,
-                    sharedFavorites: {
-                        ...data.sharedFavorites,
-                        [key]: rebased,
-                    },
-                },
-                delivered: false,
-                rebased: true,
-            };
-        }
-        const adopted: SharedFavoriteEntry = {
-            ...entry,
-            retries: 0,
-            record: {
-                ...entry.record,
-                base,
-                state: base,
-                pending: [],
-                conflict: undefined,
-            },
-        };
-        return {
-            data: {
-                ...data,
-                sharedFavorites: { ...data.sharedFavorites, [key]: adopted },
-            },
-            delivered: true,
-            rebased: false,
-        };
-    }
-    const pending = entry.record.pending.slice(1);
+    const retry =
+        result.status === 'conflict' &&
+        head.operation.member !== base.member &&
+        (entry.retries ?? 0) < 2;
+    const pending = retry
+        ? [
+              {
+                  ...head,
+                  operation: {
+                      ...head.operation,
+                      operationId: createRandomId(),
+                      expectedRevision: base.revision,
+                  },
+              },
+              ...entry.record.pending.slice(1),
+          ]
+        : entry.record.pending.slice(1);
     const applied: SharedFavoriteEntry = {
         ...entry,
-        retries: 0,
+        retries: retry ? (entry.retries ?? 0) + 1 : 0,
         record: {
             ...entry.record,
             base,
             pending,
-            state: pending.length ? entry.record.state : base,
-            conflict: undefined,
+            state: projectPending(base, pending),
+            conflict: retry ? base : undefined,
         },
     };
     return {
@@ -281,9 +166,23 @@ export function commitFavoriteResult(
             ...data,
             sharedFavorites: { ...data.sharedFavorites, [key]: applied },
         },
-        delivered: true,
-        rebased: false,
+        delivered: !retry,
+        rebased: retry,
     };
+}
+
+function projectPending(
+    base: FavoriteState,
+    pending: SharedFavoriteEntry['record']['pending']
+): FavoriteState {
+    return pending.reduce(
+        (state, { operation }) =>
+            applyFavoriteOperation(state, {
+                ...operation,
+                expectedRevision: state.revision,
+            }).state,
+        base
+    );
 }
 
 /**
@@ -292,15 +191,22 @@ export function commitFavoriteResult(
  */
 export async function resolveFavoriteEntries(
     source: Source,
-    entries: FavoriteList['entries']
+    entries: FavoriteList['entries'],
+    transport?: ProviderTransport,
+    signal = new AbortController().signal
 ): Promise<Map<string, Media>> {
     const media = new Map<string, Media>();
     const m3uIndex =
-        source.provider === 'm3u'
-            ? await m3uFavoriteIndex(source.m3uItems ?? [])
+        source.provider === 'm3u' && entries.length
+            ? await m3uFavoriteIndex(
+                  source.m3uItems ??
+                      (transport
+                          ? await loadM3uItems(source, transport, signal)
+                          : []),
+                  signal
+              )
             : undefined;
     for (const entry of entries) {
-        if (!entry.state.member) continue;
         try {
             const address = parseFavoriteAddress(entry.address);
             const item =
@@ -324,6 +230,11 @@ export function mergeFavoriteSource(
     entries: FavoriteList['entries'],
     media: Map<string, Media>
 ): UserData {
+    if (
+        source.libraryId !== context.sourceId ||
+        source.provider !== context.provider
+    )
+        throw new FavoritesError('Shared favorite source mismatch.');
     const sharedFavorites = { ...data.sharedFavorites };
     for (const entry of entries) {
         const address = parseFavoriteAddress(entry.address);
@@ -348,9 +259,8 @@ export function mergeFavoriteSource(
                 ? {
                       ...current.record,
                       base,
-                      ...(current.record.conflict
-                          ? { conflict: base }
-                          : {}),
+                      state: projectPending(base, current.record.pending),
+                      ...(current.record.conflict ? { conflict: base } : {}),
                   }
                 : {
                       ...current?.record,
@@ -361,12 +271,20 @@ export function mergeFavoriteSource(
                   },
         };
     }
-    // Intents from another consent generation can never be delivered;
-    // revert their rows to the verified state so they cannot wedge the
-    // queue or display phantom shared favorites.
+    return discardFavoriteIntents({
+        ...data,
+        sharedFavorites,
+        sharedFavoriteContexts: {
+            ...data.sharedFavoriteContexts,
+            [context.sourceId]: context,
+        },
+    });
+}
+
+export function discardFavoriteIntents(data: UserData): UserData {
+    const sharedFavorites = { ...data.sharedFavorites };
     for (const [key, entry] of Object.entries(sharedFavorites)) {
         const pending = entry.record.pending;
-        if (!pending.length) continue;
         const live = pending.filter(
             (intent) => intent.consentGeneration === data.favoritesConsent
         );
@@ -374,34 +292,17 @@ export function mergeFavoriteSource(
         const base = latestBase(entry);
         sharedFavorites[key] = {
             ...entry,
+            retries: 0,
             record: {
                 ...entry.record,
                 base,
-                state: live.length ? entry.record.state : base,
+                state: projectPending(base, live),
                 pending: live,
-                conflict: live.length ? entry.record.conflict : undefined,
+                conflict: undefined,
             },
         };
     }
     return { ...data, sharedFavorites };
-}
-
-/** Server member references, for import deduplication. */
-export function serverMemberKeys(entries: FavoriteList['entries']): Set<string> {
-    const keys = new Set<string>();
-    for (const entry of entries) {
-        if (!entry.state.member) continue;
-        try {
-            keys.add(
-                favoriteReferenceKey(
-                    parseFavoriteAddress(entry.address).content
-                )
-            );
-        } catch {
-            /* Foreign rows are ignored by the merge anyway. */
-        }
-    }
-    return keys;
 }
 
 export type { FavoriteSourceContext };

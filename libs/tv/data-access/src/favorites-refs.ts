@@ -1,6 +1,6 @@
-import { isLikelyM3uVod } from '@iptvnator/shared/m3u-utils';
+import type { StalkerPortalItem } from '@iptvnator/shared/interfaces';
+import { m3uMedia } from './m3u';
 import {
-    favoriteReferenceKey,
     m3uFavoriteReference,
     parseFavoriteReference,
     parseFavoriteSnapshot,
@@ -11,9 +11,7 @@ import {
 } from '@iptvnator/shared/interfaces/favorites-sync';
 import {
     identity,
-    rows,
     text,
-    artwork,
     type Kind,
     type Media,
     type Source,
@@ -45,16 +43,27 @@ async function rawReference(
             id: item.providerId,
         };
     }
-    if (source.provider === 'stalker')
-        return stalkerFavoriteReference({
-            ...item.raw,
-            favoriteContentType:
-                (item.raw.favoriteContentType as string) ??
-                (item.raw.origin as string),
-        } as never);
+    if (source.provider === 'stalker') return stalkerMediaReference(item);
     if (source.provider === 'm3u' && item.providerId)
         return m3uFavoriteReference(item.providerId);
     return null;
+}
+
+export function stalkerMediaReference(item: Media) {
+    if (item.raw.sharedReference)
+        return item.raw.sharedReference as ReturnType<
+            typeof stalkerFavoriteReference
+        >;
+    const raw = item.raw as StalkerPortalItem;
+    const origin = item.raw.origin;
+    const type =
+        origin === 'itv' || origin === 'series' || origin === 'vod'
+            ? origin
+            : undefined;
+    return stalkerFavoriteReference({
+        ...raw,
+        favoriteContentType: raw.favoriteContentType ?? type,
+    });
 }
 
 export function mediaFavoriteSnapshot(
@@ -66,11 +75,15 @@ export function mediaFavoriteSnapshot(
         reference.kind === 'series' &&
         reference.mode === 'embedded' &&
         Array.isArray(item.raw.series)
-            ? rows(item.raw.series)
-                  .map((value) => Number(value))
+            ? item.raw.series
                   .filter(
-                      (value) => Number.isSafeInteger(value) && value >= 0
+                      (value) =>
+                          typeof value === 'number' ||
+                          (typeof value === 'string' &&
+                              /^\d+$/.test(value.trim()))
                   )
+                  .map(Number)
+                  .filter((value) => Number.isSafeInteger(value) && value >= 0)
             : undefined;
     try {
         return parseFavoriteSnapshot({
@@ -106,7 +119,8 @@ function stalkerRaw(
 ): Record<string, unknown> {
     const id = reference.id;
     const kind = reference.kind;
-    if (kind === 'series')
+    if (kind === 'series') {
+        const origin = reference.mode === 'regular' ? 'series' : 'vod';
         return {
             id,
             movie_id: id,
@@ -115,10 +129,10 @@ function stalkerRaw(
                 : {}),
             ...(reference.mode === 'lazy' ? { is_series: true } : {}),
             stream_type: 'movie',
-            origin: 'vod',
-            favoriteContentType: 'vod',
-            category_id: 'vod',
+            origin,
+            favoriteContentType: origin,
         };
+    }
     if (kind === 'movie')
         return {
             id,
@@ -176,7 +190,10 @@ export function resolveFavoriteMedia(
             title,
             category: snapshot?.categoryId,
             year: snapshot?.releaseYear,
-            raw: stalkerRaw(reference, snapshot),
+            raw: {
+                ...stalkerRaw(reference, snapshot),
+                sharedReference: reference,
+            },
         };
     }
     return null;
@@ -187,10 +204,12 @@ export function resolveFavoriteMedia(
  * each shared favorite costs a single lookup instead of a full scan.
  */
 export async function m3uFavoriteIndex(
-    items: Record<string, unknown>[]
+    items: Record<string, unknown>[],
+    signal: AbortSignal
 ): Promise<Map<string, Record<string, unknown>>> {
     const index = new Map<string, Record<string, unknown>>();
     for (const raw of items) {
+        if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
         const url = text(raw.url);
         if (url) index.set((await m3uFavoriteReference(url)).urlHash, raw);
     }
@@ -204,23 +223,5 @@ export function resolveM3uFavoriteMedia(
 ): Media | null {
     if (address.content.provider !== 'm3u') return null;
     const raw = index.get(address.content.urlHash);
-    const url = raw && text(raw.url);
-    if (!raw || !url) return null;
-    const kind = isLikelyM3uVod({ url, radio: raw.radio as string })
-        ? 'movie'
-        : 'live';
-    const tvg = (raw.tvg ?? {}) as Record<string, unknown>;
-    return {
-        id: identity(source, kind, url),
-        sourceId: source.id,
-        providerId: url,
-        kind,
-        title: text(raw.name),
-        category: text((raw.group as { title?: string })?.title),
-        categoryName: text((raw.group as { title?: string })?.title),
-        poster: artwork(tvg.logo),
-        raw,
-    };
+    return raw ? m3uMedia(source, raw) : null;
 }
-
-export { favoriteReferenceKey };

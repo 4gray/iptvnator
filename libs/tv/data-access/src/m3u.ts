@@ -27,32 +27,9 @@ export class M3uProvider implements ProviderClient {
         private transport: ProviderTransport
     ) {}
     async connect(signal: AbortSignal) {
-        const result = this.source.m3uItems
-            ? { playlist: { items: this.source.m3uItems } }
-            : ((await this.transport.request(
-                  this.source,
-                  'parse',
-                  {},
-                  signal
-              )) as { playlist?: { items?: unknown } });
-        this.items = rows(result.playlist?.items).map((raw) => {
-            const url = text(raw.url);
-            const kind = isLikelyM3uVod({ url, radio: raw.radio as string })
-                ? 'movie'
-                : 'live';
-            const tvg = (raw.tvg ?? {}) as Record<string, unknown>;
-            return {
-                id: identity(this.source, kind, url),
-                providerId: url,
-                sourceId: this.source.id,
-                kind,
-                title: text(raw.name),
-                category: text((raw.group as { title?: string })?.title),
-                categoryName: text((raw.group as { title?: string })?.title),
-                poster: artwork(tvg.logo),
-                raw,
-            };
-        });
+        this.items = (
+            await loadM3uItems(this.source, this.transport, signal)
+        ).map((raw) => m3uMedia(this.source, raw));
         return this.source;
     }
     async catalog(
@@ -99,4 +76,36 @@ export class M3uProvider implements ProviderClient {
     dispose() {
         this.items = [];
     }
+}
+
+export async function loadM3uItems(
+    source: Source,
+    transport: ProviderTransport,
+    signal: AbortSignal
+) {
+    if (source.m3uItems) return source.m3uItems;
+    const result = (await transport.request(source, 'parse', {}, signal)) as {
+        playlist?: { items?: unknown };
+    };
+    return rows(result.playlist?.items);
+}
+
+export function m3uMedia(source: Source, raw: Record<string, unknown>): Media {
+    const url = text(raw.url);
+    const kind = isLikelyM3uVod({ url, radio: raw.radio as string })
+        ? 'movie'
+        : 'live';
+    const tvg = (raw.tvg ?? {}) as Record<string, unknown>;
+    const category = text((raw.group as { title?: string })?.title);
+    return {
+        id: identity(source, kind, url),
+        providerId: url,
+        sourceId: source.id,
+        kind,
+        title: text(raw.name),
+        category,
+        categoryName: category,
+        poster: artwork(tvg.logo),
+        raw,
+    };
 }

@@ -16,8 +16,8 @@ export function LibrarySettings({ tv }: { tv: TvModel }) {
         <section class="source-form" aria-label="Server library">
             <h2>Server library</h2>
             <p class="muted">
-                Share sources with your self-hosted PWA. Viewing progress
-                stays on this TV.
+                Share sources with your self-hosted PWA. Viewing progress stays
+                on this TV.
             </p>
             <form
                 onSubmit={(event) => {
@@ -166,7 +166,7 @@ function SharedFavorites({ tv }: { tv: TvModel }) {
                         {sync.counts.members} shared
                         {sync.counts.pending
                             ? ` · ${sync.counts.pending} changes pending`
-                            : ' · up to date'}
+                            : ''}
                         {sync.counts.conflicts
                             ? ` · ${sync.counts.conflicts} conflicts`
                             : ''}
@@ -199,9 +199,9 @@ function SharedFavorites({ tv }: { tv: TvModel }) {
                     close={() => setAskUpload(false)}
                 >
                     <p>
-                        {sync.shareableCount} favorites on this TV can be
-                        shared with the server. Items already on the server
-                        are skipped. Nothing is deleted from this TV.
+                        {sync.shareableCount} favorites on this TV can be shared
+                        with the server. Items already on the server are
+                        skipped. Nothing is deleted from this TV.
                     </p>
                     <div class="tv-card-options" role="group">
                         <button
@@ -220,7 +220,7 @@ function SharedFavorites({ tv }: { tv: TvModel }) {
                                 void sync.setShared(true);
                             }}
                         >
-                            Keep on this TV only
+                            Enable without uploading
                         </button>
                     </div>
                 </TvDialog>
