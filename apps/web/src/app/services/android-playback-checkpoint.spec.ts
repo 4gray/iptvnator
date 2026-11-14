@@ -49,6 +49,7 @@ describe('restoring Android playback checkpoints', () => {
     let documentWindow: EventTarget;
 
     beforeEach(async () => {
+        localStorage.clear();
         jest.resetAllMocks();
         getPlaybackPosition.mockResolvedValue(null);
         savePlaybackPositionOrThrow.mockResolvedValue(undefined);
@@ -172,6 +173,33 @@ describe('restoring Android playback checkpoints', () => {
         expect(postMessage).toHaveBeenLastCalledWith(
             JSON.stringify(['acknowledgeNativePlaybackCheckpoint', newer.id])
         );
+    });
+
+    it('does not restore a checkpoint from before an item was reset', async () => {
+        savePlaybackPositionOrThrow.mockRejectedValueOnce(
+            new Error('Synthetic storage failure')
+        );
+        await deliver();
+        expect(postMessage).not.toHaveBeenCalled();
+        localStorage.setItem(
+            'iptvnator-native-playback-reset:' +
+                JSON.stringify([
+                    content.playlistId,
+                    content.contentType,
+                    content.contentXtreamId,
+                ]),
+            String(Date.now())
+        );
+        await deliver();
+        expect(savePlaybackPositionOrThrow).toHaveBeenCalledTimes(1);
+        expect(postMessage).toHaveBeenCalledWith(
+            JSON.stringify(['acknowledgeNativePlaybackCheckpoint', id])
+        );
+        await deliver({
+            id: '00000000-0000-4000-8000-000000000003',
+            savedAt: Date.now() + 1000,
+        });
+        expect(savePlaybackPositionOrThrow).toHaveBeenCalledTimes(2);
     });
 
     it('keeps a nonzero position when the duration is unknown', async () => {

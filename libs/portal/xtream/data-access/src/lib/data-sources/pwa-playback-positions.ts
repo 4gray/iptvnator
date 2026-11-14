@@ -1,5 +1,50 @@
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 
+type PositionId = Pick<PlaybackPositionData, 'contentType' | 'contentXtreamId'>;
+
+function resetKey(playlistId: string, item: PositionId): string {
+    return (
+        'iptvnator-native-playback-reset:' +
+        JSON.stringify([playlistId, item.contentType, item.contentXtreamId])
+    );
+}
+
+function savePositionResets(
+    playlistId: string,
+    items: PositionId[],
+    write: () => void
+): void {
+    if (!('TvShell' in globalThis)) {
+        write();
+        return;
+    }
+    const timestamp = String(Date.now());
+    const previous = new Map<string, string | null>();
+    try {
+        for (const item of items) {
+            const key = resetKey(playlistId, item);
+            if (previous.has(key)) continue;
+            previous.set(key, localStorage.getItem(key));
+            localStorage.setItem(key, timestamp);
+        }
+        write();
+    } catch (error) {
+        for (const [key, old] of previous) {
+            if (localStorage.getItem(key) !== timestamp) continue;
+            if (old === null) localStorage.removeItem(key);
+            else localStorage.setItem(key, old);
+        }
+        throw error;
+    }
+}
+
+export function androidPlaybackResetAt(
+    playlistId: string,
+    item: PositionId
+): number {
+    return Number(localStorage.getItem(resetKey(playlistId, item)));
+}
+
 type Positions = Record<string, PlaybackPositionData[]>;
 
 /** Loaded on demand. Every mutation reads fresh storage after loading the module. */
@@ -97,17 +142,9 @@ export class PwaPlaybackPositions {
         contentXtreamId: number,
         contentType: 'vod' | 'episode'
     ): Promise<void> {
-        const allPositions = this.getPlaybackPositionsFromStorage();
-        if (allPositions[playlistId]) {
-            allPositions[playlistId] = allPositions[playlistId].filter(
-                (p) =>
-                    !(
-                        p.contentXtreamId === contentXtreamId &&
-                        p.contentType === contentType
-                    )
-            );
-            this.savePlaybackPositionsToStorage(allPositions);
-        }
+        await this.clearPlaybackPositionsBatch(playlistId, [
+            { contentXtreamId, contentType },
+        ]);
     }
 
     async savePlaybackPositionsBatch(
@@ -148,18 +185,18 @@ export class PwaPlaybackPositions {
         }
 
         const allPositions = this.getPlaybackPositionsFromStorage();
-        const playlistPositions = allPositions[playlistId];
-        if (!playlistPositions) {
-            return;
-        }
-
-        const removedKeys = new Set(
-            items.map((item) => `${item.contentType}_${item.contentXtreamId}`)
-        );
-        allPositions[playlistId] = playlistPositions.filter(
-            (p) => !removedKeys.has(`${p.contentType}_${p.contentXtreamId}`)
-        );
-
-        this.savePlaybackPositionsToStorage(allPositions);
+        savePositionResets(playlistId, items, () => {
+            const playlistPositions = allPositions[playlistId];
+            if (!playlistPositions) return;
+            const removedKeys = new Set(
+                items.map(
+                    (item) => `${item.contentType}_${item.contentXtreamId}`
+                )
+            );
+            allPositions[playlistId] = playlistPositions.filter(
+                (p) => !removedKeys.has(`${p.contentType}_${p.contentXtreamId}`)
+            );
+            this.savePlaybackPositionsToStorage(allPositions);
+        });
     }
 }

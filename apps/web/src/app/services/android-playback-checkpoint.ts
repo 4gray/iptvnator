@@ -6,6 +6,7 @@ import type {
     PlayerContentInfo,
 } from '@iptvnator/shared/interfaces';
 import { parseActivityAddress } from '@iptvnator/shared/interfaces/activity-sync';
+import { androidPlaybackResetAt } from '@iptvnator/portal/xtream/data-access';
 
 const checkpointEvent = 'iptvnator:android-playback-checkpoint';
 
@@ -61,8 +62,10 @@ export function installAndroidPlaybackCheckpoint(
                         previous?.updatedAt ?? ''
                     );
                     if (
-                        !Number.isFinite(previousSavedAt) ||
-                        previousSavedAt < data.savedAt
+                        androidPlaybackResetAt(playlistId, record) <
+                            data.savedAt &&
+                        (!Number.isFinite(previousSavedAt) ||
+                            previousSavedAt < data.savedAt)
                     ) {
                         await positions.savePlaybackPositionOrThrow(
                             playlistId,

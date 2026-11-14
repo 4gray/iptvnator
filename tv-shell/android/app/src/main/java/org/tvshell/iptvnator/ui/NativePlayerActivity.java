@@ -158,6 +158,12 @@ public final class NativePlayerActivity extends Activity {
                 return getPlayer().getPlayerError() == null
                     ? state : state.buildUpon().setPlayerError(null).build();
             }
+
+            @Override
+            protected ListenableFuture<?> handleStop() {
+                finish();
+                return Futures.immediateVoidFuture();
+            }
         };
         mediaSession = new MediaSession.Builder(this, sessionPlayer)
             .setId(UUID.randomUUID().toString())
@@ -230,7 +236,7 @@ public final class NativePlayerActivity extends Activity {
     protected void onResume() {
         super.onResume();
         if (player != null) player.setPlayWhenReady(autoplay);
-        if (!live) checkpointHandler.post(cacheCheckpoint);
+        checkpointHandler.post(cacheCheckpoint);
     }
 
     @Override

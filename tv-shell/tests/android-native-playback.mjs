@@ -248,6 +248,17 @@ try {
     await page.waitForFunction(() => window.__nativeResult !== undefined);
     const recentsResult = await page.evaluate(() => window.__nativeResult);
     assert.ok(recentsResult?.positionMs >= 1000, 'Recents and launcher return must preserve the VOD position.');
+
+    await page.evaluate((url) => {
+        delete window.__nativeResult;
+        window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), { url }]));
+    }, origin + '/synthetic-ac3.mkv');
+    await waitNative();
+    await waitAudio();
+    adb('shell', 'cmd', 'media_session', 'dispatch', 'stop');
+    await expect.poll(topActivity).toContain('.ui.MainActivity');
+    await page.waitForFunction(() => window.__nativeResult?.started === true);
+    assert.equal(await page.evaluate(() => window.__nativeResult.ended), false);
     assert.ok(seen.origin.some((headers) => headers['user-agent'] === 'Synthetic-Playback'),
         'The resolved provider user agent must reach the stream origin.');
     assert.ok(seen.target.slice(redirectedBefore).some((headers) => /^okhttp\//i.test(headers['user-agent'] ?? '')),

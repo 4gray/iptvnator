@@ -1047,6 +1047,35 @@ describe('PwaXtreamDataSource', () => {
             ...overrides,
         });
 
+        it('retains an item-scoped reset marker for Android checkpoint recovery', async () => {
+            Object.assign(window, { TvShell: { postMessage: jest.fn() } });
+            const { androidPlaybackResetAt } =
+                await import('./pwa-playback-positions');
+            try {
+                await dataSource.savePlaybackPosition('playlist-1', position());
+                await dataSource.clearPlaybackPosition(
+                    'playlist-1',
+                    100,
+                    'vod'
+                );
+                expect(
+                    androidPlaybackResetAt('playlist-1', position())
+                ).toBeGreaterThan(0);
+                expect(androidPlaybackResetAt('playlist-2', position())).toBe(
+                    0
+                );
+                expect(
+                    await dataSource.getPlaybackPosition(
+                        'playlist-1',
+                        100,
+                        'vod'
+                    )
+                ).toBeNull();
+            } finally {
+                Reflect.deleteProperty(window, 'TvShell');
+            }
+        });
+
         it('retains concurrent single and batch saves across playlists', async () => {
             await Promise.all([
                 dataSource.savePlaybackPosition('playlist-1', position()),

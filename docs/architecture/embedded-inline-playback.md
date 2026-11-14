@@ -154,6 +154,8 @@ position for the original portal item to the same storage origin. The new
 screen saves the position through the portal's resume store. The checkpoint
 listener loads during web startup only when the Android bridge is available.
 Android retains each pending checkpoint until the page acknowledges its save.
+Resetting an item records the reset time so a retried checkpoint cannot restore
+the cleared progress.
 While a VOD plays, Android keeps an in-memory checkpoint so a launcher relaunch
 can recover progress even if it clears the player before the pause callback.
 Autoplay and watch-history confirmation require the original screen.
