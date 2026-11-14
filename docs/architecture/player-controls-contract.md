@@ -1953,6 +1953,12 @@ capture listeners because media events do not bubble. Release listeners also
 attach to the tracked element: Chromium's pause after DOM removal never reaches
 the document. A playing video holds a display-sleep lock only while the document
 is visible or that video is in picture-in-picture, which survives minimization.
+A tracked video that fires `waiting` or `stalled` and then does not advance for
+60 seconds is released too (`PLAYBACK_STALL_RELEASE_MS`): a stream that dies
+after starting fires neither `pause` nor `ended`. It is judged by `currentTime`,
+since `stalled` also fires while the buffer still plays; a video that moved is
+checked again until `playing` reports it resumed. After a release the next
+`playing` tracks the video again.
 In Electron this relies on the main window keeping Chromium background
 throttling on: with `backgroundThrottling: false` a minimized window keeps
 reporting `visible`, so the gate would never release the display.

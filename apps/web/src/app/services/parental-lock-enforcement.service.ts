@@ -14,6 +14,7 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import { ParentalLockService } from '@iptvnator/services';
 import { toParentalLockXtreamCategoryType } from '@iptvnator/shared/interfaces';
+import { ParentalLockExternalSessions } from './parental-lock-external-sessions';
 import { PlaybackKeepAwakeService } from './playback-keep-awake.service';
 
 const XTREAM_ROUTE =
@@ -37,6 +38,7 @@ export class ParentalLockEnforcementService {
     private readonly router = inject(Router);
     private readonly store = inject(Store);
     private readonly keepAwake = inject(PlaybackKeepAwakeService);
+    private readonly externalSessions = inject(ParentalLockExternalSessions);
     private readonly activeChannel = this.store.selectSignal(selectActive);
     private started = false;
     private lastVersion = -1;
@@ -50,10 +52,15 @@ export class ParentalLockEnforcementService {
         }
         this.started = true;
         // Playback counts as activity: video through the keep-awake
-        // tracker, and audio (the radio player) read directly, since the
-        // keep-awake service deliberately ignores <audio>.
+        // tracker, audio (the radio player) read directly, since the
+        // keep-awake service deliberately ignores <audio>, and the players
+        // that render outside the page (Embedded MPV, MPV/VLC films).
+        this.externalSessions.start();
         this.parentalLock.registerBusyProbe(
-            () => this.keepAwake.hasPlayingVideo() || hasPlayingAudio()
+            () =>
+                this.keepAwake.hasPlayingVideo() ||
+                hasPlayingAudio() ||
+                this.externalSessions.isBusy()
         );
         // The Stalker step is loaded as soon as a Stalker route opens, so a
         // relock there can run it synchronously instead of awaiting a chunk.
@@ -94,6 +101,7 @@ export class ParentalLockEnforcementService {
                 if (this.parentalLock.active()) {
                     this.failClosedNow();
                 }
+                this.externalSessions.onLockChange();
                 this.scheduleApply();
             });
         });

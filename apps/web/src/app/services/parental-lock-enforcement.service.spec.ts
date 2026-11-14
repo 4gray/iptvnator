@@ -9,6 +9,7 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import { ParentalLockService } from '@iptvnator/services';
 import { ParentalLockEnforcementService } from './parental-lock-enforcement.service';
+import { ParentalLockExternalSessions } from './parental-lock-external-sessions';
 import { PlaybackKeepAwakeService } from './playback-keep-awake.service';
 
 interface Applier {
@@ -546,17 +547,39 @@ describe('ParentalLockEnforcementService apply serialization', () => {
 });
 
 describe('ParentalLockEnforcementService busy probe', () => {
-    it('counts playing audio (the radio player) as activity', () => {
-        let probe: (() => boolean) | undefined;
+    let probe: (() => boolean) | undefined;
+    let version: ReturnType<typeof signal<number>>;
+    let active: ReturnType<typeof signal<boolean>>;
+    let externalSessions: {
+        start: jest.Mock;
+        isBusy: jest.Mock;
+        onLockChange: jest.Mock;
+    };
+
+    beforeEach(() => {
+        probe = undefined;
+        version = signal(0);
+        active = signal(false);
+        externalSessions = {
+            start: jest.fn(),
+            isBusy: jest.fn(() => false),
+            onLockChange: jest.fn(),
+        };
         TestBed.resetTestingModule();
         TestBed.configureTestingModule({
             providers: [
                 {
                     provide: ParentalLockService,
                     useValue: {
-                        version: signal(0),
+                        version,
+                        active,
+                        isM3uGroupLocked: () => false,
                         registerBusyProbe: (fn: () => boolean) => (probe = fn),
                     },
+                },
+                {
+                    provide: ParentalLockExternalSessions,
+                    useValue: externalSessions,
                 },
                 { provide: XtreamStore, useValue: {} },
                 { provide: XTREAM_DATA_SOURCE, useValue: {} },
@@ -574,6 +597,26 @@ describe('ParentalLockEnforcementService busy probe', () => {
         });
         const service = TestBed.inject(ParentalLockEnforcementService);
         TestBed.runInInjectionContext(() => service.start());
+        TestBed.flushEffects();
+    });
+
+    it('counts players outside the page (Embedded MPV, MPV/VLC films)', () => {
+        expect(externalSessions.start).toHaveBeenCalled();
+        expect(probe?.()).toBe(false);
+
+        externalSessions.isBusy.mockReturnValue(true);
+        expect(probe?.()).toBe(true);
+    });
+
+    it('hands a relock to the external session closer', () => {
+        active.set(true);
+        version.set(1);
+        TestBed.flushEffects();
+
+        expect(externalSessions.onLockChange).toHaveBeenCalledTimes(1);
+    });
+
+    it('counts playing audio (the radio player) as activity', () => {
         expect(probe?.()).toBe(false);
 
         const audio = document.createElement('audio');

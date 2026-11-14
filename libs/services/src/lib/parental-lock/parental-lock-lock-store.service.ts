@@ -208,6 +208,20 @@ export class ParentalLockLockStore {
         return this.locks()[playlistId]?.m3u ?? [];
     }
 
+    /** Whether the source (any source when `null`) has a locked category. */
+    hasLocks(playlistId: string | null): boolean {
+        const store = this.locks();
+        const entries =
+            playlistId === null ? Object.values(store) : [store[playlistId]];
+        return entries.some(
+            (locks) =>
+                !!locks &&
+                (locks.xtream.length > 0 ||
+                    locks.stalker.length > 0 ||
+                    locks.m3u.length > 0)
+        );
+    }
+
     /**
      * Every mutation re-reads a store that failed to read BEFORE building
      * the edit: `locksFor` on the empty fail-closed store would otherwise

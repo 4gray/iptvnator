@@ -31,7 +31,9 @@ follow in a second PR.
   player counts as interaction, so a film never locks half way — video
   through the keep-awake tracker, and audio (the radio player) read from
   the playing `<audio>` elements, since the keep-awake service ignores
-  them.
+  them. Players outside the page count too (see "External players"): an
+  Embedded MPV session while `playing`, an MPV/VLC film or episode while
+  its reported position moves.
 - This is a child lock, not a security boundary: the PIN hash and the lock
   store sit in user-readable app data. The UI says so. There is no PIN
   recovery; resetting the app data is the way out.
@@ -582,6 +584,44 @@ opinion" and restore leaves the target's locks alone; present replaces them
 (`replacePlaylistLocks`, which also re-stamps the Xtream index). The PIN is
 never exported.
 
+## External players
+
+MPV/VLC play in their own process, and the session the main process
+reports carries no category. `ParentalLockExternalSessions`
+(`apps/web/src/app/services/parental-lock-external-sessions.ts`), started
+by the enforcement service, tracks every session from
+`onExternalPlayerSessionUpdate`:
+
+- **Relock.** A session whose media was opened while unlocked — a launch,
+  or an in-place switch of a reused player (a changed stream URL; status
+  reports do not count) — is closed on relock when its source may hold
+  withheld content: the lock store is unreadable, or the source has a
+  locked category (any source has, when the source cannot be told). The
+  source is the session's `contentInfo.playlistId`, otherwise the source
+  route the launch was made from; a launch from a global page (dashboard,
+  favorites, search) has none. A session first reported after a relock it
+  started before raced that relock and counts as opened while unlocked. A
+  session opened while locked came from the filtered catalog and keeps
+  playing. Closing uses `closeExternalPlayerSession(id, true)` and hides
+  the session from the dock first; a launch without a closer yet is closed
+  on its next update, a rejected close is retried every second, and a
+  session that cannot be closed (`canClose: false`) is only hidden — shown
+  again if the session is unlocked before it closes.
+- **Owners.** A feature that knows the category of its sessions claims them
+  through `ParentalLockSessionOwners` (`libs/services`) and closes only
+  those in a withheld category. Xtream Live does:
+  `XtreamExternalLiveSessions` keeps the playing channel's category and
+  closes a session of a withheld one, so an unlocked channel keeps
+  playing.
+- **Idle relock.** Embedded MPV counts as busy while any session is
+  `playing` (two with multiview). An MPV/VLC film or episode counts while
+  its position, reported every 5 s, moved within the last 15 s, so a pause
+  lets the timer run. A session that reports no position does not count,
+  like live MPV/VLC: those players cannot report a pause, and an open,
+  paused window must not keep the app unlocked indefinitely. Positions
+  need `contentInfo` and, for MPV, the IPC socket, so this also covers M3U
+  films (no `contentInfo`) and Flatpak MPV (no socket bridge).
+
 ## Not yet covered (phase 2)
 
 Favorites, recently viewed, playback positions / Continue Watching, the
@@ -603,6 +643,7 @@ predicate is `ParentalLockService.is*Locked`.
   persisted lock set, its unreadable state and the SQLite re-stamp),
   `apps/web/src/app/services/parental-lock-prompt.service.ts`,
   `parental-lock-enforcement.service.ts`,
+  `parental-lock-external-sessions.ts` (MPV/VLC and Embedded MPV),
   `apps/web/src/app/settings/settings-parental-section.component.*` and `settings-parental-lock.facade.ts` (rows anchored and indexed for settings search),
   `libs/ui/components/src/lib/parental-lock-pin-dialog/`,
   `libs/portal/stalker/feature/src/lib/stalker-category-lock-dialog/`.

@@ -107,6 +107,30 @@ describe('ParentalLockLockStore', () => {
         expect(store.readable()).toBe(true);
     });
 
+    it('tells which sources have a locked category', async () => {
+        storage.readLocks.mockResolvedValueOnce({
+            ...stored,
+            'pl-2': { xtream: [], stalker: [], m3u: [] },
+            'pl-3': { xtream: [], stalker: [], m3u: ['Synthetic Group'] },
+        });
+        await store.load();
+
+        expect(store.hasLocks('pl-1')).toBe(true);
+        expect(store.hasLocks('pl-2')).toBe(false);
+        expect(store.hasLocks('pl-3')).toBe(true);
+        expect(store.hasLocks('pl-4')).toBe(false);
+        expect(store.hasLocks(null)).toBe(true);
+    });
+
+    it('reports no locked source when every entry is empty', async () => {
+        storage.readLocks.mockResolvedValueOnce({
+            'pl-2': { xtream: [], stalker: [], m3u: [] },
+        });
+        await store.load();
+
+        expect(store.hasLocks(null)).toBe(false);
+    });
+
     it('re-derives the SQLite index from the store on load', async () => {
         await store.load();
         // ensureReadable awaits the reconcile that load() started.

@@ -1,7 +1,10 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
-import { ParentalLockService } from '@iptvnator/services';
+import {
+    ParentalLockService,
+    ParentalLockSessionOwners,
+} from '@iptvnator/services';
 import type { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
 import { XtreamExternalLiveSessions } from './xtream-external-live-sessions.service';
 
@@ -148,6 +151,23 @@ describe('XtreamExternalLiveSessions', () => {
         version.update((value) => value + 1);
         TestBed.flushEffects();
         expect(closeSession).not.toHaveBeenCalled();
+    });
+
+    it('claims its launches from the app-wide relock closer', () => {
+        const owners = TestBed.inject(ParentalLockSessionOwners);
+        const { finish, launchId } = guard.begin(original);
+        const launching = {
+            ...session('owned', oldUrl, 'launching'),
+            launchId,
+        };
+        expect(owners.isOwned(launching)).toBe(true);
+
+        finish({ ...launching, status: 'opened', canClose: true });
+        expect(owners.isOwned(session('owned', oldUrl, 'opened'))).toBe(true);
+        expect(owners.isOwned(session('other', newUrl, 'opened'))).toBe(false);
+
+        receive(session('owned', oldUrl, 'closed'));
+        expect(owners.isOwned(session('owned', oldUrl, 'opened'))).toBe(false);
     });
 
     it('does not restore the old category when a launch response arrives after a copy switch', () => {
