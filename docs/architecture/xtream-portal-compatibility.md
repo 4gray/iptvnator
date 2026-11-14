@@ -1051,6 +1051,11 @@ changing it cannot reuse a refusal from the previous client identity.
 The shared source-status service forwards the same override for browser-build
 status indicators in the Sources page and playlist switcher, including rechecks.
 
+Series-episode download URLs are built like playback
+(`XtreamUrlService.constructEpisodeUrl`): normalized server URL and
+percent-encoded username and password, so a password holding `#`, `?`, `/`
+or `%` downloads the stream it plays.
+
 Electron's `XTREAM_REQUEST` and stream-probe handlers plus fresh Xtream movie
 and series-episode download requests share the exported
 `XTREAM_CLIENT_USER_AGENT` fallback. A playlist's explicit User-Agent,

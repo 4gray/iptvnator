@@ -12,6 +12,7 @@ import {
 } from '@iptvnator/services';
 import { XtreamApiService, XtreamCredentials } from './xtream-api.service';
 import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
+import { ownerKeyOf } from './epg-queue-owner.util';
 import { createLogger } from '@iptvnator/portal/shared/util/logger';
 
 interface CacheEntry {
@@ -80,6 +81,14 @@ export class EpgQueueService implements OnDestroy {
     private readonly epgChannelByStreamId = new Map<number, string>();
     private readonly xmltvPreviewByStreamId = new Map<number, EpgItem>();
     private visibleSet = new Set<number>();
+    /**
+     * The account every per-stream memory belongs to. Stream ids only mean
+     * something inside one account (panels number them from 1), so another
+     * account's enqueue retires all of it, and the running loop always uses
+     * the latest credentials instead of the ones it started with.
+     */
+    private ownerKey: string | null = null;
+    private credentials: XtreamCredentials | null = null;
     private processing = false;
     private enqueueGeneration = 0;
     private readonly failureTimestamps = new Map<number, number>();
@@ -94,8 +103,18 @@ export class EpgQueueService implements OnDestroy {
     /** Emits EPG results as they arrive. */
     readonly epgResult$ = new Subject<{ streamId: number; items: EpgItem[] }>();
 
-    getCached(streamId: number): EpgItem[] | null {
+    /**
+     * The cached preview of `streamId`. Pass the reading list's credentials:
+     * a cache filled for another account answers nothing.
+     */
+    getCached(
+        streamId: number,
+        credentials?: XtreamCredentials
+    ): EpgItem[] | null {
         if (!this.epgPreferences.enabled()) return null;
+        if (credentials && ownerKeyOf(credentials) !== this.ownerKey) {
+            return null;
+        }
         this.retireStateOfPreviousOffset();
         const entry = this.cache.get(streamId);
         if (!entry) return null;
@@ -187,6 +206,7 @@ export class EpgQueueService implements OnDestroy {
     ): Promise<void> {
         if (!this.epgPreferences.enabled()) return;
         this.retireStateOfPreviousOffset();
+        this.adoptOwner(credentials);
         const generation = ++this.enqueueGeneration;
 
         const normalized: EpgQueueEntry[] = streams.map((entry) =>
@@ -265,8 +285,35 @@ export class EpgQueueService implements OnDestroy {
         this.queue = ids;
 
         if (!this.processing) {
-            this.processQueue(credentials);
+            this.processQueue();
         }
+    }
+
+    /**
+     * Switch to `credentials`' account, dropping everything another account
+     * left: its cached previews, cooldowns, prefetched XMLTV and queue, and
+     * — through the invalidation epoch — the results of its requests still
+     * on the wire.
+     */
+    private adoptOwner(credentials: XtreamCredentials): void {
+        this.credentials = credentials;
+        const key = ownerKeyOf(credentials);
+        if (key === this.ownerKey) {
+            return;
+        }
+        const previous = this.ownerKey;
+        this.ownerKey = key;
+        if (previous === null) {
+            return;
+        }
+        this.queue = [];
+        this.visibleSet = new Set();
+        for (const id of new Set([...this.cache.keys(), ...this.inFlight])) {
+            this.invalidate(id);
+        }
+        this.failureTimestamps.clear();
+        this.epgChannelByStreamId.clear();
+        this.xmltvPreviewByStreamId.clear();
     }
 
     /**
@@ -349,7 +396,7 @@ export class EpgQueueService implements OnDestroy {
         }
     }
 
-    private async processQueue(credentials: XtreamCredentials): Promise<void> {
+    private async processQueue(): Promise<void> {
         this.processing = true;
 
         while (this.queue.length > 0) {
@@ -366,6 +413,8 @@ export class EpgQueueService implements OnDestroy {
             if (!this.visibleSet.has(streamId)) continue;
             if (!this.shouldFetch(streamId)) continue;
 
+            const credentials = this.credentials;
+            if (!credentials) break;
             this.inFlight.add(streamId);
             this.fetchEpg(credentials, streamId);
 
@@ -403,11 +452,7 @@ export class EpgQueueService implements OnDestroy {
             // because it was in flight, so retire the request whatever its
             // outcome and fetch again if the row is still visible.
             if (offsetMinutes !== this.epgOffsetMinutes()) {
-                this.supersedeForOffsetChange(
-                    credentials,
-                    streamId,
-                    startEpoch
-                );
+                this.supersedeForOffsetChange(streamId, startEpoch);
                 return;
             }
 
@@ -484,11 +529,7 @@ export class EpgQueueService implements OnDestroy {
      * old request's `finally` leave the marker alone, so the replacement it
      * starts here cannot lose its own in-flight marker.
      */
-    private supersedeForOffsetChange(
-        credentials: XtreamCredentials,
-        streamId: number,
-        epoch: number
-    ): void {
+    private supersedeForOffsetChange(streamId: number, epoch: number): void {
         this.invalidationEpoch.set(streamId, epoch + 1);
         this.inFlight.delete(streamId);
         if (!this.visibleSet.has(streamId) || this.queue.includes(streamId)) {
@@ -496,7 +537,7 @@ export class EpgQueueService implements OnDestroy {
         }
         this.queue.push(streamId);
         if (!this.processing) {
-            this.processQueue(credentials);
+            this.processQueue();
         }
     }
 

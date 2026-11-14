@@ -433,6 +433,62 @@ describe('PortalChannelsListComponent', () => {
         expect(epgQueueService.enqueue).not.toHaveBeenCalled();
     });
 
+    it("drops another playlist's preview and asks for the new account's guide", async () => {
+        // Panels number streams from 1: stream 50 exists on both playlists.
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-04-05T05:45:00.000Z'));
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set([{ title: 'Synthetic Fifty', xtream_id: 50 }]);
+        currentPlaylist.set({
+            id: 'playlist-1',
+            password: 'secret',
+            serverUrl: 'http://demo.example',
+            username: 'demo',
+        });
+        fixture.detectChanges();
+        await renderViewport(fixture);
+        epgResults$.next({
+            streamId: 50,
+            items: [
+                buildEpgItem({
+                    id: 'old',
+                    title: 'Other Playlist Show',
+                    start: '2026-04-05T05:30:00.000Z',
+                    stop: '2026-04-05T06:30:00.000Z',
+                }),
+            ],
+        });
+        const component = fixture.componentInstance;
+        expect(component.epgPrograms.get(50)?.title).toBe(
+            'Other Playlist Show'
+        );
+
+        const other = {
+            id: 'playlist-2',
+            password: 'secret',
+            serverUrl: 'http://other.example',
+            username: 'demo',
+        };
+        currentPlaylist.set(other);
+        epgQueueService.enqueue.mockClear();
+        jest.advanceTimersByTime(60 * 1000);
+        fixture.detectChanges();
+
+        expect(component.epgPrograms.has(50)).toBe(false);
+        // The rendered row lets go of it too, with no replacement yet.
+        expect(
+            fixture.debugElement
+                .query(By.directive(ChannelListItemComponent))
+                .injector.get(ChannelListItemComponent)
+                .epgProgram()
+        ).toBeNull();
+        expect(epgQueueService.enqueue).toHaveBeenCalledWith(
+            [expect.objectContaining({ streamId: 50 })],
+            expect.any(Set),
+            expect.objectContaining({ serverUrl: other.serverUrl })
+        );
+    });
+
     it('re-fetches EPG on the refresh tick once the cache has expired, without blanking the row (#767)', async () => {
         // The queue's own cache is short-lived (a 5 minute TTL); a channel
         // left on screen without a scroll event needs the periodic refresh

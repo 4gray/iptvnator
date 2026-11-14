@@ -432,6 +432,77 @@ describe('EpgQueueService', () => {
         await latestEnqueue;
     });
 
+    describe('across accounts', () => {
+        // Panels number streams from 1, so stream ids collide between them.
+        const other = {
+            serverUrl: 'https://other-panel.example.com',
+            username: 'viewer',
+            password: 'secret',
+        };
+        const titleFor = (portal: { username: string }) =>
+            portal.username === credentials.username ? 'A-Show' : 'B-Show';
+
+        it("answers only the account that filled the cache and fetches another account's stream itself", async () => {
+            xtreamApi.getShortEpg.mockImplementation(
+                async (portal: { username: string }) => [
+                    makeEpgItem('channel-1', titleFor(portal)),
+                ]
+            );
+
+            await service.enqueue([1], new Set([1]), credentials);
+            await jest.advanceTimersByTimeAsync(0);
+            expect(service.getCached(1, credentials)?.[0]?.title).toBe(
+                'A-Show'
+            );
+            expect(service.getCached(1, other)).toBeNull();
+
+            await service.enqueue([1], new Set([1]), other);
+            // The running loop picks it up after its inter-request delay.
+            await jest.advanceTimersByTimeAsync(500);
+
+            expect(xtreamApi.getShortEpg).toHaveBeenLastCalledWith(
+                other,
+                1,
+                3,
+                { suppressErrorLog: true }
+            );
+            expect(service.getCached(1, other)?.[0]?.title).toBe('B-Show');
+        });
+
+        it("moves a running queue to the new account and drops the old one's late results", async () => {
+            let releaseOldRequest!: (items: EpgItem[]) => void;
+            xtreamApi.getShortEpg.mockImplementation(
+                (portal: { username: string }, streamId: number) =>
+                    portal === credentials && streamId === 1
+                        ? new Promise<EpgItem[]>((resolve) => {
+                              releaseOldRequest = resolve;
+                          })
+                        : Promise.resolve([
+                              makeEpgItem(
+                                  `channel-${streamId}`,
+                                  titleFor(portal)
+                              ),
+                          ])
+            );
+
+            await service.enqueue([1, 2, 3], new Set([1, 2, 3]), credentials);
+            await service.enqueue([1, 2], new Set([1, 2]), other);
+            await jest.advanceTimersByTimeAsync(1_000);
+            releaseOldRequest([makeEpgItem('channel-1', 'A-Show')]);
+            await jest.advanceTimersByTimeAsync(0);
+
+            const calls = xtreamApi.getShortEpg.mock.calls;
+            expect(calls[0]?.[0]).toBe(credentials);
+            expect(calls.slice(1).map(([portal]) => portal)).toEqual(
+                calls.slice(1).map(() => other)
+            );
+            expect(calls.slice(1).map(([, streamId]) => streamId)).toEqual([
+                1, 2,
+            ]);
+            expect(service.getCached(1, other)?.[0]?.title).toBe('B-Show');
+        });
+    });
+
     it('clones the caller visibleIds Set so external mutation is harmless', async () => {
         const visible = new Set([1, 2, 3]);
         await service.enqueue(
