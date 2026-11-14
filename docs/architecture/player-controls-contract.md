@@ -401,8 +401,8 @@ one colour in every player surface (UI guidelines, "Watch progress colour").
   the hover/tap popover in the compact mode — inline, the button is a
   plain mute toggle for every pointer type (`buttonClick(event,
   { inlineSlider: true })`). Center: previous episode · −10s · **play** ·
-  +10s · next episode. Right: the value chips, the `tune` button,
-  recording, picture-in-picture and fullscreen, end-aligned.
+  +10s · next episode. Right: add second stream, settings, recording,
+  picture-in-picture and fullscreen, end-aligned and capability-gated.
 - **Play button** (`.player-controls__play`, `data-test-id
   ="player-controls-play"`): a 52px filled accent circle with a white glyph,
   not a Material icon button. Fills under a white glyph (play, active
@@ -561,40 +561,25 @@ Every track, quality, speed and aspect choice lives behind one **`tune`**
 button (`data-test-id="player-controls-settings-button"`) in a single
 surface, `app-player-settings-panel` (`player-settings-panel.component.*`),
 instead of five popovers. `ControlsMenuState` knows three menus — `volume`,
-`settings`, `stats` — and `settingsFocus`, the group the panel was opened
-for. `ControlsSettings` derives, from capabilities and state, which groups
-exist (`getSettingsGroupAvailability`: audio needs more than one track,
-subtitles a track or `externalSubtitles`, quality more than one level,
-speed and aspect their capabilities), whether anything is on or changed,
-and owns open/toggle/close; the `tune` button and the panel render only
-while at least one group exists, and the availability reconciliation closes
-the panel the moment the last group disappears.
+`settings` and `stats`. `ControlsSettings` derives from capabilities and
+state which groups exist. Audio needs more than one track, subtitles need a
+track or `externalSubtitles`, and quality needs more than one level. Speed
+and aspect depend on their capabilities. The `tune` button and panel render
+while at least one group exists. If the last group disappears, settings close.
 
-- **Roomy wide dock** (≥ 960px): two **value chips** precede `tune` — subtitles
-  (`closed_caption` + the selected track's label, or "Off") and speed
-  (`speed` + `1.25×`). A chip's accessible name and tooltip carry its
-  value (`SUBTITLES_TOOLTIP` "Subtitles: English", `SPEED_TOOLTIP`
-  "Speed: 1.25×"); `tune` has `aria-haspopup="dialog"` and
-  `aria-expanded`. Audio and aspect ratio have no chip: they are
-  panel-only. A chip click opens the panel **focused on its group**
-  (`settingsFocus`; the group scrolls into view and wears a brief ring);
-  right-click or long-press on the subtitle chip toggles subtitles without
-  opening anything (`ControlsSettings.toggleSubtitles`: the first embedded
-  track on, `-1` off; with no track to turn on it opens the group so the
-  file loader is reachable). While the panel is open the dock, title and
-  corner shift left by the panel's width (`--panel-open` modifiers,
-  `right: 370px`), the chips and the picture-in-picture / recording buttons
-  fold away, `tune` fills in the accent color, and fullscreen stays.
-- **Compact dock, and wide docks below 960px**: no chips; `tune` carries **state dots** (5px, cyan when
-  subtitles are on or a non-default audio track is selected, violet when
-  speed, aspect or manual quality differ from their default) and the panel
-  opens as a **bottom sheet** (`--sheet` modifier: grip, two-column rows,
-  24px segmented items) that replaces the dock while open. Picture-in-
-  picture and recording stay in the compact dock — the mock shows only
-  `tune` + fullscreen there, but those two are engine features a viewer
-  needs without opening anything. At 200% zoom or on a short stage, the
-  whole sheet scrolls, including its header, so the body cannot collapse to
-  zero height. Wide panels retain the body as their sole scroll owner.
+- **Settings button**: the `tune` button has `aria-haspopup="dialog"` and
+  `aria-expanded`. While closed, it carries 5px state dots. Cyan means
+  subtitles are on or a non-default audio track is selected. Violet means
+  speed, aspect or manual quality differ from their default.
+- **Roomy wide dock** (≥ 960px): settings open beside the video. The dock,
+  title and corner shift left by the panel's width (`--panel-open` modifiers,
+  `right: 370px`). Second stream, recording and picture-in-picture fold away,
+  `tune` fills with the accent color, and fullscreen stays.
+- **Docks below 960px**: settings open as a bottom sheet (`--sheet` modifier:
+  grip, two-column rows, 24px segmented items) that replaces the dock while
+  open. At 200% zoom or on a short stage, the whole sheet scrolls, including
+  its header, so the body cannot collapse to zero height. Wide panels retain
+  the body as their sole scroll owner.
 - **Inside**: every choice is a `radio` in a `radiogroup`
   (`SettingsRadioGroupDirective` / `SettingsRadioDirective`). List groups
   (audio, subtitles, quality) are rows with a check mark and a cyan
@@ -615,9 +600,6 @@ the panel the moment the last group disappears.
   white frame. They wrap with `overflow-wrap: anywhere` and `hyphens: auto`,
   so one long word (German "Wiedergabegeschwindigkeit") breaks inside the
   sheet's 84px heading column. Hyphenation needs a `lang` on `<html>`.
-  With subtitles on but no track marked selected yet (the engine can report
-  the switch before the track list), the subtitle chip reads "On"
-  (`SUBTITLES_ON`), never "Off".
   Every focused option shows the `--pc-text` ring; a selected swatch has a
   white border with a dark inner gap, and focus adds an outer ring. The
   subtitle group carries the load-file action (a plain button outside the
@@ -635,6 +617,16 @@ the panel the moment the last group disappears.
   button, a click on the video surface or an outside pointerdown close it.
 - **Colors** follow the color-as-state rule of the dock: cyan means "on",
   violet means "changed", and neutral rows/items read as the default.
+
+### Second-stream action
+
+The frame-copy host opts into `canAddSecondStream` and handles
+`secondStreamRequested` to open its channel picker. The
+`picture_in_picture_alt` action sits immediately before settings in the bottom
+controls and has the localized “Add second stream” tooltip. It is available
+while a single stream plays in the frame-copy host. Browser video engines can
+expose their native picture-in-picture action and leave `canAddSecondStream`
+disabled. The frame-copy host exposes no native video picture-in-picture.
 
 ### Stream info popover
 
@@ -1267,21 +1259,17 @@ template branches CSS cannot express — the inline volume slider versus
 its popover. Without `ResizeObserver` (unit tests) the mode stays `wide`.
 
 A second threshold, `ROOMY_LAYOUT_MIN_WIDTH` (960px, `ControlsLayout.roomy`),
-gates the wide dock's extras: the subtitle/speed chips and the settings
-panel beside the video. Between 720px and 960px the dock stays wide (full
-button sizes, inline volume) but folds the chips into `tune` with state
-dots and opens settings as the bottom sheet, because the widest action row
-(volume, series transport, two chips, tune/record/PiP/fullscreen) and the
-dock beside a 370px panel do not fit there. The control row's side columns
+gates the settings panel beside the video. Between 720px and 960px the dock
+stays wide (full button sizes, inline volume) and settings open as the bottom
+sheet. The control row's side columns
 are `minmax(min-content, 1fr)`, so if the actions still need more than half
 of what the transport leaves, the transport slides off-centre instead of
 the actions overlapping it or leaving the player.
 Episode navigation stays in the compact transport: the series hosts rely on
 those buttons, and the inline series player is often narrower than 720px.
 
-The actions cluster's width is content-dependent (audio, subtitles, quality,
-speed, aspect, recording, PiP, and fullscreen are all conditional), so in
-the compact layout the cluster is end-aligned, capped at the row width, and
+The actions depend on the host's capabilities. In the compact layout the
+cluster is end-aligned, capped at the row width, and
 wraps when the row cannot hold it. Its popover anchors become static at this
 breakpoint so capability panels position against the unclipped actions
 cluster and remain accessible above every wrapped row.

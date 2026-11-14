@@ -32,6 +32,7 @@ import {
 import {
     StubArtPlayerComponent,
     StubEmbeddedMpvPlayerComponent,
+    StubSecondStreamComponent,
     StubFullscreenChannelPanelComponent,
     StubHtmlVideoPlayerComponent,
     StubVjsPlayerComponent,
@@ -80,6 +81,7 @@ describe('WebPlayerViewComponent', () => {
                     imports: [
                         StubArtPlayerComponent,
                         StubEmbeddedMpvPlayerComponent,
+                        StubSecondStreamComponent,
                         StubFullscreenChannelPanelComponent,
                         StubHtmlVideoPlayerComponent,
                         StubVjsPlayerComponent,
@@ -754,6 +756,12 @@ describe('WebPlayerViewComponent', () => {
         player.previousEpisodeRequested.emit();
         player.nextEpisodeRequested.emit();
 
+        expect(events).toEqual(['ended', 'previous', 'next']);
+        const companion = fixture.debugElement.query(
+            By.directive(StubSecondStreamComponent)
+        ).componentInstance as StubSecondStreamComponent;
+        companion.active.set(true);
+        player.playbackEnded.emit();
         expect(events).toEqual(['ended', 'previous', 'next']);
     });
 

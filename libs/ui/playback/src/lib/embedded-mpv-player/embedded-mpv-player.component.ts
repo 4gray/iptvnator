@@ -85,6 +85,10 @@ const RECORDING_MESSAGE_DISMISS_DELAY_MS = 5000;
 export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly playback = input.required<ResolvedPortalPlayback>();
     readonly showControls = input(true);
+    readonly canAddSecondStream = input(false);
+    readonly secondStreamRequested = output<void>();
+    readonly initialVolumeOverride = input<number | null>(null);
+    readonly retryEnabled = input(true);
     readonly liveSubtitlesOff = model(false);
     readonly recordingFolder = input('');
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
@@ -142,7 +146,10 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     /** Catch-up programmes first, else the file's chapters; see the helper. */
     readonly controlsTimelineSegments = computed(
         () =>
-            embeddedMpvTimelineSegments(this.timelineSegments(), this.session()),
+            embeddedMpvTimelineSegments(
+                this.timelineSegments(),
+                this.session()
+            ),
         { equal: sameTimelineSegments }
     );
     readonly stalled = this.controller.stalled;
@@ -543,7 +550,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             const teardown = this.controller.startSession(
                 viewport.nativeElement,
                 playback,
-                untracked(() => this.volume()),
+                untracked(() => this.initialVolumeOverride() ?? this.volume()),
                 untracked(
                     () =>
                         this.liveSubtitlesOff() &&
@@ -876,6 +883,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     }
 
     retry(): void {
+        if (!this.retryEnabled()) return;
         this.controller.retry();
     }
 

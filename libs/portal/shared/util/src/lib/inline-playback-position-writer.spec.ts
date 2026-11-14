@@ -46,6 +46,26 @@ describe('createInlinePlaybackPositionWriter', () => {
         expect(onSaved).toHaveBeenCalledTimes(1);
     });
 
+    it('flushes the newest accepted position under its original media key', () => {
+        jest.useFakeTimers();
+        const { playback, writer, save } = setup();
+        writer.handleTimeUpdate({ currentTime: 12, duration: 100 });
+        writer.handleTimeUpdate({ currentTime: 21, duration: 100 });
+        playback.set(null);
+
+        writer.flush();
+        writer.flush();
+
+        expect(save).toHaveBeenCalledTimes(2);
+        expect(save).toHaveBeenLastCalledWith(
+            'playlist-1',
+            expect.objectContaining({
+                contentXtreamId: 42,
+                positionSeconds: 21,
+            })
+        );
+    });
+
     it('throttles subsequent updates to one per 15s', () => {
         jest.useFakeTimers();
         const { writer, save } = setup();
