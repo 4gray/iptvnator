@@ -13,7 +13,7 @@ export function pickRandomEpisode(
 ): XtreamSerieEpisode | undefined {
     const episodes = Object.values(seasons ?? {})
         .filter((list): list is XtreamSerieEpisode[] => Array.isArray(list))
-        .flat();
+        .reduce<XtreamSerieEpisode[]>((all, list) => all.concat(list), []);
 
     if (episodes.length === 0) {
         return undefined;
