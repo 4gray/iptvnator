@@ -520,6 +520,15 @@ try {
     }, retryId)).toBeGreaterThanOrEqual(8);
     assert.equal(await page.evaluate(() => window.__nativeResults), 1,
         'Checkpoint retry must not replay the original playback result.');
+    await entry('Synthetic Unplayable').click();
+    await expect(stage.locator('app-playback-diagnostic-panel')).toBeVisible();
+    await expect(action).toBeVisible();
+    await action.click();
+    await waitNative();
+    await expect.poll(() => dumpLayout().includes('The built-in player could not play this stream')).toBe(true);
+    await back();
+    await expect.poll(() => dumpLayout().includes('This stream cannot be played here')).toBe(true);
+    adb('shell', 'input', 'keyevent', '4');
     const persistedId = 'synthetic-relaunch-' + randomUUID();
     await page.evaluate(({ url, playlistId }) => {
         window.__allowPositionWrite = false;
@@ -547,16 +556,6 @@ try {
     }, persistedId), { timeout: 15000 }).toBeGreaterThanOrEqual(8);
     page = restoredPage;
     page.setDefaultTimeout(20000);
-    await page.goto(channelRoute);
-    await entry('Synthetic Unplayable').click();
-    await expect(stage.locator('app-playback-diagnostic-panel')).toBeVisible();
-    await expect(action).toBeVisible();
-    await action.click();
-    await waitNative();
-    await expect.poll(() => dumpLayout().includes('The built-in player could not play this stream')).toBe(true);
-    await back();
-    await expect.poll(() => dumpLayout().includes('This stream cannot be played here')).toBe(true);
-    adb('shell', 'input', 'keyevent', '4');
     await setExperiment(false);
     console.log('PASS Android Media3 opt-in, mute handoff, VOD resume after Home, WebView reload and failed writes, redirect header scope, extensionless HLS Back, AC-3 audio, captions natural VOD completion and external fallback');
 } finally {
