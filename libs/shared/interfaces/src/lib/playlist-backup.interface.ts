@@ -131,6 +131,10 @@ export interface XtreamPlaylistBackupEntry extends PlaylistBackupBaseEntry {
         serverUrl: string;
         username: string;
         password?: string;
+        /** Absent in archives from before these were exported. */
+        userAgent?: string;
+        referrer?: string;
+        origin?: string;
     };
     userState: XtreamBackupUserState;
 }

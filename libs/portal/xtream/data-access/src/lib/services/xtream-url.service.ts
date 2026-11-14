@@ -46,13 +46,22 @@ interface NormalizedXtreamCredentials {
 }
 
 type XtreamProbeApi = {
-    xtreamProbeUrl?: (
+    probeStreamUrl?: (
         url: string,
-        method?: 'GET' | 'HEAD'
+        method?: 'GET' | 'HEAD',
+        headers?: {
+            userAgent?: string | null;
+            referer?: string | null;
+            origin?: string | null;
+        }
     ) => Promise<{ status: number }>;
 };
 
-const XTREAM_CATCHUP_VARIANT_KEY_PREFIX = 'xtream-catchup-variant:v4:';
+// v5: v4 values may be a REST TS fallback stored after probes that lacked
+// the playlist's headers; they are ignored and probed again once.
+const XTREAM_CATCHUP_VARIANT_KEY_PREFIX = 'xtream-catchup-variant:v5:';
+/** How long an unproven programme answers with the fallback without probing. */
+const XTREAM_CATCHUP_FALLBACK_TTL_MS = 60_000;
 
 /**
  * Service for constructing Xtream stream URLs.
@@ -70,6 +79,8 @@ export class XtreamUrlService {
         string,
         Promise<XtreamCatchupVariant>
     >();
+    /** Unproven programmes: until when they skip probing (memory only). */
+    private readonly catchupFallbackUntil = new Map<string, number>();
 
     /**
      * Construct live stream URL
@@ -246,6 +257,11 @@ export class XtreamUrlService {
             return persistedVariant;
         }
 
+        const holdKey = `${cacheKey}:${streamId}:${startTimestamp}`;
+        if ((this.catchupFallbackUntil.get(holdKey) ?? 0) > Date.now()) {
+            return XTREAM_CATCHUP_VARIANT.REST_TS;
+        }
+
         const inFlightRequest = this.catchupSchemeRequests.get(cacheKey);
         if (inFlightRequest) {
             return inFlightRequest;
@@ -253,6 +269,7 @@ export class XtreamUrlService {
 
         const request = this.detectCatchupVariant(
             cacheKey,
+            holdKey,
             credentials,
             streamId,
             startTimestamp,
@@ -268,6 +285,7 @@ export class XtreamUrlService {
 
     private async detectCatchupVariant(
         cacheKey: string,
+        holdKey: string,
         credentials: XtreamCredentials,
         streamId: number,
         startTimestamp: number,
@@ -287,7 +305,7 @@ export class XtreamUrlService {
                 continue;
             }
 
-            const status = await this.probeCatchupUrl(url);
+            const status = await this.probeCatchupUrl(url, credentials);
             if (this.isAcceptedCatchupProbeStatus(status)) {
                 this.catchupSchemeCache.set(cacheKey, variant);
                 await this.databaseService.setAppState(cacheKey, variant);
@@ -295,24 +313,39 @@ export class XtreamUrlService {
             }
         }
 
-        this.catchupSchemeCache.set(cacheKey, XTREAM_CATCHUP_VARIANT.REST_TS);
-        await this.databaseService.setAppState(
-            cacheKey,
-            XTREAM_CATCHUP_VARIANT.REST_TS
+        // Nothing proved playable: a network failure, a programme without
+        // archive, or no probe at all (PWA). Use the REST MPEG-TS fallback,
+        // but never persist it: that would pin every later catch-up of the
+        // playlist to a URL the panel may not serve. A short in-memory hold
+        // keeps replaying the same programme from costing every probe again;
+        // it is per programme, as one without archive says nothing about
+        // the playlist's other programmes.
+        this.catchupFallbackUntil.set(
+            holdKey,
+            Date.now() + XTREAM_CATCHUP_FALLBACK_TTL_MS
         );
         return XTREAM_CATCHUP_VARIANT.REST_TS;
     }
 
-    private async probeCatchupUrl(url: string): Promise<number> {
+    private async probeCatchupUrl(
+        url: string,
+        credentials: XtreamCredentials
+    ): Promise<number> {
         const probeUrl = (window.electron as XtreamProbeApi | undefined)
-            ?.xtreamProbeUrl;
+            ?.probeStreamUrl;
 
         if (typeof probeUrl !== 'function') {
             return 0;
         }
 
         try {
-            const result = await probeUrl(url, 'GET');
+            // Probe the way playback requests: a panel that requires the
+            // playlist's headers refuses a bare request.
+            const result = await probeUrl(url, 'GET', {
+                userAgent: credentials.userAgent?.trim() || null,
+                referer: credentials.referrer?.trim() || null,
+                origin: credentials.origin?.trim() || null,
+            });
             return Number(result?.status ?? 0);
         } catch {
             return 0;

@@ -21,6 +21,13 @@ import { XtreamAccountInfo } from '../account-info/account-info.interface';
  */
 export interface XtreamCredentials {
     userAgent?: string;
+    /**
+     * The playlist's playback-only headers (its `referrer` and `origin`).
+     * The JSON API ignores them; stream probes send them the way playback
+     * does, so a panel that requires them is not judged unreachable.
+     */
+    referrer?: string;
+    origin?: string;
     allowedOutputFormats?: string[];
     serverUrl: string;
     username: string;
