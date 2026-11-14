@@ -30,3 +30,4 @@ export * from './lib/stalker-similar.service';
 export * from './lib/stalker-itv-genre-loader';
 
 export * from './lib/stalker-second-stream.service';
+export * from './lib/stalker-series-positions';

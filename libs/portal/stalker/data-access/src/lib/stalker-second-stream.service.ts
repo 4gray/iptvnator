@@ -79,7 +79,9 @@ export class StalkerSecondStreamService {
         type: 'movie' | 'series',
         search: string,
         page: number,
-        signal: AbortSignal
+        signal: AbortSignal,
+        seenPages: ReadonlySet<string>,
+        exhaustedCatalogs: ReadonlySet<StalkerSearchContentType>
     ) {
         const scope = {
             ...playlist,
@@ -92,87 +94,107 @@ export class StalkerSecondStreamService {
                 ? (['series', 'vod'] as const)
                 : (['vod'] as const);
         const parts = await Promise.all(
-            catalogTypes.map(async (catalog) => {
-                const result = await loadStalkerSearchPage(
-                    this.deps,
-                    scope,
-                    catalog,
-                    search,
-                    page,
-                    { silent: true }
-                ).catch((error: unknown) => {
-                    if (type !== 'series') throw error;
-                    return null;
-                });
-                signal.throwIfAborted();
-                if (!result) return null;
-                const items: UnifiedCollectionItem[] = [];
-                for (const row of result.rawItems) {
-                    const isSeries =
-                        catalog === 'series' || isStalkerSeriesItem(row);
-                    const id = firstNonBlankStalkerIdText(
-                        row.id,
-                        row.stream_id,
-                        row.movie_id,
-                        row.series_id
+            catalogTypes
+                .filter((catalog) => !exhaustedCatalogs.has(catalog))
+                .map(async (catalog) => {
+                    const result = await loadStalkerSearchPage(
+                        this.deps,
+                        scope,
+                        catalog,
+                        search,
+                        page,
+                        { silent: true }
                     );
-                    const category = row.category_id;
-                    if (
-                        !id ||
-                        isSeries !== (type === 'series') ||
-                        this.locks.isStalkerCategoryLocked(
-                            playlist._id,
-                            catalog,
-                            category
-                        ) ||
-                        (category == null &&
-                            this.locks.lockedStalkerIds(playlist._id, catalog)
-                                .length)
-                    )
-                        continue;
-                    const info = createStalkerInfo(row);
-                    items.push({
-                        uid: buildCollectionUid(
-                            'stalker',
-                            playlist._id,
-                            `${catalog}:${id}`
-                        ),
-                        name: info.name,
-                        posterUrl: info.movie_image,
-                        contentType: type,
-                        sourceType: 'stalker',
-                        playlistId: playlist._id,
-                        playlistName: sourceSortName(playlist),
-                        stalkerId: id,
-                        categoryId: category,
-                        stalkerItem: {
-                            ...row,
-                            id,
-                            favoriteContentType: catalog,
-                        },
-                    });
-                }
-                // Portals choose the page size. Read until an empty page rather than assuming it is fixed.
-                return {
-                    items,
-                    hasMore:
-                        result.rawItems.length > 0 &&
-                        (result.totalItems == null ||
-                            result.rawItems.length < Number(result.totalItems)),
-                };
-            })
+                    signal.throwIfAborted();
+                    const pageKey = JSON.stringify([
+                        catalog,
+                        result.rawItems
+                            .map((row) =>
+                                firstNonBlankStalkerIdText(
+                                    row.id,
+                                    row.stream_id,
+                                    row.movie_id,
+                                    row.series_id,
+                                    row.name,
+                                    row.title
+                                )
+                            )
+                            .sort(),
+                    ]);
+                    if (seenPages.has(pageKey))
+                        return { items: [], hasMore: false, pageKey, catalog };
+                    const items: UnifiedCollectionItem[] = [];
+                    for (const row of result.rawItems) {
+                        const isSeries =
+                            catalog === 'series' || isStalkerSeriesItem(row);
+                        const id = firstNonBlankStalkerIdText(
+                            row.id,
+                            row.stream_id,
+                            row.movie_id,
+                            row.series_id
+                        );
+                        const category = row.category_id;
+                        if (
+                            !id ||
+                            isSeries !== (type === 'series') ||
+                            this.locks.isStalkerCategoryLocked(
+                                playlist._id,
+                                catalog,
+                                category
+                            ) ||
+                            (category == null &&
+                                this.locks.lockedStalkerIds(
+                                    playlist._id,
+                                    catalog
+                                ).length)
+                        )
+                            continue;
+                        const info = createStalkerInfo(row);
+                        items.push({
+                            uid: buildCollectionUid(
+                                'stalker',
+                                playlist._id,
+                                `${catalog}:${id}`
+                            ),
+                            name: info.name,
+                            posterUrl: info.movie_image,
+                            contentType: type,
+                            sourceType: 'stalker',
+                            playlistId: playlist._id,
+                            playlistName: sourceSortName(playlist),
+                            stalkerId: id,
+                            categoryId: category,
+                            stalkerItem: {
+                                ...row,
+                                id,
+                                favoriteContentType: catalog,
+                            },
+                        });
+                    }
+                    // Portals choose the page size. Read until an empty page rather than assuming it is fixed.
+                    return {
+                        items,
+                        pageKey,
+                        catalog,
+                        hasMore:
+                            result.rawItems.length > 0 &&
+                            (result.totalItems == null ||
+                                result.rawItems.length <
+                                    Number(result.totalItems)),
+                    };
+                })
         );
         signal.throwIfAborted();
-        const successful = parts.filter(
-            (part): part is NonNullable<typeof part> => part !== null
-        );
-        if (!successful.length) throw new Error('Stalker catalog unavailable');
         return {
-            items: successful.reduce<UnifiedCollectionItem[]>(
+            items: parts.reduce<UnifiedCollectionItem[]>(
                 (items, part) => items.concat(part.items),
                 []
             ),
-            hasMore: successful.some((part) => part.hasMore),
+            hasMore: parts.some((part) => part.hasMore),
+            pageKeys: parts.map((part) => part.pageKey),
+            exhaustedCatalogs: parts
+                .filter((part) => !part.hasMore)
+                .map((part) => part.catalog),
         };
     }
 

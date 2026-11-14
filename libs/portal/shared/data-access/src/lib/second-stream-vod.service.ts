@@ -12,7 +12,9 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import {
     StalkerSecondStreamService,
+    type StalkerSearchContentType,
     normalizeStalkerEntityIdAsNumber,
+    reconcileStalkerSeriesPositions,
 } from '@iptvnator/portal/stalker/data-access';
 import { PlaylistsService } from '@iptvnator/services';
 import type {
@@ -36,6 +38,8 @@ export type SecondStreamVodType = 'movie' | 'series';
 export interface SecondStreamVodPage {
     items: UnifiedCollectionItem[];
     hasMore: boolean;
+    pageKeys?: string[];
+    exhaustedCatalogs?: StalkerSearchContentType[];
 }
 
 export interface SecondStreamEpisode {
@@ -61,7 +65,9 @@ export class SecondStreamVodService {
         type: SecondStreamVodType,
         signal: AbortSignal,
         search: string,
-        page: number
+        page: number,
+        seenPages: ReadonlySet<string>,
+        exhaustedCatalogs: ReadonlySet<StalkerSearchContentType>
     ): Promise<SecondStreamVodPage> {
         if (!playlistId || playlistId === SECOND_STREAM_HISTORY) {
             const items = await this.collection.load(playlistId, type, signal);
@@ -80,7 +86,9 @@ export class SecondStreamVodService {
                 type,
                 search,
                 page,
-                signal
+                signal,
+                seenPages,
+                exhaustedCatalogs
             );
             return {
                 ...result,
@@ -163,13 +171,11 @@ export class SecondStreamVodService {
     ): Promise<SecondStreamEpisode[]> {
         if (series.sourceType === 'stalker') {
             const playlist = await this.stalkerPlaylist(series);
-            const mapped = await this.stalker.episodes(
-                playlist,
+            return this.positionedEpisodes(
                 series,
+                await this.stalker.episodes(playlist, series, signal),
                 signal
             );
-            this.requireStalkerAllowed(series);
-            return this.positionedEpisodes(series, mapped, signal);
         }
         const id = this.requireAllowed(series, 'series');
         const credentials = await this.credentials(series.playlistId);
@@ -292,23 +298,12 @@ export class SecondStreamVodService {
         mapped: Record<string, XtreamSerieEpisode[]>,
         signal: AbortSignal
     ): Promise<SecondStreamEpisode[]> {
-        const seriesId = normalizeStalkerEntityIdAsNumber(series.stalkerId);
-        const saved = new Map(
-            seriesId == null
-                ? []
-                : (
-                      await this.positions.getSeriesPlaybackPositions(
-                          series.playlistId,
-                          seriesId
-                      )
-                  ).map((entry) => [entry.contentXtreamId, entry])
-        );
+        const saved = await this.stalkerPositions(series, mapped);
         signal.throwIfAborted();
         this.requireStalkerAllowed(series);
         const rows: SecondStreamEpisode[] = [];
         for (const [season, episodes] of Object.entries(mapped)) {
             for (const episode of episodes) {
-                signal.throwIfAborted();
                 rows.push({
                     episode,
                     season: episode.season ?? Number(season),
@@ -317,6 +312,25 @@ export class SecondStreamVodService {
             }
         }
         return rows;
+    }
+
+    private async stalkerPositions(
+        series: UnifiedCollectionItem,
+        episodesBySeason: Record<string, XtreamSerieEpisode[]>
+    ) {
+        const seriesXtreamId = normalizeStalkerEntityIdAsNumber(
+            series.stalkerId
+        );
+        if (seriesXtreamId == null)
+            return new Map<number, PlaybackPositionData>();
+        return reconcileStalkerSeriesPositions({
+            seriesXtreamId,
+            episodesBySeason,
+            seriesPositions: await this.positions.getSeriesPlaybackPositions(
+                series.playlistId,
+                seriesXtreamId
+            ),
+        }).positionsByTrackingId;
     }
 
     private requireStalkerAllowed(item: UnifiedCollectionItem): void {
@@ -345,13 +359,19 @@ export class SecondStreamVodService {
             episode
         );
         const info = playback.contentInfo;
-        const saved = info
-            ? await this.positions.getPlaybackPosition(
-                  info.playlistId,
-                  info.contentXtreamId,
-                  info.contentType
-              )
-            : null;
+        const saved = episode
+            ? ((
+                  await this.stalkerPositions(item, {
+                      [episode.season ?? 0]: [episode],
+                  })
+              ).get(Number(episode.id)) ?? null)
+            : info
+              ? await this.positions.getPlaybackPosition(
+                    info.playlistId,
+                    info.contentXtreamId,
+                    info.contentType
+                )
+              : null;
         this.requireStalkerAllowed(item);
         return {
             item,

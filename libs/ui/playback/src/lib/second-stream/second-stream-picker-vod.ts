@@ -3,6 +3,7 @@ import {
     SecondStreamVodService,
     type SecondStreamEpisode,
     type SecondStreamVodType,
+    type SecondStreamVodPage,
 } from '@iptvnator/portal/shared/data-access';
 import {
     getPortalPlaybackProgressPercent,
@@ -25,6 +26,10 @@ export class SecondStreamPickerVod {
     private playlistId = '';
     private query = '';
     private page = 0;
+    private readonly seenPages = new Set<string>();
+    private readonly exhaustedCatalogs = new Set<
+        NonNullable<SecondStreamVodPage['exhaustedCatalogs']>[number]
+    >();
     private searchTimer?: ReturnType<typeof setTimeout>;
 
     async browse(
@@ -40,6 +45,8 @@ export class SecondStreamPickerVod {
         this.items.set([]);
         this.hasMore.set(false);
         this.page = 0;
+        this.seenPages.clear();
+        this.exhaustedCatalogs.clear();
         await this.more();
     }
 
@@ -63,7 +70,9 @@ export class SecondStreamPickerVod {
                     type,
                     signal,
                     this.query,
-                    page
+                    page,
+                    this.seenPages,
+                    this.exhaustedCatalogs
                 ),
             (result) => {
                 const alreadyLoaded = new Set(
@@ -75,6 +84,10 @@ export class SecondStreamPickerVod {
                         (item) => !alreadyLoaded.has(item.uid)
                     ),
                 ]);
+                for (const key of result.pageKeys ?? [])
+                    this.seenPages.add(key);
+                for (const catalog of result.exhaustedCatalogs ?? [])
+                    this.exhaustedCatalogs.add(catalog);
                 this.hasMore.set(result.hasMore);
                 this.page = page;
             }
