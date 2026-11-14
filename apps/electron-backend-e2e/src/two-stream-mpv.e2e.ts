@@ -383,6 +383,12 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
             name: 'Small view',
             exact: true,
         });
+        await expect(tile).toHaveCSS('position', 'fixed');
+        await expect(tile).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+        await expect(page.locator('.second-stream__video[popover]')).toHaveCSS(
+            'position',
+            'fixed'
+        );
         await tile.hover();
         const initialBox = (await tile.boundingBox())!;
         const moveTile = async (x: number, y: number, fromTitle = false) => {

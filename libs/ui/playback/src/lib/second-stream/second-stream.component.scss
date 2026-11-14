@@ -1,3 +1,5 @@
+@use './floating-surface';
+
 :host {
     position: absolute;
     inset: 0;
@@ -20,6 +22,16 @@ button,
 .second-stream__video {
     z-index: 3;
     background: #000;
+}
+.second-stream__video[popover],
+.second-stream__tile[popover] {
+    @include floating-surface.surface;
+}
+.second-stream__video[popover] {
+    @include floating-surface.frame;
+}
+.second-stream__tile[popover] {
+    background: transparent;
 }
 .second-stream__video--main {
     inset: 0;
