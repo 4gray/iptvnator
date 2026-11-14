@@ -120,7 +120,7 @@ describe('restoring Android playback checkpoints', () => {
                 ...content,
                 positionSeconds: 32,
                 durationSeconds: 90,
-                updatedAt: new Date(savedAt).toISOString(),
+                nativeCheckpointAt: new Date(savedAt).toISOString(),
             }
         );
         expect(postMessage).toHaveBeenCalledWith(

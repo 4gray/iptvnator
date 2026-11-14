@@ -185,7 +185,8 @@ export class ActivityLocalOnlyPositions {
             watched: position.watched,
             activityIdentity: position.activityIdentity,
             playlistId: sourceId,
-            updatedAt: position.updatedAt ?? new Date().toISOString(),
+            nativeCheckpointAt: position.nativeCheckpointAt,
+            updatedAt: position.nativeCheckpointAt ?? new Date().toISOString(),
         };
         this.write(sourceId, position, {
             version: 2,

@@ -163,7 +163,7 @@ function readCheckpoint(data: Checkpoint): {
                         ? info.activitySessionId
                         : undefined,
                 activityIdentity,
-                updatedAt: new Date(data.savedAt).toISOString(),
+                nativeCheckpointAt: new Date(data.savedAt).toISOString(),
                 positionSeconds: Math.floor(data.positionMs / 1000),
                 durationSeconds:
                     Math.floor(data.durationMs / 1000) || undefined,

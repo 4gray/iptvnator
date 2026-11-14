@@ -69,7 +69,8 @@ export function beginActivity(
                 position: {
                     ...position,
                     watched: result.state.watched,
-                    updatedAt: position.updatedAt ?? new Date().toISOString(),
+                    updatedAt:
+                        position.nativeCheckpointAt ?? new Date().toISOString(),
                 },
                 pending: [
                     ...(current?.pending ?? []),
@@ -260,9 +261,9 @@ export async function saveActivity(
                       resume: activityResume(position),
                       positionMetadata: {
                           ...metadata(position),
-                          ...(position.updatedAt === undefined
+                          ...(position.nativeCheckpointAt === undefined
                               ? {}
-                              : { playedAt: position.updatedAt }),
+                              : { playedAt: position.nativeCheckpointAt }),
                       },
                   }
                 : {

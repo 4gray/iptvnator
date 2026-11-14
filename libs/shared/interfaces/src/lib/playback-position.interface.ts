@@ -13,6 +13,8 @@ export interface PlaybackPositionData {
     updatedAt?: string;
     sessionId?: string;
     activitySessionId?: string;
+    /** Original time of a delayed native checkpoint, carried through activity sync. */
+    nativeCheckpointAt?: string;
     activityTitle?: string;
     activityAction?: 'mark-watched';
     activityIdentity?: import('./activity-sync/activity-sync.contract').ActivityContentIdentity;

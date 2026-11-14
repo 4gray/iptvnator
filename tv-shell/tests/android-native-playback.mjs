@@ -130,7 +130,7 @@ try {
     adb('shell', 'am', 'start', '-n', `${app}/.ui.MainActivity`);
     device = (await _android.devices({ omitDriverInstall: true })).find((item) => item.serial() === serial);
     assert.ok(device, 'Emulator was not found.');
-    const page = await (await device.webView({ pkg: app })).page();
+    let page = await (await device.webView({ pkg: app })).page();
     page.setDefaultTimeout(20000);
     await page.waitForFunction(() => window.__tvShell && !document.getElementById('initial-splash'));
     async function setExperiment(enabled) {
@@ -520,6 +520,32 @@ try {
     }, retryId)).toBeGreaterThanOrEqual(8);
     assert.equal(await page.evaluate(() => window.__nativeResults), 1,
         'Checkpoint retry must not replay the original playback result.');
+    const persistedId = 'synthetic-relaunch-' + randomUUID();
+    await page.evaluate(({ url, playlistId }) => {
+        window.__allowPositionWrite = false;
+        window.__positionWriteAttempts = 0;
+        window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), {
+            url, startTime: 8, checkpoint: {
+                profile: 'iptvnator', playlistId, contentType: 'vod', contentXtreamId: 19,
+            },
+        }]));
+    }, { url: origin + '/synthetic-ac3.mkv', playlistId: persistedId });
+    await waitNative();
+    await waitAudio();
+    await back();
+    await expect.poll(() => page.evaluate(() => window.__positionWriteAttempts)).toBeGreaterThan(0);
+    adb('shell', 'am', 'force-stop', app);
+    await device.close();
+    adb('shell', 'am', 'start', '-n', `${app}/.ui.MainActivity`);
+    device = (await _android.devices({ omitDriverInstall: true })).find((item) => item.serial() === serial);
+    const restoredPage = await (await device.webView({ pkg: app })).page();
+    await expect.poll(() => restoredPage.evaluate((id) => {
+        const stored = JSON.parse(localStorage.getItem('xtream-playback-positions') || '{}');
+        return stored[id]?.find((item) => item.contentXtreamId === 19)?.positionSeconds;
+    }, persistedId)).toBeGreaterThanOrEqual(8);
+    page = restoredPage;
+    page.setDefaultTimeout(20000);
+    await page.goto(channelRoute);
     await entry('Synthetic Unplayable').click();
     await expect(stage.locator('app-playback-diagnostic-panel')).toBeVisible();
     await expect(action).toBeVisible();

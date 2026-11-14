@@ -61,9 +61,10 @@ export class PwaPlaybackPositions {
         );
 
         // Add new entry
+        const { nativeCheckpointAt, ...position } = data;
         allPositions[playlistId].push({
-            ...data,
-            updatedAt: data.updatedAt ?? new Date().toISOString(),
+            ...position,
+            updatedAt: nativeCheckpointAt ?? new Date().toISOString(),
         });
 
         this.savePlaybackPositionsToStorage(allPositions);

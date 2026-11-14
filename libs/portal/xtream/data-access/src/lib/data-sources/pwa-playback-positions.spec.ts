@@ -31,7 +31,7 @@ describe('Android playback position resets', () => {
             position({
                 contentType: 'episode',
                 contentXtreamId: 101,
-                updatedAt: older,
+                nativeCheckpointAt: older,
             })
         );
         const recent =
