@@ -560,6 +560,8 @@
         "STREAM_FORMAT_DESCRIPTION": "Varsayılan yayın formatını seçin (xtream)",
         "LANGUAGE_DESCRIPTION": "Uygulamanın dilini seçin",
         "THEME_DESCRIPTION": "Uygulamanın görünüm temasını seçin",
+        "THEME_ACCENT": "Vurgu rengi",
+        "THEME_ACCENT_DESCRIPTION": "Seçimi, ilerlemeyi ve odağı vurgular. Parlaklığı her temaya uyum sağlar, böylece metin okunaklı kalır.",
         "COVER_SIZE": "Kapak boyutu",
         "COVER_SIZE_DESCRIPTION": "Izgaralar ve raylar genelinde poster kartlarının boyutunu ayarlayın. Daha büyük boyutların TV'lerde görülmesi daha kolaydır; daha küçük boyutlar büyük monitörlerde satır başına daha fazla içerik gösterir.",
         "COVER_SIZE_SMALL": "Küçük",
@@ -803,7 +805,15 @@
         "SYSTEM_DESCRIPTION": "Sistem, cihazınızın açık veya koyu görünümünü izler.",
         "DARK_THEME": "Koyu",
         "LIGHT_THEME": "Açık",
-        "SYSTEM_THEME": "Sistem"
+        "SYSTEM_THEME": "Sistem",
+        "ACCENT_THEME": "Tema rengi",
+        "ACCENT_BLUE": "Mavi",
+        "ACCENT_TEAL": "Camgöbeği",
+        "ACCENT_GREEN": "Yeşil",
+        "ACCENT_AMBER": "Kehribar",
+        "ACCENT_CORAL": "Mercan",
+        "ACCENT_MAGENTA": "Macenta",
+        "ACCENT_VIOLET": "Mor"
     },
     "AUDIO_PLAYER": {
         "PLAY": "Oynat",

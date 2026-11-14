@@ -560,6 +560,8 @@
         "STREAM_FORMAT_DESCRIPTION": "Auto bevorzugt HLS. Schlägt Live-TV in MPV, VLC oder Embedded MPV fehl, den Player stoppen, ts wählen, speichern und den Sender erneut öffnen. Webplayer können bei einem anfänglichen HLS-HTTP-Fehler einmal angebotenes TS versuchen.",
         "LANGUAGE_DESCRIPTION": "Wählen Sie die Sprache der Anwendung aus",
         "THEME_DESCRIPTION": "Wählen Sie das visuelle Thema der Anwendung aus",
+        "THEME_ACCENT": "Akzentfarbe",
+        "THEME_ACCENT_DESCRIPTION": "Hebt Auswahl, Fortschritt und Fokus hervor. Die Helligkeit passt sich jedem Design an, damit Text lesbar bleibt.",
         "COVER_SIZE": "Cover-Größe",
         "COVER_SIZE_DESCRIPTION": "Passt die Größe der Poster-Karten in Rastern und Reihen an. Größere Werte sind auf Fernsehern besser zu sehen; kleinere Werte zeigen auf großen Monitoren mehr Inhalte pro Reihe.",
         "COVER_SIZE_SMALL": "Klein",
@@ -803,7 +805,15 @@
         "SYSTEM_DESCRIPTION": "System folgt dem hellen oder dunklen Erscheinungsbild deines Geräts.",
         "DARK_THEME": "Dunkel",
         "LIGHT_THEME": "Hell",
-        "SYSTEM_THEME": "System"
+        "SYSTEM_THEME": "System",
+        "ACCENT_THEME": "Farbe des Designs",
+        "ACCENT_BLUE": "Blau",
+        "ACCENT_TEAL": "Türkis",
+        "ACCENT_GREEN": "Grün",
+        "ACCENT_AMBER": "Bernstein",
+        "ACCENT_CORAL": "Koralle",
+        "ACCENT_MAGENTA": "Magenta",
+        "ACCENT_VIOLET": "Violett"
     },
     "AUDIO_PLAYER": {
         "PLAY": "Wiedergabe",

@@ -560,6 +560,8 @@
         "STREAM_FORMAT_DESCRIPTION": "选择默认的流格式（xtream）",
         "LANGUAGE_DESCRIPTION": "选择应用程序的语言",
         "THEME_DESCRIPTION": "选择应用程序的视觉主题",
+        "THEME_ACCENT": "强调色",
+        "THEME_ACCENT_DESCRIPTION": "突出显示选中项、进度和焦点。亮度会随主题自动调整，确保文字清晰可读。",
         "COVER_SIZE": "封面尺寸",
         "COVER_SIZE_DESCRIPTION": "调整网格和导轨中海报卡片的尺寸。较大的尺寸更适合在电视上观看；较小的尺寸可在大显示器上每行显示更多内容。",
         "COVER_SIZE_SMALL": "小",
@@ -803,7 +805,15 @@
         "SYSTEM_DESCRIPTION": "系统主题跟随设备的浅色或深色外观。",
         "DARK_THEME": "深色",
         "LIGHT_THEME": "浅色",
-        "SYSTEM_THEME": "跟随系统"
+        "SYSTEM_THEME": "跟随系统",
+        "ACCENT_THEME": "主题颜色",
+        "ACCENT_BLUE": "蓝色",
+        "ACCENT_TEAL": "青色",
+        "ACCENT_GREEN": "绿色",
+        "ACCENT_AMBER": "琥珀色",
+        "ACCENT_CORAL": "珊瑚色",
+        "ACCENT_MAGENTA": "洋红色",
+        "ACCENT_VIOLET": "紫罗兰色"
     },
     "AUDIO_PLAYER": {
         "PLAY": "播放",

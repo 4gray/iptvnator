@@ -5,6 +5,7 @@ import {
     StartupBehavior,
     StartupWindowMode,
     Theme,
+    ThemeAccent,
     ThemePreset,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
@@ -23,6 +24,12 @@ export interface SettingsSection {
 export interface ThemeOption {
     value: Theme;
     presetId?: ThemePreset['id'];
+    labelKey: string;
+}
+
+/** `null` keeps the theme's own selection colour. */
+export interface ThemeAccentOption {
+    value: ThemeAccent | null;
     labelKey: string;
 }
 

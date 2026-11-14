@@ -1772,6 +1772,24 @@ localized naming, and computed contrast/persistence coverage. Do not introduce
 per-component preset conditions or duplicate sample-only palettes. Typography,
 spacing, media artwork and the fixed over-video control palette stay unchanged.
 
+An optional accent (`themeAccent`, ids in
+`libs/shared/interfaces/src/lib/theme-accent.ts`) lays a user colour over any
+preset; a missing or `null` value keeps the preset's own selection colour and
+sets nothing. `SettingsService` reads the active preset's surface tokens,
+derives the selection, selection-text, on-selection, focus-ring and Material
+primary roles in `theme-accent-tokens.ts`, and sets them inline on `<body>`
+with a `data-theme-accent` attribute. Only the accent's OKLCH lightness moves:
+the selection colour keeps 3:1 against every surface (4.5:1 on dark presets,
+which also use it as selected-row text) and the text roles keep 4.5:1, also on
+the strongest selection tint. The roles are re-derived on every theme change,
+including System's OS switches. `data-theme-accent` is a component-token
+boundary in `m3-theme.scss`, because light presets otherwise resolve Material
+component colours on `html`. The swatches preview each accent in the colour it
+takes on the current theme; the "theme colour" swatch reads the preset's own
+colour from a `data-theme-preview` context. Previews, Save and Discard work as
+for the theme. The accent's specs read the shipped palettes, so a new preset
+or palette change re-runs every accent's contrast check.
+
 
 ### Light Theme
 

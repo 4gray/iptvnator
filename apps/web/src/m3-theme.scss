@@ -110,7 +110,10 @@ $material-components: (
 // ─── Apply Themes ────────────────────────────────────────────────────────────
 // Re-declare aliases at each color boundary: CSS custom properties resolve
 // where declared, so aliases inherited from html would keep the light colors.
+// `data-theme-accent` marks the body that carries a user accent's primary
+// roles inline (SettingsService); without it light themes keep html's.
 html,
+html [data-theme-accent],
 html .dark-theme,
 html [data-app-theme='cream'],
 html [data-app-theme='mocha'],

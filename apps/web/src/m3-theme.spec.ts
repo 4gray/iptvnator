@@ -278,3 +278,20 @@ describe('theme preset text palettes', () => {
         }
     });
 });
+
+describe('m3-theme accent boundary', () => {
+    it('re-declares Material component colours where a user accent applies', () => {
+        // SettingsService sets the accent's primary roles inline on body;
+        // component tokens inherited from html would keep the theme's own.
+        themeContexts();
+        const css = compiledThemes.get(THEME) ?? '';
+        const accentRule = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].find(
+            ([, selectors, body]) =>
+                selectors
+                    .split(',')
+                    .some((value) => value.trim() === 'html [data-theme-accent]') &&
+                body.includes('var(--mat-sys-primary)')
+        );
+        expect(accentRule).toBeDefined();
+    });
+});

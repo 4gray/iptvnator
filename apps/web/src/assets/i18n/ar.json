@@ -560,6 +560,8 @@
         "STREAM_FORMAT_DESCRIPTION": "اختر تنسيق البث الافتراضي (xtream)",
         "LANGUAGE_DESCRIPTION": "اختر لغة التطبيق",
         "THEME_DESCRIPTION": "اختر السمة البصرية للتطبيق",
+        "THEME_ACCENT": "لون التمييز",
+        "THEME_ACCENT_DESCRIPTION": "يُبرز التحديد والتقدّم والتركيز. يتكيّف سطوعه مع كل سمة ليبقى النص مقروءًا.",
         "COVER_SIZE": "حجم الغلاف",
         "COVER_SIZE_DESCRIPTION": "اضبط حجم بطاقات الملصقات في الشبكات والصفوف. الأحجام الأكبر أسهل للرؤية على شاشات التلفاز؛ والأحجام الأصغر تعرض محتوى أكثر في كل صف على الشاشات الكبيرة.",
         "COVER_SIZE_SMALL": "صغير",
@@ -803,7 +805,15 @@
         "SYSTEM_DESCRIPTION": "يتبع خيار النظام المظهر الفاتح أو الداكن لجهازك.",
         "DARK_THEME": "داكن",
         "LIGHT_THEME": "فاتح",
-        "SYSTEM_THEME": "النظام"
+        "SYSTEM_THEME": "النظام",
+        "ACCENT_THEME": "لون السمة",
+        "ACCENT_BLUE": "أزرق",
+        "ACCENT_TEAL": "أزرق مخضر",
+        "ACCENT_GREEN": "أخضر",
+        "ACCENT_AMBER": "كهرماني",
+        "ACCENT_CORAL": "مرجاني",
+        "ACCENT_MAGENTA": "أرجواني",
+        "ACCENT_VIOLET": "بنفسجي"
     },
     "AUDIO_PLAYER": {
         "PLAY": "تشغيل",

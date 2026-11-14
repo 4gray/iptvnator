@@ -560,6 +560,8 @@
         "STREAM_FORMAT_DESCRIPTION": "Wybierz domyślny format strumienia (xtream)",
         "LANGUAGE_DESCRIPTION": "Wybierz język aplikacji",
         "THEME_DESCRIPTION": "Wybierz motyw wizualny aplikacji",
+        "THEME_ACCENT": "Kolor akcentu",
+        "THEME_ACCENT_DESCRIPTION": "Wyróżnia zaznaczenie, postęp i fokus. Jasność dopasowuje się do motywu, aby tekst pozostał czytelny.",
         "COVER_SIZE": "Rozmiar okładek",
         "COVER_SIZE_DESCRIPTION": "Dostosuj rozmiar plakatów w siatkach i karuzelach. Większe rozmiary są łatwiejsze do oglądania na telewizorach; mniejsze pokazują więcej treści w jednym wierszu na dużych monitorach.",
         "COVER_SIZE_SMALL": "Mały",
@@ -803,7 +805,15 @@
         "SYSTEM_DESCRIPTION": "Motyw systemowy podąża za jasnym lub ciemnym wyglądem urządzenia.",
         "DARK_THEME": "Ciemny",
         "LIGHT_THEME": "Jasny",
-        "SYSTEM_THEME": "Systemowy"
+        "SYSTEM_THEME": "Systemowy",
+        "ACCENT_THEME": "Kolor motywu",
+        "ACCENT_BLUE": "Niebieski",
+        "ACCENT_TEAL": "Morski",
+        "ACCENT_GREEN": "Zielony",
+        "ACCENT_AMBER": "Bursztynowy",
+        "ACCENT_CORAL": "Koralowy",
+        "ACCENT_MAGENTA": "Purpurowy",
+        "ACCENT_VIOLET": "Fioletowy"
     },
     "AUDIO_PLAYER": {
         "PLAY": "Odtwórz",

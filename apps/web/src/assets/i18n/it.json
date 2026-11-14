@@ -560,6 +560,8 @@
         "STREAM_FORMAT_DESCRIPTION": "Seleziona il formato di streaming predefinito (xtream)",
         "LANGUAGE_DESCRIPTION": "Seleziona la lingua dell'applicazione",
         "THEME_DESCRIPTION": "Seleziona il tema visivo dell'applicazione",
+        "THEME_ACCENT": "Colore di accento",
+        "THEME_ACCENT_DESCRIPTION": "Evidenzia selezione, avanzamento e focus. La luminosità si adatta a ogni tema per mantenere il testo leggibile.",
         "COVER_SIZE": "Dimensione copertine",
         "COVER_SIZE_DESCRIPTION": "Regola la dimensione delle schede poster nelle griglie e nei carousel. Le dimensioni più grandi sono più leggibili sulle TV; quelle più piccole mostrano più contenuti per riga sui monitor grandi.",
         "COVER_SIZE_SMALL": "Piccola",
@@ -803,7 +805,15 @@
         "SYSTEM_DESCRIPTION": "Sistema segue l’aspetto chiaro o scuro del dispositivo.",
         "DARK_THEME": "Scuro",
         "LIGHT_THEME": "Chiaro",
-        "SYSTEM_THEME": "Sistema"
+        "SYSTEM_THEME": "Sistema",
+        "ACCENT_THEME": "Colore del tema",
+        "ACCENT_BLUE": "Blu",
+        "ACCENT_TEAL": "Verde acqua",
+        "ACCENT_GREEN": "Verde",
+        "ACCENT_AMBER": "Ambra",
+        "ACCENT_CORAL": "Corallo",
+        "ACCENT_MAGENTA": "Magenta",
+        "ACCENT_VIOLET": "Viola"
     },
     "AUDIO_PLAYER": {
         "PLAY": "Riproduci",

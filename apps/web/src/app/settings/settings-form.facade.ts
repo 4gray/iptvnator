@@ -18,7 +18,9 @@ import {
     CoverSize,
     EpgViewMode,
     Language,
+    normalizeThemeAccent,
     Theme,
+    ThemeAccent,
 } from '@iptvnator/shared/interfaces';
 import { SettingsSnackbarService } from './settings-snackbar.service';
 import { SettingsStore } from '../services/settings-store.service';
@@ -139,6 +141,8 @@ export class SettingsFormFacade {
             ageRatingCountry: normalizeAgeRatingCountry(
                 currentSettings.ageRatingCountry
             ),
+            // Settings saved before accents existed have no value to patch.
+            themeAccent: normalizeThemeAccent(currentSettings.themeAccent),
         });
         this.syncDashboardControlsEnabledState(
             currentSettings.showDashboard ?? true
@@ -183,6 +187,16 @@ export class SettingsFormFacade {
 
         this.patchAndMarkDirty({ theme }, 'theme');
         this.settingsService.changeTheme(theme);
+    }
+
+    /** Previews immediately like the theme; the write happens on Save. */
+    selectThemeAccent(themeAccent: ThemeAccent | null): void {
+        if ((this.form.value.themeAccent ?? null) === themeAccent) {
+            return;
+        }
+
+        this.patchAndMarkDirty({ themeAccent }, 'themeAccent');
+        this.settingsService.changeThemeAccent(themeAccent);
     }
 
     /**
@@ -333,6 +347,10 @@ export class SettingsFormFacade {
             this.settingsService.changeTheme(
                 this.savedSnapshot.theme ?? Theme.SystemTheme
             );
+        }
+        const savedAccent = this.savedSnapshot.themeAccent ?? null;
+        if ((this.form.value.themeAccent ?? null) === savedAccent) {
+            this.settingsService.changeThemeAccent(savedAccent);
         }
     }
 
