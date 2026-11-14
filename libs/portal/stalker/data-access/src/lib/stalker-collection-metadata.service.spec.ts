@@ -30,9 +30,11 @@ describe('received Stalker collection metadata', () => {
     let metadata: jest.Mock;
     let current: Playlist;
     let version: number;
+    let isStalkerCategoryLocked: jest.Mock;
     beforeEach(() => {
         current = { ...source };
         version = 0;
+        isStalkerCategoryLocked = jest.fn(() => false);
         metadata = jest.fn(async () => fresh);
         TestBed.configureTestingModule({
             providers: [
@@ -43,7 +45,10 @@ describe('received Stalker collection metadata', () => {
                 },
                 {
                     provide: ParentalLockService,
-                    useValue: { version: () => version },
+                    useValue: {
+                        version: () => version,
+                        isStalkerCategoryLocked,
+                    },
                 },
                 {
                     provide: StalkerFavoritePlaybackResolver,
@@ -86,6 +91,60 @@ describe('received Stalker collection metadata', () => {
             expect(JSON.stringify(projected)).not.toContain(fresh.cmd);
             expect(playlist.favorites[0]).toEqual(item);
             expect(service.revision()).toBe(1);
+        }
+    );
+
+    it('shows saved favorite artwork on matching history before portal hydration', () => {
+        const recent = { ...sparse, added_at: '2026-01-01T00:00:00Z' };
+        const playlist = {
+            ...source,
+            favorites: [{ ...fresh, cover: '/artwork/synthetic.jpg' }],
+            recentlyViewed: [recent],
+        };
+
+        const projected = service.project(playlist).recentlyViewed?.[0];
+        expect(projected).toEqual({
+            ...recent,
+            cover: 'https://portal.example/artwork/synthetic.jpg',
+        });
+        expect(recent).not.toHaveProperty('cover');
+    });
+
+    it('keeps artwork already on the history entry', () => {
+        const recent = {
+            ...sparse,
+            cover: 'https://artwork.example/history.jpg',
+        };
+        const playlist = {
+            ...source,
+            favorites: [fresh],
+            recentlyViewed: [recent],
+        };
+
+        expect(service.project(playlist).recentlyViewed?.[0]).toBe(recent);
+    });
+
+    it.each(['kind', 'mode', 'lock'] as const)(
+        'withholds the saved favorite poster when the %s differs',
+        (reason) => {
+            const favorite = { ...fresh, category_id: '99' };
+            if (reason === 'kind') favorite.series = [];
+            if (reason === 'mode') {
+                favorite.series = [];
+                favorite.is_series = true;
+            }
+            if (reason === 'lock') {
+                isStalkerCategoryLocked.mockImplementation(
+                    (_id, _kind, category) => category === '99'
+                );
+            }
+            const playlist = {
+                ...source,
+                favorites: [favorite],
+                recentlyViewed: [sparse],
+            };
+
+            expect(service.project(playlist).recentlyViewed?.[0]).toBe(sparse);
         }
     );
 

@@ -745,6 +745,10 @@ internal row ID consistently. Import completion reconciles links and saved
 metadata; detail enrichment also updates the snapshot. Known identity conflicts
 remain unresolved. See [Xtream compatibility](./xtream-portal-compatibility.md#durable-electron-favorites).
 
+The lookup returns the catalog row's `tmdb_id` and `release_year` with its
+title and poster. Synchronized Xtream history uses those returned fields to
+confirm the match before showing the catalog title and artwork.
+
 The lookup also accepts an optional local `categoryId` restriction, independent
 of TMDB/year evidence. Cold detail Back uses it to verify route membership before
 recovering another category; duplicate typed provider IDs retain their original
