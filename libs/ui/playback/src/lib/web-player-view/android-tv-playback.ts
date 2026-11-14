@@ -113,10 +113,7 @@ export class AndroidTvPlayback {
                     ? Math.max(0, data.playedMs) / 1000
                     : 0;
                 if (played > 0 || data.started === true)
-                    this.onStarted(
-                        played,
-                        !session.live || data.ended !== true
-                    );
+                    this.onStarted(played, !session.live);
                 if (this.ownedSession()?.id !== id) return;
                 if (data.durationMs > 0 || data.positionMs > 0) {
                     const currentTime = data.positionMs / 1000;
@@ -131,7 +128,10 @@ export class AndroidTvPlayback {
                     );
                 }
             }
-            if (data.ended === true && this.ownedSession()?.id === id) {
+            if (
+                (session.live || data.ended === true) &&
+                this.ownedSession()?.id === id
+            ) {
                 this.onEnded();
             }
         };

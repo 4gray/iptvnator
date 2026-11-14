@@ -23,6 +23,7 @@ export function installAndroidPlaybackCheckpoint(
 ) {
     const positions = inject(PORTAL_PLAYBACK_POSITIONS);
     const pending = new Set<string>();
+    const newest = new Map<string, number>();
     let writes = Promise.resolve();
     window.addEventListener(checkpointEvent, (event) => {
         if (!(event instanceof CustomEvent)) return;
@@ -35,16 +36,27 @@ export function installAndroidPlaybackCheckpoint(
         )
             return;
         pending.add(data.id);
+        const position = readCheckpoint(data);
+        const key =
+            position &&
+            JSON.stringify([
+                position[0],
+                position[1].contentType,
+                position[1].contentXtreamId,
+            ]);
+        if (key) newest.set(key, Math.max(data.savedAt, newest.get(key) ?? 0));
         writes = writes
             .then(async () => {
-                const position = readCheckpoint(data);
-                if (position) {
+                if (position && key) {
+                    // A failing newer checkpoint must still take priority over an older one.
+                    if ((newest.get(key) ?? 0) > data.savedAt) return;
                     const [playlistId, record] = position;
                     const previous = await positions.getPlaybackPosition(
                         playlistId,
                         record.contentXtreamId,
                         record.contentType
                     );
+                    if ((newest.get(key) ?? 0) > data.savedAt) return;
                     const previousSavedAt = Date.parse(
                         previous?.updatedAt ?? ''
                     );
@@ -58,6 +70,7 @@ export function installAndroidPlaybackCheckpoint(
                         );
                         announceActivityChange();
                     }
+                    if (newest.get(key) === data.savedAt) newest.delete(key);
                 }
                 shell.postMessage(
                     JSON.stringify([

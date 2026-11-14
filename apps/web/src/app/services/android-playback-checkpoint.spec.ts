@@ -151,6 +151,29 @@ describe('restoring Android playback checkpoints', () => {
         );
     });
 
+    it('keeps a failed newer checkpoint ahead of an older position for the same episode', async () => {
+        const newer = {
+            id: '00000000-0000-4000-8000-000000000002',
+            savedAt: savedAt + 1000,
+            positionMs: 54_000,
+        };
+        savePlaybackPositionOrThrow.mockRejectedValueOnce(
+            new Error('Synthetic storage failure')
+        );
+        await Promise.all([deliver(newer), deliver()]);
+        expect(savePlaybackPositionOrThrow).toHaveBeenCalledTimes(1);
+        expect(postMessage).not.toHaveBeenCalled();
+
+        await deliver(newer);
+        expect(savePlaybackPositionOrThrow).toHaveBeenLastCalledWith(
+            content.playlistId,
+            expect.objectContaining({ positionSeconds: 54 })
+        );
+        expect(postMessage).toHaveBeenLastCalledWith(
+            JSON.stringify(['acknowledgeNativePlaybackCheckpoint', newer.id])
+        );
+    });
+
     it('keeps a nonzero position when the duration is unknown', async () => {
         await deliver({ durationMs: 0 });
         expect(savePlaybackPositionOrThrow).toHaveBeenCalledWith(
