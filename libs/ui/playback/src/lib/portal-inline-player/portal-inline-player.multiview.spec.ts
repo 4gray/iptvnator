@@ -6,6 +6,7 @@ import {
     MultiviewSessionStore,
     type MultiviewTileSource,
 } from '@iptvnator/playback/multiview/data-access';
+import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util/tokens';
 import { SettingsStore } from '@iptvnator/services';
 import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import type { PortalInlinePlayerComponent as PortalInlinePlayerInstance } from './portal-inline-player.component';
@@ -58,6 +59,7 @@ describe('PortalInlinePlayerComponent multiview anchor', () => {
     let WebPlayerViewComponent: typeof import('../web-player-view/web-player-view.component').WebPlayerViewComponent;
     let fixture: ComponentFixture<PortalInlinePlayerInstance>;
     let component: PortalInlinePlayerInstance;
+    const savePlaybackPosition = jest.fn().mockResolvedValue(undefined);
 
     beforeAll(async () => {
         ({ PortalInlinePlayerComponent } =
@@ -73,6 +75,10 @@ describe('PortalInlinePlayerComponent multiview anchor', () => {
                 {
                     provide: SettingsStore,
                     useValue: { player: signal(VideoPlayer.ArtPlayer) },
+                },
+                {
+                    provide: PORTAL_PLAYBACK_POSITIONS,
+                    useValue: { savePlaybackPosition },
                 },
             ],
         })
@@ -98,7 +104,10 @@ describe('PortalInlinePlayerComponent multiview anchor', () => {
         fixture.detectChanges();
     });
 
-    afterEach(() => fixture?.destroy());
+    afterEach(() => {
+        fixture?.destroy();
+        savePlaybackPosition.mockClear();
+    });
 
     const inlinePlayer = (): HTMLElement | null =>
         fixture.nativeElement.querySelector('app-web-player-view');
@@ -162,6 +171,30 @@ describe('PortalInlinePlayerComponent multiview anchor', () => {
             .persistPosition?.({ currentTime: 95, duration: 5400 });
 
         expect(progress).toEqual([95]);
+    });
+
+    it('saves tile 1 through the runtime position store once the page moved on', () => {
+        startSession();
+        const tileOne = TestBed.inject(MultiviewSessionStore).tiles()[0];
+        fixture.componentRef.setInput('playback', {
+            streamUrl: 'https://stream.example/movie/8.mp4',
+            title: 'Synthetic Movie 2',
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 8,
+                contentType: 'vod',
+            },
+        });
+
+        tileOne.persistPosition?.({ currentTime: 120, duration: 5400 });
+
+        expect(savePlaybackPosition).toHaveBeenCalledWith(
+            'playlist-1',
+            expect.objectContaining({
+                contentXtreamId: 7,
+                positionSeconds: 120,
+            })
+        );
     });
 
     it('keeps the title row visible during the session', () => {

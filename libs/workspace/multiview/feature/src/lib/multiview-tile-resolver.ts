@@ -10,9 +10,10 @@ import {
     createInlinePlaybackPositionWriter,
     getLiveCollectionPlaylistNavigation,
     getUnifiedCollectionDetailNavigation,
+    PORTAL_PLAYBACK_POSITIONS,
     type UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
-import { PlaybackPositionService, PlaylistsService } from '@iptvnator/services';
+import { PlaylistsService } from '@iptvnator/services';
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import { firstValueFrom } from 'rxjs';
 import {
@@ -50,7 +51,7 @@ export function isPickableRow(row: MultiviewPickerRow): boolean {
 export class MultiviewTileResolverService {
     private readonly catalog = inject(MultiviewCatalogService);
     private readonly vod = inject(VodSourceResolverService);
-    private readonly positions = inject(PlaybackPositionService);
+    private readonly positions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly router = inject(Router);
     private readonly playlists = inject(PlaylistsService);
     private readonly streams = inject(StreamResolverService);

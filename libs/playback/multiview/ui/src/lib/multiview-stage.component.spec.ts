@@ -476,7 +476,8 @@ describe('MultiviewStageComponent', () => {
         });
     });
 
-    it('keeps the view player volume on tile 1', () => {
+    it('keeps the view player volume on tile 1 and the saved one on added tiles', () => {
+        localStorage.setItem('volume', '0.25');
         store.start(
             'xtream-live',
             { ...source('movie', 'vod', 1), volume: 0.4 },
@@ -487,7 +488,8 @@ describe('MultiviewStageComponent', () => {
         fixture.detectChanges();
 
         expect(players()[0].volume()).toBe(0.4);
-        expect(players()[1].volume()).toBe(1);
+        expect(players()[1].volume()).toBe(0.25);
+        localStorage.removeItem('volume');
     });
 
     it('offers Undo when a tile is replaced (R6)', () => {

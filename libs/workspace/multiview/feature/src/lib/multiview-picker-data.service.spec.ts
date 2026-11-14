@@ -6,11 +6,11 @@ import {
     UnifiedFavoritesDataService,
     UnifiedRecentDataService,
 } from '@iptvnator/portal/shared/data-access';
-import { collectionEpgKey } from '@iptvnator/portal/shared/util';
 import {
-    ParentalLockService,
-    PlaybackPositionService,
-} from '@iptvnator/services';
+    collectionEpgKey,
+    PORTAL_PLAYBACK_POSITIONS,
+} from '@iptvnator/portal/shared/util';
+import { ParentalLockService } from '@iptvnator/services';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { MultiviewOnScreenSources } from './multiview-on-screen';
 import { liveItem, movieItem, tile } from './multiview-picker.fixtures';
@@ -103,7 +103,7 @@ describe('MultiviewPickerDataService', () => {
                 { provide: UnifiedRecentDataService, useValue: recent },
                 { provide: MultiviewCatalogService, useValue: catalog },
                 { provide: StreamResolverService, useValue: resolver },
-                { provide: PlaybackPositionService, useValue: positions },
+                { provide: PORTAL_PLAYBACK_POSITIONS, useValue: positions },
                 {
                     provide: ParentalLockService,
                     useValue: { withholdsEverything },

@@ -1,6 +1,11 @@
 import { ipcMain } from 'electron';
 import {
+    trackRequestHeaderOwner,
+    untrackRequestHeaderOwner,
+} from '../services/request-header-owner-lifetime';
+import {
     configureRequestHeaderOverride,
+    DEFAULT_SCOPED_OVERRIDE_OWNER,
     releaseRequestHeaderOwner,
     type StreamCredentialHeaders,
 } from '../services/request-header-overrides.service';
@@ -32,23 +37,29 @@ function sanitizeOwnerId(value: unknown): string | undefined {
 }
 
 /** A multiview tile's player is gone: forget its header owner. */
-ipcMain.handle('release-header-owner', (_event, ownerId) => {
+ipcMain.handle('release-header-owner', (event, ownerId) => {
     const owner = sanitizeOwnerId(ownerId);
-    if (owner) releaseRequestHeaderOwner(owner);
+    if (!owner) return true;
+    releaseRequestHeaderOwner(owner);
+    if (event?.sender) untrackRequestHeaderOwner(event.sender.id, owner);
     return true;
 });
 
 ipcMain.handle(
     'set-user-agent',
-    (_event, userAgent, referer, scopeUrl, credentials, origin, ownerId) => {
+    (event, userAgent, referer, scopeUrl, credentials, origin, ownerId) => {
+        const owner = sanitizeOwnerId(ownerId);
         setUserAgent(
             userAgent,
             referer,
             scopeUrl,
             sanitizeCredentials(credentials),
             origin,
-            sanitizeOwnerId(ownerId)
+            owner
         );
+        // A reload or crash skips the tile's release: tie it to its page.
+        if (owner && owner !== DEFAULT_SCOPED_OVERRIDE_OWNER && event?.sender)
+            trackRequestHeaderOwner(event.sender, owner);
         return true;
     }
 );

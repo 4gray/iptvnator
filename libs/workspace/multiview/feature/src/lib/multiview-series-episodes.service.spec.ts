@@ -3,7 +3,8 @@ import {
     XtreamApiService,
     XtreamUrlService,
 } from '@iptvnator/portal/xtream/data-access';
-import { PlaybackPositionService, PlaylistsService } from '@iptvnator/services';
+import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
+import { PlaylistsService } from '@iptvnator/services';
 import { of } from 'rxjs';
 import { movieItem, tile } from './multiview-picker.fixtures';
 import { MultiviewSeriesEpisodesService } from './multiview-series-episodes.service';
@@ -60,7 +61,7 @@ describe('MultiviewSeriesEpisodesService', () => {
                 },
                 { provide: MultiviewXtreamLock, useValue: { isLocked } },
                 {
-                    provide: PlaybackPositionService,
+                    provide: PORTAL_PLAYBACK_POSITIONS,
                     useValue: {
                         getSeriesPlaybackPositions,
                         savePlaybackPosition,

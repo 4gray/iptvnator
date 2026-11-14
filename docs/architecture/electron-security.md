@@ -223,7 +223,11 @@ exact stream URL, so another tile's headers never reach that stream; an owner
 with headers on the same URL (a player restored after a session) outranks the
 claim. A tile whose player is gone is forgotten through
 `releaseHeaderOwner(ownerId)` (`release-header-owner`), which is distinct
-from configuring it without headers. The playlist-wide override (a call
+from configuring it without headers. Named owners are also tied to the page
+that configured them (`request-header-owner-lifetime.ts`): when that page
+loads a new document, crashes or closes, which skips the renderer's own
+teardown, its owners are released, so a tile's headers never reach the
+requests of the page after it. The playlist-wide override (a call
 without a scope URL) belongs to one playlist: requests on an origin a named
 owner covers do not get it, so a tile of another source never inherits its
 User-Agent, Referer or Origin. Without named owners — every single-player

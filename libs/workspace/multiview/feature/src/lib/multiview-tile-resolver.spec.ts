@@ -4,7 +4,8 @@ import {
     StreamResolverService,
     VodSourceResolverService,
 } from '@iptvnator/portal/shared/data-access';
-import { PlaybackPositionService, PlaylistsService } from '@iptvnator/services';
+import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
+import { PlaylistsService } from '@iptvnator/services';
 import { of } from 'rxjs';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { liveItem, movieItem } from './multiview-picker.fixtures';
@@ -36,7 +37,7 @@ describe('MultiviewTileResolverService', () => {
                 { provide: StreamResolverService, useValue: streams },
                 { provide: MultiviewXtreamLock, useValue: { isLocked } },
                 { provide: VodSourceResolverService, useValue: vod },
-                { provide: PlaybackPositionService, useValue: positions },
+                { provide: PORTAL_PLAYBACK_POSITIONS, useValue: positions },
                 {
                     provide: PlaylistsService,
                     useValue: { getPlaylistById: () => of(playlist) },

@@ -8,12 +8,10 @@ import {
 } from '@iptvnator/portal/shared/data-access';
 import {
     collectionEpgKey,
+    PORTAL_PLAYBACK_POSITIONS,
     type UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
-import {
-    ParentalLockService,
-    PlaybackPositionService,
-} from '@iptvnator/services';
+import { ParentalLockService } from '@iptvnator/services';
 import {
     type EpgProgram,
     isCatalogUnavailable,
@@ -68,7 +66,7 @@ export class MultiviewPickerDataService {
     private readonly recent = inject(UnifiedRecentDataService);
     private readonly catalog = inject(MultiviewCatalogService);
     private readonly resolver = inject(StreamResolverService);
-    private readonly positions = inject(PlaybackPositionService);
+    private readonly positions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly locks = inject(ParentalLockService);
     private readonly onScreen = inject(MultiviewOnScreenSources);
 

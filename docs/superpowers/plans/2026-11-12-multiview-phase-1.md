@@ -1364,6 +1364,21 @@ the maintainer's request):** five findings.
 - Repeated, declined as before — VOD survivor handoff (D2) and the catch-up
   position on live views (phase 1 limit).
 
+**Round 8 (Codex, commit `495638b5e`):** three findings, all fixed.
+- P1, in the PWA (and in Electron without shared activity history) the
+  picker's Continue section, film and episode tiles and the inline player's
+  tile read and saved progress through `PlaybackPositionService`, an
+  Electron-only bridge: they now use `PORTAL_PLAYBACK_POSITIONS`, the store
+  the details pages use in both runtimes.
+- P2, an added HTML5 tile started at volume 1, and muting it fired
+  `volumechange`, which saved 1 over the viewer's volume: added tiles start
+  at the saved volume, and `HtmlVideoElementSession` no longer saves on a
+  change of the mute state alone.
+- P2, a reload, crash or closed window skipped the tiles' header release,
+  leaving their overrides (credentials included) in the main process: named
+  owners are tied to the configuring page and released on a cross-document
+  navigation, `render-process-gone` and `destroyed`.
+
 Greptile: not run (the `greptile` CLI is not installed on this machine).
 
 ## Phase acceptance (spec 14)

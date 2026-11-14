@@ -31,7 +31,9 @@ with a survivor, `rejected`) are published as `notice`. A session ends when
 one tile is left, on Exit, when the anchor view leaves, or when Settings
 select MPV, VLC or embedded MPV.
 
-- New tiles start muted (R2); exactly one tile has sound.
+- New tiles start muted (R2) at the viewer's saved volume; exactly one tile
+  has sound. A mute alone (the session's or the viewer's) never rewrites the
+  saved volume.
 - A VOD or episode tile without sound is held paused at its position (R4).
 - No next-episode autoplay while a session exists (D11).
 - A parental relock withholds the tiles whose source became locked.
@@ -82,7 +84,8 @@ main process (`request-header-overrides.service.ts`). A request matches by
 exact URL first, then by origin with the most recently configured override
 (D4); exactly one owner's override applies to a request, so one tile's
 credentials never reach another tile's request. A tile without custom headers
-keeps a header-free claim on its exact stream URL for the same reason. A tile's playback therefore carries its source's User-Agent, Referer
+keeps a header-free claim on its exact stream URL for the same reason. A
+page's tiles are released when the page reloads, crashes or closes. A tile's playback therefore carries its source's User-Agent, Referer
 and Origin; the picker's resolver adds them for Xtream live channels, whose
 shared resolution leaves them out.
 
@@ -111,8 +114,9 @@ after, R11), Xtream items checked by stream id through the data source
 (`MultiviewXtreamLock`, which applies the lock itself, so stored and provider
 category ids cannot be confused) before and after resolving,
 Xtream films through `VodSourceResolverService` resuming at their position,
-Xtream episodes from the picker's episode list; tiles save progress like
-their own players (R9). A picked or dropped item is recorded in recently
+Xtream episodes from the picker's episode list; tiles read and save
+progress like their own players, through the runtime's position store
+(`PORTAL_PLAYBACK_POSITIONS`, R9). A picked or dropped item is recorded in recently
 viewed through `PlaybackHistoryGate`, confirmed once the tile plays (R10).
 
 A parental relock stops every tile added from the picker or a list whose

@@ -5,6 +5,7 @@ import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import {
     createInlinePlaybackPositionWriter,
     getUnifiedCollectionDetailNavigation,
+    PORTAL_PLAYBACK_POSITIONS,
     type UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -12,7 +13,7 @@ import {
     type XtreamCredentials,
     XtreamUrlService,
 } from '@iptvnator/portal/xtream/data-access';
-import { PlaybackPositionService, PlaylistsService } from '@iptvnator/services';
+import { PlaylistsService } from '@iptvnator/services';
 import type {
     PlaybackPositionData,
     ResolvedPortalPlayback,
@@ -66,7 +67,7 @@ export class MultiviewSeriesEpisodesService {
     private readonly playlists = inject(PlaylistsService);
     private readonly api = inject(XtreamApiService);
     private readonly urls = inject(XtreamUrlService);
-    private readonly positions = inject(PlaybackPositionService);
+    private readonly positions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly router = inject(Router);
     private readonly xtreamLock = inject(MultiviewXtreamLock);
 

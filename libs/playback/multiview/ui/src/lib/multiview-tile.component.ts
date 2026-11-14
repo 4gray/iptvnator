@@ -14,7 +14,10 @@ import {
 } from '@iptvnator/playback/multiview/data-access';
 import { injectTranslationTick } from '@iptvnator/services';
 import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
-import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
+import {
+    readStoredVolume,
+    WebPlayerViewComponent,
+} from '@iptvnator/ui/playback';
 import { TranslateService } from '@ngx-translate/core';
 import { acceptChannelDrops } from './multiview-channel-drop';
 import { MultiviewPausedOverlayComponent } from './multiview-paused-overlay.component';
@@ -91,6 +94,8 @@ export class MultiviewTileComponent {
     );
     /** Starts where the source was taken over; later positions do not remount. */
     readonly startTime = computed(() => this.tile().position ?? 0);
+    /** Added tiles start at the viewer's saved volume, muted (R2). */
+    readonly volume = computed(() => this.tile().volume ?? readStoredVolume());
     readonly corner = computed(
         () => this.store.pipGeometry()?.corner ?? 'bottom-right'
     );
