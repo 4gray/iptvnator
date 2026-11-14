@@ -46,15 +46,28 @@ export function EpisodeRail({
             (parseFloat(getComputedStyle(first).marginRight) || 0);
         if (measured > 0 && Math.abs(measured - step) > 1) setStep(measured);
     });
+    const placed = useRef(false);
     useLayoutEffect(() => {
-        // Show the starting episode at the rail's left edge.
+        // Show the starting episode at the rail's left edge. Repeat once the
+        // card step is measured: the spacer width depends on it. Once the
+        // viewer moves within the rail, focus scrolling owns the position.
         const element = row.current;
-        const tile = element?.querySelector<HTMLElement>(
+        if (!element || placed.current) return;
+        if (element.contains(document.activeElement)) {
+            placed.current = true;
+            return;
+        }
+        const tile = element.querySelector<HTMLElement>(
             `[data-episode-index="${index}"]`
         );
-        if (element && tile && index > 0)
+        if (!tile) return;
+        if (index > 0)
             element.scrollLeft = tile.offsetLeft - element.offsetLeft - 16;
-    }, []);
+        const measured =
+            tile.offsetWidth +
+            (parseFloat(getComputedStyle(tile).marginRight) || 0);
+        placed.current = Math.abs(measured - step) <= 1;
+    }, [step]);
     if (!current) return null;
     const focusSelected = () =>
         row.current

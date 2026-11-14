@@ -169,7 +169,13 @@ test.describe('TV design review capture', () => {
         await page.keyboard.press('Escape');
         // The 30 s sample may have ended during the captures, so play it once
         // more from the start and stop at 8 s for a meaningful resume state.
-        await page.locator('[data-focus="detail-start-over"]').click();
+        // Start over exists while in progress; a finished sample offers Watch again.
+        const startOver = page.locator('[data-focus="detail-start-over"]');
+        await (
+            (await startOver.count())
+                ? startOver
+                : page.locator('[data-focus="detail-play"]')
+        ).click();
         await expect
             .poll(
                 () => video.evaluate((v: HTMLVideoElement) => v.currentTime),
