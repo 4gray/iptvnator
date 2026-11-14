@@ -106,6 +106,7 @@ export const DEFAULT_SETTINGS = {
     showExternalPlaybackBar: true,
     stripCountryPrefix: false,
     theme: Theme.SystemTheme,
+    themeAccent: null,
     mpvPlayerPath: '',
     mpvPlayerArguments: '',
     mpvReuseInstance: false,
@@ -231,6 +232,9 @@ export class MockSettingsStore {
 export class MockSettingsService {
     getAppVersion = jest.fn().mockReturnValue(from(Promise.resolve('1.0.0')));
     changeTheme = jest.fn();
+    changeThemeAccent = jest.fn();
+    appliedThemePresetId = signal('light');
+    previewThemeAccentColor = jest.fn((accent: string) => `#${accent}`);
     isVersionOutdated = jest.fn().mockImplementation(
         (currentVersion: string, latestVersion: string) =>
             currentVersion.localeCompare(latestVersion, undefined, {

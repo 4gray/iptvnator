@@ -1,13 +1,22 @@
 import { HttpClient } from '@angular/common/http';
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { catchError, map, Observable } from 'rxjs';
 import {
     normalizeTheme,
+    normalizeThemeAccent,
+    resolveThemeAccentHex,
     resolveThemePreset,
     STORE_KEY,
     Theme,
+    ThemeAccent,
+    ThemePreset,
 } from '@iptvnator/shared/interfaces';
+import {
+    deriveThemeAccentTokens,
+    readThemeAccentSurfaces,
+    THEME_ACCENT_TOKEN_NAMES,
+} from './theme-accent-tokens';
 
 const PRERELEASE_KEYWORDS = [
     'beta',
@@ -82,6 +91,10 @@ export class SettingsService {
         );
     };
     private isSystemThemeSyncActive = false;
+    private accent: ThemeAccent | null = null;
+
+    /** The preset on screen; "System" resolves to light or dark. */
+    readonly appliedThemePresetId = signal<ThemePreset['id']>('light');
 
     /**
      * Changes the visual theme of the application
@@ -104,19 +117,71 @@ export class SettingsService {
         this.applyResolvedTheme(theme);
     }
 
+    /**
+     * Lays an accent colour over whichever theme is active (and over the
+     * themes applied later); `null` restores the theme's own colour.
+     */
+    changeThemeAccent(accent: unknown): void {
+        this.accent = normalizeThemeAccent(accent);
+        this.applyThemeAccent();
+    }
+
+    /** The colour `accent` takes on the theme on screen, for previews. */
+    previewThemeAccentColor(accent: unknown): string | null {
+        const hex = resolveThemeAccentHex(accent);
+        const surfaces = hex
+            ? readThemeAccentSurfaces(getComputedStyle(document.body))
+            : null;
+        if (!hex || !surfaces) return hex;
+        return (
+            deriveThemeAccentTokens(hex, surfaces)['--app-selection-color'] ??
+            hex
+        );
+    }
+
     private applyResolvedTheme(selectedTheme: Theme): void {
         const preset = resolveThemePreset(selectedTheme);
-        document.body.dataset['appTheme'] = preset.id;
+        const body = document.body;
+        body.dataset['appTheme'] = preset.id;
         // Shared component styles, including the resize handles, use an
         // explicit .light-theme selector for their light-mode overrides.
         if (preset.mode === 'dark') {
-            document.body.classList.add('dark-theme');
-            document.body.classList.remove('light-theme');
+            body.classList.add('dark-theme');
+            body.classList.remove('light-theme');
+        } else {
+            body.classList.remove('dark-theme');
+            body.classList.add('light-theme');
+        }
+        this.appliedThemePresetId.set(preset.id);
+        // The accent's lightness depends on the new theme's surfaces.
+        this.applyThemeAccent();
+    }
+
+    /**
+     * Overrides the selection and Material primary roles on `body`, where
+     * every theme declares the tokens derived from them. The
+     * `data-theme-accent` attribute makes `m3-theme.scss` re-declare the
+     * Material component tokens there too, so they read these values.
+     */
+    private applyThemeAccent(): void {
+        const body = document.body;
+        for (const token of THEME_ACCENT_TOKEN_NAMES) {
+            body.style.removeProperty(token);
+        }
+        const hex = resolveThemeAccentHex(this.accent);
+        const surfaces = hex
+            ? readThemeAccentSurfaces(getComputedStyle(body))
+            : null;
+        if (!hex || !surfaces || !this.accent) {
+            delete body.dataset['themeAccent'];
             return;
         }
 
-        document.body.classList.remove('dark-theme');
-        document.body.classList.add('light-theme');
+        body.dataset['themeAccent'] = this.accent;
+        const tokens = deriveThemeAccentTokens(hex, surfaces);
+        for (const [token, value] of Object.entries(tokens)) {
+            body.style.setProperty(token, value);
+        }
     }
 
     private startSystemThemeSync(): void {

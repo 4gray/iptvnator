@@ -44,6 +44,7 @@ export const DEFAULT_SETTINGS = {
     showExternalPlaybackBar: true,
     stripCountryPrefix: false,
     theme: Theme.SystemTheme,
+    themeAccent: null,
     mpvPlayerPath: '',
     mpvPlayerArguments: '',
     mpvReuseInstance: false,

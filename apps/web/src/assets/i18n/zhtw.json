@@ -560,6 +560,8 @@
         "STREAM_FORMAT_DESCRIPTION": "選擇預設串流格式（xtream）",
         "LANGUAGE_DESCRIPTION": "選擇應用程式語言",
         "THEME_DESCRIPTION": "選擇應用程式視覺主題",
+        "THEME_ACCENT": "強調色",
+        "THEME_ACCENT_DESCRIPTION": "突顯選取項目、進度與焦點。亮度會隨主題自動調整，確保文字清晰易讀。",
         "COVER_SIZE": "封面大小",
         "COVER_SIZE_DESCRIPTION": "調整網格與導覽列中海報卡片的大小。較大的尺寸更適合在電視上觀看；較小的尺寸則可在大型螢幕上每列顯示更多內容。",
         "COVER_SIZE_SMALL": "小",
@@ -803,7 +805,15 @@
         "SYSTEM_DESCRIPTION": "系統主題跟隨裝置的淺色或深色外觀。",
         "DARK_THEME": "深色",
         "LIGHT_THEME": "淺色",
-        "SYSTEM_THEME": "跟隨系統"
+        "SYSTEM_THEME": "跟隨系統",
+        "ACCENT_THEME": "主題色彩",
+        "ACCENT_BLUE": "藍色",
+        "ACCENT_TEAL": "青色",
+        "ACCENT_GREEN": "綠色",
+        "ACCENT_AMBER": "琥珀色",
+        "ACCENT_CORAL": "珊瑚色",
+        "ACCENT_MAGENTA": "洋紅色",
+        "ACCENT_VIOLET": "紫羅蘭色"
     },
     "AUDIO_PLAYER": {
         "PLAY": "播放",

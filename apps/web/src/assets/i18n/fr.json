@@ -560,6 +560,8 @@
         "STREAM_FORMAT_DESCRIPTION": "Sélectionnez le format de flux par défaut (xtream)",
         "LANGUAGE_DESCRIPTION": "Sélectionnez la langue de l'application",
         "THEME_DESCRIPTION": "Sélectionnez le thème visuel de l'application",
+        "THEME_ACCENT": "Couleur d’accent",
+        "THEME_ACCENT_DESCRIPTION": "Met en évidence la sélection, la progression et le focus. Sa luminosité s’adapte à chaque thème pour que le texte reste lisible.",
         "COVER_SIZE": "Taille des affiches",
         "COVER_SIZE_DESCRIPTION": "Ajustez la taille des cartes affiches dans les grilles et les rails. Les grandes tailles sont plus faciles à voir sur les téléviseurs ; les petites tailles affichent plus de contenu par ligne sur les grands écrans.",
         "COVER_SIZE_SMALL": "Petite",
@@ -803,7 +805,15 @@
         "SYSTEM_DESCRIPTION": "Le mode système suit l’apparence claire ou sombre de votre appareil.",
         "DARK_THEME": "Sombre",
         "LIGHT_THEME": "Clair",
-        "SYSTEM_THEME": "Système"
+        "SYSTEM_THEME": "Système",
+        "ACCENT_THEME": "Couleur du thème",
+        "ACCENT_BLUE": "Bleu",
+        "ACCENT_TEAL": "Sarcelle",
+        "ACCENT_GREEN": "Vert",
+        "ACCENT_AMBER": "Ambre",
+        "ACCENT_CORAL": "Corail",
+        "ACCENT_MAGENTA": "Magenta",
+        "ACCENT_VIOLET": "Violet"
     },
     "AUDIO_PLAYER": {
         "PLAY": "Lecture",

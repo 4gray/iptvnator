@@ -560,6 +560,8 @@
         "STREAM_FORMAT_DESCRIPTION": "Auto prefers HLS. If live playback fails in MPV, VLC or Embedded MPV, stop the player, select ts, save and reopen the channel. Web players can try advertised TS once after an initial HLS HTTP failure.",
         "LANGUAGE_DESCRIPTION": "Select language of the application",
         "THEME_DESCRIPTION": "Select visual theme of the application",
+        "THEME_ACCENT": "Accent color",
+        "THEME_ACCENT_DESCRIPTION": "Highlights selections, progress and focus. Its brightness adapts to each theme so text stays readable.",
         "COVER_SIZE": "Cover size",
         "COVER_SIZE_DESCRIPTION": "Adjust the size of poster cards across grids and rails. Larger sizes are easier to see on TVs; smaller sizes show more content per row on big monitors.",
         "COVER_SIZE_SMALL": "Small",
@@ -803,7 +805,15 @@
         "SYSTEM_DESCRIPTION": "System follows your device’s light or dark appearance.",
         "DARK_THEME": "Dark",
         "LIGHT_THEME": "Light",
-        "SYSTEM_THEME": "System"
+        "SYSTEM_THEME": "System",
+        "ACCENT_THEME": "Theme color",
+        "ACCENT_BLUE": "Blue",
+        "ACCENT_TEAL": "Teal",
+        "ACCENT_GREEN": "Green",
+        "ACCENT_AMBER": "Amber",
+        "ACCENT_CORAL": "Coral",
+        "ACCENT_MAGENTA": "Magenta",
+        "ACCENT_VIOLET": "Violet"
     },
     "AUDIO_PLAYER": {
         "PLAY": "Play",

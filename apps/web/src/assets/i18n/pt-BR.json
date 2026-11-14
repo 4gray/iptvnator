@@ -560,6 +560,8 @@
         "STREAM_FORMAT_DESCRIPTION": "A opção automática dá prioridade ao HLS. Se a reprodução ao vivo falhar no MPV, VLC ou MPV integrado, pare o reprodutor, selecione ts, salve e abra o canal novamente. Após uma falha HTTP inicial no HLS, os reprodutores web podem tentar uma vez a transmissão TS indicada pela fonte.",
         "LANGUAGE_DESCRIPTION": "Selecionar idioma do aplicativo",
         "THEME_DESCRIPTION": "Selecionar tema visual do aplicativo",
+        "THEME_ACCENT": "Cor de destaque",
+        "THEME_ACCENT_DESCRIPTION": "Realça a seleção, o progresso e o foco. O brilho se adapta a cada tema para manter o texto legível.",
         "COVER_SIZE": "Tamanho da capa",
         "COVER_SIZE_DESCRIPTION": "Ajusta o tamanho dos cards de pôster em grades e trilhos. Tamanhos maiores são mais fáceis de ver em TVs; tamanhos menores mostram mais conteúdo por linha em monitores grandes.",
         "COVER_SIZE_SMALL": "Pequeno",
@@ -803,7 +805,15 @@
         "SYSTEM_DESCRIPTION": "Sistema acompanha a aparência clara ou escura do seu dispositivo.",
         "DARK_THEME": "Escuro",
         "LIGHT_THEME": "Claro",
-        "SYSTEM_THEME": "Sistema"
+        "SYSTEM_THEME": "Sistema",
+        "ACCENT_THEME": "Cor do tema",
+        "ACCENT_BLUE": "Azul",
+        "ACCENT_TEAL": "Verde-azulado",
+        "ACCENT_GREEN": "Verde",
+        "ACCENT_AMBER": "Âmbar",
+        "ACCENT_CORAL": "Coral",
+        "ACCENT_MAGENTA": "Magenta",
+        "ACCENT_VIOLET": "Violeta"
     },
     "AUDIO_PLAYER": {
         "PLAY": "Reproduzir",

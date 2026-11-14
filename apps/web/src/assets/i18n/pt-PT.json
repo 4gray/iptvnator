@@ -560,6 +560,8 @@
         "STREAM_FORMAT_DESCRIPTION": "A opção automática dá prioridade ao HLS. Se a reprodução em direto falhar no MPV, VLC ou MPV integrado, para o leitor, seleciona ts, guarda e volta a abrir o canal. Após uma falha HTTP inicial no HLS, os leitores web podem tentar uma vez a transmissão TS indicada pela fonte.",
         "LANGUAGE_DESCRIPTION": "Selecionar idioma da aplicação",
         "THEME_DESCRIPTION": "Selecionar tema visual da aplicação",
+        "THEME_ACCENT": "Cor de destaque",
+        "THEME_ACCENT_DESCRIPTION": "Realça a seleção, o progresso e o foco. O brilho adapta-se a cada tema para manter o texto legível.",
         "COVER_SIZE": "Tamanho da capa",
         "COVER_SIZE_DESCRIPTION": "Ajusta o tamanho das capas nas grelhas e filas de conteúdo. As capas maiores são mais fáceis de ver numa televisão; as mais pequenas mostram mais conteúdo por linha em monitores grandes.",
         "COVER_SIZE_SMALL": "Pequeno",
@@ -803,7 +805,15 @@
         "SYSTEM_DESCRIPTION": "Sistema segue a aparência clara ou escura do dispositivo.",
         "DARK_THEME": "Escuro",
         "LIGHT_THEME": "Claro",
-        "SYSTEM_THEME": "Sistema"
+        "SYSTEM_THEME": "Sistema",
+        "ACCENT_THEME": "Cor do tema",
+        "ACCENT_BLUE": "Azul",
+        "ACCENT_TEAL": "Verde-azulado",
+        "ACCENT_GREEN": "Verde",
+        "ACCENT_AMBER": "Âmbar",
+        "ACCENT_CORAL": "Coral",
+        "ACCENT_MAGENTA": "Magenta",
+        "ACCENT_VIOLET": "Violeta"
     },
     "AUDIO_PLAYER": {
         "PLAY": "Reproduzir",

@@ -1,6 +1,7 @@
 import type { AppUpdateChannel } from './app-update-channel.util';
 import { Language } from './language.enum';
 import { StreamFormat } from './stream-format.enum';
+import { ThemeAccent } from './theme-accent';
 import { Theme } from './theme.enum';
 import { TmdbSettings } from './tmdb.interface';
 
@@ -218,6 +219,11 @@ export interface Settings {
     /** Strip country/group prefixes like "US | " or "UK - " from channel names */
     stripCountryPrefix?: boolean;
     theme: Theme;
+    /**
+     * Accent colour laid over the theme (`THEME_ACCENTS` id). A missing or
+     * `null` value keeps the theme's own selection colour.
+     */
+    themeAccent?: ThemeAccent | null;
     mpvPlayerPath: string;
     /**
      * Extra MPV CLI arguments entered one argument per line. Applied only when

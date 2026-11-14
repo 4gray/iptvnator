@@ -95,6 +95,63 @@
                     </div>
                 </div>
             </div>
+            <div class="setting-item" data-setting-id="theme-accent">
+                <div class="setting-item__meta">
+                    <h4>{{ 'SETTINGS.THEME_ACCENT' | translate }}</h4>
+                    <p>{{ 'SETTINGS.THEME_ACCENT_DESCRIPTION' | translate }}</p>
+                </div>
+                <div class="setting-item__control">
+                    <div class="accent-picker">
+                        <div
+                            class="accent-picker__swatches"
+                            appRadioGroup
+                            [attr.aria-label]="
+                                'SETTINGS.THEME_ACCENT' | translate
+                            "
+                            data-test-id="select-theme-accent"
+                        >
+                            @for (swatch of accentSwatches(); track swatch.id) {
+                                <button
+                                    type="button"
+                                    class="accent-swatch"
+                                    [class.accent-swatch--selected]="
+                                        swatch.selected
+                                    "
+                                    [appRadioOption]="swatch.selected"
+                                    [attr.aria-label]="
+                                        swatch.labelKey | translate
+                                    "
+                                    [attr.title]="swatch.labelKey | translate"
+                                    [attr.data-test-id]="
+                                        'theme-accent-' + swatch.id
+                                    "
+                                    (click)="selectThemeAccent.emit(swatch.value)"
+                                >
+                                    @if (swatch.color) {
+                                        <span
+                                            class="accent-swatch__fill"
+                                            [style.background]="swatch.color"
+                                        ></span>
+                                    } @else {
+                                        <!-- The theme's own colour, read from
+                                             its preview palette because body
+                                             carries the chosen accent. -->
+                                        <span
+                                            class="accent-swatch__fill"
+                                            [attr.data-theme-preview]="
+                                                appliedThemePresetId()
+                                            "
+                                        ></span>
+                                    }
+                                </button>
+                            }
+                        </div>
+                        <span class="accent-picker__name" aria-hidden="true">{{
+                            selectedAccentLabelKey() | translate
+                        }}</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
 

@@ -560,6 +560,8 @@
         "STREAM_FORMAT_DESCRIPTION": "기본 스트림 형식 선택 (xtream)",
         "LANGUAGE_DESCRIPTION": "애플리케이션 언어 선택",
         "THEME_DESCRIPTION": "애플리케이션의 시각적 테마 선택",
+        "THEME_ACCENT": "강조 색상",
+        "THEME_ACCENT_DESCRIPTION": "선택, 진행률, 포커스를 강조합니다. 텍스트가 잘 보이도록 밝기가 테마에 맞게 조정됩니다.",
         "COVER_SIZE": "커버 크기",
         "COVER_SIZE_DESCRIPTION": "그리드와 레일에 표시되는 포스터 카드의 크기를 조정합니다. 큰 크기는 TV에서 보기 좋고, 작은 크기는 큰 모니터에서 한 줄에 더 많은 콘텐츠를 표시합니다.",
         "COVER_SIZE_SMALL": "작게",
@@ -803,7 +805,15 @@
         "SYSTEM_DESCRIPTION": "시스템 설정은 기기의 밝은 화면 또는 어두운 화면 설정을 따릅니다.",
         "DARK_THEME": "어둡게",
         "LIGHT_THEME": "밝게",
-        "SYSTEM_THEME": "시스템"
+        "SYSTEM_THEME": "시스템",
+        "ACCENT_THEME": "테마 색상",
+        "ACCENT_BLUE": "파랑",
+        "ACCENT_TEAL": "청록",
+        "ACCENT_GREEN": "초록",
+        "ACCENT_AMBER": "호박색",
+        "ACCENT_CORAL": "코랄",
+        "ACCENT_MAGENTA": "마젠타",
+        "ACCENT_VIOLET": "보라"
     },
     "AUDIO_PLAYER": {
         "PLAY": "재생",

@@ -183,4 +183,107 @@ describe('Service: Settings', () => {
             }
         ));
     });
+    describe('theme accent', () => {
+        // jsdom loads no stylesheet; inline tokens stand in for the palette.
+        const DARK = [
+            '#1e2330',
+            '#0d0f12',
+            '#111318',
+            '#161a22',
+            '#252b3a',
+            '#d8dce8',
+        ];
+        const LIGHT = [
+            '#ffffff',
+            '#eef0f3',
+            '#eef0f3',
+            '#f5f6f8',
+            '#f0f2f5',
+            '#1a1d23',
+        ];
+        const SURFACE_TOKENS = [
+            '--app-widget-bg',
+            '--app-shell-bg',
+            '--app-rail-bg',
+            '--app-content-bg',
+            '--app-card-hover-bg',
+            '--app-heading-color',
+        ];
+        const setSurfaces = (colors: string[]) =>
+            SURFACE_TOKENS.forEach((token, i) =>
+                document.body.style.setProperty(token, colors[i])
+            );
+        const token = (name: string) =>
+            document.body.style.getPropertyValue(name);
+
+        afterEach(() => {
+            document.body.removeAttribute('style');
+            document.body.classList.remove('dark-theme', 'light-theme');
+            delete document.body.dataset['appTheme'];
+            delete document.body.dataset['themeAccent'];
+        });
+
+        it('overrides the selection and primary roles on body', () => {
+            const service = TestBed.inject(SettingsService);
+            setSurfaces(DARK);
+            service.changeTheme(Theme.DarkTheme);
+            service.changeThemeAccent('magenta');
+
+            expect(document.body.dataset['themeAccent']).toBe('magenta');
+            expect(token('--app-selection-color')).toMatch(/^#[0-9a-f]{6}$/);
+            expect(token('--mat-sys-primary')).toBe(
+                token('--app-selection-text-color')
+            );
+            expect(token('--app-list-selected-fg')).toBe(
+                token('--app-selection-text-color')
+            );
+        });
+
+        it('restores the theme colour when the accent is cleared', () => {
+            const service = TestBed.inject(SettingsService);
+            setSurfaces(DARK);
+            service.changeThemeAccent('teal');
+            service.changeThemeAccent(null);
+
+            expect(document.body.dataset['themeAccent']).toBeUndefined();
+            expect(token('--app-selection-color')).toBe('');
+            expect(token('--mat-sys-primary')).toBe('');
+        });
+
+        it('ignores an unknown saved accent', () => {
+            const service = TestBed.inject(SettingsService);
+            setSurfaces(DARK);
+            service.changeThemeAccent('chartreuse');
+
+            expect(document.body.dataset['themeAccent']).toBeUndefined();
+            expect(token('--app-selection-color')).toBe('');
+        });
+
+        it('re-derives the accent for the next theme', () => {
+            const service = TestBed.inject(SettingsService);
+            setSurfaces(LIGHT);
+            service.changeTheme(Theme.LightTheme);
+            service.changeThemeAccent('amber');
+            const onLight = token('--app-selection-color');
+
+            setSurfaces(DARK);
+            service.changeTheme(Theme.DarkTheme);
+            const onDark = token('--app-selection-color');
+            // Darkened for the white widget, lightened for the dark one.
+            expect(onLight).not.toBe(onDark);
+            expect(parseInt(onDark.slice(1, 3), 16)).toBeGreaterThan(
+                parseInt(onLight.slice(1, 3), 16)
+            );
+            expect(service.appliedThemePresetId()).toBe('dark');
+        });
+
+        it('leaves the theme untouched while its styles are missing', () => {
+            const service = TestBed.inject(SettingsService);
+            service.changeThemeAccent('blue');
+
+            expect(document.body.dataset['themeAccent']).toBeUndefined();
+            expect(token('--app-selection-color')).toBe('');
+            expect(service.previewThemeAccentColor('blue')).toBe('#3b82f6');
+        });
+    });
 });

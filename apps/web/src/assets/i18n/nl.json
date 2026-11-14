@@ -560,6 +560,8 @@
         "STREAM_FORMAT_DESCRIPTION": "Selecteer het standaard streamformaat (xtream)",
         "LANGUAGE_DESCRIPTION": "Selecteer de taal van de applicatie",
         "THEME_DESCRIPTION": "Kies het visuele thema van de applicatie",
+        "THEME_ACCENT": "Accentkleur",
+        "THEME_ACCENT_DESCRIPTION": "Markeert selectie, voortgang en focus. De helderheid past zich aan elk thema aan, zodat tekst leesbaar blijft.",
         "COVER_SIZE": "Hoesgrootte",
         "COVER_SIZE_DESCRIPTION": "Pas de grootte van posterkaarten in rasters en rijen aan. Grotere formaten zijn beter zichtbaar op tv's; kleinere formaten tonen meer inhoud per rij op grote monitoren.",
         "COVER_SIZE_SMALL": "Klein",
@@ -803,7 +805,15 @@
         "SYSTEM_DESCRIPTION": "Systeem volgt de lichte of donkere weergave van je apparaat.",
         "DARK_THEME": "Donker",
         "LIGHT_THEME": "Licht",
-        "SYSTEM_THEME": "Systeem"
+        "SYSTEM_THEME": "Systeem",
+        "ACCENT_THEME": "Themakleur",
+        "ACCENT_BLUE": "Blauw",
+        "ACCENT_TEAL": "Groenblauw",
+        "ACCENT_GREEN": "Groen",
+        "ACCENT_AMBER": "Amber",
+        "ACCENT_CORAL": "Koraal",
+        "ACCENT_MAGENTA": "Magenta",
+        "ACCENT_VIOLET": "Violet"
     },
     "AUDIO_PLAYER": {
         "PLAY": "Afspelen",

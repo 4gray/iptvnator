@@ -560,6 +560,8 @@
         "STREAM_FORMAT_DESCRIPTION": "Az Automatikus beállítás elsősorban a HLS-formátumot használja. Ha az élő adás nem indul el az MPV, a VLC vagy a beágyazott MPV lejátszóval, állítsa le a lejátszást, válassza a TS-formátumot, mentse a beállítást, majd nyissa meg újra a csatornát. A böngészős lejátszók az első HLS-alapú HTTP-hiba után egyszer megpróbálhatják a forrás által jelzett TS-formátumot.",
         "LANGUAGE_DESCRIPTION": "Az alkalmazás nyelvének kiválasztása",
         "THEME_DESCRIPTION": "Az alkalmazás megjelenési témájának kiválasztása",
+        "THEME_ACCENT": "Kiemelőszín",
+        "THEME_ACCENT_DESCRIPTION": "Kiemeli a kijelölést, a haladást és a fókuszt. A fényereje minden témához igazodik, hogy a szöveg olvasható maradjon.",
         "COVER_SIZE": "Borító mérete",
         "COVER_SIZE_DESCRIPTION": "Állítsa be a borítókártyák méretét a rácsokban és a vízszintes sávokban. A nagyobb kártyák televízión könnyebben láthatók, a kisebbek pedig nagy monitorokon több tartalmat jelenítenek meg soronként.",
         "COVER_SIZE_SMALL": "Kicsi",
@@ -803,7 +805,15 @@
         "SYSTEM_DESCRIPTION": "A „Rendszer” téma az eszköz világos vagy sötét megjelenítési módjához igazodik.",
         "DARK_THEME": "Sötét",
         "LIGHT_THEME": "Világos",
-        "SYSTEM_THEME": "Rendszer"
+        "SYSTEM_THEME": "Rendszer",
+        "ACCENT_THEME": "A téma színe",
+        "ACCENT_BLUE": "Kék",
+        "ACCENT_TEAL": "Kékeszöld",
+        "ACCENT_GREEN": "Zöld",
+        "ACCENT_AMBER": "Borostyán",
+        "ACCENT_CORAL": "Korall",
+        "ACCENT_MAGENTA": "Bíbor",
+        "ACCENT_VIOLET": "Ibolya"
     },
     "AUDIO_PLAYER": {
         "PLAY": "Lejátszás",

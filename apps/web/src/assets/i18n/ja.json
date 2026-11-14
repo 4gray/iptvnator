@@ -560,6 +560,8 @@
         "STREAM_FORMAT_DESCRIPTION": "デフォルトのストリーム形式を選択（Xtream）",
         "LANGUAGE_DESCRIPTION": "アプリケーションの言語を選択",
         "THEME_DESCRIPTION": "アプリケーションの視覚テーマを選択",
+        "THEME_ACCENT": "アクセントカラー",
+        "THEME_ACCENT_DESCRIPTION": "選択、進行状況、フォーカスを強調します。文字が読みやすいよう、明るさはテーマごとに調整されます。",
         "COVER_SIZE": "カバーサイズ",
         "COVER_SIZE_DESCRIPTION": "グリッドやレールに表示されるポスターカードのサイズを調整します。大きいサイズはTVで見やすく、小さいサイズは大型モニターで1行あたりの表示数が増えます。",
         "COVER_SIZE_SMALL": "小",
@@ -803,7 +805,15 @@
         "SYSTEM_DESCRIPTION": "システム設定では、デバイスのライト／ダーク表示に従います。",
         "DARK_THEME": "ダーク",
         "LIGHT_THEME": "ライト",
-        "SYSTEM_THEME": "システム"
+        "SYSTEM_THEME": "システム",
+        "ACCENT_THEME": "テーマの色",
+        "ACCENT_BLUE": "ブルー",
+        "ACCENT_TEAL": "ティール",
+        "ACCENT_GREEN": "グリーン",
+        "ACCENT_AMBER": "アンバー",
+        "ACCENT_CORAL": "コーラル",
+        "ACCENT_MAGENTA": "マゼンタ",
+        "ACCENT_VIOLET": "バイオレット"
     },
     "AUDIO_PLAYER": {
         "PLAY": "再生",

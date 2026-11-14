@@ -94,6 +94,39 @@ describe('SettingsComponent form', () => {
         }
     );
 
+    it('previews an accent from the swatches and restores the saved one on Discard', () => {
+        setSettingsSection('appearance');
+        fixture.detectChanges();
+        const service = TestBed.inject(SettingsService);
+        const changeThemeAccent = jest.spyOn(service, 'changeThemeAccent');
+        const root = fixture.nativeElement as HTMLElement;
+        const themeSwatch = root.querySelector(
+            '[data-test-id="theme-accent-theme"]'
+        ) as HTMLButtonElement;
+        const magenta = root.querySelector(
+            '[data-test-id="theme-accent-magenta"]'
+        ) as HTMLButtonElement;
+        expect(themeSwatch.getAttribute('aria-checked')).toBe('true');
+        // The theme's own colour comes from its preview palette.
+        expect(
+            themeSwatch.querySelector('[data-theme-preview="light"]')
+        ).not.toBeNull();
+
+        magenta.click();
+        fixture.detectChanges();
+        expect(component.settingsForm.value.themeAccent).toBe('magenta');
+        expect(changeThemeAccent).toHaveBeenLastCalledWith('magenta');
+        expect(magenta.getAttribute('aria-checked')).toBe('true');
+        expect(component.settingsForm.dirty).toBe(true);
+        expect(settingsStore.updateSettings).not.toHaveBeenCalled();
+
+        component.discardChanges();
+        fixture.detectChanges();
+        expect(component.settingsForm.value.themeAccent).toBeNull();
+        expect(changeThemeAccent).toHaveBeenLastCalledWith(null);
+        expect(themeSwatch.getAttribute('aria-checked')).toBe('true');
+    });
+
     it('updates the saved key in the open form without saving an unrelated draft', async () => {
         await fixture.whenStable();
         const form = component.settingsForm;
