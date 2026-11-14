@@ -1,5 +1,15 @@
 import { epgLogger } from '../util/epg-logger';
-import { and, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
+import {
+    and,
+    asc,
+    desc,
+    eq,
+    inArray,
+    isNull,
+    or,
+    sql,
+    type SQL,
+} from 'drizzle-orm';
 import {
     ElectronBridgeEpgLookupOptions,
     EpgChannelMetadata,
@@ -48,8 +58,19 @@ const SQLITE_MAX_BOUND_PARAMETERS = 32_766;
  */
 const CURRENT_PROGRAM_FIXED_PARAMETERS = 3;
 
+/** Distinct programmes a single-channel schedule returns at most. */
+export const CHANNEL_SCHEDULE_LIMIT = 500;
+/** Of those, the slots always left for the past (catch-up), nearest first. */
+export const CHANNEL_SCHEDULE_PAST_SLOTS = 250;
+/** Past rows read beyond the limit to replace slots split across now. */
+const SCHEDULE_SPLIT_SLACK = 8;
+
 export class EpgQueryService {
-    constructor(private readonly loggerLabel = '[EPG Events]') {}
+    constructor(
+        private readonly loggerLabel = '[EPG Events]',
+        /** The schedule window's clock; injectable for tests. */
+        private readonly nowMs: () => number = () => Date.now()
+    ) {}
 
     async getChannelPrograms(
         channelId: string,
@@ -524,31 +545,12 @@ export class EpgQueryService {
         return matchedCandidateIds;
     }
 
-    private async selectChannelPrograms(
+    private selectChannelPrograms(
         db: EpgDatabase,
         channelId: string,
         sourceUrls: string[]
     ): Promise<EpgProgramSelectRow[]> {
-        return (
-            db
-                .select()
-                .from(schema.epgPrograms)
-                .where(
-                    this.withProgramSourceScope(
-                        eq(schema.epgPrograms.channelId, channelId),
-                        sourceUrls
-                    )
-                )
-                // Collapse identical slots from multiple sources in SQL so the
-                // 500-row cap counts distinct programmes, not duplicate rows.
-                .groupBy(
-                    schema.epgPrograms.channelId,
-                    schema.epgPrograms.start,
-                    schema.epgPrograms.title
-                )
-                .orderBy(schema.epgPrograms.start)
-                .limit(500)
-        );
+        return this.selectChannelScheduleWindow(db, channelId, sourceUrls);
     }
 
     private async selectLegacyChannelPrograms(
@@ -559,24 +561,80 @@ export class EpgQueryService {
         if (sourceUrls.length === 0) {
             return [];
         }
+        return this.selectChannelScheduleWindow(db, channelId, sourceUrls, {
+            legacyOnly: true,
+        });
+    }
 
-        return db
-            .select()
-            .from(schema.epgPrograms)
-            .where(
-                this.withProgramSourceScope(
-                    eq(schema.epgPrograms.channelId, channelId),
-                    sourceUrls,
-                    { legacyOnly: true }
+    /**
+     * A channel's schedule around now, oldest first: the upcoming programmes
+     * (the one airing included) and the nearest past ones, together capped
+     * at `CHANNEL_SCHEDULE_LIMIT`. Taking the oldest rows instead let a long
+     * history fill the cap and hide today. The past keeps at least
+     * `CHANNEL_SCHEDULE_PAST_SLOTS` for catch-up and gets whatever the
+     * upcoming rows leave. A stop SQLite cannot parse counts as upcoming, as
+     * every row was returned before. Identical slots from several sources
+     * collapse in SQL, so the cap counts distinct programmes.
+     */
+    private async selectChannelScheduleWindow(
+        db: EpgDatabase,
+        channelId: string,
+        sourceUrls: string[],
+        options: { legacyOnly?: boolean } = {}
+    ): Promise<EpgProgramSelectRow[]> {
+        const now = new Date(this.nowMs()).toISOString();
+        const ended = sql`datetime(${schema.epgPrograms.stop}) < datetime(${now})`;
+        const select = (when: SQL, order: SQL, limit: number) =>
+            db
+                .select()
+                .from(schema.epgPrograms)
+                .where(
+                    this.withProgramSourceScope(
+                        and(
+                            eq(schema.epgPrograms.channelId, channelId),
+                            when
+                        ) as SQL,
+                        sourceUrls,
+                        options
+                    )
                 )
+                .groupBy(
+                    schema.epgPrograms.channelId,
+                    schema.epgPrograms.start,
+                    schema.epgPrograms.title
+                )
+                .orderBy(order)
+                .limit(limit);
+        const upcoming = await select(
+            sql`coalesce(${ended}, 0) = 0`,
+            asc(schema.epgPrograms.start),
+            CHANNEL_SCHEDULE_LIMIT
+        );
+        const pastLimit =
+            CHANNEL_SCHEDULE_LIMIT -
+            Math.min(
+                upcoming.length,
+                CHANNEL_SCHEDULE_LIMIT - CHANNEL_SCHEDULE_PAST_SLOTS
+            );
+        // Sources can disagree on a slot's stop around now, putting the same
+        // slot in both halves; the airing (upcoming) copy is kept. A few
+        // extra past rows stand in for the dropped copies.
+        const slotKey = (row: EpgProgramSelectRow) =>
+            `${row.start}|${row.title}`;
+        const upcomingSlots = new Set(upcoming.map(slotKey));
+        const earlier = (
+            await select(
+                ended,
+                desc(schema.epgPrograms.start),
+                pastLimit + SCHEDULE_SPLIT_SLACK
             )
-            .groupBy(
-                schema.epgPrograms.channelId,
-                schema.epgPrograms.start,
-                schema.epgPrograms.title
-            )
-            .orderBy(schema.epgPrograms.start)
-            .limit(500);
+        )
+            .filter((row) => !upcomingSlots.has(slotKey(row)))
+            .slice(0, pastLimit);
+        return [
+            ...earlier.reverse(),
+            ...upcoming.slice(0, CHANNEL_SCHEDULE_LIMIT - earlier.length),
+        ];
     }
 
     private async selectCurrentProgramsForChannelIds(

@@ -217,6 +217,8 @@ export class PlaylistEffects {
                 const channelId = resolveChannelEpgLookupKey(channel);
                 if (channelId) {
                     this.epgService.getChannelPrograms(channelId);
+                } else {
+                    this.epgService.clearSchedule();
                 }
 
                 void window.electron

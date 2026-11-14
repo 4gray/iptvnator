@@ -617,8 +617,9 @@ describe('EpgQueryService', () => {
             // getMapping Xtream fallback — single join across content /
             // categories / mappings, no arbitrary candidate cap.
             .mockReturnValueOnce({ from: jest.fn(() => joinChain) })
-            // selectChannelPrograms for the mapped id.
-            .mockReturnValueOnce(createProgramChain([programRow]));
+            // selectChannelPrograms for the mapped id: upcoming, then past.
+            .mockReturnValueOnce(createProgramChain([programRow]))
+            .mockReturnValueOnce(createProgramChain([]));
 
         getDatabase.mockResolvedValue({ select });
 
@@ -668,7 +669,9 @@ describe('EpgQueryService', () => {
                     { ...dupRow, sourceUrl: 'https://a.example/g.xml' },
                     { ...dupRow, id: 2, sourceUrl: 'https://b.example/g.xml' },
                 ])
-            );
+            )
+            // The past half of the schedule window.
+            .mockReturnValueOnce(createProgramChain([]));
 
         getDatabase.mockResolvedValue({ select });
 

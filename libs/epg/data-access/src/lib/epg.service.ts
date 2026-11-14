@@ -52,8 +52,25 @@ export class EpgService {
                 void this.fetchEpg(this.sourceSettings.getFetchableSourceUrls());
             }
             wasEnabled = enabled;
+            // The remaining sources may still carry the channel's schedule.
+            if (enabled) this.refillSchedule();
+        });
+        // An import finished anywhere — a refresh or retry from Settings,
+        // a startup or background import — replaces the stored programmes.
+        this.epgBridge.onProgress?.((progress) => {
+            if (progress.status === 'complete') this.refreshEpgData();
         });
     }
+
+    /** The channel whose schedule `currentEpgPrograms$` holds. */
+    private scheduleChannelId: string | null = null;
+    /**
+     * Schedule reads are numbered; one publishes only while its channel is
+     * still open and nothing newer has published. A failed read publishes
+     * nothing, so it cannot discard an older read still on its way.
+     */
+    private scheduleRequest = 0;
+    private publishedRequest = 0;
 
     private epgAvailable = new BehaviorSubject<boolean>(false);
     private currentEpgPrograms = new BehaviorSubject<EpgProgram[]>([]);
@@ -131,7 +148,7 @@ export class EpgService {
                     if (result === null) return;
 
                     if (result.success) {
-                        this.clearCache();
+                        this.refreshEpgData();
                         this.epgAvailable.next(true);
                     } else {
                         this.epgAvailable.next(false);
@@ -160,12 +177,35 @@ export class EpgService {
      * Gets EPG programs for a specific channel
      */
     getChannelPrograms(channelId: string): void {
+        this.readSchedule(channelId, false);
+    }
+
+    /**
+     * A channel without an EPG key was opened: its panel is empty, and a
+     * later refill must not bring back the previous channel's schedule.
+     */
+    clearSchedule(): void {
+        this.scheduleChannelId = null;
+        this.publishedRequest = ++this.scheduleRequest;
+        this.currentEpgPrograms.next([]);
+    }
+
+    /**
+     * A refill runs in the background (an import may still be writing): a
+     * failed or slow read keeps the schedule on screen and raises no toast.
+     */
+    private readSchedule(channelId: string, refill: boolean): void {
         if (
             !this.epgPreferences.enabled() ||
             !this.epgBridge.supportsProgramLookup
         )
             return;
         debugEpgService('Fetching EPG for channel ID:', channelId);
+        this.scheduleChannelId = channelId;
+        const request = ++this.scheduleRequest;
+        const canPublish = () =>
+            channelId === this.scheduleChannelId &&
+            request > this.publishedRequest;
 
         from(this.epgBridge.getChannelPrograms(channelId))
             .pipe(
@@ -175,6 +215,8 @@ export class EpgService {
                 map((programs) => normalizeEpgPrograms(programs ?? [])),
                 catchError((err) => {
                     console.error('EPG get programs error:', err);
+                    if (refill || !canPublish()) return of(null);
+                    this.publishedRequest = request;
                     this.showErrorSnackbar();
                     this.currentEpgPrograms.next([]);
                     this.epgAvailable.next(false);
@@ -182,9 +224,29 @@ export class EpgService {
                 })
             )
             .subscribe((programs) => {
+                // An older read — another channel's, or this channel's from
+                // before a refill — must not replace the latest schedule.
+                if (!programs || !canPublish()) return;
+                this.publishedRequest = request;
                 this.epgAvailable.next(programs.length > 0);
                 this.currentEpgPrograms.next(programs);
             });
+    }
+
+    /**
+     * The stored EPG changed (an import, a mapping): drop the "currently
+     * airing" cache and read the open channel's schedule again, so its
+     * programme panel does not stay empty or stale until the next zap.
+     */
+    refreshEpgData(): void {
+        this.clearCache();
+        this.refillSchedule();
+    }
+
+    private refillSchedule(): void {
+        if (this.scheduleChannelId) {
+            this.readSchedule(this.scheduleChannelId, true);
+        }
     }
 
     /**

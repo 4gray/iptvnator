@@ -864,7 +864,9 @@ describe('EpgEvents', () => {
             .mockReturnValueOnce(queryChain([])) // 1. getMapping: epgChannelMappings
             .mockReturnValueOnce(queryChain([])) // 2. getMapping: content table
             // Test expectations below
-            .mockReturnValueOnce(queryChain([])) // 3. selectChannelPrograms (bbc.one.uk → empty)
+            // 3. selectChannelPrograms (bbc.one.uk → empty): upcoming, past
+            .mockReturnValueOnce(queryChain([]))
+            .mockReturnValueOnce(queryChain([]))
             .mockReturnValueOnce(
                 queryChain([{ id: 'BBC.ONE.UK', displayName: 'BBC One' }])
             ) // 4. selectChannelById → channel found
@@ -884,7 +886,8 @@ describe('EpgEvents', () => {
                         episodeNum: null,
                     },
                 ])
-            );
+            )
+            .mockReturnValueOnce(queryChain([])); // 5b. … and its past half
 
         select.mockImplementation(() => ({ from }));
 

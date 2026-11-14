@@ -855,6 +855,14 @@ exists (`SettingsFormFacade.supportsEpgDisplay`, XMLTV or a portal's own),
 including the browser PWA, while the page's XMLTV rows (sources, Xtream
 preference, clear data) need the import and data-management bridges.
 
+Both views, and the programme guide, read "today" from their own clock tick
+(`epg-today.ts`): a view that shows today follows the new day when the clock
+crosses midnight (the list and the timeline emit `selectedDateChange`, so a
+host's controlled `selectedDate` follows too); a view the viewer put on
+another day stays there. The timeline's hour ticks are placed by local
+wall-clock time, so a daylight-saving day (23 or 25 hours) keeps every label
+on its hour; a wall-clock time the day skips has no tick.
+
 ### EPG display offset
 
 EPG display times also support a global **`Settings.epgOffsetMinutes`**
@@ -1443,8 +1451,11 @@ class EpgService {
     // Fetch EPG for multiple URLs
     fetchEpg(urls: string[]): void;
 
-    // Get programs for a channel
+    // Get programs for a channel (fills currentEpgPrograms$)
     getChannelPrograms(channelId: string): void;
+
+    // The stored EPG changed: drop the airing cache, re-read the open channel
+    refreshEpgData(): void;
 
     // Batch fetch current programs
     getCurrentProgramsForChannels(
@@ -1463,6 +1474,23 @@ class EpgService {
     currentEpgPrograms$: Observable<EpgProgram[]>;
 }
 ```
+
+`currentEpgPrograms$` holds the schedule of the last channel passed to
+`getChannelPrograms`. When the stored EPG changes it is read again for that
+channel, so the open channel's panel does not stay empty or stale until the
+next zap: after a successful `fetchEpg`, any import progress reaching
+`complete` (a refresh or retry from Settings, a startup or background
+import), an EPG source change, and a manual mapping saved or removed in the
+mapping dialog (`refreshEpgData()`). A read for a channel that is no longer
+the last one requested is discarded.
+
+The single-channel schedule (`EpgQueryService.getChannelPrograms`, main
+process) is a window around now, not the oldest rows: the upcoming
+programmes (the one airing included) and the nearest past ones, oldest
+first, together capped at `CHANNEL_SCHEDULE_LIMIT` (500) distinct slots. The
+past always keeps `CHANNEL_SCHEDULE_PAST_SLOTS` (250) for catch-up and takes
+whatever the upcoming rows leave, so a long history can no longer fill the
+cap and hide today.
 
 ### EPG Components
 
