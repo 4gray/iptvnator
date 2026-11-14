@@ -521,7 +521,7 @@ Trade-offs and constraints:
 ## Two-view frame-copy prototype
 
 Electron frame-copy playback exposes an icon-only “Add second stream” action
-in the shared player controls, left of Stream info, with a localized tooltip.
+beside Settings in the bottom player controls, with a localized tooltip.
 It follows the controls’ visibility and disappears while the companion is active.
 Its lazy in-player picker starts with global live favorites and offers saved
 playlists → groups → channels with search. It reads M3U, Xtream and Stalker

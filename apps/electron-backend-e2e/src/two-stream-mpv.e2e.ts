@@ -1,3 +1,4 @@
+import { ok } from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import sharp = require('sharp');
 import {
@@ -143,12 +144,26 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
         const streamInfo = page.getByTestId(
             'player-controls-stream-info-button'
         );
-        const addBounds = await addStream.boundingBox();
-        const infoBounds = await streamInfo.boundingBox();
-        expect(addBounds!.x + addBounds!.width).toBeLessThanOrEqual(
-            infoBounds!.x
+        const settings = page.getByTestId('player-controls-settings-button');
+        await expect(addStream.locator('mat-icon')).toHaveText(
+            'picture_in_picture_alt'
         );
-        expect(addBounds!.y).toBe(infoBounds!.y);
+        await expect(settings).toBeVisible();
+        await expect(streamInfo).toBeVisible();
+        const addBounds = await addStream.boundingBox();
+        const settingsBounds = await settings.boundingBox();
+        const infoBounds = await streamInfo.boundingBox();
+        ok(addBounds && settingsBounds && infoBounds);
+        expect(addBounds.x + addBounds.width).toBeLessThanOrEqual(
+            settingsBounds.x
+        );
+        expect(addBounds.y).toBe(settingsBounds.y);
+        expect(addBounds.y).toBeGreaterThan(infoBounds.y);
+        await expect(
+            page.getByRole('button', {
+                name: /^(Enter|Exit) picture-in-picture$/,
+            })
+        ).toHaveCount(0);
         await addStream.hover();
         await expect(page.locator('.mat-mdc-tooltip-show')).toHaveText(
             'Add second stream'

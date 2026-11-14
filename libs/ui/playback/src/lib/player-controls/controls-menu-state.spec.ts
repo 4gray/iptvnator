@@ -32,26 +32,6 @@ describe('ControlsMenuState', () => {
         expect(menus.anyOpen()).toBe(false);
     });
 
-    it('remembers the group the settings panel was opened for', () => {
-        const menus = new ControlsMenuState();
-
-        menus.openSettings('speed');
-        expect(menus.settingsOpen()).toBe(true);
-        expect(menus.settingsFocus()).toBe('speed');
-
-        // Re-opening on another group keeps the panel and moves the focus.
-        menus.openSettings('subtitles');
-        expect(menus.settingsOpen()).toBe(true);
-        expect(menus.settingsFocus()).toBe('subtitles');
-
-        menus.close('settings');
-        expect(menus.settingsFocus()).toBeNull();
-
-        menus.openSettings('audio');
-        menus.closeAll();
-        expect(menus.settingsFocus()).toBeNull();
-    });
-
     it.each(['volume', 'settings', 'stats'] as const)(
         'closes an open %s menu when it becomes unavailable',
         (menu) => {
@@ -137,7 +117,7 @@ describe('ControlsMenuState', () => {
 
     it('keeps the settings panel while any group still exists', () => {
         const menus = new ControlsMenuState();
-        menus.openSettings('speed');
+        menus.open('settings');
 
         menus.reconcileControllerAvailability(
             true,

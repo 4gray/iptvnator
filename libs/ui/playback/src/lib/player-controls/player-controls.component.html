@@ -38,7 +38,7 @@
     </div>
 }
 
-@if (showControls() && (canAddSecondStream() || capabilities().streamStats)) {
+@if (showControls() && capabilities().streamStats) {
     <div
         class="player-controls__corner"
         [class.player-controls__corner--visible]="controlsAreVisible()"
@@ -54,73 +54,57 @@
         (focusin)="chrome.onFocusIn($event)"
         (focusout)="chrome.onFocusOut($event)"
     >
-        @if (canAddSecondStream()) {
+        <div class="player-controls__popover-anchor">
             <button
                 mat-icon-button
                 type="button"
                 class="player-controls__button"
-                data-test-id="player-controls-second-stream-button"
-                (click)="secondStreamRequested.emit()"
-                [attr.aria-label]="'TWO_STREAMS.ADD' | translate"
-                [matTooltip]="'TWO_STREAMS.ADD' | translate"
+                data-test-id="player-controls-stream-info-button"
+                (click)="toggleMenu('stats')"
+                [attr.aria-expanded]="menus.statsOpen()"
+                [attr.aria-label]="
+                    'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate
+                "
+                [matTooltip]="'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate"
                 matTooltipPosition="below"
             >
-                <mat-icon>picture_in_picture_alt</mat-icon>
+                <mat-icon>info_outline</mat-icon>
             </button>
-        }
-        @if (capabilities().streamStats) {
-            <div class="player-controls__popover-anchor">
-                <button
-                    mat-icon-button
-                    type="button"
-                    class="player-controls__button"
-                    data-test-id="player-controls-stream-info-button"
-                    (click)="toggleMenu('stats')"
-                    [attr.aria-expanded]="menus.statsOpen()"
+            @if (menus.statsOpen()) {
+                <div
+                    class="player-controls__panel player-controls__stats-popover"
+                    role="dialog"
+                    data-test-id="player-controls-stream-info-panel"
                     [attr.aria-label]="
                         'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate
                     "
-                    [matTooltip]="'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate"
-                    matTooltipPosition="below"
                 >
-                    <mat-icon>info_outline</mat-icon>
-                </button>
-                @if (menus.statsOpen()) {
-                    <div
-                        class="player-controls__panel player-controls__stats-popover"
-                        role="dialog"
-                        data-test-id="player-controls-stream-info-panel"
-                        [attr.aria-label]="
-                            'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate
-                        "
-                    >
-                        <div class="player-controls__menu-title">
-                            {{ 'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate }}
-                        </div>
-                        @if (streamStats.hasRows()) {
-                            <dl class="player-controls__stats-list">
-                                @for (
-                                    row of streamStats.rows();
-                                    track row.labelKey
-                                ) {
-                                    <div class="player-controls__stats-row">
-                                        <dt>{{ row.labelKey | translate }}</dt>
-                                        <dd>{{ row.value }}</dd>
-                                    </div>
-                                }
-                            </dl>
-                        } @else {
-                            <div class="player-controls__stats-empty">
-                                {{
-                                    'EMBEDDED_MPV.PLAYER.STATS_UNAVAILABLE'
-                                        | translate
-                                }}
-                            </div>
-                        }
+                    <div class="player-controls__menu-title">
+                        {{ 'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate }}
                     </div>
-                }
-            </div>
-        }
+                    @if (streamStats.hasRows()) {
+                        <dl class="player-controls__stats-list">
+                            @for (
+                                row of streamStats.rows();
+                                track row.labelKey
+                            ) {
+                                <div class="player-controls__stats-row">
+                                    <dt>{{ row.labelKey | translate }}</dt>
+                                    <dd>{{ row.value }}</dd>
+                                </div>
+                            }
+                        </dl>
+                    } @else {
+                        <div class="player-controls__stats-empty">
+                            {{
+                                'EMBEDDED_MPV.PLAYER.STATS_UNAVAILABLE'
+                                    | translate
+                            }}
+                        </div>
+                    }
+                </div>
+            }
+        </div>
     </div>
 }
 
@@ -382,77 +366,21 @@
 
             <div class="player-controls__actions">
                 @if (
-                    settings.available() && layout.roomy() && !settings.isOpen()
+                    canAddSecondStream() &&
+                    !(settings.isOpen() && layout.roomy())
                 ) {
-                    @if (settings.groups().subtitles) {
-                        <!-- On with no track marked selected yet (the engine
-                             can report the id before the list) reads "On",
-                             never "Off". The name carries the value
-                             ("Subtitles: English"); the label is the value. -->
-                        @let subtitleValue =
-                            settings.subtitleLabel() ??
-                            ((settings.subtitlesOn()
-                                ? 'EMBEDDED_MPV.PLAYER.SUBTITLES_ON'
-                                : 'EMBEDDED_MPV.PLAYER.SUBTITLES_OFF'
-                            ) | translate);
-                        <button
-                            type="button"
-                            class="player-controls__chip"
-                            [class.player-controls__chip--on]="
-                                settings.subtitlesOn()
-                            "
-                            data-test-id="player-controls-subtitle-chip"
-                            (click)="settings.open('subtitles')"
-                            (contextmenu)="
-                                settings.onSubtitleChipContextMenu($event)
-                            "
-                            [attr.aria-label]="
-                                'EMBEDDED_MPV.PLAYER.SUBTITLES_TOOLTIP'
-                                    | translate: { subtitles: subtitleValue }
-                            "
-                            [matTooltip]="
-                                'EMBEDDED_MPV.PLAYER.SUBTITLES_TOOLTIP'
-                                    | translate: { subtitles: subtitleValue }
-                            "
-                            matTooltipPosition="above"
-                        >
-                            <mat-icon>{{
-                                settings.subtitlesOn()
-                                    ? 'closed_caption'
-                                    : 'closed_caption_disabled'
-                            }}</mat-icon>
-                            <span class="player-controls__chip-label">{{
-                                subtitleValue
-                            }}</span>
-                        </button>
-                    }
-                    @if (settings.groups().speed) {
-                        <button
-                            type="button"
-                            class="player-controls__chip"
-                            [class.player-controls__chip--modified]="
-                                settings.speedModified()
-                            "
-                            data-test-id="player-controls-speed-chip"
-                            (click)="settings.open('speed')"
-                            [attr.aria-label]="
-                                'EMBEDDED_MPV.PLAYER.SPEED_TOOLTIP'
-                                    | translate
-                                        : { speed: settings.speedLabel() }
-                            "
-                            [matTooltip]="
-                                'EMBEDDED_MPV.PLAYER.SPEED_TOOLTIP'
-                                    | translate
-                                        : { speed: settings.speedLabel() }
-                            "
-                            matTooltipPosition="above"
-                        >
-                            <mat-icon>speed</mat-icon>
-                            <span class="player-controls__chip-label">{{
-                                settings.speedLabel()
-                            }}</span>
-                        </button>
-                    }
+                    <button
+                        mat-icon-button
+                        type="button"
+                        class="player-controls__button"
+                        data-test-id="player-controls-second-stream-button"
+                        (click)="secondStreamRequested.emit()"
+                        [attr.aria-label]="'TWO_STREAMS.ADD' | translate"
+                        [matTooltip]="'TWO_STREAMS.ADD' | translate"
+                        matTooltipPosition="above"
+                    >
+                        <mat-icon>picture_in_picture_alt</mat-icon>
+                    </button>
                 }
 
                 @if (settings.available()) {
@@ -476,11 +404,7 @@
                         matTooltipPosition="above"
                     >
                         <mat-icon>tune</mat-icon>
-                        @if (
-                            !layout.roomy() &&
-                            !settings.isOpen() &&
-                            settings.hasDots()
-                        ) {
+                        @if (!settings.isOpen() && settings.hasDots()) {
                             <span
                                 class="player-controls__tune-dots"
                                 data-test-id="player-controls-settings-dots"

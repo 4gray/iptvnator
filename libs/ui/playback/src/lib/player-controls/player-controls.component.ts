@@ -160,7 +160,6 @@ export class PlayerControlsComponent implements OnDestroy {
         capabilities: this.capabilities,
         showControls: this.showControls,
         menus: this.menus,
-        commands: () => this.controller().commands,
         reveal: (options) => this.reveal(options),
     });
     readonly upNextCard = new ControlsUpNext({
@@ -203,14 +202,13 @@ export class PlayerControlsComponent implements OnDestroy {
 
     /**
      * The top scrim is shared by every piece of top chrome (the fullscreen
-     * media title and the corner buttons): rendering one per consumer would
+     * media title and Stream info): rendering one per consumer would
      * stack two gradients and darken the overlap twice.
      */
     readonly showTopScrim = computed(
         () =>
             this.showControls() &&
-            (this.canAddSecondStream() ||
-                this.capabilities().streamStats ||
+            (this.capabilities().streamStats ||
                 this.fullscreenMediaTitle() !== null)
     );
 
