@@ -46,7 +46,10 @@ import org.tvshell.iptvnator.ShellApp;
 import org.tvshell.iptvnator.backend.DiagnosticRedactor;
 import org.tvshell.iptvnator.server.TvShellServer;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 /**
  * Full-screen WebView showing the bundled IPTVnator PWA from the embedded
@@ -79,7 +82,7 @@ public class MainActivity extends Activity {
     private String bridgeOrigin;
     private String nativePlaybackId;
     private Bundle nativePlaybackContent;
-    private Bundle nativePlaybackCheckpoint;
+    private final Bundle nativePlaybackCheckpoints = new Bundle();
     private boolean nativePlaybackDocumentCurrent;
     private final WebFileChooser fileChooser = new WebFileChooser(this);
     private FrameLayout root;
@@ -142,7 +145,8 @@ public class MainActivity extends Activity {
             restoreUrl = savedInstanceState.getString(STATE_URL);
             nativePlaybackId = savedInstanceState.getString(STATE_PLAYBACK_ID);
             nativePlaybackContent = savedInstanceState.getBundle(STATE_PLAYBACK_CONTENT);
-            nativePlaybackCheckpoint = savedInstanceState.getBundle(STATE_PLAYBACK_CHECKPOINT);
+            Bundle checkpoints = savedInstanceState.getBundle(STATE_PLAYBACK_CHECKPOINT);
+            if (checkpoints != null) nativePlaybackCheckpoints.putAll(checkpoints);
         }
         setContentView(R.layout.activity_main);
         root = findViewById(R.id.root);
@@ -247,7 +251,7 @@ public class MainActivity extends Activity {
 
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
-                if (nativePlaybackId != null || nativePlaybackCheckpoint != null) {
+                if (nativePlaybackId != null || !nativePlaybackCheckpoints.isEmpty()) {
                     nativePlaybackDocumentCurrent = false;
                     pageReady = false;
                 }
@@ -680,21 +684,28 @@ public class MainActivity extends Activity {
     }
 
     private void deliverNativePlaybackCheckpoint() {
-        Bundle checkpoint = nativePlaybackCheckpoint;
-        if (!pageReady || webView == null || checkpoint == null || SettingsActivity.dataCleared) return;
-        // A fallback port uses a different WebView data store.
-        if (!bridgeOrigin.equals(checkpoint.getString("origin"))) return;
-        js("window.dispatchEvent(new CustomEvent('iptvnator:android-playback-checkpoint',{detail:{id:"
-            + JSONObject.quote(checkpoint.getString("id")) + ",content:"
-            + JSONObject.quote(checkpoint.getString("content")) + ",positionMs:"
-            + checkpoint.getLong("position") + ",durationMs:" + checkpoint.getLong("duration")
-            + ",savedAt:" + checkpoint.getLong("savedAt") + "}}))");
+        if (!pageReady || webView == null || SettingsActivity.dataCleared) return;
+        List<Bundle> checkpoints = new ArrayList<>();
+        for (String id : nativePlaybackCheckpoints.keySet()) {
+            Bundle checkpoint = nativePlaybackCheckpoints.getBundle(id);
+            // A fallback port uses a different WebView data store.
+            if (checkpoint != null && bridgeOrigin.equals(checkpoint.getString("origin"))) checkpoints.add(checkpoint);
+        }
+        // If two checkpoints are for the same item, the latest must win.
+        checkpoints.sort(Comparator.comparingLong((Bundle checkpoint) -> checkpoint.getLong("savedAt")).reversed());
+        for (Bundle checkpoint : checkpoints) {
+            js("window.dispatchEvent(new CustomEvent('iptvnator:android-playback-checkpoint',{detail:{id:"
+                + JSONObject.quote(checkpoint.getString("id")) + ",content:"
+                + JSONObject.quote(checkpoint.getString("content")) + ",positionMs:"
+                + checkpoint.getLong("position") + ",durationMs:" + checkpoint.getLong("duration")
+                + ",savedAt:" + checkpoint.getLong("savedAt") + "}}))");
+        }
     }
 
     void acknowledgeNativePlaybackCheckpoint(String id) {
-        if (nativePlaybackCheckpoint != null && id.equals(nativePlaybackCheckpoint.getString("id"))
-            && bridgeOrigin.equals(nativePlaybackCheckpoint.getString("origin"))) {
-            nativePlaybackCheckpoint = null;
+        Bundle checkpoint = nativePlaybackCheckpoints.getBundle(id);
+        if (checkpoint != null && bridgeOrigin.equals(checkpoint.getString("origin"))) {
+            nativePlaybackCheckpoints.remove(id);
         }
     }
 
@@ -773,7 +784,7 @@ public class MainActivity extends Activity {
         super.onResume();
         resumed = true;
         hideSystemUi();
-        if (SettingsActivity.dataCleared) nativePlaybackCheckpoint = null;
+        if (SettingsActivity.dataCleared) nativePlaybackCheckpoints.clear();
         if (webView == null) {
             if (!webViewUnavailable) recreate(); // the renderer died while we were in the background
             return;
@@ -818,7 +829,7 @@ public class MainActivity extends Activity {
         if (url != null) outState.putString(STATE_URL, url);
         outState.putString(STATE_PLAYBACK_ID, nativePlaybackId);
         outState.putBundle(STATE_PLAYBACK_CONTENT, nativePlaybackContent);
-        outState.putBundle(STATE_PLAYBACK_CHECKPOINT, nativePlaybackCheckpoint);
+        outState.putBundle(STATE_PLAYBACK_CHECKPOINT, new Bundle(nativePlaybackCheckpoints));
     }
 
     /** Display changes the manifest keeps the Activity through: the pinned page scale must follow. */
@@ -849,7 +860,7 @@ public class MainActivity extends Activity {
                 content.putLong("position", result.getLongExtra("position", 0));
                 content.putLong("duration", result.getLongExtra("duration", 0));
                 content.putLong("savedAt", System.currentTimeMillis());
-                nativePlaybackCheckpoint = content;
+                nativePlaybackCheckpoints.putBundle(id, content);
                 deliverNativePlaybackCheckpoint();
             }
             return;

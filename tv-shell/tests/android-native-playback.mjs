@@ -232,6 +232,22 @@ try {
     assert.ok(result?.playedMs >= 2000 && result.durationMs > 15000 && result.positionMs >= 2000,
         `Home and launcher return must preserve the native VOD position. Got ${JSON.stringify(result)}`);
     assert.equal(result.ended, false, 'Leaving via Home is a playback checkpoint.');
+
+    await page.evaluate((url) => {
+        delete window.__nativeResult;
+        window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), { url }]));
+    }, origin + '/synthetic-ac3.mkv');
+    await waitNative();
+    await waitAudio();
+    await delay(3000);
+    adb('shell', 'input', 'keyevent', 'KEYCODE_APP_SWITCH');
+    await expect.poll(topActivity).not.toContain(app);
+    adb('shell', 'am', 'start', '-a', 'android.intent.action.MAIN',
+        '-c', 'android.intent.category.LAUNCHER', '-n', `${app}/.ui.MainActivity`);
+    await expect.poll(topActivity).toContain('.ui.MainActivity');
+    await page.waitForFunction(() => window.__nativeResult !== undefined);
+    const recentsResult = await page.evaluate(() => window.__nativeResult);
+    assert.ok(recentsResult?.positionMs >= 1000, 'Recents and launcher return must preserve the VOD position.');
     assert.ok(seen.origin.some((headers) => headers['user-agent'] === 'Synthetic-Playback'),
         'The resolved provider user agent must reach the stream origin.');
     assert.ok(seen.target.slice(redirectedBefore).some((headers) => /^okhttp\//i.test(headers['user-agent'] ?? '')),
@@ -356,6 +372,16 @@ try {
     assert.equal(completed.started, true);
     assert.ok(completed.durationMs > 0);
     assert.equal(completed.positionMs, completed.durationMs, 'Natural EOF completes the episode even when the source cannot seek.');
+
+    await page.evaluate((url) => {
+        delete window.__nativeResult;
+        window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), { url, hls: true, live: true }]));
+    }, origin + '/synthetic-live');
+    await waitNative();
+    await page.waitForFunction(() => window.__nativeResult?.ended === true, undefined, { timeout: 40000 });
+    const endedLive = await page.evaluate(() => window.__nativeResult);
+    assert.equal(endedLive.positionMs, 0);
+    assert.equal(endedLive.durationMs, 0);
 
     const sessionRedirectBefore = seen.target.length;
     await page.evaluate((url) => {

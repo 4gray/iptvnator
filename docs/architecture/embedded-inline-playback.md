@@ -153,6 +153,9 @@ If Android recreates the WebView during playback, the shell returns the final
 position for the original portal item to the same storage origin. The new
 screen saves the position through the portal's resume store. The checkpoint
 listener loads during web startup only when the Android bridge is available.
+Android retains each pending checkpoint until the page acknowledges its save.
+While a VOD plays, Android keeps an in-memory checkpoint so a launcher relaunch
+can recover progress even if it clears the player before the pause callback.
 Autoplay and watch-history confirmation require the original screen.
 The web engine can resume explicitly from that position. The
 [Android shell guide](../../tv-shell/README.md#trying-the-built-in-player)

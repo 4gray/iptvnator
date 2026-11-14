@@ -804,6 +804,8 @@ retries the stream; committing while it is still opening waits for that attempt.
 An inline retry must confirm again even when the stream URL is unchanged.
 On Android, returning from a Media3 session that played confirms the same
 channel and clears the previous web engine's error.
+A native live stream that reaches the end returns to the page as stopped so
+the guide can retry the channel.
 An embedded MPV reconnect also waits for the resumed stream to play.
 A guide or remote switch reuses the managed player when available. Otherwise
 it waits for the exact previous process to exit before opening the new channel,

@@ -22,47 +22,56 @@ export function installAndroidPlaybackCheckpoint(
     shell: { postMessage(message: string): void }
 ) {
     const positions = inject(PORTAL_PLAYBACK_POSITIONS);
-    let pending: string | undefined;
-    window.addEventListener(checkpointEvent, async (event) => {
+    const pending = new Set<string>();
+    let writes = Promise.resolve();
+    window.addEventListener(checkpointEvent, (event) => {
         if (!(event instanceof CustomEvent)) return;
         const data = event.detail as Checkpoint | null;
         if (
             !data ||
             typeof data.id !== 'string' ||
             !/^[a-f0-9-]{36}$/.test(data.id) ||
-            pending !== undefined
+            pending.has(data.id)
         )
             return;
-        pending = data.id;
-        try {
-            const position = readCheckpoint(data);
-            if (position) {
-                const [playlistId, record] = position;
-                const previous = await positions.getPlaybackPosition(
-                    playlistId,
-                    record.contentXtreamId,
-                    record.contentType
-                );
-                const previousSavedAt = Date.parse(previous?.updatedAt ?? '');
-                if (
-                    !Number.isFinite(previousSavedAt) ||
-                    previousSavedAt < data.savedAt
-                ) {
-                    await positions.savePlaybackPositionOrThrow(
+        pending.add(data.id);
+        writes = writes
+            .then(async () => {
+                const position = readCheckpoint(data);
+                if (position) {
+                    const [playlistId, record] = position;
+                    const previous = await positions.getPlaybackPosition(
                         playlistId,
-                        record
+                        record.contentXtreamId,
+                        record.contentType
                     );
-                    announceActivityChange();
+                    const previousSavedAt = Date.parse(
+                        previous?.updatedAt ?? ''
+                    );
+                    if (
+                        !Number.isFinite(previousSavedAt) ||
+                        previousSavedAt < data.savedAt
+                    ) {
+                        await positions.savePlaybackPositionOrThrow(
+                            playlistId,
+                            record
+                        );
+                        announceActivityChange();
+                    }
                 }
-            }
-            shell.postMessage(
-                JSON.stringify(['acknowledgeNativePlaybackCheckpoint', data.id])
-            );
-        } catch {
-            // Keep the checkpoint in Android until a page can persist it.
-        } finally {
-            pending = undefined;
-        }
+                shell.postMessage(
+                    JSON.stringify([
+                        'acknowledgeNativePlaybackCheckpoint',
+                        data.id,
+                    ])
+                );
+            })
+            .catch(() => {
+                // Keep the checkpoint in Android until a page can persist it.
+            })
+            .finally(() => {
+                pending.delete(data.id);
+            });
     });
 }
 

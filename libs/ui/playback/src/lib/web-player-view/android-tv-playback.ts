@@ -46,6 +46,7 @@ export class AndroidTvPlayback {
         readonly owner: string;
         readonly token: symbol;
         readonly pending: boolean;
+        readonly live: boolean;
         readonly volume: number;
     } | null>(null);
 
@@ -60,7 +61,10 @@ export class AndroidTvPlayback {
         private readonly currentOwner: () => string,
         private readonly currentToken: () => symbol,
         volume: () => number,
-        private readonly onStarted: (playedSeconds: number) => void,
+        private readonly onStarted: (
+            playedSeconds: number,
+            confirm: boolean
+        ) => void,
         private readonly onPosition: (
             position: PlayerTimeUpdate,
             replayTime: number
@@ -108,7 +112,11 @@ export class AndroidTvPlayback {
                 const played = Number.isSafeInteger(data.playedMs)
                     ? Math.max(0, data.playedMs) / 1000
                     : 0;
-                if (played > 0 || data.started === true) this.onStarted(played);
+                if (played > 0 || data.started === true)
+                    this.onStarted(
+                        played,
+                        !session.live || data.ended !== true
+                    );
                 if (this.ownedSession()?.id !== id) return;
                 if (data.durationMs > 0 || data.positionMs > 0) {
                     const currentTime = data.positionMs / 1000;
@@ -188,6 +196,7 @@ export class AndroidTvPlayback {
             owner: this.currentOwner(),
             token: this.currentToken(),
             pending: true,
+            live,
             volume,
         });
         const extension = getPlaybackMediaExtensionFromUrl(playback.streamUrl);

@@ -3,6 +3,8 @@ package org.tvshell.iptvnator.ui;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.KeyEvent;
 import android.view.WindowManager;
 
@@ -69,6 +71,15 @@ public final class NativePlayerActivity extends Activity {
     private boolean seedCaptions;
     private TrackSelectionParameters trackPreferences;
     private String requestId;
+    private final Handler checkpointHandler = new Handler(Looper.getMainLooper());
+    private final Runnable cacheCheckpoint = new Runnable() {
+        @Override
+        public void run() {
+            if (player == null || isFinishing() || !ownsCheckpoint()) return;
+            pausedCheckpoint = playbackResult();
+            checkpointHandler.postDelayed(this, 1000);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedState) {
@@ -193,7 +204,7 @@ public final class NativePlayerActivity extends Activity {
                     positionVerified |= canSnapshotCurrentPlayer;
                 }
                 if (state == Player.STATE_ENDED && player.getPlaybackState() == Player.STATE_ENDED
-                    && !live && !isFinishing()) {
+                    && !isFinishing()) {
                     ended = true;
                     finish();
                 }
@@ -219,6 +230,7 @@ public final class NativePlayerActivity extends Activity {
     protected void onResume() {
         super.onResume();
         if (player != null) player.setPlayWhenReady(autoplay);
+        if (!live) checkpointHandler.post(cacheCheckpoint);
     }
 
     @Override
@@ -286,6 +298,7 @@ public final class NativePlayerActivity extends Activity {
 
     @Override
     protected void onPause() {
+        checkpointHandler.removeCallbacks(cacheCheckpoint);
         if (player != null) {
             autoplay = player.getPlayWhenReady();
             player.pause();
@@ -363,7 +376,7 @@ public final class NativePlayerActivity extends Activity {
 
     private Intent playbackResult() {
         snapshot();
-        boolean completed = ended && started;
+        boolean completed = ended && started && !live;
         // At natural EOF, the terminal playhead gives the runtime of a stream
         // that did not advertise its duration. Back and Home keep the resume guard.
         if (completed && player != null) {
@@ -374,7 +387,7 @@ public final class NativePlayerActivity extends Activity {
         return new Intent().putExtra("position", savePosition ? position : 0)
             .putExtra("duration", savePosition ? duration : 0)
             .putExtra("played", playedMs()).putExtra("started", started)
-            .putExtra("ended", completed);
+            .putExtra("ended", completed || (live && ended));
     }
 
     private long playedMs() {

@@ -130,6 +130,27 @@ describe('restoring Android playback checkpoints', () => {
         expect(postMessage).toHaveBeenCalledTimes(1);
     });
 
+    it('saves a second episode even while the first awaits a retry', async () => {
+        const secondId = '00000000-0000-4000-8000-000000000002';
+        savePlaybackPositionOrThrow.mockRejectedValueOnce(
+            new Error('Synthetic storage failure')
+        );
+        await Promise.all([
+            deliver(),
+            deliver({
+                id: secondId,
+                content: JSON.stringify({ ...content, contentXtreamId: 18 }),
+            }),
+        ]);
+        expect(postMessage.mock.calls).toEqual([
+            [JSON.stringify(['acknowledgeNativePlaybackCheckpoint', secondId])],
+        ]);
+        await deliver();
+        expect(postMessage).toHaveBeenLastCalledWith(
+            JSON.stringify(['acknowledgeNativePlaybackCheckpoint', id])
+        );
+    });
+
     it('keeps a nonzero position when the duration is unknown', async () => {
         await deliver({ durationMs: 0 });
         expect(savePlaybackPositionOrThrow).toHaveBeenCalledWith(

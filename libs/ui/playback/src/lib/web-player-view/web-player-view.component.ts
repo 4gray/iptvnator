@@ -237,9 +237,10 @@ export class WebPlayerViewComponent implements OnDestroy {
         this.playbackSessionKey,
         this.applicationState.token,
         this.volume,
-        (seconds) => {
+        (seconds, confirm) => {
             this.historyConfirmation.recordPlayedTime(seconds);
-            if (this.recovery.confirmAndroidStart()) this.emitPlaybackStarted();
+            if (confirm && this.recovery.confirmAndroidStart())
+                this.emitPlaybackStarted();
         },
         (update, replayTime) => {
             this.activity.record(this.playback(), update);
