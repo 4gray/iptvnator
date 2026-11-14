@@ -1945,6 +1945,13 @@ live together; routing/integration stays in the M3U player template.
 When focus is inside a dialog or alertdialog, its reading region owns the
 arrows and M key. Radio leaves those events unconsumed and does not change or
 persist background volume; keyboard volume control resumes after dismissal.
+Ctrl, Cmd and Alt chords are never radio shortcuts (Cmd+M minimizes on macOS).
+Mute works as in the shared controls: it sets the volume to zero, and unmute
+restores the last audible volume (`LegacyMuteMemory`, 0.5 when none is known,
+e.g. a stored volume of zero), so raising the volume is also an unmute. The
+LIVE/paused badge and the play button follow the `<audio>` element's `play`,
+`pause`, `ended` and `error` events, so a media-key pause or a failed station
+shows; a refused `play()` shows paused unless a newer one already plays.
 
 ### Display sleep during playback
 
