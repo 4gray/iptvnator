@@ -8,5 +8,6 @@ export * from './lib/content-metadata-backfill';
 export * from './lib/xtream-content-metadata.util';
 export * from './lib/xtream-state';
 
-export { resolveXtreamVodDetailsSelection } from './lib/stores/xtream-details-request';
-export { buildXtreamVodSelection } from './lib/stores/xtream-vod-selection';
+// Keep VOD recovery out of the startup bundle with the details request.
+export const loadXtreamVodDetailsRequest = () =>
+    import('./lib/stores/xtream-details-request');

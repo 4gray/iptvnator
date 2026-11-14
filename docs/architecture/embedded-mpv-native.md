@@ -536,13 +536,15 @@ requests previews only near the visible list and honors the global EPG preferenc
 It reads M3U, Xtream live and Stalker ITV catalogs independently of the active
 provider selection and uses the shared stream resolver, preserving playback
 metadata and parental locks. Xtream and Stalker also expose movies and a
-series-to-episode drill-down. The companion uses the portal player's playlist
-and content keys to resume progress and flushes its latest position when
-paused, replaced or closed. Episode positions retain the parent series and
-episode numbers. The companion starts muted and records items in Recently Viewed
-after playback advances. The provider must permit two connections. Closing the
-companion returns to the original mounted video. Route/content replacement still ends both views. Live pause
-uses MPV pause only and does not promise timeshift or an application buffer.
+series-to-episode drill-down. The shared Xtream resolver loads its VOD details
+and recovery helpers when resolving a selected movie. The companion uses the
+portal player's playlist and content keys to resume progress and flushes its
+latest position when paused, replaced or closed. Episode positions retain the
+parent series and episode numbers. The companion starts muted and records items
+in Recently Viewed after playback advances. The provider must permit two
+connections. Closing the companion returns to the original mounted video.
+Route/content replacement still ends both views. Live pause uses MPV pause
+only and does not promise timeshift or an application buffer.
 
 The primary and companion retain their components and session IDs during
 main/small exchange. CSS changes their geometry; bounds sync resizes each

@@ -89,13 +89,18 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
             res.end(JSON.stringify({ js: { cmd: media.url } }));
             return;
         }
-        const upstream = stalker
-            ? new URL(`/portal.php${url.search}`, stalkerMockServer)
-            : url;
         if (/^\/(movie|series)\//.test(url.pathname)) {
             res.writeHead(302, { Location: media.url }).end();
             return;
         }
+        if (!stalker && url.pathname !== '/player_api.php') {
+            res.writeHead(404).end();
+            return;
+        }
+        const upstream = stalker
+            ? new URL('/portal.php', stalkerMockServer)
+            : new URL('/player_api.php', xtreamMockServer);
+        upstream.search = url.search;
         try {
             const headers = Object.fromEntries(
                 Object.entries(req.headers).filter(
@@ -103,7 +108,10 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                         key !== 'host' && typeof value === 'string'
                 )
             ) as Record<string, string>;
-            const response = await fetch(upstream, { headers });
+            const response = await fetch(upstream, {
+                headers,
+                redirect: 'error',
+            });
             if (
                 url.searchParams.get('action') === 'get_vod_info' &&
                 Number(url.searchParams.get('vod_id')) === movieId

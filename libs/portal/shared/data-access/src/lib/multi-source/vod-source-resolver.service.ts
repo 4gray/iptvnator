@@ -3,8 +3,7 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamApiService,
     XtreamUrlService,
-    resolveXtreamVodDetailsSelection,
-    buildXtreamVodSelection,
+    loadXtreamVodDetailsRequest,
     type IXtreamDataSource,
     type XtreamCredentials,
 } from '@iptvnator/portal/xtream/data-access';
@@ -121,9 +120,13 @@ export class VodSourceResolverService {
             credentials,
             candidate
         );
-        if (!details) {
+        if (!details || options.isCurrent?.() === false) {
             return null;
         }
+
+        const { buildXtreamVodSelection, resolveXtreamVodDetailsSelection } =
+            await loadXtreamVodDetailsRequest();
+        if (options.isCurrent?.() === false) return null;
 
         const selection = buildXtreamVodSelection(
             details.vodDetails,
