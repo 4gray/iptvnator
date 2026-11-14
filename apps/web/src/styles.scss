@@ -156,15 +156,44 @@ textarea {
 }
 
 @media (display-mode: standalone) {
+    html {
+        --app-overscroll-y: none;
+    }
+
     html,
     body {
         user-select: none;
     }
 
     body {
-        overscroll-behavior-y: contain;
         overflow: hidden;
     }
+}
+
+html.android-tv-shell {
+    --app-overscroll-y: none;
+}
+
+// Apply at the viewport and each independent page scroller. Horizontal
+// rails must still pass vertical gestures to the page.
+:where(
+    html,
+    body,
+    app-root > .app-viewport,
+    .workspace-content,
+    .settings-nav__groups,
+    .app-scrollbar:not(.epg-timeline__ribbon),
+    app-category-view,
+    app-category-content-view app-grid-list,
+    app-search-layout .results-container,
+    app-unified-grid-tab .grid-container,
+    .epg-guide__viewport,
+    app-recently-added,
+    app-actor-view .actor-view,
+    app-discover-view .discover-view,
+    app-portal-detail-shell
+) {
+    overscroll-behavior-y: var(--app-overscroll-y, auto);
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
