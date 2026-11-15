@@ -70,6 +70,7 @@ describe('AudioPlayerComponent', () => {
         component.setVolume(-0.25);
         expect(component.volume()).toBe(0);
         expect(audio.volume).toBe(0);
+        expect(audio.muted).toBe(true);
         expect(localStorage.getItem('volume')).toBe('0');
     });
 
@@ -192,6 +193,7 @@ describe('AudioPlayerComponent', () => {
 
         component.mute();
         expect(audio.volume).toBe(0);
+        expect(audio.muted).toBe(true);
         expect(component.isMuted()).toBe(true);
         expect(component.volume()).toBe(0);
 
@@ -207,12 +209,33 @@ describe('AudioPlayerComponent', () => {
         localStorage.setItem('volume', '0');
         const audio = createComponent();
         expect(component.isMuted()).toBe(true);
+        expect(audio.muted).toBe(true);
 
         component.mute();
 
         expect(component.isMuted()).toBe(false);
         expect(component.volume()).toBe(0.5);
         expect(audio.volume).toBe(0.5);
+        expect(audio.muted).toBe(false);
+    });
+
+    it('restores the default volume after muting with an invalid saved value', () => {
+        localStorage.setItem('volume', 'invalid');
+        const audio = createComponent();
+        component.mute();
+        component.mute();
+
+        expect(audio.volume).toBe(1);
+        expect(audio.muted).toBe(false);
+    });
+
+    it('unmutes when the last audible volume would round to zero', () => {
+        localStorage.setItem('volume', '0.004');
+        const audio = createComponent();
+        component.mute();
+        component.mute();
+
+        expect(audio.volume).toBe(0.01);
         expect(audio.muted).toBe(false);
     });
 
@@ -239,12 +262,12 @@ describe('AudioPlayerComponent', () => {
     });
 
     it('unmutes to the last audible volume after the host pushed zero', () => {
-        createComponent();
+        const audio = createComponent();
         fixture.componentRef.setInput('volume', 0.6);
         fixture.detectChanges();
         fixture.componentRef.setInput('volume', 0);
         fixture.detectChanges();
-        expect(component.isMuted()).toBe(true);
+        expect(audio.muted).toBe(true);
 
         component.mute();
 
@@ -284,17 +307,34 @@ describe('AudioPlayerComponent', () => {
             expect(component.playState()).toBe('paused');
         });
 
+        it('stays paused after a failed retry even when the element reports unpaused', async () => {
+            jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+            const audio = createComponent();
+            Object.defineProperty(audio, 'paused', { value: false });
+            audio.dispatchEvent(new Event('error'));
+            playSpy.mockRejectedValueOnce(
+                new DOMException('', 'NotSupportedError')
+            );
+
+            fixture.nativeElement.querySelector('.play-btn').click();
+            await Promise.resolve();
+
+            expect(component.playState()).toBe('paused');
+        });
+
         it('keeps a station playing when an older play() is rejected late', async () => {
             jest.spyOn(console, 'warn').mockImplementation(() => undefined);
             let rejectOld: (error: Error) => void = () => undefined;
             playSpy.mockImplementationOnce(
                 () => new Promise<void>((_, reject) => (rejectOld = reject))
             );
-            const audio = createComponent();
-            Object.defineProperty(audio, 'paused', {
-                configurable: true,
-                get: () => false,
-            });
+            createComponent();
+            fixture.componentRef.setInput(
+                'url',
+                'https://example.com/next.mp3'
+            );
+            fixture.detectChanges();
+            expect(playSpy).toHaveBeenCalledTimes(2);
 
             rejectOld(new Error('synthetic abort'));
             await Promise.resolve();
@@ -304,21 +344,20 @@ describe('AudioPlayerComponent', () => {
         });
     });
 
-    it.each([
-        { ctrlKey: true },
-        { metaKey: true },
-        { altKey: true },
-    ])('leaves %o chords to the app and the system', (modifier) => {
-        createComponent();
-        component.setVolume(0.5);
+    it.each([{ ctrlKey: true }, { metaKey: true }, { altKey: true }])(
+        'leaves %o chords to the app and the system',
+        (modifier) => {
+            createComponent();
+            component.setVolume(0.5);
 
-        for (const key of ['m', 'M', 'ArrowUp', 'ArrowDown']) {
-            const event = createKeyboardEvent(key, { init: modifier });
-            component.handleKeyboard(event);
-            expect(event.preventDefault).not.toHaveBeenCalled();
+            for (const key of ['m', 'M', 'ArrowUp', 'ArrowDown']) {
+                const event = createKeyboardEvent(key, { init: modifier });
+                component.handleKeyboard(event);
+                expect(event.preventDefault).not.toHaveBeenCalled();
+            }
+            expect(component.volume()).toBe(0.5);
         }
-        expect(component.volume()).toBe(0.5);
-    });
+    );
 
     it('emits or dispatches adjacent channel switches based on input mode', () => {
         createComponent();

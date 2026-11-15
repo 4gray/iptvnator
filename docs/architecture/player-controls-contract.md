@@ -1946,12 +1946,12 @@ When focus is inside a dialog or alertdialog, its reading region owns the
 arrows and M key. Radio leaves those events unconsumed and does not change or
 persist background volume; keyboard volume control resumes after dismissal.
 Ctrl, Cmd and Alt chords are never radio shortcuts (Cmd+M minimizes on macOS).
-Mute works as in the shared controls: it sets the volume to zero, and unmute
-restores the last audible volume (`LegacyMuteMemory`, 0.5 when none is known,
-e.g. a stored volume of zero), so raising the volume is also an unmute. The
-LIVE/paused badge and the play button follow the `<audio>` element's `play`,
-`pause`, `ended` and `error` events, so a media-key pause or a failed station
-shows; a refused `play()` shows paused unless a newer one already plays.
+Mute sets the app volume to zero and also sets `audio.muted`, so it works on
+iPhone Safari where the element can ignore volume assignments. Unmute restores
+the last audible volume (`LegacyMuteMemory`, 0.5 when none is known). Raising
+the volume also clears `audio.muted`. The LIVE badge and the play button follow
+the element's `play`, `pause`, `ended` and `error` events. Play reloads a failed
+stream, and if the current attempt is rejected, the player shows paused.
 
 ### Display sleep during playback
 

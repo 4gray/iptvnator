@@ -69,7 +69,7 @@ export async function playSyntheticStalkerRadio(page: Page): Promise<Locator> {
     });
     await addStalkerPortal(page);
     await page.getByRole('link', { name: /radio/i }).click();
-    await page.locator('.category-item').nth(1).click();
+    await page.getByRole('button', { name: 'News Radio', exact: true }).click();
     await page.getByText('Synthetic Radio Alpha', { exact: true }).click();
     const audio = page.locator('app-audio-player audio');
     await expect

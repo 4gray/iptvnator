@@ -217,6 +217,7 @@ export class AudioPlayerComponent {
     private destroyRef = inject(DestroyRef);
     private hostEl = inject(ElementRef);
     private readonly muteMemory = new LegacyMuteMemory();
+    private playAttempt = 0;
     /** Commits the deferred "recently viewed" write once the station plays. */
     private readonly historyConfirmation = new PlaybackHistoryConfirmation({
         gate: inject(PlaybackHistoryGate),
@@ -230,8 +231,8 @@ export class AudioPlayerComponent {
         const saved = parseFloat(localStorage.getItem('volume') ?? '1');
         if (!isNaN(saved)) {
             this.volume.set(Math.max(0, Math.min(1, saved)));
-            this.muteMemory.rememberIfAudible(this.volume());
         }
+        this.muteMemory.rememberIfAudible(this.volume());
 
         effect(() => {
             const volume = this.externalVolume();
@@ -245,7 +246,10 @@ export class AudioPlayerComponent {
             const audio = this.audioRef()?.nativeElement;
             if (!audio || !url) return;
             audio.src = url;
-            audio.volume = untracked(() => this.volume());
+            this.applyVolume(
+                audio,
+                untracked(() => this.volume())
+            );
             audio.load();
             this.logoError.set(false);
             this.play();
@@ -314,16 +318,19 @@ export class AudioPlayerComponent {
     play() {
         const audio = this.audioRef()?.nativeElement;
         if (!audio) return;
+        const attempt = ++this.playAttempt;
+        // A media error remains latched until the browser reloads the source.
+        if (audio.error) audio.load();
         audio.play().catch((err) => {
+            if (attempt !== this.playAttempt) return;
+            this.playState.set('paused');
             console.warn('[AudioPlayer] Audio playback failed:', err);
-            // A rejection superseded by a newer play() of the next station
-            // must not flip the state of a stream that is playing.
-            if (audio.paused) this.playState.set('paused');
         });
         this.playState.set('play');
     }
 
     stop() {
+        ++this.playAttempt;
         this.audioRef()?.nativeElement?.pause();
         this.playState.set('paused');
     }
@@ -333,11 +340,17 @@ export class AudioPlayerComponent {
         this.volume.set(clamped);
         this.muteMemory.rememberIfAudible(clamped);
         const audio = this.audioRef()?.nativeElement;
-        if (audio) audio.volume = clamped;
+        if (audio) this.applyVolume(audio, clamped);
         localStorage.setItem('volume', String(clamped));
         if (options.emitChange !== false) {
             this.volumeChange.emit(clamped);
         }
+    }
+
+    private applyVolume(audio: HTMLAudioElement, volume: number): void {
+        audio.volume = volume;
+        // iPhone Safari can ignore programmatic changes to the volume.
+        audio.muted = volume === 0;
     }
 
     /**
@@ -345,8 +358,9 @@ export class AudioPlayerComponent {
      * is known, e.g. a stored volume of zero), so unmute always sounds.
      */
     mute() {
+        // The shared volume key can contain a value below radio's precision.
         this.setVolume(
-            this.isMuted() ? this.muteMemory.unmuteVolume(0) : 0
+            this.isMuted() ? Math.max(0.01, this.muteMemory.unmuteVolume(0)) : 0
         );
     }
 
