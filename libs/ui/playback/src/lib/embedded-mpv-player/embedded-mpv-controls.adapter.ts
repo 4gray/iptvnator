@@ -41,6 +41,7 @@ import { EmbeddedMpvControlsRecording } from './embedded-mpv-controls-recording'
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
 import { EmbeddedMpvSubtitleSettings } from './embedded-mpv-subtitle-settings';
 import { toPlayerStreamStats } from './embedded-mpv-stream-stats';
+import { EmbeddedMpvLiveEdge } from './embedded-mpv-live-edge';
 
 type VolumeController = Pick<
     EmbeddedMpvSessionController,
@@ -115,6 +116,11 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
         () => toPlayerStreamStats(this.controller.session()) !== null
     );
 
+    private readonly liveEdge = new EmbeddedMpvLiveEdge(
+        () => this.controller.session(),
+        (delta) => this.controller.seekBy(delta)
+    );
+
     readonly streamStats: PlayerStreamStatsSource = {
         sample: () => toPlayerStreamStats(this.controller.session()),
     };
@@ -144,6 +150,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             fullscreen: true,
             seriesNavigation: !isLive && context.seriesNavigation() !== null,
             streamStats: this.hasStreamStats(),
+            liveEdge: isLive && this.liveEdge.supported(),
         };
     });
 
@@ -256,6 +263,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
         setAspectRatio: (value) => void this.controller.setAspect(value),
         toggleRecording: () => void this.toggleRecording(),
         togglePictureInPicture: () => undefined,
+        jumpToLiveEdge: () => void this.jumpToLiveEdge(),
     };
 
     constructor() {
@@ -388,6 +396,16 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
                         ),
                 };
         }
+    }
+
+    /** Returns whether a seek was sent. */
+    jumpToLiveEdge(): boolean {
+        const playback = this.configuredContext()?.playback();
+        return (
+            playback !== undefined &&
+            this.isLivePlayback(playback) &&
+            this.liveEdge.jump()
+        );
     }
 
     private recordingElapsedSeconds(startedAt: string | undefined): number {

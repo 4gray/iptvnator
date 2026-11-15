@@ -699,6 +699,12 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         }
     }
 
+    /** Legacy dock only; the shared controls call the adapter themselves. */
+    jumpToLiveEdge(): void {
+        this.legacyInteractions.revealControls();
+        this.sharedControls.jumpToLiveEdge();
+    }
+
     requestPreviousEpisode(): void {
         this.legacyInteractions.revealControls();
         if (!this.canPreviousEpisode()) {
