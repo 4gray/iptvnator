@@ -129,7 +129,12 @@ export class SettingsFormFacade {
             .subscribe(() => this.refreshChangedPaths());
         effect(() => {
             const key = this.settingsStore.savedTmdbApiKey();
-            if (key !== undefined) untracked(() => this.syncSavedTmdbKey(key));
+            if (
+                key !== undefined &&
+                !this.unsettledSavePaths.has('tmdb.apiKey')
+            ) {
+                untracked(() => this.syncSavedTmdbKey(key));
+            }
         });
     }
 
@@ -320,21 +325,15 @@ export class SettingsFormFacade {
             delete settings.tmdb.apiKey;
         // A staged source list must not drop sources added to the store
         // since the page loaded; they are saved with it.
-        const addedEpgUrls = settings.epgUrl
-            ? epgUrlsAddedOutside(
-                  settings.epgUrl,
-                  this.ownEpgUrls(),
-                  stored.epgUrl
-              )
-            : [];
-        if (addedEpgUrls.length) {
-            settings.epgUrl = [...(settings.epgUrl ?? []), ...addedEpgUrls];
-            submittedSnapshot.epgUrl = [
-                ...(submittedSnapshot.epgUrl ?? []),
-                ...addedEpgUrls,
-            ];
+        if (settings.epgUrl) {
+            const addedEpgUrls = epgUrlsAddedOutside(
+                settings.epgUrl,
+                this.ownEpgUrls(),
+                stored.epgUrl
+            );
+            for (const url of this.epgUrls) this.unsettledEpgUrls.add(url);
+            settings.epgUrl = [...settings.epgUrl, ...addedEpgUrls];
         }
-        for (const url of settings.epgUrl ?? []) this.unsettledEpgUrls.add(url);
         let cleanupError: EpgSourceReconciliationError | undefined;
         try {
             await this.settingsStore.updateSettings(settings, {
@@ -365,11 +364,9 @@ export class SettingsFormFacade {
             }
         }
         if (cleanupError) throw cleanupError;
+        this.rebaseOnStore({ paths: savedPaths, snapshot: submittedSnapshot });
         this.unsettledSavePaths.clear();
         this.unsettledEpgUrls.clear();
-        this.rebaseOnStore(savedPaths, submittedSnapshot, addedEpgUrls);
-        const savedTmdbKey = this.settingsStore.savedTmdbApiKey();
-        if (savedTmdbKey !== undefined) this.syncSavedTmdbKey(savedTmdbKey);
         onSaved();
         this.refreshRestartPending();
     }
@@ -381,7 +378,9 @@ export class SettingsFormFacade {
      */
     syncWithStore(): void {
         this.rebaseOnStore();
-        if (!this.changedPaths().length) this.form.markAsPristine();
+        if (!this.changedPaths().length && !this.unsettledSavePaths.size) {
+            this.form.markAsPristine();
+        }
         this.refreshRestartPending();
     }
 
@@ -454,41 +453,44 @@ export class SettingsFormFacade {
         }
     }
 
-    /**
-     * Moves the saved baseline to the store's current values. Controls with
-     * no staged edit show the stored value; staged edits stay staged, among
-     * them edits made while a save was pending. Paths just saved take the
-     * submitted value, so normalization (a trimmed path) does not count as
-     * a new edit. EPG sources added to the stored list from outside (or
-     * merged into the list just saved) join a staged list rather than
-     * vanish on Save.
-     */
-    private rebaseOnStore(
-        savedPaths: readonly string[] = [],
-        submitted?: SettingsFormValue,
-        savedEpgAdditions: readonly string[] = []
-    ): void {
+    /** Adopts stored values while retaining any edits still in the form. */
+    private rebaseOnStore(submitted?: {
+        paths: readonly string[];
+        snapshot: SettingsFormValue;
+    }): void {
         const current = this.form.getRawValue();
-        const staged = new Set([
-            ...diffSettingsValues(current, this.savedSnapshot),
-            ...(submitted ? diffSettingsValues(current, submitted) : []),
-        ]);
+        const staged = new Set(diffSettingsValues(current, this.savedSnapshot));
         const next = settingsToFormValue(
             this.settingsStore.getSettings(),
             current
         );
-        for (const path of savedPaths) {
-            writeSettingsPath(next, path, readSettingsPath(submitted, path));
+        const storedEpgUrls = next.epgUrl;
+        if (submitted) {
+            const laterEdits = diffSettingsValues(current, submitted.snapshot);
+            for (const path of submitted.paths) {
+                if (laterEdits.includes(path)) staged.add(path);
+                else staged.delete(path);
+            }
+        } else {
+            // A backup may finish while a Save still needs an acknowledgement.
+            for (const path of this.unsettledSavePaths) {
+                if (path !== 'epgUrl') {
+                    writeSettingsPath(
+                        next,
+                        path,
+                        readSettingsPath(this.savedSnapshot, path)
+                    );
+                }
+                staged.add(path);
+            }
         }
-        const addedEpgUrls = !staged.has('epgUrl')
-            ? []
-            : savedPaths.includes('epgUrl')
-              ? epgUrlsAddedOutside(current.epgUrl, [], savedEpgAdditions)
-              : epgUrlsAddedOutside(
-                    current.epgUrl,
-                    this.ownEpgUrls(),
-                    next.epgUrl
-                );
+        const addedEpgUrls = staged.has('epgUrl')
+            ? epgUrlsAddedOutside(
+                  current.epgUrl,
+                  this.ownEpgUrls(),
+                  storedEpgUrls
+              )
+            : [];
         for (const path of diffSettingsValues(next, current)) {
             if (staged.has(path)) continue;
             if (path === 'epgUrl') {

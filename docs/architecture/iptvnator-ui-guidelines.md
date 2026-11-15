@@ -1321,14 +1321,13 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   change to the same setting. A staged EPG source list is saved together
   with sources added elsewhere since the page loaded, but it also keeps a
   source removed elsewhere meanwhile (the list on the page wins). A setting
-  an unsettled save already wrote is written again by the next Save, so an
-  edit typed back to its saved value (the TMDB key included) overrides it.
-  Desktop
-  still receives the whole merged settings object. Untouched controls are
-  not live-synced: they show an outside change after Save or a reload.
-- A backup import re-baselines the form on the store and keeps staged edits:
-  restored EPG sources join a staged source list, and a form with nothing
-  left to save turns pristine. Discard still reloads every stored value.
+  already submitted by a Save awaiting acknowledgement is written again by
+  the next Save, so an edit reverted to its saved value still takes effect.
+  An EPG retry keeps sources added elsewhere, including ones merged by the
+  earlier Save. Desktop receives the complete merged settings object.
+- A backup import brings in restored EPG URLs and keeps staged edits.
+  The form becomes pristine when it has no edits or pending Save failures.
+  Discard reloads stored values.
 
 ### Light Theme
 

@@ -239,7 +239,7 @@ or updated; the next settings write persists that canonical code.
 An open settings form takes the restored sources in without dropping staged
 edits (`SettingsFormFacade.syncWithStore()`): untouched controls show the
 stored values, a staged EPG source list gains the restored URLs, and the form
-turns pristine when nothing differs from the saved settings. Its next Save
+turns pristine when nothing differs and no earlier Save needs a retry. The next Save
 writes only the staged paths, so it cannot undo the restore. Covered by
 `settings.component.outside-changes.spec.ts` and browser
 `backup-restore.e2e.ts`.

@@ -189,6 +189,55 @@ describe('SettingsComponent with settings changed outside the form', () => {
         expect(form.pristine).toBe(true);
     });
 
+    it('keeps an outside EPG source across a retry after the desktop update fails', async () => {
+        jest.spyOn(window.electron, 'updateSettings').mockRejectedValueOnce(
+            new Error('runtime unavailable')
+        );
+        component.form.setEpgUrls(STAGED_GUIDE);
+        component.settingsForm.markAsDirty();
+        settingsStore._setSettings({ epgUrl: [SAVED_GUIDE, RESTORED_GUIDE] });
+
+        await expect(component.form.save(() => undefined)).rejects.toThrow();
+        await component.form.save(() => component.form.applySavedSettings());
+
+        expect(settingsStore.getSettings().epgUrl).toEqual([
+            SAVED_GUIDE,
+            STAGED_GUIDE,
+            RESTORED_GUIDE,
+        ]);
+        expect(component.form.epgUrls).toEqual(
+            settingsStore.getSettings().epgUrl
+        );
+        expect(component.settingsForm.pristine).toBe(true);
+    });
+
+    it('accepts newly stored sources when the staged source list did not change during save', async () => {
+        let finishUpdate!: () => void;
+        const pending = new Promise<void>((resolve) => {
+            finishUpdate = resolve;
+        });
+        jest.spyOn(window.electron, 'updateSettings').mockReturnValueOnce(
+            pending
+        );
+        component.form.setEpgUrls(STAGED_GUIDE);
+        component.settingsForm.markAsDirty();
+
+        const saving = component.form.save(() =>
+            component.form.applySavedSettings()
+        );
+        await Promise.resolve();
+        settingsStore._setSettings({
+            epgUrl: [SAVED_GUIDE, STAGED_GUIDE, RESTORED_GUIDE],
+        });
+        finishUpdate();
+        await saving;
+
+        expect(component.form.epgUrls).toEqual(
+            settingsStore.getSettings().epgUrl
+        );
+        expect(component.settingsForm.pristine).toBe(true);
+    });
+
     it('lets a source added by a half-failed save be removed on retry', async () => {
         jest.spyOn(window.electron, 'updateSettings').mockRejectedValueOnce(
             new Error('runtime unavailable')
