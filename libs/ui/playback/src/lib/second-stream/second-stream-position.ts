@@ -43,6 +43,25 @@ export class SecondStreamPosition {
             travelY,
         };
     });
+    observe(stage: HTMLElement): () => void {
+        const measure = () =>
+            this.measure(
+                stage.getBoundingClientRect(),
+                { width: window.innerWidth, height: window.innerHeight },
+                document.fullscreenElement === stage
+            );
+        const observer = new ResizeObserver(measure);
+        observer.observe(stage);
+        window.addEventListener('resize', measure);
+        document.addEventListener('fullscreenchange', measure);
+        measure();
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', measure);
+            document.removeEventListener('fullscreenchange', measure);
+        };
+    }
+
     measure(
         stage: { left: number; top: number; width: number; height: number },
         viewport: { width: number; height: number },

@@ -59,6 +59,8 @@ jest.spyOn(global.console, 'error').mockImplementation(() => {
 class MockSettingsService {
     getValueFromLocalStorage = jest.fn().mockReturnValue(of(undefined));
     changeTheme = jest.fn();
+    changeThemeAccent = jest.fn();
+    changeSystemThemes = jest.fn();
 }
 
 @Component({ selector: 'app-startup-status', template: '' })

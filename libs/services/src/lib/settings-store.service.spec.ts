@@ -297,6 +297,7 @@ describe('SettingsStore dashboard rail settings', () => {
         'MOCHA_THEME',
         'NIGHT_OWL_THEME',
         'BLACK_OLED_THEME',
+        'HIGH_CONTRAST_THEME',
     ])(
         'preserves saved theme %s through unrelated partial updates',
         async (theme) => {

@@ -192,6 +192,31 @@ describe('EmbeddedMpvControlsAdapter', () => {
         expect(adapter.state()).toEqual(createEmptyControlsState());
     });
 
+    it('sends volume to the audio owner while transport stays on the selected view', () => {
+        const audioOwner = createController();
+        audioOwner.session.set(session({ volume: 0.4 }));
+        const volumeCommandsEnabled = signal(false);
+        adapter.configure({
+            playback,
+            seriesNavigation,
+            recordingFolder: signal('/recordings'),
+            volumeController: () => audioOwner,
+            volumeCommandsEnabled,
+        });
+
+        expect(adapter.state().volume).toBe(0.4);
+        adapter.commands.setVolume(0.8);
+        expect(audioOwner.applyVolume).not.toHaveBeenCalled();
+
+        volumeCommandsEnabled.set(true);
+        adapter.commands.setVolume(0.6);
+        adapter.commands.togglePlay();
+        expect(audioOwner.applyVolume).toHaveBeenCalledWith(0.6);
+        expect(controller.applyVolume).not.toHaveBeenCalled();
+        expect(controller.togglePaused).toHaveBeenCalledTimes(1);
+        expect(audioOwner.togglePaused).not.toHaveBeenCalled();
+    });
+
     it('derives baseline, optional, and VOD series capabilities', () => {
         configure();
 
@@ -211,6 +236,7 @@ describe('EmbeddedMpvControlsAdapter', () => {
             fullscreen: true,
             seriesNavigation: true,
             streamStats: false,
+            liveEdge: false,
         });
 
         controller.support.set(
@@ -241,6 +267,7 @@ describe('EmbeddedMpvControlsAdapter', () => {
             fullscreen: true,
             seriesNavigation: true,
             streamStats: false,
+            liveEdge: false,
         });
     });
 
@@ -275,6 +302,69 @@ describe('EmbeddedMpvControlsAdapter', () => {
         expect(adapter.state().canSeek).toBe(false);
         expect(adapter.state().canPreviousEpisode).toBe(false);
         expect(adapter.state().canNextEpisode).toBe(false);
+    });
+
+    describe('jump to live edge', () => {
+        const liveTs = (bufferedAheadSeconds: number) =>
+            session({
+                durationSeconds: null,
+                stats: { container: 'mpegts', bufferedAheadSeconds },
+            });
+
+        beforeEach(() => {
+            playback.set(LIVE_PLAYBACK);
+            configure();
+        });
+
+        it('offers the jump only for live MPEG-TS', () => {
+            controller.session.set(liveTs(23));
+            expect(adapter.capabilities().liveEdge).toBe(true);
+
+            controller.session.set(
+                session({
+                    stats: { container: 'hls', bufferedAheadSeconds: 23 },
+                })
+            );
+            expect(adapter.capabilities().liveEdge).toBe(false);
+
+            controller.session.set(liveTs(23));
+            playback.set(VOD_PLAYBACK);
+            expect(adapter.capabilities().liveEdge).toBe(false);
+        });
+
+        it('does nothing at or below the 3 s target, and jumps just above it', () => {
+            controller.session.set(liveTs(3));
+            expect(adapter.capabilities().liveEdge).toBe(true);
+            expect(adapter.jumpToLiveEdge()).toBe(false);
+            expect(controller.seekBy).not.toHaveBeenCalled();
+
+            controller.session.set(liveTs(3.4));
+            expect(adapter.jumpToLiveEdge()).toBe(true);
+            expect(controller.seekBy).toHaveBeenCalledTimes(1);
+            expect(controller.seekBy.mock.calls[0][0]).toBeCloseTo(0.4);
+        });
+
+        it('seeks forward through mpv by the buffer minus 3 s', () => {
+            controller.session.set(liveTs(23));
+
+            adapter.commands.jumpToLiveEdge();
+
+            expect(controller.seekBy).toHaveBeenCalledWith(20);
+        });
+
+        it('ignores the command for HLS and VOD', () => {
+            controller.session.set(
+                session({
+                    stats: { container: 'hls', bufferedAheadSeconds: 23 },
+                })
+            );
+            expect(adapter.jumpToLiveEdge()).toBe(false);
+
+            controller.session.set(liveTs(23));
+            playback.set(VOD_PLAYBACK);
+            expect(adapter.jumpToLiveEdge()).toBe(false);
+            expect(controller.seekBy).not.toHaveBeenCalled();
+        });
     });
 
     it('maps session state, presets, seekability, stalled state, and reactive series navigation', () => {

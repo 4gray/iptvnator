@@ -60,6 +60,7 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYER,
     createLogger,
+    createInlinePlaybackPositionWriter,
     consumeStalkerReturnMarker,
     createDiscoverFacetNavigation,
     resolveStalkerBackNavigation,
@@ -203,7 +204,19 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private currentSeriesPlaybackOwnerKey = '';
     private readonly inlinePlaybackEpisodeIdentity =
         signal<StalkerEpisodePlaybackStructuralIdentity | null>(null);
-    private lastSaveTime = 0;
+    /** Shared writer with the resume latch (see Stalker VOD playback). */
+    private readonly positionWriter = createInlinePlaybackPositionWriter({
+        playback: this.inlinePlayback,
+        save: (playlistId, position) =>
+            void this.positions
+                .persistSeriesPosition(playlistId, position)
+                .catch((error: unknown) => {
+                    this.logger.error(
+                        'Failed to persist inline series position',
+                        error
+                    );
+                }),
+    });
     private unsubscribePositionUpdates: (() => void) | null = null;
     readonly openingEpisodeId = signal<number | null>(null);
     readonly activeEpisodeId = signal<number | null>(null);
@@ -1124,33 +1137,14 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         this.inlinePlayback.set(null);
         this.inlinePlaybackEpisodeIdentity.set(null);
         this.playbackSessionKey.set('');
-        this.lastSaveTime = 0;
+        this.positionWriter.reset();
     }
 
     handleInlineTimeUpdate(event: {
         currentTime: number;
         duration: number;
     }): void {
-        const playback = this.inlinePlayback();
-        if (!playback?.contentInfo) return;
-
-        const now = Date.now();
-        if (now - this.lastSaveTime <= 15000) return;
-
-        this.lastSaveTime = now;
-        const position: PlaybackPositionData = {
-            ...playback.contentInfo,
-            positionSeconds: Math.floor(event.currentTime),
-            durationSeconds: Math.floor(event.duration),
-        };
-        void this.positions
-            .persistSeriesPosition(playback.contentInfo.playlistId, position)
-            .catch((error: unknown) => {
-                this.logger.error(
-                    'Failed to persist inline series position',
-                    error
-                );
-            });
+        this.positionWriter.handleTimeUpdate(event);
     }
 
     showCopyNotification(): void {
@@ -1335,7 +1329,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                       }
                     : playback;
 
-            this.lastSaveTime = 0;
+            this.positionWriter.reset();
             if (request.usesEmbeddedPlayer && request.identity) {
                 this.setInlinePlayback(resolvedPlayback, request.identity);
                 return;

@@ -149,23 +149,33 @@ test.describe('Theme tokens', () => {
                 // The dark surface belongs to the app host. Components that
                 // carry `dark-theme` for its tokens (the fullscreen channel
                 // panel, the diagnostic's alternative sources) keep their own.
-                const backgrounds = await page.evaluate(() => {
+                const panelColors = await page.evaluate(() => {
                     const nested = document.createElement('div');
                     nested.className = 'dark-theme';
                     nested.style.background = 'rgb(22, 27, 36)';
                     document.body.appendChild(nested);
+                    const style = getComputedStyle(nested);
                     const result = {
-                        nested: getComputedStyle(nested).backgroundColor,
+                        nested: style.backgroundColor,
                         body: getComputedStyle(document.body).backgroundColor,
+                        icon: style.getPropertyValue(
+                            '--mat-icon-button-icon-color'
+                        ),
+                        onSurfaceVariant: style.getPropertyValue(
+                            '--mat-sys-on-surface-variant'
+                        ),
                     };
                     nested.remove();
                     return result;
                 });
-                expect(backgrounds.nested, `nested in ${theme} theme`).toBe(
+                expect(panelColors.nested, `nested in ${theme} theme`).toBe(
                     'rgb(22, 27, 36)'
                 );
+                expect(panelColors.icon, `nested icon in ${theme} theme`).toBe(
+                    panelColors.onSurfaceVariant
+                );
                 if (theme === 'dark') {
-                    expect(backgrounds.body).toBe(
+                    expect(panelColors.body).toBe(
                         await resolveColor(page, 'var(--mat-sys-surface)')
                     );
                 }

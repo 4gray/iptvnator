@@ -107,8 +107,9 @@
             [upNext]="upNext()"
             [timelineSegments]="controlsTimelineSegments()"
             [showControls]="showControls()"
-            [canAddSecondStream]="canAddSecondStream()"
-            (secondStreamRequested)="secondStreamRequested.emit()"
+            [canOpenMultiview]="canOpenMultiview()"
+            (multiviewAddRequested)="multiviewAddRequested.emit()"
+            (multiviewGridRequested)="multiviewGridRequested.emit()"
             [shortcutsEnabled]="sharedShortcutsEnabled()"
             (previousEpisodeRequested)="requestPreviousEpisode()"
             (nextEpisodeRequested)="requestNextEpisode()"
@@ -158,6 +159,25 @@
                             isPaused() ? 'play_arrow' : 'pause'
                         }}</mat-icon>
                     </button>
+
+                    @if (sharedControls.capabilities().liveEdge) {
+                        <button
+                            mat-icon-button
+                            type="button"
+                            class="embedded-mpv-player__control-button"
+                            data-test-id="embedded-mpv-jump-to-live"
+                            (click)="jumpToLiveEdge()"
+                            [attr.aria-label]="
+                                'EMBEDDED_MPV.PLAYER.JUMP_TO_LIVE' | translate
+                            "
+                            [matTooltip]="
+                                'EMBEDDED_MPV.PLAYER.JUMP_TO_LIVE' | translate
+                            "
+                            matTooltipPosition="above"
+                        >
+                            <mat-icon>fast_forward</mat-icon>
+                        </button>
+                    }
 
                     @if (showSeriesNavigation()) {
                         <button

@@ -196,11 +196,19 @@ export class AppComponent implements OnInit {
                     if (this.epgBridge.supportsImport)
                         void this.fetchStaleEpgData();
 
+                    // System resolves through the saved pair.
+                    this.settingsService.changeSystemThemes(
+                        settings.systemLightTheme,
+                        settings.systemDarkTheme
+                    );
                     if (settings.theme) {
                         this.settingsService.changeTheme(settings.theme);
                     } else {
                         this.detectDarkMode();
                     }
+                    void this.settingsService.changeThemeAccent(
+                        settings.themeAccent
+                    );
                 } else {
                     this.detectDarkMode();
                 }

@@ -238,8 +238,8 @@ interface PlayerController {
 `PlayerControlsCapabilities` contains booleans for `seek`, `volume`,
 `audioTracks`, `subtitles`, `externalSubtitles`, `subtitleDelay`,
 `subtitleStyle`, `qualityLevels`, `playbackSpeed`, `aspectRatio`,
-`recording`, `pictureInPicture`, `fullscreen`, `seriesNavigation`, and
-`streamStats`.
+`recording`, `pictureInPicture`, `fullscreen`, `seriesNavigation`,
+`streamStats`, and `liveEdge`.
 
 The default is all-false. An adapter enables only features that its engine and
 current runtime support. Capability flags primarily control whether optional UI
@@ -257,7 +257,7 @@ is rendered; state such as `canSeek`, `canPreviousEpisode`, and
 - pre-labelled quality levels and the ABR/auto flag;
 - playback speed and aspect-ratio selections/presets;
 - recording state;
-- picture-in-picture active state and runtime availability; and
+- picture-in-picture active state and runtime availability;
 - previous/next episode availability.
 
 Adapters translate engine types into this model. The controls component must not
@@ -283,6 +283,10 @@ owner.
 - `setAspectRatio`
 - `toggleRecording`
 - `togglePictureInPicture`
+- `jumpToLiveEdge` — skips buffered live data so playback runs close to the
+  broadcast. Only Embedded MPV implements it, for live MPEG-TS; web adapters
+  report `liveEdge: false` and treat the command as a no-op (see
+  "Jump to live" below)
 
 Episode navigation is deliberately exposed as component outputs
 (`previousEpisodeRequested` and `nextEpisodeRequested`) because the owning
@@ -297,6 +301,19 @@ There is no fullscreen delegate or native-fullscreen IPC path.
 changes, including when it is already fullscreen. The Embedded MPV host's
 existing `fullscreenchange` listener still triggers bounds sync so frame-copy
 render size follows the fullscreen DOM surface.
+
+Embedded MPV multiview keeps the fullscreen target on the player host,
+which contains all open viewports and the stream bar. The bar appears after
+entering multiview and disappears when returning to regular single
+playback. Leaving multiview from fullscreen expands the primary video
+within that same fullscreen host. The fullscreen overlay container keeps
+the stream picker available there. Only the selected viewport handles
+shared controls. Transport stays on that viewport, and volume and mute
+apply to the designated audio session. In the 2×2 grid, keys 1 through 4
+select occupied windows when the player owns keyboard input. Pointer clicks
+on the stream bar's window, sound, and layout toggles return focus to the grid
+stage so those shortcuts stay available. The selected window and audio session
+may differ.
 
 The owner matters because `WebPlayerViewComponent` remounts the engine
 component for every playback application (`@for ... track application.token`:
@@ -401,7 +418,12 @@ one colour in every player surface (UI guidelines, "Watch progress colour").
   the hover/tap popover in the compact mode — inline, the button is a
   plain mute toggle for every pointer type (`buttonClick(event,
   { inlineSlider: true })`). Center: previous episode · −10s · **play** ·
-  +10s · next episode. Right: add second stream, settings, recording,
+  jump to live · +10s · next episode (jump to live and ±10s never appear
+  together: one is live-only, the other VOD-only). The centre is itself a
+  `1fr auto 1fr` grid: play owns the middle column and the buttons before
+  and after it sit in two `.player-controls__transport-side` columns of equal
+  width, so a button that appears on one side never moves play.
+  Right: add second stream, settings, recording,
   picture-in-picture and fullscreen, end-aligned and capability-gated.
 - **Play button** (`.player-controls__play`, `data-test-id
   ="player-controls-play"`): a 52px filled accent circle with a white glyph,
@@ -418,6 +440,23 @@ one colour in every player surface (UI guidelines, "Watch progress colour").
   off: its colour comes from the app theme, and the light theme's dark layer
   left no visible focus on video. The settings panel's icon buttons use the
   same ring, inset by 2px because the panel body clips at its edge.
+
+### Jump to live
+
+`capabilities.liveEdge` renders a `fast_forward` icon button
+(`data-test-id="player-controls-jump-to-live"`, label `JUMP_TO_LIVE`)
+directly right of play. It is always enabled: whether there is backlog to
+skip is decided by the engine at click time, because a state flag tracking a
+jittery live buffer made the button flicker.
+`ControlsTransport` owns it together with the ±10s skip. The jump reveals the
+controls and sends the command when the engine offers it. The controls do
+not flash a confirmation because a seek request does not guarantee that
+playback reached the live edge. There is no keyboard shortcut.
+
+Embedded MPV is the only engine that enables it, and only for a live session
+whose mpv `file-format` is `mpegts`; the native-view engine's legacy dock
+renders the same button (`embedded-mpv-jump-to-live`). Why TS only and how
+the jump works: `embedded-mpv-native.md`, "Jump to live (MPEG-TS)".
 
 ### Timeline segments
 
@@ -618,15 +657,16 @@ while at least one group exists. If the last group disappears, settings close.
 - **Colors** follow the color-as-state rule of the dock: cyan means "on",
   violet means "changed", and neutral rows/items read as the default.
 
-### Second-stream action
+### Multiview action
 
-The frame-copy host opts into `canAddSecondStream` and handles
-`secondStreamRequested` to open its channel picker. The
-`picture_in_picture_alt` action sits immediately before settings in the bottom
-controls and has the localized “Add second stream” tooltip. It is available
-while a single stream plays in the frame-copy host. Browser video engines can
-expose their native picture-in-picture action and leave `canAddSecondStream`
-disabled. The frame-copy host exposes no native video picture-in-picture.
+The frame-copy host sets `canOpenMultiview` during regular single-stream
+playback. The `grid_view` button sits immediately before Settings in the
+bottom controls and opens the localized Multiview menu. Its Add stream action
+emits `multiviewAddRequested` so the host opens its stream picker. Open 2×2
+grid emits `multiviewGridRequested` so the host opens the grid with the
+current stream. Once multiview is active, the stream bar provides its layout
+and stream actions. Browser video engines can expose their native
+picture-in-picture action when available.
 
 ### Stream info popover
 
@@ -1764,6 +1804,7 @@ libs/ui/playback/src/lib/player-controls/
 ├── controls-layout.ts
 ├── controls-timeline-label.ts
 ├── controls-timeline-segments.ts
+├── controls-transport.ts
 ├── controls-settings.ts
 ├── controls-settings-groups.ts
 ├── controls-up-next.ts
@@ -1825,6 +1866,7 @@ libs/ui/playback/src/lib/embedded-mpv-player/
 ├── embedded-mpv-controls.adapter.ts
 ├── embedded-mpv-controls-recording.ts
 ├── embedded-mpv-controls-recording-feedback.ts
+├── embedded-mpv-live-edge.ts
 ├── embedded-mpv-stream-stats.ts
 ├── embedded-mpv-player.component.ts
 ├── embedded-mpv-player.component.html
@@ -1945,6 +1987,13 @@ live together; routing/integration stays in the M3U player template.
 When focus is inside a dialog or alertdialog, its reading region owns the
 arrows and M key. Radio leaves those events unconsumed and does not change or
 persist background volume; keyboard volume control resumes after dismissal.
+Ctrl, Cmd and Alt chords are never radio shortcuts (Cmd+M minimizes on macOS).
+Mute sets the app volume to zero and also sets `audio.muted`, so it works on
+iPhone Safari where the element can ignore volume assignments. Unmute restores
+the last audible volume (`LegacyMuteMemory`, 0.5 when none is known). Raising
+the volume also clears `audio.muted`. The LIVE badge and the play button follow
+the element's `play`, `pause`, `ended` and `error` events. Play reloads a failed
+stream, and if the current attempt is rejected, the player shows paused.
 
 ### Display sleep during playback
 
