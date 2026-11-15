@@ -9,6 +9,7 @@ jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
 beforeAll(async () => {
     ({ WebPlayerViewComponent } = await import('./web-player-view.component'));
 });
+import { PlaybackRecoverySession } from './playback-recovery-session';
 import { WebPlayerActivity } from './web-player-activity';
 import type { PlaybackApplicationOwnership } from './web-player-application-ownership';
 
@@ -34,12 +35,14 @@ function harness(enabled = true) {
     const activity = new WebPlayerActivity(events);
     activity.begin(playback);
     const emit = jest.fn();
+    const recoverySession = new PlaybackRecoverySession();
     const view = {
         ownership: { owns: () => true },
         activity,
         playback: () => playback,
+        startTime: () => playback.startTime,
         recovery: { recordTimeUpdate: () => false },
-        recoverySession: { recordTimeUpdate: jest.fn() },
+        recoverySession,
         historyConfirmation: { record: jest.fn() },
         timeUpdate: { emit },
     } as unknown as WebPlayerViewInstance;
@@ -49,7 +52,12 @@ function harness(enabled = true) {
             { currentTime, duration: 100, playing: false },
             { isLive: false } as PlaybackApplicationOwnership
         );
-    return { tick, emit };
+    return {
+        tick,
+        emit,
+        handoffOffset: () =>
+            recoverySession.resumeStartTime(playback.startTime!, false),
+    };
 }
 describe('episode time-update forwarding during resume', () => {
     it('does not forward pre-seek ticks to legacy episode writers and still accepts rewinds', () => {
@@ -65,11 +73,15 @@ describe('episode time-update forwarding during resume', () => {
             expect.objectContaining({ currentTime: 10 })
         );
     });
-    it('preserves local writer events when activity consent is off', () => {
-        const { tick, emit } = harness(false);
+    it('forwards local writer events while preserving the native handoff offset before the seek', () => {
+        const { tick, emit, handoffOffset } = harness(false);
         tick(0);
         expect(emit).toHaveBeenCalledWith(
             expect.objectContaining({ currentTime: 0 })
         );
+        expect(handoffOffset()).toBe(60);
+        tick(60);
+        tick(10);
+        expect(handoffOffset()).toBe(10);
     });
 });

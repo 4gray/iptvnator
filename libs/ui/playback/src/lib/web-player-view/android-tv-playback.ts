@@ -48,7 +48,7 @@ function isHlsManifest(pathname: string, extension: string): boolean {
     return (
         extension === 'm3u8' ||
         extension === 'm3u' ||
-        /\.ism[l]?\/manifest\(format=m3u8-aapl(?:-v3)?\)$/i.test(pathname)
+        /\.isml?\/manifest\((?:[^,()]+,)*format=m3u8-aapl(?:-v3)?(?:,[^,()]+)*\)$/i.test(pathname)
     );
 }
 

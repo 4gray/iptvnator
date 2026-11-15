@@ -1,7 +1,8 @@
 import type { PlaybackActivityEvents } from '@iptvnator/services/activity-events';
-import type {
-    PlaybackPositionData,
-    ResolvedPortalPlayback,
+import {
+    hasReachedPlaybackStart,
+    type PlaybackPositionData,
+    type ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 
@@ -37,12 +38,11 @@ export class WebPlayerActivity {
     ): boolean {
         const info = playback?.contentInfo;
         if (!info?.activitySessionId || !this.activity?.active()) return true;
-        if (!this.resumeSettled && !event.checkpoint) {
-            const start = playback?.startTime ?? 0;
-            const reachable = !(event.duration > 0) || start < event.duration;
-            if (reachable && start > 0 && event.currentTime < start - 5)
-                return false;
-        }
+        if (
+            !this.resumeSettled &&
+            !hasReachedPlaybackStart(event, playback?.startTime ?? 0)
+        )
+            return false;
         this.resumeSettled = true;
         this.last = {
             ...info,

@@ -236,7 +236,11 @@ it('carries the previous audible volume through the native launch and the web re
     }
 });
 
-it('offers the HLS variant of a Smooth Streaming manifest path', () => {
+it.each([
+    '(format=m3u8-aapl)?token=synthetic',
+    '(format=m3u8-aapl,filter=synthetic)',
+    '(filter=synthetic,format=m3u8-aapl-v3)',
+])('offers the HLS variant %s of a Smooth Streaming path', (suffix) => {
     const { clear, playback, fixture, postMessage, surface } = setup();
     try {
         const base = 'https://media.example.test/synthetic.ism/Manifest';
@@ -244,7 +248,7 @@ it('offers the HLS variant of a Smooth Streaming manifest path', () => {
             false
         );
         const request = {
-            streamUrl: base + '(format=m3u8-aapl)?token=synthetic',
+            streamUrl: base + suffix,
             title: 'Synthetic HLS',
         };
         expect(playback.canOpen(request)).toBe(true);

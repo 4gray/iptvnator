@@ -3,7 +3,11 @@ import type {
     InlinePlaybackPlayer,
     PlaybackRecommendationTarget,
 } from '@iptvnator/playback/util';
-import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
+import {
+    hasReachedPlaybackStart,
+    type ExternalPlayerName,
+    type PlaybackPositionUpdate,
+} from '@iptvnator/shared/interfaces';
 
 export interface PlaybackBinding {
     readonly generation: number;
@@ -22,6 +26,7 @@ export class PlaybackRecoverySession {
     private readonly generation = signal(0);
     private readonly resumePosition = signal<number | null>(null);
     private sourceRevision: symbol | null = null;
+    private resumeSettled = false;
 
     public readonly attemptedTargets: Signal<
         ReadonlySet<PlaybackRecommendationTarget>
@@ -43,6 +48,7 @@ export class PlaybackRecoverySession {
         this.temporaryPlayerOverrideState.set(null);
         this.switchPendingState.set(false);
         this.resumePosition.set(null);
+        this.resumeSettled = false;
         this.sourceRevision = null;
         this.activeBindingState.set(null);
         this.generation.update((generation) => generation + 1);
@@ -56,10 +62,12 @@ export class PlaybackRecoverySession {
 
         this.sourceRevision = revision;
         this.resumePosition.set(null);
+        this.resumeSettled = false;
         return true;
     }
 
     beginPlayback(target: InlinePlaybackPlayer): PlaybackBinding {
+        this.resumeSettled = false;
         const generation = this.generation() + 1;
         const binding: PlaybackBinding = Object.freeze({
             generation,
@@ -98,16 +106,19 @@ export class PlaybackRecoverySession {
     }
 
     recordTimeUpdate(
-        event: { readonly currentTime: number; readonly duration: number },
-        isLive: boolean
+        event: PlaybackPositionUpdate,
+        isLive: boolean,
+        inputStartTime = 0
     ): void {
+        if (isLive || !Number.isFinite(event.currentTime) || event.currentTime < 0)
+            return;
         if (
-            !isLive &&
-            Number.isFinite(event.currentTime) &&
-            event.currentTime >= 0
-        ) {
-            this.resumePosition.set(event.currentTime);
-        }
+            !this.resumeSettled &&
+            !hasReachedPlaybackStart(event, this.resumeStartTime(inputStartTime, false))
+        )
+            return;
+        this.resumeSettled = true;
+        this.resumePosition.set(event.currentTime);
     }
 
     beginPlayerSwitch(target: InlinePlaybackPlayer, isLive: boolean): boolean {

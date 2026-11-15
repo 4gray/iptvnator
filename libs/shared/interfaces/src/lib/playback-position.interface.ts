@@ -40,6 +40,18 @@ export interface PlaybackPositionUpdate {
     readonly nativeCheckpointAt?: string;
 }
 
+/** A short cut can start below a requested offset it can never reach. */
+export function hasReachedPlaybackStart(
+    event: PlaybackPositionUpdate,
+    startTime: number
+): boolean {
+    return (
+        event.checkpoint === true ||
+        (event.duration > 0 && startTime >= event.duration) ||
+        !(startTime > 0 && event.currentTime < startTime - 5)
+    );
+}
+
 /** SQLite writes UTC without a zone. Normalize it before comparing against ISO times. */
 export function playbackTimestamp(value: string | undefined): number {
     if (!value) return 0;

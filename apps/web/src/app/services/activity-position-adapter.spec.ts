@@ -182,6 +182,49 @@ describe('activity projection local preservation', () => {
         }
     );
 
+    it('lets an in-flight reset win over a recovered native position', async () => {
+        const position: PlaybackPositionData = {
+            contentType: 'vod',
+            contentXtreamId: 42,
+            positionSeconds: 50,
+            activitySessionId: 'synthetic-session',
+            nativeCheckpointAt: '2025-01-01T00:00:00.000Z',
+        };
+        const read = Promise.withResolvers<PlaybackPositionData[]>();
+        const reset = jest.fn(async () => undefined);
+        const save = jest.fn(async () => undefined);
+        const client = {
+            actions: { position: () => () => true },
+            options: {},
+            aliases: new Map(),
+            retiredSessions: new Set(),
+            sessions: new Map(),
+            positions: async () => [],
+            reset,
+            save,
+        } as unknown as ActivitySyncClient;
+        const raw = {
+            getAllPlaybackPositions: () => read.promise,
+        } as unknown as IXtreamDataSource;
+        const adapter = new ActivityPositionAdapter(client);
+        const clearing = adapter.invoke(raw, 'clearPlaybackPosition', [
+            'synthetic-source',
+            42,
+            'vod',
+        ]);
+        try {
+            await adapter.invoke(raw, 'savePlaybackPosition', [
+                'synthetic-source',
+                position,
+            ]);
+        } finally {
+            read.resolve([position]);
+            await clearing;
+        }
+        expect(save).not.toHaveBeenCalled();
+        expect(reset).toHaveBeenCalledTimes(1);
+    });
+
     it('routes an explicit watched action through shared projection instead of the local mirror', async () => {
         let shared: PlaybackPositionData = {
             contentType: 'vod',

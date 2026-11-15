@@ -61,6 +61,11 @@ export class ActivityPositionAdapter {
                 method === 'savePlaybackPosition' ? [args[1]] : args[1]
             ) as PlaybackPositionData[];
             for (const position of positions) {
+                if (
+                    position.nativeCheckpointAt &&
+                    this.writeFence.resetPending(sourceId, position)
+                )
+                    continue;
                 const { current, finish } = this.writeFence.start(
                     sourceId,
                     position
@@ -147,7 +152,8 @@ export class ActivityPositionAdapter {
                     all: () => this.all(raw, sourceId),
                     local: (position) =>
                         this.resetLocal(raw, sourceId, position),
-                    start: (item) => this.writeFence.start(sourceId, item),
+                    start: (item) =>
+                        this.writeFence.start(sourceId, item, true),
                 }
             );
         }

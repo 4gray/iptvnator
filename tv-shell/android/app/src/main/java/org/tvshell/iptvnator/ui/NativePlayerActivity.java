@@ -158,6 +158,8 @@ public final class NativePlayerActivity extends Activity {
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON);
         player = new ExoPlayer.Builder(this, renderers)
             .setMediaSourceFactory(new DefaultMediaSourceFactory(dataSource))
+            .setSeekBackIncrementMs(15_000)
+            .setSeekForwardIncrementMs(30_000)
             .setAudioAttributes(AudioAttributes.DEFAULT, true)
             .setHandleAudioBecomingNoisy(true)
             .setUsePlatformDiagnostics(false)

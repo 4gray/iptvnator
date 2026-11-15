@@ -6,11 +6,15 @@ type PositionKey = Partial<
 
 /** A delayed fallback must not overwrite a newer invocation for the same item. */
 export class ActivityPositionWriteFence {
-    private readonly pending = new Map<string, object>();
+    private readonly pending = new Map<string, { reset: boolean }>();
 
-    start(sourceId: string, position: PositionKey) {
+    resetPending(sourceId: string, position: PositionKey): boolean {
+        return this.pending.get(this.key(sourceId, position))?.reset === true;
+    }
+
+    start(sourceId: string, position: PositionKey, reset = false) {
         const key = this.key(sourceId, position);
-        const token = {};
+        const token = { reset };
         this.pending.set(key, token);
         const current = () => this.pending.get(key) === token;
         return {

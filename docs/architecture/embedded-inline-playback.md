@@ -141,6 +141,8 @@ The Android shell can opt into a separate fullscreen Media3 activity. The web
 player unmounts its engine for the handoff and accepts the native activity's
 watch time and VOD position only while the originating playback owner is current.
 Retrying the web player cancels a pending Media3 launch before remounting.
+A handoff keeps the saved offset while the current web engine is still seeking
+to it.
 The final native position settles the resume guard and persists immediately,
 including when the viewer seeks and leaves before the watch-history threshold
 or Media3 cannot determine the VOD duration.
@@ -157,7 +159,7 @@ listener loads only with the Android bridge. It saves through the portal resume
 store for the original WebView origin and source profile. A page in another
 profile leaves the checkpoint pending. A reset or backup restore records its
 time in the same write as the position change. Older checkpoints cannot undo
-that change. Bulk resets use one marker for the season or series. Retries
+that change, and recovery yields while an explicit reset is in progress. Bulk resets use one marker for the season or series. Retries
 retain the original playback time when comparing positions for recovery.
 Activity Sync uses server timestamps to order acknowledged positions across
 devices.
