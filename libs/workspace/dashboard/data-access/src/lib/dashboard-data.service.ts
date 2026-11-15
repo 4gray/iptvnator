@@ -952,6 +952,9 @@ export class DashboardDataService {
                 ...position,
                 positionSeconds: position.durationSeconds,
                 activitySessionId: undefined,
+                activityPlayedAt: undefined,
+                nativeCheckpointAt: undefined,
+                nativeCheckpointSeasonGroup: undefined,
                 activityAction: 'mark-watched',
                 updatedAt: new Date().toISOString(),
             }

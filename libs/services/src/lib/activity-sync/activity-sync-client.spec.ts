@@ -534,6 +534,41 @@ describe('activity sync clients', () => {
         });
     });
 
+    it('queues Mark watched while the inherited native checkpoint is pending', async () => {
+        const h = harness();
+        const { value, store } = h.client('synthetic-device');
+        const position = movie('synthetic-session', 35);
+        await value.begin('source', position);
+        await value.flush();
+
+        const held = jest.spyOn(value, 'flush').mockResolvedValue(undefined);
+        try {
+            await value.save('source', {
+                ...position,
+                nativeCheckpointAt: new Date(Date.now() + 1000).toISOString(),
+            });
+            const [{ position: pending }] = await value.positions('source');
+            expect(pending.watched).toBe(false);
+            await value.save('source', {
+                ...pending,
+                positionSeconds: position.durationSeconds!,
+                activitySessionId: undefined,
+                activityAction: 'mark-watched',
+            });
+            expect(
+                (await store.pending()).map(({ operation }) => operation.kind)
+            ).toEqual(['checkpoint', 'mark-watched']);
+        } finally {
+            held.mockRestore();
+        }
+
+        await value.flush();
+        expect([...h.states.values()][0]).toMatchObject({
+            watched: true,
+            watchedOrigin: 'manual',
+        });
+    });
+
     it('renews a fresh tab lease while its request is slow', async () => {
         const h = harness();
         const a = h.client('same-device');

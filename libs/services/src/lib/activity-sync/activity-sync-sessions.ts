@@ -146,7 +146,10 @@ export async function saveActivity(
     position: PlaybackPositionData
 ): Promise<'local-only' | void> {
     // A server receipt may arrive after another position was captured.
-    const playedAt = position.nativeCheckpointAt ?? new Date().toISOString();
+    const nativeCheckpointAt = position.activitySessionId
+        ? position.nativeCheckpointAt
+        : undefined;
+    const playedAt = nativeCheckpointAt ?? new Date().toISOString();
     const currentAction = position.activitySessionId
         ? this.actions.checkpoint(sourceId, position)
         : this.actions.position(sourceId, position);
@@ -231,13 +234,13 @@ export async function saveActivity(
             const state = current?.state ?? emptyActivityState();
             if (
                 current &&
-                position.nativeCheckpointAt &&
+                nativeCheckpointAt &&
                 playbackTimestamp(
                     current.position?.activityPlayedAt ??
                         state.positionMetadata?.playedAt ??
                         current.position?.updatedAt ??
                         state.updatedAt
-                ) >= playbackTimestamp(position.nativeCheckpointAt)
+                ) >= playbackTimestamp(nativeCheckpointAt)
             )
                 return current;
             if (

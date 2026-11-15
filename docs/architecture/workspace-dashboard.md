@@ -255,9 +255,9 @@ all, and none inside the hero.
        `PORTAL_WATCHED_PROGRESS_PERCENT` (`isPortalPlaybackWatched`). The
        threshold is 90%, the Plex/Jellyfin/Emby/Kodi default, so stopping
        during the end credits finishes a title, as does "Mark watched". That
-       command clears inherited player session metadata and carries explicit
-       `mark-watched` intent through the shared playback-position boundary, so
-       consented activity reaches the server. Shared-activity invalidation
+       command clears inherited player session and checkpoint metadata and
+       carries explicit `mark-watched` intent through the shared playback-position
+       boundary, so consented activity reaches the server. Shared-activity invalidation
        reloads the cached positions so an open Continue Watching rail reflects
        progress and watched changes from another device. A series stays while
        it has something to continue: once its newest episode is watched, or is
