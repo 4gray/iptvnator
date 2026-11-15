@@ -711,6 +711,67 @@ describe('WebPlayerViewComponent', () => {
         expect(requests).toEqual([]);
     });
 
+    it('reserves stage space only after entering Multiview and keeps the primary player', async () => {
+        fixture.componentRef.setInput(
+            'playerOverride',
+            VideoPlayer.EmbeddedMpv
+        );
+        fixture.detectChanges();
+        const player = fixture.debugElement.query(
+            By.directive(StubEmbeddedMpvPlayerComponent)
+        ).componentInstance as StubEmbeddedMpvPlayerComponent;
+        const companion = fixture.debugElement.query(
+            By.directive(StubSecondStreamComponent)
+        ).componentInstance as StubSecondStreamComponent;
+        player.support.set({
+            supported: true,
+            engine: 'frame-copy',
+            platform: 'test',
+        });
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        const stage = host.querySelector<HTMLElement>('.embedded-mpv-pair');
+        const primary = host.querySelector('[data-multiview-slot="1"]');
+        const trigger = host.querySelector<HTMLElement>(
+            '[data-multiview-trigger]'
+        );
+        expect(trigger).not.toBeNull();
+        expect(stage?.classList).not.toContain('embedded-mpv-pair--with-strip');
+        expect(host.querySelector('.second-stream__strip')).toBeNull();
+
+        trigger?.focus();
+        player.multiviewAddRequested.emit();
+        trigger?.blur();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(host.querySelector('.second-stream__strip')).toBeNull();
+        expect(document.activeElement).toBe(trigger);
+
+        player.multiviewGridRequested.emit();
+        fixture.detectChanges();
+        expect(stage?.classList).toContain('embedded-mpv-pair--with-strip');
+        expect(stage?.classList).toContain('embedded-mpv-pair--grid');
+        expect(stage?.getAttribute('tabindex')).toBe('0');
+        expect(host.querySelector('[data-multiview-trigger]')).toBeNull();
+        expect(document.activeElement).toBe(stage);
+
+        const exit = host.querySelector<HTMLElement>(
+            '.second-stream__strip button'
+        );
+        exit?.focus();
+        exit?.click();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(companion.layout()).toBe('single');
+        expect(stage?.classList).not.toContain('embedded-mpv-pair--with-strip');
+        expect(host.querySelector('[data-multiview-trigger]')).not.toBeNull();
+        expect(host.querySelector('[data-multiview-slot="1"]')).toBe(primary);
+        expect(document.activeElement).toBe(
+            host.querySelector('[data-multiview-trigger]')
+        );
+    });
+
     it('passes series navigation to embedded MPV and forwards episode navigation events', () => {
         const events: string[] = [];
         const seriesNavigation = {

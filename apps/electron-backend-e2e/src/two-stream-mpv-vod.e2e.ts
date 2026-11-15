@@ -1,6 +1,8 @@
+import { ok } from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { Locator } from '@playwright/test';
 import {
     addStalkerPortal,
     addXtreamPortal,
@@ -21,6 +23,7 @@ import {
 } from './electron-test-fixtures';
 import {
     createLocalMediaServer,
+    getLatestSession,
     installEmbeddedMpvSessionCapture,
 } from './embedded-mpv-frame-copy-packaged-fixtures';
 import {
@@ -40,7 +43,7 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
     dataDir,
     request,
 }, testInfo) => {
-    test.setTimeout(100_000);
+    test.setTimeout(120_000);
     const [
         { items: stalkerMovies },
         { items: stalkerSeries },
@@ -231,16 +234,34 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
             );
             await importM3uPlaylistFromNativeDialog(app, playlist);
             await channelItemByTitle(page, primaryName).click();
-            const main = page.locator(
-                '.embedded-mpv-pair > app-embedded-mpv-player'
-            );
-            const companion = page.locator(
-                'app-second-stream canvas[data-embedded-mpv-frame]'
-            );
+            const slot = (number: number) =>
+                page.locator(`[data-multiview-slot="${number}"]`);
+            const canvas = (number: number) =>
+                slot(number).locator('canvas[data-embedded-mpv-frame]');
+            const main = slot(1);
+            const companion = canvas(2);
             const picker = page.getByRole('dialog', {
-                name: 'Choose a second stream',
+                name: /^Choose a stream for window [23]$/,
             });
             const openStreams = page.locator('.second-stream__strip');
+            const multiview = page.getByRole('button', {
+                name: 'Multiview',
+                exact: true,
+            });
+            const addFromDock = async () => {
+                await main.hover();
+                await multiview.click();
+                await page
+                    .getByRole('menuitem', { name: 'Add stream' })
+                    .click();
+            };
+            const addAnother = openStreams.getByRole('button', {
+                name: 'Add stream',
+                exact: true,
+            });
+            const exitMultiview = openStreams.getByRole('button', {
+                name: 'Exit multiview, keeping window 1',
+            });
             const tile = page.getByRole('group', {
                 name: 'Small view',
                 exact: true,
@@ -250,72 +271,69 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                     .getByLabel('Playlist', { exact: true })
                     .selectOption({ label: sourceName });
             const assertResume = async (
+                video: Locator,
                 minimum: number,
                 previousId?: string
             ) => {
                 await expect(picker).toBeHidden();
-                await expect(companion).toBeVisible();
-                await expect(companion).toHaveAttribute(
-                    'data-session-id',
-                    /.+/
-                );
+                await expect(video).toBeVisible();
+                await expect(video).toHaveAttribute('data-session-id', /.+/);
                 if (previousId)
-                    await expect(companion).not.toHaveAttribute(
+                    await expect(video).not.toHaveAttribute(
                         'data-session-id',
                         previousId
                     );
-                const id = await companion.getAttribute('data-session-id');
+                const id = await video.getAttribute('data-session-id');
                 if (!id) throw new Error('Missing companion session');
                 await expect
                     .poll(
-                        () =>
-                            page.evaluate(
-                                (id) =>
-                                    window.__packagedEmbeddedMpvSessions
-                                        ?.filter((s) => s.id === id)
-                                        .at(-1)?.positionSeconds ?? 0,
-                                id
-                            ),
-                        { timeout: 10_000 }
+                        async () =>
+                            (await getLatestSession(app, id))?.positionSeconds
                     )
                     .toBeGreaterThanOrEqual(minimum);
                 return id;
             };
-            const seek = async (id: string, seconds: number) => {
-                await page.evaluate(
-                    ({ id, seconds }) =>
-                        window.electron.seekEmbeddedMpv(id, seconds),
-                    { id, seconds }
-                );
+            const pauseAndSeek = async (number: number, id: string) => {
+                await openStreams
+                    .locator(`[data-multiview-control="${number}"]`)
+                    .click();
+                await canvas(number).hover();
+                await slot(number)
+                    .getByRole('button', { name: 'Pause', exact: true })
+                    .click();
                 await expect
-                    .poll(() =>
-                        page.evaluate(
-                            (id) =>
-                                window.__packagedEmbeddedMpvSessions
-                                    ?.filter((s) => s.id === id)
-                                    .at(-1)?.positionSeconds ?? 0,
-                            id
-                        )
+                    .poll(async () => (await getLatestSession(app, id))?.status)
+                    .toBe('paused');
+                const before = (await getLatestSession(app, id))
+                    ?.positionSeconds;
+                ok(before !== undefined);
+                await slot(number)
+                    .getByRole('button', { name: 'Forward 10 seconds' })
+                    .click();
+                await expect
+                    .poll(
+                        async () =>
+                            (await getLatestSession(app, id))?.positionSeconds
                     )
-                    .toBeGreaterThanOrEqual(seconds - 1);
+                    .toBeGreaterThanOrEqual(before + 9);
+                const after = (await getLatestSession(app, id))
+                    ?.positionSeconds;
+                ok(after !== undefined);
+                return after;
             };
+            const firstPosition = (id: string) =>
+                page.evaluate(
+                    (id) =>
+                        window.__packagedEmbeddedMpvSessions?.find(
+                            (sample) =>
+                                sample.id === id && sample.positionSeconds > 0
+                        )?.positionSeconds,
+                    id
+                );
 
-            await expect(openStreams.locator('li')).toHaveCount(1);
-            await expect
-                .poll(async () => {
-                    const video = await main.boundingBox();
-                    const strip = await openStreams.boundingBox();
-                    if (!video || !strip) return -Infinity;
-                    return strip.y - (video.y + video.height);
-                })
-                .toBeGreaterThanOrEqual(-1);
-            await main.hover();
-            await page
-                .getByTestId('player-controls-second-stream-button')
-                .click();
-            await expect(
-                openStreams.getByText(primaryName, { exact: true })
-            ).toBeVisible();
+            await expect(openStreams).toHaveCount(0);
+            await addFromDock();
+            await expect(openStreams).toHaveCount(0);
             await picker
                 .getByLabel('Playlist', { exact: true })
                 .selectOption({ label: 'Recently viewed' });
@@ -340,43 +358,56 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                     has: page.getByText(getXtreamTitle(movie), { exact: true }),
                 })
             ).toHaveCount(0);
-            await selectSource();
-            await picker
-                .getByRole('button', { name: 'Movies', exact: true })
-                .click();
             const movieTitle = getXtreamTitle(movie);
             const movieRow = picker.getByRole('button', {
                 name: movieTitle,
                 exact: true,
             });
-            await expect(movieRow).toBeVisible();
-            await movieRow.click();
-            const movieSessionId = await assertResume(17);
-            await seek(movieSessionId, 34);
-
-            await tile.hover();
-            await tile
-                .getByRole('button', { name: 'Change second stream' })
+            const chooseMovie = async () => {
+                await selectSource();
+                await picker
+                    .getByRole('button', { name: 'Movies', exact: true })
+                    .click();
+                await movieRow.click();
+            };
+            await chooseMovie();
+            const movieSessionId = await assertResume(companion, 17);
+            await openStreams
+                .getByRole('button', { name: 'Side by side' })
                 .click();
+            await expect(companion).toHaveAttribute(
+                'data-session-id',
+                movieSessionId
+            );
+            const movieAt = await pauseAndSeek(2, movieSessionId);
+            await addAnother.click();
             await expect(
                 openStreams.getByText(primaryName, { exact: true })
             ).toBeVisible();
             await expect(
                 openStreams.getByText(movieTitle, { exact: true })
             ).toBeVisible();
-            await selectSource();
-            await picker
-                .getByRole('button', { name: 'Series', exact: true })
-                .click();
-            await picker
-                .getByRole('button', {
-                    name: getXtreamTitle(show),
-                    exact: true,
-                })
-                .click();
+            await chooseMovie();
+            await expect(
+                picker.getByText('This video is already open in window 2.')
+            ).toBeVisible();
+            await expect(canvas(3)).toHaveCount(0);
             const episodeRow = picker.getByRole('button').filter({
                 has: page.getByText(episode.title, { exact: true }),
             });
+            const chooseSeries = async () => {
+                await selectSource();
+                await picker
+                    .getByRole('button', { name: 'Series', exact: true })
+                    .click();
+                await picker
+                    .getByRole('button', {
+                        name: getXtreamTitle(show),
+                        exact: true,
+                    })
+                    .click();
+            };
+            await chooseSeries();
             await expect(episodeRow).toBeVisible();
             for (const theme of ['light', 'dark'] as const) {
                 await applyTheme(page, theme);
@@ -391,26 +422,27 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                 });
             }
             await episodeRow.click();
-            const episodeSessionId = await assertResume(22, movieSessionId);
-            await seek(episodeSessionId, 38);
-            const original = main.locator('canvas[data-embedded-mpv-frame]');
+            const episodeSessionId = await assertResume(canvas(3), 22);
+            await expect(
+                openStreams.getByRole('button', { name: '2×2 grid' })
+            ).toHaveAttribute('aria-pressed', 'true');
+            const episodeAt = await pauseAndSeek(3, episodeSessionId);
+            await expect(companion).toHaveAttribute(
+                'data-session-id',
+                movieSessionId
+            );
+            expect(await getLatestSession(app, movieSessionId)).toMatchObject({
+                status: 'paused',
+                positionSeconds: movieAt,
+            });
+            const original = canvas(1);
             const originalSessionId =
                 await original.getAttribute('data-session-id');
             if (!originalSessionId) throw new Error('Missing original session');
-            await openStreams
-                .getByRole('button', { name: 'Side by side' })
-                .click();
-            await expect(companion).toHaveAttribute(
-                'data-session-id',
-                episodeSessionId
-            );
-            await openStreams
-                .getByRole('button', { name: 'Close second stream and return' })
-                .click();
+            await exitMultiview.click();
             await expect(companion).toHaveCount(0);
-            await expect(
-                openStreams.getByRole('button', { name: 'Side by side' })
-            ).toHaveCount(0);
+            await expect(canvas(3)).toHaveCount(0);
+            await expect(openStreams).toHaveCount(0);
             await expect(original).toHaveAttribute(
                 'data-session-id',
                 originalSessionId
@@ -430,23 +462,60 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                     async () =>
                         (await position(movieId, 'vod'))?.positionSeconds
                 )
-                .toBeGreaterThanOrEqual(33);
+                .toBeGreaterThanOrEqual(movieAt - 1);
             await expect
                 .poll(
                     async () =>
                         (await position(episodeId, 'episode'))?.positionSeconds
                 )
-                .toBeGreaterThanOrEqual(37);
+                .toBeGreaterThanOrEqual(episodeAt - 1);
             expect(await position(episodeId, 'episode')).toMatchObject({
                 seriesXtreamId: seriesId,
                 seasonNumber: 1,
                 episodeNumber: 1,
             });
 
-            await main.hover();
-            await page
-                .getByTestId('player-controls-second-stream-button')
-                .click();
+            const movieSaved = (await position(movieId, 'vod'))
+                ?.positionSeconds;
+            const episodeSaved = (await position(episodeId, 'episode'))
+                ?.positionSeconds;
+            ok(movieSaved !== undefined && episodeSaved !== undefined);
+            await addFromDock();
+            await chooseMovie();
+            const movieReopened = await assertResume(
+                companion,
+                movieSaved - 1,
+                movieSessionId
+            );
+            expect(await firstPosition(movieReopened)).toBeGreaterThanOrEqual(
+                movieSaved - 1
+            );
+            await addAnother.click();
+            await chooseSeries();
+            await episodeRow.click();
+            const episodeReopened = await assertResume(
+                canvas(3),
+                episodeSaved - 1,
+                episodeSessionId
+            );
+            expect(await firstPosition(episodeReopened)).toBeGreaterThanOrEqual(
+                episodeSaved - 1
+            );
+            await exitMultiview.click();
+            await expect
+                .poll(
+                    async () =>
+                        (await getLatestSession(app, episodeReopened))?.status
+                )
+                .toBe('closed');
+            expect(
+                (await position(movieId, 'vod'))?.positionSeconds
+            ).toBeGreaterThanOrEqual(movieSaved - 1);
+            expect(
+                (await position(episodeId, 'episode'))?.positionSeconds
+            ).toBeGreaterThanOrEqual(episodeSaved - 1);
+
+            await addFromDock();
             const source = picker.getByLabel('Playlist', { exact: true });
             await source.selectOption({ label: stalkerName });
             await picker
@@ -459,7 +528,7 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
             await picker
                 .getByRole('button', { name: stalkerMovie, exact: true })
                 .click();
-            const stalkerMovieSession = await assertResume(3);
+            const stalkerMovieSession = await assertResume(companion, 3);
             await tile.hover();
             await tile
                 .getByRole('button', { name: 'Change second stream' })
@@ -485,7 +554,7 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                 .getByRole('button', { name: stalkerShow, exact: true })
                 .click();
             await picker.locator('.picker__vod-row').first().click();
-            await assertResume(2, stalkerMovieSession);
+            await assertResume(companion, 2, stalkerMovieSession);
         } finally {
             await closeElectronApp(app);
         }
