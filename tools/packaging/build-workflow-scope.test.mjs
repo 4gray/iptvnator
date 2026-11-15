@@ -140,7 +140,7 @@ test(
             assert.equal(result.status, 0, result.stderr);
             assert.equal(
                 fs.readFileSync(output, 'utf8'),
-                `website-only=${expected}\npackaging=${packaging}\n`
+                `check-website=${expected}\npackaging=${packaging}\n`
             );
             const ci = parse(
                 fs.readFileSync(
@@ -225,6 +225,23 @@ test(
         );
         git('commit', '-m', 'move out of Electron');
         check(false, true);
+        fs.writeFileSync(
+            path.join(repo, 'apps/website/page.astro'),
+            'mixed site'
+        );
+        fs.writeFileSync(
+            path.join(repo, 'apps/web/src/app/example.ts'),
+            'mixed renderer'
+        );
+        git('commit', '-am', 'mixed website and renderer');
+        check(true, false, true);
+        git('rm', 'apps/website/page.astro');
+        fs.writeFileSync(
+            path.join(repo, 'docs/example.md'),
+            'mixed documentation'
+        );
+        git('commit', '-am', 'mixed website deletion and documentation');
+        check(true, false, false);
         git('commit', '--allow-empty', '-m', 'empty fixture');
         check(false, true, false);
 
@@ -400,8 +417,23 @@ test(
             'pr-e2e',
         ]) {
             assert.ok([ci.jobs[id].needs].flat().includes('preflight'), id);
+            assert.match(ci.jobs[id].if, /!cancelled\(\)/);
+            assert.match(
+                ci.jobs[id].if,
+                /needs\.preflight\.result == 'success'/
+            );
         }
         assert.ok(ci.jobs['performance-journeys'].needs.includes('preflight'));
+        assert.match(ci.jobs['performance-journeys'].if, /!cancelled\(\)/);
+        assert.match(
+            ci.jobs['performance-journeys'].if,
+            /needs\.preflight\.result == 'success'/
+        );
+        assert.match(
+            ci.jobs['pr-e2e'].if,
+            /needs\.initial-bytes-ratchet\.result == 'success'/
+        );
+
         assert.ok(
             ci.jobs.lint.steps.some(
                 ({ run }) => run === 'pnpm run typecheck:ci'

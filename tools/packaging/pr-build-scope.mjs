@@ -29,7 +29,7 @@ function needsPackaging(file) {
     );
 }
 
-let websiteOnly = false;
+let checkWebsite = false;
 let packaging = true;
 try {
     const files = execFileSync(
@@ -48,10 +48,9 @@ try {
     )
         .split('\0')
         .filter(Boolean);
-    websiteOnly =
-        files.length > 0 &&
-        files.every((file) => file.startsWith('apps/website/'));
     packaging = files.length === 0 || files.some(needsPackaging);
+    checkWebsite =
+        !packaging && files.some((file) => file.startsWith('apps/website/'));
 } catch {
     console.warn(
         '::warning::Could not compare the PR merge tree; running packaging.'
@@ -59,7 +58,7 @@ try {
 }
 appendFileSync(
     process.env.GITHUB_OUTPUT,
-    `website-only=${websiteOnly}\npackaging=${packaging}\n`
+    `check-website=${checkWebsite}\npackaging=${packaging}\n`
 );
 appendFileSync(
     process.env.GITHUB_STEP_SUMMARY,

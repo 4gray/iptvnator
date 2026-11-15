@@ -346,7 +346,8 @@ packaging. Electron main/preload/native code, Electron/native library paths,
 SQLite, packaging/runtime/release tooling, dependency manifests, project and
 TypeScript configuration, and unknown paths select the complete matrix.
 An unavailable or empty comparison also selects packaging. The scope decision
-is summarized in the workflow; website-only changes retain the AppStream check.
+is summarized in the workflow. Website changes, including mixed PRs, retain
+the standalone AppStream check whenever packaging is skipped.
 
 Selected PRs lint affected projects and typecheck web/Electron entry points in
 the scope job before allocating packaging runners. Packaging stays independent
@@ -360,7 +361,7 @@ To request all packages for any branch, run
 the selected branch and uses its existing `test-<branch>` draft, not the PR
 merge tree or `test-pr-<n>` draft. It does not require a packaging-related diff.
 
-The website-only job builds the site with offline release data and checks the
+The standalone website check builds the site with offline release data and checks the
 four nonempty PNG files at their published paths. Every Linux packaging
 profile performs the same screenshot check and validates the AppStream XML
 and packaged metadata.

@@ -94,7 +94,7 @@ jobs:
             group: ${{ github.workflow }}-appstream-scope-${{ github.event.pull_request.number }}
             cancel-in-progress: true
         outputs:
-            website-only: ${{ steps.scope.outputs.website-only }}
+            check-website: ${{ steps.scope.outputs.check-website }}
             packaging: ${{ steps.scope.outputs.packaging }}
         steps:
             - name: Checkout code
@@ -109,18 +109,18 @@ jobs:
               run: node tools/packaging/pr-build-scope.mjs
 
             - name: Install pnpm
-              if: steps.scope.outputs.website-only == 'true' || steps.scope.outputs.packaging == 'true'
+              if: steps.scope.outputs.check-website == 'true' || steps.scope.outputs.packaging == 'true'
               uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
-              if: steps.scope.outputs.website-only == 'true' || steps.scope.outputs.packaging == 'true'
+              if: steps.scope.outputs.check-website == 'true' || steps.scope.outputs.packaging == 'true'
               uses: actions/setup-node@v7
               with:
                   node-version-file: '.nvmrc'
                   cache: 'pnpm'
 
             - name: Install preflight dependencies
-              if: steps.scope.outputs.website-only == 'true' || steps.scope.outputs.packaging == 'true'
+              if: steps.scope.outputs.check-website == 'true' || steps.scope.outputs.packaging == 'true'
               run: pnpm install --frozen-lockfile
 
             # Keep this workflow independent: cancelling CI must never interrupt
@@ -137,13 +137,13 @@ jobs:
               run: pnpm run typecheck:ci
 
             - name: Build website
-              if: steps.scope.outputs.website-only == 'true'
+              if: steps.scope.outputs.check-website == 'true'
               env: &offline-website
                   WEBSITE_SKIP_RELEASE_FETCH: '1'
               run: &build-appstream-website pnpm nx build website --skip-nx-cache
 
             - name: Verify built screenshots
-              if: steps.scope.outputs.website-only == 'true'
+              if: steps.scope.outputs.check-website == 'true'
               shell: bash
               run: &verify-appstream-website |
                   set -euo pipefail

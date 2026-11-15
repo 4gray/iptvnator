@@ -168,11 +168,17 @@ jobs:
     pr-e2e:
         name: PR E2E
         needs: [preflight, initial-bytes-ratchet, performance-journeys-scope]
-        if: github.event_name == 'pull_request' && needs.performance-journeys-scope.outputs.e2e == 'true'
+        if: >-
+            ${{ !cancelled() && github.event_name == 'pull_request' &&
+                needs.preflight.result == 'success' &&
+                needs.initial-bytes-ratchet.result == 'success' &&
+                needs.performance-journeys-scope.result == 'success' &&
+                needs.performance-journeys-scope.outputs.e2e == 'true' }}
         uses: ./.github/workflows/e2e-tests.yaml
 
     initial-bytes-ratchet:
         needs: preflight
+        if: ${{ !cancelled() && needs.preflight.result == 'success' }}
         name: Initial bytes ratchet
         runs-on: ubuntu-latest
         timeout-minutes: 30
@@ -383,7 +389,10 @@ jobs:
     performance-journeys:
         name: Performance journeys
         needs: [preflight, performance-journeys-scope]
-        if: needs.performance-journeys-scope.outputs.run == 'true'
+        if: >-
+            ${{ !cancelled() && needs.preflight.result == 'success' &&
+                needs.performance-journeys-scope.result == 'success' &&
+                needs.performance-journeys-scope.outputs.run == 'true' }}
         runs-on: ubuntu-latest
         # The electron-performance build is the bulk of the time; each journey
         # (launch, open-source, playback, search) is six fresh Electron
@@ -464,6 +473,7 @@ jobs:
 
     unit-and-typecheck:
         needs: preflight
+        if: ${{ !cancelled() && needs.preflight.result == 'success' }}
         name: Unit Tests and Typechecks
         runs-on: ubuntu-latest
         timeout-minutes: 45
