@@ -142,6 +142,7 @@ function canonicalOperation(operation: ActivityOperation): unknown[] {
         meta?.seriesXtreamId ?? null,
         meta?.seasonNumber ?? null,
         meta?.episodeNumber ?? null,
+        ...(meta?.playedAt === undefined ? [] : [meta.playedAt]),
     ];
     if (operation.kind === 'import')
         return [

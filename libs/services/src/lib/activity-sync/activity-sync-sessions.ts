@@ -237,9 +237,7 @@ export async function saveActivity(
                 nativeCheckpointAt &&
                 playbackTimestamp(
                     current.position?.activityPlayedAt ??
-                        state.positionMetadata?.playedAt ??
-                        current.position?.updatedAt ??
-                        state.updatedAt
+                        state.positionMetadata?.playedAt
                 ) >= playbackTimestamp(nativeCheckpointAt)
             )
                 return current;

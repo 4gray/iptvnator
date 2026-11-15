@@ -2212,6 +2212,8 @@ deletes with follow-up cleanup warnings. The UI does not resurrect a deleted
 row after a cleanup failure. Downloaded files are not removed. The dialog's
 confirmation covers deletion of the source and associated favorites, history
 and playback positions; no deletion happens on merely opening the dialog.
+The standalone Xtream PWA clears the source's playback positions and pending
+position restore receipt in the same local write, including while offline.
 
 ## Opening playlists from the operating system
 

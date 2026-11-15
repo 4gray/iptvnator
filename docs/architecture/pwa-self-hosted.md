@@ -1237,7 +1237,9 @@ local SQL row IDs and content snapshots are not identity inputs.
 `begin` and explicit manual actions require the current revision. A successful
 begin advances the ownership generation. Checkpoints require that generation,
 the owning device/session and an increasing sequence; a deliberate rewind is
-valid. Checkpoints, local conflict choices and explicit imports share whole-second
+valid. Android checkpoint recovery compares playback capture times. A begin
+acknowledgement establishes ownership without recording a playback capture.
+Checkpoints, local conflict choices and explicit imports share whole-second
 normalization of player snapshots; unknown or sub-second durations stay omitted.
 Completion retains the portal's rounded 90% threshold when duration is
 known. Manual watched state does not manufacture a duration. A checkpoint does

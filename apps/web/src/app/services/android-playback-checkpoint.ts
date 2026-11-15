@@ -1,3 +1,4 @@
+import { activityEnabled } from './activity-consent';
 import { playbackTimestamp } from '@iptvnator/shared/interfaces';
 import { inject } from '@angular/core';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util/tokens';
@@ -61,11 +62,15 @@ export function installAndroidPlaybackCheckpoint(
                     // A failing newer checkpoint must still take priority over an older one.
                     if ((newest.get(key) ?? 0) > data.savedAt) return;
                     const { playlistId, record } = position;
-                    const previous = await positions.getPlaybackPosition(
-                        playlistId,
-                        record.contentXtreamId,
-                        record.contentType
-                    );
+                    // Shared playback compares capture times when committing the position.
+                    const previous =
+                        record.activitySessionId && activityEnabled()
+                            ? null
+                            : await positions.getPlaybackPosition(
+                                  playlistId,
+                                  record.contentXtreamId,
+                                  record.contentType
+                              );
                     if (!ownsProfile() || (newest.get(key) ?? 0) > data.savedAt)
                         return;
                     const previousSavedAt = playbackTimestamp(

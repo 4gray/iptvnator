@@ -262,6 +262,23 @@ it.each([
     }
 });
 
+it.each(['.mpd', '%2Empd'])(
+    'rejects DASH path %s regardless of the extension hint',
+    (suffix) => {
+        const { clear, playback } = setup();
+        try {
+            expect(
+                playback.canOpen({
+                    streamUrl: `https://media.example.test/synthetic${suffix}?extension=m3u8`,
+                    title: 'Synthetic DASH',
+                })
+            ).toBe(false);
+        } finally {
+            clear();
+        }
+    }
+);
+
 it('keeps mute on a second launch after the web video has unmounted', () => {
     const { clear, open, playback, reply, surface } = setup();
     try {

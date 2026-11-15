@@ -1,3 +1,7 @@
+import {
+    prepareSourceConnection,
+    sourceProfileName,
+} from '@iptvnator/services/source-sync/connection';
 import { ApplicationInitStatus, DOCUMENT } from '@angular/core';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util/tokens';
 import { TestBed } from '@angular/core/testing';
@@ -53,6 +57,10 @@ describe('restoring Android playback checkpoints', () => {
         jest.resetAllMocks();
         getPlaybackPosition.mockResolvedValue(null);
         savePlaybackPositionOrThrow.mockResolvedValue(undefined);
+        await install();
+    });
+
+    async function install() {
         documentWindow = Object.assign(new EventTarget(), {
             TvShell: { postMessage },
         });
@@ -75,7 +83,7 @@ describe('restoring Android playback checkpoints', () => {
             ],
         });
         await TestBed.inject(ApplicationInitStatus).donePromise;
-    });
+    }
 
     function deliver(patch: Record<string, unknown> = {}) {
         documentWindow.dispatchEvent(
@@ -160,6 +168,40 @@ describe('restoring Android playback checkpoints', () => {
         await deliver();
         expect(savePlaybackPositionOrThrow).toHaveBeenCalledTimes(1);
         expect(postMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets shared playback decide whether a recovered checkpoint is newer', async () => {
+        TestBed.resetTestingModule();
+        localStorage.setItem(
+            'iptvnator:source-server',
+            JSON.stringify({
+                apiUrl: 'https://synthetic.invalid/api',
+                instanceId: 'synthetic-nas',
+            })
+        );
+        localStorage.setItem(
+            'iptvnator-server:synthetic-nas:activity-consent-v1',
+            JSON.stringify({ enabled: true })
+        );
+        await prepareSourceConnection();
+        try {
+            await install();
+            getPlaybackPosition.mockResolvedValue({
+                updatedAt: new Date(savedAt + 1000).toISOString(),
+            });
+            await deliver({
+                content: JSON.stringify({
+                    ...content,
+                    profile: sourceProfileName(),
+                }),
+            });
+            expect(getPlaybackPosition).not.toHaveBeenCalled();
+            expect(savePlaybackPositionOrThrow).toHaveBeenCalledTimes(1);
+            expect(postMessage).toHaveBeenCalledTimes(1);
+        } finally {
+            localStorage.clear();
+            await prepareSourceConnection();
+        }
     });
 
     it('compares restored desktop timestamps in UTC', async () => {

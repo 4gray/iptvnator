@@ -534,6 +534,37 @@ describe('activity sync clients', () => {
         });
     });
 
+    it('saves a native position captured before the server acknowledged begin', async () => {
+        const h = harness();
+        const { value } = h.client('synthetic-device');
+        const position = movie('synthetic-session', 0);
+        const nativeCheckpointAt = new Date(Date.now() - 1000).toISOString();
+        const acknowledgedAt = new Date().toISOString();
+        const send = h.request.getMockImplementation()!;
+        h.request.mockImplementation(async (input) => {
+            const response = await send(input);
+            if (input.activity?.operation?.kind === 'begin') {
+                const result = response.body as ActivityApplyResult;
+                result.state.updatedAt = acknowledgedAt;
+            }
+            return response;
+        });
+        await value.begin('source', position);
+        await value.flush();
+        expect((await value.positions('source'))[0].position.updatedAt).toBe(
+            acknowledgedAt
+        );
+
+        await value.save('source', {
+            ...position,
+            nativeCheckpointAt,
+            positionSeconds: 35,
+        });
+        await value.flush();
+
+        expect([...h.states.values()][0].resume?.positionSeconds).toBe(35);
+    });
+
     it('queues Mark watched while the inherited native checkpoint is pending', async () => {
         const h = harness();
         const { value, store } = h.client('synthetic-device');

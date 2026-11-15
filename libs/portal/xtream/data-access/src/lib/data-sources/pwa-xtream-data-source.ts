@@ -47,6 +47,7 @@ import {
     findCollectionItems,
     normalizeCollectionIdentity,
 } from './pwa-collection-identity';
+import { clearPlaylistPlaybackPositions } from './pwa-playback-position-storage';
 import { PwaCollectionStorage } from './pwa-collection-storage';
 import { PwaCollectionCatalog } from './pwa-collection-catalog';
 import type { XtreamCachedContentItem } from './pwa-cached-content';
@@ -167,7 +168,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         this.collectionStorage.clearCollectionItemsForPlaylist(playlistId);
         this.collectionStorage.clearFavoritesForPlaylist(playlistId);
         this.collectionStorage.clearRecentItemsForPlaylist(playlistId);
-        (await this.playbackPositions()).clearPlaylist(playlistId);
+        clearPlaylistPlaybackPositions(this.userDataStorage, playlistId);
 
         // Clear cache
         this.clearCacheForPlaylist(playlistId);

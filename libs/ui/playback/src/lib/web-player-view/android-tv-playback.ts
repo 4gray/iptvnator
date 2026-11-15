@@ -222,6 +222,7 @@ export class AndroidTvPlayback {
             return (
                 !username &&
                 !password &&
+                !decodeURIComponent(pathname).toLowerCase().endsWith('.mpd') &&
                 (!isSmoothStreamingPath(pathname) ||
                     isHlsManifest(
                         pathname,

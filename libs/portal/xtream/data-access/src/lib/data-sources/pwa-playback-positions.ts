@@ -9,13 +9,15 @@ import type {
     PlaybackPositionResetScope,
 } from '@iptvnator/shared/interfaces';
 import {
-    type Positions,
     nativePlaybackScopeId,
     nativePlaybackResetIn,
     nativePlaybackResetId,
+} from './pwa-android-playback-resets';
+import {
+    type Positions,
     readPlaybackPositions,
     playbackPositionsStorageKey,
-} from './pwa-android-playback-resets';
+} from './pwa-playback-position-storage';
 
 /** Loaded on demand. Every mutation reads fresh storage after loading the module. */
 export class PwaPlaybackPositions {
@@ -35,13 +37,6 @@ export class PwaPlaybackPositions {
             playbackPositionsStorageKey,
             positions
         );
-    }
-
-    clearPlaylist(playlistId: string): void {
-        const allPositions = this.getPlaybackPositionsFromStorage();
-        delete allPositions[playlistId];
-        stampNativePlaybackReset(allPositions, playlistId);
-        this.savePlaybackPositionsToStorage(allPositions);
     }
 
     async savePlaybackPosition(
