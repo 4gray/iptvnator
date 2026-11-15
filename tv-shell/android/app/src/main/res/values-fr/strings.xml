@@ -45,4 +45,6 @@
     <string name="native_playback_try">Essayer le lecteur intégré</string>
     <string name="native_playback_back">Revenir au lecteur web</string>
     <string name="native_playback_failed">Le lecteur intégré ne peut pas lire ce flux. Appuyez sur Retour.</string>
+    <string name="native_playback_mute">Couper le son</string>
+    <string name="native_playback_unmute">Rétablir le son</string>
 </resources>

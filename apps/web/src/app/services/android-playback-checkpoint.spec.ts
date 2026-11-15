@@ -152,6 +152,16 @@ describe('restoring Android playback checkpoints', () => {
         expect(postMessage).toHaveBeenCalledTimes(1);
     });
 
+    it('uses capture time when a previous position was acknowledged later', async () => {
+        getPlaybackPosition.mockResolvedValue({
+            activityPlayedAt: new Date(savedAt - 1000).toISOString(),
+            updatedAt: new Date(savedAt + 1000).toISOString(),
+        });
+        await deliver();
+        expect(savePlaybackPositionOrThrow).toHaveBeenCalledTimes(1);
+        expect(postMessage).toHaveBeenCalledTimes(1);
+    });
+
     it('compares restored desktop timestamps in UTC', async () => {
         getPlaybackPosition.mockResolvedValue({
             updatedAt: '2025-01-01 10:00:00',

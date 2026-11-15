@@ -41,7 +41,8 @@ export function projectActivity(
             ? { durationSeconds: state.resume.durationSeconds }
             : {}),
         watched: state.watched,
-        updatedAt: playedAt ?? state.updatedAt,
+        updatedAt: state.updatedAt ?? playedAt,
+        ...(playedAt === undefined ? {} : { activityPlayedAt: playedAt }),
         activityTitle: state.positionMetadata?.title,
         playlistId: address.sourceId,
         activityIdentity: content,

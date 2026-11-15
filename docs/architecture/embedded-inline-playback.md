@@ -158,9 +158,9 @@ store for the original WebView origin and source profile. A page in another
 profile leaves the checkpoint pending. A reset or backup restore records its
 time in the same write as the position change. Older checkpoints cannot undo
 that change. Bulk resets use one marker for the season or series. Retries
-retain the original playback time so older episodes keep their place in the
-series resume order. Activity Sync preserves the capture time of web and native
-positions when a server acknowledges them later.
+retain the original playback time when comparing positions for recovery.
+Activity Sync uses server timestamps to order acknowledged positions across
+devices.
 While a VOD plays, Android keeps an in-memory checkpoint so a launcher relaunch
 can recover progress even if it clears the player before the pause callback.
 Autoplay and watch-history confirmation require the original screen.

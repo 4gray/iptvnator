@@ -13,6 +13,8 @@ export interface PlaybackPositionData {
     updatedAt?: string;
     sessionId?: string;
     activitySessionId?: string;
+    /** Capture time used to compare positions during checkpoint recovery. */
+    activityPlayedAt?: string;
     /** Original time of a delayed native checkpoint, carried through activity sync. */
     nativeCheckpointAt?: string;
     /** Provider season map key used by resets when it differs from the episode label. */

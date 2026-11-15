@@ -72,6 +72,7 @@ final class NativePlaybackRequest {
             .putExtra("captions", Boolean.TRUE.equals(request.get("captions")))
             .putExtra("position", positionMs(request.get("startTime")))
             .putExtra("volume", volume(request.get("volume")))
+            .putExtra("audibleVolume", volume(request.get("audibleVolume")))
             .putExtra("headers", headers);
     }
 

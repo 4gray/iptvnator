@@ -243,14 +243,27 @@ try {
         await expect.poll(topActivity).toContain('.ui.MainActivity');
     }
     const redirectedBefore = seen.target.length;
-    await video.evaluate((element) => { element.muted = true; });
+    await video.evaluate((element) => {
+        element.volume = 0.25;
+        element.muted = true;
+    });
     await action.focus();
     adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_CENTER');
     await waitNative();
     await expect(video).toHaveCount(0);
     await expect.poll(() => seen.target.length).toBeGreaterThan(redirectedBefore);
     await expect.poll(audioTrack, { timeout: 10000 }).toMatch(/mutedState:[^ ]*clientVolume/);
-    await delay(4200);
+    adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_UP');
+    const muteButton = /<node [^>]*resource-id="org\.tvshell\.iptvnator:id\/native_mute"[^>]*>/;
+    const unmute = dumpLayout().match(muteButton)?.[0];
+    assert.ok(unmute?.includes('content-desc="Unmute"'), 'Muted native playback must offer Unmute.');
+    const [left, top, right, bottom] = unmute.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/).slice(1).map(Number);
+    adb('shell', 'input', 'tap', String((left + right) / 2), String((top + bottom) / 2));
+    await expect.poll(() => {
+        const track = audioTrack();
+        return track.includes('AudioTrack') && !/mutedState:[^ ]*clientVolume/.test(track);
+    }).toBe(true);
+    await delay(2900);
     adb('shell', 'input', 'keyevent', '3');
     await expect.poll(() => {
         const top = topActivity();

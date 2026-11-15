@@ -535,10 +535,19 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
         failed('synthetic-first');
         out.staleAndroidFailure = offerCount() - fallbackStart;
         engineVideo.dispatchEvent(new Event('loadstart'));
+        const currentStreamUrl = window.__tvShell.currentStreamUrl;
+        window.__tvShell.currentStreamUrl = () => null;
         issue('unsupported-codec');
         out.waitedForNative = offerCount() - fallbackStart;
         failed('synthetic-next');
         out.bothEnginesFailed = offerCount() - fallbackStart;
+        tryNative.setAttribute('data-tv-native-playback', 'synthetic-native-first');
+        failed('synthetic-native-first');
+        out.waitedForWeb = offerCount() - fallbackStart;
+        issue('unsupported-codec');
+        issue('unsupported-codec');
+        out.nativeFirst = offerCount() - fallbackStart;
+        window.__tvShell.currentStreamUrl = currentStreamUrl;
         stage.remove();
         diagnostic.remove();
         engineVideo.removeAttribute('src');
@@ -603,7 +612,9 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
     check(r.engineDuplicateError.length === 1, 'the same engine failure offers the external player once');
     check(r.engineInsertedError.length === 2, 'a new load attempt can offer one prompt even when its codec diagnostic is unchanged');
     check(r.staleAndroidFailure === 0 && r.waitedForNative === 0 && r.bothEnginesFailed === 1,
-        'external fallback waits for both engines in the current attempt regardless of URL spelling');
+        'external fallback uses the current Media3 failure URL when the web engine has no URL');
+    check(r.waitedForWeb === 1 && r.nativeFirst === 2,
+        'external fallback prompts once when the web failure arrives after Media3');
     check(!r.removedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'a removed player cannot offer recovery for its replacement');
     check(!r.retriedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'a fresh attempt of the same source discards the previous delayed error');
     check(!r.changedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'changing source before loadstart also discards the old error');

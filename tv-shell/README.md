@@ -131,7 +131,8 @@ decode AC-3 when the device cannot handle it. DASH, DRM, Smooth Streaming and
 temporary Stalker links stay in the web player. When parental controls are
 enabled, playback stays in the web player so it can enforce the lock.
 The native fullscreen screen supports play/pause, VOD
-seeking, audio tracks and subtitles. The Show subtitles setting picks the
+seeking, audio tracks and subtitles. Its mute button restores the last
+audible app volume when unmuting. The Show subtitles setting picks the
 initial subtitle track and the native controls can change it. The player keeps
 the play state and selected tracks through rotation. It saves the VOD position
 when you leave, including after seeking. Open the web player to use the channel

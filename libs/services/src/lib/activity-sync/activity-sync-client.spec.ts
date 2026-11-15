@@ -515,7 +515,10 @@ describe('activity sync clients', () => {
         await value.flush();
 
         const [previous] = await value.positions('source');
-        expect(previous.position.updatedAt).not.toBe(acknowledgedAt);
+        expect(previous.position.updatedAt).toBe(acknowledgedAt);
+        expect(Date.parse(previous.position.activityPlayedAt!)).toBeLessThan(
+            captured
+        );
         await value.save('source', {
             ...position,
             positionSeconds: 35,
@@ -526,7 +529,8 @@ describe('activity sync clients', () => {
         const [{ record }] = await store.entries('source');
         expect(record.position).toMatchObject({
             positionSeconds: 35,
-            updatedAt: nativeCheckpointAt,
+            updatedAt: acknowledgedAt,
+            activityPlayedAt: nativeCheckpointAt,
         });
     });
 

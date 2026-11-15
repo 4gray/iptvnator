@@ -306,6 +306,7 @@ export class AndroidTvPlayback {
                             headers,
                             captions,
                             volume,
+                            audibleVolume,
                             // Only resume metadata crosses this bridge alongside the stream request.
                             checkpoint: contentInfo && {
                                 profile,

@@ -233,8 +233,9 @@ export async function saveActivity(
                 current &&
                 position.nativeCheckpointAt &&
                 playbackTimestamp(
-                    current.position?.updatedAt ??
+                    current.position?.activityPlayedAt ??
                         state.positionMetadata?.playedAt ??
+                        current.position?.updatedAt ??
                         state.updatedAt
                 ) >= playbackTimestamp(position.nativeCheckpointAt)
             )
@@ -288,6 +289,7 @@ export async function saveActivity(
                     ...position,
                     watched: result.state.watched,
                     updatedAt: playedAt,
+                    ...(session ? { activityPlayedAt: playedAt } : {}),
                 },
                 pending: [
                     ...(current?.pending ?? []),

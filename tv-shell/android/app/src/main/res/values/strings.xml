@@ -45,4 +45,6 @@
     <string name="native_playback_try">Try built-in player</string>
     <string name="native_playback_back">Return to web player</string>
     <string name="native_playback_failed">The built-in player could not play this stream. Press Back to return.</string>
+    <string name="native_playback_mute">Mute</string>
+    <string name="native_playback_unmute">Unmute</string>
 </resources>

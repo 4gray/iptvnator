@@ -205,8 +205,8 @@ it('reports only an owned natural end after recording the final position', () =>
     }
 });
 
-it('restores the previous audible volume after the web controls remount muted', () => {
-    const { clear, open, playback, reply, surface } = setup();
+it('carries the previous audible volume through the native launch and the web remount', () => {
+    const { clear, open, playback, postMessage, reply, surface } = setup();
     try {
         const apply = jest.fn();
         const controls = () =>
@@ -221,7 +221,10 @@ it('restores the previous audible volume after the web controls remount muted', 
         priorControls.set(0.1);
         priorControls.toggleMute();
         surface.querySelector('video')!.volume = 0;
-        reply(open(), false);
+        const id = open();
+        const [, , request] = JSON.parse(postMessage.mock.lastCall![0]);
+        expect(request.audibleVolume).toBe(0.1);
+        reply(id, false);
         playback.restoreWebVolume();
         expect(playback.webVolume()).toBe(0);
 

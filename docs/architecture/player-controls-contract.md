@@ -118,7 +118,8 @@ no stream URL or provider credentials; the TV
 shell uses format/decode codes for its external-player offer without treating
 network failures as unsupported media. With the Media3 pilot enabled, the
 shell waits for both engines to fail in the same playback attempt before
-offering an external player.
+offering an external player. It records a web failure by attempt even if the
+media element has only a blob URL, and uses the URL from Media3 for the offer.
 Delayed native media errors retain the media element, source and load-attempt
 identity. Removal, replacement, a changed source or another `loadstart` discards
 that error before it can offer recovery for a newer playback attempt.

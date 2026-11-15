@@ -1356,15 +1356,22 @@
             return true;
         }
         var webFailures = new WeakMap(), nativeFailures = new WeakMap();
-        function offerAfterWebError(url, title, code, root) {
+        function offerIfBothFailed(stage) {
+            var failure = nativeFailures.get(stage);
+            if (!failure || failure.offered || webFailures.get(stage) !== failure.attempt) return;
+            failure.offered = true;
+            native('onPlaybackError', failure.url, failure.title || document.title || '', '4');
+        }
+        function offerAfterWebError(url, title, code, root, promptRoot) {
             var stage = root instanceof Element ? root.closest('app-web-player-view') : null;
             var button = stage && stage.querySelector('[data-tv-native-playback]');
             var attempt = button && button.getAttribute('data-tv-native-playback');
-            if (attempt && nativeFailures.get(stage) !== attempt) {
+            if (attempt) {
                 webFailures.set(stage, attempt);
+                offerIfBothFailed(stage);
                 return;
             }
-            native('onPlaybackError', url, title, String(code));
+            if (url && armPrompt(url, promptRoot)) native('onPlaybackError', url, title, String(code));
         }
         document.addEventListener('iptvnator:android-playback-failed', function (event) {
             var stage = event.target;
@@ -1373,11 +1380,10 @@
             if (!button || !detail || !detail.attempt ||
                 button.getAttribute('data-tv-native-playback') !== detail.attempt ||
                 typeof detail.url !== 'string') return;
-            nativeFailures.set(stage, detail.attempt);
-            if (webFailures.get(stage) === detail.attempt) {
-                webFailures.delete(stage);
-                native('onPlaybackError', detail.url, detail.title || document.title || '', '4');
-            }
+            var previous = nativeFailures.get(stage);
+            if (previous && previous.attempt === detail.attempt) return;
+            nativeFailures.set(stage, { attempt: detail.attempt, url: detail.url, title: detail.title });
+            offerIfBothFailed(stage);
         });
         document.addEventListener('error', function (e) {
             var t = e.target;
@@ -1393,9 +1399,9 @@
                 var code = (t.error && t.error.code) || (hasPlayerError(t) ? 4 : 0);
                 // 1 = aborted, 2 = network: the connection failed, not the format; an external
                 // player would fail the same way.
-                if (!url || code < 3 || !armPrompt(url, t.closest ? t.closest('.video-js') : null)) return;
+                if (code < 3) return;
                 lastMediaTitle = document.title;
-                offerAfterWebError(url, lastMediaTitle || '', code, t);
+                offerAfterWebError(url, lastMediaTitle || '', code, t, t.closest('.video-js'));
             }, 400);
         }, true);
         // The screen stays on only while something plays (the shell holds no wake lock otherwise).
@@ -1420,8 +1426,7 @@
             if (code !== 'unsupported-codec' && code !== 'unsupported-container' && code !== 'media-decode-error') return;
             var url = api.currentStreamUrl();
             var root = currentVideo && currentVideo.closest ? currentVideo.closest('.video-js') : null;
-            if (!url || !armPrompt(url, root)) return;
-            offerAfterWebError(url, document.title || '', 4, event.target);
+            offerAfterWebError(url, document.title || '', 4, event.target, root);
         });
         // video.js never sets the <video> src when no tech accepts the source
         // (raw .ts streams): it flags its root with `vjs-error` instead.
@@ -1433,9 +1438,8 @@
                 // (no CORS headers, the common case on a TV) as a network error, and an external
                 // player, which has no CORS, is exactly what plays it.
                 var url = videoJsSource();
-                if (!url || !armPrompt(url, el)) continue;
                 lastMediaTitle = document.title;
-                offerAfterWebError(url, lastMediaTitle || '', 4, el);
+                offerAfterWebError(url, lastMediaTitle || '', 4, el, el);
             }
         });
         vjsObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'], subtree: true });

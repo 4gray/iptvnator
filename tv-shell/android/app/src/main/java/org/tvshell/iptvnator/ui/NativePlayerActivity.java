@@ -7,6 +7,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.KeyEvent;
 import android.view.WindowManager;
+import android.widget.ImageButton;
 
 import androidx.annotation.OptIn;
 import androidx.core.view.WindowCompat;
@@ -53,6 +54,9 @@ public final class NativePlayerActivity extends Activity {
     private ExoPlayer player;
     private MediaSession mediaSession;
     private PlayerView view;
+    private ImageButton muteButton;
+    private float nativeVolume;
+    private float audibleVolume;
     private PlaybackStatsListener stats;
     private HttpUrl stream;
     private OkHttpClient httpClient;
@@ -96,11 +100,16 @@ public final class NativePlayerActivity extends Activity {
         }
         setContentView(R.layout.activity_native_player);
         view = findViewById(R.id.native_player);
+        muteButton = findViewById(R.id.native_mute);
+        nativeVolume = getIntent().getFloatExtra("volume", 1f);
+        audibleVolume = nativeVolume > 0f ? nativeVolume : getIntent().getFloatExtra("audibleVolume", 1f);
+        if (audibleVolume == 0f) audibleVolume = 1f;
         live = getIntent().getBooleanExtra("live", false);
         hls = getIntent().getBooleanExtra("hls", false);
         seedCaptions = getIntent().getBooleanExtra("captions", false);
         position = live ? 0 : getIntent().getLongExtra("position", 0);
         if (savedState != null) {
+            nativeVolume = savedState.getFloat("volume", nativeVolume);
             position = savedState.getLong("position");
             duration = savedState.getLong("duration");
             positionVerified = savedState.getBoolean("positionVerified");
@@ -113,6 +122,16 @@ public final class NativePlayerActivity extends Activity {
             Bundle tracks = savedState.getBundle("trackPreferences");
             if (tracks != null) trackPreferences = TrackSelectionParameters.fromBundle(tracks);
         }
+        muteButton.setOnClickListener(button -> {
+            if (player == null) return;
+            nativeVolume = nativeVolume == 0f ? audibleVolume : 0f;
+            player.setVolume(nativeVolume);
+            updateMuteButton();
+            view.showController();
+        });
+        updateMuteButton();
+        view.setControllerVisibilityListener(
+            (PlayerView.ControllerVisibilityListener) muteButton::setVisibility);
         view.setShowRewindButton(!live);
         view.setShowFastForwardButton(!live);
         view.requestFocus();
@@ -143,7 +162,7 @@ public final class NativePlayerActivity extends Activity {
             .setHandleAudioBecomingNoisy(true)
             .setUsePlatformDiagnostics(false)
             .build();
-        player.setVolume(getIntent().getFloatExtra("volume", 1f));
+        player.setVolume(nativeVolume);
         if (trackPreferences == null) {
             // The app seeds captions. Android's caption language must not turn them on by itself.
             trackPreferences = player.getTrackSelectionParameters().buildUpon()
@@ -318,6 +337,14 @@ public final class NativePlayerActivity extends Activity {
         return tracks.containsType(type) && !tracks.isTypeSupported(type, true);
     }
 
+    private void updateMuteButton() {
+        boolean muted = nativeVolume == 0f;
+        muteButton.setImageResource(muted
+            ? android.R.drawable.ic_lock_silent_mode : android.R.drawable.ic_lock_silent_mode_off);
+        muteButton.setContentDescription(getString(muted
+            ? R.string.native_playback_unmute : R.string.native_playback_mute));
+    }
+
     private void showError() {
         view.setCustomErrorMessage(getString(R.string.native_playback_failed));
         view.hideController();
@@ -360,6 +387,7 @@ public final class NativePlayerActivity extends Activity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         snapshot();
+        outState.putFloat("volume", nativeVolume);
         outState.putLong("position", position);
         outState.putLong("duration", duration);
         outState.putBoolean("positionVerified", positionVerified);
