@@ -5,7 +5,7 @@ export function sourceIdentity(playlist: Playlist): string | null {
     if (playlist.serverUrl && playlist.username) {
         return [
             'xtream',
-            normalizeUrl(playlist.serverUrl),
+            normalizeSourceUrlIdentity(playlist.serverUrl),
             playlist.username.trim(),
         ].join('|');
     }
@@ -13,15 +13,17 @@ export function sourceIdentity(playlist: Playlist): string | null {
     if (playlist.macAddress && portalUrl) {
         return [
             'stalker',
-            normalizeUrl(portalUrl),
+            normalizeSourceUrlIdentity(portalUrl),
             playlist.macAddress.trim().toLowerCase(),
         ].join('|');
     }
-    return playlist.url ? `m3u|${normalizeUrl(playlist.url)}` : null;
+    return playlist.url
+        ? `m3u|${normalizeSourceUrlIdentity(playlist.url)}`
+        : null;
 }
 
-/** Same rules as the backup import's fingerprints. */
-function normalizeUrl(value: string): string {
+/** URL identity shared by source matching and backup restore. */
+export function normalizeSourceUrlIdentity(value: string): string {
     const trimmed = value.trim();
     try {
         const url = new URL(trimmed);

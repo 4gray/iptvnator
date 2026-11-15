@@ -26,6 +26,7 @@ import {
     isParentalLockPlaylistLocksEmpty,
     isM3uRecentlyViewedItem,
     normalizeXtreamPendingRestoreState,
+    normalizeSourceUrlIdentity,
     normalizeXtreamContentTypes,
     XTREAM_CONTENT_TYPES,
     M3uPlaylistBackupEntry,
@@ -863,13 +864,13 @@ export class PlaylistBackupService {
             case 'xtream':
                 return [
                     'xtream',
-                    this.normalizeUrlIdentity(playlist.serverUrl ?? ''),
+                    normalizeSourceUrlIdentity(playlist.serverUrl ?? ''),
                     this.normalizeIdentityValue(playlist.username ?? ''),
                 ].join('|');
             case 'stalker':
                 return [
                     'stalker',
-                    this.normalizeUrlIdentity(
+                    normalizeSourceUrlIdentity(
                         playlist.portalUrl ?? playlist.url ?? ''
                     ),
                     this.normalizeIdentityValue(
@@ -894,13 +895,13 @@ export class PlaylistBackupService {
             case 'xtream':
                 return [
                     'xtream',
-                    this.normalizeUrlIdentity(entry.connection.serverUrl),
+                    normalizeSourceUrlIdentity(entry.connection.serverUrl),
                     this.normalizeIdentityValue(entry.connection.username),
                 ].join('|');
             case 'stalker':
                 return [
                     'stalker',
-                    this.normalizeUrlIdentity(entry.connection.portalUrl),
+                    normalizeSourceUrlIdentity(entry.connection.portalUrl),
                     this.normalizeIdentityValue(
                         entry.connection.macAddress,
                         true
@@ -917,7 +918,7 @@ export class PlaylistBackupService {
     }
 
     private buildM3uUrlFingerprint(url: string): string {
-        return ['m3u', 'url', this.normalizeUrlIdentity(url)].join('|');
+        return ['m3u', 'url', normalizeSourceUrlIdentity(url)].join('|');
     }
 
     private buildM3uRawFingerprint(rawM3u: string): string {
@@ -1583,7 +1584,7 @@ export class PlaylistBackupService {
         const merged = new Map<string, string>();
 
         for (const url of [...primary, ...secondary]) {
-            const normalized = this.normalizeUrlIdentity(url);
+            const normalized = normalizeSourceUrlIdentity(url);
 
             if (!normalized || merged.has(normalized)) {
                 continue;
@@ -1611,26 +1612,6 @@ export class PlaylistBackupService {
         }
 
         return result;
-    }
-
-    private normalizeUrlIdentity(value: string): string {
-        const trimmed = value.trim();
-
-        if (!trimmed) {
-            return '';
-        }
-
-        try {
-            const url = new URL(trimmed);
-            const pathname =
-                url.pathname === '/'
-                    ? '/'
-                    : url.pathname.replace(/\/+$/, '') || '/';
-
-            return `${url.protocol.toLowerCase()}//${url.host.toLowerCase()}${pathname}${url.search}${url.hash}`;
-        } catch {
-            return trimmed.toLowerCase();
-        }
     }
 
     private normalizeIdentityValue(value: string, toLowerCase = false): string {

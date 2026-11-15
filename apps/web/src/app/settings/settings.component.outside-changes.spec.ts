@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+import { EpgSourceReconciliationError } from '@iptvnator/services';
 import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsComponent } from './settings.component';
@@ -168,6 +169,29 @@ describe('SettingsComponent with settings changed outside the form', () => {
         expect(form.pristine).toBe(true);
     });
 
+    it('keeps a failed cleanup available for retry after importing a backup', async () => {
+        component.form.setEpgUrls(STAGED_GUIDE);
+        component.form.removeEpgSource(1);
+        settingsStore.updateSettings.mockRejectedValueOnce(
+            new EpgSourceReconciliationError()
+        );
+        await expect(component.form.save(() => undefined)).rejects.toThrow(
+            EpgSourceReconciliationError
+        );
+        expect(component.form.changedPaths()).toEqual([]);
+
+        importBackupAddingGuide(RESTORED_GUIDE);
+
+        expect(component.settingsForm.dirty).toBe(true);
+        expect(component.form.epgUrls).toEqual([SAVED_GUIDE, RESTORED_GUIDE]);
+        await component.form.save(() => component.form.applySavedSettings());
+        expect(settingsStore.updateSettings).toHaveBeenLastCalledWith(
+            {},
+            { retryEpgCleanup: true }
+        );
+        expect(component.settingsForm.pristine).toBe(true);
+    });
+
     it('saves a staged source list with a source added elsewhere meanwhile', async () => {
         const form = component.settingsForm;
         component.form.removeEpgSource(0);
@@ -235,6 +259,27 @@ describe('SettingsComponent with settings changed outside the form', () => {
         expect(component.form.epgUrls).toEqual(
             settingsStore.getSettings().epgUrl
         );
+        expect(component.settingsForm.pristine).toBe(true);
+    });
+
+    it('takes a restored URL that matches a rolled-back draft addition', async () => {
+        settingsStore.updateSettings.mockRejectedValueOnce(
+            new Error('storage unavailable')
+        );
+        component.form.setEpgUrls(RESTORED_GUIDE);
+        component.settingsForm.markAsDirty();
+        await expect(component.form.save(() => undefined)).rejects.toThrow();
+        expect(settingsStore.getSettings().epgUrl).toEqual([SAVED_GUIDE]);
+
+        component.form.removeEpgSource(1);
+        importBackupAddingGuide(RESTORED_GUIDE);
+        expect(component.form.epgUrls).toEqual([SAVED_GUIDE, RESTORED_GUIDE]);
+
+        await component.form.save(() => component.form.applySavedSettings());
+        expect(settingsStore.getSettings().epgUrl).toEqual([
+            SAVED_GUIDE,
+            RESTORED_GUIDE,
+        ]);
         expect(component.settingsForm.pristine).toBe(true);
     });
 

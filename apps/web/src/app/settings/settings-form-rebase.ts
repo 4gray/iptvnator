@@ -1,5 +1,9 @@
 import { normalizeAgeRatingCountry } from '@iptvnator/shared/interfaces/age-rating';
-import { Settings } from '@iptvnator/shared/interfaces';
+import {
+    normalizeSourceUrlIdentity,
+    Settings,
+} from '@iptvnator/shared/interfaces';
+import { diffSettingsValues } from './settings-change-tracking';
 import { SettingsForm } from './settings-form.utils';
 
 export type SettingsFormValue = ReturnType<SettingsForm['getRawValue']>;
@@ -78,6 +82,36 @@ export function settingsToFormValue(
     return next as unknown as SettingsFormValue;
 }
 
+/** Adopts current settings as the baseline while identifying each remaining draft. */
+export function rebaseSettingsForm(
+    current: SettingsFormValue,
+    saved: SettingsFormValue,
+    stored: Settings,
+    unsettledPaths: ReadonlySet<string>,
+    submitted?: { paths: readonly string[]; snapshot: SettingsFormValue }
+): { next: SettingsFormValue; staged: ReadonlySet<string> } {
+    const next = settingsToFormValue(stored, current);
+    const staged = new Set(diffSettingsValues(current, saved));
+    if (submitted) {
+        const laterEdits = new Set(
+            diffSettingsValues(current, submitted.snapshot)
+        );
+        for (const path of submitted.paths) {
+            if (laterEdits.has(path)) staged.add(path);
+            else staged.delete(path);
+        }
+    } else {
+        // Backup import may race an unfinished save. Keep its draft staged
+        // while adopting the restored EPG list in the baseline.
+        for (const path of unsettledPaths) {
+            if (path !== 'epgUrl')
+                writeSettingsPath(next, path, readSettingsPath(saved, path));
+            staged.add(path);
+        }
+    }
+    return { next, staged };
+}
+
 /** Reads a dotted settings path (`dashboardRails.hero`). */
 export function readSettingsPath(value: unknown, path: string): unknown {
     return path
@@ -114,11 +148,20 @@ export function epgUrlsAddedOutside(
     previous: unknown,
     next: unknown
 ): string[] {
-    const known = new Set([
-        ...normalizeFormEpgUrls(staged),
-        ...normalizeFormEpgUrls(previous),
-    ]);
-    return normalizeFormEpgUrls(next).filter((url) => !known.has(url));
+    const known = new Set(
+        [
+            ...normalizeFormEpgUrls(staged),
+            ...normalizeFormEpgUrls(previous),
+        ].map(normalizeSourceUrlIdentity)
+    );
+    const added: string[] = [];
+    for (const url of normalizeFormEpgUrls(next)) {
+        const identity = normalizeSourceUrlIdentity(url);
+        if (known.has(identity)) continue;
+        known.add(identity);
+        added.push(url);
+    }
+    return added;
 }
 
 function normalizeFormEpgUrls(value: unknown): string[] {

@@ -99,4 +99,18 @@ describe('settings path helpers', () => {
             )
         ).toEqual(['https://example.test/restored.xml']);
     });
+
+    it('matches source identities using the backup URL rules', () => {
+        expect(
+            epgUrlsAddedOutside(
+                ['https://example.test/staged.xml'],
+                ['https://example.test/saved.xml'],
+                [
+                    'https://EXAMPLE.test/saved.xml/',
+                    'https://EXAMPLE.test/staged.xml/',
+                    'https://example.test/restored.xml',
+                ]
+            )
+        ).toEqual(['https://example.test/restored.xml']);
+    });
 });

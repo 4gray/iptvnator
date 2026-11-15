@@ -48,8 +48,7 @@ import {
     pickChangedSettings,
     readSettingsPath,
     SettingsFormValue,
-    settingsToFormValue,
-    writeSettingsPath,
+    rebaseSettingsForm,
 } from './settings-form-rebase';
 
 type SettingsFormPatch = Parameters<SettingsForm['patchValue']>[0];
@@ -115,13 +114,14 @@ export class SettingsFormFacade {
 
     private savedSnapshot = this.form.getRawValue();
     private saveRevision = 0;
+    private saveNeedsConfirmation = false;
     /**
      * Paths an unfinished save wrote. A newer save writes them again, so an
      * edit reverted to the saved value still overrides the older save.
      */
     private readonly unsettledSavePaths = new Set<string>();
     /** EPG sources an unsettled save wrote: the form's own, never outside. */
-    private readonly unsettledEpgUrls = new Set<string>();
+    private readonly unsettledEpgUrls = new Map<number, string[]>();
 
     constructor() {
         this.form.valueChanges
@@ -162,6 +162,7 @@ export class SettingsFormFacade {
     hydrateFromStore(): void {
         // A full reload ends any half-failed save: its paths are not staged
         // any more and must not be rewritten from the reloaded form.
+        this.saveNeedsConfirmation = false;
         this.unsettledSavePaths.clear();
         this.unsettledEpgUrls.clear();
         const currentSettings = this.settingsStore.getSettings();
@@ -301,6 +302,7 @@ export class SettingsFormFacade {
      */
     async save(onSaved: () => void): Promise<void> {
         const saveRevision = ++this.saveRevision;
+        this.saveNeedsConfirmation = true;
         const submittedSnapshot = this.form.getRawValue();
         // An unsettled save may have stored another key already; a key typed
         // back to the saved one must then be written to override it.
@@ -331,7 +333,7 @@ export class SettingsFormFacade {
                 this.ownEpgUrls(),
                 stored.epgUrl
             );
-            for (const url of this.epgUrls) this.unsettledEpgUrls.add(url);
+            this.unsettledEpgUrls.set(saveRevision, this.epgUrls);
             settings.epgUrl = [...settings.epgUrl, ...addedEpgUrls];
         }
         let cleanupError: EpgSourceReconciliationError | undefined;
@@ -340,8 +342,10 @@ export class SettingsFormFacade {
                 retryEpgCleanup: this.epgUrl?.dirty ?? false,
             });
         } catch (error) {
+            const cleanupFailed = error instanceof EpgSourceReconciliationError;
+            if (!cleanupFailed) this.unsettledEpgUrls.delete(saveRevision);
             if (saveRevision !== this.saveRevision) return;
-            if (!(error instanceof EpgSourceReconciliationError)) throw error;
+            if (!cleanupFailed) throw error;
             // This error follows a successful settings write. Mirror the
             // committed values, but retain the dirty form for cleanup retry.
             cleanupError = error;
@@ -365,6 +369,7 @@ export class SettingsFormFacade {
         }
         if (cleanupError) throw cleanupError;
         this.rebaseOnStore({ paths: savedPaths, snapshot: submittedSnapshot });
+        this.saveNeedsConfirmation = false;
         this.unsettledSavePaths.clear();
         this.unsettledEpgUrls.clear();
         onSaved();
@@ -378,7 +383,7 @@ export class SettingsFormFacade {
      */
     syncWithStore(): void {
         this.rebaseOnStore();
-        if (!this.changedPaths().length && !this.unsettledSavePaths.size) {
+        if (!this.changedPaths().length && !this.saveNeedsConfirmation) {
             this.form.markAsPristine();
         }
         this.refreshRestartPending();
@@ -459,36 +464,18 @@ export class SettingsFormFacade {
         snapshot: SettingsFormValue;
     }): void {
         const current = this.form.getRawValue();
-        const staged = new Set(diffSettingsValues(current, this.savedSnapshot));
-        const next = settingsToFormValue(
+        const { next, staged } = rebaseSettingsForm(
+            current,
+            this.savedSnapshot,
             this.settingsStore.getSettings(),
-            current
+            this.unsettledSavePaths,
+            submitted
         );
-        const storedEpgUrls = next.epgUrl;
-        if (submitted) {
-            const laterEdits = diffSettingsValues(current, submitted.snapshot);
-            for (const path of submitted.paths) {
-                if (laterEdits.includes(path)) staged.add(path);
-                else staged.delete(path);
-            }
-        } else {
-            // A backup may finish while a Save still needs an acknowledgement.
-            for (const path of this.unsettledSavePaths) {
-                if (path !== 'epgUrl') {
-                    writeSettingsPath(
-                        next,
-                        path,
-                        readSettingsPath(this.savedSnapshot, path)
-                    );
-                }
-                staged.add(path);
-            }
-        }
         const addedEpgUrls = staged.has('epgUrl')
             ? epgUrlsAddedOutside(
                   current.epgUrl,
                   this.ownEpgUrls(),
-                  storedEpgUrls
+                  next.epgUrl
               )
             : [];
         for (const path of diffSettingsValues(next, current)) {
@@ -513,7 +500,10 @@ export class SettingsFormFacade {
      * source the user removes after a half-failed save is not "outside".
      */
     private ownEpgUrls(): unknown[] {
-        return [...(this.savedSnapshot.epgUrl ?? []), ...this.unsettledEpgUrls];
+        return [
+            ...(this.savedSnapshot.epgUrl ?? []),
+            ...Array.from(this.unsettledEpgUrls.values()).flat(),
+        ];
     }
 
     private takeSavedSnapshot(snapshot = this.form.getRawValue()): void {
