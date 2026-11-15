@@ -2,6 +2,7 @@ import { AndroidTvPlayback } from './android-tv-playback';
 import { SecondStreamFloatingDirective } from '../second-stream/second-stream-floating.directive';
 import { SecondStreamComponent } from '../second-stream/second-stream.component';
 import { WebPlayerActivity } from './web-player-activity';
+import { TranslatePipe } from '@ngx-translate/core';
 import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
 import {
     Component,
@@ -62,7 +63,7 @@ import {
 import { WebPlayerApplicationHandoffCoordinator } from './web-player-application-handoff';
 import {
     createWebPlayerApplicationOwnership,
-    type PlaybackApplicationOwnership,
+    type PlaybackApplicationOwnership as PlaybackOwnership,
 } from './web-player-application-ownership';
 import { createWebPlayerApplicationState } from './web-player-application-state';
 import { resolveWebPlayerMediaTitle } from './web-player-playback-state';
@@ -84,6 +85,7 @@ import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
     imports: [
         SecondStreamComponent,
         SecondStreamFloatingDirective,
+        TranslatePipe,
         ArtPlayerComponent,
         EmbeddedMpvPlayerComponent,
         FullscreenChannelPanelComponent,
@@ -122,7 +124,7 @@ export class WebPlayerViewComponent implements OnDestroy {
         () => this.renderedApplications().some((app) => app.embeddedMpv),
         () => this.embeddedMpvPlayer()?.support() ?? null
     );
-    private readonly runtime = inject(RuntimeCapabilitiesService);
+    protected readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK, {
         optional: true,
@@ -315,9 +317,6 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly recordingFolder = computed(
         () => this.settingsStore.recordingFolder?.() ?? ''
     );
-    get supportsManagedExternalPlayers(): boolean {
-        return this.runtime.supportsManagedExternalPlayers;
-    }
     private readonly ownership = createWebPlayerApplicationOwnership({
         sourceRevision: this.playbackSourceRevisionToken,
         token: this.playbackApplicationToken,
@@ -393,7 +392,7 @@ export class WebPlayerViewComponent implements OnDestroy {
 
     handleTimeUpdate(
         event: PlayerTimeUpdate,
-        ownership: PlaybackApplicationOwnership
+        ownership: PlaybackOwnership
     ): void {
         if (!this.ownership.owns(ownership)) return;
         const { isLive, token } = ownership;
@@ -406,19 +405,19 @@ export class WebPlayerViewComponent implements OnDestroy {
         this.timeUpdate.emit(event);
     }
 
-    handleActivityEnded(ownership: PlaybackApplicationOwnership): void {
+    handleActivityEnded(ownership: PlaybackOwnership, notify = true): void {
         if (this.ownership.owns(ownership))
-            this.emitPlaybackEnded(ownership.isLive);
+            this.emitPlaybackEnded(ownership.isLive, notify);
     }
 
     private emitPlaybackStarted(): void {
         this.playbackStarted.emit(this.playback() ?? this.resolvedPlayback());
     }
 
-    private emitPlaybackEnded(isLive: boolean): void {
+    private emitPlaybackEnded(isLive: boolean, notify = true): void {
         if (!isLive) this.activity.finish();
         this.recovery.recordEnd(this.playbackApplicationToken());
-        this.playbackEnded.emit();
+        if (notify) this.playbackEnded.emit();
     }
 
     returnToWebPlayback(): void {

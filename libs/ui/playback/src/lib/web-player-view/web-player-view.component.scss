@@ -58,12 +58,37 @@ app-html-video-player {
 .embedded-mpv-pair--with-strip {
     --second-stream-strip-height: 40px;
     display: grid;
-    grid-template-rows: minmax(0, 1fr) var(--second-stream-strip-height);
+    grid-template: minmax(0, 1fr) var(--second-stream-strip-height) / minmax(
+            0,
+            1fr
+        );
+
+    > app-embedded-mpv-player {
+        grid-area: 1 / 1;
+        min-width: 0;
+        min-height: 0;
+    }
 }
-.embedded-mpv-pair--side-by-side {
+.embedded-mpv-pair--side-by-side,
+.embedded-mpv-pair--grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: 4px;
     background: #000;
+}
+.embedded-mpv-pair--grid {
+    grid-template-rows: repeat(2, minmax(0, 1fr)) var(
+            --second-stream-strip-height
+        );
+    row-gap: 4px;
+
+    &:focus-visible::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+        border: 2px solid var(--app-focus-ring);
+        pointer-events: none;
+    }
 }
 .embedded-mpv-pair--swapped > app-embedded-mpv-player {
     position: absolute;

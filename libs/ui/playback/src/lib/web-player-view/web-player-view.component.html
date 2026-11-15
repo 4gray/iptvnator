@@ -97,13 +97,27 @@
     } @else if (application.embeddedMpv) {
         <div
             class="embedded-mpv-pair"
-            [class.embedded-mpv-pair--swapped]="
-                companion.swapped() && !companion.sideBySide()
+            [class.embedded-mpv-pair--swapped]="companion.swapped()"
+            [class.embedded-mpv-pair--side-by-side]="
+                companion.layout() === 'side-by-side'
             "
-            [class.embedded-mpv-pair--side-by-side]="companion.sideBySide()"
-            [class.embedded-mpv-pair--with-strip]="
-                embeddedMpvPlayer.support()?.engine === 'frame-copy'
+            [class.embedded-mpv-pair--grid]="companion.layout() === 'grid'"
+            [class.embedded-mpv-pair--with-strip]="companion.stripVisible()"
+            [attr.data-multiview-stage]="companion.stripVisible() ? '' : null"
+            [attr.role]="companion.stripVisible() ? 'group' : null"
+            [attr.tabindex]="
+                companion.layout() === 'grid'
+                    ? 0
+                    : companion.stripVisible()
+                      ? -1
+                      : null
             "
+            [attr.aria-label]="
+                companion.stripVisible()
+                    ? ('TWO_STREAMS.MULTIVIEW' | translate)
+                    : null
+            "
+            (keydown)="companion.selectControlsFromKey($event)"
             [style.--pip-left.px]="companion.placement.geometry().left"
             [style.--pip-top.px]="companion.placement.geometry().top"
             [style.--pip-width.px]="companion.placement.geometry().width"
@@ -111,41 +125,47 @@
         >
             <app-embedded-mpv-player
                 #embeddedMpvPlayer
-                [canAddSecondStream]="
-                    embeddedMpvPlayer.support()?.engine === 'frame-copy' &&
-                    !companion.active()
+                data-multiview-slot="1"
+                [canOpenMultiview]="
+                    companion.available() && !companion.stripVisible()
                 "
-                (secondStreamRequested)="companion.openPicker()"
-                [appSecondStreamFloating]="
-                    companion.swapped() && !companion.sideBySide()
+                (multiviewAddRequested)="
+                    companion.focus.pick(companion.openPicker(2))
                 "
+                (multiviewGridRequested)="
+                    companion.setLayout('grid'); companion.focus.enterGrid()
+                "
+                [appSecondStreamFloating]="companion.swapped()"
                 [class.embedded-mpv-player-host--selected]="
-                    companion.sideBySide() &&
-                    companion.controlsView() === 'primary'
+                    (companion.layout() === 'grid' ||
+                        companion.layout() === 'side-by-side') &&
+                    companion.controlsSlot() === 1
                 "
                 [showControls]="
-                    !companion.busy() && companion.controlsView() === 'primary'
+                    !companion.busy() && companion.controlsSlot() === 1
                 "
-                [sharedVolumeController]="
-                    companion.swapped()
-                        ? companion.secondary()?.controller
-                        : undefined
+                [sharedVolumeController]="companion.audioController()"
+                (inactiveSurfaceClicked)="companion.selectControls(1)"
+                [initialVolumeOverride]="
+                    companion.audioSlot() !== 1
+                        ? 0
+                        : companion.stripVisible() || companion.error()
+                          ? companion.audibleVolume()
+                          : null
                 "
-                (inactiveSurfaceClicked)="companion.selectControls('primary')"
-                [initialVolumeOverride]="companion.swapped() ? 0 : null"
                 [retryEnabled]="!companion.busy()"
                 [(liveSubtitlesOff)]="embeddedMpvLiveSubtitlesOff"
                 [playback]="resolvedPlayback()"
                 [fullscreenTarget]="fullscreenSurface"
                 [mediaTitle]="resolvedMediaTitle()"
-                [upNext]="upNext()"
+                [upNext]="companion.active() ? null : upNext()"
                 [timelineSegments]="timelineSegments()"
                 [recordingFolder]="recordingFolder()"
                 [recordingMetadata]="recordingMetadata()"
                 [seriesNavigation]="seriesNavigation()"
                 (timeUpdate)="handleTimeUpdate($event, application)"
                 (playbackEnded)="
-                    companion.active() ? null : handleActivityEnded(application)
+                    handleActivityEnded(application, !companion.active())
                 "
                 (previousEpisodeRequested)="previousEpisodeRequested.emit()"
                 (nextEpisodeRequested)="nextEpisodeRequested.emit()"
@@ -153,6 +173,10 @@
             />
             <app-second-stream
                 #companion
+                [class.second-stream--tiled]="
+                    companion.layout() === 'side-by-side' ||
+                    companion.layout() === 'grid'
+                "
                 [primary]="embeddedMpvPlayer"
                 [fullscreenTarget]="fullscreenSurface"
                 (recordingStopped)="recordingStopped.emit($event)"
@@ -174,7 +198,9 @@
         [diagnostic]="issue"
         [recommendations]="recommendations()"
         [playback]="resolvedPlayback()"
-        [supportsManagedExternalPlayers]="supportsManagedExternalPlayers"
+        [supportsManagedExternalPlayers]="
+            runtime.supportsManagedExternalPlayers
+        "
         [playbackExternallyTransferable]="playbackExternallyTransferable()"
         [alternativeSources]="alternativeSources()"
         [externalStates]="externalRecoveryState()"
