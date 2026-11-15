@@ -30,6 +30,7 @@ import {
     HEADER_OVERFLOW_ORDER,
     HeaderOverflowItemId,
     measureHeaderActionSlot,
+    measureHeaderGroupSlack,
     measureHeaderSpare,
     resolveHeaderOverflowCount,
 } from './workspace-shell-header-overflow';
@@ -177,6 +178,11 @@ export class WorkspaceShellHeaderComponent {
     private readonly phoneViewport = signal(matchesPhoneViewport());
     /** How many actions the last measurement moved into the menu. */
     protected readonly overflowCount = signal(0);
+    /**
+     * Gap and divider that leave with the contextual group, kept from the
+     * last time the group rendered (8px gap, 8px padding, 1px border).
+     */
+    private groupSlack = 17;
     /** Actions present now that may move into the menu, in hide order. */
     readonly overflowCandidates = computed<HeaderOverflowItemId[]>(() =>
         HEADER_OVERFLOW_ORDER.filter((id) => this.isActionPresent(id))
@@ -394,8 +400,12 @@ export class WorkspaceShellHeaderComponent {
             return;
         }
 
+        this.groupSlack = measureHeaderGroupSlack(actions) ?? this.groupSlack;
+        const candidates = this.overflowCandidates();
         const next = resolveHeaderOverflowCount({
-            candidates: this.overflowCandidates().length,
+            candidates: candidates.length,
+            contextual: candidates.filter((id) => id !== 'add-source').length,
+            groupSlack: this.groupSlack,
             spare: measureHeaderSpare(
                 header,
                 header.querySelector<HTMLElement>('.search-field')

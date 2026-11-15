@@ -31,18 +31,38 @@ export function headerSearchComfortWidth(headerWidth: number): number {
     return headerWidth <= 640 ? 120 : 220;
 }
 
-/** Width freed by moving `count` actions into the menu. */
-export function headerOverflowSavings(count: number, slot: number): number {
-    return count >= HEADER_OVERFLOW_MIN_ITEMS ? (count - 1) * slot : 0;
+export interface HeaderOverflowGeometry {
+    /** Width of one action button with its gap. */
+    slot: number;
+    /**
+     * How many of the candidates are contextual. They come first in the
+     * hide order, so once that many have moved the contextual group is gone.
+     */
+    contextual: number;
+    /**
+     * Width that leaves with the contextual group: the gap between the two
+     * groups and the divider with its padding.
+     */
+    groupSlack: number;
 }
 
-export interface HeaderOverflowInput {
+/** Width freed by moving `count` actions into the menu. */
+export function headerOverflowSavings(
+    count: number,
+    geometry: HeaderOverflowGeometry
+): number {
+    if (count < HEADER_OVERFLOW_MIN_ITEMS) {
+        return 0;
+    }
+    const groupGone = geometry.contextual > 0 && count >= geometry.contextual;
+    return (count - 1) * geometry.slot + (groupGone ? geometry.groupSlack : 0);
+}
+
+export interface HeaderOverflowInput extends HeaderOverflowGeometry {
     /** How many actions may move, all present in the header. */
     candidates: number;
     /** Spare width as laid out now (negative when short of room). */
     spare: number;
-    /** Width of one action button with its gap. */
-    slot: number;
     /** How many actions sit in the menu now. */
     current: number;
 }
@@ -51,23 +71,24 @@ export interface HeaderOverflowInput {
  * How many actions belong in the menu: the fewest that make room, 0 or at
  * least {@link HEADER_OVERFLOW_MIN_ITEMS}. `spare` was measured with
  * `current` actions in the menu, so it is first turned back into the room
- * an all-inline header would have.
+ * an all-inline header would have. The savings must match what the layout
+ * really frees, divider included, or the header flips between two plans.
  */
 export function resolveHeaderOverflowCount(input: HeaderOverflowInput): number {
-    const { candidates, slot } = input;
-    if (candidates < HEADER_OVERFLOW_MIN_ITEMS || slot <= 0) {
+    const { candidates } = input;
+    if (candidates < HEADER_OVERFLOW_MIN_ITEMS || input.slot <= 0) {
         return 0;
     }
 
     const current = clampOverflowCount(input.current, candidates);
-    const inlineSpare = input.spare - headerOverflowSavings(current, slot);
+    const inlineSpare = input.spare - headerOverflowSavings(current, input);
 
     for (let count = 0; count <= candidates; count++) {
         if (count > 0 && count < HEADER_OVERFLOW_MIN_ITEMS) {
             continue;
         }
         const margin = count < current ? HEADER_OVERFLOW_HYSTERESIS_PX : 0;
-        if (inlineSpare + headerOverflowSavings(count, slot) >= margin) {
+        if (inlineSpare + headerOverflowSavings(count, input) >= margin) {
             return count;
         }
     }
@@ -123,6 +144,25 @@ export function measureHeaderActionSlot(actions: HTMLElement): number {
     const group = button.closest('.header-actions') ?? actions;
     const gap = parseFloat(getComputedStyle(group).columnGap) || 0;
     return button.offsetWidth + gap;
+}
+
+/**
+ * Width the contextual group takes beyond its buttons: the gap after it
+ * and the divider with its padding on the global group. Null while the
+ * group is not rendered, since there is nothing to measure.
+ */
+export function measureHeaderGroupSlack(actions: HTMLElement): number | null {
+    const global = actions.querySelector<HTMLElement>('.header-actions--divided');
+    if (!global || !actions.querySelector('.header-actions--contextual')) {
+        return null;
+    }
+    const clusterStyle = getComputedStyle(actions);
+    const globalStyle = getComputedStyle(global);
+    return (
+        (parseFloat(clusterStyle.columnGap) || 0) +
+        (parseFloat(globalStyle.paddingInlineStart) || 0) +
+        (parseFloat(globalStyle.borderInlineStartWidth) || 0)
+    );
 }
 
 function preferredWidth(region: HTMLElement): number {
