@@ -93,13 +93,15 @@ button:disabled {
 }
 .poster-card:focus,
 .resume-card:focus,
-.person-chip:focus {
+.person-chip:focus,
+.episode:focus {
     outline: none;
     background: transparent;
     color: var(--tv-text);
 }
 .poster-card:focus .poster-art,
-.resume-card:focus .poster-art {
+.resume-card:focus .poster-art,
+.episode:focus .episode-frame {
     outline: var(--tv-focus-width) solid var(--app-focus-ring-color);
     outline-offset: var(--tv-focus-offset);
 }
@@ -114,18 +116,11 @@ button:disabled {
     outline: var(--tv-focus-width) solid var(--app-focus-ring-color);
     outline-offset: var(--tv-focus-offset);
 }
-.episode {
-    /* Grow downwards so a focused episode keeps its top edge as an anchor. */
-    transform-origin: 50% 0;
-}
-.episode:focus,
 .channel-card:focus {
     background: var(--tv-control);
     color: var(--tv-text);
 }
-.episode:focus .episode-number,
-.episode:focus .episode-description,
-.episode:focus small {
+.episode:focus .episode-meta {
     color: var(--tv-muted);
 }
 .poster-card:focus .muted,
