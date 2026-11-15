@@ -43,11 +43,17 @@ export interface SeriesEpisodeEntry {
  */
 export type SeriesNextUp =
     | {
-          readonly kind: 'start' | 'resume' | 'next';
+          readonly kind: 'start' | 'resume';
           readonly entry: SeriesEpisodeEntry;
       }
     | {
+          readonly kind: 'next';
+          readonly entry: SeriesEpisodeEntry;
+          readonly lastWatched: SeriesEpisodeEntry | null;
+      }
+    | {
           readonly kind: 'caught-up';
+          readonly lastWatched: SeriesEpisodeEntry;
           readonly skipped: SeriesEpisodeEntry | null;
           readonly last: SeriesEpisodeEntry;
       };
@@ -76,7 +82,7 @@ export function getSeriesNextUp(
         nextUp.kind === 'start' &&
         entries.some(({ position }) => position !== null)
     ) {
-        return { kind: 'next', entry: nextUp.entry };
+        return { kind: 'next', entry: nextUp.entry, lastWatched: null };
     }
     return nextUp;
 }
@@ -108,10 +114,11 @@ function getNextUpWithin(
     );
     const next = unwatched.find((entry) => entry.order > lastWatched.order);
     if (next) {
-        return { kind: 'next', entry: next };
+        return { kind: 'next', entry: next, lastWatched };
     }
     return {
         kind: 'caught-up',
+        lastWatched,
         skipped: unwatched[0] ?? null,
         last: sequence[sequence.length - 1],
     };
@@ -127,7 +134,7 @@ function getOrderedSeriesEpisodes(
             compareSeriesSeasonKeys(seasonA, seasonB)
         )
         .forEach(([seasonKey, episodes]) => {
-            [...episodes].sort(compareEpisodes).forEach((episode) => {
+            [...episodes].sort(compareSeriesEpisodes).forEach((episode) => {
                 const seasonNumber = episodeSeasonNumber(episode, seasonKey);
                 let position =
                     request.playbackPositions.get(Number(episode.id)) ?? null;
@@ -174,7 +181,7 @@ function episodeSeasonNumber(
     return toSeasonNumber(episode.season) ?? toSeasonNumber(seasonKey);
 }
 
-function compareEpisodes(
+export function compareSeriesEpisodes(
     episodeA: XtreamSerieEpisode,
     episodeB: XtreamSerieEpisode
 ): number {
