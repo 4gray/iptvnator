@@ -114,7 +114,9 @@ describe('EpgService schedule refill', () => {
         await service.fetchEpg(['https://guide.example.com/epg.xml']);
         await flush();
 
-        expect(getChannelPrograms).toHaveBeenLastCalledWith('news.example');
+        expect(getChannelPrograms).toHaveBeenLastCalledWith('news.example', {
+            rejectOnError: true,
+        });
         expect(shown.at(-1)?.map(({ title }) => title)).toEqual(['Fresh']);
     });
 
@@ -153,7 +155,9 @@ describe('EpgService schedule refill', () => {
         service.refreshEpgData();
         await flush();
 
-        expect(getChannelPrograms).toHaveBeenLastCalledWith('news.example');
+        expect(getChannelPrograms).toHaveBeenLastCalledWith('news.example', {
+            rejectOnError: true,
+        });
         expect(shown.at(-1)?.map(({ title }) => title)).toEqual(['Fresh']);
     });
 
@@ -193,6 +197,22 @@ describe('EpgService schedule refill', () => {
         await flush();
 
         expect(shown.at(-1)?.map(({ title }) => title)).toEqual(['Refilled']);
+    });
+
+    it('asks the backend to reject, not to answer [], on a refill', async () => {
+        await openChannel('news.example');
+        // A zap keeps the plain read: an unreadable database shows empty.
+        expect(getChannelPrograms).toHaveBeenLastCalledWith(
+            'news.example',
+            undefined
+        );
+
+        service.refreshEpgData();
+        await flush();
+
+        expect(getChannelPrograms).toHaveBeenLastCalledWith('news.example', {
+            rejectOnError: true,
+        });
     });
 
     it('keeps the schedule and raises no toast when a background refill fails', async () => {
@@ -256,7 +276,21 @@ describe('EpgService schedule refill', () => {
         sourcesChanged.next();
         await flush();
 
-        expect(getChannelPrograms).toHaveBeenLastCalledWith('b.example');
+        expect(getChannelPrograms).toHaveBeenLastCalledWith('b.example', {
+            rejectOnError: true,
+        });
+    });
+
+    it('clears the airing cache when an import completes before any channel was opened', () => {
+        const clearCache = jest.spyOn(service, 'clearCache');
+
+        onProgress({
+            url: 'https://guide.example.com/epg.xml',
+            status: 'complete',
+        } as EpgImportProgress);
+
+        expect(clearCache).toHaveBeenCalled();
+        expect(getChannelPrograms).not.toHaveBeenCalled();
     });
 
     it('does nothing before a channel was opened', async () => {

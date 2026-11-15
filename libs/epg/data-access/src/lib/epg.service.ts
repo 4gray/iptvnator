@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject, from, Observable, of } from 'rxjs';
-import { catchError, map, tap, timeout } from 'rxjs/operators';
+import { catchError, tap } from 'rxjs/operators';
 import {
     createDevLogger,
     EpgChannelMetadata,
@@ -18,7 +18,7 @@ import {
     EpgLookupOptions,
     EpgRuntimeBridgeService,
 } from './epg-runtime-bridge.service';
-import { normalizeEpgPrograms } from './epg-program-normalization.util';
+import type { EpgScheduleFeed } from './epg-schedule-feed';
 import { EpgProgramCache } from './epg-program-cache';
 import { EpgLookupLoader } from './epg-lookup-loader';
 import type { EpgLookupContext } from './epg-lookup-context';
@@ -53,24 +53,21 @@ export class EpgService {
             }
             wasEnabled = enabled;
             // The remaining sources may still carry the channel's schedule.
-            if (enabled) this.refillSchedule();
+            if (enabled) this.withScheduleFeed((feed) => feed.refill());
         });
         // An import finished anywhere — a refresh or retry from Settings,
-        // a startup or background import — replaces the stored programmes.
+        // a startup or background import — replaces the stored programmes,
+        // also before any channel was opened (the airing cache).
         this.epgBridge.onProgress?.((progress) => {
             if (progress.status === 'complete') this.refreshEpgData();
         });
     }
 
-    /** The channel whose schedule `currentEpgPrograms$` holds. */
-    private scheduleChannelId: string | null = null;
-    /**
-     * Schedule reads are numbered; one publishes only while its channel is
-     * still open and nothing newer has published. A failed read publishes
-     * nothing, so it cannot discard an older read still on its way.
-     */
-    private scheduleRequest = 0;
-    private publishedRequest = 0;
+    /** Loaded with the first channel opened (`epg-schedule-feed.ts`). */
+    private scheduleFeed: Promise<EpgScheduleFeed> | null = null;
+
+    /** The dynamic import; a field so specs can substitute it. */
+    loadScheduleFeed = () => import('./epg-schedule-feed');
 
     private epgAvailable = new BehaviorSubject<boolean>(false);
     private currentEpgPrograms = new BehaviorSubject<EpgProgram[]>([]);
@@ -173,11 +170,21 @@ export class EpgService {
             .subscribe();
     }
 
-    /**
-     * Gets EPG programs for a specific channel
-     */
+    /** Reads a channel's schedule into `currentEpgPrograms$`. */
     getChannelPrograms(channelId: string): void {
-        this.readSchedule(channelId, false);
+        debugEpgService('Fetching EPG for channel ID:', channelId);
+        this.scheduleFeed ??= this.loadScheduleFeed().then(
+            ({ EpgScheduleFeed }) =>
+                new EpgScheduleFeed(
+                    this.epgBridge,
+                    this.sourceSettings,
+                    this.epgPreferences,
+                    this.currentEpgPrograms,
+                    this.epgAvailable,
+                    () => this.showErrorSnackbar()
+                )
+        );
+        this.withScheduleFeed((feed) => feed.read(channelId));
     }
 
     /**
@@ -185,54 +192,8 @@ export class EpgService {
      * later refill must not bring back the previous channel's schedule.
      */
     clearSchedule(): void {
-        this.scheduleChannelId = null;
-        this.publishedRequest = ++this.scheduleRequest;
         this.currentEpgPrograms.next([]);
-    }
-
-    /**
-     * A refill runs in the background (an import may still be writing): a
-     * failed or slow read keeps the schedule on screen and raises no toast.
-     */
-    private readSchedule(channelId: string, refill: boolean): void {
-        // Recorded even while EPG is off: turning it on refills this channel,
-        // not the one open before it was switched off.
-        this.scheduleChannelId = channelId;
-        if (
-            !this.epgPreferences.enabled() ||
-            !this.epgBridge.supportsProgramLookup
-        )
-            return;
-        debugEpgService('Fetching EPG for channel ID:', channelId);
-        const request = ++this.scheduleRequest;
-        const canPublish = () =>
-            channelId === this.scheduleChannelId &&
-            request > this.publishedRequest;
-
-        from(this.epgBridge.getChannelPrograms(channelId))
-            .pipe(
-                this.sourceSettings.guard(),
-                this.epgPreferences.guard(),
-                timeout(3000),
-                map((programs) => normalizeEpgPrograms(programs ?? [])),
-                catchError((err) => {
-                    console.error('EPG get programs error:', err);
-                    if (refill || !canPublish()) return of(null);
-                    this.publishedRequest = request;
-                    this.showErrorSnackbar();
-                    this.currentEpgPrograms.next([]);
-                    this.epgAvailable.next(false);
-                    return of([]);
-                })
-            )
-            .subscribe((programs) => {
-                // An older read — another channel's, or this channel's from
-                // before a refill — must not replace the latest schedule.
-                if (!programs || !canPublish()) return;
-                this.publishedRequest = request;
-                this.epgAvailable.next(programs.length > 0);
-                this.currentEpgPrograms.next(programs);
-            });
+        this.withScheduleFeed((feed) => feed.clear());
     }
 
     /**
@@ -242,13 +203,14 @@ export class EpgService {
      */
     refreshEpgData(): void {
         this.clearCache();
-        this.refillSchedule();
+        this.withScheduleFeed((feed) => feed.refill());
     }
 
-    private refillSchedule(): void {
-        if (this.scheduleChannelId) {
-            this.readSchedule(this.scheduleChannelId, true);
-        }
+    /** In call order, once the feed is loaded; nothing before a first zap. */
+    private withScheduleFeed(run: (feed: EpgScheduleFeed) => void): void {
+        void this.scheduleFeed?.then(run).catch((error) => {
+            console.error('EPG schedule feed failed to load:', error);
+        });
     }
 
     /**

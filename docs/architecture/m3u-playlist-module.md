@@ -1481,8 +1481,13 @@ channel, so the open channel's panel does not stay empty or stale until the
 next zap: after a successful `fetchEpg`, any import progress reaching
 `complete` (a refresh or retry from Settings, a startup or background
 import), an EPG source change, and a manual mapping saved or removed in the
-mapping dialog (`refreshEpgData()`). A read for a channel that is no longer
-the last one requested is discarded.
+mapping dialog (`refreshEpgData()`). Reads are numbered: one publishes only
+while its channel is still open and nothing newer has published. A refill
+runs in the background — it passes `rejectOnError`, so an unreadable database
+rejects instead of answering an empty schedule, and a failed refill keeps the
+schedule on screen without a toast. A channel without an EPG key calls
+`clearSchedule()`. This logic lives in `epg-schedule-feed.ts`, loaded with the
+first channel opened, so it stays off the startup path (`renderer.initialBytes`).
 
 The single-channel schedule (`EpgQueryService.getChannelPrograms`, main
 process) is a window around now, not the oldest rows: the upcoming
