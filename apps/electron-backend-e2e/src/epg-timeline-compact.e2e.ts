@@ -32,6 +32,8 @@ type Messages = {
         TIMELINE: {
             ON_NOW: string;
             SCHEDULE_ONLY_NOTICE: string;
+            JUMP_TODAY: string;
+            JUMP_NEAREST: string;
         };
     };
     WORKSPACE: { SHELL: { RAIL_ALL_CHANNELS: string } };
@@ -241,6 +243,34 @@ test('@epg @m3u @electron keeps the inline EPG panel compact and translated', as
             await page.screenshot({
                 path: test.info().outputPath(`expanded-${width}.png`),
             });
+
+            // Two days ahead has no programmes: the empty state's message
+            // and both actions fit inside the compact panel.
+            const next = toolbar.locator('.epg-timeline__nav').last();
+            await next.click();
+            await next.click();
+            const empty = timeline.locator('app-epg-timeline-empty-state');
+            const actions = [
+                empty.getByRole('button', { name: ru.EPG.TIMELINE.JUMP_TODAY }),
+                empty.getByRole('button', {
+                    name: ru.EPG.TIMELINE.JUMP_NEAREST,
+                }),
+            ];
+            await expect(actions[0]).toBeVisible();
+            const emptyBox = await box(empty);
+            for (const action of actions) {
+                const actionBox = await box(action);
+                expect(actionBox.y, label).toBeGreaterThanOrEqual(emptyBox.y);
+                expect(
+                    actionBox.y + actionBox.height,
+                    `${label}: empty-state action inside the panel`
+                ).toBeLessThanOrEqual(emptyBox.y + emptyBox.height);
+            }
+            await page.screenshot({
+                path: test.info().outputPath(`empty-day-${width}.png`),
+            });
+            await actions[0].click();
+            await expect(nowBlock).toBeVisible();
 
             // Collapsed: the bar is the toolbar's height, the source label is
             // translated and the channel name is not cut while room is left.
