@@ -824,7 +824,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Країна вікового рейтингу",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Виберіть країну класифікації. За відсутності місцевого рейтингу використовуються дані США або провайдера.",
-        "AGE_RATING_COUNTRY_AUTO": "Автоматично — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Автоматично — {{country}}",
+        "CARD_HELP": "Довідка",
+        "KEYBOARD_SHORTCUTS": "Комбінації клавіш",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Комбінації клавіш для навігації, відтворення та діалогів. Натисніть ? поза текстовим полем, щоб відкрити їх.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Показати комбінації"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Не вдалося зберегти дані на сервері. Перевірте з’єднання та спробуйте ще раз.",
@@ -2180,7 +2184,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "Видалення кешованих категорій...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "Збереження списку вподобань, історії переглядів, прихованих категорій та прогресу відтворення для подальшого відновлення після синхронізації.",
             "XTREAM_REFRESH_PROGRESS": "Обробка локальних записів: {{current}} / {{total}}",
-            "RAIL_RADIO": "Радіо"
+            "RAIL_RADIO": "Радіо",
+            "MORE_ACTIONS": "Більше дій"
         },
         "SOURCES": {
             "TITLE": "Джерела",
@@ -2251,8 +2256,6 @@
         "SHORTCUTS": {
             "TITLE": "Комбінації клавіш",
             "SUBTITLE": "Комбінації клавіш IPTVnator для робочої області, навігації, відтворення та діалогів.",
-            "OPEN_TOOLTIP": "Комбінації клавіш (?)",
-            "OPEN_ARIA": "Відкрити комбінації клавіш",
             "PLATFORM": {
                 "MAC": "Розкладка macOS",
                 "OTHER": "Розкладка Windows/Linux"

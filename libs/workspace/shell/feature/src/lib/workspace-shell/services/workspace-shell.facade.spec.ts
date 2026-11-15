@@ -25,6 +25,7 @@ import {
 } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import {
+    WorkspaceKeyboardShortcutsLauncherService,
     WorkspaceShellContextDrawerService,
     WorkspaceStartupPreferencesService,
     WORKSPACE_SHELL_ACTIONS,
@@ -826,6 +827,7 @@ describe('WorkspaceShellFacade', () => {
             'open-global-recent',
             'open-downloads',
             'open-settings',
+            'keyboard-shortcuts',
             'open-sources',
             'add-playlist-stalker',
             'add-playlist-xtream',
@@ -836,6 +838,21 @@ describe('WorkspaceShellFacade', () => {
             true
         );
         expect(commands.every((command) => command.enabled)).toBe(true);
+    });
+
+    it('opens the keyboard shortcuts from the palette', () => {
+        const open = jest.fn();
+        TestBed.inject(WorkspaceKeyboardShortcutsLauncherService).register(
+            open
+        );
+        facade.currentUrl.set('/workspace/dashboard');
+
+        facade
+            .commandPaletteCommands()
+            .find((command) => command.id === 'keyboard-shortcuts')
+            ?.run({ query: '' });
+
+        expect(open).toHaveBeenCalledTimes(1);
     });
 
     it('shows the global search command for M3U-only sources', () => {

@@ -824,7 +824,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "País da classificação etária",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Escolha o país da classificação. Na ausência de dados locais, podem ser usados dados dos EUA ou do fornecedor.",
-        "AGE_RATING_COUNTRY_AUTO": "Automático — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automático — {{country}}",
+        "CARD_HELP": "Ajuda",
+        "KEYBOARD_SHORTCUTS": "Atalhos de teclado",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Atalhos de navegação, reprodução e caixas de diálogo. Prima ? fora de um campo de texto para os abrir.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Mostrar atalhos"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Não foi possível guardar no servidor. Verifica a ligação e tenta novamente.",
@@ -2180,7 +2184,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "A remover as categorias em cache…",
             "XTREAM_REFRESH_DETAIL_LOCAL": "Os favoritos, o histórico de visualização, as categorias ocultas e o progresso de reprodução ficam preservados para restauro após a sincronização.",
             "XTREAM_REFRESH_PROGRESS": "Registos locais processados: {{current}} / {{total}}",
-            "RAIL_RADIO": "Rádio"
+            "RAIL_RADIO": "Rádio",
+            "MORE_ACTIONS": "Mais ações"
         },
         "SOURCES": {
             "TITLE": "Fontes",
@@ -2251,8 +2256,6 @@
         "SHORTCUTS": {
             "TITLE": "Atalhos de teclado",
             "SUBTITLE": "Atalhos do espaço de trabalho, navegação, reprodução e caixas de diálogo disponíveis no IPTVnator.",
-            "OPEN_TOOLTIP": "Atalhos de teclado (?)",
-            "OPEN_ARIA": "Abrir atalhos de teclado",
             "PLATFORM": {
                 "MAC": "Disposição macOS",
                 "OTHER": "Disposição Windows/Linux"

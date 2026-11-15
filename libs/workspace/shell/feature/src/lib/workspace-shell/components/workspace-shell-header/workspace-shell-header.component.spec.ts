@@ -185,16 +185,11 @@ describe('WorkspaceShellHeaderComponent', () => {
         expect(requested).toHaveBeenCalledTimes(1);
     });
 
-    it('emits keyboard shortcuts requests from the help button', () => {
-        const requested = jest.fn();
-        component.shortcutsRequested.subscribe(requested);
-
-        const button: HTMLButtonElement = fixture.nativeElement.querySelector(
-            'button[aria-label="WORKSPACE.SHORTCUTS.OPEN_ARIA"]'
-        );
-        button.click();
-
-        expect(requested).toHaveBeenCalledTimes(1);
+    it('leaves keyboard shortcuts to the palette, Settings and the ? key', () => {
+        const icons = Array.from(
+            fixture.nativeElement.querySelectorAll('button mat-icon')
+        ).map((icon) => (icon as HTMLElement).textContent?.trim());
+        expect(icons).not.toContain('keyboard');
     });
 
     it('does not render the removed global favorites shortcut', () => {
@@ -303,6 +298,35 @@ describe('WorkspaceShellHeaderComponent', () => {
         fixture.detectChanges();
         expect(searchInput()).not.toBeNull();
         expect(searchInput().disabled).toBe(false);
+    });
+
+    it('never renders a disabled search field', () => {
+        const searchField = () =>
+            fixture.nativeElement.querySelector('.search-field');
+
+        fixture.componentRef.setInput('canUseSearch', false);
+        fixture.detectChanges();
+        expect(searchField()).toBeNull();
+        // The palette keeps a pointer way in without the field's trigger.
+        const requested = jest.fn();
+        component.commandPaletteRequested.subscribe(requested);
+        const trigger: HTMLButtonElement = fixture.nativeElement.querySelector(
+            '[data-test-id="header-command-palette"]'
+        );
+        trigger.click();
+        expect(requested).toHaveBeenCalledTimes(1);
+
+        fixture.componentRef.setInput('canUseSearch', true);
+        fixture.detectChanges();
+        expect(searchField()).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('input[type="search"]').disabled
+        ).toBe(false);
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="header-command-palette"]'
+            )
+        ).toBeNull();
     });
 
     it('renders scope and status chips when search metadata is provided', () => {
@@ -663,5 +687,142 @@ describe('WorkspaceShellHeaderComponent', () => {
 
         expect(badgeStyles).toContain('color: var(--mat-sys-on-primary);');
         expect(badgeStyles).toContain('background: var(--mat-sys-primary);');
+    });
+
+    describe('overflow menu', () => {
+        const overflowTrigger = (): HTMLButtonElement | null =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="header-overflow-menu"]'
+            );
+        const inlineAdd = (): HTMLButtonElement | null =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="header-add-source"]'
+            );
+        const inlineLock = (): HTMLButtonElement | null =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="header-parental-lock"]'
+            );
+        const setOverflowCount = (count: number) => {
+            (
+                component as unknown as {
+                    overflowCount: ReturnType<typeof signal<number>>;
+                }
+            ).overflowCount.set(count);
+            fixture.detectChanges();
+        };
+        const openMenu = () => {
+            overflowTrigger()?.click();
+            fixture.detectChanges();
+            return Array.from(
+                document.querySelectorAll<HTMLElement>(
+                    '.mat-mdc-menu-panel [mat-menu-item]'
+                )
+            );
+        };
+
+        beforeEach(() => {
+            fixture.componentRef.setInput('parentalLockState', 'unlocked');
+            fixture.componentRef.setInput('headerShortcut', {
+                id: 'live-guide',
+                icon: 'view_list',
+                tooltipKey: 'guide.tooltip',
+                ariaLabelKey: 'guide.aria',
+                active: () => true,
+                run: () => undefined,
+            });
+            fixture.detectChanges();
+        });
+
+        it('keeps everything inline while nothing overflows', () => {
+            setOverflowCount(0);
+
+            expect(overflowTrigger()).toBeNull();
+            expect(inlineAdd()).not.toBeNull();
+            expect(inlineLock()).not.toBeNull();
+        });
+
+        it('never opens a menu for a single action', () => {
+            setOverflowCount(1);
+
+            expect(overflowTrigger()).toBeNull();
+            expect(
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="live-guide"]'
+                )
+            ).not.toBeNull();
+            expect(inlineAdd()).not.toBeNull();
+        });
+
+        it('moves two or more actions into the menu in the hide order', () => {
+            setOverflowCount(2);
+
+            expect(overflowTrigger()).not.toBeNull();
+            expect(
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="live-guide"]'
+                )
+            ).toBeNull();
+            expect(inlineLock()).toBeNull();
+            expect(inlineAdd()).not.toBeNull();
+
+            const items = openMenu();
+            const labels = items.map((item) =>
+                item.querySelector('span')?.textContent?.trim()
+            );
+            expect(labels).toEqual([
+                'guide.aria',
+                'PARENTAL_LOCK.HEADER_LOCK',
+            ]);
+            // The guide is a toggle: its pressed state survives as checked.
+            expect(items[0].getAttribute('role')).toBe('menuitemcheckbox');
+            expect(items[0].getAttribute('aria-checked')).toBe('true');
+        });
+
+        it('runs an overflowed action from its menu row', () => {
+            const lockRequested = jest.fn();
+            component.parentalLockToggleRequested.subscribe(lockRequested);
+            setOverflowCount(3);
+
+            const lockItem = openMenu().find(
+                (item) =>
+                    item.dataset['testId'] === 'header-parental-lock-menu-item'
+            );
+            lockItem?.click();
+
+            expect(lockRequested).toHaveBeenCalledTimes(1);
+            expect(inlineAdd()).toBeNull();
+        });
+
+        it('keeps a disabled action disabled in the menu', () => {
+            fixture.componentRef.setInput('headerShortcut', {
+                id: 'live-guide',
+                icon: 'view_list',
+                tooltipKey: 'guide.tooltip',
+                ariaLabelKey: 'guide.aria',
+                disabled: () => true,
+                run: () => undefined,
+            });
+            setOverflowCount(2);
+
+            const [guideItem] = openMenu();
+            expect(guideItem.getAttribute('role')).toBe('menuitem');
+            expect((guideItem as HTMLButtonElement).disabled).toBe(true);
+        });
+
+        it('drops the divider once no contextual action is inline', () => {
+            const global = () =>
+                fixture.nativeElement.querySelector('.header-actions--global');
+
+            setOverflowCount(0);
+            expect(global().classList).toContain('header-actions--divided');
+
+            setOverflowCount(3);
+            expect(
+                fixture.nativeElement.querySelector(
+                    '.header-actions--contextual'
+                )
+            ).toBeNull();
+            expect(global().classList).not.toContain('header-actions--divided');
+        });
     });
 });

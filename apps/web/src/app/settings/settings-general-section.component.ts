@@ -19,6 +19,7 @@ import {
 } from './settings.models';
 import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
 import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
+import { WorkspaceKeyboardShortcutsLauncherService } from '@iptvnator/workspace/shell/util';
 
 @Component({
     selector: 'app-settings-general-section',
@@ -53,6 +54,10 @@ export class SettingsGeneralSectionComponent {
     }
 
     readonly form = input.required<FormGroup>();
+    /** The shell's shortcuts dialog; the `?` key opens the same one. */
+    protected readonly keyboardShortcuts = inject(
+        WorkspaceKeyboardShortcutsLauncherService
+    );
 
     constructor() {
         // Parent patches (Discard, backup import) change the form outside

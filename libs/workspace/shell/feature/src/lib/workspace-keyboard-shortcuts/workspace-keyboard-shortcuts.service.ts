@@ -18,7 +18,10 @@ import {
     WorkspaceKeyboardShortcutsDialogComponent,
     WorkspaceKeyboardShortcutsDialogData,
 } from './workspace-keyboard-shortcuts-dialog.component';
-import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
+import {
+    WorkspaceKeyboardShortcutsLauncherService,
+    WorkspaceShellContextDrawerService,
+} from '@iptvnator/workspace/shell/util';
 
 @Injectable()
 export class WorkspaceKeyboardShortcutsService {
@@ -50,6 +53,13 @@ export class WorkspaceKeyboardShortcutsService {
     > | null = null;
 
     constructor() {
+        // Settings and the command palette open the dialog through this
+        // root launcher; the `?` key below stays the keyboard way in.
+        this.destroyRef.onDestroy(
+            inject(WorkspaceKeyboardShortcutsLauncherService).register(() =>
+                this.openShortcutsDialog()
+            )
+        );
         if (typeof document !== 'undefined') {
             document.addEventListener('keydown', this.onDocumentKeydown);
             document.addEventListener(

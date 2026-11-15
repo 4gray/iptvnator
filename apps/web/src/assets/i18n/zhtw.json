@@ -824,7 +824,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "年齡分級國家",
         "AGE_RATING_COUNTRY_DESCRIPTION": "選擇年齡分級使用的國家。缺少當地分級時，可能使用美國或供應商的資料。",
-        "AGE_RATING_COUNTRY_AUTO": "自動 — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "自動 — {{country}}",
+        "CARD_HELP": "說明",
+        "KEYBOARD_SHORTCUTS": "鍵盤快捷鍵",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "導覽、播放和對話框的快捷鍵。在文字欄位外按 ? 即可開啟。",
+        "KEYBOARD_SHORTCUTS_OPEN": "顯示快捷鍵"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "無法儲存到伺服器。請檢查連線後再試一次。",
@@ -2180,7 +2184,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "正在移除快取的分類...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "我的最愛、觀看記錄、隱藏分類和播放進度會保留，以便同步後還原。",
             "XTREAM_REFRESH_PROGRESS": "已處理本機記錄：{{current}} / {{total}}",
-            "RAIL_RADIO": "廣播"
+            "RAIL_RADIO": "廣播",
+            "MORE_ACTIONS": "更多動作"
         },
         "SOURCES": {
             "TITLE": "來源",
@@ -2251,8 +2256,6 @@
         "SHORTCUTS": {
             "TITLE": "鍵盤快捷鍵",
             "SUBTITLE": "IPTVnator 中可用的工作區、導覽、播放和對話框快捷鍵。",
-            "OPEN_TOOLTIP": "鍵盤快捷鍵 (?)",
-            "OPEN_ARIA": "開啟鍵盤快捷鍵",
             "PLATFORM": {
                 "MAC": "macOS 佈局",
                 "OTHER": "Windows/Linux 佈局"

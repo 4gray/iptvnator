@@ -26,7 +26,10 @@ import { WorkspaceShellHeaderService } from './workspace-shell-header.service';
 import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.service';
 import { WorkspaceShellSearchService } from './workspace-shell-search.service';
 import { WorkspaceShellXtreamImportService } from './workspace-shell-xtream-import.service';
-import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
+import {
+    WorkspaceKeyboardShortcutsLauncherService,
+    WorkspaceShellContextDrawerService,
+} from '@iptvnator/workspace/shell/util';
 import { PlaylistSwitcherOpenService } from '@iptvnator/playlist/shared/ui';
 
 @Injectable()
@@ -48,6 +51,9 @@ export class WorkspaceShellFacade {
     private readonly xtreamImport = inject(WorkspaceShellXtreamImportService);
     readonly headerContext = inject(WorkspaceHeaderContextService);
     private readonly backNavigation = inject(WorkspaceBackNavigationService);
+    private readonly keyboardShortcuts = inject(
+        WorkspaceKeyboardShortcutsLauncherService
+    );
 
     private readonly languageTick = injectTranslationTick();
     // Root-provided; optional keeps standalone unit tests light. While the phone context drawer is modal, opening the command
@@ -320,6 +326,7 @@ export class WorkspaceShellFacade {
         unlockParentalLock: () => {
             void this.parentalLock.requestUnlock();
         },
+        openKeyboardShortcuts: () => this.keyboardShortcuts.open(),
     };
 
     private translateText(

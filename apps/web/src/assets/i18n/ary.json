@@ -824,7 +824,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "بلد التصنيف العمري",
         "AGE_RATING_COUNTRY_DESCRIPTION": "اختار بلد التصنيف. إلا ما كانتش بيانات محلية، يمكن نستعملو بيانات أمريكا ولا المزوّد.",
-        "AGE_RATING_COUNTRY_AUTO": "تلقائي — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "تلقائي — {{country}}",
+        "CARD_HELP": "مساعدة",
+        "KEYBOARD_SHORTCUTS": "اختصارات الكلافيي",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "اختصارات للتنقل والتشغيل والنوافذ ديال الحوار. ضغط على ? برا شي خانة ديال الكتابة باش تحلّهم.",
+        "KEYBOARD_SHORTCUTS_OPEN": "وريني الاختصارات"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "ما قدرناش نحفظو فالسيرفر. شوف الاتصال وعاود جرب.",
@@ -2180,7 +2184,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "كنحيدو التصنيفات المخزنة...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "كنخليو المفضلات، تاريخ المشاهدة، التصنيفات المخفية، وتقدم التشغيل واجدين باش يرجعو من بعد المزامنة.",
             "XTREAM_REFRESH_PROGRESS": "السجلات المحلية اللي تجهزات: {{current}} / {{total}}",
-            "RAIL_RADIO": "راديو مباشر"
+            "RAIL_RADIO": "راديو مباشر",
+            "MORE_ACTIONS": "إجراءات أخرى"
         },
         "SOURCES": {
             "TITLE": "المصادر",
@@ -2251,8 +2256,6 @@
         "SHORTCUTS": {
             "TITLE": "اختصارات الكلافيي",
             "SUBTITLE": "اختصارات متوفرة فـ IPTVnator لمساحة العمل والتنقل والتشغيل والنوافذ.",
-            "OPEN_TOOLTIP": "اختصارات الكلافيي (?)",
-            "OPEN_ARIA": "حل اختصارات الكلافيي",
             "PLATFORM": {
                 "MAC": "تخطيط macOS",
                 "OTHER": "تخطيط Windows/Linux"
