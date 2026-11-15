@@ -1,9 +1,13 @@
+import { registerLocaleData } from '@angular/common';
+import localeEn from '@angular/common/locales/en';
 import { inject, Injectable } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { normalizeDateLocale } from '@iptvnator/pipes/date-format';
-import { normalizeAppLanguage } from '@iptvnator/shared/interfaces';
+import { createDevLogger, normalizeAppLanguage } from '@iptvnator/shared/interfaces';
 import type { AppDateLocaleLoader } from './app-date-locale-data';
 import { rememberLanguage } from './app-language-preference';
+
+const debug = createDevLogger('AppDateLocales');
 
 /** English data already ships with Angular. Load other date locale data on demand. */
 export function registerAppDateLocale(
@@ -12,9 +16,14 @@ export function registerAppDateLocale(
 ): Promise<void> {
     const locale = normalizeDateLocale(language);
     if (locale === 'en') return Promise.resolve();
-    return import('./app-date-locale-data').then(({ registerDateLocaleData }) =>
-        registerDateLocaleData(locale, loaders)
-    );
+    return import('./app-date-locale-data')
+        .then(({ registerDateLocaleData }) =>
+            registerDateLocaleData(locale, loaders)
+        )
+        .catch((error: unknown) => {
+            debug('Loading Angular locale data failed for', locale, error);
+            registerLocaleData(localeEn, locale);
+        });
 }
 
 /** Gates UI language switches on the locale data they render with. */

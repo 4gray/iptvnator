@@ -1,5 +1,4 @@
 import { registerLocaleData } from '@angular/common';
-import localeEn from '@angular/common/locales/en';
 import { createDevLogger } from '@iptvnator/shared/interfaces';
 
 type LocaleDataModule = { default: unknown };
@@ -47,14 +46,8 @@ const pendingLocales = new Map<string, Promise<void>>();
  * Registers the Angular locale data for an app language, loading it on first
  * use. Resolves once `DatePipe` can format with that locale, so call it before
  * `TranslateService.use()`: the language switch re-renders every date with the
- * new locale, and a locale whose data has not arrived throws. English resolves
- * immediately, as does a locale that is already registered or in flight.
- *
- * A failed load resolves rather than rejects, but never leaves the locale
- * without data: English formatting is registered under the requested id so
- * `DatePipe` keeps rendering instead of throwing in every template that passes
- * the locale. The locale is not marked registered, so the next call retries
- * the import and a success replaces the fallback.
+ * new locale, and a locale whose data has not arrived throws. The caller
+ * handles failed imports so both this module and locale chunks can retry.
  */
 export function registerDateLocaleData(
     locale: string,
@@ -79,14 +72,6 @@ export function registerDateLocaleData(
         .then((module) => {
             registerLocaleData(module.default, locale);
             registeredLocales.add(locale);
-        })
-        .catch((error: unknown) => {
-            debug(
-                'Loading Angular locale data failed; using English formatting for',
-                locale,
-                error
-            );
-            registerLocaleData(localeEn, locale);
         })
         .finally(() => {
             pendingLocales.delete(locale);
