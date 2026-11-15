@@ -36,6 +36,10 @@ function client(baseUrl: string, storage: ServerStorage) {
         });
 }
 
+/** The error code of a failed storage request. */
+const codeOf = async (response: Response) =>
+    ((await response.json()) as { code: string }).code;
+
 const profilesIn = async (response: Response) =>
     ((await response.json()) as ServerProfileList).profiles;
 
@@ -68,7 +72,7 @@ describe('profiles routes', () => {
             withServer(app(storage), async (baseUrl) => {
                 const response = await fetch(`${baseUrl}/v1/profiles`);
                 expect(response.status).toBe(409);
-                expect((await response.json()).code).toBe('instance_changed');
+                expect(await codeOf(response)).toBe('instance_changed');
             })
         ));
 
@@ -102,7 +106,7 @@ describe('profiles routes', () => {
                         method: 'POST',
                         body,
                     });
-                    expect((await response.json()).code).toBe(code);
+                    expect(await codeOf(response)).toBe(code);
                 }
                 expect(await profilesIn(await call('/profiles'))).toHaveLength(
                     2
@@ -126,7 +130,7 @@ describe('profiles routes', () => {
                     body: { name: 'One more' },
                 });
                 expect(over.status).toBe(409);
-                expect((await over.json()).code).toBe('profile_limit');
+                expect(await codeOf(over)).toBe('profile_limit');
             })
         ));
 
@@ -198,18 +202,47 @@ describe('profiles routes', () => {
             })
         ));
 
+    it('caps PIN attempts per client across profiles', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const call = client(baseUrl, storage);
+                const unlock = () =>
+                    call('/profiles/default/unlock', {
+                        method: 'POST',
+                        body: { pin: '0000' },
+                    });
+                for (let i = 0; i < 30; i++)
+                    expect((await unlock()).status).toBe(200);
+                const limited = await unlock();
+                expect(limited.status).toBe(429);
+                expect(await codeOf(limited)).toBe('pin_rate_limited');
+            })
+        ));
+
+    it('rejects a repeated ?scope= instead of reading either one', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const call = client(baseUrl, storage);
+                const path = '/history/sources/source';
+                // One scope passes the check and reaches the source lookup,
+                // which has no such source here.
+                expect((await call(`${path}?scope=shared`)).status).toBe(404);
+                const repeated = await call(
+                    `${path}?scope=shared&scope=shared`
+                );
+                expect(repeated.status).toBe(400);
+                expect(await codeOf(repeated)).toBe('invalid_scope');
+            })
+        ));
+
     it('refuses to delete the Default profile and reports unknown ones', () =>
         withTempStorage((storage) =>
             withServer(app(storage), async (baseUrl) => {
                 const call = client(baseUrl, storage);
                 expect(
-                    (
-                        await (
-                            await call('/profiles/default', {
-                                method: 'DELETE',
-                            })
-                        ).json()
-                    ).code
+                    await codeOf(
+                        await call('/profiles/default', { method: 'DELETE' })
+                    )
                 ).toBe('default_profile');
                 const unknown = await call(
                     '/profiles/0b6f3c1e-2d4a-4e8b-9c7d-1a2b3c4d5e6f',

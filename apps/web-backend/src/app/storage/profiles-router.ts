@@ -1,4 +1,5 @@
 import express, { Router, type Request } from 'express';
+import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
 import {
     DEFAULT_PROFILE_ID,
     PROFILE_LIMIT,
@@ -14,6 +15,8 @@ const COLOUR = /^#[0-9a-f]{6}$/;
 /** Wrong PINs in a row before a profile is locked for a while. */
 const MAX_PIN_FAILURES = 5;
 const PIN_LOCK_MS = 30_000;
+/** PIN attempts per client per minute, across all profiles. */
+const UNLOCK_ATTEMPTS_PER_MINUTE = 30;
 
 /**
  * `/v1/profiles`: the people of the household. Behind the access guard like
@@ -39,6 +42,21 @@ export function createProfilesRouter(storage: ServerStorage): Router {
         next();
     });
     router.use('/profiles', express.json({ limit: 4 * 1024 }));
+    // The per-profile lockout stops guessing one PIN; this caps a client
+    // trying PINs across every profile.
+    const unlockLimit = rateLimit({
+        windowMs: 60_000,
+        limit: UNLOCK_ATTEMPTS_PER_MINUTE,
+        standardHeaders: 'draft-8',
+        legacyHeaders: false,
+        // Not client-supplied forwarding headers: proxy peers share a budget.
+        keyGenerator: (req) =>
+            ipKeyGenerator(req.socket.remoteAddress ?? 'unknown'),
+        message: {
+            code: 'pin_rate_limited',
+            message: 'Too many PIN attempts. Try again shortly.',
+        },
+    });
 
     router.get('/profiles', (_req, res) => {
         const body: ServerProfileList = { profiles: profiles.list() };
@@ -101,7 +119,7 @@ export function createProfilesRouter(storage: ServerStorage): Router {
         res.status(204).end();
     });
 
-    router.post('/profiles/:id/unlock', async (req, res) => {
+    router.post('/profiles/:id/unlock', unlockLimit, async (req, res) => {
         const id = String(req.params['id']);
         requireProfile(id);
         const pin = objectBody(req)['pin'];
