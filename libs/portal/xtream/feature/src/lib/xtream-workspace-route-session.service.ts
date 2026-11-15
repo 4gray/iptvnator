@@ -10,7 +10,14 @@ import {
     untracked,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { NavigationEnd, NavigationStart, Router } from '@angular/router';
+import {
+    NavigationCancel,
+    NavigationEnd,
+    NavigationError,
+    NavigationSkipped,
+    NavigationStart,
+    Router,
+} from '@angular/router';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PortalRailSection } from '@iptvnator/portal/shared/util';
 import {
@@ -21,11 +28,16 @@ import {
 import { SourceActivityService } from '@iptvnator/services';
 import { XtreamStartupRefreshService } from '@iptvnator/services/xtream-startup-refresh';
 import {
+    getRoutePath,
     getXtreamRouteCategoryId,
+    getXtreamRouteTarget,
     toXtreamPlaylistData,
     shouldBootstrapXtreamPlaylist,
 } from './xtream-route-playlist';
-import { reloadStartupLiveCategory } from './xtream-startup-live-category';
+import {
+    reloadStartupLiveSelection,
+    replaceStartupLiveCategoryUrl,
+} from './xtream-startup-live-category';
 
 /**
  * Sections whose content comes from the imported catalog, so a cold load
@@ -84,24 +96,6 @@ function toCachedContentScope(
     }
 }
 
-function getXtreamRouteTarget(url: string): {
-    playlistId: string | null;
-    section: PortalRailSection | null;
-} {
-    const match = getRoutePath(url).match(
-        /^\/workspace\/xtreams\/([^/]+)(?:\/([^/]+))?/
-    );
-
-    return {
-        playlistId: match?.[1] ?? null,
-        section: (match?.[2] as PortalRailSection | undefined) ?? null,
-    };
-}
-
-function getRoutePath(url: string): string {
-    return url.split(/[?#]/)[0] ?? url;
-}
-
 @Injectable()
 export class XtreamWorkspaceRouteSession {
     private readonly destroyRef = inject(DestroyRef);
@@ -116,6 +110,7 @@ export class XtreamWorkspaceRouteSession {
 
     private syncInFlight = false;
     private syncPending = false;
+    private waitingToReplaceLiveUrl = false;
     private lastSyncedRoutePath: string | null = null;
 
     constructor() {
@@ -143,6 +138,15 @@ export class XtreamWorkspaceRouteSession {
                 }
 
                 if (event instanceof NavigationEnd) {
+                    this.waitingToReplaceLiveUrl = false;
+                    this.scheduleSyncRouteContext();
+                } else if (
+                    this.waitingToReplaceLiveUrl &&
+                    (event instanceof NavigationCancel ||
+                        event instanceof NavigationError ||
+                        event instanceof NavigationSkipped)
+                ) {
+                    this.waitingToReplaceLiveUrl = false;
                     this.scheduleSyncRouteContext();
                 }
             });
@@ -228,74 +232,60 @@ export class XtreamWorkspaceRouteSession {
                 ? toXtreamPlaylistData(this.playlistContext.activePlaylist())
                 : null;
         const storePlaylistId = this.xtreamStore.playlistId();
-        const currentPlaylist = this.xtreamStore.currentPlaylist();
+        let currentPlaylist = this.xtreamStore.currentPlaylist();
+        const isCurrent = () =>
+            !this.destroyRef.destroyed && this.router.url === url;
+        const updateDate = routePlaylist?.updateDate;
+        const liveCategoryRoute =
+            routeSection === 'live' &&
+            getXtreamRouteCategoryId(url, 'live') !== null;
         if (
             playlistId &&
-            routePlaylist?.updateDate &&
-            currentPlaylist &&
-            routePlaylist.updateDate !== currentPlaylist.updateDate &&
-            this.injector
-                .get(XtreamStartupRefreshService)
-                .matchesUpdate(playlistId, routePlaylist.updateDate) &&
-            !shouldBootstrapXtreamPlaylist(
-                playlistId,
-                routePlaylist,
-                storePlaylistId,
-                {
-                    ...currentPlaylist,
-                    updateDate: routePlaylist.updateDate,
-                }
-            )
+            updateDate &&
+            (liveCategoryRoute ||
+                (currentPlaylist && currentPlaylist.updateDate !== updateDate))
         ) {
-            try {
-                if (
-                    this.xtreamStore.contentLoadStateByType().live === 'ready'
-                ) {
-                    const isCurrent = () =>
-                        !this.destroyRef.destroyed && this.router.url === url;
-                    const routeCategoryId =
-                        routeSection === 'live'
-                            ? getXtreamRouteCategoryId(url, 'live')
-                            : null;
-                    const newRouteCategoryId = await reloadStartupLiveCategory(
-                        this.xtreamStore,
-                        playlistId,
-                        routeCategoryId,
-                        routeSection === 'live',
-                        isCurrent
-                    );
-                    if (!isCurrent()) return;
+            const startup = this.injector.get(XtreamStartupRefreshService);
+            if (
+                currentPlaylist &&
+                currentPlaylist.updateDate !== updateDate &&
+                startup.matchesUpdate(playlistId, updateDate) &&
+                !shouldBootstrapXtreamPlaylist(
+                    playlistId,
+                    routePlaylist,
+                    storePlaylistId,
+                    { ...currentPlaylist, updateDate }
+                )
+            ) {
+                try {
                     if (
-                        routeCategoryId !== newRouteCategoryId &&
-                        !this.router.currentNavigation()
+                        this.xtreamStore.contentLoadStateByType().live ===
+                        'ready'
                     ) {
-                        const path = getRoutePath(url);
-                        const liveRoot = path.slice(0, path.lastIndexOf('/'));
-                        const newPath =
-                            newRouteCategoryId === null
-                                ? liveRoot
-                                : `${liveRoot}/${newRouteCategoryId}`;
-                        // Keep the history entry that Back will return to.
-                        await this.router.navigateByUrl(
-                            newPath + url.slice(path.length),
-                            {
-                                replaceUrl: true,
-                                state: this.location.getState() as Record<
-                                    string,
-                                    unknown
-                                >,
-                            }
+                        await reloadStartupLiveSelection(
+                            this.xtreamStore,
+                            playlistId
                         );
                     }
                     void this.xtreamStore.refreshSearchResults();
+                    currentPlaylist = { ...currentPlaylist, updateDate };
+                    this.xtreamStore.setCurrentPlaylist(currentPlaylist);
+                } catch {
+                    // Let the normal bootstrap retry a failed catalog read.
                 }
-                this.xtreamStore.setCurrentPlaylist({
-                    ...currentPlaylist,
-                    updateDate: routePlaylist.updateDate,
-                });
-                return;
-            } catch {
-                // Fall through to the regular route bootstrap if a cache read fails.
+                if (!isCurrent()) return;
+            }
+            if (liveCategoryRoute) {
+                const result = await replaceStartupLiveCategoryUrl(
+                    startup,
+                    this.router,
+                    this.location,
+                    playlistId,
+                    updateDate,
+                    isCurrent
+                ).catch(() => 'unchanged');
+                this.waitingToReplaceLiveUrl = result === 'deferred';
+                if (result !== 'unchanged' || !isCurrent()) return;
             }
         }
         const shouldBootstrapPlaylist = shouldBootstrapXtreamPlaylist(

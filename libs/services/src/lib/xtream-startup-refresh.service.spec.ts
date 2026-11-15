@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import { DatabaseService } from './database-electron.service';
 import { ParentalLockService } from './parental-lock';
 import { SourceActivityService } from './source-activity.service';
 import { XtreamCatalogFetchService } from './xtream-catalog-fetch.service';
@@ -19,15 +20,27 @@ const content = [{ category_id: '4', stream_id: 42, name: 'Test channel' }];
 describe('Xtream startup refresh', () => {
     let service: XtreamStartupRefreshService;
     let activity: SourceActivityService;
+    const db = { getAllXtreamCategories: jest.fn() };
     const fetcher = { categories: jest.fn(), content: jest.fn() };
     const refresh = { refreshLiveOnStartup: jest.fn(), progress: () => null };
 
     beforeEach(() => {
+        db.getAllXtreamCategories
+            .mockReset()
+            .mockResolvedValue([{ id: 11, xtream_id: 4 }]);
         fetcher.categories.mockReset().mockResolvedValue(categories);
         fetcher.content.mockReset().mockResolvedValue(content);
-        refresh.refreshLiveOnStartup.mockReset().mockResolvedValue(true);
+        refresh.refreshLiveOnStartup
+            .mockReset()
+            .mockImplementation(
+                async (_source, _catalog, capturePreviousCategories) => {
+                    await capturePreviousCategories();
+                    return true;
+                }
+            );
         TestBed.configureTestingModule({
             providers: [
+                { provide: DatabaseService, useValue: db },
                 { provide: XtreamCatalogFetchService, useValue: fetcher },
                 {
                     provide: XtreamSelectedCatalogRefreshService,
@@ -64,11 +77,36 @@ describe('Xtream startup refresh', () => {
         expect(refresh.refreshLiveOnStartup).not.toHaveBeenCalled();
         release();
         await expect(result).resolves.toBe(true);
-        expect(refresh.refreshLiveOnStartup).toHaveBeenCalledWith(source, {
-            type: 'live',
-            categories,
-            content,
-        });
+        expect(refresh.refreshLiveOnStartup).toHaveBeenCalledWith(
+            source,
+            {
+                type: 'live',
+                categories,
+                content,
+            },
+            expect.any(Function)
+        );
+    });
+
+    it('resolves old route IDs against the current source and category rows', async () => {
+        await service.refreshLive(source);
+        service.recordUpdate(source._id, 42);
+        db.getAllXtreamCategories.mockResolvedValue([{ id: 22, xtream_id: 4 }]);
+
+        await expect(
+            service.resolvePreviousCategory(source._id, 42, 11)
+        ).resolves.toBe(22);
+        await expect(
+            service.resolvePreviousCategory(source._id, 43, 11)
+        ).resolves.toBeUndefined();
+        await expect(
+            service.resolvePreviousCategory(source._id, 42, 22)
+        ).resolves.toBeUndefined();
+
+        db.getAllXtreamCategories.mockResolvedValue([]);
+        await expect(
+            service.resolvePreviousCategory(source._id, 42, 11)
+        ).resolves.toBeNull();
     });
 
     it('keeps the saved lineup when the provider returns no live channels', async () => {

@@ -68,20 +68,27 @@ export class XtreamSelectedCatalogRefreshService {
 
     refreshLiveOnStartup(
         playlist: PlaylistMeta,
-        catalog: FetchedXtreamCatalog
+        catalog: FetchedXtreamCatalog,
+        capturePreviousCategories?: () => Promise<void>
     ): Promise<boolean> {
-        return this.replace(playlist, ['live'], undefined, catalog);
+        return this.replace(playlist, ['live'], undefined, {
+            catalog,
+            capturePreviousCategories,
+        });
     }
 
     private async replace(
         playlist: PlaylistMeta,
         types: XtreamContentType[],
         beforeReplace?: () => Promise<PlaylistMeta | void>,
-        startupCatalog?: FetchedXtreamCatalog
+        startup?: {
+            catalog: FetchedXtreamCatalog;
+            capturePreviousCategories?: () => Promise<void>;
+        }
     ): Promise<boolean> {
         if (!types.length) return false;
         const pendingRestore = this.pending.getOrThrow(playlist._id);
-        if (startupCatalog && pendingRestore) return false;
+        if (startup && pendingRestore) return false;
         if (
             this.progressState() ||
             this.activity.isBusy(playlist._id) ||
@@ -117,7 +124,7 @@ export class XtreamSelectedCatalogRefreshService {
                 total,
             });
         try {
-            if (startupCatalog) {
+            if (startup) {
                 const current = await this.commit.readCurrent(playlist._id);
                 if (
                     !current.autoRefresh ||
@@ -128,12 +135,13 @@ export class XtreamSelectedCatalogRefreshService {
                     !sameXtreamCatalogConnection(playlist, current)
                 )
                     return false;
+                await startup.capturePreviousCategories?.();
             }
             // Fetch before deleting any cache. A provider failure leaves the saved catalog intact.
-            const catalogs: FetchedXtreamCatalog[] = startupCatalog
-                ? [startupCatalog]
+            const catalogs: FetchedXtreamCatalog[] = startup
+                ? [startup.catalog]
                 : [];
-            for (const type of startupCatalog ? [] : types) {
+            for (const type of startup ? [] : types) {
                 publish(type, 'loading-categories');
                 const categories = await this.fetcher.categories(
                     playlist,
@@ -188,7 +196,7 @@ export class XtreamSelectedCatalogRefreshService {
                 acceptedConnectionChanged = true;
                 throw new XtreamCatalogConnectionChangedError();
             }
-            if (startupCatalog) await this.commit.assertCurrent(playlist);
+            if (startup) await this.commit.assertCurrent(playlist);
             replacementStarted = true;
             if (markersStaged) types.forEach((type) => incomplete.add(type));
             const invalidated = await this.db.deleteXtreamPlaylistContent(

@@ -21,6 +21,9 @@ export async function refreshXtreamPlaylistsOnStartup(
         try {
             if (!(await refresh.refreshLive(source))) continue;
 
+            window.dispatchEvent(new Event('iptvnator-favorites-changed'));
+            window.dispatchEvent(new Event('iptvnator-history-changed'));
+
             const updateDate = Date.now();
             const saved = await firstValueFrom(
                 playlists.updatePlaylistMetaIfCurrent(

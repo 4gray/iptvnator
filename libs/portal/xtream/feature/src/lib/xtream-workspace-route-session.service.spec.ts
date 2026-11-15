@@ -96,6 +96,13 @@ describe('XtreamWorkspaceRouteSession', () => {
     );
     const liveCategories = signal([{ id: 11, xtream_id: 7 }]);
     const matchesUpdate = jest.fn();
+    const resolvePreviousCategory = jest.fn();
+    const liveStreams = signal([
+        { id: 101, xtream_id: 42, category_id: 11, type: 'live' },
+    ]);
+    const selectedItem = signal<ReturnType<typeof liveStreams>[number] | null>(
+        null
+    );
     let hasUsableOfflineCache = false;
 
     const playlistContext = {
@@ -148,8 +155,18 @@ describe('XtreamWorkspaceRouteSession', () => {
         contentLoadStateByType,
         contentInitBlockReason,
         liveCategories,
+        liveStreams,
+        selectedContentType,
+        selectedItem,
+        setSelectedItem: jest.fn((item: ReturnType<typeof selectedItem>) =>
+            selectedItem.set(item)
+        ),
         reloadLiveCatalog: jest.fn(async () => {
             liveCategories.set([{ id: 22, xtream_id: 7 }]);
+            liveStreams.set([
+                { id: 202, xtream_id: 42, category_id: 22, type: 'live' },
+            ]);
+            return true;
         }),
         refreshSearchResults: jest.fn().mockResolvedValue(undefined),
         initializeContent: jest.fn().mockImplementation(async () => {
@@ -209,13 +226,14 @@ describe('XtreamWorkspaceRouteSession', () => {
     const router = {
         url: `/workspace/xtreams/${PLAYLIST_ID}/vod`,
         events: routerEvents.asObservable(),
-        currentNavigation: () => null,
+        currentNavigation: jest.fn(),
         navigateByUrl: jest.fn(),
     };
     const location = { getState: jest.fn() };
 
     beforeEach(async () => {
         router.url = `/workspace/xtreams/${PLAYLIST_ID}/vod`;
+        router.currentNavigation.mockReset().mockReturnValue(null);
         router.navigateByUrl
             .mockReset()
             .mockImplementation(async (url: string) => {
@@ -241,6 +259,12 @@ describe('XtreamWorkspaceRouteSession', () => {
         contentInitBlockReason.set(null);
         liveCategories.set([{ id: 11, xtream_id: 7 }]);
         matchesUpdate.mockReset().mockReturnValue(false);
+        resolvePreviousCategory.mockReset().mockResolvedValue(undefined);
+        liveStreams.set([
+            { id: 101, xtream_id: 42, category_id: 11, type: 'live' },
+        ]);
+        selectedItem.set(null);
+        xtreamStore.setSelectedItem.mockClear();
         xtreamStore.reloadLiveCatalog.mockClear();
         xtreamStore.refreshSearchResults.mockClear();
         hasUsableOfflineCache = false;
@@ -278,7 +302,7 @@ describe('XtreamWorkspaceRouteSession', () => {
                 XtreamWorkspaceRouteSession,
                 {
                     provide: XtreamStartupRefreshService,
-                    useValue: { matchesUpdate },
+                    useValue: { matchesUpdate, resolvePreviousCategory },
                 },
                 {
                     provide: PlaylistContextFacade,
@@ -341,10 +365,17 @@ describe('XtreamWorkspaceRouteSession', () => {
                 xtreamStore.reloadLiveCatalog.mockImplementationOnce(
                     async () => {
                         liveCategories.set([]);
+                        liveStreams.set([]);
+                        return true;
                     }
                 );
             }
+            selectedItem.set(liveStreams()[0]);
             matchesUpdate.mockReturnValue(true);
+            resolvePreviousCategory.mockImplementation(
+                async (_playlistId: string, _updateDate: number, id: number) =>
+                    id === 11 ? newId : undefined
+            );
             activePlaylist.set({ ...ACTIVE_PLAYLIST, updateDate: 42 });
             TestBed.flushEffects();
             await new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -358,6 +389,14 @@ describe('XtreamWorkspaceRouteSession', () => {
             expect(xtreamStore.refreshSearchResults).toHaveBeenCalled();
             expect(currentPlaylist()?.updateDate).toBe(42);
             expect(selectedCategoryId()).toBe(newId);
+            if (newId !== null) {
+                expect(selectedItem()).toEqual({
+                    id: 202,
+                    xtream_id: 42,
+                    category_id: 22,
+                    type: 'live',
+                });
+            }
             const replacedUrl = `${live}${newId === null ? '' : `/${newId}`}${suffix}`;
             expect(router.navigateByUrl).toHaveBeenCalledTimes(1);
             expect(router.navigateByUrl).toHaveBeenCalledWith(replacedUrl, {
@@ -369,13 +408,58 @@ describe('XtreamWorkspaceRouteSession', () => {
             router.url = away;
             routerEvents.next(new NavigationEnd(3, away, away));
             await flushEffects();
-            router.url = replacedUrl;
-            routerEvents.next(new NavigationEnd(4, replacedUrl, replacedUrl));
-            await flushEffects();
+            const oldHistoryUrl = `${live}/11${suffix}`;
+            router.url = oldHistoryUrl;
+            routerEvents.next(
+                new NavigationEnd(4, oldHistoryUrl, oldHistoryUrl)
+            );
+            await new Promise<void>((resolve) => setTimeout(resolve, 0));
+            expect(router.url).toBe(replacedUrl);
             expect(selectedCategoryId()).toBe(newId);
             expect(xtreamStore.reloadLiveCatalog).toHaveBeenCalledTimes(1);
         }
     );
+
+    it('remaps the old category on return when refresh completes during navigation', async () => {
+        const live = `/workspace/xtreams/${PLAYLIST_ID}/live`;
+        const oldUrl = `${live}/11?q=Sample`;
+        const away = `/workspace/xtreams/${PLAYLIST_ID}/vod`;
+        router.url = oldUrl;
+        playlistId.set(PLAYLIST_ID);
+        currentPlaylist.set(XTREAM_PLAYLIST);
+        isContentInitialized.set(true);
+        contentLoadStateByType.set({
+            live: 'ready',
+            vod: 'ready',
+            series: 'idle',
+        });
+        TestBed.inject(XtreamWorkspaceRouteSession);
+        await flushEffects();
+
+        router.currentNavigation.mockReturnValue({ id: 3 });
+        matchesUpdate.mockReturnValue(true);
+        resolvePreviousCategory.mockImplementation(
+            async (_playlistId: string, _updateDate: number, id: number) =>
+                id === 11 ? 22 : undefined
+        );
+        activePlaylist.set({ ...ACTIVE_PLAYLIST, updateDate: 42 });
+        TestBed.flushEffects();
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        expect(router.navigateByUrl).not.toHaveBeenCalled();
+        expect(currentPlaylist()?.updateDate).toBe(42);
+
+        router.currentNavigation.mockReturnValue(null);
+        router.url = away;
+        routerEvents.next(new NavigationEnd(3, away, away));
+        await flushEffects();
+        router.url = oldUrl;
+        routerEvents.next(new NavigationEnd(4, oldUrl, oldUrl));
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+        expect(router.url).toBe(`${live}/22?q=Sample`);
+        expect(selectedCategoryId()).toBe(22);
+        expect(xtreamStore.reloadLiveCatalog).toHaveBeenCalledTimes(1);
+    });
 
     it('holds the routed source busy until the import it awaits settles', async () => {
         xtreamStore.checkPortalStatus.mockImplementation(async () => {

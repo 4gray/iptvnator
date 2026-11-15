@@ -393,10 +393,12 @@ Before replacing live rows, the selected-catalog service waits for source
 activity to finish and rechecks the saved connection, preference and catalog
 selection. A successful refresh
 publishes the saved timestamp so an open Xtream view can reread live rows and
-refresh its search without resetting playback. If the open Live TV category
-gets a new database row ID, the app replaces the current history entry with
-the new category URL and preserves its query parameters. A category that
-disappears falls back to Live TV. Movies and series use their existing catalog
+refresh its search without resetting playback. Open Favorites and Recently Viewed reload their rows after the commit.
+The selected live channel is rebound by provider identity to its new SQLite row.
+During the launch session, stale Live TV category URLs are resolved through
+the provider category ID. When navigation settles, the app replaces the history
+entry and preserves its query parameters. A category that disappears falls
+back to Live TV. Movies and series use their existing catalog
 lifecycle.
 
 ### Catalog preferences

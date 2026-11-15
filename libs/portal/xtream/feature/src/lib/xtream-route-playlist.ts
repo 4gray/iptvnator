@@ -1,3 +1,4 @@
+import type { PortalRailSection } from '@iptvnator/portal/shared/util';
 import type { XtreamPlaylistData } from '@iptvnator/portal/xtream/data-access';
 import {
     normalizeXtreamContentTypes,
@@ -116,4 +117,22 @@ export function shouldBootstrapXtreamPlaylist(
             currentPlaylistUpdateDate !== routePlaylistUpdateDate ||
             hasPlaylistConnectionChanges(currentPlaylist, routePlaylist))
     );
+}
+
+export function getXtreamRouteTarget(url: string): {
+    playlistId: string | null;
+    section: PortalRailSection | null;
+} {
+    const match = getRoutePath(url).match(
+        /^\/workspace\/xtreams\/([^/]+)(?:\/([^/]+))?/
+    );
+
+    return {
+        playlistId: match?.[1] ?? null,
+        section: (match?.[2] as PortalRailSection | undefined) ?? null,
+    };
+}
+
+export function getRoutePath(url: string): string {
+    return url.split(/[?#]/)[0] ?? url;
 }

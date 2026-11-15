@@ -1568,9 +1568,9 @@ export function withContent() {
                     });
                 },
 
-                async reloadLiveCatalog(playlistId: string): Promise<void> {
+                async reloadLiveCatalog(playlistId: string): Promise<boolean> {
                     const context = getCredentialsFromStore();
-                    if (context?.playlistId !== playlistId) return;
+                    if (context?.playlistId !== playlistId) return false;
                     const generation = cachedHydrationGeneration;
                     const parentalLock = injector.get(ParentalLockService);
                     const lockVersion = parentalLock.version();
@@ -1585,11 +1585,12 @@ export function withContent() {
                         ) ||
                         parentalLock.version() !== lockVersion
                     )
-                        return;
+                        return false;
                     patchState(store, {
                         liveCategories,
                         liveStreams: asCachedContent<XtreamLiveStream>(content),
                     });
+                    return true;
                 },
 
                 /**
