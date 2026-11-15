@@ -45,11 +45,15 @@ export function shouldLoadTmdbRail(
 
 /** Starts the TMDB rails' loads when allowed. Call from an injection context. */
 export function connectDashboardTmdbRails(host: DashboardTmdbRailsHost): void {
-    // Trending rail: needs the TMDB opt-in and the Electron DB worker.
+    // Trending rail: needs the TMDB opt-in and the Electron DB worker. The
+    // language (localized titles) and the playlist set (library matches)
+    // are tracked so a change re-runs the load; the service skips no-ops.
     effect(() => {
         if (!shouldLoadTmdbRail(host.dashboardRails().tmdbTrending, host)) {
             return;
         }
+        host.data.playlists();
+        host.languageTick();
         untracked(() => void host.trendingService.load());
     });
 

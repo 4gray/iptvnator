@@ -2,6 +2,7 @@ import { computed, Injectable, inject, signal } from '@angular/core';
 import {
     CatalogTitleMatchService,
     TmdbEnrichmentService,
+    type TmdbMatchService,
 } from '@iptvnator/services';
 import {
     CatalogTitleMatch,
@@ -13,6 +14,11 @@ import {
     buildDashboardTmdbAttempts,
     dashboardTmdbLookupKey,
 } from './dashboard-tmdb-lookup.util';
+import {
+    DashboardTmdbMatchItem,
+    dashboardTmdbMatchToken,
+    resolveDashboardTmdbDetails,
+} from './dashboard-tmdb-match.util';
 import {
     ExclusionIndex,
     RecommendationCandidate,
@@ -32,6 +38,8 @@ const EMPTY_LOAD: LoadedRecommendations = { candidates: [], matches: [] };
 
 interface SeedRecommendations {
     resolved: boolean;
+    /** The viewer chose the provider's data: no TMDB, and no verdict on TMDB */
+    skipped?: true;
     seedTitle: string;
     entries: RecommendationCandidate[];
 }
@@ -100,6 +108,23 @@ export class DashboardRecommendationsService {
 
     private loadedKey: string | null = null;
     private rerunQueued = false;
+    /**
+     * The viewer's TMDB match choices, loaded on the first `load()` (TMDB
+     * on), off startup. A load that ran before they arrived keyed its seeds
+     * without them, so their arrival loads again — a no-op unless a seed
+     * has a choice.
+     */
+    private matches: TmdbMatchService | null = null;
+    private matchesRequested = false;
+
+    private loadMatches(): void {
+        if (this.matchesRequested) return;
+        this.matchesRequested = true;
+        void this.enrichment.getMatches?.().then((matches) => {
+            this.matches = matches;
+            if (matches) void this.load();
+        });
+    }
 
     get isAvailable(): boolean {
         return this.enrichment.isEnabled() && this.titleMatch.isAvailable;
@@ -109,6 +134,7 @@ export class DashboardRecommendationsService {
         if (!this.isAvailable) {
             return;
         }
+        this.loadMatches();
         if (this.loading()) {
             // Re-run after the active load settles — its result may be for
             // a seed/exclusion set that just went stale.
@@ -129,11 +155,15 @@ export class DashboardRecommendationsService {
         // card titles) are localized, so a language change must reload —
         // the service outlives the dashboard and would otherwise keep
         // titles in the previous language all session.
+        // So is each seed's TMDB match choice: re-matching a title in its
+        // detail view must change what it recommends.
         const loadKey = `${this.enrichment.language()}//${buildLoadKey(
             seeds,
             excluded,
             this.catalogKey()
-        )}`;
+        )}//${seeds
+            .map((seed) => dashboardTmdbMatchToken(this.matches, seed))
+            .join(',')}`;
         if (loadKey === this.loadedKey) {
             return;
         }
@@ -150,8 +180,21 @@ export class DashboardRecommendationsService {
             // still-valid cards is the worse answer for an offline user.
             // Only the cards the user has meanwhile watched or favorited
             // are dropped, since those the failure cannot excuse.
-            if (!perSeed.some((seed) => seed.resolved)) {
-                this.dropExcludedCards(excluded);
+            // A seed the viewer took off TMDB says nothing about TMDB.
+            const answered = perSeed.filter((seed) => !seed.skipped);
+            if (
+                answered.length > 0 &&
+                !answered.some((seed) => seed.resolved)
+            ) {
+                // Kept offline, except what a seed taken off TMDB added.
+                this.dropExcludedCards(
+                    excluded,
+                    new Set(
+                        perSeed
+                            .filter((seed) => seed.skipped)
+                            .map((seed) => seed.seedTitle)
+                    )
+                );
             } else {
                 const candidates = this.mergeCandidates(
                     perSeed.map((seed) => seed.entries),
@@ -175,7 +218,7 @@ export class DashboardRecommendationsService {
                     // enrichment misses are cached and the catalog match is
                     // one batched `matchTitles` call (worker requests of
                     // five titles, other reads in between).
-                    this.loadedKey = perSeed.every((seed) => seed.resolved)
+                    this.loadedKey = answered.every((seed) => seed.resolved)
                         ? loadKey
                         : null;
                 } else {
@@ -214,7 +257,10 @@ export class DashboardRecommendationsService {
      * or favorited since the last successful load cannot linger. Falling
      * under the match threshold hides the rail, as everywhere else.
      */
-    private dropExcludedCards(excluded: ExclusionIndex): void {
+    private dropExcludedCards(
+        excluded: ExclusionIndex,
+        optedOutSeeds: ReadonlySet<string> = new Set()
+    ): void {
         const { candidates, matches } = this.loaded();
         // A card whose playlist is gone would navigate to a dead route,
         // and the failed refresh is no excuse for keeping it — this is
@@ -225,7 +271,9 @@ export class DashboardRecommendationsService {
         );
         const kept: LoadedRecommendations = {
             candidates: candidates.filter(
-                (candidate) => !isExcludedCandidate(candidate, excluded)
+                (candidate) =>
+                    !optedOutSeeds.has(candidate.seedTitle) &&
+                    !isExcludedCandidate(candidate, excluded)
             ),
             matches: matches.filter((match) =>
                 livePlaylists.has(match.playlistId)
@@ -275,14 +323,18 @@ export class DashboardRecommendationsService {
     }
 
     /** Most recent distinct watched VOD/series usable as TMDB lookups */
-    private selectSeeds(): DashboardTmdbLookupItem[] {
-        const seeds: DashboardTmdbLookupItem[] = [];
+    private selectSeeds(): DashboardTmdbMatchItem[] {
+        const seeds: DashboardTmdbMatchItem[] = [];
         const seen = new Set<string>();
         for (const item of this.data.globalRecentVodItems()) {
             if (buildDashboardTmdbAttempts(item).length === 0) {
                 continue;
             }
-            const key = dashboardTmdbLookupKey(item);
+            // Two rows can look alike yet carry different match choices.
+            const key = `${dashboardTmdbLookupKey(item)}//${dashboardTmdbMatchToken(
+                this.matches,
+                item
+            )}`;
             if (seen.has(key)) {
                 continue;
             }
@@ -296,32 +348,33 @@ export class DashboardRecommendationsService {
     }
 
     private async recommendationsForSeed(
-        seed: DashboardTmdbLookupItem
+        seed: DashboardTmdbMatchItem
     ): Promise<SeedRecommendations> {
-        for (const attempt of buildDashboardTmdbAttempts(seed)) {
-            const query = {
-                title: attempt.title,
-                originalTitle: attempt.originalTitle,
-                tmdbId: attempt.tmdbId,
-                year: attempt.year,
-            };
-            const details =
-                attempt.mediaType === 'tv'
-                    ? await this.enrichment.enrichTv(query)
-                    : await this.enrichment.enrichMovie(query);
-            if (details) {
-                return {
-                    resolved: true,
-                    seedTitle: attempt.title,
-                    entries: toCandidates(
-                        details.recommendations?.results ?? [],
-                        attempt.mediaType,
-                        attempt.title
-                    ),
-                };
-            }
+        const resolved = await resolveDashboardTmdbDetails(
+            this.enrichment,
+            seed
+        );
+        if (!resolved) {
+            return { resolved: false, seedTitle: seed.title, entries: [] };
         }
-        return { resolved: false, seedTitle: seed.title, entries: [] };
+        const { attempt, details } = resolved;
+        if (!details) {
+            return {
+                resolved: true,
+                skipped: true,
+                seedTitle: attempt.title,
+                entries: [],
+            };
+        }
+        return {
+            resolved: true,
+            seedTitle: attempt.title,
+            entries: toCandidates(
+                details?.recommendations?.results ?? [],
+                attempt.mediaType,
+                attempt.title
+            ),
+        };
     }
 
     /**

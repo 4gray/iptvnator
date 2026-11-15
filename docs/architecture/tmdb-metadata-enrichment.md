@@ -912,7 +912,10 @@ since shipped.)
   prefilled. Requires both the TMDB opt-in and the Electron DB worker
   (the rail is hidden in the PWA). The load fires only after the
   dashboard's own recent/favorites data is in, so it never competes for
-  the worker at startup, and runs once per app session.
+  the worker at startup, and latches per TMDB language and imported-playlist
+  id set: a language change re-localizes the titles, and importing or
+  deleting a playlist re-runs the matching (a deleted one would leave cards
+  linking nowhere). An empty or failed load does not latch.
 - **Recommendations rail** ("Because you watched",
   `dashboardRails.tmdbRecommendations` toggle): TMDB has no account-free
   "recommendations for you" endpoint, so `DashboardRecommendationsService`
@@ -994,13 +997,34 @@ since shipped.)
   re-run afterwards; a load where no seed resolved (TMDB unreachable)
   does not latch and retries instead. Same gating as trending: TMDB
   opt-in + Electron DB worker, deferred behind the dashboard's own data.
+- **The viewer's match choice** (`TmdbMatchService`, set in a detail view's
+  "Match on TMDB" dialog) holds on the dashboard too. Both the hero and
+  the recommendations rail resolve a row through
+  `resolveDashboardTmdbDetails` (`dashboard-tmdb-match.util.ts`), which
+  builds the row's match identity the way the detail views do (Xtream:
+  catalog type and stream/series id; Stalker: the stored entry's id,
+  media type and catalog) and reads the choice first. A manual match is
+  loaded by its TMDB id under that identity; "use the provider's data"
+  resolves to no TMDB data at all, so the automatic attempts (and their
+  movie→tv retry) cannot find another title; rows without a choice run
+  the automatic attempts. The choice is part of the hero's memo key and
+  the recommendations load key and seed de-duplication
+  (`dashboardTmdbMatchToken`), so re-matching a title reloads both. The
+  match store loads on first use with TMDB on, off the startup path: the
+  hero keeps it in a signal so keys computed before it arrived are
+  computed again, and the recommendations rail loads once more when it
+  arrives. A seed taken off TMDB is no TMDB verdict — it neither keeps an
+  offline rail alive nor stays on one.
 - **Hero extras**: `DashboardHeroTmdbService`
   (`libs/workspace/dashboard/feature`) patches each movie/series hero slide
   with a TMDB backdrop (when the activity row has none), a rating badge, up
   to two genre chips, the overview and the release/first-air year — resolved
   through the enrichment facade, so items already opened in a detail view
-  come from the SQLite cache without network. Results are memoized per
-  lookup identity for the session. Slides render immediately from provider
+  come from the SQLite cache without network. Found extras are memoized per
+  lookup identity (TMDB language and match choice included) for the
+  session; a lookup that found nothing is not, since it may have failed
+  offline — a lasting miss is the enrichment layer's own negative cache.
+  Slides render immediately from provider
   data; extras appear when resolved and disappear when TMDB is turned off.
   Series slides additionally show the tracked "S{n}·E{n}" badge from the
   playback position (no TMDB involved). Live slides never query TMDB.

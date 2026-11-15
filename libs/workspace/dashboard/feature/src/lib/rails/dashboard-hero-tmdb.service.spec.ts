@@ -59,13 +59,21 @@ describe('DashboardHeroTmdbService', () => {
     let language: jest.Mock;
     let enrichMovie: jest.Mock;
     let enrichTv: jest.Mock;
+    let choice: unknown;
+    const getMatches = () => Promise.resolve({ read: () => choice });
 
     function createService(): DashboardHeroTmdbService {
         TestBed.configureTestingModule({
             providers: [
                 {
                     provide: TmdbEnrichmentService,
-                    useValue: { isEnabled, language, enrichMovie, enrichTv },
+                    useValue: {
+                        isEnabled,
+                        language,
+                        enrichMovie,
+                        enrichTv,
+                        getMatches,
+                    },
                 },
             ],
         });
@@ -77,6 +85,74 @@ describe('DashboardHeroTmdbService', () => {
         language = jest.fn().mockReturnValue('en-US');
         enrichMovie = jest.fn().mockResolvedValue(null);
         enrichTv = jest.fn().mockResolvedValue(tvDetails);
+        choice = null;
+    });
+
+    describe("the viewer's TMDB match choice", () => {
+        const xtreamMovie = {
+            title: 'The Matrix',
+            type: 'movie',
+            source: 'xtream',
+            playlist_id: 'pl-1',
+            xtream_id: 42,
+        } as DashboardHeroTmdbItem;
+        const identity = {
+            provider: 'xtream',
+            playlistId: 'pl-1',
+            mediaType: 'movie',
+            itemId: '42',
+        };
+
+        it('loads the title the viewer matched by hand', async () => {
+            choice = { mode: 'manual', tmdbId: 604, title: 'Synthetic Match' };
+            enrichMovie.mockResolvedValue({ ...tvDetails, id: 604 });
+            const service = createService();
+
+            await expect(service.getExtras(xtreamMovie)).resolves.toEqual(
+                expect.objectContaining({ rating: '7.4' })
+            );
+            expect(enrichMovie).toHaveBeenCalledTimes(1);
+            expect(enrichMovie).toHaveBeenCalledWith(
+                expect.objectContaining({ matchIdentity: identity })
+            );
+        });
+
+        it('shows no TMDB extras when the viewer chose the provider data', async () => {
+            choice = { mode: 'provider' };
+            const service = createService();
+            const stalkerVod = {
+                ...stalkerItem,
+                source: 'stalker',
+                playlist_id: 'pl-2',
+            } as DashboardHeroTmdbItem;
+
+            await expect(service.getExtras(stalkerVod)).resolves.toBeNull();
+            // The automatic TV retry would otherwise find a show.
+            expect(enrichTv).not.toHaveBeenCalled();
+            expect(enrichMovie).not.toHaveBeenCalled();
+        });
+
+        it('keys the lookup by the choice, so a re-match loads again', async () => {
+            const service = createService();
+            service.keyFor(xtreamMovie); // starts loading the match store
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            const before = service.keyFor(xtreamMovie);
+
+            choice = { mode: 'manual', tmdbId: 604, title: 'Synthetic Match' };
+
+            expect(service.keyFor(xtreamMovie)).not.toBe(before);
+        });
+    });
+
+    it('asks again after a lookup that found nothing (offline, TMDB down)', async () => {
+        const service = createService();
+        const movie = { title: 'Synthetic Film', type: 'series' } as const;
+        enrichTv.mockResolvedValueOnce(null);
+
+        await expect(service.getExtras(movie)).resolves.toBeNull();
+        await expect(service.getExtras(movie)).resolves.not.toBeNull();
+
+        expect(enrichTv).toHaveBeenCalledTimes(2);
     });
 
     it('returns null when TMDB is disabled or the item is live', async () => {
