@@ -294,8 +294,9 @@ and newly available archived entries. Native history mutations update that journ
 in their own transactions, including removal tombstones and explicit clears.
 `DB_RESTORE_XTREAM_USER_DATA` replays the current journal in one transaction so a
 watch or removal cannot be overwritten between replay chunks. This transaction
-contains saved history only; catalog writes keep the row budgets below. The
-renderer acknowledges the journal after deferred state completes, and source
+contains saved history only; catalog writes keep the row budgets below. For live
+entries the journal remembers the provider category so replay can prefer the
+original copy of a channel listed in multiple categories. The renderer acknowledges the journal after deferred state completes, and source
 deletion removes its journal. Explicit backup import resets it before replay.
 
 ### Catalog write batching

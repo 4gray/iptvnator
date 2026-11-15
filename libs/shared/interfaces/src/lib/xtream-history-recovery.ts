@@ -11,7 +11,10 @@ export const xtreamHistoryRecoveryKey = (playlistId: string) =>
 export interface XtreamHistoryRecovery {
     version: 1;
     contentTypes: XtreamContentType[];
-    recentlyViewed: XtreamBackupRecentlyViewedItem[];
+    recentlyViewed: (XtreamBackupRecentlyViewedItem & {
+        /** Prefer the original provider category when a live channel has copies. */
+        liveCategoryXtreamId?: number;
+    })[];
     /** Rows owned by the latest native replay, plus watches since that replay. */
     resolved?: Pick<
         XtreamBackupRecentlyViewedItem,
@@ -40,6 +43,8 @@ export function parseXtreamHistoryRecovery(raw: string): XtreamHistoryRecovery {
                 XTREAM_CONTENT_TYPES.includes(row.contentType) &&
                 typeof row.xtreamId === 'number' &&
                 Number.isFinite(row.xtreamId) &&
+                (row.liveCategoryXtreamId === undefined ||
+                    Number.isSafeInteger(row.liveCategoryXtreamId)) &&
                 typeof row.viewedAt === 'string' &&
                 row.viewedAt.length > 0
         ) ||

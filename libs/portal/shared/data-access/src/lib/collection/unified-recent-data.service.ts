@@ -595,21 +595,21 @@ export class UnifiedRecentDataService {
             return null;
         }
 
+        const args: Parameters<DatabaseService['getContentByXtreamId']> = [
+            item.xtreamId,
+            item.playlistId,
+            item.contentType,
+        ];
+        if (this.isSqliteLive(item) && typeof item.categoryId === 'number')
+            args[4] = item.categoryId;
         if (!this.hasPortalActivityStorage) {
             const content = await this.xtreamDataSource.getContentByXtreamId(
-                item.xtreamId,
-                item.playlistId,
-                item.contentType
+                ...args
             );
             return content?.id ?? item.xtreamId;
         }
 
-        const content = await this.dbService.getContentByXtreamId(
-            item.xtreamId,
-            item.playlistId,
-            item.contentType
-        );
-
+        const content = await this.dbService.getContentByXtreamId(...args);
         return content?.id ?? null;
     }
 

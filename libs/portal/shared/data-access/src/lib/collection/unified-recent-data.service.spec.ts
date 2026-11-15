@@ -811,9 +811,14 @@ describe('UnifiedRecentDataService', () => {
         ).toHaveBeenCalledWith('stalker-1', ['42', '43']);
     });
 
-    it.each(['single', 'batch'] as const)(
-        'defers a %s live history removal until the SQLite row is replaced',
-        async (kind) => {
+    it.each([
+        { kind: 'single', refreshed: false, rowId: 501 },
+        { kind: 'batch', refreshed: false, rowId: 501 },
+        { kind: 'single', refreshed: true, rowId: 502 },
+        { kind: 'batch', refreshed: true, rowId: 502 },
+    ])(
+        'removes the selected category on a $kind live history removal (refreshed: $refreshed)',
+        async ({ kind, refreshed, rowId }) => {
             jest.spyOn(
                 TestBed.inject(RuntimeCapabilitiesService),
                 'supportsXtreamSqliteDataSource',
@@ -821,7 +826,10 @@ describe('UnifiedRecentDataService', () => {
             ).mockReturnValue(true);
             const activity = TestBed.inject(SourceActivityService);
             const playlistId = 'synthetic-source';
-            const finishReplacement = activity.begin([playlistId]);
+            const selectedCategory = 19;
+            const finishReplacement = refreshed
+                ? activity.begin([playlistId])
+                : undefined;
             const item: UnifiedCollectionItem = {
                 uid: 'xtream::synthetic-source::live:42',
                 name: 'Synthetic live item',
@@ -830,37 +838,51 @@ describe('UnifiedRecentDataService', () => {
                 playlistId,
                 playlistName: 'Synthetic source',
                 contentId: 501,
+                categoryId: selectedCategory,
                 xtreamId: 42,
             };
+            dbService.getContentByXtreamId.mockImplementation(
+                async (_id, _source, _type, _identity, categoryId) =>
+                    categoryId === selectedCategory
+                        ? { id: rowId }
+                        : { id: 200 }
+            );
 
             const result =
                 kind === 'single'
                     ? service.removeRecentItem(item)
                     : service.removeRecentItemsBatch([item]);
             try {
-                await Promise.resolve();
-                expect(dbService.getContentByXtreamId).not.toHaveBeenCalled();
-                expect(dbService.removeRecentItem).not.toHaveBeenCalled();
-                expect(dbService.removeRecentItemsBatch).not.toHaveBeenCalled();
-                dbService.getContentByXtreamId.mockResolvedValue({ id: 502 });
+                if (refreshed) {
+                    await Promise.resolve();
+                    expect(
+                        dbService.getContentByXtreamId
+                    ).not.toHaveBeenCalled();
+                    expect(dbService.removeRecentItem).not.toHaveBeenCalled();
+                    expect(
+                        dbService.removeRecentItemsBatch
+                    ).not.toHaveBeenCalled();
+                }
             } finally {
-                finishReplacement();
+                finishReplacement?.();
             }
 
             await result;
             expect(dbService.getContentByXtreamId).toHaveBeenCalledWith(
                 42,
                 playlistId,
-                'live'
+                'live',
+                undefined,
+                selectedCategory
             );
             if (kind === 'single')
                 expect(dbService.removeRecentItem).toHaveBeenCalledWith(
-                    502,
+                    rowId,
                     playlistId
                 );
             else
                 expect(dbService.removeRecentItemsBatch).toHaveBeenCalledWith([
-                    { contentId: 502, playlistId },
+                    { contentId: rowId, playlistId },
                 ]);
             expect(activity.isBusy(playlistId)).toBe(false);
         }
