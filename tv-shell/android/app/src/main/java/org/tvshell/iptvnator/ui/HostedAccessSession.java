@@ -56,6 +56,16 @@ final class HostedAccessSession {
         return current;
     }
 
+    synchronized void verifyLibrary() throws Exception {
+        String token = accessToken(null);
+        try {
+            HostedAccessOAuth.verifyLibrary(origin, instance, credential);
+        } catch (HostedAccessOAuth.Denied expired) {
+            accessToken(token);
+            HostedAccessOAuth.verifyLibrary(origin, instance, credential);
+        }
+    }
+
     Call call(JSONObject input, String token) throws Exception {
         String path = input.getString("path");
         String method = input.getString("method");
@@ -117,6 +127,6 @@ final class HostedAccessSession {
         if (path.equals("/api/v1/instance")) return method.equals("GET") || method.equals("HEAD");
         if (path.matches("/api/v1/(sources|playlists|activity|favorites|history|user-state|app-state)(/[^/?]+)*")) return true;
         if (path.matches("/api/(parse|parse-xml|xtream|stalker)")) return method.equals("GET");
-        return path.matches("/api/(provider-targets|connectivity-guard/reset|v1/device-pairing/cloudflare-invite)") && method.equals("POST");
+        return path.matches("/api/(provider-targets|connectivity-guard/reset|v1/tmdb-transfer|v1/device-pairing/cloudflare-invite)") && method.equals("POST");
     }
 }

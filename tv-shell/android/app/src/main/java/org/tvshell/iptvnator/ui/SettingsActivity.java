@@ -141,7 +141,7 @@ public class SettingsActivity extends Activity {
             }
             status.setText(R.string.connection_checking);
             new Thread(() -> {
-                int result = HostedConnection.probe(origin, new PairedCredentialStore(this));
+                int result = HostedConnection.probeSavedLibrary(this, origin);
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     connect.setEnabled(true);

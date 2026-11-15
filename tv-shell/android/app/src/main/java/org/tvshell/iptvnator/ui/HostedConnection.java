@@ -24,6 +24,23 @@ final class HostedConnection {
         return origin;
     }
 
+    static int probeSavedLibrary(Activity activity, String origin) {
+        HostedAccessSession saved = HostedAccessSession.load(activity, origin);
+        if (saved == null) return probe(origin, new PairedCredentialStore(activity));
+        try {
+            saved.verifyLibrary();
+            return 0;
+        } catch (HostedAccessOAuth.Denied | HostedAccessOAuth.NeedsInvite e) {
+            return R.string.connection_access;
+        } catch (HostedAccessOAuth.RevokedDevice e) {
+            return R.string.access_device_revoked;
+        } catch (HostedAccessOAuth.WrongLibrary e) {
+            return R.string.access_wrong_library;
+        } catch (Exception e) {
+            return R.string.access_tunnel_unavailable;
+        }
+    }
+
     /** Verify the public instance endpoint without following redirects or sending credentials. */
     static int probe(String origin, PairedCredentialStore credentials) {
         HttpURLConnection connection = null;

@@ -125,6 +125,10 @@ final class HostedAccessOAuth {
     }
 
     void verifyLibrary(JSONObject credential) throws Exception {
+        verifyLibrary(origin, instance, credential);
+    }
+
+    static void verifyLibrary(String origin, String instance, JSONObject credential) throws Exception {
         String token = credential.getString("accessToken");
         Request.Builder request = new Request.Builder().url(origin + "/api/v1/sources")
             .header("Authorization", "Bearer " + token)

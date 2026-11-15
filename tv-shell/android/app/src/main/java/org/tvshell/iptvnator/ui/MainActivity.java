@@ -545,10 +545,13 @@ public class MainActivity extends ComponentActivity {
         if (tvDevice) return "";
         // During a temporary fallback, the embedded app still offers the selected server.
         String savedOrigin = hosted ? loadedConnection : prefs.hostedOrigin();
+        PairedCredentialStore credentials = new PairedCredentialStore(this);
+        boolean paired = !savedOrigin.isEmpty() && (credentials.contains(savedOrigin)
+            || credentials.contains(HostedAccessSession.storageKey(savedOrigin)));
         return "window.__tvShellLibraryConnection={origin:" + JSONObject.quote(loadedConnection)
             + ",savedOrigin:" + JSONObject.quote(savedOrigin)
             + ",offline:" + (!hosted && prefs.hostedOrigin().equals(offlineOrigin))
-            + ",paired:" + new PairedCredentialStore(this).contains(savedOrigin)
+            + ",paired:" + paired
             + ",approvalOrigin:" + JSONObject.quote(hosted ? "" : prefs.approvalOrigin())
             + ",canScanQr:" + LibraryQrScanner.available(this) + "};\n";
     }
@@ -1026,7 +1029,7 @@ public class MainActivity extends ComponentActivity {
             v.setVisibility(View.GONE);
             connectionDialog.setMessage(getString(R.string.connection_checking));
             new Thread(() -> {
-                int result = HostedConnection.probe(origin, new PairedCredentialStore(this));
+                int result = HostedConnection.probeSavedLibrary(this, origin);
                 runOnUiThread(() -> completeLibraryConnection(attempt, origin, result));
             }, "hosted-library-probe").start();
         });
