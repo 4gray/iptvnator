@@ -1978,6 +1978,13 @@ live together; routing/integration stays in the M3U player template.
 When focus is inside a dialog or alertdialog, its reading region owns the
 arrows and M key. Radio leaves those events unconsumed and does not change or
 persist background volume; keyboard volume control resumes after dismissal.
+Ctrl, Cmd and Alt chords are never radio shortcuts (Cmd+M minimizes on macOS).
+Mute sets the app volume to zero and also sets `audio.muted`, so it works on
+iPhone Safari where the element can ignore volume assignments. Unmute restores
+the last audible volume (`LegacyMuteMemory`, 0.5 when none is known). Raising
+the volume also clears `audio.muted`. The LIVE badge and the play button follow
+the element's `play`, `pause`, `ended` and `error` events. Play reloads a failed
+stream, and if the current attempt is rejected, the player shows paused.
 
 ### Display sleep during playback
 

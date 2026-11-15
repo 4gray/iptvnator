@@ -1,6 +1,82 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { pressTab } from './e2e-helpers';
 import { expect } from './fixtures';
+import {
+    addStalkerPortal,
+    interceptStalkerRequests,
+} from './stalker-portal.fixture';
+
+/**
+ * Adds the mock Stalker portal and plays a radio station whose stream is a
+ * minute of synthetic PCM silence. Resolves once the audio has advanced.
+ */
+export async function playSyntheticStalkerRadio(page: Page): Promise<Locator> {
+    await interceptStalkerRequests(page);
+    const source = 'http://radio-fixture.invalid/sample.wav';
+    // One minute of synthetic PCM silence, with no external stream or metadata.
+    const bytes = 8000 * 60 * 2;
+    const wav = Buffer.alloc(44 + bytes);
+    wav.write('RIFF', 0);
+    wav.writeUInt32LE(36 + bytes, 4);
+    wav.write('WAVEfmt ', 8);
+    wav.writeUInt32LE(16, 16);
+    wav.writeUInt16LE(1, 20);
+    wav.writeUInt16LE(1, 22);
+    wav.writeUInt32LE(8000, 24);
+    wav.writeUInt32LE(16000, 28);
+    wav.writeUInt16LE(2, 32);
+    wav.writeUInt16LE(16, 34);
+    wav.write('data', 36);
+    wav.writeUInt32LE(bytes, 40);
+    await page.route(source, (route) =>
+        route.fulfill({ contentType: 'audio/wav', body: wav })
+    );
+    await page.route('**/localhost:3000/stalker**', async (route) => {
+        const url = new URL(route.request().url());
+        if (url.searchParams.get('type') !== 'radio') return route.fallback();
+        const action = url.searchParams.get('action');
+        if (action === 'create_link') {
+            await route.fulfill({ json: { payload: { js: { cmd: source } } } });
+        } else if (action === 'get_ordered_list') {
+            await route.fulfill({
+                json: {
+                    payload: {
+                        js: {
+                            data: [
+                                {
+                                    id: '9001',
+                                    name: 'Synthetic Radio Alpha',
+                                    o_name: 'Synthetic Radio Alpha',
+                                    cmd: source,
+                                    logo: '',
+                                    category_id:
+                                        url.searchParams.get('genre') ?? '1',
+                                    tv_genre_id:
+                                        url.searchParams.get('genre') ?? '1',
+                                    number: '1',
+                                    radio: true,
+                                },
+                            ],
+                            total_items: 1,
+                            max_page_items: 20,
+                            cur_page: 1,
+                            total_pages: 1,
+                        },
+                    },
+                },
+            });
+        } else await route.fallback();
+    });
+    await addStalkerPortal(page);
+    await page.getByRole('link', { name: /radio/i }).click();
+    await page.getByRole('button', { name: 'News Radio', exact: true }).click();
+    await page.getByText('Synthetic Radio Alpha', { exact: true }).click();
+    const audio = page.locator('app-audio-player audio');
+    await expect
+        .poll(() => audio.evaluate((el: HTMLAudioElement) => el.currentTime))
+        .toBeGreaterThan(0);
+    return audio;
+}
 
 /** The computed colour a custom property resolves to on this page. */
 async function computedColor(page: Page, property: string): Promise<string> {
