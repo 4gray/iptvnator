@@ -244,12 +244,15 @@ test('@epg @m3u @electron keeps the inline EPG panel compact and translated', as
                 path: test.info().outputPath(`expanded-${width}.png`),
             });
 
-            // Two days ahead has no programmes: the empty state's message
-            // and both actions fit inside the compact panel.
+            // A few days ahead has no programmes (the schedule ends shortly
+            // after midnight): the empty state's message and both actions fit
+            // inside the compact panel.
             const next = toolbar.locator('.epg-timeline__nav').last();
-            await next.click();
-            await next.click();
             const empty = timeline.locator('app-epg-timeline-empty-state');
+            await expect(async () => {
+                if (!(await empty.isVisible())) await next.click();
+                await expect(empty).toBeVisible({ timeout: 1_000 });
+            }).toPass({ timeout: 15_000 });
             const actions = [
                 empty.getByRole('button', { name: ru.EPG.TIMELINE.JUMP_TODAY }),
                 empty.getByRole('button', {
