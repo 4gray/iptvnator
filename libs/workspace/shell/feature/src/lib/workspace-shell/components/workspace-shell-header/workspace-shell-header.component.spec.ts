@@ -106,7 +106,7 @@ describe('WorkspaceShellHeaderComponent', () => {
             const input: HTMLInputElement = fixture.nativeElement.querySelector(
                 'input[type="search"]'
             );
-            input.value = 'matrix';
+            input.value = 'example query';
             input.dispatchEvent(
                 new KeyboardEvent('keydown', {
                     key: 'Enter',
@@ -119,7 +119,7 @@ describe('WorkspaceShellHeaderComponent', () => {
         };
 
         it('submits the typed search', () => {
-            expect(pressEnter()).toEqual(['matrix']);
+            expect(pressEnter()).toEqual(['example query']);
         });
 
         it.each([
@@ -130,7 +130,11 @@ describe('WorkspaceShellHeaderComponent', () => {
             (_label, init) => {
                 // Safari: the commit key follows compositionend with 229.
                 if (!('isComposing' in init)) {
-                    document.dispatchEvent(new Event('compositionend'));
+                    fixture.nativeElement
+                        .querySelector('input')
+                        .dispatchEvent(
+                            new Event('compositionend', { bubbles: true })
+                        );
                 }
                 expect(pressEnter(init)).toEqual([]);
                 document.dispatchEvent(new Event('keyup'));
@@ -138,7 +142,7 @@ describe('WorkspaceShellHeaderComponent', () => {
         );
 
         it('submits an Android Enter that reports keyCode 229 without a composition', () => {
-            expect(pressEnter({ keyCode: 229 })).toEqual(['matrix']);
+            expect(pressEnter({ keyCode: 229 })).toEqual(['example query']);
         });
     });
 

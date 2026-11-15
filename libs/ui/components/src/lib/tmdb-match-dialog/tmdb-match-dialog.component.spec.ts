@@ -383,7 +383,7 @@ describe('TmdbMatchDialogComponent', () => {
 
         await pressEnter({ isComposing: true });
         // Safari: the commit key follows compositionend with keyCode 229.
-        document.dispatchEvent(new Event('compositionend'));
+        input.dispatchEvent(new Event('compositionend', { bubbles: true }));
         await pressEnter({ keyCode: 229 });
         document.dispatchEvent(new Event('keyup'));
         expect(search).toHaveBeenCalledTimes(1);

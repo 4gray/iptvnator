@@ -188,7 +188,11 @@ describe('WorkspaceCommandPaletteComponent', () => {
             (_label, init) => {
                 // Safari: the commit key follows compositionend with 229.
                 if (!('isComposing' in init)) {
-                    document.dispatchEvent(new Event('compositionend'));
+                    fixture.nativeElement
+                        .querySelector('input')
+                        .dispatchEvent(
+                            new Event('compositionend', { bubbles: true })
+                        );
                 }
                 const event = pressInQuery(init);
                 document.dispatchEvent(new Event('keyup'));

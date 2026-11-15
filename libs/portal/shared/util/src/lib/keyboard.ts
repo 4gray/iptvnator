@@ -14,25 +14,30 @@ export function isTypingInInput(event: Event): boolean {
     return target instanceof HTMLElement && target.isContentEditable;
 }
 
-/**
- * Safari sends the key that commits a composition after `compositionend`,
- * with `isComposing` false and only `keyCode` 229. A 229 counts as that
- * commit only between `compositionend` and the next `keyup`: Android soft
- * keyboards report 229 for ordinary keys — Enter included — without any
- * composition, and those must keep working.
- */
-let compositionJustEnded = false;
+// Safari can deliver the commit key after compositionend (WebKit #165004).
+// Scope 229 to the same field and brief event window: Android also uses it
+// for ordinary Enter presses, and a candidate click may never send keyup.
+const IME_COMMIT_WINDOW_MS = 50;
+let compositionEnd: Event | undefined;
+let clearTimer: ReturnType<typeof setTimeout>;
+
+function clearCompositionEnd(): void {
+    compositionEnd = undefined;
+    clearTimeout(clearTimer);
+}
+
 if (typeof document !== 'undefined') {
     document.addEventListener(
         'compositionend',
-        () => (compositionJustEnded = true),
+        (event) => {
+            clearCompositionEnd();
+            compositionEnd = event;
+            clearTimer = setTimeout(clearCompositionEnd, IME_COMMIT_WINDOW_MS);
+        },
         true
     );
-    document.addEventListener(
-        'keyup',
-        () => (compositionJustEnded = false),
-        true
-    );
+    document.addEventListener('keyup', clearCompositionEnd, true);
+    document.addEventListener('focusout', clearCompositionEnd, true);
 }
 
 /**
@@ -41,5 +46,12 @@ if (typeof document !== 'undefined') {
  * list, so a text field must not treat the key as its own.
  */
 export function isImeComposing(event: KeyboardEvent): boolean {
-    return event.isComposing || (compositionJustEnded && event.keyCode === 229);
+    return (
+        event.isComposing ||
+        (event.keyCode === 229 &&
+            compositionEnd !== undefined &&
+            compositionEnd.target === event.target &&
+            Math.abs(event.timeStamp - compositionEnd.timeStamp) <=
+                IME_COMMIT_WINDOW_MS)
+    );
 }

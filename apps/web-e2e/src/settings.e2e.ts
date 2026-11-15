@@ -647,6 +647,24 @@ test.describe('Settings', () => {
                 isComposing: true,
             });
         }
+        const legacyCommitAllowed = await query.evaluate((input) => {
+            input.dispatchEvent(
+                new CompositionEvent('compositionend', {
+                    bubbles: true,
+                })
+            );
+            const allowed = input.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key: 'Enter',
+                    keyCode: 229,
+                    bubbles: true,
+                    cancelable: true,
+                })
+            );
+            input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
+            return allowed;
+        });
+        expect(legacyCommitAllowed).toBe(true);
         await expect(container).toHaveClass(open);
         await expect(page).not.toHaveURL(/\/workspace\/settings/);
 

@@ -226,7 +226,9 @@ describe('PlaylistSwitcherPanelComponent', () => {
             document.addEventListener('keydown', bubbled);
             // Safari: commit keys follow compositionend with keyCode 229.
             if (!('isComposing' in init)) {
-                document.dispatchEvent(new Event('compositionend'));
+                input().dispatchEvent(
+                    new Event('compositionend', { bubbles: true })
+                );
             }
 
             press('ArrowDown', init);

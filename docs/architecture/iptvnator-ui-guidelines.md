@@ -593,10 +593,10 @@ A text field's own key handler (Enter to submit, arrows or Escape in a
 search-and-pick list) first returns when `isImeComposing(event)` from
 `@iptvnator/portal/shared/util` is true: during an input method composition
 Enter commits the text and arrows/Escape drive the candidate list. The check
-reads `isComposing`, and `keyCode` 229 only between a `compositionend` and the
-next `keyup`: Safari sends the committing Enter after `compositionend` with
-just 229, while Android soft keyboards report 229 for ordinary keys — Enter
-included — without a composition, and those must still submit. Never call `preventDefault()` on those keys; a handler
+reads `isComposing`. A legacy Safari commit with `keyCode` 229 also counts
+within 50 ms of `compositionend` on the same field, until keyup or focus
+leaves the field. Ordinary Android keyboard events with 229 still submit.
+Leave the default behavior enabled on composition keys. A handler
 that owns Escape or arrows also stops their propagation, so the surrounding
 dialog or overlay cannot close on them. Guard in a component method, not inline
 in the template; an event binding that evaluates to `false` calls
