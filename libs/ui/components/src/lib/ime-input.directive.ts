@@ -1,4 +1,4 @@
-import { Directive } from '@angular/core';
+import { Directive, OnDestroy } from '@angular/core';
 
 const IME_COMMIT_WINDOW_MS = 50;
 const CANDIDATE_KEYS = new Set(['Enter', 'Escape', 'ArrowUp', 'ArrowDown']);
@@ -12,15 +12,25 @@ const CANDIDATE_KEYS = new Set(['Enter', 'Escape', 'ArrowUp', 'ArrowDown']);
         '(blur)': 'reset()',
     },
 })
-export class ImeInputDirective {
-    private commitUntil = -1;
+export class ImeInputDirective implements OnDestroy {
+    private commitTimer: ReturnType<typeof setTimeout> | undefined;
 
     onCompositionEnd(): void {
-        this.commitUntil = performance.now() + IME_COMMIT_WINDOW_MS;
+        this.reset();
+        // Let the event loop expire the window so a slow compositionend
+        // handler cannot turn Safari's paired keydown into a fresh Enter.
+        this.commitTimer = setTimeout(() => {
+            this.commitTimer = undefined;
+        }, IME_COMMIT_WINDOW_MS);
     }
 
     reset(): void {
-        this.commitUntil = -1;
+        clearTimeout(this.commitTimer);
+        this.commitTimer = undefined;
+    }
+
+    ngOnDestroy(): void {
+        this.reset();
     }
 
     isCompositionKey(event: Event): boolean {
@@ -29,8 +39,7 @@ export class ImeInputDirective {
         // Android also uses 229 for ordinary keys, so require a recent commit.
         return (
             CANDIDATE_KEYS.has(key) &&
-            (isComposing ||
-                (keyCode === 229 && performance.now() <= this.commitUntil))
+            (isComposing || (keyCode === 229 && this.commitTimer !== undefined))
         );
     }
 }
