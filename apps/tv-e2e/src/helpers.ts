@@ -22,6 +22,18 @@ export async function cardAction(
         .getByRole('button', { name, exact: true })
         .click();
 }
+/** Runs a rare viewing action from a detail page's ⋯ or episode options. */
+export async function moreAction(
+    page: Page,
+    name: string,
+    opener = '[data-focus="detail-more"]'
+) {
+    await page.locator(opener).click();
+    await page
+        .getByRole('dialog')
+        .getByRole('button', { name, exact: true })
+        .click();
+}
 export async function start(page: Page) {
     await page.route('**/*', async (route) => {
         const url = route.request().url();

@@ -1,6 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { UserData } from '@iptvnator/tv/util';
-import { addSource, backend, chooseTv, nav, start } from './helpers';
+import {
+    addSource,
+    backend,
+    chooseTv,
+    moreAction,
+    nav,
+    start,
+} from './helpers';
 import { playLive, prepareLiveMedia } from './live-media';
 
 async function saved(page: Page): Promise<UserData> {
@@ -118,9 +125,7 @@ test('TV daily comfort an older delayed launch cannot borrow a newer manual watc
     try {
         await page.locator('[data-focus="detail-play"]').click();
         await expect.poll(() => requests).toBe(1);
-        await page
-            .getByRole('button', { name: 'Mark watched', exact: true })
-            .click();
+        await moreAction(page, 'Mark watched');
         await expect(page.locator('.watch-status').first()).toContainText(
             'Watched'
         );
@@ -270,11 +275,8 @@ test('TV daily comfort VOD resume ended Next and Live Previous share one player 
     await nav(page, 'Series');
     await page.locator('.poster-card').first().click();
     await chooseTv(page, 'Season', '2');
-    const watchActions = page
-        .locator('.episode-entry [role="combobox"]')
-        .first();
-    const actionLabel = (await watchActions.getAttribute('aria-label'))!;
-    await chooseTv(page, actionLabel, 'reset');
+    await page.locator('.episode').first().focus();
+    await moreAction(page, 'Reset progress', '[data-focus="episode-options"]');
     await expect(primary).toContainText('Continue · S2 · E1');
     await nav(page, 'Home');
     await page.reload();
