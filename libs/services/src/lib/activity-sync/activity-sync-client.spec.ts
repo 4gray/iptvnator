@@ -1,4 +1,5 @@
 import { ActivitySyncClient } from './activity-sync-client';
+import { ActivitySupersededError } from './activity-action-fence';
 import {
     activityAddressKey,
     applyActivityOperation,
@@ -563,6 +564,111 @@ describe('activity sync clients', () => {
         await value.flush();
 
         expect([...h.states.values()][0].resume?.positionSeconds).toBe(35);
+    });
+
+    it.each([false, true])(
+        'retries a native checkpoint displaced by a reset (reset succeeded: %s)',
+        async (resetSucceeded) => {
+            const h = harness();
+            const { value, store } = h.client('synthetic-device');
+            const position = movie('synthetic-session', 35);
+            await value.begin('source', position);
+            await value.flush();
+
+            let entered!: () => void;
+            const waiting = new Promise<void>((resolve) => {
+                entered = resolve;
+            });
+            let release!: () => void;
+            const held = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const mutate = store.mutate.bind(store);
+            const writes = jest
+                .spyOn(store, 'mutate')
+                .mockImplementationOnce(async (...args) => {
+                    entered();
+                    await held;
+                    return mutate(...args);
+                });
+            if (!resetSucceeded)
+                writes.mockRejectedValueOnce(
+                    new Error('Synthetic reset failure')
+                );
+
+            const checkpoint = {
+                ...position,
+                nativeCheckpointAt: new Date(Date.now() + 1000).toISOString(),
+            };
+            const saving = value.save('source', checkpoint);
+            await waiting;
+            try {
+                const reset = value.reset('source', position);
+                if (resetSucceeded) await reset;
+                else
+                    await expect(reset).rejects.toThrow(
+                        'Synthetic reset failure'
+                    );
+            } finally {
+                release();
+            }
+            await expect(saving).rejects.toBeInstanceOf(
+                ActivitySupersededError
+            );
+            await value.save('source', checkpoint);
+            await value.flush();
+            expect([...h.states.values()][0].resume?.positionSeconds).toBe(
+                resetSucceeded ? undefined : 35
+            );
+        }
+    );
+
+    it('keeps a native checkpoint queued if its activity address is superseded', async () => {
+        const h = harness();
+        const { value, store } = h.client('synthetic-device');
+        const position = movie('synthetic-session', 35);
+        await value.begin('source', position);
+        await value.flush();
+
+        const { value: restarted } = h.client('synthetic-device', store);
+        jest.spyOn(restarted, 'address').mockRejectedValueOnce(
+            new ActivitySupersededError('Synthetic context superseded')
+        );
+        const checkpoint = {
+            ...position,
+            nativeCheckpointAt: new Date().toISOString(),
+        };
+        await expect(
+            restarted.save('source', checkpoint)
+        ).rejects.toBeInstanceOf(ActivitySupersededError);
+        await restarted.save('source', checkpoint);
+        await restarted.flush();
+        expect([...h.states.values()][0].resume?.positionSeconds).toBe(35);
+    });
+
+    it('preserves the stored title when recovering a native checkpoint after a restart', async () => {
+        const h = harness();
+        const { value, store } = h.client('synthetic-device');
+        const position = movie('synthetic-session', 35);
+        const activityTitle = 'Synthetic movie';
+        await value.begin('source', { ...position, activityTitle });
+        await value.flush();
+
+        const { value: restarted } = h.client('synthetic-device', store);
+        await restarted.save('source', {
+            ...position,
+            nativeCheckpointAt: new Date(Date.now() + 1000).toISOString(),
+        });
+        await restarted.flush();
+
+        const [{ record }] = await store.entries('source');
+        expect(record.position).toMatchObject({
+            activityTitle,
+            positionSeconds: 35,
+        });
+        expect([...h.states.values()][0].positionMetadata?.title).toBe(
+            activityTitle
+        );
     });
 
     it('queues Mark watched while the inherited native checkpoint is pending', async () => {

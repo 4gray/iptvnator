@@ -1239,7 +1239,9 @@ begin advances the ownership generation. Checkpoints require that generation,
 the owning device/session and an increasing sequence; a deliberate rewind is
 valid. Android checkpoint recovery compares capture times against both saved
 positions and in-flight writes. A begin acknowledgement establishes ownership
-without recording a playback capture.
+without recording a playback capture. If a write is displaced before it commits,
+Android keeps its checkpoint for retry. The recovery payload omits the title.
+The client carries the title forward from the persisted activity record.
 Checkpoints, local conflict choices and explicit imports share whole-second
 normalization of player snapshots; unknown or sub-second durations stay omitted.
 Completion retains the portal's rounded 90% threshold when duration is
