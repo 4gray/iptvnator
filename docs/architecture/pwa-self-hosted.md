@@ -215,6 +215,9 @@ remain compatible but do not enable viewing-activity synchronization:
 - `PATCH|DELETE /v1/sources/:id`: require the current `If-Match` revision;
   stale edits return `412`, missing revisions `428`
 - `DELETE /v1/sources`: requires the collection revision
+- Source `If-Match` checks compare weakly, so the `W/"…"` form that nginx's
+  gzip gives a response ETag still matches its revision; `If-Match: *`
+  returns `412`, because it names no revision
 
 Instances with server storage advertise the additive `sources-v1` capability.
 Source mutations and legacy document mutations invalidate the same revisions.
