@@ -253,7 +253,8 @@ export class WebPlayerViewComponent implements OnDestroy {
             );
             this.timeUpdate.emit(update);
         },
-        () => this.emitPlaybackEnded(this.resolvedIsLive())
+        () => this.emitPlaybackEnded(this.resolvedIsLive()),
+        () => this.reloadToken.update((value) => value + 1)
     );
     readonly playbackSourceRevisionToken = this.applicationState.sourceRevision;
     readonly playbackApplicationToken = this.applicationState.token;
@@ -421,9 +422,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     }
 
     returnToWebPlayback(): void {
-        this.androidPlayback.returnToWeb(() =>
-            this.reloadToken.update((value) => value + 1)
-        );
+        this.androidPlayback.returnToWeb();
     }
 
     readonly requestRecommendedPlayer =

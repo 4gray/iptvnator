@@ -1,5 +1,6 @@
 import {
     createRandomId,
+    playbackTimestamp,
     type PlaybackPositionData,
 } from '@iptvnator/shared/interfaces';
 import type { ActivitySourceContext } from '@iptvnator/shared/interfaces/activity-sync';
@@ -173,6 +174,15 @@ export class ActivityLocalOnlyPositions {
         clearing = false
     ): LocalActivitySnapshot {
         this.validate(position);
+        if (!clearing && position.nativeCheckpointAt) {
+            const latest = this.latest(sourceId, position);
+            if (
+                latest &&
+                playbackTimestamp(latest.position.updatedAt) >=
+                    playbackTimestamp(position.nativeCheckpointAt)
+            )
+                return latest;
+        }
         const token = createRandomId();
         const snapshot: PlaybackPositionData = {
             contentType: position.contentType,

@@ -143,6 +143,7 @@ watch time and VOD position only while the originating playback owner is current
 Retrying the web player cancels a pending Media3 launch before remounting.
 A handoff keeps the saved offset while the web engine is seeking to it. On
 return from Media3, early web ticks cannot update local or shared progress.
+Turning the pilot off also remounts the web player with this guard.
 The final native position settles the resume guard and persists immediately,
 including when the viewer seeks and leaves before the watch-history threshold
 or Media3 cannot determine the VOD duration.
@@ -160,7 +161,8 @@ store for the original WebView origin and source profile. A page in another
 profile leaves the checkpoint pending. A reset or backup restore records its
 time in the same write as the position change. Older checkpoints cannot undo
 that change. While a reset is pending, Android retains the checkpoint so
-recovery can retry if the reset fails. Bulk resets use one marker for the season or series. Retries
+recovery can retry if the reset fails. An older Android checkpoint cannot
+replace a newer local position staged for retry. Bulk resets use one marker for the season or series. Retries
 retain the original playback time when comparing positions for recovery.
 Activity Sync uses server timestamps to order acknowledged positions across
 devices.

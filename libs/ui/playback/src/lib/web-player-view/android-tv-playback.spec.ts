@@ -27,6 +27,7 @@ function setup() {
     const storedVolume = localStorage.getItem('volume');
     const storedAudibleVolume = localStorage.getItem('volume.lastAudible');
     const token = signal(Symbol());
+    const reload = jest.fn(() => token.set(Symbol()));
     const onPosition = jest.fn(() => events.push('position'));
     const fixture = TestBed.createComponent(RenderHost);
     const playback = TestBed.runInInjectionContext(
@@ -37,7 +38,8 @@ function setup() {
                 signal(1),
                 (seconds) => events.push(`played:${seconds}`),
                 onPosition,
-                () => events.push('ended')
+                () => events.push('ended'),
+                reload
             )
     );
 
@@ -121,6 +123,7 @@ function setup() {
         playback,
         postMessage,
         reply,
+        reload,
         surface,
         token,
         tvWindow,
@@ -152,7 +155,7 @@ it('keeps a failed attempt only for an explicit return to the same web player', 
     try {
         const attempt = playback.attempt();
         reply(open(), false, 0, 9000, true);
-        playback.returnToWeb(() => token.set(Symbol()));
+        playback.returnToWeb();
         expect(playback.attempt()).toBe(attempt);
         token.set(Symbol());
         expect(playback.attempt()).not.toBe(attempt);
@@ -162,11 +165,10 @@ it('keeps a failed attempt only for an explicit return to the same web player', 
 });
 
 it('cancels the posted native launch when retrying the web player', () => {
-    const { clear, events, open, playback, postMessage, reply, token } =
-        setup();
+    const { clear, events, open, playback, postMessage, reply } = setup();
     try {
         const id = open();
-        playback.returnToWeb(() => token.set(Symbol()));
+        playback.returnToWeb();
 
         expect(postMessage).toHaveBeenLastCalledWith(
             JSON.stringify(['stopNative', id])
@@ -247,6 +249,12 @@ it.each([
         expect(playback.canOpen({ streamUrl: base, title: 'Synthetic' })).toBe(
             false
         );
+        expect(
+            playback.canOpen({
+                streamUrl: base.replace('.ism', '%2Eism'),
+                title: 'Synthetic Smooth Streaming',
+            })
+        ).toBe(false);
         const request = {
             streamUrl: base + suffix,
             title: 'Synthetic HLS',
@@ -369,7 +377,7 @@ it('cancels the owned handoff when parental controls are enabled', () => {
 });
 
 it('restores the web engine if Android rejects playback or is disabled', () => {
-    const { clear, open, playback, tvWindow } = setup();
+    const { clear, open, playback, reload, reply, tvWindow } = setup();
     try {
         const id = open();
         expect(playback.suspended()).toBe(true);
@@ -379,14 +387,16 @@ it('restores the web engine if Android rejects playback or is disabled', () => {
             })
         );
         expect(playback.suspended()).toBe(false);
+        expect(reload).toHaveBeenCalledTimes(1);
 
-        open();
+        reply(open(), false);
         Reflect.deleteProperty(tvWindow, 'iptvnatorAndroidPlaybackLabels');
         window.dispatchEvent(
             new Event('iptvnator:android-playback-availability')
         );
         expect(playback.labels()).toBeNull();
         expect(playback.suspended()).toBe(false);
+        expect(reload).toHaveBeenCalledTimes(2);
     } finally {
         clear();
     }

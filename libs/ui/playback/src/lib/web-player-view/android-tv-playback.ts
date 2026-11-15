@@ -104,7 +104,8 @@ export class AndroidTvPlayback {
             position: PlayerTimeUpdate,
             replayTime: number
         ) => void,
-        private readonly onEnded: () => void
+        private readonly onEnded: () => void,
+        private readonly reloadWeb: () => void
     ) {
         this.webVolume = linkedSignal({
             source: () => [this.currentOwner(), volume()],
@@ -125,7 +126,7 @@ export class AndroidTvPlayback {
         const availability = () => {
             const labels = window.iptvnatorAndroidPlaybackLabels ?? null;
             this.labels.set(labels);
-            if (!labels) this.restoreWebVolume();
+            if (!labels && this.ownedSession()) this.returnToWeb();
         };
         const result = (event: Event) => {
             if (!(event instanceof CustomEvent)) return;
@@ -134,7 +135,7 @@ export class AndroidTvPlayback {
             const { id } = session;
             const data = event.detail.result as PlaybackResult | null;
             if (!data) {
-                this.restoreWebVolume();
+                this.resumeWeb();
                 return;
             }
             this.session.set({
@@ -219,13 +220,14 @@ export class AndroidTvPlayback {
             const { pathname, username, password } = new URL(
                 playback.streamUrl
             );
+            const path = decodeURIComponent(pathname);
             return (
                 !username &&
                 !password &&
-                !decodeURIComponent(pathname).toLowerCase().endsWith('.mpd') &&
-                (!isSmoothStreamingPath(pathname) ||
+                !path.toLowerCase().endsWith('.mpd') &&
+                (!isSmoothStreamingPath(path) ||
                     isHlsManifest(
-                        pathname,
+                        path,
                         getPlaybackMediaExtensionFromUrl(playback.streamUrl)
                     ))
             );
@@ -299,7 +301,9 @@ export class AndroidTvPlayback {
                         {
                             url: playback.streamUrl,
                             hls: isHlsManifest(
-                                new URL(playback.streamUrl).pathname,
+                                decodeURIComponent(
+                                    new URL(playback.streamUrl).pathname
+                                ),
                                 extension
                             ),
                             live,
@@ -326,27 +330,31 @@ export class AndroidTvPlayback {
                         },
                     ]);
                     if (message.length > 64 * 1024) {
-                        this.restoreWebVolume();
+                        this.resumeWeb();
                         return;
                     }
                     bridge.postMessage(message);
                 } catch {
-                    this.restoreWebVolume();
+                    this.resumeWeb();
                 }
             },
             { injector: this.injector }
         );
     }
 
-    returnToWeb(reload: () => void): void {
+    returnToWeb(): void {
         const session = this.ownedSession();
         const attempt = session?.failed ? this.attempt() : null;
-        this.restoreWebVolume();
-        if (session?.pending) this.cancel(session.id);
-        reload();
+        this.resumeWeb(session?.pending ? session.id : undefined);
         if (attempt) {
             this.continuedAttempt.set({ token: this.currentToken(), attempt });
         }
+    }
+
+    private resumeWeb(cancelId?: string): void {
+        this.restoreWebVolume();
+        if (cancelId) this.cancel(cancelId);
+        this.reloadWeb();
     }
 
     restoreWebVolume(): void {
