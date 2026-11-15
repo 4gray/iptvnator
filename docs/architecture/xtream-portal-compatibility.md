@@ -394,10 +394,11 @@ activity to finish and rechecks the saved connection, preference and catalog
 selection. A successful refresh
 publishes the saved timestamp so an open Xtream view can reread live rows and
 refresh its search without resetting playback. Open Favorites and Recently
-Viewed reload their rows after the commit. SQLite live favorite toggles and
-playback history writes wait for in-flight source work and hold the source
-from channel lookup through the write, so replacing the catalog cannot drop
-a click or playback confirmation.
+Viewed reload their rows after the commit. SQLite live favorite toggles,
+playback history writes and item removals wait for in-flight source work.
+They hold the source from channel lookup through the write and resolve the
+current row by provider identity. Delayed history writes update the visible
+list only when it still belongs to their source.
 The selected live channel is rebound by provider identity to its new SQLite row.
 Retained categories keep their SQLite IDs so playback queues, the guide and
 category history links still point to the same categories. During the launch

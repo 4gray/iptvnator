@@ -5,6 +5,7 @@ import {
     DatabaseService,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    SourceActivityService,
 } from '@iptvnator/services';
 import { HISTORY_PLAYLIST_BRIDGE } from '@iptvnator/services/history-events';
 import {
@@ -809,6 +810,61 @@ describe('UnifiedRecentDataService', () => {
             playlistsService.removeFromPlaylistRecentlyViewedBatch
         ).toHaveBeenCalledWith('stalker-1', ['42', '43']);
     });
+
+    it.each(['single', 'batch'] as const)(
+        'defers a %s live history removal until the SQLite row is replaced',
+        async (kind) => {
+            jest.spyOn(
+                TestBed.inject(RuntimeCapabilitiesService),
+                'supportsXtreamSqliteDataSource',
+                'get'
+            ).mockReturnValue(true);
+            const activity = TestBed.inject(SourceActivityService);
+            const playlistId = 'synthetic-source';
+            const finishReplacement = activity.begin([playlistId]);
+            const item: UnifiedCollectionItem = {
+                uid: 'xtream::synthetic-source::live:42',
+                name: 'Synthetic live item',
+                contentType: 'live',
+                sourceType: 'xtream',
+                playlistId,
+                playlistName: 'Synthetic source',
+                contentId: 501,
+                xtreamId: 42,
+            };
+
+            const result =
+                kind === 'single'
+                    ? service.removeRecentItem(item)
+                    : service.removeRecentItemsBatch([item]);
+            try {
+                await Promise.resolve();
+                expect(dbService.getContentByXtreamId).not.toHaveBeenCalled();
+                expect(dbService.removeRecentItem).not.toHaveBeenCalled();
+                expect(dbService.removeRecentItemsBatch).not.toHaveBeenCalled();
+                dbService.getContentByXtreamId.mockResolvedValue({ id: 502 });
+            } finally {
+                finishReplacement();
+            }
+
+            await result;
+            expect(dbService.getContentByXtreamId).toHaveBeenCalledWith(
+                42,
+                playlistId,
+                'live'
+            );
+            if (kind === 'single')
+                expect(dbService.removeRecentItem).toHaveBeenCalledWith(
+                    502,
+                    playlistId
+                );
+            else
+                expect(dbService.removeRecentItemsBatch).toHaveBeenCalledWith([
+                    { contentId: 502, playlistId },
+                ]);
+            expect(activity.isBusy(playlistId)).toBe(false);
+        }
+    );
 
     it('routes Xtream items through dbService and m3u items through the batch helper', async () => {
         const items: UnifiedCollectionItem[] = [

@@ -53,6 +53,14 @@ type PlaylistWithChannels = Omit<Playlist, 'playlist'> & {
     readonly playlist?: { readonly items?: Channel[] };
 };
 
+function captureRecentSource(playlistId: string): () => boolean {
+    return captureHistoryOwner(
+        sourceConnection()?.instanceId,
+        playlistId,
+        () => sourceConnection()?.instanceId
+    );
+}
+
 @Injectable({ providedIn: 'root' })
 export class UnifiedRecentDataService {
     private readonly stalkerMetadata = inject(StalkerCollectionMetadataService);
@@ -78,29 +86,36 @@ export class UnifiedRecentDataService {
 
     async removeRecentItem(item: UnifiedCollectionItem): Promise<void> {
         if (item.sourceType === 'xtream') {
-            const contentId =
-                item.contentId ?? (await this.resolveXtreamContentId(item));
-            if (contentId == null) {
-                return;
-            }
+            const current = captureRecentSource(item.playlistId);
+            const sqliteLive = this.isSqliteLive(item);
+            const remove = async () => {
+                if (!current()) return;
+                const contentId = await this.resolveRecentRowId(item);
+                if (!current() || contentId == null) return;
 
-            if (this.hasPortalActivityStorage) {
-                await this.dbService.removeRecentItem(
-                    contentId,
+                if (this.hasPortalActivityStorage) {
+                    const removed = await this.dbService.removeRecentItem(
+                        contentId,
+                        item.playlistId
+                    );
+                    if (removed && sqliteLive)
+                        window.dispatchEvent(
+                            new Event('iptvnator-history-changed')
+                        );
+                    return;
+                }
+                await this.xtreamDataSource.removeRecentItem(
+                    {
+                        id: contentId,
+                        type: item.contentType,
+                        providerId: item.xtreamId,
+                    },
                     item.playlistId
                 );
-                return;
-            }
-
-            await this.xtreamDataSource.removeRecentItem(
-                {
-                    id: contentId,
-                    type: item.contentType,
-                    providerId: item.xtreamId,
-                },
-                item.playlistId
-            );
-            return;
+            };
+            return sqliteLive
+                ? this.activity.runWhenIdle(item.playlistId, remove)
+                : remove();
         }
 
         if (item.sourceType === 'm3u') {
@@ -136,26 +151,12 @@ export class UnifiedRecentDataService {
             return;
         }
 
-        const xtreamBatch: {
-            contentId: number;
-            playlistId: string;
-            contentType: UnifiedCollectionItem['contentType'];
-            xtreamId?: number;
-        }[] = [];
+        const xtreamItems: UnifiedCollectionItem[] = [];
         const groupedByPlaylist = new Map<string, PlaylistRecentIdentity[]>();
 
         for (const item of items) {
             if (item.sourceType === 'xtream') {
-                const contentId =
-                    item.contentId ?? (await this.resolveXtreamContentId(item));
-                if (contentId != null) {
-                    xtreamBatch.push({
-                        contentId,
-                        playlistId: item.playlistId,
-                        contentType: item.contentType,
-                        xtreamId: item.xtreamId,
-                    });
-                }
+                xtreamItems.push(item);
                 continue;
             }
 
@@ -177,30 +178,8 @@ export class UnifiedRecentDataService {
 
         const tasks: Promise<unknown>[] = [];
 
-        if (xtreamBatch.length > 0) {
-            if (this.hasPortalActivityStorage) {
-                tasks.push(
-                    this.dbService.removeRecentItemsBatch(
-                        xtreamBatch.map(({ contentId, playlistId }) => ({
-                            contentId,
-                            playlistId,
-                        }))
-                    )
-                );
-            } else {
-                tasks.push(
-                    ...xtreamBatch.map((item) =>
-                        this.xtreamDataSource.removeRecentItem(
-                            {
-                                id: item.contentId,
-                                type: item.contentType,
-                                providerId: item.xtreamId,
-                            },
-                            item.playlistId
-                        )
-                    )
-                );
-            }
+        if (xtreamItems.length > 0) {
+            tasks.push(this.removeXtreamRecentItemsBatch(xtreamItems));
         }
 
         for (const [playlistId, identities] of groupedByPlaylist) {
@@ -220,6 +199,64 @@ export class UnifiedRecentDataService {
         }
 
         await Promise.all(tasks);
+    }
+
+    private async removeXtreamRecentItemsBatch(
+        items: readonly UnifiedCollectionItem[]
+    ): Promise<void> {
+        const sources = new Map<string, () => boolean>();
+        const liveSources = new Set<string>();
+        for (const item of items) {
+            if (!sources.has(item.playlistId))
+                sources.set(
+                    item.playlistId,
+                    captureRecentSource(item.playlistId)
+                );
+            if (this.isSqliteLive(item)) liveSources.add(item.playlistId);
+        }
+        const remove = async () => {
+            const rows: { item: UnifiedCollectionItem; contentId: number }[] =
+                [];
+            for (const item of items) {
+                if (!sources.get(item.playlistId)?.()) continue;
+                const contentId = await this.resolveRecentRowId(item);
+                if (contentId != null) rows.push({ item, contentId });
+            }
+            const currentRows = rows.filter(({ item }) =>
+                sources.get(item.playlistId)?.()
+            );
+            if (currentRows.length === 0) return;
+
+            if (this.hasPortalActivityStorage) {
+                const removed = await this.dbService.removeRecentItemsBatch(
+                    currentRows.map(({ item, contentId }) => ({
+                        contentId,
+                        playlistId: item.playlistId,
+                    }))
+                );
+                if (removed && liveSources.size)
+                    window.dispatchEvent(
+                        new Event('iptvnator-history-changed')
+                    );
+            } else {
+                await Promise.all(
+                    currentRows.map(({ item, contentId }) =>
+                        this.xtreamDataSource.removeRecentItem(
+                            {
+                                id: contentId,
+                                type: item.contentType,
+                                providerId: item.xtreamId,
+                            },
+                            item.playlistId
+                        )
+                    )
+                );
+            }
+        };
+
+        return liveSources.size
+            ? this.activity.runWhenIdle([...liveSources], remove)
+            : remove();
     }
 
     async clearRecentItems(
@@ -313,16 +350,10 @@ export class UnifiedRecentDataService {
         }
 
         if (item.sourceType === 'xtream') {
-            const sqliteLive =
-                item.contentType === 'live' &&
-                this.runtime.supportsXtreamSqliteDataSource;
-            const current = captureHistoryOwner(
-                sourceConnection()?.instanceId,
-                item.playlistId,
-                () => sourceConnection()?.instanceId
-            );
+            const sqliteLive = this.isSqliteLive(item);
+            const current = captureRecentSource(item.playlistId);
             const write = () =>
-                this.recordXtreamPlayback(item, viewedAt, sqliteLive, current);
+                this.recordXtreamPlayback(item, viewedAt, current);
             return sqliteLive
                 ? this.activity.runWhenIdle(item.playlistId, write)
                 : write();
@@ -502,7 +533,6 @@ export class UnifiedRecentDataService {
     private async recordXtreamPlayback(
         item: UnifiedCollectionItem,
         viewedAt: string,
-        sqliteLive: boolean,
         current: () => boolean
     ): Promise<UnifiedCollectionItem> {
         if (!current()) return item;
@@ -512,10 +542,7 @@ export class UnifiedRecentDataService {
             categoryId: item.categoryId,
             ...item.xtreamIdentity,
         };
-        const contentId =
-            sqliteLive && item.xtreamId != null
-                ? await this.resolveXtreamContentId(item)
-                : (item.contentId ?? (await this.resolveXtreamContentId(item)));
+        const contentId = await this.resolveRecentRowId(item);
         if (!current()) return item;
 
         if (contentId != null) {
@@ -544,6 +571,21 @@ export class UnifiedRecentDataService {
                     : (contentId ?? item.contentId),
             viewedAt,
         };
+    }
+
+    private isSqliteLive(item: UnifiedCollectionItem): boolean {
+        return (
+            item.contentType === 'live' &&
+            this.runtime.supportsXtreamSqliteDataSource
+        );
+    }
+
+    private async resolveRecentRowId(
+        item: UnifiedCollectionItem
+    ): Promise<number | null> {
+        if (this.isSqliteLive(item) && item.xtreamId != null)
+            return this.resolveXtreamContentId(item);
+        return item.contentId ?? this.resolveXtreamContentId(item);
     }
 
     private async resolveXtreamContentId(

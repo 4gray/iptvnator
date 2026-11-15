@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { signalStore } from '@ngrx/signals';
+import { patchState, signalStore, withState } from '@ngrx/signals';
 import {
     RuntimeCapabilitiesService,
     SourceActivityService,
@@ -12,7 +12,11 @@ import {
 import { XTREAM_DATA_SOURCE } from './data-sources/xtream-data-source.interface';
 import { withRecentItems } from './with-recent-items';
 
-const TestRecentItemsStore = signalStore(withRecentItems());
+const TestRecentItemsStore = signalStore(
+    { protectedState: false },
+    withState<{ playlistId: string | null }>({ playlistId: 'playlist-1' }),
+    withRecentItems()
+);
 
 describe('withRecentItems', () => {
     const originalElectron = window.electron;
@@ -107,8 +111,70 @@ describe('withRecentItems', () => {
         expect(activity.isBusy('synthetic-source')).toBe(false);
     });
 
+    it('saves the old source confirmation without replacing the new source history', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        const oldSource = 'synthetic-source-a';
+        const newSource = 'synthetic-source-b';
+        patchState(store, { playlistId: oldSource });
+        await store.prepareRecentActions();
+        const activity = TestBed.inject(SourceActivityService);
+        const finishReplacement = activity.begin([oldSource]);
+        dataSource.getContentByXtreamId.mockResolvedValue({ id: 502 });
+        dataSource.getRecentItems.mockImplementation(
+            async (playlistId: string) =>
+                playlistId === oldSource
+                    ? [
+                          {
+                              id: 502,
+                              xtream_id: 42,
+                              type: 'live',
+                              title: 'Synthetic live item',
+                          },
+                      ]
+                    : [
+                          {
+                              id: 701,
+                              xtream_id: 99,
+                              type: 'series',
+                              title: 'Synthetic series',
+                          },
+                      ]
+        );
+
+        store.addRecentItem({
+            xtreamId: 42,
+            contentType: 'live',
+            playlist: signal({ id: oldSource }),
+        });
+        try {
+            patchState(store, { playlistId: newSource });
+            store.loadRecentItems({ id: newSource });
+            await new Promise<void>((resolve) => setTimeout(resolve, 0));
+            expect(store.recentItems()).toEqual([
+                expect.objectContaining({
+                    playlist_id: newSource,
+                    xtream_id: 99,
+                }),
+            ]);
+            expect(dataSource.addRecentItem).not.toHaveBeenCalled();
+        } finally {
+            finishReplacement();
+        }
+
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        expect(dataSource.addRecentItem).toHaveBeenCalledWith(
+            { id: 502, type: 'live', providerId: 42 },
+            oldSource,
+            undefined
+        );
+        expect(store.recentItems()).toEqual([
+            expect.objectContaining({ playlist_id: newSource, xtream_id: 99 }),
+        ]);
+    });
+
     it('refreshes the loaded source after history changes and detaches on destroy', async () => {
         dataSource.getRecentItems.mockResolvedValue([]);
+        patchState(store, { playlistId: 'synthetic-source' });
         store.loadRecentItems({ id: 'synthetic-source' });
         await new Promise((resolve) => setTimeout(resolve, 0));
         expect(store.recentItems()).toEqual([]);
@@ -163,6 +229,7 @@ describe('withRecentItems', () => {
                     complete = resolve;
                 });
             });
+            patchState(store, { playlistId: 'synthetic-source' });
             store.loadRecentItems({ id: 'synthetic-source' });
             await started;
             localStorage.setItem(key, 'replacement');
@@ -214,6 +281,7 @@ describe('withRecentItems', () => {
                 viewed_at: '2026-11-06T12:00:00Z',
             },
         ]);
+        patchState(store, { playlistId: 'synthetic-source' });
         store.loadRecentItems({ id: 'synthetic-source' });
         await new Promise((resolve) => setTimeout(resolve, 0));
         expect(store.recentItems()[0]).toMatchObject({

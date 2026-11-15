@@ -28,17 +28,22 @@ export class SourceActivityService {
     }
 
     /** Wait for source work, then keep cleanup from starting during the operation. */
-    async runWhenIdle<T>(id: string, operation: () => Promise<T>): Promise<T> {
-        while (this.isBusy(id)) {
+    async runWhenIdle<T>(
+        sourceIds: string | readonly string[],
+        operation: () => Promise<T>
+    ): Promise<T> {
+        const ids = typeof sourceIds === 'string' ? [sourceIds] : sourceIds;
+        const busy = () => ids.some((id) => this.isBusy(id));
+        while (busy()) {
             await new Promise<void>((resolve) => {
                 const unsubscribe = this.onRelease(() => {
-                    if (this.isBusy(id)) return;
+                    if (busy()) return;
                     unsubscribe();
                     resolve();
                 });
             });
         }
-        const release = this.begin([id]);
+        const release = this.begin(ids);
         try {
             return await operation();
         } finally {

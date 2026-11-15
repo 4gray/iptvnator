@@ -4,6 +4,7 @@ import { DestroyRef, inject, Signal } from '@angular/core';
 import {
     patchState,
     signalStoreFeature,
+    type,
     withMethods,
     withState,
 } from '@ngrx/signals';
@@ -37,6 +38,7 @@ const captureRecentOwner = (playlistId: string) =>
 
 export const withRecentItems = function () {
     return signalStoreFeature(
+        { state: type<{ playlistId: string | null }>() },
         withState<{ recentItems: RecentlyViewedItem[] }>({
             recentItems: [],
         }),
@@ -54,14 +56,16 @@ export const withRecentItems = function () {
                     switchMap(async (playlist) => {
                         const current = captureRecentOwner(playlist.id);
                         refresh = () => {
-                            if (current()) loadRecentItems(playlist);
+                            if (current() && store.playlistId() === playlist.id)
+                                loadRecentItems(playlist);
                         };
                         const { loadXtreamRecent } = await recentOperations();
                         const items = await loadXtreamRecent(
                             dataSource,
                             playlist.id
                         );
-                        if (!current()) return null;
+                        if (!current() || store.playlistId() !== playlist.id)
+                            return null;
                         return items;
                     }),
                     tap((items) => {
@@ -113,7 +117,7 @@ export const withRecentItems = function () {
                                           write
                                       )
                                     : await write();
-                            if (items)
+                            if (items && store.playlistId() === playlistId)
                                 patchState(store, {
                                     recentItems: items,
                                 });
@@ -153,7 +157,8 @@ export const withRecentItems = function () {
                     pipe(
                         switchMap(async (playlist) => {
                             await dataSource.clearRecentItems(playlist.id);
-                            patchState(store, { recentItems: [] });
+                            if (store.playlistId() === playlist.id)
+                                patchState(store, { recentItems: [] });
                         })
                     )
                 ),
@@ -170,7 +175,8 @@ export const withRecentItems = function () {
                                 dataSource,
                                 item
                             );
-                            patchState(store, { recentItems: items });
+                            if (store.playlistId() === item.playlistId)
+                                patchState(store, { recentItems: items });
                         })
                     )
                 ),
