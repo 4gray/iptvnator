@@ -60,12 +60,12 @@ contracts below before changing a subsystem; do not load every document.
   `no-release-note` on exempt PRs touching runtime code.
 - Validate notes with `pnpm run release:notes:validate`. Release publication has
   separate ordered gates; follow the release-cut skill and release contract.
-- Before the first push of a pull-request branch, and before each later push to
-  an open pull request, pass the
-  [local review gate](docs/development/agent-workflow.md#local-review-before-a-pull-request):
-  Codex and Greptile CLI reviews of the committed branch, repeated until both
-  are clean. CI and the GitHub review bots confirm a branch; they are not its
-  first reviewer.
+- Before creating a pull request or pushing its branch, run
+  `pnpm run pr:check "$review_base"` yourself on the candidate commit, using the
+  fetched destination SHA from the
+  [local review gate](docs/development/agent-workflow.md#local-review-before-a-pull-request).
+  Wait for the checks to pass before starting Codex and Greptile. Repeat the
+  checks and reviews after fixes. Push and open the PR only after the gate passes.
 
 ## Performance threads
 
