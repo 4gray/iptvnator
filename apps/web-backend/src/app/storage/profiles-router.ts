@@ -50,6 +50,9 @@ export function createProfilesRouter(storage: ServerStorage): Router {
         const name = requireName(body['name']);
         const colour = optionalColour(body['colour']);
         const pin = optionalPin(body['pin']);
+        const pinHash = pin ? await hashProfilePin(pin) : null;
+        // Checked after hashing, right before the synchronous write, so
+        // overlapping requests cannot both pass them.
         if (profiles.count() >= PROFILE_LIMIT) {
             throw new StorageRequestError(
                 409,
@@ -57,14 +60,7 @@ export function createProfilesRouter(storage: ServerStorage): Router {
                 `A household has at most ${PROFILE_LIMIT} profiles.`
             );
         }
-        if (profiles.nameTaken(name)) {
-            throw new StorageRequestError(
-                409,
-                'profile_name_taken',
-                'Another profile already has this name.'
-            );
-        }
-        const pinHash = pin ? await hashProfilePin(pin) : null;
+        requireFreeName(name);
         res.status(201).json(profiles.create(name, colour, pinHash));
     });
 
@@ -75,20 +71,20 @@ export function createProfilesRouter(storage: ServerStorage): Router {
         const name =
             body['name'] === undefined ? undefined : requireName(body['name']);
         const colour = optionalColour(body['colour']);
-        if (name !== undefined && profiles.nameTaken(name, id)) {
-            throw new StorageRequestError(
-                409,
-                'profile_name_taken',
-                'Another profile already has this name.'
-            );
-        }
         let pinHash: string | null | undefined;
         if (body['pin'] === null) pinHash = null;
         else if (body['pin'] !== undefined) {
             pinHash = await hashProfilePin(optionalPin(body['pin']) as string);
         }
-        failures.delete(id);
-        res.json(profiles.update(id, { name, colour, pinHash }));
+        // Rechecked after hashing: the profile may have been deleted, or the
+        // name taken, while the hash was computed.
+        requireProfile(id);
+        if (name !== undefined) requireFreeName(name, id);
+        const updated = profiles.update(id, { name, colour, pinHash });
+        if (!updated) throw missing();
+        // A new or removed PIN ends a lockout; other edits leave it running.
+        if (pinHash !== undefined) failures.delete(id);
+        res.json(updated);
     });
 
     router.delete('/profiles/:id', (req, res) => {
@@ -127,23 +123,35 @@ export function createProfilesRouter(storage: ServerStorage): Router {
                 'Too many wrong PINs. Try again shortly.'
             );
         }
+        // Every attempt counts before the PIN is checked, so overlapping
+        // guesses cannot all start from the same count. A lockout that has
+        // run out starts the count again.
+        const expired = !!state?.until && state.until <= now;
+        const count = (expired ? 0 : (state?.count ?? 0)) + 1;
+        failures.set(id, {
+            count,
+            until: count >= MAX_PIN_FAILURES ? now + PIN_LOCK_MS : 0,
+        });
         const ok =
             typeof pin === 'string' &&
             PROFILE_PIN.test(pin) &&
             (await verifyProfilePin(pin, stored));
         if (!ok) {
-            const count =
-                (state?.until && state.until <= now ? 0 : (state?.count ?? 0)) +
-                1;
-            failures.set(id, {
-                count,
-                until: count >= MAX_PIN_FAILURES ? now + PIN_LOCK_MS : 0,
-            });
             throw new StorageRequestError(403, 'wrong_pin', 'Wrong PIN.');
         }
         failures.delete(id);
         res.json({ unlocked: true });
     });
+
+    function requireFreeName(name: string, exceptId?: string): void {
+        if (profiles.nameTaken(name, exceptId)) {
+            throw new StorageRequestError(
+                409,
+                'profile_name_taken',
+                'Another profile already has this name.'
+            );
+        }
+    }
 
     function requireProfile(id: string): ServerProfile {
         const profile = profiles.get(id);
