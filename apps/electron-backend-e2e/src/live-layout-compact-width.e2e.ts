@@ -91,7 +91,10 @@ async function resizeWindow(
 }
 
 /** The player's box against the window, once the layout has settled. */
-async function expectUsablePlayer(page: Page): Promise<void> {
+async function expectUsablePlayer(
+    page: Page,
+    { controls = true }: { controls?: boolean } = {}
+): Promise<void> {
     const player = page.locator('app-web-player-view').first();
     await expect(player).toBeVisible({ timeout: 20000 });
     // The rails animate their width (180 ms); poll until the box settles.
@@ -108,6 +111,7 @@ async function expectUsablePlayer(page: Page): Promise<void> {
     expect(box).not.toBeNull();
     expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(WIDTH + 1);
 
+    if (!controls) return;
     // Overflowing controls do not widen the player's own box, so the
     // control bar's buttons are measured one by one against it.
     await player.hover();
@@ -243,7 +247,11 @@ test.describe('Live layout at the minimum window width (UI-67)', () => {
 
             await resizeWindow(app, WIDTH, HEIGHT);
             await expectCategoriesFolded(app.mainWindow);
-            await expectUsablePlayer(app.mainWindow);
+            // The Stalker mock links public HLS streams, which this test blocks
+            // and no local fixture can stand in for; a failed stream hides
+            // the control bar, so the shared controls are measured by the
+            // Xtream and M3U cases instead.
+            await expectUsablePlayer(app.mainWindow, { controls: false });
         } finally {
             await closeElectronApp(app);
         }
@@ -287,9 +295,10 @@ test.describe('Live layout at the minimum window width (UI-67)', () => {
             await importM3uPlaylistFromNativeDialog(app, filePath);
             await waitForM3uCatalog(app.mainWindow);
             // The widest rail the Groups view lets a user save.
-            await app.mainWindow.evaluate(() =>
-                localStorage.setItem('m3u-groups-nav-width', '320')
-            );
+            await app.mainWindow.evaluate(() => {
+                localStorage.setItem('m3u-groups-nav-width', '320');
+                localStorage.setItem('m3u-groups-sidebar-width', '600');
+            });
             await openWorkspaceSection(app.mainWindow, 'Groups');
             await app.mainWindow
                 .locator('app-groups-view .group-nav-item', {
@@ -317,12 +326,24 @@ test.describe('Live layout at the minimum window width (UI-67)', () => {
             await expect(title).toBeVisible();
             expect((await title.boundingBox())?.width ?? 0).toBeGreaterThan(60);
             await expectUsablePlayer(app.mainWindow);
-            // Resizing the window never rewrote the saved rail width.
+
+            // A click on the capped rail's handle is not a resize: neither
+            // the rail's nor the sidebar's saved width changes.
+            const handle = app.mainWindow.locator(
+                'app-groups-view .groups-nav-panel > .resize-handle'
+            );
+            const handleBox = await handle.boundingBox();
+            expect(handleBox).not.toBeNull();
+            await app.mainWindow.mouse.click(
+                (handleBox?.x ?? 0) + (handleBox?.width ?? 0) / 2,
+                (handleBox?.y ?? 0) + (handleBox?.height ?? 0) / 2
+            );
             expect(
-                await app.mainWindow.evaluate(() =>
-                    localStorage.getItem('m3u-groups-nav-width')
-                )
-            ).toBe('320');
+                await app.mainWindow.evaluate(() => [
+                    localStorage.getItem('m3u-groups-nav-width'),
+                    localStorage.getItem('m3u-groups-sidebar-width'),
+                ])
+            ).toEqual(['320', '600']);
         } finally {
             await closeElectronApp(app);
         }

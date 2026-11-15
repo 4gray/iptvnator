@@ -12,6 +12,8 @@ import { ResizableDirective } from './resizable.directive';
             [defaultWidth]="defaultWidth"
             [storageKey]="storageKey"
             [handlePosition]="handlePosition"
+            (resizeEnd)="ended.push($event)"
+            (resizeCancel)="cancelled.push($event)"
         ></aside>
     `,
 })
@@ -21,6 +23,8 @@ class Host {
     defaultWidth = 300;
     storageKey = 'sidebar-width';
     handlePosition: 'right' | 'left' = 'right';
+    ended: number[] = [];
+    cancelled: number[] = [];
 }
 
 /** A content-box element's border box: its width plus padding and border. */
@@ -37,6 +41,10 @@ function borderBoxWidth(el: HTMLElement): number {
 
 describe('ResizableDirective', () => {
     const fixtures: ComponentFixture<Host>[] = [];
+
+    function lastHost(): Host {
+        return fixtures[fixtures.length - 1].componentInstance;
+    }
 
     function render(host: Partial<Host> = {}): HTMLElement {
         const fixture = TestBed.createComponent(Host);
@@ -212,6 +220,8 @@ describe('ResizableDirective', () => {
 
         expect(localStorage.getItem('sidebar-width')).toBe('400');
         expect(aside.style.width).toBe('400px');
+        expect(lastHost().cancelled).toEqual([400]);
+        expect(lastHost().ended).toEqual([]);
     });
 
     it('saves no more than a CSS cap shows after a drag that moved the edge', () => {
@@ -223,6 +233,8 @@ describe('ResizableDirective', () => {
 
         expect(aside.style.width).toBe('324px');
         expect(localStorage.getItem('sidebar-width')).toBe('324');
+        expect(lastHost().ended).toEqual([324]);
+        expect(lastHost().cancelled).toEqual([]);
     });
 
     it('saves an inward drag below a CSS cap', () => {

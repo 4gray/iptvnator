@@ -70,8 +70,15 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
     /** Emits when resize starts */
     readonly resizeStart = output<void>();
 
-    /** Emits when resize ends */
+    /** Emits when a resize that moved the edge ends, with the kept width */
     readonly resizeEnd = output<number>();
+
+    /**
+     * Emits instead of `resizeEnd` when the edge did not move: a click on
+     * the handle, or a drag a CSS cap stopped. Carries the saved width,
+     * which stands, so a host that mirrored `widthChange` can restore it.
+     */
+    readonly resizeCancel = output<number>();
 
     private handleElement: HTMLElement | null = null;
     private isResizing = signal(false);
@@ -328,14 +335,15 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
             if (this.currentWidth() !== this.widthBeforeResize) {
                 this.setWidth(this.widthBeforeResize);
             }
-        } else {
-            // Never save more than the CSS cap let the user see.
-            if (rendered < this.currentWidth()) {
-                this.setWidth(rendered);
-            }
-            if (this.currentWidth() !== this.widthBeforeResize) {
-                this.persistWidth();
-            }
+            this.resizeCancel.emit(this.widthBeforeResize);
+            return;
+        }
+        // Never save more than the CSS cap let the user see.
+        if (rendered < this.currentWidth()) {
+            this.setWidth(rendered);
+        }
+        if (this.currentWidth() !== this.widthBeforeResize) {
+            this.persistWidth();
         }
         this.resizeEnd.emit(this.currentWidth());
     }

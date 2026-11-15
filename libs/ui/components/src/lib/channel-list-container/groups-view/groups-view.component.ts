@@ -243,6 +243,8 @@ export class GroupsViewComponent {
 
     private previousActiveChannelUrl: string | undefined;
     private preservedContentWidth = 0;
+    /** The outer sidebar's width when a rail resize started. */
+    private sidebarWidthAtResizeStart: number | null = null;
 
     constructor() {
         effect(() => {
@@ -581,6 +583,7 @@ export class GroupsViewComponent {
     onGroupsNavResizeStart(): void {
         if (this.compact()) return;
         this.preservedContentWidth = this.measureContentPanelWidth();
+        this.sidebarWidthAtResizeStart = this.sidebarWidth();
     }
 
     onGroupsNavWidthChange(width: number): void {
@@ -593,6 +596,21 @@ export class GroupsViewComponent {
         if (this.compact()) return;
         this.emitSidebarWidthRequest(width, this.sidebarWidthRequestEnded);
         this.preservedContentWidth = 0;
+    }
+
+    /**
+     * The rail's edge did not move (a click, or a drag the sidebar's
+     * responsive cap stopped): nothing is committed, and the live width the
+     * drag requested goes back to where it started.
+     */
+    onGroupsNavResizeCancel(): void {
+        if (this.compact()) return;
+        const width = this.sidebarWidthAtResizeStart;
+        if (width !== null && width > 0) {
+            this.sidebarWidthRequested.emit(width);
+        }
+        this.preservedContentWidth = 0;
+        this.sidebarWidthAtResizeStart = null;
     }
 
     trackByChannel(_: number, channel: Channel): string {

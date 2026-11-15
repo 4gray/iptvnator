@@ -803,6 +803,23 @@ describe('GroupsViewComponent', () => {
         expect(committed).toHaveBeenCalledWith(512);
     });
 
+    it('restores the live sidebar width and commits nothing when the rail edge did not move (UI-67)', () => {
+        const requested = jest.fn();
+        const committed = jest.fn();
+        component.sidebarWidthRequested.subscribe(requested);
+        component.sidebarWidthRequestEnded.subscribe(committed);
+        fixture.componentRef.setInput('sidebarWidth', 600);
+        fixture.detectChanges();
+
+        component.onGroupsNavResizeStart();
+        component.onGroupsNavWidthChange(340);
+        requested.mockClear();
+        component.onGroupsNavResizeCancel();
+
+        expect(requested).toHaveBeenCalledWith(600);
+        expect(committed).not.toHaveBeenCalled();
+    });
+
     it('keeps the layout visible for searches without matches', () => {
         setInputs({ searchTerm: 'zzz' });
 
@@ -885,9 +902,7 @@ describe('GroupsViewComponent', () => {
         it('reveals the group again after the selection clears and returns (search with no matches, then cleared)', async () => {
             fixture.detectChanges();
             await fixture.whenStable();
-            const { container, rows } = mockRailGeometry([
-                150, 250, 350, 2200,
-            ]);
+            const { container, rows } = mockRailGeometry([150, 250, 350, 2200]);
             const key = rows[3].dataset['groupKey'] as string;
             scrollToMock().mockClear();
 

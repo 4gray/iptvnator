@@ -857,7 +857,9 @@ remain local when the meaning is explicit.
   default width narrows with the window; the M3U Groups rail inside it caps
   itself at `min(320px, 100% - 160px)` so the channel pane keeps 160px, and
   `ResizableDirective` neither saves a drag the CSS cap stopped nor more
-  than the cap shows. Both values are local until the
+  than the cap shows: an edge that did not move emits `resizeCancel` (with
+  the saved width, for hosts that mirrored `widthChange`) instead of
+  `resizeEnd`. Both values are local until the
   breakpoint map (UI-36) absorbs them; `live-layout-compact-width.e2e.ts`
   pins the player share at 900×700 for Xtream, Stalker and M3U.
 - Xtream Live TV's root view (`/live` with no selected category) follows the
