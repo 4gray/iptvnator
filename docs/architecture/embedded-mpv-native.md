@@ -535,10 +535,10 @@ portal when available, otherwise on Global Favorites. Recently Viewed is also
 available in the selector. Both collections span sources. The picker starts on
 Live TV, and each query is scoped to the selected source or collection and the
 active type: Live TV, Movies or Series. A live group narrows the channel search.
-Channel rows reuse the
-sidebar's programme title, time range and progress. XMLTV previews are batched
-by guide scope, and Xtream and Stalker use the collection EPG resolver. The picker
-requests previews only near the visible list and honors the global EPG preference.
+Channel rows reuse the sidebar's programme title, time range and progress.
+XMLTV previews are batched by guide scope. Xtream and Stalker use the collection
+EPG resolver. The picker requests previews only near the visible list and honors
+the global EPG preference.
 It reads M3U, Xtream live and Stalker ITV catalogs independently of the active
 provider selection and uses the shared stream resolver, preserving playback
 metadata and parental locks. Xtream and Stalker also expose movies and a
@@ -561,8 +561,8 @@ playback advances. Open channels, movies and episodes are marked with their
 window number and cannot be chosen again. The picker compares playlist and
 content IDs before resolving playback and checks again when accepting the
 selection. A series remains available so viewers can choose another episode.
-Each open video requires its own provider connection. Live pause uses MPV
-pause.
+Catch-up playback leaves that channel's live feed available in the picker.
+Each open video requires its own provider connection. Live pause uses MPV pause.
 
 The primary stays in window 1. Companion windows have stable numbers 2–4
 that determine their positions in the grid. Closing a companion leaves its
