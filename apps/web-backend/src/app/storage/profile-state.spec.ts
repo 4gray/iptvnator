@@ -10,6 +10,7 @@ import type { PersonalScope } from '@iptvnator/shared/interfaces';
 import { openServerStorage, type ServerStorage } from './server-storage';
 
 const source = { sourceId: 'source-1', sourceIncarnation: 'incarnation-1' };
+const favoriteSource = { ...source, provider: 'xtream' as const };
 
 function favorite(instanceId: string, scope: PersonalScope): FavoriteAddress {
     return {
@@ -111,11 +112,11 @@ describe('profile state', () => {
                     store.apply(favorite(instance, kid.scope), op('b')).status
                 ).toBe('applied');
 
-                const shared = store.list(instance, source).entries;
+                const shared = store.list(instance, favoriteSource).entries;
                 expect(shared.map((e) => e.address.scope)).toEqual(['shared']);
                 const kids = store.list(
                     instance,
-                    source,
+                    favoriteSource,
                     '',
                     kid.scope
                 ).entries;
@@ -162,7 +163,9 @@ describe('profile state', () => {
 
                 for (const table of tables)
                     expect(rows(storage, table)).toBe(1);
-                expect(store.list(instance, source).entries).toHaveLength(1);
+                expect(
+                    store.list(instance, favoriteSource).entries
+                ).toHaveLength(1);
                 expect(storage.profiles.hasScope(kid.scope)).toBe(false);
                 expect(storage.profiles.list().map((p) => p.id)).toEqual([
                     'default',
@@ -202,7 +205,9 @@ describe('profile state', () => {
                 expect(store.read(favorite(instance, 'shared')).member).toBe(
                     true
                 );
-                expect(store.list(instance, source).entries).toHaveLength(1);
+                expect(
+                    store.list(instance, favoriteSource).entries
+                ).toHaveLength(1);
             } finally {
                 after.database.close();
             }
