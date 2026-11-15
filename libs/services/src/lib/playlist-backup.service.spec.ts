@@ -183,6 +183,7 @@ describe('PlaylistBackupService', () => {
                 epgUrls: [
                     'https://backup.example.com/epg.xml',
                     'https://existing.example.com/epg.xml',
+                    'https://existing.example.com/epg.xml/',
                     '/example/guide.xml',
                 ],
             },
@@ -221,6 +222,7 @@ describe('PlaylistBackupService', () => {
             epgUrl: [
                 'https://backup.example.com/epg.xml',
                 'https://existing.example.com/epg.xml',
+                'https://existing.example.com/epg.xml/',
                 '/example/guide.xml',
                 '/example/Guide.xml',
             ],

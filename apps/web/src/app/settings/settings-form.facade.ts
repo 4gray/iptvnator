@@ -47,7 +47,7 @@ import {
     epgUrlsAddedOutside,
     pickChangedSettings,
     readSettingsPath,
-    SettingsFormValue,
+    SettingsFormSubmission,
     rebaseSettingsForm,
 } from './settings-form-rebase';
 
@@ -304,6 +304,7 @@ export class SettingsFormFacade {
         const saveRevision = ++this.saveRevision;
         this.saveNeedsConfirmation = true;
         const submittedSnapshot = this.form.getRawValue();
+        const savedEpgUrls = this.savedSnapshot.epgUrl;
         // An unsettled save may have stored another key already; a key typed
         // back to the saved one must then be written to override it.
         const keyUnsettled = this.unsettledSavePaths.has('tmdb.apiKey');
@@ -370,7 +371,11 @@ export class SettingsFormFacade {
             }
         }
         if (cleanupError) throw cleanupError;
-        this.rebaseOnStore({ paths: savedPaths, snapshot: submittedSnapshot });
+        this.rebaseOnStore({
+            paths: savedPaths,
+            snapshot: submittedSnapshot,
+            savedEpgUrls,
+        });
         this.saveNeedsConfirmation = false;
         this.unsettledSavePaths.clear();
         this.unsettledEpgUrls.clear();
@@ -461,10 +466,7 @@ export class SettingsFormFacade {
     }
 
     /** Adopts stored values while retaining any edits still in the form. */
-    private rebaseOnStore(submitted?: {
-        paths: readonly string[];
-        snapshot: SettingsFormValue;
-    }): void {
+    private rebaseOnStore(submitted?: SettingsFormSubmission): void {
         const current = this.form.getRawValue();
         const { next, staged, addedEpgUrls } = rebaseSettingsForm(
             current,

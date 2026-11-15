@@ -236,8 +236,9 @@ or updated; the next settings write persists that canonical code.
 - Exported: `settings.epgUrls`
 - Excluded: cached EPG database content
 
-Backup restore matches remote EPG URLs by their URL identity. Local XMLTV
-references keep their exact trimmed spelling, including path case.
+Backup restore matches remote EPG URLs by their URL identity, preserving
+distinct request paths. Local XMLTV references keep their exact trimmed
+spelling, including path case.
 
 An open settings form takes in restored EPG sources alongside the staged
 edits (`SettingsFormFacade.syncWithStore()`). When the restore saves the

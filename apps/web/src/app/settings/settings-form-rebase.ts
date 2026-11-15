@@ -10,6 +10,12 @@ import { normalizeSavedAppearance } from './settings-theme-preview';
 
 export type SettingsFormValue = ReturnType<SettingsForm['getRawValue']>;
 
+export interface SettingsFormSubmission {
+    paths: readonly string[];
+    snapshot: SettingsFormValue;
+    savedEpgUrls: SettingsFormValue['epgUrl'];
+}
+
 type Values = Record<string, unknown>;
 
 /**
@@ -94,7 +100,7 @@ export function rebaseSettingsForm(
     stored: Settings,
     unsettledPaths: ReadonlySet<string>,
     ownEpgUrls: unknown[],
-    submitted?: { paths: readonly string[]; snapshot: SettingsFormValue }
+    submitted?: SettingsFormSubmission
 ): {
     next: SettingsFormValue;
     staged: ReadonlySet<string>;
@@ -107,7 +113,15 @@ export function rebaseSettingsForm(
             diffSettingsValues(current, submitted.snapshot)
         );
         for (const path of submitted.paths) {
-            if (laterEdits.has(path)) staged.add(path);
+            // A backup may have added sources to the form and its baseline
+            // during Save. Removing one can return the draft to its submitted
+            // value, while it still differs from the rebased baseline.
+            const epgChangedAfterRestore =
+                path === 'epgUrl' &&
+                saved.epgUrl !== submitted.savedEpgUrls &&
+                staged.has(path);
+            if (laterEdits.has(path) || epgChangedAfterRestore)
+                staged.add(path);
             else staged.delete(path);
         }
     } else {

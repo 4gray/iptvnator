@@ -123,8 +123,8 @@ describe('settings path helpers', () => {
                 ['https://example.test/staged.xml'],
                 ['https://example.test/saved.xml'],
                 [
-                    'https://EXAMPLE.test/saved.xml/',
-                    'https://EXAMPLE.test/staged.xml/',
+                    'https://EXAMPLE.test/saved.xml',
+                    'https://EXAMPLE.test/staged.xml',
                     'https://example.test/restored.xml',
                 ]
             )

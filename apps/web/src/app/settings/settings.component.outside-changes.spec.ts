@@ -490,6 +490,51 @@ describe('SettingsComponent with settings changed outside the form', () => {
         expect(component.settingsForm.pristine).toBe(true);
     });
 
+    it('keeps a removal of a source restored while Save is pending', async () => {
+        let finishUpdate!: () => void;
+        const pending = new Promise<void>((resolve) => {
+            finishUpdate = resolve;
+        });
+        jest.spyOn(window.electron, 'updateSettings').mockReturnValueOnce(
+            pending
+        );
+        component.form.setEpgUrls(STAGED_GUIDE);
+        component.settingsForm.markAsDirty();
+        const saving = component.form.save(() =>
+            component.form.applySavedSettings()
+        );
+        await Promise.resolve();
+
+        importBackupAddingGuide(RESTORED_GUIDE);
+        component.form.removeEpgSource(2);
+        finishUpdate();
+        await saving;
+
+        expect(component.form.epgUrls).toEqual([SAVED_GUIDE, STAGED_GUIDE]);
+        expect(component.form.changedPaths()).toEqual(['epgUrl']);
+        expect(component.settingsForm.dirty).toBe(true);
+        await component.form.save(() => component.form.applySavedSettings());
+        expect(settingsStore.getSettings().epgUrl).toEqual([
+            SAVED_GUIDE,
+            STAGED_GUIDE,
+        ]);
+    });
+
+    it('keeps staged and restored EPG request paths that differ by a slash', async () => {
+        const restored = `${STAGED_GUIDE}/`;
+        component.form.setEpgUrls(STAGED_GUIDE);
+        component.settingsForm.markAsDirty();
+
+        importBackupAddingGuide(restored);
+        await component.form.save(() => component.form.applySavedSettings());
+
+        expect(settingsStore.getSettings().epgUrl).toEqual([
+            SAVED_GUIDE,
+            STAGED_GUIDE,
+            restored,
+        ]);
+    });
+
     it('keeps restored local guides distinct when only their path case differs', async () => {
         const staged = '/example/Guide.xml';
         const restored = '/example/guide.xml';
