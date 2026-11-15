@@ -97,6 +97,7 @@ public class MainActivity extends ComponentActivity {
     private final PairingAttempts connectionAttempts = new PairingAttempts();
     private AlertDialog connectionDialog;
     private FrameLayout root;
+    private Button touchSettings;
     private TouchWindowInsets touchWindowInsets;
     private boolean tvDevice;
     private View splash;
@@ -162,6 +163,8 @@ public class MainActivity extends ComponentActivity {
         root = findViewById(R.id.root);
         tvDevice = Prefs.isTvDevice(this);
         touchWindowInsets = new TouchWindowInsets(this, root);
+        touchSettings = findViewById(R.id.touch_settings);
+        touchSettings.setOnClickListener(view -> openSettings());
         splash = findViewById(R.id.splash);
         errorPanel = findViewById(R.id.error_panel);
         errorText = findViewById(R.id.error_text);
@@ -1187,6 +1190,18 @@ public class MainActivity extends ComponentActivity {
         boolean touch = loadedLayoutWidth == ShellSite.DEVICE_VIEWPORT;
         boolean handheldControls = touch || !tvDevice;
         boolean immersive = !handheldControls || customView != null;
+        boolean showSettings = handheldControls && pageReady && !immersive
+            && errorPanel.getVisibility() != View.VISIBLE;
+        touchSettings.setVisibility(showSettings ? View.VISIBLE : View.GONE);
+        if (webView != null) {
+            webView.getSettings().setLoadWithOverviewMode(!touch);
+            FrameLayout.LayoutParams layout = (FrameLayout.LayoutParams) webView.getLayoutParams();
+            int barHeight = showSettings ? touchSettings.getLayoutParams().height : 0;
+            if (layout.bottomMargin != barHeight) {
+                layout.bottomMargin = barHeight;
+                webView.setLayoutParams(layout);
+            }
+        }
         View decor = getWindow().getDecorView();
         touchWindowInsets.setActive(handheldControls);
         if (!immersive) {

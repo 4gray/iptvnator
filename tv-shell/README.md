@@ -184,7 +184,9 @@ from the configured `--www` directory, with symbolic links confined to that dire
   or **Android device → Open settings** for diagnostics, data reset
   and layout options on wider screens. The Android launcher also offers a
   **Device settings** shortcut when you hold the app icon, including for older
-  hosted libraries. On a TV remote, hold Menu or Back to open the TV settings.
+  hosted libraries. The native **Settings** button at the bottom of the player
+  also opens Android settings on handheld layouts. On a TV remote, hold Menu
+  or Back to open the TV settings.
 - During playback on a phone or tablet, use **Open in another player** from the
   player controls to hand the current stream to an installed Android player.
 - Data (playlists, favourites, positions) is stored by the PWA in the WebView
