@@ -246,7 +246,9 @@
     white-space: nowrap;
     font-size: 0.78rem;
     line-height: 1.2;
-    opacity: 0.52;
+    // A muted colour, not opacity: dimming the row text dropped it under
+    // 4.5:1 on the light list.
+    color: var(--app-muted-color);
 }
 
 .action-buttons {
