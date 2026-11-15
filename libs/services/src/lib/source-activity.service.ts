@@ -27,6 +27,25 @@ export class SourceActivityService {
         };
     }
 
+    /** Wait for source work, then keep cleanup from starting during the operation. */
+    async runWhenIdle<T>(id: string, operation: () => Promise<T>): Promise<T> {
+        while (this.isBusy(id)) {
+            await new Promise<void>((resolve) => {
+                const unsubscribe = this.onRelease(() => {
+                    if (this.isBusy(id)) return;
+                    unsubscribe();
+                    resolve();
+                });
+            });
+        }
+        const release = this.begin([id]);
+        try {
+            return await operation();
+        } finally {
+            release();
+        }
+    }
+
     private adjust(ids: readonly string[], delta: number): void {
         this.counts.update((value) => {
             const next = new Map(value);

@@ -1,5 +1,9 @@
 import { stalkerFavoriteReference } from '@iptvnator/shared/interfaces/favorites-sync';
-import { HISTORY_PLAYLIST_BRIDGE } from '@iptvnator/services/history-events';
+import {
+    captureHistoryOwner,
+    HISTORY_PLAYLIST_BRIDGE,
+} from '@iptvnator/services/history-events';
+import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import { inject, Injectable } from '@angular/core';
 import {
     buildStalkerRecentlyViewedPayload,
@@ -14,6 +18,7 @@ import {
     DatabaseService,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    SourceActivityService,
 } from '@iptvnator/services';
 import {
     Channel,
@@ -56,6 +61,7 @@ export class UnifiedRecentDataService {
     private readonly dbService = inject(DatabaseService);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly activity = inject(SourceActivityService);
     private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
 
     async getRecentItems(
@@ -307,47 +313,19 @@ export class UnifiedRecentDataService {
         }
 
         if (item.sourceType === 'xtream') {
-            const playedContent = {
-                title: item.name,
-                posterUrl: item.logo ?? item.posterUrl ?? undefined,
-                categoryId: item.categoryId,
-                ...item.xtreamIdentity,
-            };
-            const contentId =
-                item.contentId ??
-                (item.xtreamId != null
-                    ? await this.resolveXtreamContentId(item)
-                    : null);
-
-            if (contentId != null) {
-                if (this.hasPortalActivityStorage) {
-                    await this.dbService.addRecentItem(
-                        contentId,
-                        item.playlistId
-                    );
-                } else {
-                    await this.xtreamDataSource.addRecentItem(
-                        {
-                            id: contentId,
-                            type: item.contentType,
-                            providerId: item.xtreamId,
-                        },
-                        item.playlistId,
-                        undefined,
-                        playedContent
-                    );
-                }
-            }
-
-            return {
-                ...item,
-                contentId:
-                    this.runtime.supportsXtreamSqliteDataSource &&
-                    !this.hasPortalActivityStorage
-                        ? item.contentId
-                        : (contentId ?? item.contentId),
-                viewedAt,
-            };
+            const sqliteLive =
+                item.contentType === 'live' &&
+                this.runtime.supportsXtreamSqliteDataSource;
+            const current = captureHistoryOwner(
+                sourceConnection()?.instanceId,
+                item.playlistId,
+                () => sourceConnection()?.instanceId
+            );
+            const write = () =>
+                this.recordXtreamPlayback(item, viewedAt, sqliteLive, current);
+            return sqliteLive
+                ? this.activity.runWhenIdle(item.playlistId, write)
+                : write();
         }
 
         const stalkerItem =
@@ -519,6 +497,53 @@ export class UnifiedRecentDataService {
         } catch {
             return [];
         }
+    }
+
+    private async recordXtreamPlayback(
+        item: UnifiedCollectionItem,
+        viewedAt: string,
+        sqliteLive: boolean,
+        current: () => boolean
+    ): Promise<UnifiedCollectionItem> {
+        if (!current()) return item;
+        const playedContent = {
+            title: item.name,
+            posterUrl: item.logo ?? item.posterUrl ?? undefined,
+            categoryId: item.categoryId,
+            ...item.xtreamIdentity,
+        };
+        const contentId =
+            sqliteLive && item.xtreamId != null
+                ? await this.resolveXtreamContentId(item)
+                : (item.contentId ?? (await this.resolveXtreamContentId(item)));
+        if (!current()) return item;
+
+        if (contentId != null) {
+            if (this.hasPortalActivityStorage) {
+                await this.dbService.addRecentItem(contentId, item.playlistId);
+            } else {
+                await this.xtreamDataSource.addRecentItem(
+                    {
+                        id: contentId,
+                        type: item.contentType,
+                        providerId: item.xtreamId,
+                    },
+                    item.playlistId,
+                    undefined,
+                    playedContent
+                );
+            }
+        }
+
+        return {
+            ...item,
+            contentId:
+                this.runtime.supportsXtreamSqliteDataSource &&
+                !this.hasPortalActivityStorage
+                    ? item.contentId
+                    : (contentId ?? item.contentId),
+            viewedAt,
+        };
     }
 
     private async resolveXtreamContentId(

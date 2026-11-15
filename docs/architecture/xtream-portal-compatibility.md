@@ -393,7 +393,11 @@ Before replacing live rows, the selected-catalog service waits for source
 activity to finish and rechecks the saved connection, preference and catalog
 selection. A successful refresh
 publishes the saved timestamp so an open Xtream view can reread live rows and
-refresh its search without resetting playback. Open Favorites and Recently Viewed reload their rows after the commit.
+refresh its search without resetting playback. Open Favorites and Recently
+Viewed reload their rows after the commit. SQLite live favorite toggles and
+playback history writes wait for in-flight source work and hold the source
+from channel lookup through the write, so replacing the catalog cannot drop
+a click or playback confirmation.
 The selected live channel is rebound by provider identity to its new SQLite row.
 Retained categories keep their SQLite IDs so playback queues, the guide and
 category history links still point to the same categories. During the launch

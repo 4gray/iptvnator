@@ -1,7 +1,10 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { signalStore } from '@ngrx/signals';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    SourceActivityService,
+} from '@iptvnator/services';
 import {
     CONNECTION_KEY,
     prepareSourceConnection,
@@ -72,6 +75,36 @@ describe('withRecentItems', () => {
             writable: true,
             value: originalElectron,
         });
+    });
+
+    it('records confirmed live playback after its catalog rows are reinserted', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        await store.prepareRecentActions();
+        const activity = TestBed.inject(SourceActivityService);
+        const finishReplacement = activity.begin(['synthetic-source']);
+        dataSource.getContentByXtreamId.mockResolvedValue(null);
+        dataSource.getRecentItems.mockResolvedValue([]);
+
+        store.addRecentItem({
+            xtreamId: 42,
+            contentType: 'live',
+            playlist: signal({ id: 'synthetic-source' }),
+        });
+        try {
+            await new Promise<void>((resolve) => setTimeout(resolve, 0));
+            expect(dataSource.getContentByXtreamId).not.toHaveBeenCalled();
+            dataSource.getContentByXtreamId.mockResolvedValue({ id: 502 });
+        } finally {
+            finishReplacement();
+        }
+
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        expect(dataSource.addRecentItem).toHaveBeenCalledWith(
+            { id: 502, type: 'live', providerId: 42 },
+            'synthetic-source',
+            undefined
+        );
+        expect(activity.isBusy('synthetic-source')).toBe(false);
     });
 
     it('refreshes the loaded source after history changes and detaches on destroy', async () => {

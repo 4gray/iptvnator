@@ -23,7 +23,7 @@ export async function recordXtreamRecent(
 ) {
     const { playlistId, contentType, backdropUrl, playedContent } = item;
     const xtreamId = Number(item.xtreamId);
-    if (!Number.isFinite(xtreamId) || xtreamId <= 0) return;
+    if (!current() || !Number.isFinite(xtreamId) || xtreamId <= 0) return;
     const identity = playedContent
         ? normalizeContentMetadataPatch({
               tmdbId: playedContent.tmdbId ?? undefined,

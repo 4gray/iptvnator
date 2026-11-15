@@ -3,7 +3,10 @@ import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import { normalizeContentMetadataPatch } from '@iptvnator/shared/interfaces';
 import { inject, Injector, signal } from '@angular/core';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    SourceActivityService,
+} from '@iptvnator/services';
 import {
     type IXtreamDataSource,
     type XtreamPlayedContent,
@@ -43,6 +46,7 @@ export function injectXtreamRecentHistory(): (
     const gate = inject(PlaybackHistoryGate);
     const store = inject(XtreamStore);
     const injector = inject(Injector);
+    const activity = inject(SourceActivityService);
 
     return (streamUrl, request, sessionKey, launchId) => {
         const playlist = signal(store.currentPlaylist()).asReadonly();
@@ -64,15 +68,26 @@ export function injectXtreamRecentHistory(): (
                 if (store.currentPlaylist()?.id === playlistId) {
                     store.addRecentItem({ ...captured, playlist });
                 } else if (playlistId) {
-                    void saveWithoutListRefresh(
-                        injector.get(XTREAM_DATA_SOURCE),
-                        // The data source factory picks SQLite by this contract,
-                        // not by a generic Electron bridge.
-                        !injector.get(RuntimeCapabilitiesService)
-                            .supportsXtreamSqliteDataSource,
+                    const current = captureHistoryOwner(
+                        sourceConnection()?.instanceId,
                         playlistId,
-                        captured
+                        () => sourceConnection()?.instanceId
                     );
+                    const dataSource = injector.get(XTREAM_DATA_SOURCE);
+                    const sqlite = injector.get(
+                        RuntimeCapabilitiesService
+                    ).supportsXtreamSqliteDataSource;
+                    const write = () =>
+                        saveWithoutListRefresh(
+                            dataSource,
+                            !sqlite,
+                            playlistId,
+                            captured,
+                            current
+                        );
+                    void (sqlite && captured.contentType === 'live'
+                        ? activity.runWhenIdle(playlistId, write)
+                        : write());
                 }
             }
         );
@@ -95,10 +110,11 @@ async function saveWithoutListRefresh(
         contentType,
         backdropUrl,
         playedContent,
-    }: XtreamRecentItemRequest
+    }: XtreamRecentItemRequest,
+    current: () => boolean
 ): Promise<void> {
     const id = Number(xtreamId);
-    if (!Number.isFinite(id) || id <= 0) {
+    if (!current() || !Number.isFinite(id) || id <= 0) {
         return;
     }
     const identity = playedContent
@@ -107,11 +123,6 @@ async function saveWithoutListRefresh(
               releaseYear: playedContent.releaseYear ?? undefined,
           })
         : null;
-    const current = captureHistoryOwner(
-        sourceConnection()?.instanceId,
-        playlistId,
-        () => sourceConnection()?.instanceId
-    );
     const content = await dataSource.getContentByXtreamId(
         id,
         playlistId,

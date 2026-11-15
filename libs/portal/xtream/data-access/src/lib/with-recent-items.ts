@@ -9,7 +9,10 @@ import {
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { pipe, switchMap, tap } from 'rxjs';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    SourceActivityService,
+} from '@iptvnator/services';
 import {
     ContentMetadataPatch,
     PortalRecentItem,
@@ -77,7 +80,8 @@ export const withRecentItems = function () {
             (
                 store,
                 dataSource = inject(XTREAM_DATA_SOURCE),
-                runtime = inject(RuntimeCapabilitiesService)
+                runtime = inject(RuntimeCapabilitiesService),
+                activity = inject(SourceActivityService)
             ) => ({
                 addRecentItem: rxMethod<{
                     xtreamId: number | string;
@@ -93,13 +97,22 @@ export const withRecentItems = function () {
                             const current = captureRecentOwner(playlistId);
                             const { recordXtreamRecent } =
                                 await recentOperations();
-                            if (!current()) return;
-                            const items = await recordXtreamRecent(
-                                dataSource,
-                                runtime.supportsXtreamSqliteDataSource,
-                                { ...item, playlistId },
-                                current
-                            );
+                            const sqlite =
+                                runtime.supportsXtreamSqliteDataSource;
+                            const write = () =>
+                                recordXtreamRecent(
+                                    dataSource,
+                                    sqlite,
+                                    { ...item, playlistId },
+                                    current
+                                );
+                            const items =
+                                sqlite && item.contentType === 'live'
+                                    ? await activity.runWhenIdle(
+                                          playlistId,
+                                          write
+                                      )
+                                    : await write();
                             if (items)
                                 patchState(store, {
                                     recentItems: items,

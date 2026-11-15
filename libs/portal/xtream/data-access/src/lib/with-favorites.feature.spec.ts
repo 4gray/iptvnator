@@ -1,6 +1,7 @@
 import { TmdbMatchService } from '@iptvnator/services/tmdb-match';
 import {
     RuntimeCapabilitiesService,
+    SourceActivityService,
     type TmdbEnrichmentService,
 } from '@iptvnator/services';
 import {
@@ -563,6 +564,33 @@ describe('withFavorites', () => {
 
         expect(dataSource.getContentByXtreamId).not.toHaveBeenCalled();
         expect(dataSource.addFavorite).not.toHaveBeenCalled();
+    });
+
+    it('saves a live favorite against the new row after catalog replacement', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        const activity = TestBed.inject(SourceActivityService);
+        const finishReplacement = activity.begin(['synthetic-source']);
+        dataSource.getContentByXtreamId.mockResolvedValue(null);
+        dataSource.addFavorite.mockImplementation(async () => {
+            expect(activity.isBusy('synthetic-source')).toBe(true);
+        });
+
+        const toggle = store.toggleFavorite(42, 'synthetic-source', 'live');
+        try {
+            await Promise.resolve();
+            expect(dataSource.getContentByXtreamId).not.toHaveBeenCalled();
+            dataSource.getContentByXtreamId.mockResolvedValue({ id: 502 });
+        } finally {
+            finishReplacement();
+        }
+
+        await expect(toggle).resolves.toBe(true);
+        expect(dataSource.addFavorite).toHaveBeenCalledWith(
+            { id: 502, type: 'live', providerId: 42 },
+            'synthetic-source',
+            undefined
+        );
+        expect(activity.isBusy('synthetic-source')).toBe(false);
     });
 
     it('does not toggle Electron favorites when the cached content is missing', async () => {
