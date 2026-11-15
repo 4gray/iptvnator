@@ -17,11 +17,16 @@ export function provideAndroidPlaybackCheckpoint() {
 
         // Register before the Android shell reports that the page is ready.
         const injector = inject(EnvironmentInjector);
-        return import('./android-playback-checkpoint').then(
-            ({ installAndroidPlaybackCheckpoint }) =>
-                runInInjectionContext(injector, () =>
-                    installAndroidPlaybackCheckpoint(window, shell)
-                )
-        );
+        return import('./android-playback-checkpoint')
+            .catch(() => undefined)
+            .then((checkpoint) => {
+                if (checkpoint)
+                    runInInjectionContext(injector, () =>
+                        checkpoint.installAndroidPlaybackCheckpoint(
+                            window,
+                            shell
+                        )
+                    );
+            });
     });
 }

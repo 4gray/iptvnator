@@ -26,12 +26,9 @@ import type {
     SourceServerResponse,
 } from '@iptvnator/shared/interfaces';
 import {
-    activityAddressKey,
     applyActivityOperation,
     emptyActivityState,
-    type ActivityState,
     type ActivityAddress,
-    type ActivityApplyResult,
     type ActivityContentIdentity,
     type ActivityLocalStore,
     type ActivityOperation,
@@ -205,9 +202,13 @@ export class ActivitySyncClient {
         sourceId: string,
         position: PlaybackPositionData
     ): Promise<'local-only' | void> {
-        return this.mutations.track(
-            saveActivity.call(this, sourceId, position)
+        const write = this.actions.savePosition(
+            sourceId,
+            position,
+            (playedAt, current) =>
+                saveActivity.call(this, sourceId, position, playedAt, current)
         );
+        return this.mutations.track(write);
     }
 
     async reset(

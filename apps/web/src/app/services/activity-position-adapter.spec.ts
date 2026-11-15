@@ -1,6 +1,9 @@
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import type { IXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
-import type { ActivitySyncClient } from '@iptvnator/services/activity-sync';
+import {
+    ActivitySupersededError,
+    type ActivitySyncClient,
+} from '@iptvnator/services/activity-sync';
 import { ActivityPositionAdapter } from './activity-position-adapter';
 
 describe('activity projection local preservation', () => {
@@ -110,7 +113,7 @@ describe('activity projection local preservation', () => {
         );
     });
 
-    it.each(['checkpoint', 'reset', 'failed-save'] as const)(
+    it.each(['checkpoint', 'reset', 'failed-save', 'native-retry'] as const)(
         'does not let a delayed shared fallback overwrite a newer local %s',
         async (action) => {
             const position: PlaybackPositionData = {
@@ -134,7 +137,7 @@ describe('activity projection local preservation', () => {
                 positions: async () => [],
                 save: jest.fn(async () => {
                     await held;
-                    if (action === 'failed-save')
+                    if (action === 'failed-save' || action === 'native-retry')
                         throw new Error('Synthetic delayed failure');
                     return 'local-only';
                 }),
@@ -157,7 +160,18 @@ describe('activity projection local preservation', () => {
                 'synthetic-source',
                 position,
             ]);
-            if (action === 'reset')
+            if (action === 'native-retry')
+                await expect(
+                    adapter.invoke(raw, 'savePlaybackPosition', [
+                        'synthetic-source',
+                        {
+                            ...position,
+                            positionSeconds: 20,
+                            nativeCheckpointAt: '2025-01-01T00:00:00.000Z',
+                        },
+                    ])
+                ).rejects.toBeInstanceOf(ActivitySupersededError);
+            else if (action === 'reset')
                 await adapter.invoke(
                     raw,
                     'clearPlaybackPosition',
@@ -172,13 +186,16 @@ describe('activity projection local preservation', () => {
                     true
                 );
             release();
-            if (action === 'failed-save')
+            if (action === 'failed-save' || action === 'native-retry')
                 await expect(older).rejects.toThrow(
                     'Synthetic delayed failure'
                 );
             else await older;
             if (action === 'reset') expect(row).toBeUndefined();
-            else expect(row?.positionSeconds).toBe(75);
+            else
+                expect(row?.positionSeconds).toBe(
+                    action === 'native-retry' ? 50 : 75
+                );
         }
     );
 
@@ -218,7 +235,7 @@ describe('activity projection local preservation', () => {
                     'synthetic-source',
                     position,
                 ])
-            ).rejects.toThrow('Playback position reset still pending');
+            ).rejects.toBeInstanceOf(ActivitySupersededError);
         } finally {
             read.resolve([position]);
             await clearing;

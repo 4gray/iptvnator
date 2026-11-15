@@ -156,7 +156,9 @@ native activity and reaches the same series autoplay handler as the web player.
 When native playback ends, Android writes the position to app-private
 storage before returning to the web player. It retains the position until
 the WebView acknowledges it, including after Home or a failed web write. The checkpoint
-listener loads only with the Android bridge. It saves through the portal resume
+listener loads only with the Android bridge. If its module fails to load, startup
+continues and Android keeps the pending checkpoint for a later page load.
+The listener saves through the portal resume
 store for the original WebView origin and source profile. A page in another
 profile leaves the checkpoint pending. A reset or backup restore records its
 time in the same write as the position change. Older checkpoints cannot undo

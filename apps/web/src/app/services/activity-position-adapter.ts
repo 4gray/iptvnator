@@ -66,10 +66,10 @@ export class ActivityPositionAdapter {
             for (const position of positions) {
                 if (
                     position.nativeCheckpointAt &&
-                    this.writeFence.resetPending(sourceId, position)
+                    this.writeFence.blocksCheckpoint(sourceId, position)
                 )
                     throw new ActivitySupersededError(
-                        'Playback position reset still pending'
+                        'A newer playback action is still pending'
                     );
                 const { current, finish } = this.writeFence.start(
                     sourceId,
@@ -132,7 +132,10 @@ export class ActivityPositionAdapter {
                         delivery = await this.client.save(sourceId, position);
                     } catch (error) {
                         // A new source may never have received its portable incarnation before going offline.
-                        if (current())
+                        if (
+                            current() &&
+                            !(error instanceof ActivitySupersededError)
+                        )
                             await this.saveLocalOnly(raw, sourceId, position);
                         throw error;
                     }

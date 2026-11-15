@@ -143,16 +143,13 @@ export function beginActivity(
 export async function saveActivity(
     this: ActivitySyncClient,
     sourceId: string,
-    position: PlaybackPositionData
+    position: PlaybackPositionData,
+    playedAt: string,
+    currentAction: () => boolean
 ): Promise<'local-only' | void> {
-    // A server receipt may arrive after another position was captured.
     const nativeCheckpointAt = position.activitySessionId
         ? position.nativeCheckpointAt
         : undefined;
-    const playedAt = nativeCheckpointAt ?? new Date().toISOString();
-    const currentAction = position.activitySessionId
-        ? this.actions.checkpoint(sourceId, position)
-        : this.actions.position(sourceId, position);
     const failed = position.activitySessionId
         ? this.localSessions.get(position.activitySessionId)
         : undefined;
