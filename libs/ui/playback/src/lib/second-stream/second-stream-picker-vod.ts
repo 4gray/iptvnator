@@ -1,4 +1,5 @@
 import { inject, signal } from '@angular/core';
+import { resolveEpisodeInfo } from '@iptvnator/ui/components';
 import {
     SecondStreamVodService,
     type SecondStreamEpisode,
@@ -7,6 +8,8 @@ import {
 } from '@iptvnator/portal/shared/data-access';
 import {
     getPortalPlaybackProgressPercent,
+    isPortalPlaybackInProgress,
+    isPortalPlaybackWatched,
     type UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
 
@@ -20,8 +23,15 @@ export class SecondStreamPickerVod {
     readonly loading = signal(false);
     readonly failed = signal(false);
     readonly hasMore = signal(false);
+    readonly episodeInfo = (row: SecondStreamEpisode) =>
+        resolveEpisodeInfo(row.episode);
+    readonly episodeWatched = (row: SecondStreamEpisode) =>
+        isPortalPlaybackWatched(row.position);
     readonly episodeProgress = (row: SecondStreamEpisode) =>
-        getPortalPlaybackProgressPercent(row.position);
+        isPortalPlaybackInProgress(row.position)
+            ? getPortalPlaybackProgressPercent(row.position)
+            : 0;
+    private readonly failedArtwork = signal(new Set<string>());
     private request?: AbortController;
     private playlistId = '';
     private query = '';
@@ -31,6 +41,14 @@ export class SecondStreamPickerVod {
         NonNullable<SecondStreamVodPage['exhaustedCatalogs']>[number]
     >();
     private searchTimer?: ReturnType<typeof setTimeout>;
+
+    artworkUrl(url: string | null | undefined): string | null {
+        return url && !this.failedArtwork().has(url) ? url : null;
+    }
+
+    artworkFailed(url: string): void {
+        this.failedArtwork.update((urls) => new Set(urls).add(url));
+    }
 
     async browse(
         playlistId: string,

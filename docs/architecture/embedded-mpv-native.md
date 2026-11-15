@@ -540,7 +540,16 @@ requests previews only near the visible list and honors the global EPG preferenc
 It reads M3U, Xtream live and Stalker ITV catalogs independently of the active
 provider selection and uses the shared stream resolver, preserving playback
 metadata and parental locks. Xtream and Stalker also expose movies and a
-series-to-episode drill-down. The shared Xtream resolver loads its VOD details
+series-to-episode drill-down. Movie and series rows show compact provider
+posters with an icon fallback for missing or failed artwork; favorites and
+history retain their source labels. Episode rows show provider thumbnails,
+number/title and an optional description, with a quiet fallback when artwork
+is missing or repeats the series cover. Saved unfinished progress and the
+read-only watched check use the same semantics as Detail View; watched rows
+do not show an unfinished progress bar. These previews add no metadata or
+TMDB requests and never change watch state. Descriptions yield to essential
+labels in narrow dialogs; search, source selection and Back stay reachable.
+The shared Xtream resolver loads its VOD details
 and recovery helpers when resolving a selected movie. Each added video's progress
 uses that video's playlist and content keys. It saves the latest accepted
 position when paused, ended, replaced or closed, including parental relock

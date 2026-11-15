@@ -125,6 +125,8 @@ export class SecondStreamPickerComponent {
         );
     });
     readonly visible = computed(() => this.filtered().slice(0, this.limit()));
+    private readonly searchInput =
+        viewChild<ElementRef<HTMLInputElement>>('searchInput');
     private readonly channelList =
         viewChild<ElementRef<HTMLElement>>('channelList');
     private readonly channelRows = viewChildren('channelRow', {
@@ -216,6 +218,7 @@ export class SecondStreamPickerComponent {
         this.search.set('');
         this.limit.set(100);
         void this.vod.openSeries(item);
+        this.searchInput()?.nativeElement.focus();
     }
 
     backToSeries(): void {
@@ -226,6 +229,7 @@ export class SecondStreamPickerComponent {
         this.search.set(this.seriesSearch);
         this.limit.set(100);
         this.vod.back();
+        this.searchInput()?.nativeElement.focus();
     }
 
     chooseMovie(item: UnifiedCollectionItem): void {

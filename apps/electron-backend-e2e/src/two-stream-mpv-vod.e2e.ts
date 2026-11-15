@@ -69,6 +69,7 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
     const info: { episodes: Record<string, { id: string; title: string }[]> } =
         await details.json();
     const episode = info.episodes['1'][0];
+    const watchedEpisode = info.episodes['1'][1];
     const movieId = Number(movie.stream_id);
     const episodeId = Number(episode.id);
 
@@ -84,6 +85,17 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
     });
     const portal = createServer(async (req, res) => {
         const url = new URL(req.url ?? '/', xtreamMockServer);
+        const artwork = `http://${req.headers.host}/synthetic-poster.svg`;
+        if (
+            url.pathname === '/synthetic-poster.svg' ||
+            url.pathname === '/synthetic-still.svg'
+        ) {
+            res.setHeader('Content-Type', 'image/svg+xml');
+            res.end(
+                '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="240"><rect width="160" height="240" fill="#304e66"/><circle cx="80" cy="80" r="38" fill="#a2bfd0"/><path d="M0 240L160 120V240Z" fill="#172b3e"/></svg>'
+            );
+            return;
+        }
         const stalker =
             url.pathname === '/portal.php' ||
             url.pathname.endsWith('/server/load.php');
@@ -115,6 +127,42 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                 headers,
                 redirect: 'error',
             });
+            const action = url.searchParams.get('action');
+            if (
+                !stalker &&
+                (action === 'get_vod_streams' || action === 'get_series')
+            ) {
+                const rows: { stream_icon?: string; cover?: string }[] =
+                    await response.json();
+                for (const row of rows) {
+                    row.stream_icon = artwork;
+                    row.cover = artwork;
+                }
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify(rows));
+                return;
+            }
+            if (
+                !stalker &&
+                action === 'get_series_info' &&
+                Number(url.searchParams.get('series_id')) === seriesId
+            ) {
+                const body = await response.json();
+                body.info.cover = artwork;
+                body.episodes['1'][0].info = {
+                    movie_image: artwork.replace('poster', 'still'),
+                    plot: 'A synthetic crew follows a signal beyond the ridge.',
+                    duration_secs: 60,
+                };
+                body.episodes['1'][1].info = {
+                    movie_image: artwork.replace('poster.svg', 'missing.svg'),
+                };
+                body.episodes['1'][2].title = '';
+                body.episodes['1'][2].info = [];
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify(body));
+                return;
+            }
             if (
                 url.searchParams.get('action') === 'get_vod_info' &&
                 Number(url.searchParams.get('vod_id')) === movieId
@@ -178,7 +226,13 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
             if (!playlistId)
                 throw new Error('Synthetic Xtream playlist not found');
             await page.evaluate(
-                async ({ id, movieId, episodeId, seriesId }) => {
+                async ({
+                    id,
+                    movieId,
+                    episodeId,
+                    watchedEpisodeId,
+                    seriesId,
+                }) => {
                     await window.electron.dbSavePlaybackPosition(id, {
                         contentType: 'vod',
                         contentXtreamId: movieId,
@@ -194,8 +248,23 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                         positionSeconds: 23,
                         durationSeconds: 60,
                     });
+                    await window.electron.dbSavePlaybackPosition(id, {
+                        contentType: 'episode',
+                        contentXtreamId: watchedEpisodeId,
+                        seriesXtreamId: seriesId,
+                        seasonNumber: 1,
+                        episodeNumber: 2,
+                        positionSeconds: 60,
+                        durationSeconds: 60,
+                    });
                 },
-                { id: playlistId, movieId, episodeId, seriesId }
+                {
+                    id: playlistId,
+                    movieId,
+                    episodeId,
+                    watchedEpisodeId: Number(watchedEpisode.id),
+                    seriesId,
+                }
             );
 
             await page.evaluate(
@@ -217,6 +286,8 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                         series.id,
                         playlistId
                     );
+                    await window.electron.dbAddFavorite(movie.id, playlistId);
+                    await window.electron.dbAddFavorite(series.id, playlistId);
                 },
                 { playlistId, movieId, seriesId }
             );
@@ -345,6 +416,9 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                     has: page.getByText(getXtreamTitle(movie), { exact: true }),
                 })
             ).toBeVisible();
+            await expect(
+                picker.locator('.picker__poster img').first()
+            ).toBeVisible();
             await picker
                 .getByRole('button', { name: 'Series', exact: true })
                 .click();
@@ -358,6 +432,28 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                     has: page.getByText(getXtreamTitle(movie), { exact: true }),
                 })
             ).toHaveCount(0);
+            await picker
+                .getByLabel('Playlist', { exact: true })
+                .selectOption('');
+            await picker
+                .getByRole('button', { name: 'Series', exact: true })
+                .click();
+            const favoriteSeries = picker.getByRole('button').filter({
+                has: page.getByText(getXtreamTitle(show), { exact: true }),
+            });
+            await expect(
+                favoriteSeries.locator('.picker__poster img')
+            ).toBeVisible();
+            await expect
+                .poll(() =>
+                    favoriteSeries
+                        .locator('img')
+                        .evaluate(
+                            (image: HTMLImageElement) => image.naturalWidth
+                        )
+                )
+                .toBeGreaterThan(0);
+            await expect(favoriteSeries).toContainText(sourceName);
             const movieTitle = getXtreamTitle(movie);
             const movieRow = picker.getByRole('button', {
                 name: movieTitle,
@@ -409,6 +505,35 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
             };
             await chooseSeries();
             await expect(episodeRow).toBeVisible();
+            const watchedRow = picker.locator(
+                `[data-episode-id="${watchedEpisode.id}"]`
+            );
+            await expect(
+                watchedRow.locator('.picker__episode-watched')
+            ).toBeVisible();
+            await expect(watchedRow.locator('.picker__progress')).toHaveCount(
+                0
+            );
+            await expect(
+                watchedRow.locator('.picker__episode-thumb img')
+            ).toHaveCount(0);
+            await expect(episodeRow.locator('.picker__progress')).toBeVisible();
+            await expect(
+                episodeRow.locator('.picker__episode-thumb img')
+            ).toBeVisible();
+            await expect
+                .poll(() =>
+                    episodeRow
+                        .locator('img')
+                        .evaluate(
+                            (image: HTMLImageElement) => image.naturalWidth
+                        )
+                )
+                .toBeGreaterThan(0);
+            await expect(
+                picker.getByText('Episode 3', { exact: true }).first()
+            ).toBeVisible();
+            const originalViewport = page.viewportSize();
             for (const theme of ['light', 'dark'] as const) {
                 await applyTheme(page, theme);
                 await expectTextContrast(
@@ -420,8 +545,41 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                         `second-stream-episodes-${theme}.png`
                     ),
                 });
+                await page.setViewportSize({ width: 390, height: 760 });
+                await expect(episodeRow).toBeVisible();
+                await expectTextContrast(
+                    episodeRow.locator('.picker__vod-text strong')
+                );
+                await expect
+                    .poll(() =>
+                        picker.evaluate(
+                            (element) =>
+                                element.scrollWidth <= element.clientWidth
+                        )
+                    )
+                    .toBe(true);
+                await picker.screenshot({
+                    path: testInfo.outputPath(
+                        `second-stream-episodes-narrow-${theme}.png`
+                    ),
+                });
+                await page.setViewportSize(
+                    originalViewport ?? { width: 1280, height: 720 }
+                );
             }
-            await episodeRow.click();
+            await picker
+                .getByRole('button', { name: 'Back', exact: true })
+                .click();
+            const seriesRow = picker.getByRole('button', {
+                name: getXtreamTitle(show),
+                exact: true,
+            });
+            await expect(picker.getByRole('searchbox')).toBeFocused();
+            await seriesRow.focus();
+            await seriesRow.press('Enter');
+            await expect(episodeRow).toBeVisible();
+            await episodeRow.focus();
+            await episodeRow.press('Space');
             const episodeSessionId = await assertResume(canvas(3), 22);
             await expect(
                 openStreams.getByRole('button', { name: '2×2 grid' })

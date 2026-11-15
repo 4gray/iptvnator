@@ -130,13 +130,42 @@
                         track row.episode.id
                     ) {
                         @let progress = vod.episodeProgress(row);
+                        @let details = vod.episodeInfo(row);
+                        @let still = details?.movie_image;
+                        @let artwork =
+                            vod.artworkUrl(still || series.posterUrl);
                         <button
                             class="picker__vod-row"
                             type="button"
                             [disabled]="resolving() !== null"
+                            [attr.data-episode-id]="row.episode.id"
                             (click)="chooseEpisode(series, row)"
                         >
-                            <mat-icon>play_circle_outline</mat-icon>
+                            <span
+                                class="picker__episode-thumb"
+                                [class.picker__episode-thumb--fallback]="
+                                    !still ||
+                                    still === series.posterUrl ||
+                                    !artwork
+                                "
+                                aria-hidden="true"
+                            >
+                                @if (artwork) {
+                                    <img
+                                        [src]="artwork"
+                                        alt=""
+                                        loading="lazy"
+                                        (error)="vod.artworkFailed(artwork)"
+                                    />
+                                } @else {
+                                    <mat-icon>video_library</mat-icon>
+                                }
+                                @if (progress) {
+                                    <span class="picker__progress">
+                                        <span [style.width.%]="progress"></span>
+                                    </span>
+                                }
+                            </span>
                             <span class="picker__vod-text">
                                 <strong>{{
                                     row.episode.title ||
@@ -164,14 +193,32 @@
                                                   }
                                     }}</span
                                 >
+                                @if (details?.plot) {
+                                    <span class="picker__episode-plot">{{
+                                        details?.plot
+                                    }}</span>
+                                }
                                 @if (progress) {
-                                    <span
-                                        class="picker__progress"
-                                        aria-hidden="true"
-                                        ><span [style.width.%]="progress"></span
-                                    ></span>
+                                    <span class="cdk-visually-hidden">{{
+                                        'WORKSPACE.DASHBOARD.PERCENT_WATCHED'
+                                            | translate: { value: progress }
+                                    }}</span>
                                 }
                             </span>
+                            @if (vod.episodeWatched(row)) {
+                                <span class="picker__episode-watched">
+                                    <mat-icon aria-hidden="true"
+                                        >check_circle</mat-icon
+                                    >
+                                    <span class="cdk-visually-hidden">{{
+                                        'XTREAM.WATCHED' | translate
+                                    }}</span>
+                                </span>
+                            } @else {
+                                <mat-icon aria-hidden="true"
+                                    >play_arrow</mat-icon
+                                >
+                            }
                         </button>
                     } @empty {
                         <p class="picker__state">
@@ -196,24 +243,39 @@
                             class="picker__vod-row"
                             type="button"
                             [disabled]="resolving() !== null"
+                            [attr.data-catalog-uid]="item.uid"
                             (click)="
                                 item.contentType === 'series'
                                     ? openSeries(item)
                                     : chooseMovie(item)
                             "
                         >
-                            <mat-icon>{{
-                                item.contentType === 'series'
-                                    ? 'video_library'
-                                    : 'movie'
-                            }}</mat-icon>
+                            <span class="picker__poster" aria-hidden="true">
+                                @if (
+                                    vod.artworkUrl(item.posterUrl);
+                                    as poster
+                                ) {
+                                    <img
+                                        [src]="poster"
+                                        alt=""
+                                        loading="lazy"
+                                        (error)="vod.artworkFailed(poster)"
+                                    />
+                                } @else {
+                                    <mat-icon>{{
+                                        item.contentType === 'series'
+                                            ? 'video_library'
+                                            : 'movie'
+                                    }}</mat-icon>
+                                }
+                            </span>
                             <span class="picker__vod-text">
                                 <strong>{{ item.name }}</strong>
                                 @if (source() === historySource || !source()) {
                                     <span>{{ item.playlistName }}</span>
                                 }
                             </span>
-                            <mat-icon>{{
+                            <mat-icon aria-hidden="true">{{
                                 item.contentType === 'series'
                                     ? 'chevron_right'
                                     : 'play_arrow'
