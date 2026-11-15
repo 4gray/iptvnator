@@ -3,10 +3,7 @@ import {
     writeXtreamUserDataMap,
     type UserDataStorage,
 } from '@iptvnator/services';
-import {
-    stampNativePlaybackEpisodeResets,
-    stampNativePlaybackReset,
-} from '@iptvnator/services/pwa-native-playback-resets';
+import { stampNativePlaybackReset } from '@iptvnator/services/pwa-native-playback-resets';
 import type {
     PlaybackPositionData,
     PlaybackPositionResetScope,
@@ -14,6 +11,7 @@ import type {
 import {
     nativePlaybackResetIn,
     nativePlaybackResetId,
+    stampNativePlaybackEpisodeResets,
 } from './pwa-android-playback-resets';
 import {
     type Positions,

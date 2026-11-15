@@ -1,8 +1,5 @@
 import type { UserDataStorage } from '@iptvnator/services';
-import {
-    nativePlaybackEpisodeResetAt,
-    nativePlaybackResetAt,
-} from '@iptvnator/services/pwa-native-playback-resets';
+import { nativePlaybackResetAt } from '@iptvnator/services/pwa-native-playback-resets';
 import type {
     PlaybackPositionData,
     PlaybackPositionResetScope,
@@ -13,6 +10,8 @@ import {
 } from './pwa-playback-position-storage';
 
 type PositionId = Pick<PlaybackPositionData, 'contentType' | 'contentXtreamId'>;
+const episodeResetKey = '__iptvnator_native_playback_episode_resets__';
+type EpisodeResets = Record<string, Record<string, number>>;
 
 export const nativePlaybackResetId = (playlistId: string, item: PositionId) =>
     JSON.stringify([playlistId, item.contentType, item.contentXtreamId]);
@@ -72,4 +71,49 @@ export function nativePlaybackResetIn(
               )
             : 0
     );
+}
+
+function nativePlaybackEpisodeResetAt(
+    positions: Record<string, unknown>,
+    playlistId: string,
+    episodeId: number
+): number {
+    const resets = positions[episodeResetKey] as EpisodeResets | undefined;
+    const batches = resets?.[playlistId];
+    if (!batches) return 0;
+    let latest = 0;
+    for (const [key, timestamp] of Object.entries(batches)) {
+        if (timestamp <= latest) continue;
+        const ranges = key.split(',').map(Number);
+        for (let index = 0; index < ranges.length; index += 2) {
+            if (episodeId >= ranges[index] && episodeId <= ranges[index + 1]) {
+                latest = timestamp;
+                break;
+            }
+        }
+    }
+    return latest;
+}
+
+export function stampNativePlaybackEpisodeResets(
+    positions: Record<string, unknown>,
+    playlistId: string,
+    episodeIds: number[]
+): void {
+    if (!episodeIds.length) return;
+    // Adjacent IDs share one range so a bulk clear can free space at quota.
+    const ranges: number[] = [];
+    for (const id of [...new Set(episodeIds)].sort((a, b) => a - b)) {
+        if (ranges.length && id === ranges[ranges.length - 1] + 1)
+            ranges[ranges.length - 1] = id;
+        else ranges.push(id, id);
+    }
+    const resets = positions[episodeResetKey] as EpisodeResets | undefined;
+    positions[episodeResetKey] = {
+        ...resets,
+        [playlistId]: {
+            ...resets?.[playlistId],
+            [ranges.join(',')]: Date.now(),
+        },
+    };
 }
