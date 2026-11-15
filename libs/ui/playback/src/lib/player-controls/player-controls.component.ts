@@ -263,9 +263,7 @@ export class PlayerControlsComponent implements OnDestroy {
         effect((onCleanup) => {
             const playerSurface = this.playerSurface();
             const surface = this.showControls() ? playerSurface : null;
-            // A replaced fullscreen owner re-syncs the state as well.
-            void this.fullscreenTarget();
-            this.fullscreen.sync();
+            onCleanup(this.fullscreen.observeVideo(playerSurface));
             onCleanup(this.surface.attachSurface(surface));
         });
         effect(() => {

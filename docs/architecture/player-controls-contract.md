@@ -296,9 +296,14 @@ Fullscreen is also outside the engine command contract. The landed component
 uses `ControlsFullscreen`, which operates on one DOM element through
 `requestFullscreen()` / `document.exitFullscreen()`: the optional
 `fullscreenTarget` input when the host supplies one, else the `playerSurface`.
-There is no fullscreen delegate or native-fullscreen IPC path.
 `ControlsFullscreen.sync()` reconciles state when that element attaches or
-changes, including when it is already fullscreen. The Embedded MPV host's
+changes, including when it is already fullscreen. If DOM fullscreen is
+unavailable, shared controls can use WebKit's native fullscreen on the video
+inside their player surface. The button becomes available when the video
+reports support, and WebKit's video events keep the button state in sync.
+In native fullscreen, Safari supplies the controls and the app's channel and
+episode panels are unavailable. Fullscreen stays outside the engine command
+contract and requires no IPC. The Embedded MPV host's
 existing `fullscreenchange` listener still triggers bounds sync so frame-copy
 render size follows the fullscreen DOM surface.
 

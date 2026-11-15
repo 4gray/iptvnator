@@ -273,6 +273,68 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
             expect(component.isFullscreen()).toBe(false);
         });
 
+        it('uses native video fullscreen when the document cannot fullscreen the player', () => {
+            const video = document.createElement('video');
+            let supported = false;
+            let displaying = false;
+            const enter = jest.fn(() => {
+                displaying = true;
+                video.dispatchEvent(new Event('webkitbeginfullscreen'));
+            });
+            Object.defineProperties(video, {
+                webkitSupportsFullscreen: { get: () => supported },
+                webkitDisplayingFullscreen: { get: () => displaying },
+                webkitEnterFullscreen: { value: enter },
+                webkitExitFullscreen: { value: jest.fn() },
+            });
+            surface.appendChild(video);
+            const original = Object.getOwnPropertyDescriptor(
+                document,
+                'fullscreenEnabled'
+            );
+            Object.defineProperty(document, 'fullscreenEnabled', {
+                configurable: true,
+                value: false,
+            });
+            try {
+                fixture.componentRef.setInput('fullscreenTarget', surface);
+                fixture.detectChanges();
+                const host = fixture.nativeElement as HTMLElement;
+                const button = host.querySelector<HTMLButtonElement>(
+                    'button[aria-label="EMBEDDED_MPV.PLAYER.ENTER_FULLSCREEN"]'
+                );
+                expect(button).toHaveProperty('disabled', true);
+
+                supported = true;
+                video.dispatchEvent(new Event('loadedmetadata'));
+                fixture.detectChanges();
+                expect(button).toHaveProperty('disabled', false);
+                button?.click();
+                expect(enter).toHaveBeenCalledTimes(1);
+                expect(requestFullscreen).not.toHaveBeenCalled();
+                expect(component.isFullscreen()).toBe(true);
+
+                displaying = false;
+                video.dispatchEvent(new Event('webkitendfullscreen'));
+                expect(component.isFullscreen()).toBe(false);
+
+                supported = false;
+                video.dispatchEvent(new Event('emptied'));
+                fixture.detectChanges();
+                expect(button).toHaveProperty('disabled', true);
+            } finally {
+                if (original) {
+                    Object.defineProperty(
+                        document,
+                        'fullscreenEnabled',
+                        original
+                    );
+                } else {
+                    Reflect.deleteProperty(document, 'fullscreenEnabled');
+                }
+            }
+        });
+
         it('puts a host-supplied fullscreen target into fullscreen instead of the surface', async () => {
             const target = document.createElement('div');
             const requestTargetFullscreen = jest.fn(async () => {
