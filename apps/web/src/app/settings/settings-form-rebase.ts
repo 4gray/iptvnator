@@ -122,18 +122,12 @@ export function rebaseSettingsForm(
     const addedEpgUrls = staged.has('epgUrl')
         ? epgUrlsAddedOutside(current.epgUrl, ownEpgUrls, next.epgUrl)
         : [];
-    if (staged.has('epgUrl') && !submitted && !unsettledPaths.has('epgUrl')) {
+    if (staged.has('epgUrl') && (submitted || !unsettledPaths.has('epgUrl'))) {
         const draft = [
             ...normalizeFormEpgUrls(current.epgUrl),
             ...addedEpgUrls,
         ];
-        const stored = normalizeFormEpgUrls(next.epgUrl);
-        if (
-            !epgSourceUrlsChanged(
-                draft.map(epgSourceReferenceIdentity),
-                stored.map(epgSourceReferenceIdentity)
-            )
-        ) {
+        if (!epgSourceUrlsChanged(draft, normalizeFormEpgUrls(next.epgUrl))) {
             staged.delete('epgUrl');
             return { next, staged, addedEpgUrls: [] };
         }

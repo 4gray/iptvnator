@@ -322,6 +322,34 @@ describe('SettingsComponent with settings changed outside the form', () => {
         expect(tmdb.apiKey.value).toBe(savedKey);
     });
 
+    it('keeps a newly saved key after an unrelated retry with a trimmed-out key edit', async () => {
+        const originalKey = 'synthetic-key-a';
+        const newKey = 'synthetic-key-b';
+        const { apiKey } = component.settingsForm.controls.tmdb.controls;
+        settingsStore._setSettings({
+            tmdb: { enabled: false, apiKey: originalKey },
+        });
+        component.form.hydrateFromStore();
+        apiKey.setValue(` ${originalKey} `);
+        component.settingsForm.markAsDirty();
+        jest.spyOn(window.electron, 'updateSettings').mockRejectedValueOnce(
+            new Error('runtime unavailable')
+        );
+        await expect(component.form.save(() => undefined)).rejects.toThrow();
+
+        apiKey.setValue(originalKey);
+        settingsStore._setSettings({
+            tmdb: { enabled: false, apiKey: newKey },
+        });
+        settingsStore.savedTmdbApiKey.set(newKey);
+        fixture.detectChanges();
+        await component.form.save(() => component.form.applySavedSettings());
+
+        expect(apiKey.value).toBe(newKey);
+        expect(settingsStore.getSettings().tmdb.apiKey).toBe(newKey);
+        expect(component.settingsForm.pristine).toBe(true);
+    });
+
     it('keeps a key typed back while the desktop is acknowledging a save', async () => {
         const { apiKey } = component.settingsForm.controls.tmdb.controls;
         const savedKey = apiKey.value;
@@ -408,6 +436,57 @@ describe('SettingsComponent with settings changed outside the form', () => {
 
         expect(component.form.epgUrls).toEqual([STAGED_GUIDE, SAVED_GUIDE]);
         expect(component.form.changedPaths()).toEqual([]);
+        expect(component.settingsForm.pristine).toBe(true);
+    });
+
+    it('keeps a staged edit to the literal EPG URL path during backup import', async () => {
+        const distinctPath = `${SAVED_GUIDE}/`;
+        component.form.removeEpgSource(0);
+        component.form.setEpgUrls(distinctPath);
+
+        importBackupAddingGuide(RESTORED_GUIDE);
+        expect(component.form.epgUrls).toEqual([distinctPath, RESTORED_GUIDE]);
+        await component.form.save(() => component.form.applySavedSettings());
+
+        expect(settingsStore.getSettings().epgUrl).toEqual([
+            distinctPath,
+            RESTORED_GUIDE,
+        ]);
+        expect(component.settingsForm.pristine).toBe(true);
+    });
+
+    it('adopts restored EPG order after a pending Save is acknowledged', async () => {
+        let finishUpdate!: () => void;
+        const pending = new Promise<void>((resolve) => {
+            finishUpdate = resolve;
+        });
+        jest.spyOn(window.electron, 'updateSettings').mockReturnValueOnce(
+            pending
+        );
+        component.form.setEpgUrls(STAGED_GUIDE);
+        component.settingsForm.markAsDirty();
+        const saving = component.form.save(() =>
+            component.form.applySavedSettings()
+        );
+        await Promise.resolve();
+
+        jest.spyOn(component.backup, 'importData').mockImplementation(
+            (onImported) => {
+                settingsStore._setSettings({
+                    epgUrl: [RESTORED_GUIDE, SAVED_GUIDE, STAGED_GUIDE],
+                });
+                onImported();
+            }
+        );
+        component.importData();
+        finishUpdate();
+        await saving;
+
+        expect(component.form.epgUrls).toEqual([
+            RESTORED_GUIDE,
+            SAVED_GUIDE,
+            STAGED_GUIDE,
+        ]);
         expect(component.settingsForm.pristine).toBe(true);
     });
 

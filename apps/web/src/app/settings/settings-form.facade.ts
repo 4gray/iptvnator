@@ -323,8 +323,10 @@ export class SettingsFormFacade {
             !keyUnsettled &&
             settings.tmdb?.apiKey ===
                 (this.savedSnapshot.tmdb.apiKey?.trim() ?? '')
-        )
+        ) {
             delete settings.tmdb.apiKey;
+            this.unsettledSavePaths.delete('tmdb.apiKey');
+        }
         // A staged source list must not drop sources added to the store
         // since the page loaded; they are saved with it.
         if (settings.epgUrl) {
