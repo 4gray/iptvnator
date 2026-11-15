@@ -12,8 +12,8 @@ import {
 import { TranslateService } from '@ngx-translate/core';
 import { take } from 'rxjs';
 import { AppUpdateInstallService } from '../services/app-update-install.service';
-import { SettingsService } from '../services/settings.service';
 import { AppUpdateReleaseNotesDialogComponent } from './app-update-release-notes-dialog.component';
+import { SettingsAppVersionService } from './settings-app-version.service';
 
 const APP_UPDATE_STATUS_LOAD_ATTEMPTS = 60;
 const APP_UPDATE_STATUS_LOAD_RETRY_DELAY_MS = 250;
@@ -27,7 +27,7 @@ export class SettingsAppUpdateFacade {
     private readonly dataService = inject(DataService);
     private readonly matDialog = inject(MatDialog);
     private readonly runtime = inject(RuntimeCapabilitiesService);
-    private readonly settingsService = inject(SettingsService);
+    private readonly appVersion = inject(SettingsAppVersionService);
     private readonly translate = inject(TranslateService);
     private readonly installService = inject(AppUpdateInstallService);
 
@@ -143,12 +143,12 @@ export class SettingsAppUpdateFacade {
      * settings UI
      */
     checkAppVersion(): void {
-        this.settingsService
+        this.appVersion
             .getAppVersion()
             .pipe(take(1))
             .subscribe({
                 next: (version) => this.showVersionInformation(version),
-                // SettingsService already logs the failure; without an
+                // The version service already logs the failure; without an
                 // answer there is simply no update note to show.
                 error: () => undefined,
             });
@@ -174,10 +174,7 @@ export class SettingsAppUpdateFacade {
      */
     isCurrentVersionOutdated(latestVersion: string): boolean {
         this.version.set(this.dataService.getAppVersion());
-        return this.settingsService.isVersionOutdated(
-            this.version(),
-            latestVersion
-        );
+        return this.appVersion.isVersionOutdated(this.version(), latestVersion);
     }
 
     private bindStatusEvents(): void {

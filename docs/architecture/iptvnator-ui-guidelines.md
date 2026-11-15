@@ -251,7 +251,8 @@ The app mode is the exclusive `.dark-theme` or `.light-theme` class that
 the resolved palette: `light`, `dark`, `cream`, `mocha`, `night-owl`, or
 `black-oled`. Cream uses light mode; Mocha, Night Owl and Black OLED use dark
 mode. A "System" choice resolves the OS preference
-to the original Light/Dark presets there and nowhere else. Component styles never use a
+there and nowhere else, to the user's light-mode and dark-mode presets
+(Light and Dark unless changed). Component styles never use a
 `prefers-color-scheme` query, which follows the OS: with the app set to dark
 on a light OS it paints light colours
 into the dark theme. Read `--app-*` tokens, which switch with the class, or
@@ -1770,11 +1771,18 @@ updates that omit the theme preserve the saved choice.
 The palette picker uses the existing keyboard-accessible radio directives. Six
 named miniature samples use the same app tokens as the real theme, arranged in
 three columns on wide settings containers and two on narrow ones. System is a
-separate row in the same group. Selection previews immediately, Save persists
-it, and Discard restores the saved choice and its System listener when needed.
+separate row in the same group. While System is selected, a pair of rows below
+it chooses the preset for a light device (Light or Cream) and for a dark one
+(Dark, Mocha, Night Owl or Black OLED), stored as `systemLightTheme` and
+`systemDarkTheme`; `normalizeSystemTheme()` falls back to Light or Dark for a
+missing value or one of the other mode. Selection previews immediately, Save
+persists it, and Discard restores the saved choice and its System listener
+when needed. The pair is applied before the theme, since System resolves
+through it.
 
-App palette declarations live in `apps/web/src/_theme-palettes.scss`, included
-by `m3-theme.scss` for both body contexts and decorative preview contexts.
+App palette declarations live in `apps/web/src/_theme-palettes.scss`.
+`m3-theme.scss` includes them for body contexts, and the lazy settings theme
+picker includes them for decorative preview contexts.
 `_warm-theme.scss` supplies the Material color ramps for Cream/Mocha;
 `_dark-variant-themes.scss` supplies Night Owl/Black OLED. Night Owl uses navy
 surfaces and cool accents; Black OLED keeps the main background black and uses
@@ -1792,6 +1800,28 @@ Adding a built-in preset requires catalog metadata, app/Material colors,
 localized naming, and computed contrast/persistence coverage. Do not introduce
 per-component preset conditions or duplicate sample-only palettes. Typography,
 spacing, media artwork and the fixed over-video control palette stay unchanged.
+
+An optional accent (`themeAccent`, ids in
+`libs/shared/interfaces/src/lib/theme-accent.ts`) lays a user colour over any
+preset. A missing or `null` value keeps the preset's own selection colour.
+`SettingsService` loads `theme-accent-tokens.ts` on the first custom accent,
+including a saved accent at startup. The module derives the roles against the
+active preset's surface tokens. The service sets the roles inline on `<body>`
+with a `data-theme-accent` attribute. Only the accent's OKLCH lightness moves.
+The accent is also text (badges, selected labels), so it keeps 4.5:1 against
+every surface and its plain selection tint; the selection-text role keeps
+4.5:1 on the strongest tint too. One on-accent colour, used for
+`--app-selection-on-color` and `--mat-sys-on-primary`, keeps 4.5:1 on the
+accent, on Material primary and across the empty-state CTA gradient toward
+the heading ink; the accent darkens or lightens further until one does. The
+roles are re-derived on every theme change,
+including System's OS switches. `data-theme-accent` is a component-token
+boundary in `m3-theme.scss`, because light presets otherwise resolve Material
+component colours on `html`. The swatches preview each accent in the colour it
+takes on the current theme; the "theme colour" swatch reads the preset's own
+colour from a `data-theme-preview` context. Discard and completing a playlist
+backup import restore the saved appearance. The accent's specs read the shipped
+palettes, so a new preset or palette change re-runs every accent's contrast check.
 
 
 ### Light Theme
