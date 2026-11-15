@@ -333,5 +333,6 @@ export function bindNativeTracks(
         bridge,
         captionPreference,
         textTracks,
+        video,
     };
 }

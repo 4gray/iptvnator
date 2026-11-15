@@ -1352,6 +1352,9 @@ they differ in who owns the caption UI:
 - **Shared controls: authoritative.** The preference holds for the whole
   session; user intent arrives through `setSubtitleTrack`, which records an
   explicit override (including `-1` for off) that wins until the source changes.
+  During WebKit native fullscreen, Safari owns the native subtitle menu. Track
+  changes made there become the current source's override for Video.js and
+  native media, so the selection carries back to the shared controls.
 - **Vendor chrome: source-default.** The engine still renders its own caption
   menu, so the preference only seeds each new source and is released once the
   media element reports `playing`. Enforcing it for the whole session would

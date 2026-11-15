@@ -100,6 +100,33 @@ describe('HtmlVideoPlayerControlsBridge native text tracks', () => {
         bridge.destroy();
     });
 
+    it('keeps the native fullscreen choice over a previous subtitle override', () => {
+        const first = createTextTrack();
+        const second = createTextTrack();
+        const { adapter, bridge, textTracks, video } = bindNativeTracks([
+            first,
+            second,
+        ]);
+        let nativeFullscreen = false;
+        Object.defineProperty(video, 'webkitDisplayingFullscreen', {
+            get: () => nativeFullscreen,
+        });
+        adapter.commands.setSubtitleTrack(0);
+        expect(first.mode).toBe('showing');
+
+        nativeFullscreen = true;
+        first.mode = 'disabled';
+        second.mode = 'showing';
+        textTracks.emit('change');
+        expect(second.mode).toBe('showing');
+
+        nativeFullscreen = false;
+        bridge.refreshInputs();
+        expect(first.mode).not.toBe('showing');
+        expect(second.mode).toBe('showing');
+        bridge.destroy();
+    });
+
     it('ignores invalid, non-integer, and stale native track IDs', () => {
         const removed = createTextTrack({
             kind: 'captions',

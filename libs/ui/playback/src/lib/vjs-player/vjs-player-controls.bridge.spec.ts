@@ -111,6 +111,42 @@ describe('VjsPlayerControlsBridge', () => {
         expect(adapter.refresh).toHaveBeenCalled();
     });
 
+    it('keeps the subtitle selection made in native fullscreen for the active source', () => {
+        const textTracks = createTrackList<VideoJsTextTrack>([
+            { label: 'Test captions', kind: 'captions', mode: 'disabled' },
+        ]);
+        const adapter = createAdapter();
+        const bridge = new VjsPlayerControlsBridge({
+            player: createPlayer(undefined, textTracks),
+            adapter: adapter.value,
+            isLive: () => false,
+            showCaptions: () => false,
+        });
+        const video = document.createElement('video');
+        let nativeFullscreen = false;
+        Object.defineProperty(video, 'webkitDisplayingFullscreen', {
+            get: () => nativeFullscreen,
+        });
+        bridge.attach(video);
+        bridge.setSource();
+        const change = textTracks.addEventListener.mock.calls.find(
+            ([event]) => event === 'change'
+        )?.[1] as EventListener | undefined;
+
+        nativeFullscreen = true;
+        textTracks[0].mode = 'showing';
+        change?.(new Event('change'));
+        expect(textTracks[0].mode).toBe('showing');
+
+        nativeFullscreen = false;
+        bridge.refreshInputs();
+        expect(adapter.options?.getSubtitleTracks?.()[0].selected).toBe(true);
+
+        bridge.setSource();
+        expect(textTracks[0].mode).toBe('disabled');
+        bridge.destroy();
+    });
+
     it('clears source-owned tracks and tears down idempotently', () => {
         const audioTracks = createTrackList<VideoJsAudioTrack>([
             { label: 'English', enabled: true },

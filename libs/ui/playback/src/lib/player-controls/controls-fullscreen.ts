@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
 
-type WebKitFullscreenVideo = HTMLVideoElement & {
+export type WebKitFullscreenVideo = HTMLVideoElement & {
     webkitSupportsFullscreen?: boolean;
     webkitDisplayingFullscreen?: boolean;
     webkitEnterFullscreen?: () => void;
