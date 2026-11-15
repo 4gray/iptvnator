@@ -491,6 +491,45 @@ describe('activity sync clients', () => {
         expect([...h.states.values()][0].resume?.positionSeconds).toBe(30);
         await a.value.flush();
     });
+    it('keeps a native checkpoint after an older web position is acknowledged late', async () => {
+        const h = harness();
+        const { value, store } = h.client('synthetic-device');
+        const position = movie('synthetic-session', 20);
+        await value.begin('source', position);
+        await value.flush();
+        const held = jest.spyOn(value, 'flush').mockResolvedValue(undefined);
+        await value.save('source', position);
+        const captured = Date.now() + 1000;
+        const nativeCheckpointAt = new Date(captured).toISOString();
+        const acknowledgedAt = new Date(captured + 1000).toISOString();
+        const send = h.request.getMockImplementation()!;
+        h.request.mockImplementation(async (input) => {
+            const response = await send(input);
+            if (input.activity?.operation?.kind === 'checkpoint') {
+                const result = response.body as ActivityApplyResult;
+                result.state.updatedAt = acknowledgedAt;
+            }
+            return response;
+        });
+        held.mockRestore();
+        await value.flush();
+
+        const [previous] = await value.positions('source');
+        expect(previous.position.updatedAt).not.toBe(acknowledgedAt);
+        await value.save('source', {
+            ...position,
+            positionSeconds: 35,
+            nativeCheckpointAt,
+        });
+        await value.flush();
+
+        const [{ record }] = await store.entries('source');
+        expect(record.position).toMatchObject({
+            positionSeconds: 35,
+            updatedAt: nativeCheckpointAt,
+        });
+    });
+
     it('renews a fresh tab lease while its request is slow', async () => {
         const h = harness();
         const a = h.client('same-device');

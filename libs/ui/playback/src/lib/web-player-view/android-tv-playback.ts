@@ -337,8 +337,10 @@ export class AndroidTvPlayback {
     }
 
     returnToWeb(reload: () => void): void {
-        const attempt = this.ownedSession()?.failed ? this.attempt() : null;
+        const session = this.ownedSession();
+        const attempt = session?.failed ? this.attempt() : null;
         this.restoreWebVolume();
+        if (session?.pending) this.cancel(session.id);
         reload();
         if (attempt) {
             this.continuedAttempt.set({ token: this.currentToken(), attempt });

@@ -50,8 +50,10 @@ final class NativePlaybackRequest {
         String url = text(request.get("url"));
         HttpUrl stream = HttpUrl.parse(url);
         if (stream == null || !stream.username().isEmpty() || !stream.password().isEmpty()) return null;
+        boolean hls = Boolean.TRUE.equals(request.get("hls"));
         int sourceType = Util.inferContentType(Uri.parse(stream.toString()));
-        if (sourceType != C.CONTENT_TYPE_HLS && sourceType != C.CONTENT_TYPE_OTHER) return null;
+        if (sourceType != C.CONTENT_TYPE_HLS && sourceType != C.CONTENT_TYPE_OTHER
+            && !(sourceType == C.CONTENT_TYPE_SS && hls)) return null;
         Bundle headers = new Bundle();
         if (request.get("headers") instanceof Map<?, ?>) {
             ((Map<?, ?>) request.get("headers")).forEach((key, value) -> {
@@ -65,7 +67,7 @@ final class NativePlaybackRequest {
         }
         return new Intent(context, NativePlayerActivity.class)
             .putExtra("url", stream.toString())
-            .putExtra("hls", Boolean.TRUE.equals(request.get("hls")))
+            .putExtra("hls", hls)
             .putExtra("live", Boolean.TRUE.equals(request.get("live")))
             .putExtra("captions", Boolean.TRUE.equals(request.get("captions")))
             .putExtra("position", positionMs(request.get("startTime")))

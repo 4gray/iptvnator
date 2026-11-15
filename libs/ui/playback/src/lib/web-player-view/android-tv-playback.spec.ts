@@ -161,6 +161,24 @@ it('keeps a failed attempt only for an explicit return to the same web player', 
     }
 });
 
+it('cancels the posted native launch when retrying the web player', () => {
+    const { clear, events, open, playback, postMessage, reply, token } =
+        setup();
+    try {
+        const id = open();
+        playback.returnToWeb(() => token.set(Symbol()));
+
+        expect(postMessage).toHaveBeenLastCalledWith(
+            JSON.stringify(['stopNative', id])
+        );
+        expect(playback.suspended()).toBe(false);
+        reply(id, true);
+        expect(events).toEqual([]);
+    } finally {
+        clear();
+    }
+});
+
 it('reports only an owned natural end after recording the final position', () => {
     const { clear, events, open, reply, token } = setup();
     try {

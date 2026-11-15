@@ -134,7 +134,7 @@ try {
             res.end(segment);
         } else if (req.url === '/synthetic-live') {
             res.writeHead(302, { Location: '/synthetic-manifest' }).end();
-        } else if (req.url === '/synthetic.ism/Manifest(format=m3u8-aapl)') {
+        } else if (req.url === '/synthetic.ism/Manifest?format=hls') {
             const manifest = readFileSync(join(fixtures, 'synthetic.m3u8'), 'utf8')
                 .replace(/^synthetic/gm, '/synthetic');
             res.writeHead(200, { 'Content-Type': 'application/vnd.apple.mpegurl' });
@@ -188,7 +188,7 @@ try {
         '#EXTINF:-1 group-title="Live",Synthetic Live',
         origin + '/synthetic-live',
         '#EXTINF:-1 group-title="Live",Synthetic Manifest HLS',
-        origin + '/synthetic.ism/Manifest(format=m3u8-aapl)',
+        origin + '/synthetic.ism/Manifest?format=hls',
         '#EXTINF:-1 group-title="Movies",Synthetic AC-3',
         origin + '/synthetic-ac3.mkv',
         '#EXTINF:-1 group-title="Movies",Synthetic Unplayable',
@@ -212,14 +212,19 @@ try {
     await expect(action).toHaveCount(0);
     await setExperiment(true);
     await expect(action).toBeVisible();
-    const rejected = await page.evaluate((url) => new Promise((resolve) => {
-        const id = crypto.randomUUID();
-        window.addEventListener('iptvnator:android-playback-result', (event) => {
-            resolve(event.detail.id === id && event.detail.result === null);
-        }, { once: true });
-        window.TvShell.postMessage(JSON.stringify(['playNative', id, { url }]));
-    }), origin + '/synthetic.ism/Manifest');
-    assert.equal(rejected, true, 'Smooth Streaming must be rejected before starting Media3.');
+    for (const request of [
+        { url: origin + '/synthetic.ism/Manifest' },
+        { url: origin + '/synthetic.mpd', hls: true },
+    ]) {
+        const rejected = await page.evaluate((request) => new Promise((resolve) => {
+            const id = crypto.randomUUID();
+            window.addEventListener('iptvnator:android-playback-result', (event) => {
+                resolve(event.detail.id === id && event.detail.result === null);
+            }, { once: true });
+            window.TvShell.postMessage(JSON.stringify(['playNative', id, request]));
+        }), request);
+        assert.equal(rejected, true, 'The bridge must reject Smooth Streaming and DASH.');
+    }
     await page.evaluate(() => {
         window.addEventListener('iptvnator:android-playback-result', (event) => {
             window.__nativeResult = event.detail.result;

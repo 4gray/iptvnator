@@ -140,6 +140,7 @@ Current limitation:
 The Android shell can opt into a separate fullscreen Media3 activity. The web
 player unmounts its engine for the handoff and accepts the native activity's
 watch time and VOD position only while the originating playback owner is current.
+Retrying the web player cancels a pending Media3 launch before remounting.
 The final native position settles the resume guard and persists immediately,
 including when the viewer seeks and leaves before the watch-history threshold
 or Media3 cannot determine the VOD duration.
@@ -158,7 +159,8 @@ profile leaves the checkpoint pending. A reset or backup restore records its
 time in the same write as the position change. Older checkpoints cannot undo
 that change. Bulk resets use one marker for the season or series. Retries
 retain the original playback time so older episodes keep their place in the
-series resume order.
+series resume order. Activity Sync preserves the capture time of web and native
+positions when a server acknowledges them later.
 While a VOD plays, Android keeps an in-memory checkpoint so a launcher relaunch
 can recover progress even if it clears the player before the pause callback.
 Autoplay and watch-history confirmation require the original screen.
