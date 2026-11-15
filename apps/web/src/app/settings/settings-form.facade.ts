@@ -500,10 +500,9 @@ export class SettingsFormFacade {
      * source the user removes after a half-failed save is not "outside".
      */
     private ownEpgUrls(): unknown[] {
-        return [
-            ...(this.savedSnapshot.epgUrl ?? []),
-            ...Array.from(this.unsettledEpgUrls.values()).flat(),
-        ];
+        const urls = [...(this.savedSnapshot.epgUrl ?? [])];
+        for (const own of this.unsettledEpgUrls.values()) urls.push(...own);
+        return urls;
     }
 
     private takeSavedSnapshot(snapshot = this.form.getRawValue()): void {
