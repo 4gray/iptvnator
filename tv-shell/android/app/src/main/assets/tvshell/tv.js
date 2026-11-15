@@ -1565,6 +1565,7 @@
     // ------------------------------------------------------------- init
     function init() {
         document.documentElement.classList.add('tv-shell');
+        if (isAndroid) document.documentElement.classList.add('android-tv-shell');
         document.body.classList.add('tv-shell');
         installStyle();
         installNetworkTracking();

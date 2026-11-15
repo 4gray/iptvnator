@@ -1,4 +1,4 @@
-import type { Locator, Page } from '@playwright/test';
+import { devices, type Locator, type Page } from '@playwright/test';
 import { expect, test } from './pwa-mock.fixture';
 import {
     addXtreamPortal,
@@ -152,6 +152,48 @@ test.describe('portrait phone 375x812', () => {
     });
 });
 
+test.describe('touch-only phone', () => {
+    test.use({
+        viewport: PHONE,
+        hasTouch: true,
+        userAgent: devices['iPhone 13'].userAgent,
+        serviceWorkers: 'block',
+    });
+
+    test('@mobile @pwa @xtream @settings applies cover titles after repeated saves', async ({
+        page,
+        pwaMocks,
+    }) => {
+        await interceptPwaProviderRequests(page);
+        await page.goto('/');
+        expect(
+            await page.evaluate(() => matchMedia('(any-hover: hover)').matches)
+        ).toBe(false);
+        await addXtreamPortal(page, 'Touch Layout Portal', pwaMocks);
+        const catalogUrl = page.url();
+        const card = page.locator('app-grid-list mat-card').first();
+        const title = card.locator('.title');
+        await expect(title).toBeVisible();
+
+        for (const showTitles of [false, true, false]) {
+            await page.goto('/workspace/settings/appearance');
+            const toggle = page
+                .locator('[data-test-id="cover-titles-toggle"]')
+                .getByRole('switch');
+            await expect(toggle).toBeChecked({ checked: !showTitles });
+            await toggle.tap();
+            const save = page.locator('[data-test-id="save-settings"]');
+            await save.tap();
+            await expect(save).toBeHidden();
+
+            await page.goto(catalogUrl);
+            await expect(card).toBeVisible();
+            await expect(title).toHaveCount(Number(showTitles));
+            await expect(card).toHaveAccessibleName(/\S/);
+        }
+    });
+});
+
 // ---------------------------------------------------------------------------
 // Xtream portal routes — the portal is imported at the default desktop
 // viewport (which persists desktop rail widths, the exact regression
@@ -211,6 +253,46 @@ test.describe('xtream portal routes on a phone', () => {
 
         await expectNoHorizontalOverflow(page, PHONE.width);
         await expectRailLinksInsideTopBar(page);
+
+        const header = page.locator('.category-content-header');
+        const meta = await boxOf(header.locator('.category-meta'));
+        const refine = header.getByRole('button', { name: 'Refine' });
+        const trigger = await boxOf(refine);
+        expect(
+            Math.abs(meta.y + meta.height / 2 - trigger.y - trigger.height / 2)
+        ).toBeLessThanOrEqual(1);
+        await refine.click();
+        const watchStatus = page.getByRole('menuitem', {
+            name: /Watch status/,
+        });
+        await expect(watchStatus).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(watchStatus).toBeHidden();
+        await expect(page.locator('.cdk-overlay-backdrop')).toHaveCount(0);
+
+        const rail = page.locator('.app-rail');
+        const { x, y, height } = await boxOf(rail);
+        for (const offset of [2, height - 3]) {
+            await rail.evaluate((element) => (element.scrollLeft = 0));
+            expect(
+                await rail.evaluate(
+                    (element, start) =>
+                        element.contains(
+                            document.elementFromPoint(start.x, start.y)
+                        ),
+                    { x: x + 100, y: y + offset }
+                )
+            ).toBe(true);
+            await page.mouse.move(x + 100, y + offset);
+            await page.mouse.wheel(170, 0);
+            await expect
+                .poll(() => rail.evaluate((element) => element.scrollLeft))
+                .toBeGreaterThan(0);
+            await expect(
+                rail.getByRole('link', { name: 'Open settings' })
+            ).toBeInViewport();
+        }
+        await expectNoHorizontalOverflow(page, PHONE.width);
     });
 
     test('@mobile @xtream landscape live route keeps the channel list and the player inside the viewport', async ({

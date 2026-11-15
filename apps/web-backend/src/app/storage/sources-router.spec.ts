@@ -267,4 +267,72 @@ describe('source synchronization API', () => {
                 }
             )
         ));
+
+    it('accepts the weak revision a gzipping proxy sends and still rejects stale ones', () =>
+        withTempStorage((storage) =>
+            withServer(
+                createWebBackendApp({
+                    storage,
+                    clientOrigins: [],
+                    resolveHostname: resolvePublicHost,
+                    httpClient: new StubHttpClient(),
+                }),
+                async (base) => {
+                    const url = `${base}/v1/sources`;
+                    // nginx's gzip rewrites `"tag"` to `W/"tag"`.
+                    const weak = (tag: string | null) => `W/${tag}`;
+                    const remove = (path: string, ifMatch?: string) =>
+                        fetch(path, {
+                            method: 'DELETE',
+                            headers: ifMatch ? { 'If-Match': ifMatch } : {},
+                        });
+                    const created = await fetch(
+                        `${url}/weak`,
+                        body('PUT', source('weak'), { 'If-None-Match': '*' })
+                    );
+                    expect(created.status).toBe(201);
+                    const revision = created.headers.get('etag');
+                    const patch = (ifMatch: string) =>
+                        fetch(
+                            `${url}/weak`,
+                            body(
+                                'PATCH',
+                                { ...source('weak'), title: ifMatch },
+                                { 'If-Match': ifMatch }
+                            )
+                        );
+                    expect((await patch('W/"another"')).status).toBe(412);
+                    expect((await patch('*')).status).toBe(412);
+                    const changed = await patch(weak(revision));
+                    expect(changed.status).toBe(200);
+                    expect((await patch(weak(revision))).status).toBe(412);
+                    expect((await remove(`${url}/weak`)).status).toBe(428);
+                    expect((await remove(`${url}/weak`, '*')).status).toBe(412);
+                    expect(
+                        (
+                            await remove(
+                                `${url}/weak`,
+                                weak(changed.headers.get('etag'))
+                            )
+                        ).status
+                    ).toBe(200);
+                    expect(storage.playlists.get('weak')).toBeNull();
+
+                    await fetch(
+                        `${url}/other`,
+                        body('PUT', source('other'), { 'If-None-Match': '*' })
+                    );
+                    const inventory = await fetch(url);
+                    const collection = inventory.headers.get('etag');
+                    expect((await remove(url, '*')).status).toBe(412);
+                    expect((await remove(url, '"stale", *')).status).toBe(412);
+                    expect((await remove(url, 'W/"stale"')).status).toBe(412);
+                    expect(storage.playlists.get('other')).not.toBeNull();
+                    expect((await remove(url, weak(collection))).status).toBe(
+                        200
+                    );
+                    expect(storage.playlists.get('other')).toBeNull();
+                }
+            )
+        ));
 });

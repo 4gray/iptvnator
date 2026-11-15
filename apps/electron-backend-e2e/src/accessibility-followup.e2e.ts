@@ -40,6 +40,7 @@ test('@electron @a11y Settings text meets contrast in every preset', async ({
             'mocha',
             'night-owl',
             'black-oled',
+            'high-contrast',
         ] as const) {
             await page
                 .getByTestId('select-theme')
@@ -55,7 +56,7 @@ test('@electron @a11y Settings text meets contrast in every preset', async ({
             const paletteLabels = page
                 .getByTestId('select-theme')
                 .locator('.theme-palette__label');
-            await expect(paletteLabels).toHaveCount(7);
+            await expect(paletteLabels).toHaveCount(8);
             for (const label of await paletteLabels.all()) {
                 await expectTextContrast(label);
             }

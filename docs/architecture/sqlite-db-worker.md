@@ -476,6 +476,23 @@ lifecycle, only the terminal
 separate cancel-requested flag immediately so the cancel action cannot be
 clicked twice while it waits for the authoritative terminal event.
 
+A cancelled source delete (`delete-playlist`) keeps the source, so the order
+of its commits is chosen for what a cancel leaves behind
+(`playlist-delete.operations.ts`). Before the first catalog commit it records
+favorite identity evidence and sets `xtream-import-status:*` to `importing`
+for every type that has categories, keyed or not (a catalog imported before
+the keys existed reads as `idle`, a usable cache). That is the marker an
+interrupted import leaves, so the next startup's bootstrap clears and
+re-imports a partly deleted catalog instead of showing it as complete; until
+then the running renderer keeps the catalog it already loaded. Content then goes in row-budgeted
+category groups, then the categories. Favorites, playback positions, the
+remaining history and the playlist row are deleted together in one final
+transaction after the last checkpoint. Favorites survive their content with
+`content_id` NULL and are linked again when the re-import completes;
+positions are keyed by provider IDs. Recently viewed rows cascade with their
+content, so a cancelled source loses its watch history, as an interrupted
+import does; keeping it would need the refresh flow's pending-restore record.
+
 With the exact `IPTVNATOR_PERF_WORKER_PROFILING=1` opt-in, receipt of a cancel
 for a correlated active request also emits a
 `performance-cancel-received` worker diagnostic containing only safe
@@ -727,6 +744,10 @@ lookup behavior when evidence is omitted. Favorite status/actions use the select
 internal row ID consistently. Import completion reconciles links and saved
 metadata; detail enrichment also updates the snapshot. Known identity conflicts
 remain unresolved. See [Xtream compatibility](./xtream-portal-compatibility.md#durable-electron-favorites).
+
+The lookup returns the catalog row's `tmdb_id` and `release_year` with its
+title and poster. Synchronized Xtream history uses those returned fields to
+confirm the match before showing the catalog title and artwork.
 
 The lookup also accepts an optional local `categoryId` restriction, independent
 of TMDB/year evidence. Cold detail Back uses it to verify route membership before

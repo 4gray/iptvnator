@@ -93,7 +93,10 @@ for (const theme of ['Light', 'Dark'] as const) {
         page,
     }) => {
         await openSection(page);
-        await page.getByRole('radio', { name: theme, exact: true }).click();
+        await page
+            .locator('[data-test-id="select-theme"]')
+            .getByRole('radio', { name: theme, exact: true })
+            .click();
         await page.locator('[data-test-id="save-settings"]').click();
         await page.locator('[data-test-id="settings-section-backup"]').click();
         const importButton = page.getByRole('button', {

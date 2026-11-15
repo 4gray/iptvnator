@@ -1,0 +1,32 @@
+// Native top-layer surfaces escape player/container clipping without moving DOM.
+@mixin surface {
+    position: fixed;
+    inset: auto;
+    left: var(--pip-left);
+    top: var(--pip-top);
+    width: var(--pip-width);
+    height: var(--pip-height);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    overflow: visible;
+    color: inherit;
+
+    &::backdrop {
+        background: transparent;
+        pointer-events: none;
+    }
+
+    &:not(:popover-open) {
+        display: none;
+    }
+}
+
+@mixin frame {
+    --embedded-mpv-frame-radius: 8px;
+    --embedded-mpv-background: transparent;
+    border-radius: var(--embedded-mpv-frame-radius);
+    outline: 1px solid var(--app-line-strong);
+    outline-offset: -1px;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 30%);
+}

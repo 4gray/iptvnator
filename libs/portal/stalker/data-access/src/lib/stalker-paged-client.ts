@@ -2,6 +2,7 @@ export type StalkerWireRow = Record<string, unknown>;
 export interface StalkerWirePage {
     data: StalkerWireRow[];
     total: number;
+    totalKnown: boolean;
     pageSize: number;
 }
 type Sender = (
@@ -44,9 +45,17 @@ export class StalkerPagedCatalog {
             total_items?: unknown;
             max_page_items?: unknown;
         };
+        const rawTotal = envelope?.total_items;
+        const parsedTotal = Number(rawTotal);
+        const totalKnown =
+            rawTotal != null &&
+            rawTotal !== '' &&
+            Number.isSafeInteger(parsedTotal) &&
+            parsedTotal >= 0;
         const result = {
             data: rows,
-            total: Number(envelope?.total_items ?? rows.length),
+            total: totalKnown ? parsedTotal : rows.length,
+            totalKnown,
             pageSize: Number(envelope?.max_page_items) || rows.length || 1,
         };
         if (!signal.aborted) {
@@ -81,7 +90,7 @@ export class StalkerPagedCatalog {
                 Math.floor(offset / serverSize) + 1,
                 signal
             );
-            total = response.total;
+            total = response.totalKnown ? response.total : Infinity;
             const slice = response.data.slice(
                 offset % serverSize,
                 (offset % serverSize) + pageSize - data.length
@@ -90,7 +99,13 @@ export class StalkerPagedCatalog {
             data.push(...slice);
             offset += slice.length;
         }
-        return { data, total: Number.isFinite(total) ? total : 0, pageSize };
+        const totalKnown = Number.isFinite(total);
+        return {
+            data,
+            total: totalKnown ? total : offset,
+            totalKnown,
+            pageSize,
+        };
     }
     clear() {
         this.pages.clear();

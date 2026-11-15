@@ -373,10 +373,10 @@ lookup failure, a `test-<branch>` draft — is left alone.
 
 ## Nightly channel
 
-Every push to `master` of `4gray/iptvnator` is also a nightly. The same
-`build-and-make.yaml` run that builds the matrix publishes its artifacts as a
-**prerelease of `4gray/iptvnator-nightly`** instead of the rolling
-`test-master` draft: a draft is invisible to anyone without write access and
+Pushes to `master` of `4gray/iptvnator` that pass the workflow's path filters
+start a nightly run. The workflow `build-and-make.yaml` builds the matrix and
+publishes its artifacts as a **prerelease of `4gray/iptvnator-nightly`** instead
+of the rolling `test-master` draft: a draft is invisible to anyone without write access and
 to electron-updater, while a published prerelease is what the desktop app's
 **Nightly** update channel installs. PR builds keep their `test-pr-<n>`
 drafts; tag builds are unaffected.
@@ -435,9 +435,14 @@ frontend and backend builds and before electron-builder reads it
    release is never deleted by a re-run: re-running after a successful
    publish is a no-op, and only a draft left behind by a failed run is
    replaced.
-4. The release job is serialized per ref, but two master runs can finish out
-   of order. electron-updater takes the newest feed entry, so a nightly older
-   than the newest published one is dropped rather than published.
+4. Build and release job concurrency groups are shared across pushes to the
+   same ref.
+   [GitHub can replace a pending job](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency#example-using-concurrency-and-the-default-behavior)
+   when another job enters the same group, even with
+   `cancel-in-progress: false`. A superseded run can miss publication. The
+   next successfully published descendant includes its changes.
+   The release job is serialized per ref, but two master runs can finish out
+   of order. The publish step drops a nightly older than the newest feed entry.
 5. Only the newest `NIGHTLY_KEEP_RELEASES` (20) nightlies are kept; older
    ones are deleted together with their tags.
 

@@ -41,15 +41,15 @@ function createFakeController() {
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),
         togglePictureInPicture: jest.fn(),
+        jumpToLiveEdge: jest.fn(),
     };
     const controller: PlayerController = { capabilities, state, commands };
     return { controller, capabilities, state, commands };
 }
 
 /**
- * The settings panel behind the `tune` button: chips on wide players, the
- * panel beside the video, the compact bottom sheet, and the dock changes
- * that come with each.
+ * The settings panel behind the `tune` button: the panel beside the video,
+ * the compact bottom sheet, and the dock changes that come with each.
  */
 describe('PlayerControlsComponent settings panel', () => {
     const originalResizeObserver = globalThis.ResizeObserver;
@@ -164,19 +164,16 @@ describe('PlayerControlsComponent settings panel', () => {
     describe('wide dock', () => {
         beforeEach(withEverything);
 
-        it('shows subtitle and speed chips with their values and state colors', () => {
-            const subtitles = query(
-                '[data-test-id="player-controls-subtitle-chip"]'
-            );
-            const speed = query('[data-test-id="player-controls-speed-chip"]');
-            expect(subtitles?.textContent).toContain('Off');
-            expect(subtitles?.classList).not.toContain(
-                'player-controls__chip--on'
-            );
-            expect(speed?.textContent).toContain('1×');
-            expect(speed?.classList).not.toContain(
-                'player-controls__chip--modified'
-            );
+        it('shows changes on the settings button without separate shortcut buttons', () => {
+            expect(
+                query('[data-test-id="player-controls-subtitle-chip"]')
+            ).toBeNull();
+            expect(
+                query('[data-test-id="player-controls-speed-chip"]')
+            ).toBeNull();
+            expect(
+                query('[data-test-id="player-controls-settings-dots"]')
+            ).toBeNull();
 
             setState({
                 audioTracks: fake.state().audioTracks,
@@ -186,29 +183,16 @@ describe('PlayerControlsComponent settings panel', () => {
             });
             fixture.detectChanges();
 
-            expect(
-                query('[data-test-id="player-controls-subtitle-chip"]')
-                    ?.textContent
-            ).toContain('Russian');
-            expect(
-                query('[data-test-id="player-controls-subtitle-chip"]')
-                    ?.classList
-            ).toContain('player-controls__chip--on');
-            expect(
-                query('[data-test-id="player-controls-speed-chip"]')
-                    ?.textContent
-            ).toContain('1.25×');
-            expect(
-                query('[data-test-id="player-controls-speed-chip"]')?.classList
-            ).toContain('player-controls__chip--modified');
+            expect(query('.player-controls__tune-dot--cyan')).not.toBeNull();
+            expect(query('.player-controls__tune-dot--violet')).not.toBeNull();
         });
 
-        it('opens the panel on the chip group, shifts the dock and folds the chips away', () => {
+        it('opens the settings panel beside the video and shifts the dock', () => {
             expect(
                 query('[data-test-id="player-controls-settings-panel"]')
             ).toBeNull();
 
-            query('[data-test-id="player-controls-speed-chip"]')?.click();
+            query('[data-test-id="player-controls-settings-button"]')?.click();
             fixture.detectChanges();
 
             const panel = query(
@@ -222,18 +206,9 @@ describe('PlayerControlsComponent settings panel', () => {
             const title = panel?.querySelector('h2');
             expect(panel?.getAttribute('aria-labelledby')).toBe(title?.id);
             expect(title?.textContent?.trim()).toBe('Settings');
-            expect(
-                query('[data-test-id="player-settings-speed"]')?.classList
-            ).toContain('player-settings__group--focused');
             expect(query('.player-controls__bar')?.classList).toContain(
                 'player-controls__bar--panel-open'
             );
-            expect(
-                query('[data-test-id="player-controls-speed-chip"]')
-            ).toBeNull();
-            expect(
-                query('[data-test-id="player-controls-subtitle-chip"]')
-            ).toBeNull();
             expect(query('[aria-label="Enter picture-in-picture"]')).toBeNull();
             expect(query('[aria-label="Enter fullscreen"]')).not.toBeNull();
             expect(
@@ -243,7 +218,7 @@ describe('PlayerControlsComponent settings panel', () => {
         });
 
         it('renders every available group in order and applies choices in place', () => {
-            component.settings.open();
+            query('[data-test-id="player-controls-settings-button"]')?.click();
             fixture.detectChanges();
 
             expect(
@@ -266,7 +241,7 @@ describe('PlayerControlsComponent settings panel', () => {
         });
 
         it('closes from the panel button and from the tune button', () => {
-            component.settings.open();
+            query('[data-test-id="player-controls-settings-button"]')?.click();
             fixture.detectChanges();
 
             query('[data-test-id="player-settings-close"]')?.click();
@@ -290,23 +265,8 @@ describe('PlayerControlsComponent settings panel', () => {
             ).toBeNull();
         });
 
-        it('toggles subtitles from the chip context menu without opening the panel', () => {
-            const chip = query(
-                '[data-test-id="player-controls-subtitle-chip"]'
-            ) as HTMLElement;
-            const event = new MouseEvent('contextmenu', {
-                bubbles: true,
-                cancelable: true,
-            });
-            chip.dispatchEvent(event);
-
-            expect(event.defaultPrevented).toBe(true);
-            expect(fake.commands.setSubtitleTrack).toHaveBeenCalledWith(5);
-            expect(component.settings.isOpen()).toBe(false);
-        });
-
         it('closes the panel once no group is left', () => {
-            component.settings.open('audio');
+            query('[data-test-id="player-controls-settings-button"]')?.click();
             fixture.detectChanges();
 
             fake.capabilities.set({ ...DEFAULT_PLAYER_CAPABILITIES });
@@ -325,17 +285,11 @@ describe('PlayerControlsComponent settings panel', () => {
             resizeTo(ROOMY_LAYOUT_MIN_WIDTH - 1);
         });
 
-        it('stays wide but folds the chips into tune and opens a sheet', () => {
+        it('stays wide but opens settings as a bottom sheet', () => {
             expect(query('.player-controls__bar')?.classList).not.toContain(
                 'player-controls__bar--compact'
             );
             expect(query('.player-controls__slider--inline')).not.toBeNull();
-            expect(
-                query('[data-test-id="player-controls-speed-chip"]')
-            ).toBeNull();
-            expect(
-                query('[data-test-id="player-controls-subtitle-chip"]')
-            ).toBeNull();
 
             setState({
                 audioTracks: fake.state().audioTracks,
@@ -368,13 +322,7 @@ describe('PlayerControlsComponent settings panel', () => {
             resizeTo(COMPACT_LAYOUT_MAX_WIDTH);
         });
 
-        it('folds the chips into the tune button with state dots', () => {
-            expect(
-                query('[data-test-id="player-controls-subtitle-chip"]')
-            ).toBeNull();
-            expect(
-                query('[data-test-id="player-controls-speed-chip"]')
-            ).toBeNull();
+        it('shows state dots on the compact settings button', () => {
             expect(
                 query('[data-test-id="player-controls-settings-dots"]')
             ).toBeNull();
