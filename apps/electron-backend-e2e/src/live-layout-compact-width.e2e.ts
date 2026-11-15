@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { Page } from '@playwright/test';
 import {
     addStalkerPortal,
@@ -42,14 +44,34 @@ const M3U_CHANNELS = [
     {
         groupTitle: 'News',
         name: 'Compact Alpha',
-        url: 'https://streams.example.test/compact-alpha.m3u8',
+        url: 'https://streams.example.test/compact-alpha.webm',
     },
     {
         groupTitle: 'Sports',
         name: 'Compact Beta',
-        url: 'https://streams.example.test/compact-beta.m3u8',
+        url: 'https://streams.example.test/compact-beta.webm',
     },
 ];
+
+const M3U_STREAM_MEDIA = readFileSync(
+    join(__dirname, '../../web-e2e/src/fixtures/playback/episode.webm')
+);
+
+/**
+ * Blocks the network, then serves the M3U channels a real clip: a failed
+ * stream replaces the control bar with the error panel, and the bar is what
+ * the width checks measure.
+ */
+async function routeM3uStreams(page: Page): Promise<void> {
+    await page.route('https://**', (route) => route.abort());
+    await page.route('https://streams.example.test/**', (route) =>
+        route.fulfill({
+            status: 200,
+            contentType: 'video/webm',
+            body: M3U_STREAM_MEDIA,
+        })
+    );
+}
 
 async function resizeWindow(
     app: Awaited<ReturnType<typeof launchElectronApp>>,
@@ -84,8 +106,28 @@ async function expectUsablePlayer(page: Page): Promise<void> {
         .toBeGreaterThanOrEqual(Math.round(WIDTH * MIN_PLAYER_SHARE));
     const box = await player.boundingBox();
     expect(box).not.toBeNull();
-    // The whole player, controls dock included, stays inside the window.
     expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(WIDTH + 1);
+
+    // Overflowing controls do not widen the player's own box, so the
+    // control bar's buttons are measured one by one against it.
+    await player.hover();
+    const bar = player.locator('app-player-controls .player-controls__bar');
+    await expect(bar).toBeVisible();
+    const buttons = await bar
+        .locator('button:visible')
+        .evaluateAll((elements) =>
+            elements.map((element) => {
+                const rect = element.getBoundingClientRect();
+                return { left: rect.left, right: rect.right };
+            })
+        );
+    expect(buttons.length).toBeGreaterThan(0);
+    const left = box?.x ?? 0;
+    const right = Math.min(left + (box?.width ?? 0), WIDTH);
+    for (const button of buttons) {
+        expect(button.left).toBeGreaterThanOrEqual(left - 1);
+        expect(button.right).toBeLessThanOrEqual(right + 1);
+    }
 }
 
 /**
@@ -217,7 +259,7 @@ test.describe('Live layout at the minimum window width (UI-67)', () => {
         );
         const app = await launchElectronApp(dataDir);
         try {
-            await app.mainWindow.route('https://**', (route) => route.abort());
+            await routeM3uStreams(app.mainWindow);
             await importM3uPlaylistFromNativeDialog(app, filePath);
             await waitForM3uCatalog(app.mainWindow);
             await channelItemByTitle(app.mainWindow, 'Compact Alpha')
@@ -226,6 +268,61 @@ test.describe('Live layout at the minimum window width (UI-67)', () => {
 
             await resizeWindow(app, WIDTH, HEIGHT);
             await expectUsablePlayer(app.mainWindow);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('@electron @m3u a saved wide Groups rail leaves the M3U channel pane usable at 900 px', async ({
+        dataDir,
+    }) => {
+        const filePath = writeTemporaryM3uFile(
+            dataDir,
+            'compact-width-groups.m3u',
+            M3U_CHANNELS
+        );
+        const app = await launchElectronApp(dataDir);
+        try {
+            await routeM3uStreams(app.mainWindow);
+            await importM3uPlaylistFromNativeDialog(app, filePath);
+            await waitForM3uCatalog(app.mainWindow);
+            // The widest rail the Groups view lets a user save.
+            await app.mainWindow.evaluate(() =>
+                localStorage.setItem('m3u-groups-nav-width', '320')
+            );
+            await openWorkspaceSection(app.mainWindow, 'Groups');
+            await app.mainWindow
+                .locator('app-groups-view .group-nav-item', {
+                    hasText: 'News',
+                })
+                .first()
+                .click();
+            await channelItemByTitle(app.mainWindow, 'Compact Alpha')
+                .first()
+                .click();
+
+            await resizeWindow(app, WIDTH, HEIGHT);
+            const pane = app.mainWindow.locator(
+                'app-groups-view .groups-content-panel'
+            );
+            // About 150 px: the rail's 164 px minimum wins over the 160 px
+            // the cap reserves; before the cap the pane got 0 px.
+            await expect
+                .poll(async () => (await pane.boundingBox())?.width ?? 0)
+                .toBeGreaterThanOrEqual(140);
+            const title = channelItemByTitle(
+                app.mainWindow,
+                'Compact Alpha'
+            ).first();
+            await expect(title).toBeVisible();
+            expect((await title.boundingBox())?.width ?? 0).toBeGreaterThan(60);
+            await expectUsablePlayer(app.mainWindow);
+            // Resizing the window never rewrote the saved rail width.
+            expect(
+                await app.mainWindow.evaluate(() =>
+                    localStorage.getItem('m3u-groups-nav-width')
+                )
+            ).toBe('320');
         } finally {
             await closeElectronApp(app);
         }

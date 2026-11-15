@@ -271,6 +271,20 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
         return Number.isFinite(width) ? width : this.currentWidth();
     }
 
+    /**
+     * The width the element settles at, not a frame of a running width
+     * transition (the directive's own, or a host's rail animation): turning
+     * the transition off for the read cancels it, and turning it back on
+     * starts nothing, since the width does not change again.
+     */
+    private settledWidth(): number {
+        const el = this.el.nativeElement;
+        this.renderer.setStyle(el, 'transition', 'none');
+        const width = this.renderedWidth();
+        this.renderer.removeStyle(el, 'transition');
+        return width;
+    }
+
     private onMouseMove(e: MouseEvent): void {
         if (!this.isResizing()) return;
         this.resize(e.clientX);
@@ -304,12 +318,24 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
     private endResize(): void {
         if (!this.isResizing()) return;
 
+        const rendered = this.settledWidth();
         this.isResizing.set(false);
         this.removeGlobalListeners();
-        // A click on the handle is not a resize: persisting would save the
-        // width this sidebar clamped instead of the shared one.
-        if (this.currentWidth() !== this.widthBeforeResize) {
-            this.persistWidth();
+        if (rendered === this.startWidth) {
+            // The edge did not move: a click on the handle, or a drag against
+            // a CSS cap narrower than `maxWidth` (a responsive `max-width`).
+            // Persisting would replace the saved width with the clamped one.
+            if (this.currentWidth() !== this.widthBeforeResize) {
+                this.setWidth(this.widthBeforeResize);
+            }
+        } else {
+            // Never save more than the CSS cap let the user see.
+            if (rendered < this.currentWidth()) {
+                this.setWidth(rendered);
+            }
+            if (this.currentWidth() !== this.widthBeforeResize) {
+                this.persistWidth();
+            }
         }
         this.resizeEnd.emit(this.currentWidth());
     }

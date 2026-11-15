@@ -854,7 +854,10 @@ remain local when the meaning is explicit.
   back. The popover's "show categories panel" unfolds the rail inside the band
   until the viewport leaves and re-enters it. The channel list's `max-width`
   is `clamp(250px, 36vw, 600px)` (`_portal-layout.scss`), so a stored or
-  default width narrows with the window. Both values are local until the
+  default width narrows with the window; the M3U Groups rail inside it caps
+  itself at `min(320px, 100% - 160px)` so the channel pane keeps 160px, and
+  `ResizableDirective` neither saves a drag the CSS cap stopped nor more
+  than the cap shows. Both values are local until the
   breakpoint map (UI-36) absorbs them; `live-layout-compact-width.e2e.ts`
   pins the player share at 900×700 for Xtream, Stalker and M3U.
 - Xtream Live TV's root view (`/live` with no selected category) follows the
@@ -902,7 +905,9 @@ remain local when the meaning is explicit.
       survives into the restored rail. Backdrop, Escape, the footer, any
       category selection (`categorySelected` output), any router
       `NavigationStart` and any live-panel level change (`Cmd/Ctrl+B`
-      reaches the layout through the dialog) close it; focus returns to the
+      reaches the layout through the dialog) close it, and so does a window
+      resize across the compact band, which unfolds the rail and removes the
+      dropdown without a level change; focus returns to the
       trigger. The popover host is a `role="dialog"` with `aria-modal` and a
       `CdkTrapFocus` host directive that captures focus on open, matching
       the trigger's `aria-haspopup="dialog"`.
