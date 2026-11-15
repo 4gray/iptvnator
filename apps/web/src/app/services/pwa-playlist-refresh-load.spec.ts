@@ -7,6 +7,9 @@ import { PLAYLIST_UPDATE } from '@iptvnator/shared/interfaces';
 import { PwaService } from './pwa.service';
 
 // A stale or offline PWA cannot fetch the lazily loaded refresh chunk.
+// The ESM runner resolves `unstable_mockModule` paths from `src/test-setup.ts`,
+// not from this file, so the path is relative to `apps/web/src`:
+// `./pwa-playlist-refresh` fails with "Cannot find module".
 jest.unstable_mockModule('./app/services/pwa-playlist-refresh', () => {
     throw new Error('Synthetic chunk load failure');
 });
