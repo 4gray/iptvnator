@@ -8,7 +8,6 @@ import {
 } from '@iptvnator/portal/shared/data-access';
 import {
     getPortalPlaybackProgressPercent,
-    isPortalPlaybackInProgress,
     isPortalPlaybackWatched,
     type UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
@@ -28,9 +27,9 @@ export class SecondStreamPickerVod {
     readonly episodeWatched = (row: SecondStreamEpisode) =>
         isPortalPlaybackWatched(row.position);
     readonly episodeProgress = (row: SecondStreamEpisode) =>
-        isPortalPlaybackInProgress(row.position)
-            ? getPortalPlaybackProgressPercent(row.position)
-            : 0;
+        this.episodeWatched(row)
+            ? 0
+            : getPortalPlaybackProgressPercent(row.position);
     private readonly failedArtwork = signal(new Set<string>());
     private request?: AbortController;
     private playlistId = '';

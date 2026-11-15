@@ -200,6 +200,26 @@ describe('SecondStreamPicker presentation', () => {
         expect(rows[0].disabled).toBe(true);
     });
 
+    it('keeps early saved progress visible until the episode is watched', () => {
+        const early = {
+            ...episode,
+            position: { ...episode.position, positionSeconds: 8 },
+        };
+        expect(component.vod.episodeProgress(early)).toBe(7);
+        expect(
+            component.vod.episodeProgress({
+                ...early,
+                position: { ...early.position, watched: true },
+            })
+        ).toBe(0);
+        expect(
+            component.vod.episodeProgress({
+                ...early,
+                position: { ...early.position, positionSeconds: 108 },
+            })
+        ).toBe(0);
+    });
+
     it('returns focus to the search after opening and leaving a series', async () => {
         const row = root.querySelector<HTMLButtonElement>('.picker__vod-row');
         if (!row) throw new Error('Missing catalogue row');
