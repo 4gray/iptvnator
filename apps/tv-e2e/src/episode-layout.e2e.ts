@@ -121,6 +121,23 @@ for (const { index, actions } of [
             : chosen;
         if (actions) await page.keyboard.press('ArrowDown');
         await expect(focused).toBeFocused();
+        // Leave room below for the taller still card so the anchor, not the
+        // focused-card visibility rule, decides the scroll after reflow.
+        await page.locator('main').evaluate(
+            (main, top) => {
+                main.scrollTop += top - main.clientHeight / 4;
+            },
+            await chosen.evaluate((el) => el.getBoundingClientRect().top)
+        );
+        await page.evaluate(
+            () =>
+                new Promise<void>((resolve) =>
+                    requestAnimationFrame(() =>
+                        requestAnimationFrame(() => resolve())
+                    )
+                )
+        );
+        await expect(focused).toBeFocused();
         const before = await chosen.evaluate(
             (el) => el.getBoundingClientRect().top
         );

@@ -48,6 +48,7 @@ function createFakeController(): FakeController {
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),
         togglePictureInPicture: jest.fn(),
+        jumpToLiveEdge: jest.fn(),
     };
     return {
         controller: { capabilities, state, commands },
@@ -270,6 +271,7 @@ describe('PlayerControlsComponent capability contract', () => {
         const fake = createFakeController();
         const fixture = createControls(fake);
         const component = fixture.componentInstance;
+        const root = fixture.nativeElement as HTMLElement;
 
         fake.capabilities.set({
             ...DEFAULT_PLAYER_CAPABILITIES,
@@ -283,7 +285,9 @@ describe('PlayerControlsComponent capability contract', () => {
             ],
         });
         fixture.detectChanges();
-        component.settings.open('audio');
+        root.querySelector<HTMLButtonElement>(
+            '[data-test-id="player-controls-settings-button"]'
+        )?.click();
         expect(component.menus.settingsOpen()).toBe(true);
 
         fake.state.set({
@@ -298,7 +302,9 @@ describe('PlayerControlsComponent capability contract', () => {
             playbackSpeed: true,
         });
         fixture.detectChanges();
-        component.settings.open('speed');
+        root.querySelector<HTMLButtonElement>(
+            '[data-test-id="player-controls-settings-button"]'
+        )?.click();
         expect(component.menus.settingsOpen()).toBe(true);
 
         fake.capabilities.set({ ...DEFAULT_PLAYER_CAPABILITIES });

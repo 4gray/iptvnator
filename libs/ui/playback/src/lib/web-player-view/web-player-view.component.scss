@@ -1,3 +1,5 @@
+@use '../second-stream/floating-surface';
+
 .web-player-view {
     container-type: inline-size;
     display: block;
@@ -46,4 +48,34 @@ app-html-video-player {
 .web-player-external-action:focus-visible {
     outline: 2px solid #fff;
     outline-offset: 2px;
+}
+
+.embedded-mpv-pair {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+.embedded-mpv-pair--with-strip {
+    --second-stream-strip-height: 40px;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) var(--second-stream-strip-height);
+}
+.embedded-mpv-pair--side-by-side {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 4px;
+    background: #000;
+}
+.embedded-mpv-pair--swapped > app-embedded-mpv-player {
+    position: absolute;
+    width: var(--pip-width);
+    height: var(--pip-height);
+    left: var(--pip-left);
+    top: var(--pip-top);
+    z-index: 3;
+    background: #000;
+}
+
+.embedded-mpv-pair > app-embedded-mpv-player[popover] {
+    @include floating-surface.surface;
+    @include floating-surface.frame;
 }

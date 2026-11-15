@@ -1,6 +1,7 @@
 import { normalizeAgeRatingCountry } from '@iptvnator/shared/interfaces/age-rating';
 import {
     DestroyRef,
+    effect,
     inject,
     Injectable,
     signal,
@@ -18,6 +19,8 @@ import {
     EpgViewMode,
     Language,
     Theme,
+    ThemeAccent,
+    ThemeMode,
 } from '@iptvnator/shared/interfaces';
 import { SettingsSnackbarService } from './settings-snackbar.service';
 import { SettingsStore } from '../services/settings-store.service';
@@ -28,6 +31,11 @@ import {
     SETTINGS_RESTART_CONTROLS,
 } from './settings-change-tracking';
 import { SettingsLaunchValuesService } from './settings-launch-values.service';
+import {
+    normalizeSavedAppearance,
+    previewSystemThemes,
+    restoreSavedAppearance,
+} from './settings-theme-preview';
 import {
     applyEpgUrlsToFormArray,
     createEpgUrlControl,
@@ -104,6 +112,10 @@ export class SettingsFormFacade {
         this.form.valueChanges
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe(() => this.refreshChangedPaths());
+        effect(() => {
+            const key = this.settingsStore.savedTmdbApiKey();
+            if (key !== undefined) untracked(() => this.syncSavedTmdbKey(key));
+        });
     }
 
     /** Trimmed, non-empty EPG source URLs currently in the form */
@@ -134,6 +146,7 @@ export class SettingsFormFacade {
             ageRatingCountry: normalizeAgeRatingCountry(
                 currentSettings.ageRatingCountry
             ),
+            ...normalizeSavedAppearance(currentSettings),
         });
         this.syncDashboardControlsEnabledState(
             currentSettings.showDashboard ?? true
@@ -178,6 +191,28 @@ export class SettingsFormFacade {
 
         this.patchAndMarkDirty({ theme }, 'theme');
         this.settingsService.changeTheme(theme);
+    }
+
+    /** The preset System shows in one device mode; previews like the theme. */
+    selectSystemTheme(mode: ThemeMode, theme: Theme): void {
+        const control =
+            mode === 'dark' ? 'systemDarkTheme' : 'systemLightTheme';
+        if (this.form.value[control] === theme) {
+            return;
+        }
+
+        this.patchAndMarkDirty({ [control]: theme }, control);
+        previewSystemThemes(this.settingsService, this.form.value);
+    }
+
+    /** Previews immediately like the theme; the write happens on Save. */
+    selectThemeAccent(themeAccent: ThemeAccent | null): void {
+        if ((this.form.value.themeAccent ?? null) === themeAccent) {
+            return;
+        }
+
+        this.patchAndMarkDirty({ themeAccent }, 'themeAccent');
+        void this.settingsService.changeThemeAccent(themeAccent);
     }
 
     /**
@@ -244,6 +279,11 @@ export class SettingsFormFacade {
             this.form,
             this.settingsStore.getSettings()
         );
+        if (
+            settings.tmdb?.apiKey ===
+            (this.savedSnapshot.tmdb.apiKey?.trim() ?? '')
+        )
+            delete settings.tmdb.apiKey;
         let cleanupError: EpgSourceReconciliationError | undefined;
         try {
             await this.settingsStore.updateSettings(settings, {
@@ -259,7 +299,10 @@ export class SettingsFormFacade {
         if (saveRevision !== this.saveRevision) return;
         if (window.electron) {
             try {
-                await window.electron.updateSettings(settings);
+                await window.electron.updateSettings({
+                    ...settings,
+                    tmdb: this.settingsStore.getSettings().tmdb,
+                });
             } catch (error) {
                 if (saveRevision !== this.saveRevision) return;
                 throw new SettingsRuntimeUpdateError(error);
@@ -273,6 +316,8 @@ export class SettingsFormFacade {
         }
         if (cleanupError) throw cleanupError;
         this.takeSavedSnapshot(submittedSnapshot);
+        const savedTmdbKey = this.settingsStore.savedTmdbApiKey();
+        if (savedTmdbKey !== undefined) this.syncSavedTmdbKey(savedTmdbKey);
         onSaved();
         this.refreshRestartPending();
     }
@@ -286,6 +331,23 @@ export class SettingsFormFacade {
         this.restartPendingControls.set([]);
     }
 
+    applyTransferredTmdbKey(): void {
+        const apiKey = this.settingsStore.getSettings().tmdb?.apiKey ?? '';
+        this.syncSavedTmdbKey(apiKey, true);
+        this.settingsSnackbar.tmdbKeySaved();
+    }
+
+    private syncSavedTmdbKey(apiKey: string, replaceDraft = false): void {
+        const control = this.form.controls.tmdb.controls.apiKey;
+        const hasDraft = control.value !== this.savedSnapshot.tmdb.apiKey;
+        this.savedSnapshot = {
+            ...this.savedSnapshot,
+            tmdb: { ...this.savedSnapshot.tmdb, apiKey },
+        };
+        if (replaceDraft || !hasDraft) control.setValue(apiKey);
+        else this.refreshChangedPaths();
+    }
+
     /** Applies saved values while keeping edits made during Save available. */
     applySavedSettings(): void {
         if (this.changedPaths().length) this.form.markAsDirty();
@@ -296,12 +358,11 @@ export class SettingsFormFacade {
         void this.dateLocales.use(
             this.savedSnapshot.language ?? Language.ENGLISH
         );
-        // Theme selections preview immediately; an older save must not undo one.
-        if (this.form.value.theme === this.savedSnapshot.theme) {
-            this.settingsService.changeTheme(
-                this.savedSnapshot.theme ?? Theme.SystemTheme
-            );
-        }
+        restoreSavedAppearance(
+            this.settingsService,
+            this.form.value,
+            this.savedSnapshot
+        );
     }
 
     /**

@@ -63,6 +63,7 @@ import {
     shouldUseMpvSocketBridge,
 } from './player.events';
 import { openVlcPlayer } from './vlc-session.service';
+import { externalPlayerSessions } from './external-player-runtime';
 import { waitForLoginShellPath } from '../startup/login-shell-path';
 
 function createPathExists(existingPaths: string[]) {
@@ -524,7 +525,10 @@ describe('external player launch handlers', () => {
     ): Promise<void> {
         (waitForLoginShellPath as jest.Mock).mockReturnValueOnce(wait);
         const proc = createMockChildProcess();
-        (spawn as unknown as jest.Mock).mockReturnValue(proc);
+        const retry = createMockChildProcess();
+        (spawn as jest.Mock)
+            .mockReturnValueOnce(proc)
+            .mockReturnValueOnce(retry);
         const consoleErrorSpy = jest
             .spyOn(console, 'error')
             .mockImplementation(() => undefined);
@@ -533,11 +537,28 @@ describe('external player launch handlers', () => {
                 getIpcMainHandler(channel)(
                     {},
                     'https://example.com/live.m3u8',
-                    'Live'
+                    'Live',
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    'synthetic-launch'
                 )
             ).catch(() => undefined);
             await afterLaunch();
+            const sessionId = externalPlayerSessions.getActiveSessionId();
+            expect(
+                externalPlayerSessions.getSession(sessionId ?? '')?.launchId
+            ).toBe('synthetic-launch');
             proc.emit('error', new Error('spawn ENOENT'));
+            const args: string[] = (spawn as jest.Mock).mock.calls[0][1];
+            if (args.some((arg) => arg.startsWith('--rc-unix='))) {
+                await waitForSpawnCallCount(2);
+                retry.emit('error', new Error('spawn ENOENT'));
+            }
             await launch;
         } finally {
             consoleErrorSpy.mockRestore();
@@ -586,6 +607,14 @@ describe('external player launch handlers', () => {
                         expect(
                             (spawn as unknown as jest.Mock).mock.calls[0][0]
                         ).toBe('flatpak-spawn');
+                        if (channel === 'OPEN_VLC_PLAYER')
+                            expect(
+                                (spawn as jest.Mock).mock.calls[0][1]
+                            ).not.toEqual(
+                                expect.arrayContaining([
+                                    expect.stringMatching(/^--rc-/),
+                                ])
+                            );
                     }
                 );
             } finally {

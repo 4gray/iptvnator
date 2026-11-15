@@ -12,6 +12,8 @@ import {
     XtreamVodSelection,
 } from './xtream-vod-selection';
 
+export { buildXtreamVodSelection } from './xtream-vod-selection';
+
 type PlaylistId = string | null | undefined;
 
 export { createXtreamDetailsRequestGuard } from './xtream-details-request-guard';

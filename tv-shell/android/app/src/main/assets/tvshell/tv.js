@@ -1621,6 +1621,7 @@
 
     // ------------------------------------------------------------- init
     function init() {
+        if (isAndroid) document.documentElement.classList.add('android-tv-shell');
         installNetworkTracking();
         installClipboardHook();
         installHistoryTracking();

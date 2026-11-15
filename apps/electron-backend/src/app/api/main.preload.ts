@@ -30,6 +30,8 @@ import {
     SOURCE_SYNC_CONNECTION,
     SOURCE_SYNC_CONFIGURE,
     SOURCE_SYNC_DISCONNECT,
+    SOURCE_SYNC_FORGET,
+    SOURCE_SYNC_SAVED_CONNECTION,
     SOURCE_SYNC_REQUEST,
     SOURCE_SYNC_LOCAL_SOURCES,
     SOURCE_SYNC_RESUME,
@@ -316,6 +318,8 @@ const electronApi: ElectronBridgeApi = {
         if (result?.error) throw new Error('SOURCE_SYNC.INCOMPATIBLE');
         return result;
     },
+    sourceSyncSavedConnection: () =>
+        ipcRenderer.sendSync(SOURCE_SYNC_SAVED_CONNECTION),
     historyLocalRequest: (request) =>
         ipcRenderer.invoke('DB_HISTORY_LOCAL', request),
     favoritesLocalRequest: (request) =>
@@ -331,15 +335,16 @@ const electronApi: ElectronBridgeApi = {
     hostedServerAccessCode: () => ipcRenderer.invoke(HOSTED_SERVER_ACCESS_CODE),
     hostedDeviceControl: (command) =>
         ipcRenderer.invoke(HOSTED_DEVICE_CONTROL, command),
-    sourceSyncConfigure: (url, token, restart, useHosted) =>
+    sourceSyncConfigure: (url, token, restart, savedInstanceIdOrHosted) =>
         ipcRenderer.invoke(
             SOURCE_SYNC_CONFIGURE,
             url,
             token,
             restart,
-            useHosted
+            savedInstanceIdOrHosted
         ),
     sourceSyncDisconnect: () => ipcRenderer.invoke(SOURCE_SYNC_DISCONNECT),
+    sourceSyncForget: () => ipcRenderer.invoke(SOURCE_SYNC_FORGET),
     sourceSyncLocalSources: () => ipcRenderer.invoke(SOURCE_SYNC_LOCAL_SOURCES),
     onSourceSyncResume: (callback) => {
         const handler = () => callback();
@@ -589,7 +594,8 @@ const electronApi: ElectronBridgeApi = {
         origin?: string,
         contentInfo?: PlayerContentInfo,
         startTime?: number,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        launchId?: string
     ): Promise<ExternalPlayerSession> =>
         ipcRenderer.invoke(
             'OPEN_MPV_PLAYER',
@@ -601,7 +607,8 @@ const electronApi: ElectronBridgeApi = {
             origin,
             contentInfo,
             startTime,
-            headers
+            headers,
+            launchId
         ),
     openInVlc: (
         url: string,
@@ -612,7 +619,8 @@ const electronApi: ElectronBridgeApi = {
         origin?: string,
         contentInfo?: PlayerContentInfo,
         startTime?: number,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        launchId?: string
     ): Promise<ExternalPlayerSession> =>
         ipcRenderer.invoke(
             'OPEN_VLC_PLAYER',
@@ -624,10 +632,15 @@ const electronApi: ElectronBridgeApi = {
             origin,
             contentInfo,
             startTime,
-            headers
+            headers,
+            launchId
         ),
-    closeExternalPlayerSession: (sessionId: string) =>
-        ipcRenderer.invoke('CLOSE_EXTERNAL_PLAYER_SESSION', sessionId),
+    closeExternalPlayerSession: (sessionId: string, exact?: boolean) =>
+        ipcRenderer.invoke(
+            'CLOSE_EXTERNAL_PLAYER_SESSION',
+            sessionId,
+            ...(exact ? [true] : [])
+        ),
     getEmbeddedMpvSupport: (): Promise<EmbeddedMpvSupport> =>
         ipcRenderer.invoke('EMBEDDED_MPV_SUPPORT'),
     prepareEmbeddedMpv: (): Promise<EmbeddedMpvSupport> =>
@@ -739,7 +752,8 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('EMBEDDED_MPV_DISPOSE_SESSION', sessionId),
     attachEmbeddedMpvFrameView: (sessionId: string): Promise<boolean> =>
         attachEmbeddedMpvFrameView(sessionId),
-    detachEmbeddedMpvFrameView: (): void => detachEmbeddedMpvFrameView(),
+    detachEmbeddedMpvFrameView: (sessionId?: string): void =>
+        detachEmbeddedMpvFrameView(sessionId),
     autoUpdatePlaylists: (
         playlists: Playlist[],
         options?: ElectronBridgeTrustOptions

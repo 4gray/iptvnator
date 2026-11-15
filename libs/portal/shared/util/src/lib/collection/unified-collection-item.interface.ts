@@ -45,6 +45,9 @@ export interface UnifiedCollectionItem {
     /** Stable live-source EPG lookup key */
     tvgId?: string;
 
+    /** Xtream's XMLTV channel id, distinct from its numerical stream id. */
+    epgChannelId?: string | null;
+
     /** M3U playlist channel id used to rehydrate the full channel object */
     channelId?: string;
 

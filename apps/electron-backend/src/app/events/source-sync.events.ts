@@ -13,18 +13,23 @@ import {
     SOURCE_SYNC_CONNECTION,
     SOURCE_SYNC_CONFIGURE,
     SOURCE_SYNC_DISCONNECT,
+    SOURCE_SYNC_FORGET,
+    SOURCE_SYNC_SAVED_CONNECTION,
     SOURCE_SYNC_REQUEST,
     SOURCE_SYNC_RESUME,
 } from '@iptvnator/shared/interfaces/ipc-commands';
 import {
     readSourceServerConfig,
+    readSavedSourceServerConfig,
     saveSourceServerConfig,
     clearSourceServerConfig,
+    disconnectSourceServerConfig,
     sourceServerToken,
 } from '../services/source-server-config';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 import { SourceServerTransport } from './source-server-transport';
 import {
+    getHostedServerAccessCode,
     getHostedServerInstanceId,
     hostedWorkerRequest,
     HOSTED_SERVER_LOCAL_URL,
@@ -34,6 +39,8 @@ import { HOSTED_SERVER_INSTANCE_ID, store } from '../services/store.service';
 function route(request: SourceServerRequest): { path: string; method: string } {
     const id = encodeURIComponent(request.id ?? '');
     switch (request.operation) {
+        case 'tmdb-transfer':
+            return { path: '/v1/tmdb-transfer', method: 'POST' };
         case 'instance':
             return { path: '/v1/instance', method: 'GET' };
         case 'list':
@@ -88,6 +95,13 @@ export async function sourceServerRequest(
 ): Promise<SourceServerResponse> {
     const target = route(request);
     if (request.source) validateSource(request.source);
+    const body =
+        request.operation === 'tmdb-transfer'
+            ? request.tmdbTransfer?.request
+            : (request.history ??
+              request.favorite ??
+              request.activity ??
+              request.source);
     if (apiUrl === HOSTED_SERVER_LOCAL_URL + '/api') {
         const hostedInstance = store.get(HOSTED_SERVER_INSTANCE_ID);
         if (useHosted || (instanceId && instanceId === hostedInstance)) {
@@ -113,11 +127,7 @@ export async function sourceServerRequest(
                               }
                             : {}),
                     },
-                    body:
-                        request.history ??
-                        request.favorite ??
-                        request.activity ??
-                        request.source,
+                    body,
                 });
             } catch {
                 throw new Error('SOURCE_SYNC.OFFLINE');
@@ -142,12 +152,7 @@ export async function sourceServerRequest(
                     ...(token && request.operation !== 'instance'
                         ? { Authorization: `Bearer ${token}` }
                         : {}),
-                    ...((request.history ??
-                    request.favorite ??
-                    request.activity ??
-                    request.source)
-                        ? { 'Content-Type': 'application/json' }
-                        : {}),
+                    ...(body ? { 'Content-Type': 'application/json' } : {}),
                     ...(request.operation === 'create'
                         ? { 'If-None-Match': '*' }
                         : {}),
@@ -159,11 +164,7 @@ export async function sourceServerRequest(
                           }
                         : {}),
                 },
-                data:
-                    request.history ??
-                    request.favorite ??
-                    request.activity ??
-                    request.source,
+                data: body,
             },
             {
                 allowPrivateNetworks: true,
@@ -201,11 +202,31 @@ export function registerSourceSyncEvents(
             event.returnValue = { error: 'SOURCE_SYNC.INCOMPATIBLE' };
         }
     });
+    ipcMain.on(SOURCE_SYNC_SAVED_CONNECTION, (event) => {
+        const saved = readSavedSourceServerConfig();
+        event.returnValue = saved
+            ? {
+                  apiUrl: saved.apiUrl,
+                  instanceId: saved.instanceId,
+                  hasToken: Boolean(
+                      saved.encryptedToken || getHostedServerAccessCode(saved)
+                  ),
+              }
+            : null;
+    });
     ipcMain.handle(
         SOURCE_SYNC_REQUEST,
         async (_event, request: SourceServerRequest) => {
             const config = readSourceServerConfig();
             if (!config) throw new Error('SOURCE_SYNC.OFFLINE');
+            if (request.operation === 'tmdb-transfer') {
+                const expected = request.tmdbTransfer?.connection;
+                if (
+                    expected?.apiUrl !== config.apiUrl ||
+                    expected.instanceId !== config.instanceId
+                )
+                    return { status: 409, body: { code: 'instance_changed' } };
+            }
             return transport.execute(config, request, () =>
                 sourceServerToken(config)
             );
@@ -218,17 +239,25 @@ export function registerSourceSyncEvents(
             url: string,
             token: string,
             restart: boolean,
-            useHosted = false
+            savedInstanceIdOrHosted?: string | true
         ) => {
+            const useHosted = savedInstanceIdOrHosted === true;
+            const savedInstanceId =
+                typeof savedInstanceIdOrHosted === 'string'
+                    ? savedInstanceIdOrHosted
+                    : undefined;
             let configured: ReturnType<typeof readSourceServerConfig> = null;
             try {
                 configured = readSourceServerConfig();
             } catch {
                 if (!restart) throw new Error('SOURCE_SYNC.INCOMPATIBLE');
             }
+            const saved =
+                !configured && restart ? readSavedSourceServerConfig() : null;
+            const input = url.replace(/\/$/, '');
             const apiUrl =
-                configured?.apiUrl === url.replace(/\/$/, '')
-                    ? configured.apiUrl
+                configured?.apiUrl === input || saved?.apiUrl === input
+                    ? input
                     : normalizeSourceServerUrl(url);
             if (typeof token !== 'string' || token.length > 8192)
                 throw new Error('Invalid access token');
@@ -248,14 +277,20 @@ export function registerSourceSyncEvents(
                     !!previousInstance &&
                     (configured?.hosted === true ||
                         previousInstance ===
-                            store.get(HOSTED_SERVER_INSTANCE_ID)));
+                            store.get(HOSTED_SERVER_INSTANCE_ID))) ||
+                (savedInstanceId !== undefined &&
+                    saved?.apiUrl === apiUrl &&
+                    saved.hosted === true &&
+                    apiUrl === HOSTED_SERVER_LOCAL_URL + '/api');
             const probe = await sourceServerRequest(
                 apiUrl,
                 token,
                 {
                     operation: 'instance',
                 },
-                useHosted ? getHostedServerInstanceId() : previousInstance,
+                useHosted || (hosted && savedInstanceId !== undefined)
+                    ? getHostedServerInstanceId()
+                    : previousInstance,
                 hosted
             );
             if ([401, 403].includes(probe.status))
@@ -281,6 +316,16 @@ export function registerSourceSyncEvents(
             ) {
                 throw new Error('SOURCE_SYNC.INSTANCE_CHANGED');
             }
+            if (savedInstanceId !== undefined) {
+                if (
+                    !saved ||
+                    saved.apiUrl !== apiUrl ||
+                    saved.instanceId !== savedInstanceId ||
+                    instance.instanceId !== savedInstanceId
+                )
+                    throw new Error('SOURCE_SYNC.SAVED_INSTANCE_CHANGED');
+                token = sourceServerToken(saved);
+            }
             const check = await sourceServerRequest(
                 apiUrl,
                 token,
@@ -294,6 +339,15 @@ export function registerSourceSyncEvents(
                         ? 'SOURCE_SYNC.LOCKED'
                         : 'SOURCE_SYNC.REQUEST_FAILED'
                 );
+            if (saved && savedInstanceId !== undefined) {
+                const latest = readSavedSourceServerConfig();
+                if (
+                    latest?.apiUrl !== saved.apiUrl ||
+                    latest.instanceId !== saved.instanceId ||
+                    latest.encryptedToken !== saved.encryptedToken
+                )
+                    throw new Error('SOURCE_SYNC.SAVED_INSTANCE_CHANGED');
+            }
             const persisted = saveSourceServerConfig(
                 {
                     apiUrl,
@@ -321,9 +375,12 @@ export function registerSourceSyncEvents(
         }
     );
     ipcMain.handle(SOURCE_SYNC_DISCONNECT, async () => {
-        clearSourceServerConfig();
+        disconnectSourceServerConfig();
         await prepareRestart();
         app.relaunch();
         app.exit();
+    });
+    ipcMain.handle(SOURCE_SYNC_FORGET, () => {
+        if (readSavedSourceServerConfig()) clearSourceServerConfig();
     });
 }

@@ -143,11 +143,18 @@ export const PLAYBACK_SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] =
             fallbackId: 'video-player',
         },
         {
+            id: 'series-autoplay',
+            section: 'playback',
+            labelKey: 'SETTINGS.SERIES_AUTOPLAY',
+            descriptionKey: 'SETTINGS.SERIES_AUTOPLAY_DESCRIPTION',
+            keywords: ['autoplay', 'auto next', 'next episode', 'series'],
+        },
+        {
             id: 'player-up-next-rail',
             section: 'playback',
             labelKey: 'SETTINGS.PLAYER_UP_NEXT_RAIL',
             descriptionKey: 'SETTINGS.PLAYER_UP_NEXT_RAIL_DESCRIPTION',
-            keywords: ['up next', 'next episode', 'autoplay'],
+            keywords: ['up next', 'next episode'],
             fallbackId: 'video-player',
         },
         {

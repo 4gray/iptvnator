@@ -281,6 +281,10 @@ User-Agent header itself, and this does not add custom browser playback-header
 support. Electron playback retains existing per-header precedence: channel
 headers override playlist defaults. File, text, and portal imports are unchanged.
 
+In the PWA, the source stays busy through the catalog write. A committed
+write publishes the updated channels and confirms the refresh. An aborted
+write reports a refresh error and keeps the previous catalog available.
+
 Regression coverage uses synthetic UA-gated HTTP endpoints in
 `playlist-auto-refresh.e2e.ts` (Electron) and `self-hosted.e2e.ts` (PWA), plus
 form, renderer, download, proxy, and refresh-action unit tests.
@@ -378,6 +382,13 @@ rollback before it escapes to the benchmark lifecycle.
 Diagnostic artifacts require separate renderer, main, and database-worker CPU
 profiles plus renderer/main/database-worker heap snapshots and a Chromium
 trace; raw profiles remain ignored.
+
+## Playlist refresh (PWA)
+
+The explicit refresh loads `pwa-playlist-refresh.ts` on demand. It publishes
+the saved catalog and reports success after persistence resolves. Standalone
+storage waits for the IndexedDB transaction to commit. A write failure
+reports an error and leaves the saved catalog in place.
 
 ## Playlist Refresh And Startup Auto-Update (Electron)
 
@@ -1593,7 +1604,8 @@ untouched `app-web-player-view` into a 128 px docked strip
 collapses to one 48 px line (`epg-guide:dock-collapsed`), which is also the
 fixed height of the strip shown for an external MPV/VLC session — that one has
 no video to reveal, so it hides the Collapse toggle (`collapsible=false`) and
-writes no preference. Nothing remounts, so playback and native-view Embedded
+writes no preference. Short screens also use the compact strip without
+changing the saved dock preference. Nothing remounts, so playback and native-view Embedded
 MPV bounds survive. While the guide is open the docked `.video-player` carries
 `data-player-shortcuts-suspended`, which makes `ControlsShortcuts` (shared and
 legacy player shortcuts alike) yield ↑/↓, Space, F and M to the guide's own

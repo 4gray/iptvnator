@@ -2,10 +2,6 @@ import { setSourceStateWriteFailure } from './source-sync-sqlite-fault';
 import { verifySharedStalkerSessionEditing } from './source-sync-stalker-session';
 import { verifyDelayedSharedM3uRefresh } from './source-sync-m3u-refresh';
 import { verifySourceRestartStopsPlayer } from './source-sync-player-restart';
-import {
-    verifySourceSettingsRecovery,
-    verifySourceConnectionRecheck,
-} from './source-sync-settings';
 import { test, expect, type Page } from '@playwright/test';
 import {
     mkdtempSync,
@@ -49,14 +45,6 @@ for (const operation of ['connect', 'disconnect'] as const) {
         await verifySourceRestartStopsPlayer(operation);
     });
 }
-
-test('validates source settings and retains credentials after a native connection failure @electron @settings', async () => {
-    await verifySourceSettingsRecovery();
-});
-
-test('renews credentials and rechecks an existing connection without restarting Electron @electron @settings', async () => {
-    await verifySourceConnectionRecheck();
-});
 
 test('discards a delayed native M3U refresh after the NAS URL changes @electron @m3u @persistence', async ({
     request,
@@ -119,8 +107,13 @@ test('withholds native import credentials after an instance mismatch and verifie
     const directory = mkdtempSync(join(tmpdir(), 'iptvnator-sync-identity-'));
     const token = 'synthetic-native-token';
     let identity = 'original';
+    let offline = false;
     const replacementRequests: { path: string; secret: boolean }[] = [];
     const server = createServer(async (request, response) => {
+        if (offline) {
+            response.destroy();
+            return;
+        }
         const chunks: Buffer[] = [];
         for await (const chunk of request) chunks.push(Buffer.from(chunk));
         const body = Buffer.concat(chunks).toString();
@@ -170,20 +163,25 @@ test('withholds native import credentials after an instance mismatch and verifie
         );
         desktop = await launchElectronApp(directory);
         const page = desktop.mainWindow;
-        const refresh = page
-            .getByTestId('source-sync-status')
-            .getByRole('button', { name: 'Refresh', exact: true });
-        await expect(refresh).toBeVisible();
-        await page.evaluate(
-            async ({ apiUrl, token }) => {
-                const configure = window.electron.sourceSyncConfigure;
-                if (!configure)
-                    throw new Error('Missing source connection bridge');
-                await configure(apiUrl, token, false);
-            },
-            { apiUrl, token }
-        );
-        await refresh.click();
+        const status = page.getByTestId('source-sync-status');
+        const settings = status.getByRole('link', {
+            name: 'Open server settings',
+        });
+        await expect(settings).toBeVisible();
+        offline = true;
+        await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+        await expect(status).toContainText('Server unavailable');
+        const retry = status.getByRole('button', { name: 'Retry connection' });
+        await expect(retry).toBeVisible();
+        await expect(settings).toHaveCount(0);
+        await expect(status).not.toContainText('token');
+        await expect(status.locator('input')).toHaveCount(0);
+        offline = false;
+        await retry.click();
+        await settings.press('Enter');
+        await page.getByTestId('source-server-token').fill(token);
+        await page.getByTestId('source-server-connect').click();
+        await expect(status).toHaveCount(0);
         await openSources(page);
         const send = (request: SourceServerRequest) =>
             page.evaluate((request) => {
@@ -328,7 +326,10 @@ for (const failReceipt of [false, true]) {
                     'source-sync-initialized'
                 );
                 await notice
-                    .getByRole('button', { name: 'Refresh', exact: true })
+                    .getByRole('button', {
+                        name: 'Retry connection',
+                        exact: true,
+                    })
                     .click();
             }
             await expect(page.getByTestId('source-sync-status')).toHaveCount(
@@ -633,11 +634,29 @@ test('authenticates the PWA and retains its isolated source cache while NAS is o
             })
         );
         await page.goto(`${frontendUrl}/workspace/sources`);
-        const status = page.locator('app-source-sync-status');
-        await status.getByLabel('Access token (optional)').fill(token);
-        await status
-            .getByRole('button', { name: 'Refresh', exact: true })
-            .click();
+        const status = page.getByTestId('source-sync-status');
+        const settings = status.getByRole('link', {
+            name: 'Open server settings',
+        });
+        await expect(settings).toBeVisible();
+        const discovery = `${server.apiUrl}/v1/instance`;
+        await page.route(discovery, (route) =>
+            route.abort('connectionrefused')
+        );
+        await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+        await expect(status).toContainText('Server unavailable');
+        const retry = status.getByRole('button', { name: 'Retry connection' });
+        await expect(retry).toBeVisible();
+        await expect(settings).toHaveCount(0);
+        await expect(status).not.toContainText('token');
+        await expect(status.locator('input')).toHaveCount(0);
+        await page.unroute(discovery);
+        await retry.click();
+        await settings.click();
+        await page.getByTestId('source-server-token').fill(token);
+        await page.getByTestId('source-server-connect').click();
+        await expect(status).toHaveCount(0);
+        await openSources(page);
         await expect(
             page.getByRole('button', { name: 'Add playlist', exact: true })
         ).toBeVisible();
@@ -674,6 +693,9 @@ test('authenticates the PWA and retains its isolated source cache while NAS is o
         await expect(notice).toContainText('Saved sources are available.', {
             timeout: 25000,
         });
+        await expect(retry).toBeVisible();
+        await expect(settings).toHaveCount(0);
+        await expect(notice).not.toContainText('token');
         const source = page
             .getByText('Authenticated NAS source', { exact: true })
             .first();

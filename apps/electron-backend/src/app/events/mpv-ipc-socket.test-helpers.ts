@@ -16,6 +16,7 @@ export interface MpvSocketMockOptions {
      * `null` leaves the command unanswered.
      */
     reply?: (command: Array<string | number>) => string | null;
+    data?: unknown;
 }
 
 interface MpvIpcRequest {
@@ -31,6 +32,7 @@ export function createMpvSocketMock({
     written,
     connect = true,
     reply = () => 'success',
+    data,
 }: MpvSocketMockOptions = {}): MpvSocketMock {
     const socket: MpvSocketMock = Object.assign(new EventEmitter(), {
         write: jest.fn((chunk: string) => {
@@ -39,8 +41,11 @@ export function createMpvSocketMock({
             const error = reply(request.command);
             if (error !== null) {
                 const line =
-                    JSON.stringify({ request_id: request.request_id, error }) +
-                    '\n';
+                    JSON.stringify({
+                        request_id: request.request_id,
+                        error,
+                        data,
+                    }) + '\n';
                 setImmediate(() => socket.emit('data', Buffer.from(line)));
             }
             return true;

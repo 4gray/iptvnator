@@ -53,7 +53,7 @@ import { provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule } from '@ngx-translate/core';
 import { MockModule, MockProvider } from 'ng-mocks';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
-import { BehaviorSubject, from, of } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import { ElectronServiceStub } from '../../services/electron.service.stub';
 import { SettingsStorageFailure } from '@iptvnator/services';
 import { SettingsStore } from '../../services/settings-store.service';
@@ -89,6 +89,7 @@ export const DEFAULT_SETTINGS = {
     playerAmbientMode: false,
     detailTrailerBackdrop: false,
     playerUpNextRail: true,
+    seriesAutoplay: true,
     playerUpNextCard: true,
     fullscreenChannelPanel: true,
     vodAutoFailover: false,
@@ -105,6 +106,9 @@ export const DEFAULT_SETTINGS = {
     showExternalPlaybackBar: true,
     stripCountryPrefix: false,
     theme: Theme.SystemTheme,
+    themeAccent: null,
+    systemLightTheme: Theme.LightTheme,
+    systemDarkTheme: Theme.DarkTheme,
     mpvPlayerPath: '',
     mpvPlayerArguments: '',
     mpvReuseInstance: false,
@@ -195,6 +199,7 @@ export class MockSettingsStore {
     getSettings = () => this._settings();
     language = () => this._settings().language;
     ageRatingCountry = () => this._settings().ageRatingCountry;
+    readonly savedTmdbApiKey = signal<string | undefined>(undefined);
 
     getTrustOptions = () => ({
         trustedPrivateNetworkEpgUrls:
@@ -227,15 +232,10 @@ export class MockSettingsStore {
 }
 
 export class MockSettingsService {
-    getAppVersion = jest.fn().mockReturnValue(from(Promise.resolve('1.0.0')));
     changeTheme = jest.fn();
-    isVersionOutdated = jest.fn().mockImplementation(
-        (currentVersion: string, latestVersion: string) =>
-            currentVersion.localeCompare(latestVersion, undefined, {
-                numeric: true,
-                sensitivity: 'base',
-            }) < 0
-    );
+    changeThemeAccent = jest.fn();
+    changeSystemThemes = jest.fn();
+    appliedThemePresetId = signal('light');
 }
 
 export function createEpgBridgeStub(): Partial<EpgRuntimeBridgeService> {

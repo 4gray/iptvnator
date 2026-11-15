@@ -149,13 +149,22 @@ first `require` downloads and extracts the binary. With projects and Jest
 workers in parallel, one process can exec it while another is still extracting
 it (`spawnSync … ETXTBSY` on Linux). When a selected project has a spec that
 calls `createRequire(...)('electron')`, `coverage:unit:ci` first runs
-`tools/testing/ensure-electron-binary.mjs`, which downloads the binary once and
+`tools/testing/electron/ensure-electron-binary.mjs`, which downloads the binary once and
 fails unless it runs and reports the pinned version; CI also runs it as its own
 step when the Tier A suite is in scope. In a fresh worktree, run it before
 starting several of these specs at once by other means.
+The `database:test`, `electron-backend:test` and `packaging:test` targets
+share the non-cached `electron-test-tools:ensure-electron-binary` dependency.
+Nx runs it once before these tests in a task graph, including in the full
+workspace test run. For a filtered selection known to run under Node alone,
+use `pnpm nx test database --excludeTaskDependencies --testPathPatterns=path-utils`.
+Leave the dependency enabled for the full suites and for specs that spawn
+Electron.
 
 In CI, a pull request skips the Tier A suite (and the merged-coverage upload)
 when every changed file is outside Tier A test inputs:
+`git diff` compares the checked-out PR merge commit with its first parent,
+including both paths of any rename. A newer PR push cannot change that diff.
 `tools/coverage/unit-coverage-scope.mjs` holds the allowlist (Markdown, `docs/`,
 notes and plans, agent guidance, workflows other than `ci.yml` and
 `build-and-make.yaml`, the website, E2E and mock-server apps,
@@ -313,6 +322,11 @@ pnpm run coverage:e2e:summary
 The `electron-backend-e2e:e2e` target owns its `electron-backend:build-e2e`
 dependency, including renderer and remote-control assets. CI calls that target
 without a separate production build before each shard.
+Each Electron E2E runner, including the Windows hosted-server smoke job,
+prepares the pinned Electron binary before building or launching the app.
+The helper verifies the binary version and uses the GitHub release asset API
+as a checksum-verified fallback when the direct download fails. Linux also
+checks for `xvfb-run` and missing shared libraries before starting Playwright.
 
 CI runs the Electron suite as Playwright shards (`--shard=<n>/<total>`, split
 by spec file because the suite is sequential): three shards on Ubuntu, four

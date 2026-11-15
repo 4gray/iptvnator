@@ -30,6 +30,7 @@ import {
     playlistSwitcherTitle,
     waitForM3uCatalog,
     waitForStalkerCatalog,
+    waitForXtreamCatalog,
     waitForXtreamWorkspaceReady,
     writeTemporaryM3uFile,
 } from './electron-test-fixtures';
@@ -360,7 +361,7 @@ test.describe('Electron Recently Viewed', () => {
 
             await openSources(app.mainWindow);
             await sourceRowByTitle(app.mainWindow, portalTitle).first().click();
-            await waitForXtreamWorkspaceReady(app.mainWindow);
+            await waitForXtreamCatalog(app.mainWindow, { cached: true });
             const recentPath = sourceRecentPath(app.mainWindow);
             await openPlaylistRecent(app.mainWindow);
             await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');

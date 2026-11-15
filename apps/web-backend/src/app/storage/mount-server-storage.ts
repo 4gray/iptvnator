@@ -1,20 +1,26 @@
 import type { IncomingMessage } from 'node:http';
 import type { Express, RequestHandler } from 'express';
-import { isHostedWorkerRequest, type HostedIngressState } from '../hosted-ingress';
+import {
+    isHostedWorkerRequest,
+    type HostedIngressState,
+} from '../hosted-ingress';
 import { DevicePairingStore } from './device-pairing-store';
 import { createDevicePairingRouter } from './device-pairing-router';
 import { createAccessGuard } from './access-guard';
 import { createInstanceRouter } from './instance-router';
 import { createPlaylistsRouter } from './playlists-router';
 import type { ServerStorage } from './server-storage';
-import { storageErrorHandler } from './storage-route-errors';
+import { StorageRequestError, storageErrorHandler } from './storage-route-errors';
 import { createUserStateRouter } from './user-state-router';
 import { createSourcesRouter } from './sources-router';
 import { createHistoryRouter } from './history-router';
 import { createFavoriteRouter } from './favorites-router';
 import { createActivityRouter } from './activity-router';
-import { StorageRequestError } from './storage-route-errors';
-import { cloudflareDeviceError, cloudflareDeviceState } from './cloudflare-device-access';
+import {
+    cloudflareDeviceError,
+    cloudflareDeviceState,
+} from './cloudflare-device-access';
+import { createTmdbTransferRouter } from '../tmdb-transfer/tmdb-transfer-router';
 
 export const DEFAULT_MAX_DOCUMENT_BYTES = 64 * 1024 * 1024;
 
@@ -45,7 +51,10 @@ export function mountServerStorage(
         options.devicePairingEnabled && options.storage && options.accessToken
             ? new DevicePairingStore(options.storage.database.sqlite)
             : null;
-    const cloudflare = options.hostedMode === 'cloudflare' ? options.cloudflareAccess : undefined;
+    const cloudflare =
+        options.hostedMode === 'cloudflare'
+            ? options.cloudflareAccess
+            : undefined;
     const enrolledRequests = new WeakSet<IncomingMessage>();
     if (pairing && options.accessToken && options.storage) {
         app.use(
@@ -62,7 +71,11 @@ export function mountServerStorage(
     }
     if (cloudflare && pairing) {
         app.use(async (req, res, next) => {
-            if (isHostedWorkerRequest(req) || req.method === 'OPTIONS' || req.path === '/v1/instance') {
+            if (
+                isHostedWorkerRequest(req) ||
+                req.method === 'OPTIONS' ||
+                req.path === '/v1/instance'
+            ) {
                 next();
                 return;
             }
@@ -119,6 +132,10 @@ export function mountServerStorage(
                 next();
             });
         }
+        app.use(
+            '/v1',
+            createTmdbTransferRouter(options.storage.database.instanceId)
+        );
         app.use('/v1', createActivityRouter(options.storage));
         app.use('/v1', createFavoriteRouter(options.storage));
         app.use('/v1', createHistoryRouter(options.storage));

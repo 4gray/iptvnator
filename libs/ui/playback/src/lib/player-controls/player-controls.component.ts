@@ -27,6 +27,7 @@ import { ControlsStreamStats } from './controls-stream-stats';
 import { ControlsSurface } from './controls-surface';
 import { ControlsTimeline } from './controls-timeline';
 import { ControlsTimelineLabel } from './controls-timeline-label';
+import { ControlsTransport } from './controls-transport';
 import { ControlsUpNext } from './controls-up-next';
 import { ControlsVisibility } from './controls-visibility';
 import { createControlsViewModel } from './controls-view-model';
@@ -78,6 +79,8 @@ export class PlayerControlsComponent implements OnDestroy {
      */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly showControls = input(true);
+    readonly canAddSecondStream = input(false);
+    readonly secondStreamRequested = output<void>();
     readonly shortcutsEnabled = input(true);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
     /** Chapters / programmes drawn as track segments; null draws one. */
@@ -92,10 +95,21 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly feedback = new ControlsFeedback();
     readonly anyMenuOpen = this.menus.anyOpen;
     private readonly shortcuts = new ControlsShortcuts();
+    readonly transport = new ControlsTransport({
+        controller: () => this.controller(),
+        feedback: this.feedback,
+        reveal: () => this.reveal(),
+    });
     readonly layout = new ControlsLayout();
     /** Compact dock: narrow inline players and phone-sized viewports. */
     readonly isCompact = computed(() => this.layout.mode() === 'compact');
-    private readonly visibility = new ControlsVisibility(() => this.canHide());
+    private readonly visibility = new ControlsVisibility(
+        (): boolean =>
+            this.isPlaying() &&
+            !this.chrome.engaged &&
+            !this.menus.anyOpen() &&
+            !this.state().statusMessage
+    );
     private readonly fullscreen = new ControlsFullscreen(
         () => this.fullscreenTarget() ?? this.playerSurface(),
         () => this.reveal()
@@ -132,6 +146,7 @@ export class PlayerControlsComponent implements OnDestroy {
         volume: this.volume,
         menus: this.menus,
         wasTouchInteraction: (event) => this.surface.wasTouchInteraction(event),
+        isEmulatedHover: (event) => this.surface.isEmulatedHover(event),
         wasPointerFocusRelease: () => this.surface.wasPointerFocusRelease(),
         canAdjustVolume: () => this.capabilities().volume,
         reveal: (options) => this.reveal(options),
@@ -156,7 +171,6 @@ export class PlayerControlsComponent implements OnDestroy {
         capabilities: this.capabilities,
         showControls: this.showControls,
         menus: this.menus,
-        commands: () => this.controller().commands,
         reveal: (options) => this.reveal(options),
     });
     readonly upNextCard = new ControlsUpNext({
@@ -199,7 +213,7 @@ export class PlayerControlsComponent implements OnDestroy {
 
     /**
      * The top scrim is shared by every piece of top chrome (the fullscreen
-     * media title and the corner buttons): rendering one per consumer would
+     * media title and Stream info): rendering one per consumer would
      * stack two gradients and darken the overlap twice.
      */
     readonly showTopScrim = computed(
@@ -246,7 +260,7 @@ export class PlayerControlsComponent implements OnDestroy {
             onEscape: () => this.closePopovers(),
             togglePaused: () => this.togglePlay(),
             toggleFullscreen: () => void this.toggleFullscreen(),
-            seekBy: (delta) => this.seekBy(delta),
+            seekBy: (delta) => this.transport.seekBy(delta),
             adjustVolume: (delta) => this.volumeInteractions.adjust(delta),
             toggleMute: () => this.volumeInteractions.toggleMute(),
         });
@@ -345,17 +359,6 @@ export class PlayerControlsComponent implements OnDestroy {
         }
         this.controller().commands.togglePlay();
     }
-    seekBy(deltaSeconds: number): void {
-        this.reveal();
-        if (!this.capabilities().seek || !this.state().canSeek) {
-            return;
-        }
-        this.controller().commands.seekBy(deltaSeconds);
-        this.feedback.flash(
-            deltaSeconds >= 0 ? 'forward_10' : 'replay_10',
-            `${deltaSeconds >= 0 ? '+' : ''}${Math.round(deltaSeconds)}s`
-        );
-    }
     onTimelineInput(event: Event): void {
         this.reveal();
         this.scrubPosition.set(this.timeline.readEventValue(event));
@@ -425,14 +428,5 @@ export class PlayerControlsComponent implements OnDestroy {
     reveal(options: { scheduleHide?: boolean } = {}): void {
         this.shortcuts.activate();
         this.visibility.reveal(options);
-    }
-
-    private canHide(): boolean {
-        return (
-            this.isPlaying() &&
-            !this.chrome.engaged &&
-            !this.menus.anyOpen() &&
-            !this.state().statusMessage
-        );
     }
 }

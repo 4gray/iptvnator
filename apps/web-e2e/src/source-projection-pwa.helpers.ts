@@ -145,7 +145,7 @@ export async function verifyConcurrentSourceProjection(
             });
         }
         await status
-            .getByRole('button', { name: 'Refresh', exact: true })
+            .getByRole('button', { name: 'Retry connection', exact: true })
             .click();
         await expect(status).toHaveCount(0);
         await second.reload();

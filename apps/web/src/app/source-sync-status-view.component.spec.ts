@@ -49,7 +49,14 @@ describe(SourceSyncStatusViewComponent.name, () => {
         sync.errorKey.set('SOURCE_SYNC.LOCKED');
         sync.state.set('locked');
         fixture.detectChanges();
-        expect(root.querySelector('input[type="password"]')).not.toBeNull();
+        expect(root.querySelector('input')).toBeNull();
+        expect(
+            root.querySelector('a.server-status__primary')?.textContent
+        ).toContain('SOURCE_SYNC.OPEN_SETTINGS');
+        expect(root.querySelector('a')?.getAttribute('href')).toBe(
+            '/workspace/settings/server'
+        );
+        expect(root.querySelector('button')).toBeNull();
     });
 
     it('disables retry while the first inventory is connecting', async () => {
@@ -66,5 +73,21 @@ describe(SourceSyncStatusViewComponent.name, () => {
         const { root } = await setup(false);
         expect(root.querySelector('a')).not.toBeNull();
         expect(root.querySelector('button[aria-label]')).toBeNull();
+        expect(root.querySelector('input')).toBeNull();
+        expect(root.textContent).toContain('SOURCE_SYNC.RETRY_CONNECTION');
+        expect(root.textContent).not.toContain('SOURCE_SYNC.OPEN_SETTINGS');
+    });
+
+    it('reports a failed retry and lets the user retry again', async () => {
+        const { fixture, root, sync } = await setup(false);
+        sync.refresh.mockRejectedValueOnce(new Error('Network unavailable'));
+        root.querySelector('button')?.click();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(sync.refresh).toHaveBeenCalledTimes(1);
+        expect(root.textContent).toContain('SOURCE_SYNC.REQUEST_FAILED');
+        expect(root.querySelector('input')).toBeNull();
+        expect(root.querySelector('button')?.disabled).toBe(false);
     });
 });

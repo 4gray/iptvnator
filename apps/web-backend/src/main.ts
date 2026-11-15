@@ -128,7 +128,9 @@ async function start(): Promise<void> {
             } else if (mode?.mode === 'https' || mode?.mode === 'proxy') {
                 const origin = new URL(mode.origin);
                 const tls =
-                    mode.mode === 'https' ? readHostedTls(mode) : undefined;
+                    mode.mode === 'https'
+                        ? readHostedTls({ ...mode, mode: 'https' })
+                        : undefined;
                 const listenPort = tls
                     ? Number(origin.port || 443)
                     : HOSTED_SERVER_HTTPS_PORT;

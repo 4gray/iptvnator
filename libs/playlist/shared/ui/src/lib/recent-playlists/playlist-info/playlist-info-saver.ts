@@ -30,7 +30,9 @@ import {
     PlaylistMetaUpdate,
 } from '@iptvnator/shared/interfaces';
 import { firstValueFrom } from 'rxjs';
+import { PlaylistRefreshActionService } from '../../playlist-refresh-action.service';
 import { PlaylistEpgSourceEditor } from './playlist-epg-source-editor';
+import { hasM3uSourceChanged } from './playlist-source-change';
 import {
     hasStalkerConnectionChanged,
     normalizePlaylistConnectionMeta,
@@ -112,6 +114,23 @@ export class PlaylistInfoSaver {
                     this.host.epg.prepareSave(submittedPlaylist),
                     this.host.playlist
                 );
+            // A new M3U source is fetched as soon as it is saved. While a
+            // refresh is running that fetch would be skipped and the old
+            // channels kept, so refuse the save before anything is written,
+            // as an Xtream edit already does.
+            if (
+                hasM3uSourceChanged(this.host.playlist, {
+                    ...this.host.playlist,
+                    ...normalizedPlaylist,
+                } as PlaylistMeta) &&
+                this.injector
+                    .get(PlaylistRefreshActionService)
+                    .isBlocked(this.host.playlist._id)
+            ) {
+                throw new Error(
+                    'Wait for the playlist refresh to finish before changing its source.'
+                );
+            }
             const sharedSource = this.playlistStorage.kind() === 'server';
             if (sharedSource)
                 normalizedPlaylist = {
@@ -214,6 +233,18 @@ export class PlaylistInfoSaver {
                         : {}),
                 })
             );
+
+            // A new M3U source is fetched straight away, the same way a
+            // manual refresh does, so favorites and settings are kept.
+            const savedPlaylist = {
+                ...this.host.playlist,
+                ...normalizedPlaylist,
+            };
+            if (hasM3uSourceChanged(this.host.playlist, savedPlaylist)) {
+                this.injector
+                    .get(PlaylistRefreshActionService)
+                    .refresh(savedPlaylist);
+            }
 
             // Save already authorized this connection change, and a full
             // portal's completed get_profile may have pinned the submitted

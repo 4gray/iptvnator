@@ -14,6 +14,8 @@ export interface QueuedMpvLaunch {
      * newer launch is queued behind it.
      */
     cancelled: () => boolean;
+    /** Stop or shutdown cancelled the launch, even if it already started. */
+    stopped: () => boolean;
     /** This launch's own queued Stop, if one was requested. */
     pendingStop: () => Promise<void> | null;
     /** Called once the launch really starts acting on a player. */
@@ -37,8 +39,12 @@ export interface QueuedMpvLaunch {
 export class MpvLaunchQueue {
     private pending: Promise<unknown> | null = null;
     private latest = 0;
+    private latestRunnable = 0;
+    private readonly queuedSessions = new Map<number, string>();
     private cancelledThrough = 0;
     private inFlightSessionId: string | null = null;
+    private inFlightNumber = 0;
+    private cancelUndispatchedChild?: () => void;
     // The last launch that actually started. With reuse off its detached
     // child is not stored, so it is the only handle on that player once the
     // launch settled with an unconfirmed teardown.
@@ -49,6 +55,19 @@ export class MpvLaunchQueue {
     /** Cancels every launch queued so far, for app shutdown. */
     cancelAll(): void {
         this.cancelledThrough = this.latest;
+        this.cancelUndispatchedChild?.();
+    }
+
+    watchDetachedDispatch(
+        sessionId: string,
+        media: { readonly awaitingDispatch: boolean }
+    ): void {
+        this.cancelUndispatchedChild = () => {
+            if (media.awaitingDispatch)
+                void externalPlayerSessions
+                    .closeSession(sessionId, true)
+                    .catch(() => undefined);
+        };
     }
 
     enqueue(
@@ -57,41 +76,88 @@ export class MpvLaunchQueue {
     ): Promise<ExternalPlayerSession> {
         const previous = this.pending;
         const number = ++this.latest;
+        this.latestRunnable = number;
+        let started = false;
         let stop: Promise<void> | null = null;
         // Fixed at the first Stop, so a retry never reaches a newer player.
         let stopTargets: string[] | null = null;
         if (previous) {
-            externalPlayerSessions.attachCloser(session.id, () => {
-                this.cancelledThrough = Math.max(this.cancelledThrough, number);
-                // A late Stop for an older queued launch only cancels it.
-                stopTargets ??=
-                    number === this.latest ? this.stopTargets(session.id) : [];
-                stop = Promise.all(
-                    stopTargets.map((id) =>
-                        externalPlayerSessions.closeSession(id)
-                    )
-                ).then(() => undefined);
-                return stop;
-            });
+            this.queuedSessions.set(number, session.id);
+            externalPlayerSessions.attachCloser(
+                session.id,
+                () => {
+                    this.cancelledThrough = Math.max(
+                        this.cancelledThrough,
+                        number
+                    );
+                    // A late Stop for an older queued launch only cancels it.
+                    stopTargets ??=
+                        number === this.latestRunnable
+                            ? this.stopTargets(session.id)
+                            : [];
+                    stop = Promise.all(
+                        stopTargets.map((id) =>
+                            externalPlayerSessions.closeSession(id)
+                        )
+                    ).then(() => undefined);
+                    return stop;
+                },
+                () => {
+                    if (started) return false;
+                    this.queuedSessions.delete(number);
+                    if (this.latestRunnable === number)
+                        this.latestRunnable =
+                            [...this.queuedSessions.keys()]
+                                .reverse()
+                                .find(
+                                    (queued) => queued > this.cancelledThrough
+                                ) ?? this.inFlightNumber;
+                    for (const candidate of [
+                        this.queuedSessions.get(this.latestRunnable),
+                        this.inFlightSessionId,
+                        this.storedOwnerSessionId(),
+                        this.lastStartedSessionId,
+                    ]) {
+                        if (
+                            candidate &&
+                            candidate !== session.id &&
+                            externalPlayerSessions.restoreActiveSession(
+                                candidate,
+                                session.id
+                            )
+                        )
+                            break;
+                    }
+                    return true;
+                }
+            );
         }
+        const stopped = () => number <= this.cancelledThrough;
         const queue: QueuedMpvLaunch = {
             queued: previous !== null,
-            cancelled: () =>
-                number <= this.cancelledThrough || number !== this.latest,
+            cancelled: () => stopped() || number !== this.latestRunnable,
+            stopped,
             pendingStop: () => stop,
             markInFlight: () => {
+                started = true;
+                this.inFlightNumber = number;
                 this.inFlightSessionId = session.id;
                 this.lastStartedSessionId = session.id;
             },
             lastStartedSessionId: () => this.lastStartedSessionId,
         };
-        const run = () => launch(queue);
+        const run = () => {
+            this.queuedSessions.delete(number);
+            return launch(queue);
+        };
         // The queue is released before the caller sees the result, so a
         // launch made right after this one settles starts synchronously.
         let settled: Promise<unknown> | null = null;
         const result = (previous ? previous.then(run) : run()).finally(() => {
             if (this.inFlightSessionId === session.id) {
                 this.inFlightSessionId = null;
+                this.inFlightNumber = 0;
+                this.cancelUndispatchedChild = undefined;
             }
             if (this.pending === settled) this.pending = null;
         });
@@ -144,7 +210,7 @@ export async function settleCancelledQueuedLaunch(
             );
         }
     }
-    return externalPlayerSessions.markClosed(session.id) ?? session;
+    return externalPlayerSessions.markClosed(session.id, true) ?? session;
 }
 
 /**

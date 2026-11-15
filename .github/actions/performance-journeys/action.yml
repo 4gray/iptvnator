@@ -35,7 +35,7 @@ runs:
               GH_TOKEN: ${{ github.token }}
           run: |
               command -v xvfb-run || { echo "::error::xvfb-run is missing on the runner"; exit 1; }
-              node tools/testing/ensure-electron-binary.mjs || { echo "::error::Electron binary download failed"; exit 1; }
+              node tools/testing/electron/ensure-electron-binary.mjs || { echo "::error::Electron binary download failed"; exit 1; }
               missing="$(ldd node_modules/electron/dist/electron | grep 'not found' || true)"
               if [ -n "$missing" ]; then
                   echo "::error::Electron is missing shared libraries:"

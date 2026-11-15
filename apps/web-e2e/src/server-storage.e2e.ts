@@ -2,6 +2,7 @@ import {
     STORAGE_BACKEND_URL,
     newServerPage,
     seedBrowserPlaylist,
+    verifyCrossDeviceSourceRename,
     verifyEditedSourceChannels,
     verifySharedStalkerIdentityEditing,
     verifyLegacyUploadedChannelIdentity,
@@ -15,10 +16,10 @@ import {
     verifyConcurrentSourceProjection,
 } from './source-projection-pwa.helpers';
 import { verifyDelayedBrowserSourceRefresh } from './source-refresh-pwa.helpers';
+import { verifyWeakSourceRevisions } from './source-weak-revision-pwa.helpers';
 import { verifyCanonicalM3uEpgOptOut } from './m3u-epg-import-server.helpers';
 import { expect, test } from './fixtures';
 import {
-    addM3uUrlPlaylist,
     openSources,
     openSourceEditor,
     updateSourceDialog,
@@ -59,28 +60,7 @@ test.describe('server storage @self-hosted @persistence', () => {
     test('a playlist added on one device appears on another', async ({
         browser,
     }) => {
-        const first = await newServerPage(browser);
-        await openSources(first);
-        await addM3uUrlPlaylist(first, 'Shared M3U');
-
-        const second = await newServerPage(browser);
-        await openSources(second);
-        await expect(sourceRowByTitle(second, 'Shared M3U')).toBeVisible();
-
-        await first.locator('a[href="/workspace/sources"]').first().click();
-        const editor = await openSourceEditor(first, 'Shared M3U');
-        await updateSourceDialog(editor, { title: 'Renamed shared M3U' });
-        await editor
-            .locator('mat-dialog-actions')
-            .getByRole('button', { name: 'Save', exact: true })
-            .click();
-        await expect(editor).toBeHidden();
-        await expect(
-            sourceRowByTitle(second, 'Renamed shared M3U')
-        ).toBeVisible({ timeout: 25000 });
-
-        await first.context().close();
-        await second.context().close();
+        await verifyCrossDeviceSourceRename(browser);
     });
 
     test('replaces the editing client channels after changing shared M3U request headers', async ({
@@ -155,6 +135,13 @@ test.describe('server storage @self-hosted @persistence', () => {
         await verifyConcurrentSourceDeletion(browser, request, 'single', true);
     });
 
+    test('clears the library through a proxy that weakens ETags', async ({
+        browser,
+        request,
+    }) => {
+        await verifyWeakSourceRevisions(browser, request);
+    });
+
     test('keeps a newer disconnect from another tab when pending discovery recovers', async ({
         browser,
     }) => {
@@ -182,7 +169,7 @@ test.describe('server storage @self-hosted @persistence', () => {
             offline = false;
             await page.bringToFront();
             await status
-                .getByRole('button', { name: 'Refresh', exact: true })
+                .getByRole('button', { name: 'Retry connection', exact: true })
                 .click();
             await expect(status).toHaveCount(0);
             expect(
@@ -560,27 +547,33 @@ test.describe('server storage @self-hosted @persistence', () => {
             });
             await page.reload();
             const status = page.locator('[data-test-id="source-sync-status"]');
-            await expect(
-                status.locator('input[type="password"]')
-            ).toBeVisible();
+            const settings = status.getByRole('link', {
+                name: 'Open server settings',
+            });
+            await expect(settings).toBeVisible();
+            await expect(status.locator('input')).toHaveCount(0);
             expect(credentials).toEqual([undefined]);
-            await status
-                .locator('input[type="password"]')
+            await settings.click();
+            await expect(page).toHaveURL(/\/workspace\/settings\/server$/);
+            await page
+                .locator('[data-test-id="source-server-token"]')
                 .fill('new-instance-token');
-            await status
-                .getByRole('button', { name: 'Refresh', exact: true })
+            await page
+                .locator('[data-test-id="source-server-connect"]')
                 .click();
             await expect(status).toHaveCount(0);
-            expect(credentials).toEqual([
-                undefined,
-                'Bearer new-instance-token',
-                'Bearer new-instance-token',
-            ]);
-            expect(revisions).toEqual([
-                undefined,
-                undefined,
-                '"replacement-library"',
-            ]);
+            await page
+                .locator('[data-test-id="source-server-refresh"]')
+                .click();
+            await expect
+                .poll(() => revisions)
+                .toContain('"replacement-library"');
+            expect(credentials.slice(1)).not.toHaveLength(0);
+            expect(
+                credentials
+                    .slice(1)
+                    .every((value) => value === 'Bearer new-instance-token')
+            ).toBe(true);
         } finally {
             await page.context().close();
         }

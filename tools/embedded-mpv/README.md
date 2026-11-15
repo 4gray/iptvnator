@@ -355,6 +355,9 @@ spent. Both constants live in `runtime-probe-contract.cjs`.
 For a locally installed `--dangerous` Snap, CI explicitly installs and
 connects `mesa-core22` and `gnome-3-28-1804`, verifies both connections, and
 then runs the application-level diagnostic under Xvfb.
+Missing providers are installed from the Snap Store with up to three attempts
+and pauses of 15 and 30 seconds after failures. If installation still fails,
+the runtime check fails.
 The Linux packaging matrix alone depends on the runtime-builder job. macOS and
 Windows use an independent matrix, while both matrices share the same anchored
 step list; draft release assembly remains atomic and requires both matrices.

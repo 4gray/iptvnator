@@ -87,8 +87,13 @@ export class PlaylistRefreshActionService {
         );
     }
 
+    /** Whether refresh() would skip this playlist right now. */
+    isBlocked(playlistId: string): boolean {
+        return this.isRefreshing() || this.activity.isBusy(playlistId);
+    }
+
     refresh(playlist: PlaylistMeta): void {
-        if (this.isRefreshing() || this.activity.isBusy(playlist._id)) {
+        if (this.isBlocked(playlist._id)) {
             return;
         }
 
@@ -104,10 +109,7 @@ export class PlaylistRefreshActionService {
         }
     }
 
-    /**
-     * The browser build refreshes through the backend, which reports its own
-     * success or failure; the source stays busy until it has answered.
-     */
+    /** Keep the source busy until the browser refresh reports its result. */
     private async refreshViaBackend(
         item: PlaylistMeta,
         url: string

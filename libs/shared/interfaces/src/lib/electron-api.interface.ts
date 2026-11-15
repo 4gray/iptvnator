@@ -425,6 +425,8 @@ export interface ElectronBridgeEpgSearchResult {
 
 export interface ElectronBridgeEpgLookupOptions {
     sourceUrls?: string[];
+    /** For getChannelPrograms: distinguish an unavailable database from an empty schedule. */
+    rejectOnError?: boolean;
 }
 
 /**
@@ -538,6 +540,8 @@ export interface ElectronBridgeXtreamContent {
     added: string;
     poster_url: string;
     backdrop_url?: string | null;
+    tmdb_id?: number | null;
+    release_year?: number | null;
     epg_channel_id?: string | null;
     tv_archive?: number | null;
     tv_archive_duration?: number | null;
@@ -763,6 +767,8 @@ export interface ElectronBridgeApi {
     ) => Promise<unknown>;
     sourceSyncConnection?: () =>
         import('./source-sync.interface').SourceServerConnection | null;
+    sourceSyncSavedConnection?: () =>
+        import('./source-sync.interface').SavedSourceServerConnection | null;
     sourceSyncRequest?: (
         request: import('./source-sync.interface').SourceServerRequest
     ) => Promise<import('./source-sync.interface').SourceServerResponse>;
@@ -770,7 +776,7 @@ export interface ElectronBridgeApi {
         url: string,
         token: string,
         restart: boolean,
-        useHosted?: boolean
+        savedInstanceIdOrHosted?: string | true
     ) => Promise<
         import('./source-sync.interface').SourceServerConnection & {
             tokenPersisted: boolean;
@@ -783,6 +789,7 @@ export interface ElectronBridgeApi {
         command: Command
     ) => Promise<HostedDeviceResults[Command['action']]>;
     sourceSyncDisconnect?: () => Promise<void>;
+    sourceSyncForget?: () => Promise<void>;
     sourceSyncLocalSources?: () => Promise<Playlist[]>;
     onSourceSyncResume?: (callback: () => void) => () => void;
     onPortalDebugEvent?: (
@@ -926,7 +933,8 @@ export interface ElectronBridgeApi {
         origin?: string,
         contentInfo?: PlayerContentInfo,
         startTime?: number,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        launchId?: string
     ) => Promise<ExternalPlayerSession>;
     openInVlc: (
         url: string,
@@ -937,7 +945,8 @@ export interface ElectronBridgeApi {
         origin?: string,
         contentInfo?: PlayerContentInfo,
         startTime?: number,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        launchId?: string
     ) => Promise<ExternalPlayerSession>;
     autoUpdatePlaylists: (
         playlists: Playlist[],
@@ -1390,7 +1399,8 @@ export interface ElectronBridgeApi {
         callback: (data: EmbeddedMpvSession) => void
     ) => () => void;
     closeExternalPlayerSession: (
-        sessionId: string
+        sessionId: string,
+        exact?: boolean
     ) => Promise<ExternalPlayerSession | null>;
     getEmbeddedMpvSupport: () => Promise<EmbeddedMpvSupport>;
     prepareEmbeddedMpv?: () => Promise<EmbeddedMpvSupport>;
@@ -1483,7 +1493,7 @@ export interface ElectronBridgeApi {
      * preload builds do not ship the pump.
      */
     attachEmbeddedMpvFrameView?: (sessionId: string) => Promise<boolean>;
-    detachEmbeddedMpvFrameView?: () => void;
+    detachEmbeddedMpvFrameView?: (sessionId?: string) => void;
     downloadsStart: (
         data: ElectronBridgeDownloadStartPayload
     ) => Promise<ElectronBridgeDownloadStartResult>;

@@ -4,7 +4,7 @@ import {
 } from './source-authorization';
 import type { SourceServerRequest } from '@iptvnator/shared/interfaces';
 import { requestSourceServer } from './source-api';
-import { prepareSourceConnection } from './source-connection';
+import { prepareSourceConnection, sourceConnection } from './source-connection';
 import { saveBrowserSourceConnection } from './source-browser-settings';
 
 describe('source transport identity revocation', () => {
@@ -94,6 +94,57 @@ describe('source transport identity revocation', () => {
             );
         }
     );
+    it.each([
+        [401, 401],
+        [403, 403],
+        [200, 409],
+    ])(
+        'preserves the refusal from a non-JSON discovery response with status %i',
+        async (status, refusal) => {
+            globalThis.fetch = jest.fn().mockResolvedValue({
+                status,
+                headers: new Headers(),
+                json: async () => {
+                    throw new SyntaxError('Invalid discovery JSON');
+                },
+            });
+
+            await expect(
+                requestSourceServer({ operation: 'instance' })
+            ).resolves.toMatchObject({ status: refusal });
+            expect(sourceAuthorization(`${connection.apiUrl}/xtream`)).toEqual(
+                {}
+            );
+            await expect(
+                requestSourceServer({ operation: 'list' })
+            ).resolves.toMatchObject({ status: refusal });
+            expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+        }
+    );
+
+    it('reports a failed anonymous retry as offline after authorization was rejected', async () => {
+        globalThis.fetch = jest
+            .fn()
+            .mockResolvedValueOnce({
+                status: 401,
+                headers: new Headers(),
+                json: async () => ({}),
+            })
+            .mockRejectedValueOnce(new TypeError('synthetic network failure'));
+
+        expect((await requestSourceServer({ operation: 'list' })).status).toBe(
+            401
+        );
+        await expect(
+            requestSourceServer({ operation: 'instance' })
+        ).rejects.toThrow('SOURCE_SYNC.OFFLINE');
+        expect(sourceAuthorization(`${connection.apiUrl}/xtream`)).toEqual({});
+        expect((await requestSourceServer({ operation: 'list' })).status).toBe(
+            401
+        );
+        expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    });
+
     it('keeps a logical source conflict from being treated as a server outage', async () => {
         globalThis.fetch = jest.fn().mockResolvedValue({
             status: 412,
@@ -134,5 +185,67 @@ describe('source transport identity revocation', () => {
                 .status
         ).toBe(409);
         expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    });
+    it('uses only the current instance and its server token to send a TMDB key', async () => {
+        globalThis.fetch = jest.fn().mockResolvedValue({
+            status: 200,
+            headers: new Headers(),
+            json: async () => ({ status: 'ready' }),
+        });
+        const request = {
+            action: 'send' as const,
+            transferToken: 's'.repeat(32),
+            apiKey: 'synthetic-tmdb-key',
+        };
+        await expect(
+            requestSourceServer({
+                operation: 'tmdb-transfer',
+                tmdbTransfer: { connection, request },
+            })
+        ).resolves.toMatchObject({ status: 409 });
+        expect(globalThis.fetch).not.toHaveBeenCalled();
+
+        const active = sourceConnection();
+        if (!active) throw new Error('Expected a saved connection');
+        await expect(
+            requestSourceServer({
+                operation: 'tmdb-transfer',
+                tmdbTransfer: { connection: active, request },
+            })
+        ).resolves.toMatchObject({ status: 200 });
+        expect(globalThis.fetch).toHaveBeenCalledWith(
+            `${connection.apiUrl}/v1/tmdb-transfer`,
+            expect.objectContaining({
+                method: 'POST',
+                redirect: 'error',
+                headers: expect.objectContaining({
+                    Authorization: 'Bearer synthetic-nas-token',
+                    'X-IPTVnator-Instance-Id': connection.instanceId,
+                }),
+                body: JSON.stringify(request),
+            })
+        );
+    });
+
+    it('keeps the server proof when an older backend does not support transfers', async () => {
+        const json = jest.fn().mockRejectedValue(new Error('HTML is not JSON'));
+        globalThis.fetch = jest
+            .fn()
+            .mockResolvedValue({ status: 404, headers: new Headers(), json });
+        const active = sourceConnection();
+        if (!active) throw new Error('Expected a saved connection');
+        await expect(
+            requestSourceServer({
+                operation: 'tmdb-transfer',
+                tmdbTransfer: {
+                    connection: active,
+                    request: { action: 'start' },
+                },
+            })
+        ).resolves.toMatchObject({ status: 404 });
+        expect(json).not.toHaveBeenCalled();
+        expect(
+            sourceAuthorization(`${connection.apiUrl}/v1/sources`)
+        ).toHaveProperty('Authorization');
     });
 });

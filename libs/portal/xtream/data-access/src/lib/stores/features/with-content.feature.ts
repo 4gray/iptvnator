@@ -99,6 +99,7 @@ export interface ContentState {
     vodStreamsPlaylistId: string | null;
     serialStreams: XtreamSerieItem[];
     isLoadingCategories: boolean;
+    areCategoriesWithheld: boolean;
     isLoadingContent: boolean;
     isImporting: boolean;
     contentLoadStateByType: XtreamContentLoadStateByType;
@@ -135,6 +136,7 @@ const initialContentState: ContentState = {
     vodStreamsPlaylistId: null,
     serialStreams: [],
     isLoadingCategories: false,
+    areCategoriesWithheld: false,
     isLoadingContent: false,
     isImporting: false,
     contentLoadStateByType: { ...initialContentLoadStateByType },
@@ -1101,11 +1103,17 @@ export function withContent() {
                                 state.contentInitBlockReason ?? 'cancelled',
                         }));
                     } else {
+                        const requestBlockReason =
+                            error instanceof Error &&
+                            'code' in error &&
+                            error.code === 'PROVIDER_RESPONSE_TOO_LARGE'
+                                ? 'response-too-large'
+                                : 'error';
                         patchState(store, {
                             contentInitBlockReason:
                                 resolveInitBlockReason(
                                     getPortalStore().portalStatus?.()
-                                ) ?? 'error',
+                                ) ?? requestBlockReason,
                         });
                         logger.error('Error initializing content', error);
                     }
@@ -1548,6 +1556,7 @@ export function withContent() {
                         reloadAfterInitialization = true;
                     }
                     patchState(store, {
+                        areCategoriesWithheld: true,
                         liveCategories: [],
                         vodCategories: [],
                         serialCategories: [],
@@ -1601,6 +1610,7 @@ export function withContent() {
 
                         if (!shouldPublish()) return;
                         patchState(store, {
+                            areCategoriesWithheld: false,
                             liveCategories: live,
                             vodCategories: vod,
                             vodCategoriesPlaylistId: ctx.playlistId,

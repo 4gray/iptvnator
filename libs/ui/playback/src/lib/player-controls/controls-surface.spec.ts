@@ -239,6 +239,81 @@ describe('ControlsSurface', () => {
             expect(togglePlay).not.toHaveBeenCalled();
         });
 
+        describe('emulated hover', () => {
+            afterEach(() => {
+                delete (window as unknown as { matchMedia?: unknown })
+                    .matchMedia;
+            });
+
+            const setAnyHover = (hover: boolean) => {
+                Object.defineProperty(window, 'matchMedia', {
+                    configurable: true,
+                    value: (query: string) => ({
+                        matches: query === '(any-hover: hover)' ? hover : false,
+                    }),
+                });
+            };
+
+            it('treats a mouse-typed pointerenter right after a touch press as emulated', () => {
+                setAnyHover(true);
+                document.dispatchEvent(
+                    pointerTypedEvent('pointerdown', 'touch')
+                );
+                expect(
+                    surface.isEmulatedHover(
+                        pointerTypedEvent('pointerenter', 'mouse')
+                    )
+                ).toBe(true);
+            });
+
+            it('treats a touch-typed pointerenter as emulated', () => {
+                setAnyHover(true);
+                expect(
+                    surface.isEmulatedHover(
+                        pointerTypedEvent('pointerenter', 'touch')
+                    )
+                ).toBe(true);
+            });
+
+            it('treats any pointerenter as emulated without a hover-capable pointer', () => {
+                setAnyHover(false);
+                document.dispatchEvent(
+                    pointerTypedEvent('pointerdown', 'mouse')
+                );
+                expect(
+                    surface.isEmulatedHover(
+                        pointerTypedEvent('pointerenter', 'mouse')
+                    )
+                ).toBe(true);
+            });
+
+            it('keeps a real mouse hover', () => {
+                setAnyHover(true);
+                document.dispatchEvent(
+                    pointerTypedEvent('pointerdown', 'mouse')
+                );
+                expect(
+                    surface.isEmulatedHover(
+                        pointerTypedEvent('pointerenter', 'mouse')
+                    )
+                ).toBe(false);
+            });
+
+            it('keeps a mouse hover once the touch press is old', () => {
+                jest.useFakeTimers();
+                setAnyHover(true);
+                document.dispatchEvent(
+                    pointerTypedEvent('pointerdown', 'touch')
+                );
+                jest.advanceTimersByTime(1500);
+                expect(
+                    surface.isEmulatedHover(
+                        pointerTypedEvent('pointerenter', 'mouse')
+                    )
+                ).toBe(false);
+            });
+        });
+
         it('attributes pointer-typeless events to a recent touch pointerdown', () => {
             document.dispatchEvent(pointerTypedEvent('pointerdown', 'touch'));
             expect(surface.wasTouchInteraction(new FocusEvent('focusin'))).toBe(

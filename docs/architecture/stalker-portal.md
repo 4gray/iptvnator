@@ -512,13 +512,22 @@ portal or route session is replaced. Existing progress classification (90%
 completion, including manual marks) hides only movies; started movies and all
 three supported series shapes remain visible. Initial progress read failures
 leave activation disabled with Retry. Refresh failures retain the last snapshot
-and show a retry notice; newer player updates beat in-flight snapshot reads.
+and show a retry notice. The notice stays visible with Retry disabled while
+the read is pending. Newer player updates beat in-flight snapshot reads.
+The progress loading notice appears while fetching the first snapshot.
+Subsequent reads update the watch marks when they finish.
 Accepted throttled inline-player writes feed the same catalog snapshot as
 external-player events, so returning from inline completion immediately hides
 that movie without re-reading the whole progress history.
 Catalog entry also refreshes local progress so watched toggles and inline
 playback in Favorites/Recent are reflected when returning to Movies; retained
 provider pages are not refetched for that refresh.
+Every inline Stalker player saves through the shared
+`createInlinePlaybackPositionWriter` (`@iptvnator/portal/shared/util`): the
+catalog detail, `StalkerVodPlaybackController` (search, Favorites, Recent and
+dashboard collections) and the series view. Its one-shot resume latch skips
+the ~0 s updates an engine reports before reaching `startTime`, which would
+otherwise overwrite the position being resumed from.
 
 `StalkerCatalogFacadeService` derives the visible list from retained raw pages;
 provider totals, deduplication and exhaustion remain store-owned. Counts say how
@@ -1375,7 +1384,8 @@ Two stream profiles exist, selected by one shared predicate:
   session token exists, `User-Agent` (playlist override or the MAG UA — the
   API path always sent both, the playback set historically sent only
   `X-User-Agent`), `X-User-Agent`, `SN` when a real serial exists, and
-  `Origin`/`Referer` set to the portal origin.
+  `Origin`/`Referer` set to the portal origin. For companion movies and
+  episodes, saved playlist overrides take precedence for these two headers.
 - **Foreign / direct** (different host, or an https→http downgrade): the
   credential-free `KSPlayer` direct-stream profile (`User-Agent: KSPlayer`,
   `Accept`, `Icy-MetaData`, `Connection`). Portal credentials must
@@ -1503,6 +1513,10 @@ list:
   transient failure (network, or a page that failed both attempts) is retried
   later but throttled by a per-portal cooldown (`ERROR_COOLDOWN_MS`, 30s) so a
   deterministically-failing page can't trigger an unbounded re-crawl loop.
+- Keyed by the playlist id, `stalkerSessionFingerprint` (portal endpoint,
+  MAC and device identity, credentials), and the observed full or simple
+  portal mode. A change to the connection or its mode uses a separate
+  channel list and `unsupported` verdict.
 - Per-portal reactivity: the "cache ready / refreshed" trigger is a
   **per-portal** version signal (`versionFor(playlist)`), not one global
   counter, and the content resource reads it **only for ITV**. This is
@@ -1560,6 +1574,10 @@ list:
   lazily so their per-category totals are unknown — and show a loading shimmer
   while the full list is still loading (`workspace-context-panel` →
   `stalkerShowCounts` / `stalkerCountDisplayMode`).
+- The second-stream picker reads the ITV cache without changing the active
+  Stalker store. Selecting a genre absent from that cache fetches its ordered
+  pages through `loadStalkerItvGenre`, preserving link flags and checking
+  cancellation between pages. Parentally locked genres remain excluded.
 - Censored (adult) genres: portals typically EXCLUDE these channels from
   `get_all_channels` (sometimes without even flagging the genre `censored` in
   `get_genres`), so the cache legitimately has zero channels for them. The
@@ -1727,7 +1745,7 @@ Series inline playback behavior is shared across all three modes:
   state.
 - The inline player header shows the current episode metadata below the title, for example `S01E03 - Episode title`.
 - Embedded players receive previous/next episode state for the current season only.
-- Inline series autoplay is enabled by default. On player EOF (`ended`), Stalker starts the next episode only when it already exists in the current season's mapped episode list.
+- On player EOF (`ended`), Stalker advances to the next mapped episode in the current season when [inline series autoplay](embedded-inline-playback.md#series-inline-episode-continuation) is enabled.
 - Autoplay and Next stop at the last episode of the current season. They do not jump to the next season and do not lazy-load an unloaded `is_series=1` season. Quick start remains the only flow that may load another VOD-series season before playback.
 - Previous is disabled on the first episode of the current season and otherwise switches directly to the previous episode.
 - Before either inline or external playback starts, the resolved content info
@@ -1886,6 +1904,16 @@ Where this is used:
 - `libs/portal/stalker/feature/src/lib/stalker-search/stalker-search.component.ts`
 - `libs/portal/stalker/feature/src/lib/stalker-catalog-detail/stalker-catalog-detail.component.ts`
 - `libs/portal/stalker/feature/src/lib/stalker-favorites-button/stalker-favorites-button.component.ts`
+
+A local Recently Viewed touch (`mutatePlaylistHistory`,
+`libs/services/src/lib/playlist-history.ts`) moves a row to the top by its
+normalized id and compatible type from `stalkerFavoriteReference`. Live, radio,
+movies, and the regular, embedded and lazy series modes each have distinct
+identities. Episodes of the same series share its history row. Rows of an
+unknown kind, such as older untyped snapshots, still match by id.
+The unified Recent collection uses typed row ids. The favorite heart uses an
+exact typed match first. It falls back to an untyped favorite in the same source
+when the available references for that id identify at most one type and mode.
 
 Navigation rule to preserve:
 
@@ -2180,3 +2208,6 @@ existing provider resolver and parental checks when reopened. Remove and clear
 retain durable intent, independently of resume and watched synchronization.
 Collection favorite membership uses typed references independently of either
 sync consent, so received history matches local favorites without merging kinds.
+Dashboard history cards with missing artwork can use the saved favorite poster
+from the same source and exact typed reference, including the series mode.
+The favorite's category lock applies, and only the rendered poster is filled.

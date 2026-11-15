@@ -1,11 +1,8 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import {
-    copyTextToClipboard,
-    type DownloadItem,
-    DownloadsService,
-} from '@iptvnator/services';
+import { type DownloadItem, DownloadsService } from '@iptvnator/services';
+import { copyTextToClipboard } from '@iptvnator/services/clipboard-copy';
 import { DialogService } from '@iptvnator/ui/components';
 import type {
     DownloadActionResult,

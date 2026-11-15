@@ -366,6 +366,15 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(PlaylistActions.updatePlaylist),
+                tap((action) => {
+                    if (action.persist === false) {
+                        this.publishRefresh(
+                            action.playlist,
+                            action.refreshEpg === true
+                        );
+                    }
+                }),
+                filter((action) => action.persist !== false),
                 switchMap((action) =>
                     persistPlaylistUpdate(this.playlistsService, action).pipe(
                         tap((persisted) =>

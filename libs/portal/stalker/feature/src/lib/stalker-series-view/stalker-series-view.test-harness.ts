@@ -16,7 +16,8 @@ import {
     StalkerVodSource,
 } from '@iptvnator/portal/stalker/data-access';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
-import { TmdbEnrichmentService } from '@iptvnator/services';
+import { SettingsStore, TmdbEnrichmentService } from '@iptvnator/services';
+import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import { EMPTY, of } from 'rxjs';
 import { FavoritesButtonComponent } from '../stalker-favorites-button/stalker-favorites-button.component';
 import { StalkerSeriesViewComponent } from './stalker-series-view.component';
@@ -62,6 +63,7 @@ export function createStalkerSeriesViewHarness<
     const openResolvedPlayback = createMock();
     const openExternalPlayback = createMock();
     const isEmbeddedPlayer = createMock();
+    const seriesAutoplay = signal<boolean | undefined>(undefined);
     const tmdbGetSeason = createMock();
     const fetchLinkToPlay = createMock();
     const currentPlaylist = signal({
@@ -126,6 +128,7 @@ export function createStalkerSeriesViewHarness<
         openExternalPlayback.mockReset();
         isEmbeddedPlayer.mockReset();
         isEmbeddedPlayer.mockReturnValue(false);
+        seriesAutoplay.set(undefined);
         tmdbGetSeason.mockReset();
         tmdbGetSeason.mockResolvedValue({
             overview: 'Season overview from TMDB',
@@ -144,6 +147,15 @@ export function createStalkerSeriesViewHarness<
         await TestBed.configureTestingModule({
             imports: [StalkerSeriesViewComponent],
             providers: [
+                {
+                    provide: SettingsStore,
+                    useValue: {
+                        seriesAutoplay,
+                        player: signal(VideoPlayer.Html5Player),
+                        language: signal('en'),
+                        ageRatingCountry: signal('auto'),
+                    },
+                },
                 {
                     provide: StalkerEpisodeResolver,
                     useValue: {
@@ -278,6 +290,7 @@ export function createStalkerSeriesViewHarness<
         openResolvedPlayback,
         openExternalPlayback,
         isEmbeddedPlayer,
+        seriesAutoplay,
         tmdbGetSeason,
         fetchLinkToPlay,
         currentPlaylist,

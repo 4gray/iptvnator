@@ -41,6 +41,7 @@ describe('XtreamContentGateComponent', () => {
         null
     );
     const isContentInitialized = signal(false);
+    const activeImportSessionId = signal<string | null>(null);
     const isPendingRestoreBlocked = signal(false);
     const portalStatus = signal<
         'active' | 'inactive' | 'expired' | 'unavailable'
@@ -50,6 +51,7 @@ describe('XtreamContentGateComponent', () => {
     beforeEach(async () => {
         contentInitBlockReason.set(null);
         isContentInitialized.set(false);
+        activeImportSessionId.set(null);
         isPendingRestoreBlocked.set(false);
         portalStatus.set('active');
         retryContentInitialization.mockClear();
@@ -82,6 +84,7 @@ describe('XtreamContentGateComponent', () => {
                                 isPendingRestoreBlocked()
                         ),
                         isContentInitialized,
+                        activeImportSessionId,
                         isPendingRestoreBlocked,
                         portalStatus,
                         retryContentInitialization,
@@ -111,6 +114,10 @@ describe('XtreamContentGateComponent', () => {
         ['expired', 'PORTALS.ERROR_VIEW.ACCOUNT_EXPIRED.TITLE'],
         ['inactive', 'PORTALS.ERROR_VIEW.ACCOUNT_INACTIVE.TITLE'],
         ['unavailable', 'PORTALS.ERROR_VIEW.PORTAL_UNAVAILABLE.TITLE'],
+        [
+            'response-too-large',
+            'PORTALS.ERROR_VIEW.PROVIDER_RESPONSE_TOO_LARGE.TITLE',
+        ],
         ['error', 'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.TITLE'],
     ] as const)(
         'renders the blocked error state for %s imports',
@@ -132,6 +139,25 @@ describe('XtreamContentGateComponent', () => {
         expect(
             fixture.nativeElement.querySelector('router-outlet')
         ).not.toBeNull();
+    });
+
+    it('marks the catalog ready once initialization and its import session finish', () => {
+        const readiness = () =>
+            fixture.nativeElement
+                .querySelector('.xtream-route-content')
+                ?.getAttribute('data-xtream-catalog-ready');
+
+        fixture.detectChanges();
+        expect(readiness()).toBe('false');
+
+        activeImportSessionId.set('test-session');
+        isContentInitialized.set(true);
+        fixture.detectChanges();
+        expect(readiness()).toBe('false');
+
+        activeImportSessionId.set(null);
+        fixture.detectChanges();
+        expect(readiness()).toBe('true');
     });
 
     it('keeps the child outlet unavailable while parked state is pending', () => {

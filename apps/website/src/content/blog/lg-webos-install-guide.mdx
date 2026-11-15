@@ -1,0 +1,36 @@
+---
+title: Install IPTVnator 0.25.0 on LG webOS
+description: Install the experimental IPTVnator TV package with LG Developer Mode and connect it to your self-hosted backend.
+pubDate: 2026-11-12
+author: 4gray
+tags:
+    - guide
+---
+
+import ContentDisclaimer from '../../components/blog/ContentDisclaimer.astro';
+
+The experimental TV app ships as a ready-to-install IPK. It targets LG webOS 5.x and was tested on an LG BX (2020). Newer versions were unverified for this release; 4.x and earlier are below the target.
+
+<ContentDisclaimer />
+
+## Before you install
+
+You need a **compatible self-hosted IPTVnator backend** reachable from the TV, even if you add sources on the TV. Follow the [v0.25.0 backend setup](https://github.com/4gray/iptvnator/blob/v0.25.0/apps/tv/README.md#1-prepare-the-backend) for the matching Docker build. In `CLIENT_URL`, allow your web origin and `file://com.iptvnator.tv.prototype-webos`.
+
+## Enable Developer Mode and pair the TV
+
+1. On the TV, install **Developer Mode** from LG Apps. Sign in with your LG Developer account, enable **Dev Mode Status**, and let the TV restart.
+2. On a computer on the same network, [install LG’s webOS CLI](https://webostv.developer.lge.com/develop/tools/cli-installation). Run `ares-setup-device`, choose **add**, and save `living-room-tv` with the TV’s IP address, port `9922`, SSH user `prisoner`, and a blank password.
+3. Reopen Developer Mode on the TV and turn on **Key Server**. Run `ares-novacom --device living-room-tv --getkey` and enter the case-sensitive passphrase shown on the TV. See [LG’s pairing steps](https://webostv.developer.lge.com/develop/getting-started/developer-mode-app#connecting-with-cli).
+
+## Install and connect
+
+[Download the IPK](https://github.com/4gray/iptvnator/releases/download/v0.25.0/com.iptvnator.tv.prototype_0.1.25_all.ipk). From the download folder, run:
+
+```sh
+ares-install --device living-room-tv com.iptvnator.tv.prototype_0.1.25_all.ipk
+```
+
+Open **IPTVnator TV**. Under **Sources** or **Settings → Connection**, use **Find backend** and select your server if prompted. To connect manually, enter the API URL (for example, `http://iptvnator.home.test:4333/api`) and choose **Check and connect**. Enter your server’s access token before connecting if required.
+
+Press **EXTEND** in Developer Mode before the session expires. LG removes sideloaded apps when Developer Mode is disabled.

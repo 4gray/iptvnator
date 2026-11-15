@@ -75,6 +75,17 @@ describe('FavoritesService', () => {
             'playlist-1'
         );
         expect(dataSource.isFavorite).toHaveBeenCalledWith(202, 'playlist-1');
-        expect(dataSource.getFavorites).toHaveBeenCalledWith('playlist-1');
+        expect(dataSource.getFavorites).toHaveBeenCalledWith(
+            'playlist-1',
+            true
+        );
+    });
+
+    it('can read membership without hydrating provider catalogs', async () => {
+        await firstValueFrom(service.getFavorites('playlist-1', false));
+        expect(dataSource.getFavorites).toHaveBeenCalledWith(
+            'playlist-1',
+            false
+        );
     });
 });
