@@ -1,7 +1,10 @@
 import type { StalkerRequestOptions } from './stalker-request-options';
 import { Injectable, inject } from '@angular/core';
 import { DataService, resetHostConnectivityGuard } from '@iptvnator/services';
-import { STALKER_REQUEST } from '@iptvnator/shared/interfaces';
+import {
+    STALKER_REQUEST,
+    readStalkerPortalPageUrl,
+} from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     StalkerPortalCredentials,
@@ -11,6 +14,7 @@ import {
 import { type StalkerPortalIdentity } from './stalker-identity.utils';
 import {
     buildStalkerEndpointCandidates,
+    buildStalkerPortalPageCandidates,
     classifyStalkerProbeResponse,
     getStalkerRequestErrorStatus,
     isStalkerAuthFailureResponse,
@@ -156,13 +160,18 @@ export class StalkerPortalDiscoveryService {
     ): Promise<StalkerPortalDiscoveryOutcome> {
         const candidates = buildStalkerEndpointCandidates(rawUrl);
         let authRejection: StalkerPortalDiscoveryRejection | null = null;
+        // Candidates derived from a redirect-reached portal page are appended
+        // once: the entered address keeps priority, and a page that redirects
+        // to yet another page cannot extend discovery indefinitely.
+        let followedPortalPage = false;
 
         // Discovery runs on import, on an edited connection and on lazy
         // repair — every one of them is a deliberate "talk to this portal"
         // and must not inherit a refusal recorded for the previous address.
         await resetHostConnectivityGuard(this.dataService, rawUrl);
 
-        for (const candidate of candidates) {
+        for (let index = 0; index < candidates.length; index++) {
+            const candidate = candidates[index];
             if (options.signal?.aborted) return { status: 'unreachable' };
             let probeResponse: unknown;
             try {
@@ -247,8 +256,20 @@ export class StalkerPortalDiscoveryService {
                     authRejection = authRejection ?? outcome;
                     continue;
                 }
-                case 'not-a-portal':
+                case 'not-a-portal': {
+                    const pageUrl = readStalkerPortalPageUrl(probeResponse);
+                    if (pageUrl && !followedPortalPage) {
+                        followedPortalPage = true;
+                        for (const derived of buildStalkerPortalPageCandidates(
+                            pageUrl
+                        )) {
+                            if (!candidates.includes(derived)) {
+                                candidates.push(derived);
+                            }
+                        }
+                    }
                     continue;
+                }
             }
         }
 
