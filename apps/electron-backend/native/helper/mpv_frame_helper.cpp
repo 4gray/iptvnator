@@ -814,7 +814,13 @@ void handleCommand(const Command& command) {
     } else if (command.name == "volume") {
         double percent =
             std::clamp(command.getDouble("value", 1) * 100.0, 0.0, 100.0);
-        mpv_set_property(g_state.mpv, "volume", MPV_FORMAT_DOUBLE, &percent);
+        const int result = mpv_set_property(g_state.mpv, "volume", MPV_FORMAT_DOUBLE, &percent);
+        const std::string request_id = command.get("requestId");
+        if (!request_id.empty()) {
+            emitLine(JsonWriter().str("event", "command-result")
+                         .str("requestId", request_id)
+                         .boolean("success", result >= 0).finish());
+        }
     } else if (command.name == "aid" || command.name == "sid") {
         const std::string value = command.get("value");
         setPropertyString(command.name.c_str(),

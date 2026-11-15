@@ -41,6 +41,8 @@ export interface InlinePlaybackPositionWriter {
      * both or the two disagree about where playback is.
      */
     handleTimeUpdate(event: PlaybackPositionUpdate): boolean;
+    /** Persists the latest accepted update if it was held by the throttle. */
+    flush(): void;
     /** Clears the throttle and the resume latch for a new playback. */
     reset(): void;
 }
@@ -52,6 +54,15 @@ export function createInlinePlaybackPositionWriter(
     let lastSaveTime = 0;
     /** Cleared on every start; latches once playback reaches `startTime`. */
     let resumeSettled = false;
+    let pending: (PlaybackPositionData & { playlistId: string }) | undefined;
+    const flush = () => {
+        if (!pending) return;
+        const position = pending;
+        pending = undefined;
+        lastSaveTime = Date.now();
+        config.save(position.playlistId, position);
+        config.onSaved?.(position);
+    };
 
     return {
         handleTimeUpdate(event) {
@@ -87,13 +98,7 @@ export function createInlinePlaybackPositionWriter(
             }
             resumeSettled = true;
 
-            const now = Date.now();
-            if (!event.checkpoint && now - lastSaveTime <= throttleMs) {
-                return true;
-            }
-            lastSaveTime = now;
-
-            const position: PlaybackPositionData = {
+            pending = {
                 ...playback.contentInfo,
                 positionSeconds: Math.floor(event.currentTime),
                 durationSeconds: Math.floor(event.duration),
@@ -102,12 +107,14 @@ export function createInlinePlaybackPositionWriter(
                     : {}),
             };
 
-            config.save(playback.contentInfo.playlistId, position);
-            config.onSaved?.(position);
+            if (event.checkpoint || Date.now() - lastSaveTime > throttleMs) flush();
             return true;
         },
 
+        flush,
+
         reset() {
+            pending = undefined;
             lastSaveTime = 0;
             resumeSettled = false;
         },

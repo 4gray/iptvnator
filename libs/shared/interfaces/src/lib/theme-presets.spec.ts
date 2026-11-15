@@ -1,5 +1,6 @@
 import { Theme } from './theme.enum';
 import {
+    normalizeSystemTheme,
     normalizeTheme,
     resolveThemePreset,
     THEME_PRESETS,
@@ -15,6 +16,7 @@ describe('theme presets', () => {
             MochaTheme: 'MOCHA_THEME',
             NightOwlTheme: 'NIGHT_OWL_THEME',
             BlackOledTheme: 'BLACK_OLED_THEME',
+            HighContrastTheme: 'HIGH_CONTRAST_THEME',
         });
     });
 
@@ -26,6 +28,11 @@ describe('theme presets', () => {
             { value: Theme.MochaTheme, id: 'mocha', mode: 'dark' },
             { value: 'NIGHT_OWL_THEME', id: 'night-owl', mode: 'dark' },
             { value: 'BLACK_OLED_THEME', id: 'black-oled', mode: 'dark' },
+            {
+                value: 'HIGH_CONTRAST_THEME',
+                id: 'high-contrast',
+                mode: 'dark',
+            },
         ]);
     });
 
@@ -59,5 +66,20 @@ describe('theme presets', () => {
 
     it('defaults System to the light preset when no OS preference exists', () => {
         expect(resolveThemePreset(Theme.SystemTheme)).toBe(THEME_PRESETS[0]);
+    });
+});
+
+describe('system theme pair', () => {
+    it.each([
+        [Theme.CreamTheme, 'light', Theme.CreamTheme],
+        [Theme.BlackOledTheme, 'dark', Theme.BlackOledTheme],
+        // A preset of the other mode, System itself or junk falls back.
+        [Theme.MochaTheme, 'light', Theme.LightTheme],
+        [Theme.CreamTheme, 'dark', Theme.DarkTheme],
+        [Theme.SystemTheme, 'dark', Theme.DarkTheme],
+        [undefined, 'light', Theme.LightTheme],
+        ['NOPE', 'dark', Theme.DarkTheme],
+    ] as const)('normalizes %p for %s mode to %p', (value, mode, expected) => {
+        expect(normalizeSystemTheme(value, mode)).toBe(expected);
     });
 });

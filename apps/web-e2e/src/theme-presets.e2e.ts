@@ -8,6 +8,7 @@ const presets = [
     'mocha',
     'night-owl',
     'black-oled',
+    'high-contrast',
 ] as const;
 type Preset = (typeof presets)[number];
 
@@ -42,6 +43,41 @@ test.describe('PWA theme presets', () => {
     test.beforeEach(async ({ page }) => {
         await page.goto('/');
         await openSettings(page);
+    });
+
+    test('@theme @settings @persistence @web applies a saved accent before opening settings', async ({
+        page,
+    }) => {
+        const body = page.locator('body');
+        const accent = page.locator('[data-test-id="theme-accent-magenta"]');
+        await themeOption(page, 'light').click();
+        await accent.click();
+        await expect(body).toHaveAttribute('data-theme-accent', 'magenta');
+        const lightColor = await body.evaluate((element) =>
+            element.style.getPropertyValue('--app-selection-color')
+        );
+        expect(lightColor).toMatch(/^#[0-9a-f]{6}$/);
+        await saveSettings(page);
+
+        await page.goto('/workspace/dashboard');
+        await expectTheme(page, 'light');
+        await expect(body).toHaveAttribute('data-theme-accent', 'magenta');
+        expect(
+            await body.evaluate((element) =>
+                element.style.getPropertyValue('--app-selection-color')
+            )
+        ).toBe(lightColor);
+
+        await openSettings(page);
+        await themeOption(page, 'dark').click();
+        expect(
+            await body.evaluate((element) =>
+                element.style.getPropertyValue('--app-selection-color')
+            )
+        ).not.toBe(lightColor);
+        await page.locator('[data-test-id="discard-settings"]').click();
+        await expectTheme(page, 'light');
+        await expect(accent).toBeChecked();
     });
 
     test('@theme @settings @persistence @web shares staged Appearance and General edits through Save and Discard', async ({
@@ -140,7 +176,7 @@ test.describe('PWA theme presets', () => {
         await expect(page.locator('[data-setting-id="theme"]')).toBeFocused();
     });
 
-    test('@theme @settings @pwa @web previews all six presets and discards to saved Mocha', async ({
+    test('@theme @settings @pwa @web previews every preset and discards to saved Mocha', async ({
         page,
     }) => {
         await themeOption(page, 'mocha').click();
@@ -168,6 +204,7 @@ test.describe('PWA theme presets', () => {
         'mocha',
         'night-owl',
         'black-oled',
+        'high-contrast',
     ] as const) {
         test(`@theme @settings @persistence @pwa @web saves ${preset} across reload`, async ({
             page,
@@ -228,14 +265,14 @@ test.describe('PWA theme presets', () => {
         }
     });
 
-    test('@theme @settings @accessibility @pwa @web supports radio arrows and Home/End with six decorative previews', async ({
+    test('@theme @settings @accessibility @pwa @web supports radio arrows and Home/End with a decorative preview per preset', async ({
         page,
     }) => {
         const group = page.locator('[data-test-id="select-theme"]');
         await expect(group).toHaveAttribute('role', 'radiogroup');
-        await expect(group.getByRole('radio')).toHaveCount(7);
+        await expect(group.getByRole('radio')).toHaveCount(presets.length + 1);
         const previews = group.locator('[data-theme-preview]');
-        await expect(previews).toHaveCount(6);
+        await expect(previews).toHaveCount(presets.length);
         expect(
             await previews.evaluateAll((elements) =>
                 elements.map((el) => ({
@@ -255,6 +292,7 @@ test.describe('PWA theme presets', () => {
             ['ArrowRight', 'mocha'],
             ['ArrowRight', 'night-owl'],
             ['ArrowDown', 'black-oled'],
+            ['ArrowRight', 'high-contrast'],
             ['End', 'system'],
             ['ArrowRight', 'light'],
             ['ArrowLeft', 'system'],

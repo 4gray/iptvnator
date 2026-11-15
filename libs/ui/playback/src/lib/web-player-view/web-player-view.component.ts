@@ -1,4 +1,6 @@
 import { AndroidTvPlayback } from './android-tv-playback';
+import { SecondStreamFloatingDirective } from '../second-stream/second-stream-floating.directive';
+import { SecondStreamComponent } from '../second-stream/second-stream.component';
 import { WebPlayerActivity } from './web-player-activity';
 import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
 import {
@@ -23,7 +25,6 @@ import {
     type PlaybackDiagnostic,
     type PlaybackDiagnosticCode,
     type PlaybackFallbackRequest,
-    type PlaybackRecommendationTarget,
 } from '@iptvnator/playback/util';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
@@ -81,6 +82,8 @@ import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
     styleUrls: ['./web-player-view.component.scss'],
     host: { class: 'web-player-view' },
     imports: [
+        SecondStreamComponent,
+        SecondStreamFloatingDirective,
         ArtPlayerComponent,
         EmbeddedMpvPlayerComponent,
         FullscreenChannelPanelComponent,
@@ -423,9 +426,8 @@ export class WebPlayerViewComponent implements OnDestroy {
         );
     }
 
-    requestRecommendedPlayer(target: PlaybackRecommendationTarget): void {
-        this.recovery.requestRecommendedPlayer(target);
-    }
+    readonly requestRecommendedPlayer =
+        this.recovery.requestRecommendedPlayer.bind(this.recovery);
 
     retryPlayback(binding?: PlaybackBinding): void {
         if (!binding && this.androidPlayback.suspended()) {

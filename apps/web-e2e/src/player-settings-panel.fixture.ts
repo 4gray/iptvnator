@@ -55,7 +55,8 @@ export async function selectPlayer(
 ): Promise<void> {
     await page.goto('/workspace/settings/playback');
     const select = page.locator('[data-test-id="select-video-player"]');
-    await expect(select).toBeVisible();
+    // The first navigation waits for library startup before settings render.
+    await expect(select).toBeVisible({ timeout: 20_000 });
     const previous = await select.innerText();
     await select.click();
     await page.getByRole('option', { name: player, exact: true }).click();

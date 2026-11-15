@@ -240,8 +240,8 @@ interface PlayerController {
 `PlayerControlsCapabilities` contains booleans for `seek`, `volume`,
 `audioTracks`, `subtitles`, `externalSubtitles`, `subtitleDelay`,
 `subtitleStyle`, `qualityLevels`, `playbackSpeed`, `aspectRatio`,
-`recording`, `pictureInPicture`, `fullscreen`, `seriesNavigation`, and
-`streamStats`.
+`recording`, `pictureInPicture`, `fullscreen`, `seriesNavigation`,
+`streamStats`, and `liveEdge`.
 
 The default is all-false. An adapter enables only features that its engine and
 current runtime support. Capability flags primarily control whether optional UI
@@ -259,7 +259,7 @@ is rendered; state such as `canSeek`, `canPreviousEpisode`, and
 - pre-labelled quality levels and the ABR/auto flag;
 - playback speed and aspect-ratio selections/presets;
 - recording state;
-- picture-in-picture active state and runtime availability; and
+- picture-in-picture active state and runtime availability;
 - previous/next episode availability.
 
 Adapters translate engine types into this model. The controls component must not
@@ -285,6 +285,10 @@ owner.
 - `setAspectRatio`
 - `toggleRecording`
 - `togglePictureInPicture`
+- `jumpToLiveEdge` — skips buffered live data so playback runs close to the
+  broadcast. Only Embedded MPV implements it, for live MPEG-TS; web adapters
+  report `liveEdge: false` and treat the command as a no-op (see
+  "Jump to live" below)
 
 Episode navigation is deliberately exposed as component outputs
 (`previousEpisodeRequested` and `nextEpisodeRequested`) because the owning
@@ -299,6 +303,11 @@ There is no fullscreen delegate or native-fullscreen IPC path.
 changes, including when it is already fullscreen. The Embedded MPV host's
 existing `fullscreenchange` listener still triggers bounds sync so frame-copy
 render size follows the fullscreen DOM surface.
+
+In Embedded MPV side-by-side playback the fullscreen target contains both
+viewports and the stream strip. Only the selected viewport handles shared
+controls. Transport stays on that viewport, and the volume control applies to
+the separately selected audio session.
 
 The owner matters because `WebPlayerViewComponent` remounts the engine
 component for every playback application (`@for ... track application.token`:
@@ -403,8 +412,13 @@ one colour in every player surface (UI guidelines, "Watch progress colour").
   the hover/tap popover in the compact mode — inline, the button is a
   plain mute toggle for every pointer type (`buttonClick(event,
   { inlineSlider: true })`). Center: previous episode · −10s · **play** ·
-  +10s · next episode. Right: the value chips, the `tune` button,
-  recording, picture-in-picture and fullscreen, end-aligned.
+  jump to live · +10s · next episode (jump to live and ±10s never appear
+  together: one is live-only, the other VOD-only). The centre is itself a
+  `1fr auto 1fr` grid: play owns the middle column and the buttons before
+  and after it sit in two `.player-controls__transport-side` columns of equal
+  width, so a button that appears on one side never moves play.
+  Right: add second stream, settings, recording,
+  picture-in-picture and fullscreen, end-aligned and capability-gated.
 - **Play button** (`.player-controls__play`, `data-test-id
   ="player-controls-play"`): a 52px filled accent circle with a white glyph,
   not a Material icon button. Fills under a white glyph (play, active
@@ -420,6 +434,23 @@ one colour in every player surface (UI guidelines, "Watch progress colour").
   off: its colour comes from the app theme, and the light theme's dark layer
   left no visible focus on video. The settings panel's icon buttons use the
   same ring, inset by 2px because the panel body clips at its edge.
+
+### Jump to live
+
+`capabilities.liveEdge` renders a `fast_forward` icon button
+(`data-test-id="player-controls-jump-to-live"`, label `JUMP_TO_LIVE`)
+directly right of play. It is always enabled: whether there is backlog to
+skip is decided by the engine at click time, because a state flag tracking a
+jittery live buffer made the button flicker.
+`ControlsTransport` owns it together with the ±10s skip. The jump reveals the
+controls and sends the command when the engine offers it. The controls do
+not flash a confirmation because a seek request does not guarantee that
+playback reached the live edge. There is no keyboard shortcut.
+
+Embedded MPV is the only engine that enables it, and only for a live session
+whose mpv `file-format` is `mpegts`; the native-view engine's legacy dock
+renders the same button (`embedded-mpv-jump-to-live`). Why TS only and how
+the jump works: `embedded-mpv-native.md`, "Jump to live (MPEG-TS)".
 
 ### Timeline segments
 
@@ -563,40 +594,25 @@ Every track, quality, speed and aspect choice lives behind one **`tune`**
 button (`data-test-id="player-controls-settings-button"`) in a single
 surface, `app-player-settings-panel` (`player-settings-panel.component.*`),
 instead of five popovers. `ControlsMenuState` knows three menus — `volume`,
-`settings`, `stats` — and `settingsFocus`, the group the panel was opened
-for. `ControlsSettings` derives, from capabilities and state, which groups
-exist (`getSettingsGroupAvailability`: audio needs more than one track,
-subtitles a track or `externalSubtitles`, quality more than one level,
-speed and aspect their capabilities), whether anything is on or changed,
-and owns open/toggle/close; the `tune` button and the panel render only
-while at least one group exists, and the availability reconciliation closes
-the panel the moment the last group disappears.
+`settings` and `stats`. `ControlsSettings` derives from capabilities and
+state which groups exist. Audio needs more than one track, subtitles need a
+track or `externalSubtitles`, and quality needs more than one level. Speed
+and aspect depend on their capabilities. The `tune` button and panel render
+while at least one group exists. If the last group disappears, settings close.
 
-- **Roomy wide dock** (≥ 960px): two **value chips** precede `tune` — subtitles
-  (`closed_caption` + the selected track's label, or "Off") and speed
-  (`speed` + `1.25×`). A chip's accessible name and tooltip carry its
-  value (`SUBTITLES_TOOLTIP` "Subtitles: English", `SPEED_TOOLTIP`
-  "Speed: 1.25×"); `tune` has `aria-haspopup="dialog"` and
-  `aria-expanded`. Audio and aspect ratio have no chip: they are
-  panel-only. A chip click opens the panel **focused on its group**
-  (`settingsFocus`; the group scrolls into view and wears a brief ring);
-  right-click or long-press on the subtitle chip toggles subtitles without
-  opening anything (`ControlsSettings.toggleSubtitles`: the first embedded
-  track on, `-1` off; with no track to turn on it opens the group so the
-  file loader is reachable). While the panel is open the dock, title and
-  corner shift left by the panel's width (`--panel-open` modifiers,
-  `right: 370px`), the chips and the picture-in-picture / recording buttons
-  fold away, `tune` fills in the accent color, and fullscreen stays.
-- **Compact dock, and wide docks below 960px**: no chips; `tune` carries **state dots** (5px, cyan when
-  subtitles are on or a non-default audio track is selected, violet when
-  speed, aspect or manual quality differ from their default) and the panel
-  opens as a **bottom sheet** (`--sheet` modifier: grip, two-column rows,
-  24px segmented items) that replaces the dock while open. Picture-in-
-  picture and recording stay in the compact dock — the mock shows only
-  `tune` + fullscreen there, but those two are engine features a viewer
-  needs without opening anything. At 200% zoom or on a short stage, the
-  whole sheet scrolls, including its header, so the body cannot collapse to
-  zero height. Wide panels retain the body as their sole scroll owner.
+- **Settings button**: the `tune` button has `aria-haspopup="dialog"` and
+  `aria-expanded`. While closed, it carries 5px state dots. Cyan means
+  subtitles are on or a non-default audio track is selected. Violet means
+  speed, aspect or manual quality differ from their default.
+- **Roomy wide dock** (≥ 960px): settings open beside the video. The dock,
+  title and corner shift left by the panel's width (`--panel-open` modifiers,
+  `right: 370px`). Second stream, recording and picture-in-picture fold away,
+  `tune` fills with the accent color, and fullscreen stays.
+- **Docks below 960px**: settings open as a bottom sheet (`--sheet` modifier:
+  grip, two-column rows, 24px segmented items) that replaces the dock while
+  open. At 200% zoom or on a short stage, the whole sheet scrolls, including
+  its header, so the body cannot collapse to zero height. Wide panels retain
+  the body as their sole scroll owner.
 - **Inside**: every choice is a `radio` in a `radiogroup`
   (`SettingsRadioGroupDirective` / `SettingsRadioDirective`). List groups
   (audio, subtitles, quality) are rows with a check mark and a cyan
@@ -617,9 +633,6 @@ the panel the moment the last group disappears.
   white frame. They wrap with `overflow-wrap: anywhere` and `hyphens: auto`,
   so one long word (German "Wiedergabegeschwindigkeit") breaks inside the
   sheet's 84px heading column. Hyphenation needs a `lang` on `<html>`.
-  With subtitles on but no track marked selected yet (the engine can report
-  the switch before the track list), the subtitle chip reads "On"
-  (`SUBTITLES_ON`), never "Off".
   Every focused option shows the `--pc-text` ring; a selected swatch has a
   white border with a dark inner gap, and focus adds an outer ring. The
   subtitle group carries the load-file action (a plain button outside the
@@ -637,6 +650,16 @@ the panel the moment the last group disappears.
   button, a click on the video surface or an outside pointerdown close it.
 - **Colors** follow the color-as-state rule of the dock: cyan means "on",
   violet means "changed", and neutral rows/items read as the default.
+
+### Second-stream action
+
+The frame-copy host opts into `canAddSecondStream` and handles
+`secondStreamRequested` to open its channel picker. The
+`picture_in_picture_alt` action sits immediately before settings in the bottom
+controls and has the localized “Add second stream” tooltip. It is available
+while a single stream plays in the frame-copy host. Browser video engines can
+expose their native picture-in-picture action and leave `canAddSecondStream`
+disabled. The frame-copy host exposes no native video picture-in-picture.
 
 ### Stream info popover
 
@@ -1269,21 +1292,17 @@ template branches CSS cannot express — the inline volume slider versus
 its popover. Without `ResizeObserver` (unit tests) the mode stays `wide`.
 
 A second threshold, `ROOMY_LAYOUT_MIN_WIDTH` (960px, `ControlsLayout.roomy`),
-gates the wide dock's extras: the subtitle/speed chips and the settings
-panel beside the video. Between 720px and 960px the dock stays wide (full
-button sizes, inline volume) but folds the chips into `tune` with state
-dots and opens settings as the bottom sheet, because the widest action row
-(volume, series transport, two chips, tune/record/PiP/fullscreen) and the
-dock beside a 370px panel do not fit there. The control row's side columns
+gates the settings panel beside the video. Between 720px and 960px the dock
+stays wide (full button sizes, inline volume) and settings open as the bottom
+sheet. The control row's side columns
 are `minmax(min-content, 1fr)`, so if the actions still need more than half
 of what the transport leaves, the transport slides off-centre instead of
 the actions overlapping it or leaving the player.
 Episode navigation stays in the compact transport: the series hosts rely on
 those buttons, and the inline series player is often narrower than 720px.
 
-The actions cluster's width is content-dependent (audio, subtitles, quality,
-speed, aspect, recording, PiP, and fullscreen are all conditional), so in
-the compact layout the cluster is end-aligned, capped at the row width, and
+The actions depend on the host's capabilities. In the compact layout the
+cluster is end-aligned, capped at the row width, and
 wraps when the row cannot hold it. Its popover anchors become static at this
 breakpoint so capability panels position against the unclipped actions
 cluster and remain accessible above every wrapped row.
@@ -1778,6 +1797,7 @@ libs/ui/playback/src/lib/player-controls/
 ├── controls-layout.ts
 ├── controls-timeline-label.ts
 ├── controls-timeline-segments.ts
+├── controls-transport.ts
 ├── controls-settings.ts
 ├── controls-settings-groups.ts
 ├── controls-up-next.ts
@@ -1839,6 +1859,7 @@ libs/ui/playback/src/lib/embedded-mpv-player/
 ├── embedded-mpv-controls.adapter.ts
 ├── embedded-mpv-controls-recording.ts
 ├── embedded-mpv-controls-recording-feedback.ts
+├── embedded-mpv-live-edge.ts
 ├── embedded-mpv-stream-stats.ts
 ├── embedded-mpv-player.component.ts
 ├── embedded-mpv-player.component.html
@@ -1959,6 +1980,13 @@ live together; routing/integration stays in the M3U player template.
 When focus is inside a dialog or alertdialog, its reading region owns the
 arrows and M key. Radio leaves those events unconsumed and does not change or
 persist background volume; keyboard volume control resumes after dismissal.
+Ctrl, Cmd and Alt chords are never radio shortcuts (Cmd+M minimizes on macOS).
+Mute sets the app volume to zero and also sets `audio.muted`, so it works on
+iPhone Safari where the element can ignore volume assignments. Unmute restores
+the last audible volume (`LegacyMuteMemory`, 0.5 when none is known). Raising
+the volume also clears `audio.muted`. The LIVE badge and the play button follow
+the element's `play`, `pause`, `ended` and `error` events. Play reloads a failed
+stream, and if the current attempt is rejected, the player shows paused.
 
 ### Display sleep during playback
 

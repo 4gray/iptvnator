@@ -108,14 +108,12 @@ $material-components: (
 }
 
 // ─── Apply Themes ────────────────────────────────────────────────────────────
-// Re-declare aliases at each color boundary: CSS custom properties resolve
-// where declared, so aliases inherited from html would keep the light colors.
+// CSS custom properties resolve where declared. The body carries both the
+// active preset and any inline accent roles. Nested dark panels have their
+// own Material colors, so they also need aliases in their own context.
 html,
-html .dark-theme,
-html [data-app-theme='cream'],
-html [data-app-theme='mocha'],
-html [data-app-theme='night-owl'],
-html [data-app-theme='black-oled'] {
+body,
+html .dark-theme {
     @include component-tokens($light-theme, (color));
 }
 
@@ -164,29 +162,15 @@ html {
         @include palettes.night-owl;
     }
 
-    [data-app-theme='black-oled'] {
+    [data-app-theme='black-oled'],
+    [data-app-theme='high-contrast'] {
         @include dark-variants.black-oled;
         @include palettes.black-oled;
     }
 
-    // Samples use the same declarations as the app, independent of its theme.
-    [data-theme-preview='light'] {
-        @include palettes.light($preview: true);
-    }
-    [data-theme-preview='dark'] {
-        @include palettes.dark($preview: true);
-    }
-    [data-theme-preview='cream'] {
-        @include palettes.cream($preview: true);
-    }
-    [data-theme-preview='mocha'] {
-        @include palettes.mocha($preview: true);
-    }
-    [data-theme-preview='night-owl'] {
-        @include palettes.night-owl($preview: true);
-    }
-    [data-theme-preview='black-oled'] {
-        @include palettes.black-oled($preview: true);
+    [data-app-theme='high-contrast'] {
+        @include dark-variants.high-contrast;
+        @include palettes.high-contrast;
     }
 }
 
