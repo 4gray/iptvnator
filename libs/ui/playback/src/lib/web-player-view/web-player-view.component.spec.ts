@@ -1,16 +1,10 @@
+import { configureWebPlayerViewTest } from './web-player-view.spec-setup';
 import {
     ComponentFixture,
-    DeferBlockBehavior,
     TestBed,
 } from '@angular/core/testing';
-import { ClipboardModule } from '@angular/cdk/clipboard';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { By } from '@angular/platform-browser';
-import { VodSourceRowComponent } from '@iptvnator/ui/components';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { TranslateModule } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
@@ -21,7 +15,6 @@ import {
     PlaybackDiagnosticCode,
     PlaybackDiagnosticSource,
 } from '@iptvnator/playback/util';
-import { PlaybackDiagnosticPanelComponent } from '../playback-diagnostic-panel/playback-diagnostic-panel.component';
 import {
     getDiagnosticCodecHint,
     getDiagnosticDescriptionKey as resolveDiagnosticDescriptionKey,
@@ -64,40 +57,10 @@ describe('WebPlayerViewComponent', () => {
     beforeEach(async () => {
         runtimeCapabilities = { supportsManagedExternalPlayers: false };
 
-        await TestBed.configureTestingModule({
-            // @defer blocks render their main content synchronously in tests.
-            deferBlockBehavior: DeferBlockBehavior.Playthrough,
-            imports: [WebPlayerViewComponent, TranslateModule.forRoot()],
-            providers: [
-                { provide: StorageMap, useValue: storageMap },
-                {
-                    provide: RuntimeCapabilitiesService,
-                    useValue: runtimeCapabilities,
-                },
-            ],
-        })
-            .overrideComponent(WebPlayerViewComponent, {
-                set: {
-                    imports: [
-                        StubArtPlayerComponent,
-                        StubEmbeddedMpvPlayerComponent,
-                        StubSecondStreamComponent,
-                        StubFullscreenChannelPanelComponent,
-                        StubHtmlVideoPlayerComponent,
-                        StubVjsPlayerComponent,
-                        PlaybackDiagnosticPanelComponent,
-                        // Real, not stubbed: the point of the test below is
-                        // that this row's Check action reaches the host.
-                        VodSourceRowComponent,
-                        ClipboardModule,
-                        MatButtonModule,
-                        MatIconModule,
-                        MatTooltipModule,
-                        TranslateModule,
-                    ],
-                },
-            })
-            .compileComponents();
+        await configureWebPlayerViewTest(WebPlayerViewComponent, [
+            { provide: StorageMap, useValue: storageMap },
+            { provide: RuntimeCapabilitiesService, useValue: runtimeCapabilities },
+        ]);
 
         storageMap.get.mockReturnValue(of({ player: VideoPlayer.VideoJs }));
         fixture = TestBed.createComponent(WebPlayerViewComponent);

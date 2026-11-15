@@ -2,6 +2,8 @@ import { Conf } from 'electron-conf/main';
 import { getElectronConfigDirectory } from '@iptvnator/shared/database';
 import type {
     AppUpdateChannel,
+    HostedServerMode,
+    HostedServerStatus,
     StartupWindowMode,
 } from '@iptvnator/shared/interfaces';
 
@@ -81,9 +83,9 @@ export const HOSTED_SERVER_INSTANCE_ID = 'HOSTED_SERVER_INSTANCE_ID';
 
 export type StoreType = {
     [HOSTED_SERVER_LAN_ADDRESS]: string;
-    [HOSTED_SERVER_MODE]: import('@iptvnator/shared/interfaces').HostedServerMode;
+    [HOSTED_SERVER_MODE]: HostedServerMode;
     [HOSTED_SERVER_CONFIGURATIONS]: NonNullable<
-        import('@iptvnator/shared/interfaces').HostedServerStatus['savedConfigurations']
+        HostedServerStatus['savedConfigurations']
     >;
     [HOSTED_SERVER_INSTANCE_ID]: string;
     [HOSTED_SERVER_ENABLED]: boolean;

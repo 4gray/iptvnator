@@ -1,3 +1,4 @@
+import { isSettingsSaveShortcut } from './settings-save-shortcut';
 import { Store } from '@ngrx/store';
 import {
     PlaylistActions,
@@ -356,17 +357,7 @@ export class SettingsComponent
     @HostListener('document:keydown', ['$event'])
     onSaveShortcut(event: KeyboardEvent): void {
         const host = this.hostElement.nativeElement;
-        if (
-            event.defaultPrevented ||
-            !(event.metaKey || event.ctrlKey) ||
-            event.altKey ||
-            event.shiftKey ||
-            event.key.toLowerCase() !== 's' ||
-            host.closest('[inert]') ||
-            host.ownerDocument.querySelector('.cdk-overlay-backdrop')
-        ) {
-            return;
-        }
+        if (!isSettingsSaveShortcut(event, host)) return;
         event.preventDefault();
         if (!this.settingsForm.pristine && this.settingsForm.valid) {
             this.onSubmit();

@@ -67,6 +67,22 @@ export function validateHostedMode(
     };
 }
 
+export function validateHostedTunnelToken(
+    command: object,
+    mode: HostedServerMode
+): string | undefined {
+    const token = 'connectorToken' in command ? command.connectorToken : undefined;
+    if (token === undefined) return undefined;
+    if (
+        typeof token !== 'string' ||
+        !/^[A-Za-z0-9_+/=-]{16,8192}$/.test(token) ||
+        mode.mode !== 'cloudflare' ||
+        !mode.managed
+    )
+        throw new Error('Invalid tunnel token');
+    return token;
+}
+
 export async function checkHostedPublicRoute(
     origin: string
 ): Promise<'access-protected' | 'unverified'> {

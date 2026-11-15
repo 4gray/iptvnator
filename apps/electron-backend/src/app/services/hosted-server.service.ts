@@ -41,6 +41,7 @@ import { createHostedWorkerClient } from './hosted-worker-client';
 import {
     checkHostedPublicRoute,
     validateHostedMode,
+    validateHostedTunnelToken,
 } from './hosted-mode-config';
 import {
     registerHostedCloudflareEvents,
@@ -370,24 +371,13 @@ export function registerHostedServerEvents(
                     command.configuration,
                     privateAddresses()
                 );
-                const token =
-                    'connectorToken' in command
-                        ? command.connectorToken
-                        : undefined;
-                if (
-                    token !== undefined &&
-                    (typeof token !== 'string' ||
-                        !/^[A-Za-z0-9_+/=-]{16,8192}$/.test(token) ||
-                        mode.mode !== 'cloudflare' ||
-                        !mode.managed)
-                )
-                    throw new Error('Invalid tunnel token');
+                const token = validateHostedTunnelToken(command, mode);
                 return run(async () => {
                     await shutdownWorker();
                     await start(
                         mode.mode === 'lan' ? mode.address : '',
                         mode,
-                        typeof token === 'string' ? token : undefined
+                        token
                     );
                 });
             }

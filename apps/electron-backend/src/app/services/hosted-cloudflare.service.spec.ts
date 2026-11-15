@@ -149,11 +149,14 @@ describe('hosted Cloudflare connector', () => {
         expect(await invoke('stop')).toMatchObject({ state: 'stopped' });
     });
     it('reports a missing bundled executable', async () => {
-        jest.mocked(app).isPackaged = false;
-        expect(await invoke('status')).toMatchObject({ state: 'unavailable' });
-        await expect(invoke({ start: true, token })).rejects.toThrow(
-            'unavailable'
-        );
-        jest.mocked(app).isPackaged = true;
+        const packaging = jest.replaceProperty(app, 'isPackaged', false);
+        try {
+            expect(await invoke('status')).toMatchObject({ state: 'unavailable' });
+            await expect(invoke({ start: true, token })).rejects.toThrow(
+                'unavailable'
+            );
+        } finally {
+            packaging.restore();
+        }
     });
 });

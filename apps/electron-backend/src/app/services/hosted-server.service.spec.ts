@@ -87,7 +87,7 @@ describe('desktop hosted server lifecycle', () => {
 
     function nextWorker(message?: HostedServerWorkerMessage) {
         const worker = Object.assign(new EventEmitter(), {
-            postMessage: jest.fn(() =>
+            postMessage: jest.fn<void, [unknown]>(() =>
                 queueMicrotask(() => worker.emit('exit', 0))
             ),
             kill: jest.fn(() => {
@@ -652,7 +652,12 @@ describe('desktop hosted server lifecycle', () => {
         const worker = nextWorker(ready);
         await control({ start: true });
         worker.postMessage.mockImplementation((command: unknown) => {
-            if (typeof command === 'object' && command)
+            if (
+                typeof command === 'object' &&
+                command &&
+                'requestId' in command &&
+                'httpsOrigin' in command
+            )
                 queueMicrotask(() =>
                     worker.emit('message', {
                         https: true,

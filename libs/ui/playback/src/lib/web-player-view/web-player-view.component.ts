@@ -31,7 +31,6 @@ import {
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
-import { TranslatePipe } from '@ngx-translate/core';
 import { ANDROID_EXTERNAL_ACTION } from '../player-controls/android-external-action';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import {
@@ -65,6 +64,7 @@ import {
     PlaybackRecoverySession,
 } from './playback-recovery-session';
 import { WebPlayerApplicationHandoffCoordinator } from './web-player-application-handoff';
+import { bindWebPlayerApplication } from './web-player-application-effect';
 import {
     ownsPlaybackApplication,
     type PlaybackApplicationOwnership as PlaybackOwnership,
@@ -77,7 +77,6 @@ import { WebPlayerRecoveryController } from './web-player-recovery-controller';
 import {
     isPlaybackExternallyTransferable,
     resolveRenderableWebPlayer,
-    toInlinePlaybackPlayer,
     toVideoPlayer,
 } from './web-player-recovery-policy';
 import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
@@ -97,7 +96,6 @@ import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
         HtmlVideoPlayerComponent,
         PlaybackDiagnosticPanelComponent,
         VjsPlayerComponent,
-        TranslatePipe,
     ],
     providers: [
         {
@@ -152,7 +150,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     openAndroidExternal(): void {
         if (this.androidExternalAvailable()) this.androidShell?.openExternal();
     }
-   
+
     protected readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK, {
@@ -354,45 +352,16 @@ export class WebPlayerViewComponent implements OnDestroy {
             const session = this.externalPlayback?.activeSession() ?? null;
             untracked(() => this.externalRecovery.observe(session));
         });
-        effect(() => {
-            // Session sync may clear a temporary player override. Run it before
-            // tracking intent so that reset is folded into this application.
-            this.recovery.syncSession();
-            if (this.liveAutoFormat.pending()) return;
-            void this.recovery.diagnosticIntentToken();
-            const sourceRevision = this.playbackSourceRevisionToken();
-            untracked(() =>
-                this.recoverySession.syncSourceRevision(sourceRevision)
-            );
-            const token = this.playbackApplicationToken();
-            const playback = untracked(this.resolvedPlayback);
-            const isLive = untracked(this.resolvedIsLive);
-            const selectedPlayer = untracked(this.selectedPlayer);
-            const reloadToken = untracked(this.reloadToken);
-            const target = toInlinePlaybackPlayer(selectedPlayer);
-            this.channel.set(undefined);
-            this.vjsOptions.set(undefined);
-            this.recovery.clearDiagnostic();
-            if (target === null) {
-                this.applicationHandoff.release();
-                this.recoverySession.clearPlaybackBinding();
-                return;
-            }
-            const binding = untracked(() =>
-                this.recoverySession.beginPlayback(target)
-            );
-            this.applicationHandoff.apply(
-                playback,
-                isLive,
-                reloadToken,
-                binding,
-                token,
-                () => this.playbackApplicationToken(),
-                (handoff) => {
-                    this.channel.set(handoff.channel);
-                    this.vjsOptions.set(handoff.vjsOptions);
-                }
-            );
+        bindWebPlayerApplication({
+            recovery: this.recovery,
+            session: this.recoverySession,
+            handoff: this.applicationHandoff,
+            pending: this.liveAutoFormat.pending,
+            application: this.applicationState,
+            player: this.selectedPlayer,
+            reloadToken: this.reloadToken,
+            channel: this.channel,
+            vjsOptions: this.vjsOptions,
         });
     }
 

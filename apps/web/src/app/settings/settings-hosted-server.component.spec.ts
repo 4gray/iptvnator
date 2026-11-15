@@ -109,7 +109,7 @@ describe('hosted server settings', () => {
     it('keeps saved profiles and unsaved edits across mode changes and navigation', async () => {
         setStatus({
             state: 'stopped',
-            configuration: { mode: 'lan', address },
+            configuration: { mode: 'lan', address, access: 'paired' },
             lanAddress: address,
             savedConfigurations: { cloudflare: tunnel },
         });
