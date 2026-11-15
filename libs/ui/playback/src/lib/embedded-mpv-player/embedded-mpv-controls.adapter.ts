@@ -9,8 +9,6 @@ import {
     untracked,
 } from '@angular/core';
 import {
-    EmbeddedMpvSession,
-    EmbeddedMpvSupport,
     RecordingStartMetadata,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
@@ -27,7 +25,6 @@ import {
     PlayerControlsCapabilities,
     PlayerControlsCommands,
     PlayerControlsState,
-    PlayerStatus,
 } from '../player-controls/player-controls.model';
 import type { PlayerStreamStatsSource } from '../player-controls/player-stream-stats.model';
 import { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
@@ -38,6 +35,7 @@ import {
 } from './embedded-mpv-format.utils';
 import { resolveRecordingFeedback } from './embedded-mpv-controls-recording-feedback';
 import { EmbeddedMpvControlsRecording } from './embedded-mpv-controls-recording';
+import { mapEmbeddedMpvControlsStatus } from './embedded-mpv-controls-status';
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
 import { EmbeddedMpvSubtitleSettings } from './embedded-mpv-subtitle-settings';
 import { toPlayerStreamStats } from './embedded-mpv-stream-stats';
@@ -57,11 +55,6 @@ export interface EmbeddedMpvControlsContext {
     readonly recordingFolder: Signal<string>;
     /** Channel/EPG snapshot the live host captured for the recording tracker. */
     readonly recordingMetadata?: Signal<RecordingStartMetadata | null>;
-}
-
-interface MappedPlayerStatus {
-    status: PlayerStatus;
-    statusMessage: string;
 }
 
 @Injectable()
@@ -170,7 +163,12 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             : (session?.durationSeconds ?? null);
         const seriesNavigation = context.seriesNavigation();
         const hasSeriesNavigation = !isLive && seriesNavigation !== null;
-        const mappedStatus = this.mapStatus(support, session);
+        const mappedStatus = mapEmbeddedMpvControlsStatus(
+            support,
+            session,
+            isLive,
+            this.translate
+        );
         const recording = session?.recording;
 
         return {
@@ -314,88 +312,6 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             return playback.isLive;
         }
         return !playback.contentInfo;
-    }
-
-    private mapStatus(
-        support: EmbeddedMpvSupport | null,
-        session: EmbeddedMpvSession | null
-    ): MappedPlayerStatus {
-        if (!support) {
-            return {
-                status: 'loading',
-                statusMessage: this.translate.instant(
-                    'EMBEDDED_MPV.PLAYER.CHECKING_SUPPORT'
-                ),
-            };
-        }
-
-        if (!support.supported) {
-            return {
-                status: 'idle',
-                statusMessage:
-                    support.reason ||
-                    this.translate.instant('EMBEDDED_MPV.PLAYER.NOT_AVAILABLE'),
-            };
-        }
-
-        if (session?.reconnect) {
-            // A dropped stream the main process is reloading: a spinner with
-            // the attempt count reads better than the underlying mpv error.
-            return {
-                status: 'loading',
-                statusMessage: this.translate.instant(
-                    'EMBEDDED_MPV.PLAYER.RECONNECTING',
-                    {
-                        attempt: session.reconnect.attempt,
-                        maxAttempts: session.reconnect.maxAttempts,
-                    }
-                ),
-            };
-        }
-
-        if (!session || session.status === 'loading') {
-            return {
-                status: 'loading',
-                statusMessage: this.translate.instant(
-                    'EMBEDDED_MPV.PLAYER.LOADING_STREAM'
-                ),
-            };
-        }
-
-        const statusPlayback = this.configuredContext()?.playback();
-        const liveEnded =
-            session.status === 'ended' &&
-            statusPlayback !== undefined &&
-            this.isLivePlayback(statusPlayback);
-
-        switch (session.status) {
-            case 'playing':
-            case 'paused':
-            case 'idle':
-                return { status: session.status, statusMessage: '' };
-            case 'ended':
-            case 'closed':
-                if (liveEnded) {
-                    // A broadcast never ends on its own: surface it like an
-                    // error so the shared controls offer a way back.
-                    return {
-                        status: 'error',
-                        statusMessage: this.translate.instant(
-                            'EMBEDDED_MPV.PLAYER.STREAM_ENDED'
-                        ),
-                    };
-                }
-                return { status: 'ended', statusMessage: '' };
-            case 'error':
-                return {
-                    status: 'error',
-                    statusMessage:
-                        session.error ||
-                        this.translate.instant(
-                            'EMBEDDED_MPV.PLAYER.PLAYBACK_FAILED'
-                        ),
-                };
-        }
     }
 
     /** Returns whether a seek was sent. */
