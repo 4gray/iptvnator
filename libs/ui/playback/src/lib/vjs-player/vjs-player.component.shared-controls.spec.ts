@@ -196,6 +196,7 @@ describe('VjsPlayerComponent shared controls', () => {
 
         const shell = fixture.debugElement.query(By.css('.vjs-player-shell'))
             .nativeElement as HTMLElement;
+        expect(controls.nativeFullscreenSurface()).toBe(shell);
         const fullscreenElementDescriptor = Object.getOwnPropertyDescriptor(
             document,
             'fullscreenElement'

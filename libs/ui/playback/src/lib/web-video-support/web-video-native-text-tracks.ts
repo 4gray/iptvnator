@@ -1,5 +1,4 @@
 import type { PlayerTrack } from '../player-controls/player-controls.model';
-import { isNativeVideoFullscreen } from './webkit-video-fullscreen';
 
 const NATIVE_TRACK_EVENTS = ['addtrack', 'removetrack', 'change'] as const;
 
@@ -44,15 +43,8 @@ export class WebVideoNativeTextTracks {
         this.active = true;
         const textTracks = this.config.video.textTracks;
         if (typeof textTracks.addEventListener === 'function') {
-            const refresh: EventListener = (event) => {
-                if (event.type === 'change' && this.nativeFullscreen()) {
-                    const selected = this.readSubtitleTracks().find(
-                        ({ track }) => track.mode === 'showing'
-                    );
-                    this.subtitleOverride = selected?.id ?? -1;
-                } else {
-                    this.applyCaptionState();
-                }
+            const refresh: EventListener = () => {
+                this.applyCaptionState();
                 this.config.refresh();
             };
             this.textTrackList = textTracks;
@@ -149,15 +141,8 @@ export class WebVideoNativeTextTracks {
         return result;
     }
 
-    private nativeFullscreen(): boolean {
-        return (
-            !this.config.playbackStarted &&
-            isNativeVideoFullscreen(this.config.video)
-        );
-    }
-
     private applyCaptionState(): void {
-        if (!this.active || this.nativeFullscreen()) {
+        if (!this.active) {
             return;
         }
 

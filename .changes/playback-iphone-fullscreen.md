@@ -3,4 +3,4 @@ type: fix
 area: playback
 ---
 
-The fullscreen button in the web player opens Safari’s native video fullscreen on iPhone.
+The Video.js fullscreen button opens Safari’s native video fullscreen on iPhone.

@@ -31,8 +31,9 @@ export class ControlsFullscreen {
         if (event.target !== this.video()) {
             return;
         }
+        const wasFullscreen = this.isFullscreen();
         this.sync();
-        if (event.type === 'webkitendfullscreen') {
+        if (wasFullscreen && !this.isFullscreen()) {
             this.onChange?.();
         }
     };

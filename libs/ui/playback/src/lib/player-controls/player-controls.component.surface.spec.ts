@@ -302,6 +302,10 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
             });
             try {
                 fixture.componentRef.setInput('fullscreenTarget', surface);
+                fixture.componentRef.setInput(
+                    'nativeFullscreenSurface',
+                    surface
+                );
                 fixture.detectChanges();
                 const host = fixture.nativeElement as HTMLElement;
                 const button = host.querySelector<HTMLButtonElement>(

@@ -146,8 +146,8 @@ added to `PlayerController`.
 While the sibling diagnostic panel is visible, a web-player host disables
 shared surface and keyboard ownership and exits the resolved fullscreen owner's
 DOM fullscreen (the host-supplied `fullscreenTarget`, else its own shell).
-When disabled, the shared controls also exit native fullscreen on their own
-video so the recovery actions remain reachable. Clearing the diagnostic
+When disabled, the shared Video.js controls also exit native fullscreen on
+their own video so the recovery actions remain reachable. Clearing the diagnostic
 restores surface and keyboard ownership.
 
 Video.js HLS has a separate nonterminal waiting notice. After 15 seconds of
@@ -298,8 +298,8 @@ uses `ControlsFullscreen`, which operates on one DOM element through
 `fullscreenTarget` input when the host supplies one, else the `playerSurface`.
 `ControlsFullscreen.sync()` reconciles state when that element attaches or
 changes, including when it is already fullscreen. If DOM fullscreen is
-unavailable, shared controls can use WebKit's native fullscreen on the video
-inside their player surface. The button becomes available when the video
+unavailable, Video.js opts into WebKit's native fullscreen on the video
+inside its `nativeFullscreenSurface`. The button becomes available when the video
 reports support, and WebKit's video events keep the button state in sync.
 The WebKit presentation mode distinguishes fullscreen from Picture in Picture.
 In native fullscreen, Safari supplies the controls and the app's channel and
@@ -1169,9 +1169,9 @@ components bind that value to `showControls` and
 `shortcutsEnabled`. If the shared controls' fullscreen owner (the supplied
 `fullscreenTarget`, else the player shell) is in DOM fullscreen, the host
 exits fullscreen before hiding the controls so the diagnostic banner and its
-recovery actions remain visible. If the video inside the controls' surface
-is in WebKit native fullscreen, the shared controls exit that presentation
-when hidden. Fullscreen owned by another element is left untouched. Retrying
+recovery actions remain visible. If the Video.js video is in WebKit native
+fullscreen, the shared controls exit that presentation when hidden. Fullscreen
+owned by another element is left untouched. Retrying
 playback or clearing the diagnostic restores both interaction paths.
 
 Frame-copy recording transitions use the adapter's playback/session identity as
@@ -1353,9 +1353,9 @@ they differ in who owns the caption UI:
 - **Shared controls: authoritative.** The preference holds for the whole
   session; user intent arrives through `setSubtitleTrack`, which records an
   explicit override (including `-1` for off) that wins until the source changes.
-  During WebKit native fullscreen, Safari owns the native subtitle menu. Track
-  changes made there become the current source's override for Video.js and
-  native media, so the selection carries back to the shared controls.
+  During Video.js native fullscreen, Safari owns the native subtitle menu.
+  Track changes made there become the current source's override, so the
+  selection carries back to the shared controls.
 - **Vendor chrome: source-default.** The engine still renders its own caption
   menu, so the preference only seeds each new source and is released once the
   media element reports `playing`. Enforcing it for the whole session would

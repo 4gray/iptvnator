@@ -80,6 +80,8 @@ export class PlayerControlsComponent implements OnDestroy {
      * episode, channel, or alternative-source switch.
      */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
+    /** Opt-in surface containing the video for WebKit native fullscreen. */
+    readonly nativeFullscreenSurface = input<HTMLElement | null>(null);
     readonly showControls = input(true);
     readonly canOpenMultiview = input(false);
     readonly multiviewAddRequested = output<void>();
@@ -261,9 +263,9 @@ export class PlayerControlsComponent implements OnDestroy {
             if (this.canOpenMultiview()) untracked(() => this.settings.close());
         });
         effect((onCleanup) => {
-            const playerSurface = this.playerSurface();
-            const surface = this.showControls() ? playerSurface : null;
-            onCleanup(this.fullscreen.observeVideo(playerSurface));
+            const nativeSurface = this.nativeFullscreenSurface();
+            const surface = this.showControls() ? this.playerSurface() : null;
+            onCleanup(this.fullscreen.observeVideo(nativeSurface));
             onCleanup(this.surface.attachSurface(surface));
         });
         effect(() => {
