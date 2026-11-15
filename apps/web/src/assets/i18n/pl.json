@@ -836,6 +836,7 @@
         "MOCHA_THEME": "Mokka",
         "NIGHT_OWL_THEME": "Nocna sowa",
         "BLACK_OLED_THEME": "Czerń OLED",
+        "HIGH_CONTRAST_THEME": "Wysoki kontrast",
         "SYSTEM_DESCRIPTION": "Motyw systemowy podąża za jasnym lub ciemnym wyglądem urządzenia.",
         "SYSTEM_LIGHT_PAIR": "W trybie jasnym",
         "SYSTEM_DARK_PAIR": "W trybie ciemnym",

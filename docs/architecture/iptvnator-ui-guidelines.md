@@ -248,10 +248,10 @@ in the overlay chunk. Everything else is lazy by these rules:
 
 The app mode is the exclusive `.dark-theme` or `.light-theme` class that
 `SettingsService` puts on `<body>`. Its `data-app-theme` attribute identifies
-the resolved palette: `light`, `dark`, `cream`, `mocha`, `night-owl`, or
-`black-oled`. Cream uses light mode; Mocha, Night Owl and Black OLED use dark
-mode. A "System" choice resolves the OS preference
-there and nowhere else, to the user's light-mode and dark-mode presets
+the resolved palette: `light`, `dark`, `cream`, `mocha`, `night-owl`,
+`black-oled`, or `high-contrast`. Cream uses light mode; Mocha, Night Owl,
+Black OLED and High Contrast use dark mode. A "System" choice resolves the OS
+preference there and nowhere else, to the user's light-mode and dark-mode presets
 (Light and Dark unless changed). Component styles never use a
 `prefers-color-scheme` query, which follows the OS: with the app set to dark
 on a light OS it paints light colours
@@ -1768,30 +1768,33 @@ The built-in catalog and theme-value normalization live in
 identifiers stable. Unknown saved values normalize to System; partial settings
 updates that omit the theme preserve the saved choice.
 
-The palette picker uses the existing keyboard-accessible radio directives. Six
+The palette picker uses the existing keyboard-accessible radio directives. Seven
 named miniature samples use the same app tokens as the real theme, arranged in
 three columns on wide settings containers and two on narrow ones. System is a
 separate row in the same group. While System is selected, a pair of rows below
 it chooses the preset for a light device (Light or Cream) and for a dark one
-(Dark, Mocha, Night Owl or Black OLED), stored as `systemLightTheme` and
-`systemDarkTheme`; `normalizeSystemTheme()` falls back to Light or Dark for a
-missing value or one of the other mode. Selection previews immediately, Save
-persists it, and Discard restores the saved choice and its System listener
-when needed. The pair is applied before the theme, since System resolves
-through it.
+(Dark, Mocha, Night Owl, Black OLED or High Contrast). These choices are stored
+as `systemLightTheme` and `systemDarkTheme`. `normalizeSystemTheme()` falls
+back to Light or Dark for a missing value or one of the other mode. Selection
+previews immediately, Save persists it, and Discard restores the saved choice
+and its System listener when needed. The pair is applied before the theme,
+since System resolves through it.
 
 App palette declarations live in `apps/web/src/_theme-palettes.scss`.
 `m3-theme.scss` includes them for body contexts, and the lazy settings theme
 picker includes them for decorative preview contexts.
 `_warm-theme.scss` supplies the Material color ramps for Cream/Mocha;
-`_dark-variant-themes.scss` supplies Night Owl/Black OLED. Night Owl uses navy
-surfaces and cool accents; Black OLED keeps the main background black and uses
-raised graphite surfaces for cards, inputs and overlays. Material
-component colors reference `--mat-sys-*` roles through one shared declaration
-block; each preset sets its system colors. The shared aliases are declared at
-each color boundary, since inheriting an alias from `html` would retain the
-light value. Samples emit only their seven displayed app roles from the same
-palette mixins, avoiding full duplicate theme payloads.
+`_dark-variant-themes.scss` supplies Night Owl, Black OLED and High Contrast.
+Night Owl uses navy surfaces and cool accents. Black OLED uses a black
+background and raised graphite surfaces for cards, inputs and overlays. High
+Contrast uses black surfaces, white text, a yellow selection, visible widget
+borders and separators, and a 3px focus ring. The `--app-focus-ring-width`
+token overrides the mixin's 2px default. High Contrast shares the Black OLED
+base and overrides its own app and Material roles. Material component colors
+reference `--mat-sys-*` roles through aliases on `html`, `body`, and dark theme
+contexts. The aliases resolve against the active preset and accent on `body`
+and the dark colors in nested panels. Samples emit only their seven displayed
+app roles from the same palette mixins.
 Dark variants emit their app overrides over the shared `.dark-theme` defaults
 on the same body element; their mixins skip repeating the full dark palette.
 Light and Cream likewise share the `.light-theme` defaults on the body; `html`
@@ -1814,12 +1817,10 @@ every surface and its plain selection tint; the selection-text role keeps
 `--app-selection-on-color` and `--mat-sys-on-primary`, keeps 4.5:1 on the
 accent, on Material primary and across the empty-state CTA gradient toward
 the heading ink; the accent darkens or lightens further until one does. The
-roles are re-derived on every theme change,
-including System's OS switches. `data-theme-accent` is a component-token
-boundary in `m3-theme.scss`, because light presets otherwise resolve Material
-component colours on `html`. The swatches preview each accent in the colour it
-takes on the current theme; the "theme colour" swatch reads the preset's own
-colour from a `data-theme-preview` context. Discard and completing a playlist
+roles are re-derived on every theme change, including System's OS switches.
+The swatches preview each accent in the current theme. The "theme colour"
+swatch reads the preset's own colour from a `data-theme-preview` context.
+Discard and completing a playlist
 backup import restore the saved appearance. The accent's specs read the shipped
 palettes, so a new preset or palette change re-runs every accent's contrast check.
 

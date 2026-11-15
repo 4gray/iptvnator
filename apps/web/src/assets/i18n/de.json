@@ -836,6 +836,7 @@
         "MOCHA_THEME": "Mokka",
         "NIGHT_OWL_THEME": "Nachteule",
         "BLACK_OLED_THEME": "OLED-Schwarz",
+        "HIGH_CONTRAST_THEME": "Hoher Kontrast",
         "SYSTEM_DESCRIPTION": "System folgt dem hellen oder dunklen Erscheinungsbild deines Geräts.",
         "SYSTEM_LIGHT_PAIR": "Im hellen Modus",
         "SYSTEM_DARK_PAIR": "Im dunklen Modus",

@@ -836,6 +836,7 @@
         "MOCHA_THEME": "モカ",
         "NIGHT_OWL_THEME": "夜のフクロウ",
         "BLACK_OLED_THEME": "OLEDブラック",
+        "HIGH_CONTRAST_THEME": "ハイコントラスト",
         "SYSTEM_DESCRIPTION": "システム設定では、デバイスのライト／ダーク表示に従います。",
         "SYSTEM_LIGHT_PAIR": "ライトモード時",
         "SYSTEM_DARK_PAIR": "ダークモード時",

@@ -68,6 +68,7 @@ describe('SettingsComponent form', () => {
         'MOCHA_THEME',
         'NIGHT_OWL_THEME',
         'BLACK_OLED_THEME',
+        'HIGH_CONTRAST_THEME',
     ])(
         'previews %s from the palette picker and restores the saved theme on Discard',
         (value) => {
@@ -170,6 +171,7 @@ describe('SettingsComponent form', () => {
             'system-dark-mocha',
             'system-dark-night-owl',
             'system-dark-black-oled',
+            'system-dark-high-contrast',
         ]);
 
         (
@@ -213,7 +215,7 @@ describe('SettingsComponent form', () => {
                 );
 
         // The last dark preset wraps to the first one, inside the pair only.
-        press('system-dark-black-oled');
+        press('system-dark-high-contrast');
         fixture.detectChanges();
         expect(component.settingsForm.value.systemDarkTheme).toBe(
             Theme.DarkTheme
