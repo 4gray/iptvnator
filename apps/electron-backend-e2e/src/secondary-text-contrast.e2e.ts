@@ -213,6 +213,19 @@ test.describe('Secondary text contrast', () => {
             await clickFirstGridListCard(page);
             const rating = page.locator('app-meta-chip.meta-chip--rating');
             await expect(rating.first()).toBeVisible({ timeout: 20_000 });
+            // The white artwork is painted, not still loading over the page
+            // background, so a translucent chip would show it through.
+            const backdrop = page.locator('.hero__backdrop-image').first();
+            await expect
+                .poll(() =>
+                    backdrop.evaluate(async (image: HTMLImageElement) => {
+                        if (!image.complete || !image.naturalWidth)
+                            return false;
+                        await image.decode();
+                        return true;
+                    })
+                )
+                .toBe(true);
             await hover(page);
             await settle(page);
             const results: string[] = [];
