@@ -85,3 +85,10 @@ app-html-video-player {
     @include floating-surface.surface;
     @include floating-surface.frame;
 }
+
+// The diagnostic panel replaces Video.js's own error dialog for the same
+// failure. Hide the vendor layer while the panel shows, so its text does not
+// show through behind the panel's title.
+.web-player-view:has(> app-playback-diagnostic-panel) .vjs-error-display {
+    display: none;
+}
