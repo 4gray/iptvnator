@@ -5,11 +5,11 @@ import {
     withServer,
 } from '../web-backend-app.spec-helpers';
 import { withTempStorage } from './server-storage.spec-helpers';
+import type { ServerInstanceInfo } from '@iptvnator/shared/interfaces';
 import type {
-    ServerInstanceInfo,
     ServerProfile,
     ServerProfileList,
-} from '@iptvnator/shared/interfaces';
+} from '@iptvnator/shared/interfaces/profiles';
 import type { ServerStorage } from './server-storage';
 
 function app(storage: ServerStorage) {

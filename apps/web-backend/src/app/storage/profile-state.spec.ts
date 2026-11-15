@@ -6,7 +6,7 @@ import { SqliteFavoriteServerStore } from '@iptvnator/shared/database/favorites-
 import { ensureActivitySchema } from '@iptvnator/shared/database/activity-sync';
 import { ensureHistorySchema } from '@iptvnator/shared/database/history-sync';
 import type { FavoriteAddress } from '@iptvnator/shared/interfaces/favorites-sync';
-import type { PersonalScope } from '@iptvnator/shared/interfaces';
+import type { PersonalScope } from '@iptvnator/shared/interfaces/profiles';
 import { openServerStorage, type ServerStorage } from './server-storage';
 
 const source = { sourceId: 'source-1', sourceIncarnation: 'incarnation-1' };
