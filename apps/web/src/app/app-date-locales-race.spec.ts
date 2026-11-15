@@ -14,17 +14,23 @@ describe('Portuguese switches with delayed locale chunks', () => {
     });
 
     it('keeps the latest choice when the first locale chunk finishes last', async () => {
-        const portugalLocale = Promise.withResolvers<{
-            default: typeof localePtPt;
-        }>();
-        const brazilLocale = Promise.withResolvers<{
-            default: typeof localePt;
-        }>();
+        let resolvePortugal!: (locale: { default: typeof localePtPt }) => void;
+        const portugalLocale = new Promise<{ default: typeof localePtPt }>(
+            (resolve) => {
+                resolvePortugal = resolve;
+            }
+        );
+        let resolveBrazil!: (locale: { default: typeof localePt }) => void;
+        const brazilLocale = new Promise<{ default: typeof localePt }>(
+            (resolve) => {
+                resolveBrazil = resolve;
+            }
+        );
         jest.spyOn(APP_DATE_LOCALE_LOADERS, 'pt-PT').mockReturnValue(
-            portugalLocale.promise
+            portugalLocale
         );
         jest.spyOn(APP_DATE_LOCALE_LOADERS, 'pt-BR').mockReturnValue(
-            brazilLocale.promise
+            brazilLocale
         );
         const translate = { use: jest.fn() };
         TestBed.configureTestingModule({
@@ -40,13 +46,13 @@ describe('Portuguese switches with delayed locale chunks', () => {
         expect(localStorage.getItem(PREFERRED_LANGUAGE_STORAGE_KEY)).toBe(
             'pt-BR'
         );
-        brazilLocale.resolve({ default: localePt });
+        resolveBrazil({ default: localePt });
         await brazil;
         expect(translate.use).toHaveBeenCalledWith('pt-BR');
         expect(formatDate(new Date(2024, 0, 15), 'MMMM', 'pt-BR')).toBe(
             'janeiro'
         );
-        portugalLocale.resolve({ default: localePtPt });
+        resolvePortugal({ default: localePtPt });
         await portugal;
         expect(translate.use).toHaveBeenCalledTimes(1);
         expect(localStorage.getItem(PREFERRED_LANGUAGE_STORAGE_KEY)).toBe(

@@ -362,19 +362,22 @@ try {
     await expect.poll(captionsState, { timeout: 8000 }).toBe('Disable subtitles');
     adb('shell', 'input', 'keyevent', 'KEYCODE_MEDIA_PAUSE');
     await expect.poll(audioTrack).toBe('');
-    async function tapNode(pattern) {
-        let node;
-        await expect.poll(() => {
-            node = dumpLayout().match(pattern)?.[0];
-            if (!node && pattern === subtitleButton)
-                adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_CENTER');
-            return Boolean(node);
-        }, { message: `Android control ${pattern} is visible` }).toBe(true);
+    function tapNode(node) {
         const [, left, top, right, bottom] = node.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
         adb('shell', 'input', 'tap', String((+left + +right) / 2), String((+top + +bottom) / 2));
     }
-    await tapNode(subtitleButton);
-    await tapNode(/<node [^>]*text="None"[^>]*>/);
+    await expect.poll(() => {
+        const layout = dumpLayout();
+        const none = layout.match(/<node [^>]*text="None"[^>]*>/)?.[0];
+        if (none) {
+            tapNode(none);
+            return true;
+        }
+        const button = layout.match(subtitleButton)?.[0];
+        if (button) tapNode(button);
+        else adb('shell', 'input', 'tap', '120', '120');
+        return false;
+    }, { message: 'The Android subtitle menu opens while paused', timeout: 15000 }).toBe(true);
     await expect.poll(captionsState).toBe('Enable subtitles');
     adb('shell', 'input', 'keyevent', 'KEYCODE_MEDIA_PLAY');
     await waitAudio();

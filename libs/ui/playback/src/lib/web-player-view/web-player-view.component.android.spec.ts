@@ -104,6 +104,9 @@ describe('returning from the Android live player', () => {
                     source: PlaybackDiagnosticSource.Hls,
                     sourceUrl: playback.streamUrl,
                     player: 'videojs',
+                    container: 'hls',
+                    audioCodecs: ['ac-3'],
+                    videoCodecs: ['avc1.640028'],
                 },
                 binding
             );

@@ -207,7 +207,10 @@ describe('activity projection local preservation', () => {
             activitySessionId: 'synthetic-session',
             nativeCheckpointAt: '2025-01-01T00:00:00.000Z',
         };
-        const read = Promise.withResolvers<PlaybackPositionData[]>();
+        let resolveRead!: (positions: PlaybackPositionData[]) => void;
+        const read = new Promise<PlaybackPositionData[]>((resolve) => {
+            resolveRead = resolve;
+        });
         const reset = jest.fn(async () => undefined);
         const save = jest.fn(async () => undefined);
         const client = {
@@ -221,7 +224,7 @@ describe('activity projection local preservation', () => {
             save,
         } as unknown as ActivitySyncClient;
         const raw = {
-            getAllPlaybackPositions: () => read.promise,
+            getAllPlaybackPositions: () => read,
         } as unknown as IXtreamDataSource;
         const adapter = new ActivityPositionAdapter(client);
         const clearing = adapter.invoke(raw, 'clearPlaybackPosition', [
@@ -237,7 +240,7 @@ describe('activity projection local preservation', () => {
                 ])
             ).rejects.toBeInstanceOf(ActivitySupersededError);
         } finally {
-            read.resolve([position]);
+            resolveRead([position]);
             await clearing;
         }
         expect(save).not.toHaveBeenCalled();
