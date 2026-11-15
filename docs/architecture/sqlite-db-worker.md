@@ -335,6 +335,8 @@ the main-process and EPG-worker connections give up after their 5 s
 - Category imports use at most 1,000 rows per `INSERT` to stay below SQLite's
   bound-parameter limit. All statements remain in one transaction, preserving
   provider order and rolling back earlier batches if a later batch fails.
+  Startup live refresh reuses the prior row ID of each retained provider
+  category from that source. New categories use the SQLite sequence.
 - A cold content save persists its type's `importing` marker before committing
   any content rows. Failure to persist the marker prevents all content writes;
   only the import owner records completion after the save succeeds.

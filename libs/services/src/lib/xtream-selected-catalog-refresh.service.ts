@@ -69,11 +69,11 @@ export class XtreamSelectedCatalogRefreshService {
     refreshLiveOnStartup(
         playlist: PlaylistMeta,
         catalog: FetchedXtreamCatalog,
-        capturePreviousCategories?: () => Promise<void>
+        readRetainedCategoryIds?: () => Promise<[number, number][]>
     ): Promise<boolean> {
         return this.replace(playlist, ['live'], undefined, {
             catalog,
-            capturePreviousCategories,
+            readRetainedCategoryIds,
         });
     }
 
@@ -83,7 +83,7 @@ export class XtreamSelectedCatalogRefreshService {
         beforeReplace?: () => Promise<PlaylistMeta | void>,
         startup?: {
             catalog: FetchedXtreamCatalog;
-            capturePreviousCategories?: () => Promise<void>;
+            readRetainedCategoryIds?: () => Promise<[number, number][]>;
         }
     ): Promise<boolean> {
         if (!types.length) return false;
@@ -109,6 +109,7 @@ export class XtreamSelectedCatalogRefreshService {
         let markersStaged = false;
         let metadataAccepted = false;
         let keepPreparedRecovery = false;
+        let retainedCategoryIds: [number, number][] | undefined;
         const priorStatuses = new Map<XtreamContentType, string | null>();
         const publish = (
             type: XtreamContentType | null,
@@ -135,7 +136,7 @@ export class XtreamSelectedCatalogRefreshService {
                     !sameXtreamCatalogConnection(playlist, current)
                 )
                     return false;
-                await startup.capturePreviousCategories?.();
+                retainedCategoryIds = await startup.readRetainedCategoryIds?.();
             }
             // Fetch before deleting any cache. A provider failure leaves the saved catalog intact.
             const catalogs: FetchedXtreamCatalog[] = startup
@@ -229,7 +230,10 @@ export class XtreamSelectedCatalogRefreshService {
                             (category) => category.categoryType === categoryType
                         )
                         .map((category) => category.xtreamId),
-                    this.locks.lockedXtreamIds(playlist._id, categoryType)
+                    this.locks.lockedXtreamIds(playlist._id, categoryType),
+                    ...(retainedCategoryIds
+                        ? ([retainedCategoryIds] as const)
+                        : [])
                 );
                 publish(type, 'saving-content', 0, content.length);
                 const count = await this.db.saveXtreamContent(

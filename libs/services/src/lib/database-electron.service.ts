@@ -507,14 +507,16 @@ export class DatabaseService {
         categories: XtreamCategory[],
         type: 'live' | 'movies' | 'series',
         hiddenCategoryXtreamIds?: number[],
-        lockedCategoryXtreamIds?: number[]
+        lockedCategoryXtreamIds?: number[],
+        retainedCategoryIds?: [number, number][]
     ): Promise<void> {
         await window.electron.dbSaveCategories(
             playlistId,
             categories,
             type,
             hiddenCategoryXtreamIds,
-            lockedCategoryXtreamIds
+            lockedCategoryXtreamIds,
+            ...(retainedCategoryIds ? [retainedCategoryIds] as const : [])
         );
     }
 

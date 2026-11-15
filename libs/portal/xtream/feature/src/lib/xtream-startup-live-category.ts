@@ -15,22 +15,14 @@ export async function reloadStartupLiveSelection(
     const previousStreams = store.liveStreams();
     if (!(await store.reloadLiveCatalog(playlistId))) return;
 
-    const refreshedCategories = store.liveCategories();
-    const remap = (id: number): number | undefined => {
-        const previous = previousCategories.find((row) => row.id === id);
-        if (!previous || !('xtream_id' in previous)) return undefined;
-        return refreshedCategories.find(
-            (row) => 'xtream_id' in row && row.xtream_id === previous.xtream_id
-        )?.id;
-    };
-
     if (store.selectedContentType() !== 'live') return;
     const selectedId = store.selectedCategoryId();
     if (
         selectedId !== null &&
-        previousCategories.some((row) => row.id === selectedId)
+        previousCategories.some((row) => row.id === selectedId) &&
+        !store.liveCategories().some((row) => row.id === selectedId)
     ) {
-        store.setSelectedCategory(remap(selectedId) ?? null);
+        store.setSelectedCategory(null);
     }
 
     const selected = store.selectedItem();
@@ -50,7 +42,7 @@ export async function reloadStartupLiveSelection(
     const candidates = store
         .liveStreams()
         .filter((row) => row.xtream_id === providerId);
-    const preferredCategory = remap(Number(selected.category_id));
+    const preferredCategory = Number(selected.category_id);
     const refreshed =
         candidates.find(
             (row) => Number(row.category_id) === preferredCategory
@@ -70,22 +62,20 @@ export async function replaceStartupLiveCategoryUrl(
 ): Promise<'changed' | 'deferred' | 'unchanged'> {
     const url = router.url;
     const categoryId = getXtreamRouteCategoryId(url, 'live');
-    if (categoryId === null) return 'unchanged';
-    const replacement = await refresh.resolvePreviousCategory(
-        playlistId,
-        updateDate,
-        categoryId
-    );
-    if (!isCurrent()) return 'changed';
-    if (replacement === undefined || replacement === categoryId)
+    if (
+        categoryId === null ||
+        !refresh.wasLiveCategoryRemoved(playlistId, updateDate, categoryId)
+    )
         return 'unchanged';
+
+    // The router clears currentNavigation after publishing its terminal event.
+    await Promise.resolve();
+    if (!isCurrent()) return 'changed';
     if (router.currentNavigation()) return 'deferred';
 
     const path = getRoutePath(url);
     const liveRoot = path.slice(0, path.lastIndexOf('/'));
-    const newPath =
-        replacement === null ? liveRoot : `${liveRoot}/${replacement}`;
-    return (await router.navigateByUrl(newPath + url.slice(path.length), {
+    return (await router.navigateByUrl(liveRoot + url.slice(path.length), {
         replaceUrl: true,
         state: location.getState() as Record<string, unknown>,
     }))

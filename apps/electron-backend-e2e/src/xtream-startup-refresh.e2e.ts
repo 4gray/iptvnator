@@ -190,16 +190,11 @@ test('refreshes opted-in Xtream live channels on restart and keeps the saved cat
             return categories.find((category) => category.name === 'Sports')
                 ?.id;
         }, playlistId);
-        expect(newCategoryId).toBeDefined();
-        const updatedUrl = oldUrl.replace(
-            /\/live\/\d+\?/,
-            `/live/${newCategoryId}?`
-        );
-        expect(updatedUrl).not.toBe(oldUrl);
-        await expect(app.mainWindow).toHaveURL(updatedUrl);
+        expect(newCategoryId).toBe(oldCategoryId);
+        await expect(app.mainWindow).toHaveURL(oldUrl);
         await openSources(app.mainWindow);
         await app.mainWindow.goBack();
-        await expect(app.mainWindow).toHaveURL(updatedUrl);
+        await expect(app.mainWindow).toHaveURL(oldUrl);
         await expect(channelItem(renamedFavorite.name)).toBeVisible();
         expect(catalogActions(provider.actions)).toEqual(liveRequests);
 

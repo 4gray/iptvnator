@@ -488,6 +488,7 @@ async function executeRequest(
                 type: 'live' | 'movies' | 'series';
                 hiddenCategoryXtreamIds?: number[];
                 lockedCategoryXtreamIds?: number[];
+                retainedCategoryIds?: [number, number][];
             };
             const capturePhase =
                 createWorkerPerformancePhaseAdapter(performanceCapture);
@@ -498,7 +499,8 @@ async function executeRequest(
                 payload.type,
                 payload.hiddenCategoryXtreamIds,
                 payload.lockedCategoryXtreamIds,
-                capturePhase
+                capturePhase,
+                payload.retainedCategoryIds
             );
         }
 

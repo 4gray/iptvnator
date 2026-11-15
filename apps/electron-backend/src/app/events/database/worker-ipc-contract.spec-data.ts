@@ -212,13 +212,14 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
     },
     {
         operation: 'DB_SAVE_CATEGORIES',
-        args: [playlistId, categories, 'live', categoryIds, categoryIds],
+        args: [playlistId, categories, 'live', categoryIds, categoryIds, [[17, 42]]],
         payload: {
             playlistId,
             categories,
             type: 'live',
             hiddenCategoryXtreamIds: categoryIds,
             lockedCategoryXtreamIds: categoryIds,
+            retainedCategoryIds: [[17, 42]],
         },
     },
     {

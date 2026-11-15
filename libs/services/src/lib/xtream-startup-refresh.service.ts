@@ -23,10 +23,7 @@ export class XtreamStartupRefreshService {
     private readonly locks = inject(ParentalLockService);
     private readonly publishedUpdates = new Map<string, number>();
 
-    private readonly previousLiveCategories = new Map<
-        string,
-        Map<number, number>
-    >();
+    private readonly removedLiveCategories = new Map<string, Set<number>>();
 
     recordUpdate(playlistId: string, updateDate: number): void {
         this.publishedUpdates.set(playlistId, updateDate);
@@ -36,22 +33,14 @@ export class XtreamStartupRefreshService {
         return this.publishedUpdates.get(playlistId) === updateDate;
     }
 
-    async resolvePreviousCategory(
+    wasLiveCategoryRemoved(
         playlistId: string,
         updateDate: number,
         localId: number
-    ): Promise<number | null | undefined> {
-        if (!this.matchesUpdate(playlistId, updateDate)) return undefined;
-        const providerId = this.previousLiveCategories
-            .get(playlistId)
-            ?.get(localId);
-        if (providerId === undefined) return undefined;
-        const categories = await this.db.getAllXtreamCategories(
-            playlistId,
-            'live'
-        );
+    ): boolean {
         return (
-            categories.find((row) => row.xtream_id === providerId)?.id ?? null
+            this.matchesUpdate(playlistId, updateDate) &&
+            (this.removedLiveCategories.get(playlistId)?.has(localId) ?? false)
         );
     }
 
@@ -96,7 +85,7 @@ export class XtreamStartupRefreshService {
                 });
             });
         }
-        const previous = new Map<number, number>();
+        const removed = new Set<number>();
         const refreshed = await this.refresh.refreshLiveOnStartup(
             playlist,
             { type: 'live', categories, content },
@@ -105,10 +94,18 @@ export class XtreamStartupRefreshService {
                     playlist._id,
                     'live'
                 );
-                for (const row of rows) previous.set(row.id, row.xtream_id);
+                const retained: [number, number][] = [];
+                for (const row of rows) {
+                    if (categoryIds.has(row.xtream_id)) {
+                        retained.push([row.xtream_id, row.id]);
+                    } else {
+                        removed.add(row.id);
+                    }
+                }
+                return retained;
             }
         );
-        if (refreshed) this.previousLiveCategories.set(playlist._id, previous);
+        if (refreshed) this.removedLiveCategories.set(playlist._id, removed);
         return refreshed;
     }
 }

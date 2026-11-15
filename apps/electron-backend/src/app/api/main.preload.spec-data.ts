@@ -212,7 +212,7 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
     },
     {
         method: 'dbSaveCategories',
-        args: [playlistId, categories, 'live', categoryIds, categoryIds],
+        args: [playlistId, categories, 'live', categoryIds, categoryIds, [[17, 42]]],
         channel: 'DB_SAVE_CATEGORIES',
         forwardedArgs: [
             playlistId,
@@ -220,6 +220,7 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
             'live',
             categoryIds,
             categoryIds,
+            [[17, 42]],
         ],
     },
     {

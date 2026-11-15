@@ -88,25 +88,23 @@ describe('Xtream startup refresh', () => {
         );
     });
 
-    it('resolves old route IDs against the current source and category rows', async () => {
+    it('retains live category rows by provider ID and records removed IDs', async () => {
+        db.getAllXtreamCategories.mockResolvedValue([
+            { id: 11, xtream_id: 4 },
+            { id: 22, xtream_id: 7 },
+        ]);
+        refresh.refreshLiveOnStartup.mockImplementationOnce(
+            async (_source, _catalog, readRetainedCategoryIds) => {
+                expect(await readRetainedCategoryIds()).toEqual([[4, 11]]);
+                return true;
+            }
+        );
         await service.refreshLive(source);
         service.recordUpdate(source._id, 42);
-        db.getAllXtreamCategories.mockResolvedValue([{ id: 22, xtream_id: 4 }]);
 
-        await expect(
-            service.resolvePreviousCategory(source._id, 42, 11)
-        ).resolves.toBe(22);
-        await expect(
-            service.resolvePreviousCategory(source._id, 43, 11)
-        ).resolves.toBeUndefined();
-        await expect(
-            service.resolvePreviousCategory(source._id, 42, 22)
-        ).resolves.toBeUndefined();
-
-        db.getAllXtreamCategories.mockResolvedValue([]);
-        await expect(
-            service.resolvePreviousCategory(source._id, 42, 11)
-        ).resolves.toBeNull();
+        expect(service.wasLiveCategoryRemoved(source._id, 42, 11)).toBe(false);
+        expect(service.wasLiveCategoryRemoved(source._id, 43, 22)).toBe(false);
+        expect(service.wasLiveCategoryRemoved(source._id, 42, 22)).toBe(true);
     });
 
     it('keeps the saved lineup when the provider returns no live channels', async () => {

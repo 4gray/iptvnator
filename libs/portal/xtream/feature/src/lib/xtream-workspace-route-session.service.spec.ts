@@ -96,7 +96,7 @@ describe('XtreamWorkspaceRouteSession', () => {
     );
     const liveCategories = signal([{ id: 11, xtream_id: 7 }]);
     const matchesUpdate = jest.fn();
-    const resolvePreviousCategory = jest.fn();
+    const wasLiveCategoryRemoved = jest.fn();
     const liveStreams = signal([
         { id: 101, xtream_id: 42, category_id: 11, type: 'live' },
     ]);
@@ -162,9 +162,9 @@ describe('XtreamWorkspaceRouteSession', () => {
             selectedItem.set(item)
         ),
         reloadLiveCatalog: jest.fn(async () => {
-            liveCategories.set([{ id: 22, xtream_id: 7 }]);
+            liveCategories.set([{ id: 11, xtream_id: 7 }]);
             liveStreams.set([
-                { id: 202, xtream_id: 42, category_id: 22, type: 'live' },
+                { id: 202, xtream_id: 42, category_id: 11, type: 'live' },
             ]);
             return true;
         }),
@@ -259,7 +259,7 @@ describe('XtreamWorkspaceRouteSession', () => {
         contentInitBlockReason.set(null);
         liveCategories.set([{ id: 11, xtream_id: 7 }]);
         matchesUpdate.mockReset().mockReturnValue(false);
-        resolvePreviousCategory.mockReset().mockResolvedValue(undefined);
+        wasLiveCategoryRemoved.mockReset().mockReturnValue(false);
         liveStreams.set([
             { id: 101, xtream_id: 42, category_id: 11, type: 'live' },
         ]);
@@ -302,7 +302,7 @@ describe('XtreamWorkspaceRouteSession', () => {
                 XtreamWorkspaceRouteSession,
                 {
                     provide: XtreamStartupRefreshService,
-                    useValue: { matchesUpdate, resolvePreviousCategory },
+                    useValue: { matchesUpdate, wasLiveCategoryRemoved },
                 },
                 {
                     provide: PlaylistContextFacade,
@@ -339,8 +339,8 @@ describe('XtreamWorkspaceRouteSession', () => {
         expect(xtreamStore.initializeContent).toHaveBeenCalled();
     });
 
-    it.each([22, null])(
-        'replaces the open live category URL on startup refresh (new ID %s)',
+    it.each([11, null])(
+        'keeps the retained category URL and redirects a removed category (selection %s)',
         async (newId) => {
             const live = `/workspace/xtreams/${PLAYLIST_ID}/live`;
             const suffix = '?q=News%20Live&filter=a&filter=b#channels';
@@ -372,9 +372,9 @@ describe('XtreamWorkspaceRouteSession', () => {
             }
             selectedItem.set(liveStreams()[0]);
             matchesUpdate.mockReturnValue(true);
-            resolvePreviousCategory.mockImplementation(
-                async (_playlistId: string, _updateDate: number, id: number) =>
-                    id === 11 ? newId : undefined
+            wasLiveCategoryRemoved.mockImplementation(
+                (_playlistId: string, _updateDate: number, id: number) =>
+                    id === 11 && newId === null
             );
             activePlaylist.set({ ...ACTIVE_PLAYLIST, updateDate: 42 });
             TestBed.flushEffects();
@@ -393,16 +393,20 @@ describe('XtreamWorkspaceRouteSession', () => {
                 expect(selectedItem()).toEqual({
                     id: 202,
                     xtream_id: 42,
-                    category_id: 22,
+                    category_id: 11,
                     type: 'live',
                 });
             }
             const replacedUrl = `${live}${newId === null ? '' : `/${newId}`}${suffix}`;
-            expect(router.navigateByUrl).toHaveBeenCalledTimes(1);
-            expect(router.navigateByUrl).toHaveBeenCalledWith(replacedUrl, {
-                replaceUrl: true,
-                state: historyState,
-            });
+            expect(router.navigateByUrl).toHaveBeenCalledTimes(
+                newId === null ? 1 : 0
+            );
+            if (newId === null) {
+                expect(router.navigateByUrl).toHaveBeenCalledWith(replacedUrl, {
+                    replaceUrl: true,
+                    state: historyState,
+                });
+            }
 
             const away = `/workspace/xtreams/${PLAYLIST_ID}/vod`;
             router.url = away;
@@ -420,7 +424,7 @@ describe('XtreamWorkspaceRouteSession', () => {
         }
     );
 
-    it('remaps the old category on return when refresh completes during navigation', async () => {
+    it('redirects a removed category on return when refresh completes during navigation', async () => {
         const live = `/workspace/xtreams/${PLAYLIST_ID}/live`;
         const oldUrl = `${live}/11?q=Sample`;
         const away = `/workspace/xtreams/${PLAYLIST_ID}/vod`;
@@ -438,9 +442,8 @@ describe('XtreamWorkspaceRouteSession', () => {
 
         router.currentNavigation.mockReturnValue({ id: 3 });
         matchesUpdate.mockReturnValue(true);
-        resolvePreviousCategory.mockImplementation(
-            async (_playlistId: string, _updateDate: number, id: number) =>
-                id === 11 ? 22 : undefined
+        wasLiveCategoryRemoved.mockImplementation(
+            (_playlistId: string, _updateDate: number, id: number) => id === 11
         );
         activePlaylist.set({ ...ACTIVE_PLAYLIST, updateDate: 42 });
         TestBed.flushEffects();
@@ -456,8 +459,8 @@ describe('XtreamWorkspaceRouteSession', () => {
         routerEvents.next(new NavigationEnd(4, oldUrl, oldUrl));
         await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
-        expect(router.url).toBe(`${live}/22?q=Sample`);
-        expect(selectedCategoryId()).toBe(22);
+        expect(router.url).toBe(`${live}?q=Sample`);
+        expect(selectedCategoryId()).toBeNull();
         expect(xtreamStore.reloadLiveCatalog).toHaveBeenCalledTimes(1);
     });
 
