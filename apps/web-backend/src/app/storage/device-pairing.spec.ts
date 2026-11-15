@@ -1,7 +1,6 @@
-import { request } from 'node:http';
 import express from 'express';
 import { markHostedIngress, markHostedLan } from '../hosted-ingress';
-import type { AddressInfo } from 'node:net';
+import { requestTestServer, serverOrigin } from '../http-server.spec-helpers';
 import { listenHosted } from '../hosted-listener';
 import { closeGracefully } from '../graceful-shutdown';
 import { createWebBackendApp } from '../web-backend-app';
@@ -17,7 +16,7 @@ describe('device pairing', () => {
                 accessToken: 'admin-secret',
                 devicePairingEnabled: true,
             });
-            await withServer(app, async (base) => {
+            await withServer(app, async (base, fetch, server) => {
                 const admin = {
                     authorization: 'Bearer admin-secret',
                     'content-type': 'application/json',
@@ -40,7 +39,8 @@ describe('device pairing', () => {
                 );
                 const forgedHostStatus = await new Promise<number>(
                     (resolve, reject) => {
-                        const req = request(
+                        const req = requestTestServer(
+                            server,
                             `${base}/v1/devices`,
                             {
                                 headers: {
@@ -181,7 +181,7 @@ describe('device pairing', () => {
                 next();
             });
             app.use(api);
-            await withServer(app, async (base) => {
+            await withServer(app, async (base, fetch) => {
                 const start = async (headers: Record<string, string> = {}) =>
                     (
                         await fetch(`${base}/v1/device-pairing/start`, {
@@ -252,10 +252,10 @@ describe('device pairing', () => {
                 new Promise<{ status: number; body: any; cookie: string }>(
                     (resolve, reject) => {
                         const data = JSON.stringify(body);
-                        const req = request(
+                        const req = requestTestServer(
+                            server,
+                            serverOrigin(server),
                             {
-                                host: '127.0.0.1',
-                                port: (server.address() as AddressInfo).port,
                                 path: `/v1/device-pairing/${path}`,
                                 method: 'POST',
                                 headers: {
@@ -490,7 +490,7 @@ describe('device pairing', () => {
                 next();
             });
             app.use(api);
-            await withServer(app, async (base) => {
+            await withServer(app, async (base, fetch) => {
                 const headers = {
                     authorization: 'Bearer admin-secret',
                     'content-type': 'application/json',

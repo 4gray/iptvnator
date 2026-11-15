@@ -1,8 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { AddressInfo } from 'node:net';
+import { fetchTestServer, requestTestServer, serverOrigin } from './http-server.spec-helpers';
 import { closeGracefully } from './graceful-shutdown';
 import { listenHosted } from './hosted-listener';
 import { createHostedWebApp } from './hosted-web-app';
@@ -44,7 +43,8 @@ it('serves browser routes and authenticated API at one origin and rejects foreig
         assets
     );
     const server = await listenHosted(app, '127.0.0.1', 0);
-    const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const origin = serverOrigin(server);
+    const fetch = fetchTestServer(server);
     try {
         await rm(join(assets, 'index.html'));
         for (const path of ['/', '/index.html', '/workspace/dashboard']) {
@@ -75,7 +75,8 @@ it('serves browser routes and authenticated API at one origin and rejects foreig
         ).toBe(403);
         const rebinding = await new Promise<number | undefined>(
             (resolve, reject) => {
-                request(
+                requestTestServer(
+                    server,
                     origin + '/api/health',
                     {
                         headers: { Host: 'foreign.example.test' },

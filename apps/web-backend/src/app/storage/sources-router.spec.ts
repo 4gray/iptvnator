@@ -30,7 +30,7 @@ describe('source synchronization API', () => {
                     resolveHostname: resolvePublicHost,
                     httpClient: new StubHttpClient(),
                 }),
-                async (base) => {
+                async (base, fetch) => {
                     const url = `${base}/v1/sources`;
                     expect(
                         (
@@ -144,7 +144,7 @@ describe('source synchronization API', () => {
                     resolveHostname: resolvePublicHost,
                     httpClient: new StubHttpClient(),
                 }),
-                async (base) => {
+                async (base, fetch) => {
                     const rawM3u =
                         '#EXTM3U\n#EXTINF:-1,One\nhttps://media.test/one';
                     const created = await fetch(
@@ -245,7 +245,7 @@ describe('source synchronization API', () => {
                     resolveHostname: resolvePublicHost,
                     httpClient: new StubHttpClient(),
                 }),
-                async (base) => {
+                async (base, fetch) => {
                     expect((await fetch(`${base}/v1/sources`)).status).toBe(
                         401
                     );
@@ -277,7 +277,7 @@ describe('source synchronization API', () => {
                     resolveHostname: resolvePublicHost,
                     httpClient: new StubHttpClient(),
                 }),
-                async (base) => {
+                async (base, fetch) => {
                     const url = `${base}/v1/sources`;
                     // nginx's gzip rewrites `"tag"` to `W/"tag"`.
                     const weak = (tag: string | null) => `W/${tag}`;

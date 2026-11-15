@@ -1,5 +1,4 @@
-import { request } from 'node:http';
-import type { AddressInfo } from 'node:net';
+import { requestTestServer, serverOrigin } from './http-server.spec-helpers';
 import { listenHosted } from './hosted-listener';
 import { closeGracefully } from './graceful-shutdown';
 import { createWebBackendApp } from './web-backend-app';
@@ -109,10 +108,10 @@ describe('Cloudflare Access for hosted HTTPS', () => {
         ) =>
             new Promise<{ status: number; auth?: string }>(
                 (resolve, reject) => {
-                    const req = request(
+                    const req = requestTestServer(
+                        server,
+                        serverOrigin(server),
                         {
-                            host: '127.0.0.1',
-                            port: (server.address() as AddressInfo).port,
                             path,
                             headers: {
                                 ...(server === remote

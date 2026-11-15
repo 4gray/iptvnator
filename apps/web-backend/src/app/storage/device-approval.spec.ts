@@ -37,7 +37,7 @@ describe('paired device TV approval', () => {
                 accessToken: 'admin-secret',
                 devicePairingEnabled: true,
             });
-            await withServer(app, async (base) => {
+            await withServer(app, async (base, fetch) => {
                 const admin = { authorization: 'Bearer admin-secret' };
                 const call = (
                     path: string,
@@ -82,13 +82,14 @@ describe('paired device TV approval', () => {
                     await call('/device-pairing/start', { name: 'TV' })
                 ).json()) as any;
                 const details = { claimId: tv.claimId };
-                for (const headers of [
+                const unauthorizedHeaders: Record<string, string>[] = [
                     {},
                     admin,
                     phone,
                     { authorization: 'Bearer invalid' },
                     { cookie: 'iptvnator_pairing=invalid' },
-                ]) {
+                ];
+                for (const headers of unauthorizedHeaders) {
                     expect(
                         (
                             await call(

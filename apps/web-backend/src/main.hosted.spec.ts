@@ -1,34 +1,49 @@
-import { get } from 'node:http';
+import type { Server } from 'node:http';
+import {
+    fetchTestServer,
+    requestTestServer,
+    serverOrigin,
+} from './app/http-server.spec-helpers';
 import { EventEmitter, once } from 'node:events';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { type AddressInfo, type Server } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { HostedServerWorkerMessage } from '@iptvnator/shared/interfaces';
 import type { ServerDatabase } from './app/storage/server-database';
 
 // Node fetch rewrites Host; exercise a proxy-preserved Host with raw HTTP.
-function proxyGet(url: string, options: { headers: Record<string, string> }) {
+function proxyGet(
+    server: Server,
+    url: string,
+    options: { headers: Record<string, string> }
+) {
     return new Promise<{
         status: number;
         cacheControl?: string;
         json: () => Promise<Record<string, unknown>>;
     }>((resolve, reject) => {
-        get(url, options, (response) => {
-            let body = '';
-            response.setEncoding('utf8');
-            response.on('data', (chunk) => {
-                body += chunk;
-            });
-            response.on('end', () =>
-                resolve({
-                    status: response.statusCode!,
-                    cacheControl: response.headers['cache-control'],
-                    json: async () => JSON.parse(body),
-                })
-            );
-            response.on('error', reject);
-        }).on('error', reject);
+        requestTestServer(
+            server,
+            url,
+            options,
+            (response) => {
+                let body = '';
+                response.setEncoding('utf8');
+                response.on('data', (chunk) => {
+                    body += chunk;
+                });
+                response.on('end', () =>
+                    resolve({
+                        status: response.statusCode!,
+                        cacheControl: response.headers['cache-control'],
+                        json: async () => JSON.parse(body),
+                    })
+                );
+                response.on('error', reject);
+            }
+        )
+            .on('error', reject)
+            .end();
     });
 }
 
@@ -124,6 +139,8 @@ describe('hosted web backend worker', () => {
                                 : 'EADDRNOTAVAIL',
                     });
                 }
+                // Keep this test independent of a running desktop instance.
+                args[2] = 0;
                 const server = await actual.listenHosted(...args);
                 servers.push(server);
                 return server;
@@ -146,8 +163,8 @@ describe('hosted web backend worker', () => {
         expect(reply).toEqual({ ready: true, instanceId: expect.any(String) });
         expect(servers).toHaveLength(2);
         for (const server of servers) {
-            const { port } = server.address() as AddressInfo;
-            const origin = `http://127.0.0.1:${port}`;
+            const origin = serverOrigin(server);
+            const fetch = fetchTestServer(server);
             const page = await fetch(origin + '/workspace/dashboard');
             expect(page.headers.get('cache-control')).toBe('no-cache');
             expect(await page.text()).toContain('Synthetic hosted app');
@@ -168,23 +185,27 @@ describe('hosted web backend worker', () => {
             requestId: 'enable',
             origin: remoteOrigin,
         });
-        const remote = 'http://127.0.0.1:4335';
+        const remote = servers[2];
+        const remoteUrl = serverOrigin(remote);
         const headers = { host: 'library.example.test', origin: remoteOrigin };
         expect(
-            await proxyGet(remote + '/workspace/dashboard', { headers })
+            await proxyGet(remote, remoteUrl + '/workspace/dashboard', {
+                headers,
+            })
         ).toMatchObject({ status: 200, cacheControl: 'no-store' });
         expect(
             (
-                await proxyGet(remote + '/api/v1/instance', { headers }).then(
-                    (response) => response.json()
-                )
+                await proxyGet(remote, remoteUrl + '/api/v1/instance', {
+                    headers,
+                }).then((response) => response.json())
             ).instanceId
         ).toBe(database?.instanceId);
         expect(
-            (await proxyGet(remote + '/api/v1/sources', { headers })).status
+            (await proxyGet(remote, remoteUrl + '/api/v1/sources', { headers }))
+                .status
         ).toBe(401);
         expect(
-            await proxyGet(remote + '/api/v1/sources', {
+            await proxyGet(remote, remoteUrl + '/api/v1/sources', {
                 headers: {
                     ...headers,
                     authorization: 'Bearer synthetic-access-code',
@@ -193,7 +214,7 @@ describe('hosted web backend worker', () => {
         ).toMatchObject({ status: 200, cacheControl: 'no-store' });
         expect(
             (
-                await proxyGet(remote + '/', {
+                await proxyGet(remote, remoteUrl + '/', {
                     headers: { ...headers, origin: 'https://attacker.test' },
                 })
             ).status
@@ -203,7 +224,9 @@ describe('hosted web backend worker', () => {
             requestId: 'disable',
             origin: '',
         });
-        await expect(proxyGet(remote + '/', { headers })).rejects.toThrow();
+        await expect(
+            proxyGet(remote, remoteUrl + '/', { headers })
+        ).rejects.toThrow();
         expect(database?.sqlite.open).toBe(true);
         expect(servers.slice(0, 2).every((server) => server.listening)).toBe(
             true

@@ -12,7 +12,10 @@ export class HostedHttpsListener {
     private server?: Server;
     private origin = '';
 
-    constructor(private readonly app: Express) {}
+    constructor(
+        private readonly app: Express,
+        private readonly port = HOSTED_SERVER_HTTPS_PORT
+    ) {}
 
     async configure(value: string): Promise<string> {
         const origin = value ? parseHostedHttpsOrigin(value) : undefined;
@@ -22,7 +25,7 @@ export class HostedHttpsListener {
             this.server = await listenHosted(
                 this.app,
                 '127.0.0.1',
-                HOSTED_SERVER_HTTPS_PORT,
+                this.port,
                 origin
             );
             this.origin = origin.origin;

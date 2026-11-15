@@ -1,4 +1,5 @@
-import { createServer, request, type Server } from 'node:http';
+import { createServer, type Server } from 'node:http';
+import { requestTestServer, serverOrigin } from './http-server.spec-helpers';
 import type { AddressInfo } from 'node:net';
 import express from 'express';
 import { parseHostedHttpsOrigin } from '@iptvnator/shared/interfaces';
@@ -18,10 +19,10 @@ function get(
         status: number;
         headers: import('node:http').IncomingHttpHeaders;
     }>((resolve, reject) => {
-        const req = request(
+        const req = requestTestServer(
+            server,
+            serverOrigin(server),
             {
-                host: '127.0.0.1',
-                port: (server.address() as AddressInfo).port,
                 path: '/provider-targets',
                 method,
                 headers,
@@ -80,10 +81,10 @@ describe('dedicated HTTPS proxy listener', () => {
         );
         servers.push(remote);
         const proxy = createServer((req, res) => {
-            const upstream = request(
+            const upstream = requestTestServer(
+                remote,
+                serverOrigin(remote),
                 {
-                    host: '127.0.0.1',
-                    port: (remote.address() as AddressInfo).port,
                     path: req.url,
                     method: req.method,
                     headers: req.headers,
@@ -149,14 +150,25 @@ describe('dedicated HTTPS proxy listener', () => {
         ).toBe(400);
     });
 
-    it('starts and stops remote access without closing the original listener or replacing application state', async () => {
+    it('starts, stops, and restarts remote access on an ephemeral port', async () => {
+        const remote = new HostedHttpsListener(express(), 0);
+        try {
+            expect(await remote.configure(publicOrigin)).toBe(publicOrigin);
+            expect(await remote.configure(publicOrigin)).toBe(publicOrigin);
+            expect(await remote.configure('')).toBe('');
+            expect(await remote.configure(publicOrigin)).toBe(publicOrigin);
+        } finally {
+            await remote.stop();
+        }
+    });
+
+    it('keeps the original listener serving after remote access stops', async () => {
         const app = express();
         app.use((_req, res) => res.sendStatus(204));
         const local = await listenHosted(app, '127.0.0.1', 0);
         servers.push(local);
-        const remote = new HostedHttpsListener(app);
+        const remote = new HostedHttpsListener(app, 0);
         try {
-            expect(await remote.configure(publicOrigin)).toBe(publicOrigin);
             expect(await remote.configure(publicOrigin)).toBe(publicOrigin);
             expect(await remote.configure('')).toBe('');
             expect(
@@ -166,7 +178,6 @@ describe('dedicated HTTPS proxy listener', () => {
                     })
                 ).status
             ).toBe(204);
-            expect(await remote.configure(publicOrigin)).toBe(publicOrigin);
         } finally {
             await remote.stop();
         }
