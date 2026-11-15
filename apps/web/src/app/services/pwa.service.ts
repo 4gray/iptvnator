@@ -10,7 +10,6 @@ import {
     isBackendUrl,
     isGatewayOutage,
     isServerAccessChallenge,
-    PlaylistsService,
     ServerStorageStatusService,
 } from '@iptvnator/services';
 import {
@@ -208,58 +207,24 @@ export class PwaService extends DataService {
             return;
         }
 
-        const playlistId = payload.id;
-        const { url } = payload;
-        const userAgent = payload.userAgent?.trim() || undefined;
-
-        let playlist: Playlist;
+        const { id, url, userAgent } = payload;
         try {
-            playlist = await firstValueFrom(
-                this.getPlaylistFromUrl(url, userAgent)
+            const { refreshPwaPlaylist } =
+                await import('./pwa-playlist-refresh');
+            await refreshPwaPlaylist(
+                this.injector,
+                id,
+                url,
+                userAgent,
+                (agent) => this.fetchPlaylistDefinition(url, agent),
+                (error) =>
+                    this.appendProviderErrorCode(
+                        this.getPlaylistRefreshErrorMessage(error),
+                        error
+                    )
             );
         } catch (error) {
-            // Redacted: the error can carry the playlist URL.
-            this.logger.error('Playlist refresh download failed:', error);
-            void this.snackBar.open(
-                this.appendProviderErrorCode(
-                    this.getPlaylistRefreshErrorMessage(error),
-                    error
-                ),
-                this.translateService.instant('CLOSE'),
-                { duration: 5000 }
-            );
-            return;
-        }
-
-        try {
-            // Resolve after construction: PlaylistsService uses the runtime
-            // DataService, which resolves to this service in the browser.
-            const playlists = this.injector.get(PlaylistsService);
-            const saved = await firstValueFrom(
-                playlists.updatePlaylist(playlistId, {
-                    ...playlist,
-                    _id: playlistId,
-                    url,
-                    userAgent,
-                })
-            );
-            this.store.dispatch(
-                PlaylistActions.updatePlaylist({
-                    playlist: saved,
-                    playlistId,
-                    refreshEpg: true,
-                    persist: false,
-                })
-            );
-            void this.snackBar.open(
-                this.translateService.instant(
-                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
-                ),
-                undefined,
-                { duration: 2000 }
-            );
-        } catch (error) {
-            this.logger.error('Playlist refresh save failed:', error);
+            this.logger.error('Playlist refresh could not finish:', error);
             void this.snackBar.open(
                 this.translateService.instant(
                     'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED'
@@ -275,17 +240,8 @@ export class PwaService extends DataService {
             this.getErrorDetails(error)?.status ??
             this.extractHttpStatusCode(error);
 
-        if (statusCode === 404) {
-            return this.translateService.instant('HOME.URL_UPLOAD.ERROR_404');
-        }
-        if (statusCode === 403) {
-            return this.translateService.instant('HOME.URL_UPLOAD.ERROR_403');
-        }
-        if (statusCode === 401) {
-            return this.translateService.instant('HOME.URL_UPLOAD.ERROR_401');
-        }
-        return this.translateService.instant(
-            'HOME.URL_UPLOAD.ERROR_FETCH_FAILED'
+        return this.getErrorMessageByStatusCode(
+            statusCode === 413 ? null : statusCode
         );
     }
 
@@ -387,9 +343,13 @@ export class PwaService extends DataService {
         return match ? parseInt(match[1], 10) : null;
     }
 
-    async forwardXtreamRequest(payload: PwaXtreamRequest, signal?: AbortSignal) {
+    async forwardXtreamRequest(
+        payload: PwaXtreamRequest,
+        signal?: AbortSignal
+    ) {
         signal?.throwIfAborted();
-        const { forwardPwaXtreamRequest } = await import('./pwa-xtream-request');
+        const { forwardPwaXtreamRequest } =
+            await import('./pwa-xtream-request');
         return forwardPwaXtreamRequest(
             {
                 http: this.http,

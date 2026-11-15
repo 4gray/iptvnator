@@ -31,7 +31,6 @@ import {
     tap,
 } from 'rxjs';
 import {
-    dbConfig,
     DbStores,
     isM3uRecentlyViewedItem,
     M3uFavoriteChannel,
@@ -719,27 +718,11 @@ export class PlaylistsService {
         return this.serializePlaylistWrite(playlistId, async () => {
             if (!this.usesDocumentStore) {
                 await this.ensureIndexedDbPlaylistMigrations();
-                const [
-                    { mergeRefreshedPlaylist },
-                    { mutateIndexedDbPlaylist },
-                ] = await Promise.all([
-                    import('./playlist-refresh-merge'),
-                    import('./source-sync/indexeddb-playlist-mutation'),
-                ]);
-                // Connected profiles use the document store below. The
-                // standalone store must acknowledge the transaction commit.
-                return mutateIndexedDbPlaylist(
-                    dbConfig.name,
+                const { persistIndexedDbPlaylistRefresh } =
+                    await import('./playlist-refresh-merge');
+                return persistIndexedDbPlaylistRefresh(
                     playlistId,
-                    (current) => {
-                        if (!current)
-                            throw new Error('Playlist no longer exists');
-                        return mergeRefreshedPlaylist(
-                            current,
-                            updatedPlaylist,
-                            playlistId
-                        );
-                    }
+                    updatedPlaylist
                 );
             }
 
