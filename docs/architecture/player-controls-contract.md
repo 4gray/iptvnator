@@ -1240,8 +1240,9 @@ setter clamps against, so an unknown duration never jumps to zero); volume
 steps by ±5% and syncs muted state the way `applyVideoVolume` does (raising
 out of mute unmutes, reaching zero mutes); M mirrors `ControlsVolume`'s mute
 memory through `LegacyMuteMemory` — muting remembers the audible volume, and
-unmuting while the volume sits at zero restores it (same 0.5 fallback), so M
-can never leave the player silently "unmuted"; `isAvailable` is the host's
+unmuting while the volume sits at zero restores it (same 0.5 fallback).
+A remounted player at zero volume is considered muted even if its engine
+initializes the mute flag to false. `isAvailable` is the host's
 `interactionEnabled`, so a visible playback diagnostic disables the keys; and
 Escape defaults to a no-op without consuming the key, because the vendor
 chrome owns its own overlays. Instances attach in the component's legacy

@@ -1238,8 +1238,9 @@ local SQL row IDs and content snapshots are not identity inputs.
 begin advances the ownership generation. Checkpoints require that generation,
 the owning device/session and an increasing sequence; a deliberate rewind is
 valid. Android checkpoint recovery compares capture times against both saved
-positions and in-flight writes. A begin acknowledgement establishes ownership
-without recording a playback capture. If a write is displaced before it commits,
+positions and in-flight writes. Copying shared progress to local storage when
+sync is disabled preserves capture ordering. A begin acknowledgement establishes
+ownership without recording a playback capture. If a write is displaced before it commits,
 Android keeps its checkpoint for retry. The recovery payload omits the title.
 The client carries the title forward from the persisted activity record.
 Checkpoints, local conflict choices and explicit imports share whole-second

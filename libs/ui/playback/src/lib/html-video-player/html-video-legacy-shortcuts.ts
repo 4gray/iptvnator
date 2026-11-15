@@ -56,7 +56,7 @@ export function attachHtmlVideoLegacyShortcuts(
         },
         toggleMute: () => {
             const video = options.video();
-            if (video.muted) {
+            if (video.muted || video.volume === 0) {
                 applyVideoVolume(video, muteMemory.unmuteVolume(video.volume));
             } else {
                 muteMemory.rememberIfAudible(video.volume);

@@ -54,9 +54,12 @@ export class PwaPlaybackPositions {
             row.contentType === data.contentType;
         if (nativeCheckpointAt) {
             const at = Date.parse(nativeCheckpointAt);
-            const latest = playbackTimestamp(prior.find(sameItem)?.updatedAt);
+            const latest = prior.find(sameItem);
+            const latestCapture = playbackTimestamp(
+                latest?.activityPlayedAt ?? latest?.updatedAt
+            );
             if (
-                latest >= at ||
+                latestCapture >= at ||
                 nativePlaybackResetIn(allPositions, playlistId, data) >= at
             )
                 return;
