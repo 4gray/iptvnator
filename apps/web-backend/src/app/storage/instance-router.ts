@@ -10,7 +10,7 @@ import type { ServerStorage } from './server-storage';
 import { StorageRequestError } from './storage-route-errors';
 import { FAVORITES_SYNC_CAPABILITY } from '@iptvnator/shared/interfaces/favorites-sync';
 import { ACTIVITY_SYNC_CAPABILITY } from '@iptvnator/shared/interfaces/activity-sync';
-import { PROFILES_CAPABILITY } from '@iptvnator/shared/interfaces';
+import { PROFILES_CAPABILITY } from '@iptvnator/shared/interfaces/profiles';
 
 export function createInstanceRouter(deps: {
     readonly storage: ServerStorage | null;

@@ -6,7 +6,7 @@ import {
     PROFILE_NAME_MAX_LENGTH,
     type ServerProfile,
     type ServerProfileList,
-} from '@iptvnator/shared/interfaces';
+} from '@iptvnator/shared/interfaces/profiles';
 import { hashProfilePin, PROFILE_PIN, verifyProfilePin } from './profile-pin';
 import type { ServerStorage } from './server-storage';
 import { StorageRequestError } from './storage-route-errors';

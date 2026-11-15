@@ -3,7 +3,7 @@ import {
     DEFAULT_PERSONAL_SCOPE,
     parsePersonalScope,
     type PersonalScope,
-} from '@iptvnator/shared/interfaces';
+} from '@iptvnator/shared/interfaces/profiles';
 import type { ServerStorage } from './server-storage';
 import { StorageRequestError } from './storage-route-errors';
 

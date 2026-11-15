@@ -8,7 +8,7 @@ import {
     profileScope,
     type PersonalScope,
     type ServerProfile,
-} from '@iptvnator/shared/interfaces';
+} from '@iptvnator/shared/interfaces/profiles';
 
 const HOUSEHOLD = 'default';
 const DEFAULT_NAME = 'Default';
