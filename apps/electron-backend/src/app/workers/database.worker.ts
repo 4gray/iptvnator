@@ -647,6 +647,7 @@ async function executeRequest(
                 identity?: ContentMetadataPatch;
                 categoryId?: number;
                 excludeLocked?: boolean;
+                fallbackToUniqueCategory?: boolean;
             };
             return getContentByXtreamId(
                 db,
@@ -655,7 +656,8 @@ async function executeRequest(
                 payload.contentType,
                 payload.identity,
                 payload.categoryId,
-                payload.excludeLocked === true
+                payload.excludeLocked === true,
+                payload.fallbackToUniqueCategory === true
             );
         }
 

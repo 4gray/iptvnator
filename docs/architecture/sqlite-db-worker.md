@@ -296,8 +296,10 @@ in their own transactions, including removal tombstones and explicit clears.
 watch or removal cannot be overwritten between replay chunks. This transaction
 contains saved history only; catalog writes keep the row budgets below. For live
 entries the journal remembers the provider category so replay can prefer the
-original copy of a channel listed in multiple categories. The renderer acknowledges the journal after deferred state completes, and source
-deletion removes its journal. Explicit backup import resets it before replay.
+original copy of a channel listed in multiple categories. If that copy is gone,
+a single match can take its place. The renderer acknowledges the journal after
+deferred state completes, and source deletion removes its journal. Explicit
+backup import resets it before replay.
 
 ### Catalog write batching
 

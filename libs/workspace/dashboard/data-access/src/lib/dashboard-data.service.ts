@@ -1,6 +1,7 @@
 import { HISTORY_PLAYLIST_BRIDGE } from '@iptvnator/services/history-events';
 import { FAVORITES_PLAYLIST_BRIDGE } from '@iptvnator/services/favorites-events';
 import { observeActivityChanges } from '@iptvnator/services/activity-changes';
+import { UnifiedRecentDataService } from '@iptvnator/portal/shared/data-access';
 import { StalkerCollectionMetadataService } from '@iptvnator/portal/stalker/data-access';
 import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import {
@@ -53,6 +54,7 @@ import {
     toTimestamp,
 } from './dashboard-mappers';
 import {
+    buildXtreamCollectionUid,
     COLLECTION_VIEW_STATE_KEY,
     PORTAL_PLAYBACK_POSITIONS,
     WorkspaceNavigationTarget,
@@ -92,6 +94,7 @@ export type DashboardRecentlyAddedFilterKind = GlobalRecentlyAddedKind;
 @Injectable({ providedIn: 'root' })
 export class DashboardDataService {
     private readonly history = inject(HISTORY_PLAYLIST_BRIDGE);
+    private readonly collectionHistory = inject(UnifiedRecentDataService);
     private readonly stalkerMetadata = inject(StalkerCollectionMetadataService);
     private readonly favoriteSync = inject(FAVORITES_PLAYLIST_BRIDGE);
     private readonly store = inject(Store);
@@ -962,7 +965,31 @@ export class DashboardDataService {
 
     async removeGlobalRecentItem(item: GlobalRecentItem): Promise<void> {
         if (item.source === 'xtream') {
-            if (this.hasPortalActivityStorage && !this.history.active()) {
+            if (
+                item.type === 'live' &&
+                this.runtime.supportsXtreamSqliteDataSource
+            ) {
+                const xtreamId = Number(item.xtream_id);
+                await this.collectionHistory.removeRecentItem({
+                    uid: buildXtreamCollectionUid(
+                        item.playlist_id,
+                        'live',
+                        xtreamId
+                    ),
+                    name: item.title,
+                    contentType: 'live',
+                    sourceType: 'xtream',
+                    playlistId: item.playlist_id,
+                    playlistName: item.playlist_name ?? 'Xtream',
+                    contentId:
+                        typeof item.id === 'number' ? item.id : undefined,
+                    categoryId: item.category_id,
+                    xtreamId,
+                });
+            } else if (
+                this.hasPortalActivityStorage &&
+                !this.history.active()
+            ) {
                 await this.dbService.removeRecentItem(
                     item.id as number,
                     item.playlist_id

@@ -600,13 +600,23 @@ export class UnifiedRecentDataService {
             item.playlistId,
             item.contentType,
         ];
-        if (this.isSqliteLive(item) && typeof item.categoryId === 'number')
+        if (this.isSqliteLive(item) && typeof item.categoryId === 'number') {
             args[4] = item.categoryId;
+            args[6] = true;
+        }
         if (!this.hasPortalActivityStorage) {
             const content = await this.xtreamDataSource.getContentByXtreamId(
                 ...args
             );
-            return content?.id ?? item.xtreamId;
+            if (content) return content.id;
+            if (
+                args[6] &&
+                !(await this.xtreamDataSource.supportsPortableHistory?.(
+                    item.playlistId
+                ))
+            )
+                return null;
+            return item.xtreamId;
         }
 
         const content = await this.dbService.getContentByXtreamId(...args);

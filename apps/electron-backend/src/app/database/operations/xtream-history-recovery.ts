@@ -282,6 +282,7 @@ export function replayRecoveredHistory(
         ];
         const content = new Map<string, number>();
         const liveCategoryContent = new Map<string, number>();
+        const duplicates = new Set<string>();
         for (let offset = 0; offset < ids.length; offset += 1000) {
             const rows = tx
                 .select({
@@ -307,20 +308,27 @@ export function replayRecoveredHistory(
                 .all();
             for (const row of rows) {
                 const key = `${row.contentType}:${row.xtreamId}`;
-                content.set(key, row.id);
-                if (row.liveCategoryXtreamId != null)
+                if (row.liveCategoryXtreamId != null) {
+                    if (content.has(key)) duplicates.add(key);
                     liveCategoryContent.set(
                         `${key}:${row.liveCategoryXtreamId}`,
                         row.id
                     );
+                }
+                content.set(key, row.id);
             }
         }
+        const resolve = (row: RecoveredHistoryRow): number | undefined => {
+            const key = identity(row);
+            if (row.liveCategoryXtreamId === undefined) return content.get(key);
+            return (
+                liveCategoryContent.get(`${key}:${row.liveCategoryXtreamId}`) ??
+                (duplicates.has(key) ? undefined : content.get(key))
+            );
+        };
         const rows = journal.recentlyViewed
             .map((row) => ({
-                contentId:
-                    liveCategoryContent.get(
-                        `${identity(row)}:${row.liveCategoryXtreamId}`
-                    ) ?? content.get(identity(row)),
+                contentId: resolve(row),
                 playlistId,
                 viewedAt: row.viewedAt,
             }))
@@ -345,7 +353,7 @@ export function replayRecoveredHistory(
         // must consume only copies now owned by native history. Keep this proof
         // in the same transaction so remove/rewatch cannot erase it mid-read.
         journal.resolved = journal.recentlyViewed
-            .filter((row) => content.has(identity(row)))
+            .filter((row) => resolve(row) !== undefined)
             .map(({ contentType, xtreamId }) => ({ contentType, xtreamId }));
         writeHistoryRecovery(tx, playlistId, journal);
         return rows.length;

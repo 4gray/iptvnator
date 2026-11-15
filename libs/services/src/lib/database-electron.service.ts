@@ -1131,7 +1131,8 @@ export class DatabaseService {
         contentType?: 'live' | 'movie' | 'series',
         identity?: ContentMetadataPatch,
         categoryId?: number,
-        excludeLocked?: boolean
+        excludeLocked?: boolean,
+        fallbackToUniqueCategory?: boolean
     ): Promise<XtreamContent | null> {
         if (typeof window.electron?.dbGetContentByXtreamId !== 'function') {
             return null;
@@ -1157,6 +1158,7 @@ export class DatabaseService {
             if (selector) args[3] = selector;
             if (categoryId !== undefined) args[4] = categoryId;
             if (excludeLocked) args[5] = true;
+            if (fallbackToUniqueCategory) args[6] = true;
             return await window.electron.dbGetContentByXtreamId(...args);
         } catch (error) {
             console.error('Error getting content by xtream ID:', error);

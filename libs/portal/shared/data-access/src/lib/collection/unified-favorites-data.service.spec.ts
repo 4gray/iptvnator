@@ -708,8 +708,15 @@ describe('UnifiedFavoritesDataService', () => {
             'get'
         ).mockReturnValue(true);
         databaseService.getContentByXtreamId.mockImplementation(
-            async (_id, _source, _type, _identity, categoryId) =>
-                categoryId === 19 ? { id: 502 } : { id: 200 }
+            async (
+                _id,
+                _source,
+                _type,
+                _identity,
+                categoryId,
+                _locked,
+                allowFallback
+            ) => (categoryId === 19 && allowFallback ? { id: 502 } : null)
         );
 
         await service.addFavorite({

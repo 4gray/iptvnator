@@ -398,10 +398,10 @@ Viewed reload their rows after the commit. SQLite live favorite toggles,
 playback history writes and item removals wait for in-flight source work.
 They hold the source from channel lookup through the write and resolve the
 current row by provider identity. Collection actions also use the row's SQLite
-category when available so duplicate channel IDs stay distinct. History recovery
-prefers the original live category when the provider still returns that copy.
-Delayed history writes update the visible list only when it still belongs to
-their source.
+category, including removals from the Dashboard. If the channel moves, the
+lookup accepts a single typed match. History recovery also prefers the original
+live category and keeps ambiguous moves pending. Delayed history writes update
+the visible list only when it still belongs to their source.
 The selected live channel is rebound by provider identity to its new SQLite row.
 Retained categories keep their SQLite IDs so playback queues, the guide and
 category history links still point to the same categories. During the launch

@@ -392,6 +392,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: [42, playlistId, 'movie', undefined, undefined, true],
     },
     {
+        method: 'dbGetContentByXtreamId',
+        args: [42, playlistId, 'live', undefined, 8, undefined, true],
+        channel: 'DB_GET_CONTENT_BY_XTREAM_ID',
+        forwardedArgs: [42, playlistId, 'live', undefined, 8, undefined, true],
+    },
+    {
         method: 'dbSetContentMetadataIfMissing',
         args: [
             12,

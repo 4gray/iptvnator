@@ -1257,7 +1257,8 @@ export interface ElectronBridgeApi {
         contentType?: ElectronBridgePortalContentType,
         identity?: ContentMetadataPatch,
         categoryId?: number,
-        excludeLocked?: boolean
+        excludeLocked?: boolean,
+        fallbackToUniqueCategory?: boolean
     ) => Promise<ElectronBridgeXtreamContent | null>;
     dbSetContentMetadataIfMissing: (
         contentId: number,

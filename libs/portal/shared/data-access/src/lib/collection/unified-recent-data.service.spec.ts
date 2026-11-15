@@ -873,7 +873,9 @@ describe('UnifiedRecentDataService', () => {
                 playlistId,
                 'live',
                 undefined,
-                selectedCategory
+                selectedCategory,
+                undefined,
+                true
             );
             if (kind === 'single')
                 expect(dbService.removeRecentItem).toHaveBeenCalledWith(

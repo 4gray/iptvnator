@@ -576,16 +576,25 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         contentType?: 'live' | 'movie' | 'series',
         identity?: ContentMetadataPatch,
         categoryId?: number,
-        excludeLocked?: boolean
+        excludeLocked?: boolean,
+        fallbackToUniqueCategory?: boolean
     ): Promise<XtreamContentItem | null> {
-        if (categoryId !== undefined || excludeLocked) {
+        if (
+            categoryId !== undefined ||
+            excludeLocked ||
+            fallbackToUniqueCategory
+        ) {
             return this.dbService.getContentByXtreamId(
                 xtreamId,
                 playlistId,
                 contentType,
                 identity,
                 categoryId,
-                ...(excludeLocked ? [true] : [])
+                ...(fallbackToUniqueCategory
+                    ? ([excludeLocked, true] as const)
+                    : excludeLocked
+                      ? [true]
+                      : [])
             );
         }
         return this.dbService.getContentByXtreamId(
