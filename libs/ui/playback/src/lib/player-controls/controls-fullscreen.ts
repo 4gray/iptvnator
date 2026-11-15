@@ -90,6 +90,17 @@ export class ControlsFullscreen {
         );
     }
 
+    exitNativeVideo(): void {
+        const video = this.video();
+        if (video?.webkitDisplayingFullscreen) {
+            try {
+                video.webkitExitFullscreen?.();
+            } catch {
+                return;
+            }
+        }
+    }
+
     private canDomFullscreen(target: HTMLElement | null): boolean {
         return (
             typeof document !== 'undefined' &&
@@ -125,7 +136,7 @@ export class ControlsFullscreen {
             }
             const video = this.fullscreenVideo();
             if (video?.webkitDisplayingFullscreen) {
-                video.webkitExitFullscreen?.();
+                this.exitNativeVideo();
             } else {
                 video?.webkitEnterFullscreen?.();
             }

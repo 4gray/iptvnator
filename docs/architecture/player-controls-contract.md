@@ -143,12 +143,12 @@ project `playback-util`). `WebPlayerViewComponent` owns their in-memory,
 session-local application. No diagnostic or recommendation state or command is
 added to `PlayerController`.
 
-The only controls-layer participation is interaction gating. While the sibling
-diagnostic panel is visible, a web-player host disables shared surface and
-keyboard ownership and exits only the resolved fullscreen owner's DOM
-fullscreen (the host-supplied `fullscreenTarget`, else its own shell) so the
-recovery actions remain reachable. Clearing the diagnostic restores those paths; it
-does not make the controls contract an owner of the recovery lifecycle.
+While the sibling diagnostic panel is visible, a web-player host disables
+shared surface and keyboard ownership and exits the resolved fullscreen owner's
+DOM fullscreen (the host-supplied `fullscreenTarget`, else its own shell).
+When disabled, the shared controls also exit native fullscreen on their own
+video so the recovery actions remain reachable. Clearing the diagnostic
+restores surface and keyboard ownership.
 
 Video.js HLS has a separate nonterminal waiting notice. After 15 seconds of
 unpaused waiting with insufficient buffered data, it explains the delay and
@@ -1168,9 +1168,10 @@ components bind that value to `showControls` and
 `shortcutsEnabled`. If the shared controls' fullscreen owner (the supplied
 `fullscreenTarget`, else the player shell) is in DOM fullscreen, the host
 exits fullscreen before hiding the controls so the diagnostic banner and its
-recovery actions remain visible; fullscreen owned by another element is left
-untouched. Retrying playback or clearing the diagnostic
-restores both interaction paths.
+recovery actions remain visible. If the video inside the controls' surface
+is in WebKit native fullscreen, the shared controls exit that presentation
+when hidden. Fullscreen owned by another element is left untouched. Retrying
+playback or clearing the diagnostic restores both interaction paths.
 
 Frame-copy recording transitions use the adapter's playback/session identity as
 their `transitionKey`. Session disposal, retry, channel changes, and engine

@@ -281,11 +281,15 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
                 displaying = true;
                 video.dispatchEvent(new Event('webkitbeginfullscreen'));
             });
+            const exit = jest.fn(() => {
+                displaying = false;
+                video.dispatchEvent(new Event('webkitendfullscreen'));
+            });
             Object.defineProperties(video, {
                 webkitSupportsFullscreen: { get: () => supported },
                 webkitDisplayingFullscreen: { get: () => displaying },
                 webkitEnterFullscreen: { value: enter },
-                webkitExitFullscreen: { value: jest.fn() },
+                webkitExitFullscreen: { value: exit },
             });
             surface.appendChild(video);
             const original = Object.getOwnPropertyDescriptor(
@@ -318,10 +322,22 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
                 video.dispatchEvent(new Event('webkitendfullscreen'));
                 expect(component.isFullscreen()).toBe(false);
 
+                button?.click();
+                fixture.componentRef.setInput('showControls', false);
+                fixture.detectChanges();
+                expect(exit).toHaveBeenCalledTimes(1);
+                expect(exitFullscreen).not.toHaveBeenCalled();
+                expect(component.isFullscreen()).toBe(false);
+
+                fixture.componentRef.setInput('showControls', true);
                 supported = false;
                 video.dispatchEvent(new Event('emptied'));
                 fixture.detectChanges();
-                expect(button).toHaveProperty('disabled', true);
+                expect(
+                    host.querySelector(
+                        'button[aria-label="EMBEDDED_MPV.PLAYER.ENTER_FULLSCREEN"]'
+                    )
+                ).toHaveProperty('disabled', true);
             } finally {
                 if (original) {
                     Object.defineProperty(
