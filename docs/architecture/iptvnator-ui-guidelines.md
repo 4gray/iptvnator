@@ -1755,6 +1755,9 @@ heavier faces would exceed the initial-bytes ratchet).
 - `<html lang>` follows the UI language (`syncDocumentLanguage()` maps `by` to
   `be` and `zhtw` to `zh-TW`), so `hyphens`, `text-transform` (Turkish İ) and
   Han glyph fallback use the right locale.
+- The web app gives text entry fields at least 16 CSS pixels in iOS WebKit
+  through `apps/web/src/styles.scss`. This prevents focus from zooming the
+  page while preserving the browser's pinch-to-zoom gesture.
 
 Native navigation buttons inherit the app font family in `_nav-list.scss`,
 then apply the shared 14px/500 normal and 600 selected roles. Category
