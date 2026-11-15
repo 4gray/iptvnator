@@ -3,11 +3,23 @@ import sharp = require('sharp');
 
 /** Exercise the same live CSS boundary as SettingsService without navigating
  * away from (and therefore destroying) the player being measured. */
-export async function applyTheme(page: Page, theme: 'light' | 'dark') {
+export const themePresets = [
+    'light',
+    'dark',
+    'cream',
+    'mocha',
+    'night-owl',
+    'black-oled',
+    'high-contrast',
+] as const;
+export type ThemePreset = (typeof themePresets)[number];
+
+export async function applyTheme(page: Page, theme: ThemePreset) {
     await page.evaluate((theme) => {
+        const dark = theme !== 'light' && theme !== 'cream';
         document.body.dataset['appTheme'] = theme;
-        document.body.classList.toggle('dark-theme', theme === 'dark');
-        document.body.classList.toggle('light-theme', theme === 'light');
+        document.body.classList.toggle('dark-theme', dark);
+        document.body.classList.toggle('light-theme', !dark);
     }, theme);
 }
 
