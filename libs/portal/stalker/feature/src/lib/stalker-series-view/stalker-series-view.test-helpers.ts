@@ -40,6 +40,10 @@ export class StubSeasonContainerComponent {
     readonly playbackToggleRequested = output<unknown>();
     readonly seasonPlaybackToggleRequested = output<unknown>();
     readonly selectedSeason = signal<string | undefined>(undefined);
+    cancelRandomEpisodeCalls = 0;
+    cancelRandomEpisode(): void {
+        this.cancelRandomEpisodeCalls++;
+    }
 }
 
 @Component({

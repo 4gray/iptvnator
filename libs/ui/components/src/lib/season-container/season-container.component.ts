@@ -426,6 +426,11 @@ export class SeasonContainerComponent implements OnInit {
         this.randomEpisode.play();
     }
 
+    /** The host starts other playback: a shuffle still waiting yields. */
+    cancelRandomEpisode() {
+        this.randomEpisode.cancel();
+    }
+
     restartEpisode(episode: XtreamSerieEpisode) {
         this.randomEpisode.cancel();
         this.episodeRestartRequested.emit(episode);
