@@ -22,7 +22,6 @@
     @if (groups().audio) {
         <section
             class="player-settings__group"
-            [class.player-settings__group--focused]="isFocused('audio')"
             data-group="audio"
             data-test-id="player-settings-audio"
         >
@@ -61,7 +60,6 @@
     @if (groups().subtitles) {
         <section
             class="player-settings__group"
-            [class.player-settings__group--focused]="isFocused('subtitles')"
             data-group="subtitles"
             data-test-id="player-settings-subtitles"
         >
@@ -293,7 +291,6 @@
     @if (groups().quality) {
         <section
             class="player-settings__group"
-            [class.player-settings__group--focused]="isFocused('quality')"
             data-group="quality"
             data-test-id="player-settings-quality"
         >
@@ -348,7 +345,6 @@
     @if (groups().speed) {
         <section
             class="player-settings__group"
-            [class.player-settings__group--focused]="isFocused('speed')"
             data-group="speed"
             data-test-id="player-settings-speed"
         >
@@ -389,7 +385,6 @@
     @if (groups().aspect) {
         <section
             class="player-settings__group"
-            [class.player-settings__group--focused]="isFocused('aspect')"
             data-group="aspect"
             data-test-id="player-settings-aspect"
         >

@@ -1,4 +1,39 @@
 {
+    "TWO_STREAMS": {
+        "PICK_SOURCE": "Scegli un secondo flusso",
+        "CONTENT_TYPE": "Tipo di contenuto",
+        "LOADING_TITLES": "Caricamento dei titoli…",
+        "LOAD_TITLES_ERROR": "Impossibile caricare l’elenco. Riprova.",
+        "NO_TITLES": "Nessun titolo trovato.",
+        "MORE_TITLES": "Mostra altro",
+        "OPEN_STREAMS": "Flussi aperti",
+        "MAIN_VIEW": "Vista principale",
+        "CHANGE_CHANNEL": "Cambia il secondo flusso",
+        "REPLACE_SWAPPED_HINT": "Il video originale torna nella vista principale. Il nuovo flusso si avvia senza audio.",
+        "ADD": "Aggiungi un secondo flusso",
+        "SECOND": "Secondo flusso",
+        "SWAP": "Scambia la vista principale e quella piccola",
+        "PAUSED": "In pausa · senza audio",
+        "MUTED": "Senza audio",
+        "PAUSE": "Metti in pausa la vista piccola",
+        "RESUME": "Riprendi la vista piccola",
+        "CLOSE": "Chiudi il secondo flusso e torna indietro",
+        "AUDIO_ERROR": "Impossibile trasferire l’audio. Prova a scambiare di nuovo le viste.",
+        "PICK_HINT": "Il video in corso continua. Il secondo flusso si avvia senza audio.",
+        "UNGROUPED": "Altri canali",
+        "LOADING": "Caricamento dei canali…",
+        "LOAD_ERROR": "Impossibile caricare i canali. Riprova.",
+        "EMPTY_SOURCE": "In questa playlist non ci sono canali TV disponibili.",
+        "EMPTY_FAVORITES": "Non ci sono ancora canali preferiti. Scegli una playlist qui sopra.",
+        "NO_MATCHES": "Nessun canale corrisponde alla ricerca.",
+        "MORE": "Mostra altri canali",
+        "PLAY_ERROR": "Impossibile aprire il flusso. Riprova o scegline un altro.",
+        "OPENING": "Apertura del flusso…",
+        "SMALL_VIEW": "Vista piccola",
+        "MOVE": "Sposta la vista piccola trascinandola o usando le frecce.",
+        "RESIZE_LEFT": "Ridimensiona dall’angolo in basso a sinistra o con le frecce.",
+        "RESIZE_RIGHT": "Ridimensiona dall’angolo in basso a destra o con le frecce."
+    },
     "TMDB_MATCH": {
         "SEARCH_TV": "Cerca serie",
         "SEARCH_MOVIE": "Cerca film",
@@ -549,6 +584,8 @@
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "Riempie lo spazio intorno al lettore con un poster sfocato e scurito invece delle semplici barre nere.",
         "PLAY_TRAILERS_IN_BACKGROUND": "Riproduci i trailer sullo sfondo dei dettagli",
         "PLAY_TRAILERS_IN_BACKGROUND_DESCRIPTION": "Qualche secondo dopo l’apertura di un film o di una serie, il trailer viene riprodotto senza audio dietro i dettagli. Disattivato con connessioni a consumo e animazioni ridotte.",
+        "SERIES_AUTOPLAY": "Riproduci automaticamente l’episodio successivo",
+        "SERIES_AUTOPLAY_DESCRIPTION": "Continua con l’episodio successivo della stessa stagione delle serie Xtream e Stalker nel lettore integrato.",
         "PLAYER_UP_NEXT_RAIL": "Pannello \"A seguire\" con i prossimi episodi",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "Nelle finestre ampie, ancora il lettore delle serie a sinistra e mostra i prossimi episodi accanto.",
         "PLAYER_UP_NEXT_CARD": "Scheda \"A seguire\"",
@@ -625,7 +662,6 @@
             "CONSEQUENCE_FAVORITES": "Preferiti salvati per queste playlist",
             "CONSEQUENCE_RECENTLY_VIEWED": "Cronologia dei contenuti visti di recente",
             "CONSEQUENCE_PLAYBACK": "Posizioni di riproduzione salvate",
-            "CONSEQUENCE_DOWNLOADS": "Voci della cronologia download collegate a quelle playlist",
             "CONSEQUENCE_XTREAM_CACHE": "Categorie Xtream importate e contenuti memorizzati localmente nella cache",
             "BACKUP_HINT": "Usa prima Esporta se vuoi una copia di sicurezza ripristinabile prima di eliminare.",
             "CONFIRM": "Elimina tutto"
@@ -1499,6 +1535,10 @@
             "PORTAL_UNAVAILABLE": {
                 "TITLE": "Portale non disponibile",
                 "DESCRIPTION": "Impossibile raggiungere il portale. Controlla l'URL del server o riprova quando la sorgente sarà di nuovo disponibile."
+            },
+            "PROVIDER_RESPONSE_TOO_LARGE": {
+                "TITLE": "Il catalogo Xtream supera il limite del server",
+                "DESCRIPTION": "Aumenta il valore di IPTVNATOR_MAX_PROVIDER_RESPONSE_MB sul server e riavvialo. Quindi riprova a sincronizzare il catalogo."
             },
             "EMPTY_CATEGORY": {
                 "TITLE": "Nessun contenuto in questa categoria",

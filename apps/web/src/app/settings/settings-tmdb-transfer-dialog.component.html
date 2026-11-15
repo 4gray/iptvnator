@@ -32,6 +32,7 @@
                 }}</mat-label>
                 <input
                     matInput
+                    dir="ltr"
                     [formControl]="codeInput"
                     autocomplete="off"
                     autocapitalize="off"
@@ -44,26 +45,44 @@
             <p role="status">
                 {{ 'SETTINGS.TMDB_TRANSFER.WAITING' | translate }}
             </p>
-            <mat-form-field appearance="outline">
-                <mat-label>{{
-                    'SETTINGS.TMDB_TRANSFER.CODE' | translate
-                }}</mat-label>
-                <input matInput [value]="sendCode()" readonly />
-            </mat-form-field>
-            <button
-                mat-flat-button
-                class="app-dialog__secondary"
-                type="button"
-                [cdkCopyToClipboard]="sendCode()"
-                (cdkCopyToClipboardCopied)="copied.set($event)"
+            <div
+                class="transfer-code"
+                role="group"
+                [attr.aria-label]="'SETTINGS.TMDB_TRANSFER.CODE' | translate"
             >
-                {{ 'SETTINGS.TMDB_TRANSFER.COPY' | translate }}
-            </button>
-            @if (copied()) {
-                <span role="status">
-                    {{ 'SETTINGS.TMDB_TRANSFER.COPIED' | translate }}</span
-                >
-            }
+                <code dir="ltr" class="transfer-code__value">
+                    @if (codeCharacters().length) {
+                        <span class="visually-hidden">{{
+                            sendCode()
+                        }}</span>
+                        @for (character of codeCharacters(); track $index) {
+                            <span
+                                class="transfer-code__character"
+                                aria-hidden="true"
+                                >{{ character }}</span
+                            >
+                        }
+                    } @else {
+                        {{ sendCode() }}
+                    }
+                </code>
+                <div class="transfer-code__actions">
+                    <button
+                        mat-flat-button
+                        class="app-dialog__secondary"
+                        type="button"
+                        [cdkCopyToClipboard]="sendCode()"
+                        (cdkCopyToClipboardCopied)="copied.set($event)"
+                    >
+                        {{ 'SETTINGS.TMDB_TRANSFER.COPY' | translate }}
+                    </button>
+                    <span role="status" [class.visually-hidden]="!copied()">
+                        @if (copied()) {
+                            {{ 'SETTINGS.TMDB_TRANSFER.COPIED' | translate }}
+                        }
+                    </span>
+                </div>
+            </div>
         }
         @case ('ready') {
             <p role="status">

@@ -1,4 +1,39 @@
 {
+    "TWO_STREAMS": {
+        "PICK_SOURCE": "Choose a second stream",
+        "CONTENT_TYPE": "Content type",
+        "LOADING_TITLES": "Loading titles…",
+        "LOAD_TITLES_ERROR": "Could not load titles. Try again.",
+        "NO_TITLES": "No titles found.",
+        "MORE_TITLES": "Show more",
+        "OPEN_STREAMS": "Open streams",
+        "MAIN_VIEW": "Main view",
+        "CHANGE_CHANNEL": "Change second stream",
+        "REPLACE_SWAPPED_HINT": "The original video returns to the main view. The new stream starts muted.",
+        "ADD": "Add second stream",
+        "SECOND": "Second stream",
+        "SWAP": "Swap main and small views",
+        "PAUSED": "Paused · no sound",
+        "MUTED": "No sound",
+        "PAUSE": "Pause small view",
+        "RESUME": "Resume small view",
+        "CLOSE": "Close second stream and return",
+        "AUDIO_ERROR": "Sound could not be transferred. Try swapping again.",
+        "PICK_HINT": "Your current video keeps playing. The second starts muted.",
+        "UNGROUPED": "Other channels",
+        "LOADING": "Loading channels…",
+        "LOAD_ERROR": "Could not load channels. Try again.",
+        "EMPTY_SOURCE": "No available TV channels in this playlist.",
+        "EMPTY_FAVORITES": "No favorite TV channels yet. Choose a playlist above.",
+        "NO_MATCHES": "No channels match your search.",
+        "MORE": "Show more channels",
+        "PLAY_ERROR": "Could not open this stream. Try again or choose another.",
+        "OPENING": "Opening stream…",
+        "SMALL_VIEW": "Small view",
+        "MOVE": "Move small video. Arrow keys move it too.",
+        "RESIZE_LEFT": "Resize from the lower-left corner. Arrow keys adjust size.",
+        "RESIZE_RIGHT": "Resize from the lower-right corner. Arrow keys adjust size."
+    },
     "TMDB_MATCH": {
         "SEARCH_TV": "Search series",
         "SEARCH_MOVIE": "Search movies",
@@ -549,6 +584,8 @@
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "Fill the space around the player with a blurred, dimmed poster instead of plain black bars.",
         "PLAY_TRAILERS_IN_BACKGROUND": "Play trailers in details background",
         "PLAY_TRAILERS_IN_BACKGROUND_DESCRIPTION": "A few seconds after opening a movie or series, its trailer plays muted behind the details. Off on metered connections and with reduced motion.",
+        "SERIES_AUTOPLAY": "Automatically play the next episode",
+        "SERIES_AUTOPLAY_DESCRIPTION": "Continue with the next episode in the same season of Xtream and Stalker series in the built-in player.",
         "PLAYER_UP_NEXT_RAIL": "Up Next episode rail",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "On wide windows, dock the series player to the left and show the upcoming episodes beside it.",
         "PLAYER_UP_NEXT_CARD": "\"Up next\" card",
@@ -625,7 +662,6 @@
             "CONSEQUENCE_FAVORITES": "Favorites saved for these playlists",
             "CONSEQUENCE_RECENTLY_VIEWED": "Recently viewed history",
             "CONSEQUENCE_PLAYBACK": "Saved playback positions",
-            "CONSEQUENCE_DOWNLOADS": "Download history entries linked to those playlists",
             "CONSEQUENCE_XTREAM_CACHE": "Imported Xtream categories and locally cached content",
             "BACKUP_HINT": "Use Export first if you want a restorable backup before deleting.",
             "CONFIRM": "Delete everything"
@@ -1499,6 +1535,10 @@
             "PORTAL_UNAVAILABLE": {
                 "TITLE": "Portal unavailable",
                 "DESCRIPTION": "The portal could not be reached. Check the server URL or retry when the source is available again."
+            },
+            "PROVIDER_RESPONSE_TOO_LARGE": {
+                "TITLE": "Xtream catalog exceeds the server limit",
+                "DESCRIPTION": "Increase IPTVNATOR_MAX_PROVIDER_RESPONSE_MB on the server and restart it. Then retry the sync."
             },
             "EMPTY_CATEGORY": {
                 "TITLE": "No content in this category",

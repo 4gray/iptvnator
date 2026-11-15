@@ -32,6 +32,20 @@ export const EPG_GUIDE_CHANNEL_COLUMN_PX = 232;
 /** Rows loaded ahead of the rendered range, in each direction. */
 export const EPG_GUIDE_ROW_BUFFER = 10;
 
+export function findGuideProgramme(
+    blocks: readonly TimelineRenderBlock[],
+    programme: TimelineRenderBlock['block'] | undefined
+): number {
+    return programme
+        ? blocks.findIndex(
+              ({ block }) =>
+                  block.startMs === programme.startMs &&
+                  block.stopMs === programme.stopMs &&
+                  block.program.title === programme.program.title
+          )
+        : -1;
+}
+
 /**
  * Guide rows are shorter (44–60px) than the timeline ribbon, so the shared
  * `TIMELINE_MIN_BLOCK_WIDTH_PX`/`TIMELINE_BLOCK_GAP_PX` floor (40px/4px) is
@@ -51,7 +65,7 @@ export interface EpgGuideRowLayoutOptions {
     readonly hourWidthPx: number;
     readonly nowMs: number;
     readonly offsetMinutes: number;
-    readonly catchUpAvailable?: boolean;
+    readonly canWatch?: (program: EpgProgram) => boolean;
 }
 
 /**
@@ -88,7 +102,7 @@ export function buildGuideRowBlocks(
     programs: readonly EpgProgram[],
     options: EpgGuideRowLayoutOptions
 ): TimelineRenderBlock[] {
-    const { axis, hourWidthPx, nowMs, offsetMinutes } = options;
+    const { axis, hourWidthPx, nowMs, offsetMinutes, canWatch } = options;
     const blocks = buildTimelineBlocks(
         programs,
         axis,
@@ -102,9 +116,13 @@ export function buildGuideRowBlocks(
         gapPx: EPG_GUIDE_BLOCK_GAP_PX,
         allowGroup: false,
         nowMs,
-        archivePlaybackAvailable: options.catchUpAvailable ?? false,
+        archivePlaybackAvailable: canWatch !== undefined,
     });
-    return items.filter(
-        (item): item is TimelineRenderBlock => item.kind === 'block'
-    );
+    return items
+        .filter((item): item is TimelineRenderBlock => item.kind === 'block')
+        .map((item) =>
+            item.canCatchUp && !canWatch?.(item.block.program)
+                ? { ...item, canCatchUp: false }
+                : item
+        );
 }

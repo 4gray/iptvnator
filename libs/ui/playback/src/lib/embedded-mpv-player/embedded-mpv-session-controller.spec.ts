@@ -342,14 +342,14 @@ describe('EmbeddedMpvSessionController', () => {
 });
 
 function createHost(): HTMLElement {
-    return {
+    return Object.assign(document.createElement('div'), {
         getBoundingClientRect: () => ({
             left: 10.6,
             top: 20.5,
             width: 640,
             height: 360,
         }),
-    } as HTMLElement;
+    });
 }
 
 function createPlayback(): ResolvedPortalPlayback {

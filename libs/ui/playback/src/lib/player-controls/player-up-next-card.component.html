@@ -41,8 +41,9 @@
             @if (collapsed()) {
                 · {{ item().label }}
             }
-            ·
-            {{ countdown().key | translate: countdown().params }}
+            @if (item().showCountdown !== false) {
+                · {{ countdown().key | translate: countdown().params }}
+            }
         </span>
         @if (!collapsed()) {
             <span class="player-up-next__title">

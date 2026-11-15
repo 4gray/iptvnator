@@ -58,11 +58,16 @@ export class WorkspaceShellHeaderService {
         const context = this.routeState.currentContext();
         const action = this.headerContext.action();
 
-        if (!action || context?.provider !== 'playlists') {
+        if (!action || !context) {
             return null;
         }
-
-        return action;
+        const owner = action.owner;
+        if (!owner) return context.provider === 'playlists' ? action : null;
+        return owner.provider === context.provider &&
+            owner.playlistId === context.playlistId &&
+            owner.section === this.routeState.currentSection()
+            ? action
+            : null;
     });
     /**
      * The live rail of the current route, when the route renders one itself.
@@ -78,6 +83,8 @@ export class WorkspaceShellHeaderService {
     readonly headerSidebarToggle =
         computed<WorkspaceHeaderSidebarToggle | null>(() => {
             this.languageTick();
+
+            if (this.headerShortcut()?.hidesContextPanel?.()) return null;
 
             const surface = this.liveSidebarSurface();
             if (!surface) {

@@ -16,7 +16,7 @@ import {
     getEmbeddedMpvSupport,
     getLatestSession,
     installEmbeddedMpvSessionCapture,
-    installFrameCanvasAndSessionCapture,
+    installFrameCanvas,
     isMeaningfulNativePlaybackSnapshot,
     type LocalMediaServer,
     alsoClosing,
@@ -120,7 +120,7 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                     supported: true,
                 });
 
-            await installFrameCanvasAndSessionCapture(launchedFrameCopyApp);
+            await installEmbeddedMpvSessionCapture(launchedFrameCopyApp);
             const mpvLogPath = join(dataDir, 'mpv-frame-copy.log');
             const created = await launchedFrameCopyApp.mainWindow.evaluate(
                 async (logFile) => {
@@ -137,6 +137,7 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                 },
                 mpvLogPath
             );
+            await installFrameCanvas(launchedFrameCopyApp, created.id);
 
             await launchedFrameCopyApp.mainWindow.evaluate(
                 async ({ sessionId, streamUrl }) => {

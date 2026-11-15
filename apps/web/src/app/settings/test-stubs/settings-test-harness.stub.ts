@@ -89,6 +89,7 @@ export const DEFAULT_SETTINGS = {
     playerAmbientMode: false,
     detailTrailerBackdrop: false,
     playerUpNextRail: true,
+    seriesAutoplay: true,
     playerUpNextCard: true,
     fullscreenChannelPanel: true,
     vodAutoFailover: false,

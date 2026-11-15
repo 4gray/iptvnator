@@ -83,6 +83,7 @@ describe('PlayerService', () => {
         const result = await service.openResolvedPlayback({
             streamUrl: 'https://example.com/video.mp4',
             title: 'Example Video',
+            launchId: 'synthetic-launch',
         });
 
         expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
@@ -90,6 +91,7 @@ describe('PlayerService', () => {
             expect.objectContaining({
                 url: 'https://example.com/video.mp4',
                 title: 'Example Video',
+                launchId: 'synthetic-launch',
             })
         );
         expect(result).toEqual(session);

@@ -1,4 +1,5 @@
 import { expect, test } from './fixtures';
+import { setSwitch } from './e2e-helpers';
 import {
     interceptXtreamRequests,
     MOCK_SERVER,
@@ -142,6 +143,53 @@ test.describe('@xtream inline series fullscreen', () => {
             timeout: 15_000,
         });
         expect(await fullscreenOwner()).not.toBeNull();
+    });
+
+    test('stops at the end of an episode when series autoplay is turned off', async ({
+        page,
+        request,
+    }) => {
+        await routeEpisodeClip(page);
+        await rewriteSeriesEpisodesToMp4(page);
+        await selectWebPlayer(page, 'HTML5 video player');
+        const autoplay = page.getByRole('switch', {
+            name: 'Automatically play the next episode',
+        });
+        await expect(autoplay).toBeChecked();
+        await setSwitch(autoplay, false);
+        const saveButton = page.getByRole('button', { name: 'Save changes' });
+        await saveButton.click();
+        await expect(saveButton).toBeHidden();
+        await page.reload();
+        await expect(autoplay).not.toBeChecked();
+
+        const { playerView, video } = await playFirstSeriesEpisode(
+            page,
+            request
+        );
+        const episode = page.locator(
+            'app-portal-inline-player .player-shell__episode-meta'
+        );
+        const card = playerView.locator(
+            '[data-test-id="player-controls-up-next"]'
+        );
+        await expect(card).toBeVisible();
+        await expect(card.locator('.player-up-next__eyebrow')).toHaveText(
+            'Up next'
+        );
+        await video.evaluate(async (el) => {
+            const media = el as HTMLVideoElement;
+            media.currentTime = Math.max(0, media.duration - 0.2);
+            await media.play();
+        });
+        await expect(video).toHaveJSProperty('ended', true);
+        await expect(episode).toContainText('S01E01');
+
+        await playerView.hover();
+        await playerView
+            .locator('[data-test-id="player-controls-next-episode"]')
+            .click();
+        await expect(episode).toContainText('S01E02');
     });
 
     test('shows the Up next card near the end and plays the next episode from it', async ({

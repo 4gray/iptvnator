@@ -102,6 +102,43 @@ describe('PlayerControlsComponent stream info', () => {
         jest.useRealTimers();
     });
 
+    it('places the second-stream action next to settings, independently of stats', () => {
+        const queryAdd = (): HTMLButtonElement | null =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="player-controls-second-stream-button"]'
+            );
+        expect(queryAdd()).toBeNull();
+        const requested = jest.fn();
+        fixture.componentInstance.secondStreamRequested.subscribe(requested);
+        fixture.componentRef.setInput('canAddSecondStream', true);
+        fake.capabilities.update((value) => ({
+            ...value,
+            playbackSpeed: true,
+        }));
+        fixture.detectChanges();
+        const settings = fixture.nativeElement.querySelector(
+            '[data-test-id="player-controls-settings-button"]'
+        );
+        expect(settings).not.toBeNull();
+        expect(queryAdd()?.nextElementSibling).toBe(settings);
+        expect(queryAdd()?.querySelector('mat-icon')?.textContent?.trim()).toBe(
+            'picture_in_picture_alt'
+        );
+        expect(
+            queryButton()?.closest('.player-controls__corner')
+        ).not.toBeNull();
+        queryAdd()?.click();
+        expect(requested).toHaveBeenCalledTimes(1);
+        fake.capabilities.update((value) => ({ ...value, streamStats: false }));
+        fixture.detectChanges();
+        expect(queryButton()).toBeNull();
+        expect(queryAdd()).not.toBeNull();
+        expect(queryScrim()).toBeNull();
+        fixture.componentRef.setInput('showControls', false);
+        fixture.detectChanges();
+        expect(queryAdd()).toBeNull();
+    });
+
     it('renders the corner button only when the engine reports stats', () => {
         expect(queryButton()).not.toBeNull();
 

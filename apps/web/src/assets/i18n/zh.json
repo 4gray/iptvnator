@@ -1,4 +1,39 @@
 {
+    "TWO_STREAMS": {
+        "PICK_SOURCE": "选择第二个播放源",
+        "CONTENT_TYPE": "内容类型",
+        "LOADING_TITLES": "正在加载标题…",
+        "LOAD_TITLES_ERROR": "无法加载列表，请重试。",
+        "NO_TITLES": "未找到标题。",
+        "MORE_TITLES": "显示更多",
+        "OPEN_STREAMS": "已打开的播放源",
+        "MAIN_VIEW": "主画面",
+        "CHANGE_CHANNEL": "更换第二个播放源",
+        "REPLACE_SWAPPED_HINT": "原视频将返回主画面。新播放源将静音播放。",
+        "ADD": "添加第二个播放源",
+        "SECOND": "第二个播放源",
+        "SWAP": "交换主画面和小画面",
+        "PAUSED": "已暂停 · 无声",
+        "MUTED": "无声",
+        "PAUSE": "暂停小画面",
+        "RESUME": "继续播放小画面",
+        "CLOSE": "关闭第二个播放源并返回",
+        "AUDIO_ERROR": "无法切换声音，请重新交换画面。",
+        "PICK_HINT": "当前视频会继续播放，第二个播放源将静音播放。",
+        "UNGROUPED": "其他频道",
+        "LOADING": "正在加载频道…",
+        "LOAD_ERROR": "无法加载频道，请重试。",
+        "EMPTY_SOURCE": "此播放列表没有可用的电视频道。",
+        "EMPTY_FAVORITES": "还没有收藏的频道，请在上方选择播放列表。",
+        "NO_MATCHES": "没有符合搜索条件的频道。",
+        "MORE": "显示更多频道",
+        "PLAY_ERROR": "无法打开播放源，请重试或选择其他播放源。",
+        "OPENING": "正在打开播放源…",
+        "SMALL_VIEW": "小画面",
+        "MOVE": "拖动小画面，或使用方向键移动。",
+        "RESIZE_LEFT": "拖动左下角或使用方向键调整大小。",
+        "RESIZE_RIGHT": "拖动右下角或使用方向键调整大小。"
+    },
     "TMDB_MATCH": {
         "SEARCH_TV": "搜索剧集",
         "SEARCH_MOVIE": "搜索电影",
@@ -549,6 +584,8 @@
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "用模糊、暗淡的海报填充播放器周围的空白，而不是黑条纹。",
         "PLAY_TRAILERS_IN_BACKGROUND": "在详情背景中播放预告片",
         "PLAY_TRAILERS_IN_BACKGROUND_DESCRIPTION": "打开电影或剧集几秒后，预告片会在详情背后静音播放。按流量计费的连接和减弱动态效果时关闭。",
+        "SERIES_AUTOPLAY": "自动播放下一集",
+        "SERIES_AUTOPLAY_DESCRIPTION": "在内置播放器中继续播放 Xtream 和 Stalker 剧集同一季的下一集。",
         "PLAYER_UP_NEXT_RAIL": "「接下来播放」剧集栏",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "在宽窗口下，将剧集播放器停靠在左侧，并在旁边显示后续剧集。",
         "PLAYER_UP_NEXT_CARD": "「接下来播放」卡片",
@@ -625,7 +662,6 @@
             "CONSEQUENCE_FAVORITES": "这些播放列表中保存的收藏",
             "CONSEQUENCE_RECENTLY_VIEWED": "最近观看记录",
             "CONSEQUENCE_PLAYBACK": "保存的播放位置",
-            "CONSEQUENCE_DOWNLOADS": "与这些播放列表关联的下载历史记录",
             "CONSEQUENCE_XTREAM_CACHE": "已导入的 Xtream 分类和本地缓存内容",
             "BACKUP_HINT": "如果想在删除前保留可恢复备份，请先使用导出。",
             "CONFIRM": "全部删除"
@@ -1499,6 +1535,10 @@
             "PORTAL_UNAVAILABLE": {
                 "TITLE": "门户不可用",
                 "DESCRIPTION": "无法连接到门户。请检查服务器 URL，或在源恢复后重试。"
+            },
+            "PROVIDER_RESPONSE_TOO_LARGE": {
+                "TITLE": "Xtream 目录超出服务器大小限制",
+                "DESCRIPTION": "调高服务器上的 IPTVNATOR_MAX_PROVIDER_RESPONSE_MB 值并重启服务器，然后重试同步。"
             },
             "EMPTY_CATEGORY": {
                 "TITLE": "空分类",

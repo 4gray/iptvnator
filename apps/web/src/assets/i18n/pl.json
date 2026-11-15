@@ -1,4 +1,39 @@
 {
+    "TWO_STREAMS": {
+        "PICK_SOURCE": "Wybierz drugi strumień",
+        "CONTENT_TYPE": "Typ treści",
+        "LOADING_TITLES": "Wczytywanie tytułów…",
+        "LOAD_TITLES_ERROR": "Nie udało się wczytać listy. Spróbuj ponownie.",
+        "NO_TITLES": "Nie znaleziono tytułów.",
+        "MORE_TITLES": "Pokaż więcej",
+        "OPEN_STREAMS": "Otwarte strumienie",
+        "MAIN_VIEW": "Widok główny",
+        "CHANGE_CHANNEL": "Zmień drugi strumień",
+        "REPLACE_SWAPPED_HINT": "Pierwotne wideo wróci do widoku głównego. Nowy strumień uruchomi się bez dźwięku.",
+        "ADD": "Dodaj drugi strumień",
+        "SECOND": "Drugi strumień",
+        "SWAP": "Zamień widok główny i mały",
+        "PAUSED": "Wstrzymano · bez dźwięku",
+        "MUTED": "Bez dźwięku",
+        "PAUSE": "Wstrzymaj mały widok",
+        "RESUME": "Wznów mały widok",
+        "CLOSE": "Zamknij drugi strumień i wróć",
+        "AUDIO_ERROR": "Nie udało się przełączyć dźwięku. Spróbuj ponownie zamienić widoki.",
+        "PICK_HINT": "Bieżące wideo będzie odtwarzane dalej. Drugi strumień uruchomi się bez dźwięku.",
+        "UNGROUPED": "Inne kanały",
+        "LOADING": "Wczytywanie kanałów…",
+        "LOAD_ERROR": "Nie udało się wczytać kanałów. Spróbuj ponownie.",
+        "EMPTY_SOURCE": "Na tej liście nie ma dostępnych kanałów TV.",
+        "EMPTY_FAVORITES": "Brak ulubionych kanałów. Wybierz listę powyżej.",
+        "NO_MATCHES": "Brak kanałów pasujących do wyszukiwania.",
+        "MORE": "Pokaż więcej kanałów",
+        "PLAY_ERROR": "Nie udało się otworzyć strumienia. Spróbuj ponownie lub wybierz inny.",
+        "OPENING": "Otwieranie strumienia…",
+        "SMALL_VIEW": "Mały widok",
+        "MOVE": "Przeciągnij mały widok lub przesuń go klawiszami strzałek.",
+        "RESIZE_LEFT": "Zmień rozmiar lewym dolnym rogiem lub klawiszami strzałek.",
+        "RESIZE_RIGHT": "Zmień rozmiar prawym dolnym rogiem lub klawiszami strzałek."
+    },
     "TMDB_MATCH": {
         "SEARCH_TV": "Szukaj seriali",
         "SEARCH_MOVIE": "Szukaj filmów",
@@ -549,6 +584,8 @@
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "Wypełnij przestrzeń wokół odtwarzacza rozmytym, przyciemnianym plakatem zamiast zwykłych czarnych pasków.",
         "PLAY_TRAILERS_IN_BACKGROUND": "Odtwarzaj zwiastuny w tle szczegółów",
         "PLAY_TRAILERS_IN_BACKGROUND_DESCRIPTION": "Kilka sekund po otwarciu filmu lub serialu zwiastun odtwarza się bez dźwięku za szczegółami. Wyłączone przy połączeniach taryfowych i ograniczonym ruchu.",
+        "SERIES_AUTOPLAY": "Odtwarzaj automatycznie następny odcinek",
+        "SERIES_AUTOPLAY_DESCRIPTION": "Przechodź do następnego odcinka tego samego sezonu seriali Xtream i Stalker we wbudowanym odtwarzaczu.",
         "PLAYER_UP_NEXT_RAIL": "Panel następnych odcinków",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "W szerokich oknach zadokuj odtwarzacz serialu po lewej stronie i pokaż obok kolejne odcinki.",
         "PLAYER_UP_NEXT_CARD": "Karta „Następny”",
@@ -625,7 +662,6 @@
             "CONSEQUENCE_FAVORITES": "Ulubione zapisane dla tych list odtwarzania",
             "CONSEQUENCE_RECENTLY_VIEWED": "Historię ostatnio oglądanych",
             "CONSEQUENCE_PLAYBACK": "Zapisane pozycje odtwarzania",
-            "CONSEQUENCE_DOWNLOADS": "Wpisy historii pobierania powiązane z tymi listami odtwarzania",
             "CONSEQUENCE_XTREAM_CACHE": "Zaimportowane kategorie Xtream i lokalnie zapisane treści",
             "BACKUP_HINT": "Najpierw użyj eksportu, jeśli przed usunięciem chcesz utworzyć kopię zapasową do przywrócenia.",
             "CONFIRM": "Usuń wszystko"
@@ -1499,6 +1535,10 @@
             "PORTAL_UNAVAILABLE": {
                 "TITLE": "Portal niedostępny",
                 "DESCRIPTION": "Nie można połączyć się z portalem. Sprawdź URL serwera lub spróbuj ponownie, gdy źródło będzie ponownie dostępne."
+            },
+            "PROVIDER_RESPONSE_TOO_LARGE": {
+                "TITLE": "Katalog Xtream przekracza limit serwera",
+                "DESCRIPTION": "Zwiększ wartość IPTVNATOR_MAX_PROVIDER_RESPONSE_MB na serwerze i uruchom go ponownie. Następnie ponów synchronizację."
             },
             "EMPTY_CATEGORY": {
                 "TITLE": "Brak treści w tej kategorii",

@@ -1,4 +1,39 @@
 {
+    "TWO_STREAMS": {
+        "PICK_SOURCE": "두 번째 스트림 선택",
+        "CONTENT_TYPE": "콘텐츠 유형",
+        "LOADING_TITLES": "제목 불러오는 중…",
+        "LOAD_TITLES_ERROR": "목록을 불러올 수 없습니다. 다시 시도하세요.",
+        "NO_TITLES": "검색 결과가 없습니다.",
+        "MORE_TITLES": "더 보기",
+        "OPEN_STREAMS": "열린 스트림",
+        "MAIN_VIEW": "기본 화면",
+        "CHANGE_CHANNEL": "두 번째 스트림 변경",
+        "REPLACE_SWAPPED_HINT": "기존 영상이 기본 화면으로 돌아갑니다. 새 스트림은 음소거 상태로 시작합니다.",
+        "ADD": "두 번째 스트림 추가",
+        "SECOND": "두 번째 스트림",
+        "SWAP": "기본 화면과 작은 화면 바꾸기",
+        "PAUSED": "일시정지 · 소리 없음",
+        "MUTED": "소리 없음",
+        "PAUSE": "작은 화면 일시정지",
+        "RESUME": "작은 화면 재생 재개",
+        "CLOSE": "두 번째 스트림을 닫고 돌아가기",
+        "AUDIO_ERROR": "소리를 전환할 수 없습니다. 화면을 다시 바꿔 보세요.",
+        "PICK_HINT": "현재 영상은 계속 재생됩니다. 두 번째 스트림은 음소거로 시작합니다.",
+        "UNGROUPED": "기타 채널",
+        "LOADING": "채널 불러오는 중…",
+        "LOAD_ERROR": "채널을 불러올 수 없습니다. 다시 시도하세요.",
+        "EMPTY_SOURCE": "이 재생목록에 재생할 수 있는 TV 채널이 없습니다.",
+        "EMPTY_FAVORITES": "즐겨찾는 채널이 아직 없습니다. 위에서 재생목록을 선택하세요.",
+        "NO_MATCHES": "검색과 일치하는 채널이 없습니다.",
+        "MORE": "채널 더 보기",
+        "PLAY_ERROR": "스트림을 열 수 없습니다. 다시 시도하거나 다른 스트림을 선택하세요.",
+        "OPENING": "스트림 여는 중…",
+        "SMALL_VIEW": "작은 화면",
+        "MOVE": "작은 화면을 끌거나 화살표 키로 이동하세요.",
+        "RESIZE_LEFT": "왼쪽 아래 모서리나 화살표 키로 크기를 조절하세요.",
+        "RESIZE_RIGHT": "오른쪽 아래 모서리나 화살표 키로 크기를 조절하세요."
+    },
     "TMDB_MATCH": {
         "SEARCH_TV": "시리즈 검색",
         "SEARCH_MOVIE": "영화 검색",
@@ -549,6 +584,8 @@
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "플레이어 주변을 검은 막대 대신 흐려지고 어두워진 포스터로 채웁니다.",
         "PLAY_TRAILERS_IN_BACKGROUND": "상세 화면 배경에서 예고편 재생",
         "PLAY_TRAILERS_IN_BACKGROUND_DESCRIPTION": "영화나 시리즈를 연 지 몇 초 후 예고편이 상세 정보 뒤에서 음소거로 재생됩니다. 데이터 절약 연결과 동작 줄이기 설정에서는 꺼집니다.",
+        "SERIES_AUTOPLAY": "다음 에피소드 자동 재생",
+        "SERIES_AUTOPLAY_DESCRIPTION": "내장 플레이어에서 Xtream 및 Stalker 시리즈의 같은 시즌에 있는 다음 에피소드를 재생합니다.",
         "PLAYER_UP_NEXT_RAIL": "다음 에피소드 레일",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "넓은 창에서 시리즈 플레이어를 왼쪽에 고정하고 그 옆에 다음 에피소드를 표시합니다.",
         "PLAYER_UP_NEXT_CARD": "다음 에피소드 카드",
@@ -625,7 +662,6 @@
             "CONSEQUENCE_FAVORITES": "이 플레이리스트에 저장된 즐겨찾기",
             "CONSEQUENCE_RECENTLY_VIEWED": "최근 시청 기록",
             "CONSEQUENCE_PLAYBACK": "저장된 재생 위치",
-            "CONSEQUENCE_DOWNLOADS": "이 플레이리스트와 연결된 다운로드 기록 항목",
             "CONSEQUENCE_XTREAM_CACHE": "가져온 Xtream 카테고리와 로컬에 캐시된 콘텐츠",
             "BACKUP_HINT": "삭제 전에 복원 가능한 백업을 남기려면 먼저 내보내기를 사용하세요.",
             "CONFIRM": "모두 삭제"
@@ -1499,6 +1535,10 @@
             "PORTAL_UNAVAILABLE": {
                 "TITLE": "포털을 사용할 수 없습니다",
                 "DESCRIPTION": "포털에 연결할 수 없습니다. 서버 URL을 확인하거나 소스를 다시 사용할 수 있을 때 다시 시도하세요."
+            },
+            "PROVIDER_RESPONSE_TOO_LARGE": {
+                "TITLE": "Xtream 카탈로그가 서버의 크기 제한을 초과했습니다",
+                "DESCRIPTION": "서버의 IPTVNATOR_MAX_PROVIDER_RESPONSE_MB 값을 높이고 서버를 다시 시작하세요. 그런 다음 동기화를 다시 시도하세요."
             },
             "EMPTY_CATEGORY": {
                 "TITLE": "빈 카테고리",

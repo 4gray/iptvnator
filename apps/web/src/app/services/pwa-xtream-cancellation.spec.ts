@@ -237,6 +237,26 @@ describe('PWA Xtream request cancellation', () => {
         }
     );
 
+    it('retains the server size-limit code in the Xtream error envelope', async () => {
+        const result = TestBed.inject(PwaService).forwardXtreamRequest({
+            url: credentials.serverUrl,
+            params: { action: 'get_vod_streams' },
+        });
+        await settle();
+        http.expectOne((request) =>
+            request.url.endsWith('/provider-targets')
+        ).flush({ targetId: 'synthetic' });
+        await settle();
+        const error = {
+            code: 'PROVIDER_RESPONSE_TOO_LARGE',
+            status: 413,
+            message: 'Provider response exceeds the configured size limit',
+        };
+        http.expectOne((request) => request.url.endsWith('/xtream')).flush(error);
+
+        await expect(result).resolves.toEqual({ type: ERROR, ...error });
+    });
+
     it.each([
         [{ status: 502 }, 'PORTALS.REQUEST_ERRORS.XTREAM_CONNECTION'],
         [

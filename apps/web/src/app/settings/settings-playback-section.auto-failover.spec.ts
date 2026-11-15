@@ -76,6 +76,7 @@ function createForm(player: VideoPlayer): FormGroup {
         detailTrailerBackdrop: new FormControl(false),
         showCaptions: new FormControl(false),
         playerUpNextRail: new FormControl(true),
+        seriesAutoplay: new FormControl(true),
         playerUpNextCard: new FormControl(true),
         fullscreenChannelPanel: new FormControl(true),
         streamFormat: new FormControl(StreamFormat.AutoStreamFormat),

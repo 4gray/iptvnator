@@ -1,8 +1,5 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
-import {
-    WorkspaceHeaderAction,
-    WorkspaceHeaderContextService,
-} from './workspace-header-context.service';
+import { Injectable, signal } from '@angular/core';
+import { WorkspaceHeaderAction } from './workspace-header-context.service';
 import { WorkspaceCommandContribution } from './workspace-view-command.types';
 
 /** A palette flag may be a value or a getter; `undefined` means "not set". */
@@ -19,24 +16,20 @@ interface RegisteredWorkspaceCommand {
 
 @Injectable({ providedIn: 'root' })
 export class WorkspaceViewCommandService {
-    private readonly headerContext = inject(WorkspaceHeaderContextService);
     private readonly registeredCommands = signal<RegisteredWorkspaceCommand[]>(
         []
     );
 
-    readonly commands = computed<readonly WorkspaceCommandContribution[]>(
-        () => {
-            const commands = this.registeredCommands().map(
-                (entry) => entry.command
-            );
-            const headerAction = this.headerContext.action();
-            const headerCommand = headerAction
-                ? this.toHeaderCommand(headerAction)
-                : null;
-
-            return headerCommand ? [headerCommand, ...commands] : commands;
-        }
-    );
+    commands(
+        headerAction: WorkspaceHeaderAction | null
+    ): readonly WorkspaceCommandContribution[] {
+        const commands = this.registeredCommands().map(
+            (entry) => entry.command
+        );
+        return headerAction
+            ? [this.toHeaderCommand(headerAction), ...commands]
+            : commands;
+    }
 
     registerCommand(command: WorkspaceCommandContribution): () => void {
         const token = Symbol(command.id);

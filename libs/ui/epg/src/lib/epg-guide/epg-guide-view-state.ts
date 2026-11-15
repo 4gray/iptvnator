@@ -1,4 +1,4 @@
-import { computed, effect, signal } from '@angular/core';
+import { computed, effect, signal, type WritableSignal } from '@angular/core';
 import { foldSearchText, EpgProgram } from '@iptvnator/shared/interfaces';
 import {
     EpgDateNavigationDirection,
@@ -41,7 +41,7 @@ export class EpgGuideViewState {
     readonly dayKey = signal(getTodayEpgDateKey());
     readonly zoom = signal(this.preferences.zoom);
     readonly density = signal<EpgGuideDensity>(this.preferences.density);
-    readonly onlyWithEpg = signal(this.preferences.onlyWithEpg);
+    readonly onlyWithEpg: WritableSignal<boolean>;
     readonly filter = signal('');
     readonly nowMs = signal(Date.now());
     /** The viewport's horizontal offset; the ruler and now-line follow it. */
@@ -82,12 +82,17 @@ export class EpgGuideViewState {
         CLOCK_TICK_MS
     );
 
-    constructor() {
+    constructor(rememberCoverageFilter = true) {
+        this.onlyWithEpg = signal(
+            rememberCoverageFilter && this.preferences.onlyWithEpg
+        );
         effect(() =>
             persistEpgGuidePreferences({
                 density: this.density(),
                 zoom: this.zoom(),
-                onlyWithEpg: this.onlyWithEpg(),
+                onlyWithEpg: rememberCoverageFilter
+                    ? this.onlyWithEpg()
+                    : this.preferences.onlyWithEpg,
             })
         );
     }
@@ -99,15 +104,21 @@ export class EpgGuideViewState {
      */
     filterRows(
         channels: readonly EpgGuideChannel[],
-        isCovered: (channelId: string) => boolean
+        isCovered: (channelId: string) => boolean,
+        numberByDisplayedOrder = false
     ): EpgGuideChannel[] {
         const needle = foldSearchText(this.filter().trim());
         const onlyWithEpg = this.onlyWithEpg();
-        return channels.filter(
+        const visible = channels.filter(
             (channel) =>
                 (!needle || foldSearchText(channel.name).includes(needle)) &&
                 (!onlyWithEpg || isCovered(channel.id))
         );
+        return numberByDisplayedOrder
+            ? visible.map((row, index) =>
+                  row.number === index + 1 ? row : { ...row, number: index + 1 }
+              )
+            : visible;
     }
 
     setZoom(value: number): void {
@@ -131,14 +142,14 @@ export class EpgGuideViewState {
     blocksFor(
         programs: readonly EpgProgram[],
         offsetMinutes: number,
-        catchUpAvailable: boolean
+        canWatch?: (program: EpgProgram) => boolean
     ): TimelineRenderBlock[] {
         return buildGuideRowBlocks(programs, {
             axis: this.axis(),
             hourWidthPx: this.zoom(),
             nowMs: this.nowMs(),
             offsetMinutes,
-            catchUpAvailable,
+            canWatch,
         });
     }
 

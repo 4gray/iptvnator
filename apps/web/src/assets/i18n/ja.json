@@ -1,4 +1,39 @@
 {
+    "TWO_STREAMS": {
+        "PICK_SOURCE": "2つ目のストリームを選択",
+        "CONTENT_TYPE": "コンテンツの種類",
+        "LOADING_TITLES": "タイトルを読み込み中…",
+        "LOAD_TITLES_ERROR": "リストを読み込めませんでした。もう一度お試しください。",
+        "NO_TITLES": "タイトルが見つかりません。",
+        "MORE_TITLES": "さらに表示",
+        "OPEN_STREAMS": "再生中のストリーム",
+        "MAIN_VIEW": "メイン画面",
+        "CHANGE_CHANNEL": "2つ目のストリームを変更",
+        "REPLACE_SWAPPED_HINT": "元の動画がメイン画面に戻ります。新しいストリームはミュートで始まります。",
+        "ADD": "2つ目のストリームを追加",
+        "SECOND": "2つ目のストリーム",
+        "SWAP": "メイン画面と小画面を入れ替え",
+        "PAUSED": "一時停止中 · 音声なし",
+        "MUTED": "音声なし",
+        "PAUSE": "小画面を一時停止",
+        "RESUME": "小画面を再開",
+        "CLOSE": "2つ目のストリームを閉じて戻る",
+        "AUDIO_ERROR": "音声を切り替えられませんでした。もう一度お試しください。",
+        "PICK_HINT": "現在の動画は再生を続けます。2つ目のストリームはミュートで始まります。",
+        "UNGROUPED": "その他のチャンネル",
+        "LOADING": "チャンネルを読み込み中…",
+        "LOAD_ERROR": "チャンネルを読み込めませんでした。もう一度お試しください。",
+        "EMPTY_SOURCE": "このプレイリストに利用可能なテレビチャンネルはありません。",
+        "EMPTY_FAVORITES": "お気に入りのチャンネルがありません。上でプレイリストを選択してください。",
+        "NO_MATCHES": "検索に一致するチャンネルがありません。",
+        "MORE": "さらにチャンネルを表示",
+        "PLAY_ERROR": "ストリームを開けませんでした。もう一度試すか、別のものを選んでください。",
+        "OPENING": "ストリームを開いています…",
+        "SMALL_VIEW": "小画面",
+        "MOVE": "小画面をドラッグまたは矢印キーで移動します。",
+        "RESIZE_LEFT": "左下隅または矢印キーでサイズを変更します。",
+        "RESIZE_RIGHT": "右下隅または矢印キーでサイズを変更します。"
+    },
     "TMDB_MATCH": {
         "SEARCH_TV": "シリーズを検索",
         "SEARCH_MOVIE": "映画を検索",
@@ -549,6 +584,8 @@
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "プレーヤーの周囲をぼかしたポスター画像で埋め、通常の黒い枠の代わりに表示します。",
         "PLAY_TRAILERS_IN_BACKGROUND": "詳細の背景で予告編を再生",
         "PLAY_TRAILERS_IN_BACKGROUND_DESCRIPTION": "映画やシリーズを開いて数秒後、予告編が詳細の背後でミュート再生されます。従量制接続や視差効果を減らす設定ではオフになります。",
+        "SERIES_AUTOPLAY": "次のエピソードを自動再生",
+        "SERIES_AUTOPLAY_DESCRIPTION": "内蔵プレーヤーで Xtream と Stalker のシリーズを視聴中に、同じシーズンの次のエピソードを再生します。",
         "PLAYER_UP_NEXT_RAIL": "「次に再生」エピソードレール",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "ウィンドウ幅が広い場合、シリーズのプレーヤーを左側に配置し、その横に次のエピソードの一覧を表示します。",
         "PLAYER_UP_NEXT_CARD": "「次に再生」カード",
@@ -625,7 +662,6 @@
             "CONSEQUENCE_FAVORITES": "これらのプレイリストに保存されたお気に入り",
             "CONSEQUENCE_RECENTLY_VIEWED": "最近視聴した履歴",
             "CONSEQUENCE_PLAYBACK": "保存された再生位置",
-            "CONSEQUENCE_DOWNLOADS": "これらのプレイリストに紐づくダウンロード履歴",
             "CONSEQUENCE_XTREAM_CACHE": "インポート済みの Xtream カテゴリとローカルにキャッシュされたコンテンツ",
             "BACKUP_HINT": "削除前に復元可能なバックアップを残したい場合は、先にエクスポートを使用してください。",
             "CONFIRM": "すべて削除"
@@ -1499,6 +1535,10 @@
             "PORTAL_UNAVAILABLE": {
                 "TITLE": "ポータルを利用できません",
                 "DESCRIPTION": "ポータルに接続できませんでした。サーバーURLを確認するか、ソースが復旧したら再試行してください。"
+            },
+            "PROVIDER_RESPONSE_TOO_LARGE": {
+                "TITLE": "Xtream カタログがサーバーの上限を超えています",
+                "DESCRIPTION": "サーバーの IPTVNATOR_MAX_PROVIDER_RESPONSE_MB の値を増やしてサーバーを再起動し、同期をやり直してください。"
             },
             "EMPTY_CATEGORY": {
                 "TITLE": "空のカテゴリー",

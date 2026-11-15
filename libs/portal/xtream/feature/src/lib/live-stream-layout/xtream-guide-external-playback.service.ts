@@ -1,0 +1,423 @@
+import {
+    computed,
+    DestroyRef,
+    effect,
+    inject,
+    Injectable,
+    linkedSignal,
+    signal,
+    untracked,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { ParentalLockService } from '@iptvnator/services';
+import type {
+    EpgProgram,
+    ResolvedPortalPlayback,
+} from '@iptvnator/shared/interfaces';
+import {
+    captureXtreamLiveOwner,
+    hasXtreamOpenedMedia,
+    isXtreamLiveCategoryWithheld,
+    sameXtreamLiveOwner,
+    XtreamExternalLiveSessions,
+    type XtreamLiveSource,
+} from './xtream-external-live-sessions.service';
+import {
+    sameXtreamChannelCopy,
+    type XtreamLiveChannelItem,
+} from './xtream-live-channel-navigation.service';
+
+import {
+    guideLaunchFromSource,
+    withConfirmedChannelCopy,
+    type ConfirmedLaunch,
+    type GuideLaunch,
+    type GuidePanel,
+} from './xtream-native-handoff';
+
+/** The live panel follows confirmed playback, independently of browse previews. */
+@Injectable()
+export class XtreamGuideExternalPlayback {
+    private readonly playback = inject(PORTAL_EXTERNAL_PLAYBACK, {
+        optional: true,
+    });
+    private readonly lock = inject(ParentalLockService);
+    private readonly sessions = inject(XtreamExternalLiveSessions);
+    private readonly store = inject(XtreamStore);
+    private readonly destroyRef = inject(DestroyRef);
+    readonly owner = computed(() =>
+        captureXtreamLiveOwner(this.store.currentPlaylist())
+    );
+    private readonly pending = signal<GuideLaunch | undefined>(undefined);
+    private readonly failedTuning = signal<GuideLaunch | undefined>(undefined);
+    private panel?: GuidePanel;
+    private panelPlayback?: ResolvedPortalPlayback;
+    private readonly panelSessionId = signal<string | undefined>(undefined);
+
+    readonly hasSessionUpdates =
+        !!this.playback &&
+        typeof window.electron?.onExternalPlayerSessionUpdate === 'function';
+    private readonly playing = linkedSignal({
+        source: () => ({
+            owner: this.owner(),
+            active: this.playback?.activeSession(),
+        }),
+        computation: ({ owner, active }, previous): ConfirmedLaunch | null => {
+            if (!owner || !this.hasSessionUpdates) return null;
+            const prior = previous?.value;
+            const activeSource = hasXtreamOpenedMedia(active)
+                ? this.sessions.state(active.id)?.source
+                : undefined;
+            const owned =
+                !!activeSource && sameXtreamLiveOwner(activeSource, owner);
+            this.lock.version();
+            const previousSession =
+                prior &&
+                sameXtreamLiveOwner(prior.lockSource, owner) &&
+                prior.session.id !== active?.id
+                    ? this.sessions.state(prior.session.id)?.session
+                    : undefined;
+            const session =
+                owned && !isXtreamLiveCategoryWithheld(this.lock, activeSource)
+                    ? active
+                    : (this.sessions.latestOpened(owner, active?.id) ??
+                      (owned ? active : previousSession));
+            if (!hasXtreamOpenedMedia(session)) return null;
+            const source = this.sessions.state(session.id)?.source;
+            if (!source) return null;
+            if (prior?.session.id === session.id && prior.lockSource === source)
+                return { ...prior, session };
+            const launch = guideLaunchFromSource(source);
+            return launch ? { ...launch, session } : null;
+        },
+    });
+
+    readonly confirmed = computed(() => {
+        const playing = this.playing();
+        return this.isAllowed(playing?.lockSource) ? playing : null;
+    });
+
+    isStopping(): boolean {
+        return this.sessions.handoff.isStopping(this.confirmed()?.session.id);
+    }
+
+    readonly launching = computed(() => {
+        const pending = this.pending();
+        if (
+            pending?.retry &&
+            pending.ended?.() !== 'ended' &&
+            this.isAllowed(pending.lockSource)
+        )
+            return true;
+        const active = this.playback?.activeSession();
+        if (!active || this.playing()) return false;
+        if (
+            active.status !== 'launching' &&
+            !(
+                active.mediaLoaded === false &&
+                !active.playbackIdle &&
+                (active.status === 'opened' || active.status === 'playing')
+            )
+        )
+            return false;
+        return this.isAllowed(this.sessions.state(active.id)?.source);
+    });
+
+    readonly idlePlayback = computed(() => {
+        const ids = [this.playback?.activeSession()?.id, this.panelSessionId()];
+        for (const id of ids) {
+            const entry = id ? this.sessions.state(id) : undefined;
+            if (
+                entry?.session.playbackIdle &&
+                (entry.session.status === 'opened' ||
+                    entry.session.status === 'playing') &&
+                this.isAllowed(entry.source)
+            )
+                return entry.source;
+        }
+        return undefined;
+    });
+
+    stoppedTuningSource(): XtreamLiveSource | undefined {
+        const idle = this.idlePlayback();
+        const pending = this.pending();
+        const failed =
+            pending?.ended?.() === 'failed' ? pending : this.failedTuning();
+        if (idle || failed?.ended?.() === 'ended') return idle;
+        const source = failed?.lockSource;
+        return this.isAllowed(source) ? source : undefined;
+    }
+
+    readonly unverifiedPlayback = computed(() => {
+        const active = this.playback?.activeSession();
+        if (
+            !(active?.playbackUnverified || active?.mediaReadinessTimedOut) ||
+            active.playbackIdle ||
+            (active.status !== 'opened' && active.status !== 'playing')
+        )
+            return undefined;
+        const source = this.sessions.state(active.id)?.source;
+        return this.isAllowed(source) ? { session: active, source } : undefined;
+    });
+
+    remoteTuningSource(): XtreamLiveSource | undefined {
+        const pending = this.pending();
+        return pending &&
+            (pending.remote || !this.confirmed()) &&
+            !pending.ended?.() &&
+            this.isAllowed(pending.lockSource)
+            ? pending.lockSource
+            : undefined;
+    }
+
+    private isAllowed(source?: XtreamLiveSource): source is XtreamLiveSource {
+        this.lock.version();
+        return (
+            !!source &&
+            sameXtreamLiveOwner(source, this.owner()) &&
+            !isXtreamLiveCategoryWithheld(this.lock, source)
+        );
+    }
+
+    canRetryUnverifiedStream(): boolean {
+        const session = this.confirmed()?.session;
+        return (
+            session?.player === 'vlc' &&
+            (session.playbackUnverified || session.playbackIdle === undefined)
+        );
+    }
+
+    constructor() {
+        this.playback?.stopRequested
+            ?.pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe((id) => {
+                const source = this.sessions.state(id)?.source;
+                if (!source || !sameXtreamLiveOwner(this.owner(), source))
+                    return;
+                if (this.panel?.enabled()) this.panel.cancelPendingRequest();
+                this.sessions.cancelPendingSwitches(source, { dockStopId: id });
+                this.failedTuning.set(undefined);
+                this.pending.set(undefined);
+            });
+        effect(() => {
+            if (!this.panel?.enabled()) return;
+            const active = this.playback?.activeSession();
+            const playing = this.confirmed();
+            const pending = this.pending();
+            const ended = pending?.ended?.();
+            untracked(() => {
+                const confirmedRequest =
+                    pending &&
+                    playing?.lockSource === pending.lockSource &&
+                    playing.session.mediaLoaded !== false
+                        ? pending
+                        : undefined;
+                if (confirmedRequest || ended) this.pending.set(undefined);
+                const failed = ended === 'failed' || ended === 'retryable';
+                if (failed && !playing && pending?.canDispatch?.() !== false)
+                    this.failedTuning.set(pending);
+                if (!playing) return;
+                this.failedTuning.set(undefined);
+                const id = playing.session.id;
+                if (
+                    !ended &&
+                    !confirmedRequest &&
+                    this.panelSessionId() === id &&
+                    !(active?.id === id && active.restoredFromSessionId)
+                )
+                    return;
+                this.syncPanel(playing);
+                if (confirmedRequest?.canDispatch?.() !== false)
+                    confirmedRequest?.onConfirmed?.();
+            });
+        });
+    }
+
+    bind(panel: GuidePanel): void {
+        this.panel = panel;
+    }
+
+    reset(): void {
+        this.pending.set(undefined);
+        this.failedTuning.set(undefined);
+        this.panelPlayback = undefined;
+        this.panelSessionId.set(undefined);
+    }
+
+    start(
+        playback: ResolvedPortalPlayback | null,
+        item: XtreamLiveChannelItem,
+        archive: EpgProgram | null,
+        categoryId: XtreamLiveSource['categoryId'],
+        queue?: readonly XtreamLiveChannelItem[],
+        options: Pick<GuideLaunch, 'remote' | 'onConfirmed'> & {
+            launchId?: string;
+            replaceWith?: string;
+        } = {}
+    ): void {
+        if (!playback?.streamUrl) return;
+        const { remote, onConfirmed, launchId, replaceWith } = options;
+        const owner = this.owner();
+        const source =
+            owner && this.hasSessionUpdates
+                ? {
+                      ...owner,
+                      categoryId,
+                      channel: item,
+                      archive,
+                      playback,
+                      queue,
+                  }
+                : undefined;
+        const launch = source && guideLaunchFromSource(source);
+        if (launch)
+            Object.assign(launch, {
+                remote,
+                onConfirmed,
+                canDispatch: this.panel?.dispatchGuard(),
+            });
+        this.panelPlayback = this.panel?.current() ?? playback;
+        const lifecycle = source && this.sessions.begin(source, launchId);
+        const isCurrent = () =>
+            this.pending() === launch && !this.destroyRef.destroyed;
+        const canDispatch = () => launch?.canDispatch?.() !== false;
+        const canOpen = () =>
+            isCurrent() && this.isAllowed(source) && canDispatch();
+        const prior = replaceWith && this.confirmed()?.session;
+        const close =
+            source &&
+            this.sessions.closeBeforeTune(
+                source,
+                replaceWith,
+                prior ? prior.id : undefined,
+                canOpen
+            );
+        if (launch)
+            Object.assign(launch, { ended: lifecycle?.ended, retry: !!close });
+        this.failedTuning.set(undefined);
+        this.pending.set(launch);
+        const recover = (failed: boolean) => {
+            if (!isCurrent()) return;
+            this.pending.set(undefined);
+            const confirmed = this.confirmed();
+            if (confirmed) this.syncPanel(confirmed);
+            else if (failed && canDispatch()) this.failedTuning.set(launch);
+        };
+        const open = () => {
+            lifecycle?.dispatch();
+            return this.store.openPlayer(
+                playback.streamUrl,
+                playback.title,
+                playback.thumbnail,
+                undefined,
+                undefined,
+                lifecycle?.launchId
+            );
+        };
+        const opening = close
+            ? close.then(() => (canOpen() ? open() : undefined))
+            : open();
+        void Promise.resolve(opening).then(
+            (session) => {
+                lifecycle?.finish(session);
+                if (!session || ['error', 'closed'].includes(session.status))
+                    recover(!session || lifecycle?.ended() === 'failed');
+            },
+            () => {
+                lifecycle?.finish();
+                recover(true);
+            }
+        );
+    }
+
+    replacePendingCopy(
+        item: XtreamLiveChannelItem,
+        category: () => XtreamLiveSource['categoryId'],
+        queue: readonly XtreamLiveChannelItem[],
+        onConfirmed?: () => void
+    ): boolean {
+        const pending = this.pending();
+        if (
+            !pending ||
+            !sameXtreamLiveOwner(pending.lockSource, this.owner()) ||
+            pending.ended?.() ||
+            pending.archive ||
+            pending.item.xtream_id !== item.xtream_id
+        )
+            return false;
+        if (onConfirmed) pending.onConfirmed = onConfirmed;
+        this.panel?.cancelPendingRequest();
+        pending.canDispatch = this.panel?.dispatchGuard();
+        if (!sameXtreamChannelCopy(pending.item, item)) {
+            pending.item = item;
+            pending.lockSource.categoryId = category();
+            pending.lockSource.channel = item;
+            pending.lockSource.queue = queue;
+            if (this.panel?.current() === pending.playback)
+                this.panel.select(item);
+        }
+        return true;
+    }
+
+    cancelPendingSwitch(
+        item: XtreamLiveChannelItem
+    ): Promise<void> | undefined {
+        const confirmed = this.confirmed();
+        if (!confirmed) return;
+        const { lockSource, session } = confirmed;
+        const cancelled = this.sessions.cancelPendingSwitches(lockSource, {
+            keep: { channelId: item.xtream_id, sessionId: session.id },
+        });
+        if (!cancelled) return;
+        if (this.pending()?.ended?.()) this.pending.set(undefined);
+        this.syncPanel(confirmed);
+        return cancelled;
+    }
+
+    replaceConfirmedCopy(
+        item: XtreamLiveChannelItem,
+        categoryId: XtreamLiveSource['categoryId']
+    ): void {
+        const playing = this.confirmed();
+        if (!playing) return;
+        const copy = withConfirmedChannelCopy(playing, item, categoryId);
+        this.playing.set(copy);
+        this.sessions.update(playing.session, copy.lockSource);
+        this.syncPanel(copy);
+    }
+
+    resolveCategory(
+        url: string,
+        item: XtreamLiveChannelItem,
+        categoryId: number
+    ): void {
+        const launches = [this.pending(), this.playing(), this.failedTuning()];
+        for (const launch of launches)
+            if (launch?.playback.streamUrl === url && launch.item === item)
+                launch.lockSource.categoryId = categoryId;
+    }
+
+    restoreConfirmedPanel(commit = false): boolean {
+        const confirmed = this.confirmed();
+        const current = this.panel?.current() ?? this.panelPlayback;
+        if (commit && confirmed) this.panelPlayback = current;
+        if (!confirmed || current !== this.panelPlayback) return false;
+        this.syncPanel(confirmed);
+        return true;
+    }
+
+    private syncPanel(launch: ConfirmedLaunch): void {
+        const panel = this.panel;
+        if (!panel) return;
+        this.panelSessionId.set(launch.session.id);
+        const current = panel.current();
+        panel.capture(launch.item, launch.lockSource.queue ?? [launch.item]);
+        if (current && current !== this.panelPlayback) return;
+        if (current === launch.playback && panel.currentItem() === launch.item)
+            return;
+        this.panelPlayback = launch.playback;
+        panel.restore(launch);
+    }
+}

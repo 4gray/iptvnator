@@ -5,7 +5,6 @@ import {
     OnDestroy,
     afterNextRender,
     computed,
-    effect,
     inject,
     input,
     output,
@@ -16,7 +15,6 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import type { ControlsMenuSelection } from './controls-menu-selection';
 import type { ControlsSettings } from './controls-settings';
-import type { SettingsGroup } from './controls-settings-groups';
 import type { ControlsSubtitleSettings } from './controls-subtitle-settings';
 import type { PlayerController } from './player-controls.model';
 import {
@@ -80,7 +78,6 @@ export class PlayerSettingsPanelComponent implements OnDestroy {
     readonly state = computed(() => this.controller().state());
     readonly capabilities = computed(() => this.controller().capabilities());
     readonly groups = computed(() => this.settings().groups());
-    readonly focusGroup = computed(() => this.settings().focusGroup());
     readonly defaultAspect = computed(() => this.settings().defaultAspect());
 
     readonly subtitleSizePresets = SUBTITLE_SIZE_PRESETS;
@@ -109,15 +106,6 @@ export class PlayerSettingsPanelComponent implements OnDestroy {
                 this.focusInside = this.host.contains(document.activeElement);
             }
         });
-        // A chip click opens the panel on its group: bring that group into
-        // view so a long audio list cannot push the speed row off-screen.
-        effect(() => {
-            const group = this.focusGroup();
-            if (!group) {
-                return;
-            }
-            queueMicrotask(() => this.scrollGroupIntoView(group));
-        });
     }
 
     onFocusOut(event: FocusEvent): void {
@@ -141,9 +129,8 @@ export class PlayerSettingsPanelComponent implements OnDestroy {
     /**
      * Closing with focus inside (Escape, the close button by keyboard)
      * returns it to the `tune` button rather than dropping it on the page.
-     * The chip that may have opened the panel is re-rendered on close, so
-     * `tune` is the stable target. Tracked by flag, not `activeElement`:
-     * the view's DOM is already detached when this hook runs.
+     * Track focus by flag because the view's DOM is already detached when
+     * this hook runs.
      */
     ngOnDestroy(): void {
         if (!this.focusInside) {
@@ -157,10 +144,6 @@ export class PlayerSettingsPanelComponent implements OnDestroy {
         );
     }
 
-    isFocused(group: SettingsGroup): boolean {
-        return this.focusGroup() === group;
-    }
-
     /** The id of a heading that names the dialog or one of its groups. */
     headingId(name: string): string {
         return `${this.idPrefix}-${name}`;
@@ -171,16 +154,6 @@ export class PlayerSettingsPanelComponent implements OnDestroy {
             return;
         }
         this.selection().externalSubtitle();
-    }
-
-    private scrollGroupIntoView(group: SettingsGroup): void {
-        const element = this.host.querySelector(`[data-group="${group}"]`);
-        if (
-            element instanceof HTMLElement &&
-            typeof element.scrollIntoView === 'function'
-        ) {
-            element.scrollIntoView({ block: 'nearest' });
-        }
     }
 }
 

@@ -156,7 +156,8 @@ export function createStalkerCatalogWatchFilter(
         },
         retryPositions(): void {
             const id = store.currentPlaylist()?._id;
-            if (id) void positions.refresh(id).catch(() => undefined);
+            if (id && positions.loadState() === 'error')
+                void positions.refresh(id).catch(() => undefined);
         },
         pauseAutomaticLoading(): void {
             if (enabled() && store.hasMoreContent() && !scanning())

@@ -1,6 +1,10 @@
 import { epgLogger } from '../util/epg-logger';
 import { and, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
-import { EpgChannelMetadata, EpgProgram } from '@iptvnator/shared/interfaces';
+import {
+    ElectronBridgeEpgLookupOptions,
+    EpgChannelMetadata,
+    EpgProgram,
+} from '@iptvnator/shared/interfaces';
 import { getDatabase } from '../database/connection';
 import { chunkValues } from '../database/operations/operation-control';
 import * as schema from '../database/schema';
@@ -49,7 +53,7 @@ export class EpgQueryService {
 
     async getChannelPrograms(
         channelId: string,
-        options: { sourceUrls?: string[] } = {}
+        options: ElectronBridgeEpgLookupOptions = {}
     ): Promise<EpgProgram[]> {
         try {
             const db = await getDatabase();
@@ -173,6 +177,8 @@ export class EpgQueryService {
                 'Error getting channel programs:',
                 error
             );
+            if (options?.rejectOnError === true)
+                throw new Error('XMLTV schedule unavailable');
             return [];
         }
     }

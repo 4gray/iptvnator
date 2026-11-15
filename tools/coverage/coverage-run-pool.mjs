@@ -35,7 +35,7 @@ export function countSpecFiles(directory) {
 }
 
 // `createRequire(__filename)('electron')` resolves the binary path, which
-// downloads it on first use (see tools/testing/ensure-electron-binary.mjs).
+// downloads it on first use (see tools/testing/electron/ensure-electron-binary.mjs).
 const ELECTRON_BINARY_REQUIRE = /createRequire\([^)]*\)\(\s*['"]electron['"]\s*\)/;
 
 /** Whether any spec under a directory resolves the Electron binary to exec it. */

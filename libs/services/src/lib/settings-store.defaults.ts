@@ -27,6 +27,7 @@ export const DEFAULT_SETTINGS = {
     webPlayerSharedControls: true,
     playerAmbientMode: false,
     detailTrailerBackdrop: false,
+    seriesAutoplay: true,
     playerUpNextRail: true,
     playerUpNextCard: true,
     fullscreenChannelPanel: true,

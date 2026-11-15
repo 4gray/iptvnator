@@ -1,6 +1,7 @@
 <div
     #playerRoot
     class="embedded-mpv-player"
+    [class.embedded-mpv-player--frame-copy]="isFrameCopyEngine()"
     [class.embedded-mpv-player--fullscreen]="isFullscreen()"
     [class.embedded-mpv-player--controls-enabled]="
         !isFrameCopyEngine() && showControls() && isSupported()
@@ -42,7 +43,7 @@
                     isReconnecting() ? 'sync' : 'error_outline'
                 }}</mat-icon>
                 <p>{{ statusLabel() }}</p>
-                <button mat-stroked-button type="button" (click)="retry()">
+                <button mat-stroked-button type="button" [disabled]="!retryEnabled()" (click)="retry()">
                     <mat-icon>refresh</mat-icon>
                     <span>{{ 'EMBEDDED_MPV.PLAYER.RETRY' | translate }}</span>
                 </button>
@@ -70,7 +71,7 @@
             >
                 <mat-icon>warning_amber</mat-icon>
                 <p>{{ 'EMBEDDED_MPV.PLAYER.STALLED' | translate }}</p>
-                <button mat-stroked-button type="button" (click)="retry()">
+                <button mat-stroked-button type="button" [disabled]="!retryEnabled()" (click)="retry()">
                     <mat-icon>refresh</mat-icon>
                     <span>{{ 'EMBEDDED_MPV.PLAYER.RETRY' | translate }}</span>
                 </button>
@@ -106,6 +107,8 @@
             [upNext]="upNext()"
             [timelineSegments]="controlsTimelineSegments()"
             [showControls]="showControls()"
+            [canAddSecondStream]="canAddSecondStream()"
+            (secondStreamRequested)="secondStreamRequested.emit()"
             [shortcutsEnabled]="sharedShortcutsEnabled()"
             (previousEpisodeRequested)="requestPreviousEpisode()"
             (nextEpisodeRequested)="requestNextEpisode()"

@@ -7,3 +7,7 @@ export { withRecentItems } from './lib/with-recent-items';
 export * from './lib/content-metadata-backfill';
 export * from './lib/xtream-content-metadata.util';
 export * from './lib/xtream-state';
+
+// Keep VOD recovery out of the startup bundle with the details request.
+export const loadXtreamVodDetailsRequest = () =>
+    import('./lib/stores/xtream-details-request');

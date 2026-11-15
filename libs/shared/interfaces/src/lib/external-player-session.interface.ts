@@ -84,6 +84,8 @@ export function readExternalPlayerErrorCode(
 
 export interface ExternalPlayerSession {
     id: string;
+    /** Correlates native lifecycle events with the requesting renderer launch. */
+    launchId?: string;
     player: ExternalPlayerName;
     status: ExternalPlayerSessionStatus;
     title: string;
@@ -101,6 +103,20 @@ export interface ExternalPlayerSession {
     error?: string;
     errorCode?: ExternalPlayerErrorCode;
     canClose: boolean;
+    /** The native player retained this session for an in-place media switch. */
+    reuseAvailable?: boolean;
+    /** The app explicitly closed or cancelled this session. */
+    closedByRequest?: true;
+    /** Whether the running player has stopped this stream, when observable. */
+    playbackIdle?: boolean;
+    /** The current media could not be verified; playbackIdle remains the last known state. */
+    playbackUnverified?: boolean;
+    /** Whether this launch has confirmed media loading, when supported. */
+    mediaLoaded?: boolean;
+    /** This runtime has no media observation bridge for the player. */
+    mediaObservationUnavailable?: boolean;
+    /** The readiness window expired without confirming this launch. */
+    mediaReadinessTimedOut?: boolean;
     /** Exact failed replacement displaced by this restored live session. */
     restoredFromSessionId?: string;
 }

@@ -1,5 +1,6 @@
 import { render } from 'preact';
 import { TvApp } from '@iptvnator/tv/feature';
+import './tokens.css';
 import './theme.css';
 import './horizontal-rail.css';
 import './live-overlay.css';
@@ -12,3 +13,4 @@ render(<TvApp buildInfo={__TV_BUILD_INFO__} />, root);
 import './settings.css';
 import './dialog.css';
 import './about.css';
+import './focus.css';

@@ -23,6 +23,12 @@ Use it when changing existing views or introducing new list-based UI in the work
 
 5. Scroll ownership must be explicit.
    Headers stay visible. Lists scroll. Do not let nested panes compete for scroll.
+   The viewport and independent vertical page scrollers stop at their edges in
+   standalone PWAs and the native Android TV shell. The web stylesheet sets
+   `--app-overscroll-y` for those runtimes and applies it to the viewport.
+   The lazy workspace stylesheet applies it to routed scroll panes. Browser
+   tabs retain their normal behavior and horizontal rails still hand vertical
+   gestures to the page.
 
 6. Normal text, including metadata and selected labels, keeps at least 4.5:1
    contrast. Use `--app-muted-color` for secondary text and
@@ -339,6 +345,10 @@ instead, through `--app-list-selected-*`: a soft tint with no lift or glow,
 outlined in light theme. Its text is the heading colour in light theme (the
 selection blue on its own tint is 3.3:1) and the selection colour in dark.
 
+Browser tabs use standard text selection. Electron, the Android TV shell,
+and PWA windows in standalone display mode suppress general text selection.
+Text fields and explicitly copyable values remain selectable.
+
 ## Single-Choice Menus And Status Chips
 
 Catalog headers keep the category title/count on the left and the active
@@ -428,6 +438,10 @@ TMDB enrichment adds a moment later fills the compact hero instead of
 growing it. The pane is a size container (`detail`); the poster hides below
 760px of pane width.
 
+The detail shell owns vertical scrolling and follows the app's overscroll
+policy so dragging past the content cannot expose a gap beneath the workspace
+header in standalone apps.
+
 The pieces are shared and provider-neutral (`libs/ui/components/src/lib/detail-ui/`):
 `app-meta-chip` (pill; `rating` and `status` variants; facets as projected
 `.meta-chip__facet` buttons), `app-detail-action-button` (the light primary
@@ -452,6 +466,10 @@ arrow keys reveal the focused row, and Escape returns focus to the trigger.
 pointer handoffs for movie and series menus, including after scrolling.
 The page-level Sass mixin (`libs/ui/styles/_detail-view.scss`)
 only carries the page shell, meta items and the episodes section.
+
+On phones, Trailer uses an icon with its accessible label. Compact horizontal
+spacing leaves room for five 44px-tall controls at 375px, including with a
+classic scrollbar. The action row can wrap when it needs more space.
 
 With `detailTrailerBackdrop` on (Settings → Playback → "Play trailers in
 details background", default off) the hosts hand the trailer embed URL to the
@@ -553,6 +571,9 @@ host by its padding and border on the first move.
   themes. Each stop must draw exactly one ring in the token's colour, uncut
   by an ancestor's `overflow: hidden`, at 3:1 where it sits on a flat
   colour, and a click must draw none.
+  It also checks that the detail page stays ringless when seeking after a
+  click, including a click on the already focused page. Tabbing back to the
+  page shows its focus ring.
 
 Catalog result counts use an atomic `status` region so search/filter changes
 are announced without moving focus from the search field. Opening a catalog
@@ -583,6 +604,12 @@ Scrolling from a virtual row moves focus to its viewport
 before CDK can recycle the row; asynchronous data updates preserve connected
 focused controls. If the focused row is removed, focus moves to the next row
 at the same index, the previous row at the end, or the empty scroll owner.
+When filtering shifts a programme guide row, focus follows its programme
+if it is still present, or the channel cell otherwise. During a schedule
+refresh, keep the focused programme identity through errors until the row has
+loaded successfully.
+If its row moves during that refresh, reveal the row and defer DOM focus
+until the programme is present or the refreshed schedule shows it is gone.
 A destroyed pane falls back to its captured workspace main landmark. This
 recovery never takes focus from another active control.
 Xtream aligns a newly selected channel only when it is outside the viewport;
@@ -679,11 +706,8 @@ them size from the `--cover-grid-min-width` / `--cover-rail-width` /
 row under VOD and series covers so the grid shows more rows per screen.
 
 - **Resolution.** `CoverTitlesService.postersOnly` (`libs/portal/shared/ui`)
-  is the single source: the opt-out AND a hover-capable pointer
-  (`(any-hover: hover)` media query, tracked live). On touch-only devices the
-  preference is ignored and titles stay under the covers, because a tap
-  already opens the item and there is no gesture left to peek at a hidden
-  name.
+  follows the saved preference on all devices. A tap on a touch screen
+  opens the item, and the card retains its accessible title.
 - **Scope.** Catalog grids (Xtream/Stalker VOD and series), unified
   favorites/recent grids and the portal favorites tab. Exempt, regardless of
   the setting: live channel grids (`type` `live`/`itv`/`radio` or the
@@ -1185,6 +1209,9 @@ actions (mark watched, download season, reset progress) live in that menu
 and drive the season container's presenters. Collection details also keep
 “View in portal” in that menu, in a navigation group before the provider
 actions, regardless of how many hero buttons are visible.
+At the phone breakpoint, Trailer uses a 44px icon button with its translated
+accessible name. Playback keeps its label and the action row can wrap when
+additional controls or long localized labels need more room.
 
 Every section below the hero (Episodes, Cast & crew, Similar) uses
 `app-detail-section-header`: an 18px/600 title, a muted 12.5px tabular
@@ -1616,7 +1643,10 @@ but the component has not.
   it has to opt into the row direction — a nested list that keeps
   `flex-direction: column` stacks its links out of the bar and over the header.
   The bar scrolls sideways once a portal contributes its sections, and the
-  settings link is `position: sticky` so it never scrolls out of reach.
+  settings link is `position: sticky` so it never scrolls out of reach. In
+  standalone mode, the inset for the status bar sits above the 52px scroller.
+- In narrow catalog panes, Refine shares a row with the category title and
+  count. Sort and filter chips wrap below when present.
 - The shell context panel (categories, filters, settings sections) is an
   off-canvas drawer: hidden by default so the route content owns the full
   pane, opened from a toggle in the workspace header, closed by selection,
