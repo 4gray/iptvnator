@@ -366,12 +366,7 @@ export class SeasonContainerComponent implements OnInit {
                 this.seasonSelected.emit(seasonKey),
         });
 
-        this.randomEpisode = createSeasonRandomEpisodeState({
-            seasons: this.seasons,
-            unloadedSeasonKeys: this.unloadedSeasonKeys,
-            selectedSeason: this.selectedSeason,
-            playEpisode: (episode) => this.selectEpisode(episode),
-        });
+        this.randomEpisode = createSeasonRandomEpisodeState(this);
     }
 
     canPlayRandomEpisode(): boolean {
@@ -423,6 +418,7 @@ export class SeasonContainerComponent implements OnInit {
     }
 
     selectEpisode(episode: XtreamSerieEpisode) {
+        this.randomEpisode.cancel();
         this.episodeClicked.emit(episode);
     }
 
@@ -431,6 +427,7 @@ export class SeasonContainerComponent implements OnInit {
     }
 
     restartEpisode(episode: XtreamSerieEpisode) {
+        this.randomEpisode.cancel();
         this.episodeRestartRequested.emit(episode);
     }
 

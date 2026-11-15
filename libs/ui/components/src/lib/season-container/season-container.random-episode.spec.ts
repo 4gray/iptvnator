@@ -134,4 +134,42 @@ describe('SeasonContainerComponent random episode', () => {
 
         expect(played).toEqual([]);
     });
+
+    it('drops a pending shuffle when the page starts other playback', () => {
+        const played: XtreamSerieEpisode[] = [];
+        component.episodeClicked.subscribe((episode) => played.push(episode));
+        setInputs({ '1': [createEpisode(1)], '2': [] }, ['2']);
+        fixture.detectChanges();
+
+        jest.spyOn(Math, 'random').mockReturnValue(0.9);
+        component.playRandomEpisode();
+        fixture.detectChanges();
+        expect(component.selectedSeason()).toBe('2');
+
+        // The hero's Play opens season 1's episode without changing season.
+        fixture.componentRef.setInput('openingEpisodeId', 1);
+        fixture.detectChanges();
+        setInputs({ '1': [createEpisode(1)], '2': [createEpisode(7, 2)] }, []);
+        fixture.detectChanges();
+
+        expect(played).toEqual([]);
+    });
+
+    it('drops a pending shuffle when the viewer picks an episode', () => {
+        const played: XtreamSerieEpisode[] = [];
+        component.episodeClicked.subscribe((episode) => played.push(episode));
+        const first = createEpisode(1);
+        setInputs({ '1': [first], '2': [] }, ['2']);
+        fixture.detectChanges();
+
+        jest.spyOn(Math, 'random').mockReturnValue(0.9);
+        component.playRandomEpisode();
+        fixture.detectChanges();
+        component.selectEpisode(first);
+        fixture.detectChanges();
+        setInputs({ '1': [first], '2': [createEpisode(7, 2)] }, []);
+        fixture.detectChanges();
+
+        expect(played).toEqual([first]);
+    });
 });
