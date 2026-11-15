@@ -27,6 +27,9 @@ export interface SeasonRandomEpisodeSources {
      */
     readonly openingEpisodeId: Signal<number | null>;
     readonly playingEpisodeId: Signal<number | null>;
+    readonly activeEpisodeId: Signal<number | null>;
+    /** Tells the host to load a season; it skips one already loading. */
+    readonly seasonSelected: { emit(seasonKey: string): void };
 }
 
 export interface SeasonRandomEpisodeState {
@@ -44,15 +47,21 @@ export interface SeasonRandomEpisodeState {
 /**
  * The "play a random episode" action. When the pick lands on a season that is
  * not loaded yet, the season is selected so the host loads it, and a random
- * episode from it plays once its list arrives. Moving to another season or
- * starting any other playback first drops the pending shuffle. Must be
- * created in an injection context.
+ * episode from it plays once its list arrives; a season that turns out empty
+ * draws again from the rest. Moving to another season or starting any other
+ * playback first drops the pending shuffle. Must be created in an injection
+ * context.
  */
 export function createSeasonRandomEpisodeState(
     sources: SeasonRandomEpisodeSources
 ): SeasonRandomEpisodeState {
+    // A launch moves its id from opening to active (external players) or
+    // playing, so the chain keeps naming the same episode across it.
     const playbackEpisodeId = computed(
-        () => sources.openingEpisodeId() ?? sources.playingEpisodeId()
+        () =>
+            sources.openingEpisodeId() ??
+            sources.playingEpisodeId() ??
+            sources.activeEpisodeId()
     );
     const pending = signal<{
         seasonKey: string;
@@ -65,9 +74,11 @@ export function createSeasonRandomEpisodeState(
             return;
         }
         const { seasonKey } = waiting;
+        // Only a newly started episode counts; playback ending is no choice.
+        const playback = playbackEpisodeId();
         if (
             sources.selectedSeason() !== seasonKey ||
-            playbackEpisodeId() !== waiting.playbackEpisodeId
+            (playback !== null && playback !== waiting.playbackEpisodeId)
         ) {
             untracked(() => pending.set(null));
             return;
@@ -82,9 +93,38 @@ export function createSeasonRandomEpisodeState(
             pending.set(null);
             if (episode) {
                 sources.selectEpisode(episode);
+            } else {
+                // The empty season no longer weighs in the next draw.
+                play();
             }
         });
     });
+
+    function play(): void {
+        const pick = pickRandomEpisodeOrSeason(
+            sources.seasons(),
+            sources.unloadedSeasonKeys()
+        );
+        if (!pick) {
+            return;
+        }
+        if (pick.kind === 'episode') {
+            pending.set(null);
+            sources.selectEpisode(pick.episode);
+            return;
+        }
+        pending.set({
+            seasonKey: pick.seasonKey,
+            playbackEpisodeId: untracked(playbackEpisodeId),
+        });
+        if (untracked(sources.selectedSeason) === pick.seasonKey) {
+            // Already selected but unloaded (a load that failed): selecting
+            // it again changes nothing, so ask the host to load it again.
+            sources.seasonSelected.emit(pick.seasonKey);
+        } else {
+            sources.selectedSeason.set(pick.seasonKey);
+        }
+    }
 
     return {
         canPlay: computed(
@@ -94,25 +134,7 @@ export function createSeasonRandomEpisodeState(
                     (episodes) => (episodes?.length ?? 0) > 0
                 )
         ),
-        play() {
-            const pick = pickRandomEpisodeOrSeason(
-                sources.seasons(),
-                sources.unloadedSeasonKeys()
-            );
-            if (!pick) {
-                return;
-            }
-            if (pick.kind === 'episode') {
-                pending.set(null);
-                sources.selectEpisode(pick.episode);
-                return;
-            }
-            pending.set({
-                seasonKey: pick.seasonKey,
-                playbackEpisodeId: untracked(playbackEpisodeId),
-            });
-            sources.selectedSeason.set(pick.seasonKey);
-        },
+        play,
         cancel() {
             pending.set(null);
         },

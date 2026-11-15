@@ -172,4 +172,58 @@ describe('SeasonContainerComponent random episode', () => {
 
         expect(played).toEqual([first]);
     });
+
+    it('keeps a pending shuffle while the launching episode starts playing', () => {
+        const played: XtreamSerieEpisode[] = [];
+        component.episodeClicked.subscribe((episode) => played.push(episode));
+        setInputs({ '1': [createEpisode(1)], '2': [] }, ['2']);
+        fixture.componentRef.setInput('openingEpisodeId', 5);
+        fixture.detectChanges();
+
+        jest.spyOn(Math, 'random').mockReturnValue(0.9);
+        component.playRandomEpisode();
+        fixture.detectChanges();
+        // An external launch completes: opening clears, active takes over.
+        fixture.componentRef.setInput('openingEpisodeId', null);
+        fixture.componentRef.setInput('activeEpisodeId', 5);
+        fixture.detectChanges();
+
+        const loaded = createEpisode(7, 2);
+        setInputs({ '1': [createEpisode(1)], '2': [loaded] }, []);
+        fixture.detectChanges();
+
+        expect(played).toEqual([loaded]);
+    });
+
+    it('draws again when the season it loaded turns out empty', () => {
+        const played: XtreamSerieEpisode[] = [];
+        component.episodeClicked.subscribe((episode) => played.push(episode));
+        const first = createEpisode(1);
+        setInputs({ '1': [first], '2': [] }, ['2']);
+        fixture.detectChanges();
+
+        jest.spyOn(Math, 'random').mockReturnValue(0.9);
+        component.playRandomEpisode();
+        fixture.detectChanges();
+        setInputs({ '1': [first], '2': [] }, []);
+        fixture.detectChanges();
+
+        expect(played).toEqual([first]);
+    });
+
+    it('asks the host to load a selected season again after a failed load', () => {
+        const requested: string[] = [];
+        component.seasonSelected.subscribe((key) => requested.push(key));
+        setInputs({ '1': [createEpisode(1)], '2': [] }, ['2']);
+        fixture.detectChanges();
+        component.selectSeason('2');
+        fixture.detectChanges();
+        const before = requested.length;
+
+        jest.spyOn(Math, 'random').mockReturnValue(0.9);
+        component.playRandomEpisode();
+        fixture.detectChanges();
+
+        expect(requested.slice(before)).toEqual(['2']);
+    });
 });
