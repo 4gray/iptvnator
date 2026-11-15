@@ -1,4 +1,5 @@
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
+import { InlinePlaybackPlayer } from '@iptvnator/playback/util';
 import type { PlaybackActivityEvents } from '@iptvnator/services/activity-events';
 import type { WebPlayerViewComponent as WebPlayerViewInstance } from './web-player-view.component';
 let WebPlayerViewComponent: typeof import('./web-player-view.component').WebPlayerViewComponent;
@@ -13,11 +14,11 @@ import { PlaybackRecoverySession } from './playback-recovery-session';
 import { WebPlayerActivity } from './web-player-activity';
 import type { PlaybackApplicationOwnership } from './web-player-application-ownership';
 
-function harness(enabled = true) {
+function harness(enabled = true, startTime = 60) {
     const playback: ResolvedPortalPlayback = {
         streamUrl: 'https://media.example.test/synthetic-episode',
         title: 'Synthetic fixture episode',
-        startTime: 60,
+        startTime,
         contentInfo: {
             playlistId: 'fixture-source',
             contentType: 'episode',
@@ -26,10 +27,11 @@ function harness(enabled = true) {
             activitySessionId: 'fixture-session',
         },
     };
+    const checkpoint = jest.fn(async () => undefined);
     const events: PlaybackActivityEvents = {
         active: () => enabled,
         begin: async () => undefined,
-        checkpoint: jest.fn(async () => undefined),
+        checkpoint,
         register: async () => undefined,
     };
     const activity = new WebPlayerActivity(events);
@@ -55,6 +57,19 @@ function harness(enabled = true) {
     return {
         tick,
         emit,
+        checkpoint,
+        returnFromMedia3: (currentTime: number) => {
+            const update = {
+                currentTime,
+                duration: 100,
+                playing: false,
+                checkpoint: true as const,
+            };
+            activity.record(playback, update);
+            recoverySession.recordTimeUpdate(update, false);
+            recoverySession.beginPlayback(InlinePlaybackPlayer.Html5);
+            checkpoint.mockClear();
+        },
         handoffOffset: () =>
             recoverySession.resumeStartTime(playback.startTime!, false),
     };
@@ -73,15 +88,28 @@ describe('episode time-update forwarding during resume', () => {
             expect.objectContaining({ currentTime: 10 })
         );
     });
-    it('forwards local writer events while preserving the native handoff offset before the seek', () => {
-        const { tick, emit, handoffOffset } = harness(false);
-        tick(0);
-        expect(emit).toHaveBeenCalledWith(
-            expect.objectContaining({ currentTime: 0 })
-        );
-        expect(handoffOffset()).toBe(60);
-        tick(60);
-        tick(10);
-        expect(handoffOffset()).toBe(10);
-    });
+    it.each([true, false])(
+        'keeps the Media3 position until the web seek settles (Activity Sync: %s)',
+        (enabled) => {
+            const { tick, emit, checkpoint, handoffOffset, returnFromMedia3 } =
+                harness(enabled, 0);
+            returnFromMedia3(60);
+
+            tick(0);
+            expect(handoffOffset()).toBe(60);
+            expect(emit).not.toHaveBeenCalled();
+            expect(checkpoint).not.toHaveBeenCalled();
+
+            tick(60);
+            tick(10);
+            expect(handoffOffset()).toBe(10);
+            expect(emit).toHaveBeenLastCalledWith(
+                expect.objectContaining({ currentTime: 10 })
+            );
+            if (enabled)
+                expect(checkpoint).toHaveBeenLastCalledWith(
+                    expect.objectContaining({ positionSeconds: 10 })
+                );
+        }
+    );
 });

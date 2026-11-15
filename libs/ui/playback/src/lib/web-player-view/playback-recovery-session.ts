@@ -105,20 +105,22 @@ export class PlaybackRecoverySession {
         this.recordAttempt(target);
     }
 
+    /** Returns false for startup ticks while the engine is seeking to its resume point. */
     recordTimeUpdate(
         event: PlaybackPositionUpdate,
         isLive: boolean,
         inputStartTime = 0
-    ): void {
+    ): boolean {
         if (isLive || !Number.isFinite(event.currentTime) || event.currentTime < 0)
-            return;
+            return true;
         if (
             !this.resumeSettled &&
             !hasReachedPlaybackStart(event, this.resumeStartTime(inputStartTime, false))
         )
-            return;
+            return false;
         this.resumeSettled = true;
         this.resumePosition.set(event.currentTime);
+        return true;
     }
 
     beginPlayerSwitch(target: InlinePlaybackPlayer, isLive: boolean): boolean {

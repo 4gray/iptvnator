@@ -141,8 +141,8 @@ The Android shell can opt into a separate fullscreen Media3 activity. The web
 player unmounts its engine for the handoff and accepts the native activity's
 watch time and VOD position only while the originating playback owner is current.
 Retrying the web player cancels a pending Media3 launch before remounting.
-A handoff keeps the saved offset while the current web engine is still seeking
-to it.
+A handoff keeps the saved offset while the web engine is seeking to it. On
+return from Media3, early web ticks cannot update local or shared progress.
 The final native position settles the resume guard and persists immediately,
 including when the viewer seeks and leaves before the watch-history threshold
 or Media3 cannot determine the VOD duration.
