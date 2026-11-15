@@ -302,10 +302,16 @@ changes, including when it is already fullscreen. The Embedded MPV host's
 existing `fullscreenchange` listener still triggers bounds sync so frame-copy
 render size follows the fullscreen DOM surface.
 
-In Embedded MPV side-by-side playback the fullscreen target contains both
-viewports and the stream strip. Only the selected viewport handles shared
-controls. Transport stays on that viewport, and the volume control applies to
-the separately selected audio session.
+Embedded MPV multiview keeps the fullscreen target on the player host,
+which contains all open viewports and the stream bar. The bar appears after
+entering multiview and disappears when returning to regular single
+playback. Leaving multiview from fullscreen expands the primary video
+within that same fullscreen host. The fullscreen overlay container keeps
+the stream picker available there. Only the selected viewport handles
+shared controls. Transport stays on that viewport, and volume and mute
+apply to the designated audio session. In the 2×2 grid, keys 1 through 4
+select occupied windows when the player owns keyboard input. The selected
+window and audio session may differ.
 
 The owner matters because `WebPlayerViewComponent` remounts the engine
 component for every playback application (`@for ... track application.token`:

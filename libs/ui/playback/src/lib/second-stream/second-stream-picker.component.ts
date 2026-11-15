@@ -30,7 +30,10 @@ import {
 } from '@iptvnator/portal/shared/data-access';
 import { SecondStreamPickerEpg } from './second-stream-picker-epg';
 import { SecondStreamPickerVod } from './second-stream-picker-vod';
-import type { SecondStreamPickerData } from './second-stream-open-stream';
+import type {
+    MultiviewSlot,
+    SecondStreamPickerData,
+} from './second-stream-open-stream';
 import type {
     SecondStreamEpisode,
     SecondStreamVodType,
@@ -68,6 +71,7 @@ export class SecondStreamPickerComponent {
     readonly groupLoading = signal(false);
     readonly resolving = signal<string | null>(null);
     readonly error = signal<'load' | 'play' | 'group' | null>(null);
+    readonly duplicateSlot = signal<MultiviewSlot | null>(null);
     readonly data = signal<SecondStreamCatalog>({ groups: [], channels: [] });
     readonly limit = signal(100);
     private request = new AbortController();
@@ -196,6 +200,7 @@ export class SecondStreamPickerComponent {
         this.request.abort();
         this.resolving.set(null);
         this.error.set(null);
+        this.duplicateSlot.set(null);
         this.limit.set(100);
         if (type)
             void this.vod.browse(this.source(), type, this.search().trim());
@@ -217,6 +222,7 @@ export class SecondStreamPickerComponent {
         this.generation++;
         this.resolving.set(null);
         this.error.set(null);
+        this.duplicateSlot.set(null);
         this.search.set(this.seriesSearch);
         this.limit.set(100);
         this.vod.back();
@@ -243,6 +249,7 @@ export class SecondStreamPickerComponent {
         this.groupLoading.set(false);
         this.resolving.set(null);
         this.error.set(null);
+        this.duplicateSlot.set(null);
         this.data.set({ groups: [], channels: [] });
         try {
             const data = await this.catalog.load(
@@ -278,6 +285,7 @@ export class SecondStreamPickerComponent {
         this.request = new AbortController();
         this.resolving.set(null);
         this.error.set(null);
+        this.duplicateSlot.set(null);
         this.groupLoading.set(false);
         if (id === null || this.data().channels.some((row) => row.group === id))
             return;
@@ -315,9 +323,17 @@ export class SecondStreamPickerComponent {
         const generation = this.generation;
         this.resolving.set(key);
         this.error.set(null);
+        this.duplicateSlot.set(null);
         try {
             const selection = await load();
-            if (generation === this.generation) this.dialog.close(selection);
+            if (generation !== this.generation) return;
+            if (!this.catalog.isAllowed(selection.item)) {
+                this.error.set('play');
+                return;
+            }
+            const duplicate = this.dialogData.findDuplicateSlot(selection);
+            if (duplicate === undefined) this.dialog.close(selection);
+            else this.duplicateSlot.set(duplicate);
         } catch {
             if (generation === this.generation) this.error.set('play');
         } finally {
