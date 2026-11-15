@@ -255,7 +255,10 @@ try {
         element.volume = 0.25;
         element.muted = true;
     });
+    // Leave touch mode before assigning focus for the remote activation.
+    adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_RIGHT');
     await action.focus();
+    await expect(action).toBeFocused();
     adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_CENTER');
     await waitNative();
     await expect(video).toHaveCount(0);
