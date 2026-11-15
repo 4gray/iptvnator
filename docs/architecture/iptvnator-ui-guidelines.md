@@ -1789,12 +1789,12 @@ Night Owl uses navy surfaces and cool accents. Black OLED uses a black
 background and raised graphite surfaces for cards, inputs and overlays. High
 Contrast uses black surfaces, white text, a yellow selection, visible widget
 borders and separators, and a 3px focus ring. The `--app-focus-ring-width`
-token overrides the mixin's 2px default. Material component colors reference
-`--mat-sys-*` roles through one shared declaration block. Each preset sets its
-system colors. The shared aliases are declared at
-each color boundary, since inheriting an alias from `html` would retain the
-light value. Samples emit only their seven displayed app roles from the same
-palette mixins, avoiding full duplicate theme payloads.
+token overrides the mixin's 2px default. High Contrast shares the Black OLED
+base and overrides its own app and Material roles. Material component colors
+reference `--mat-sys-*` roles through aliases on `html`, `body`, and dark theme
+contexts. The aliases resolve against the active preset and accent on `body`
+and the dark colors in nested panels. Samples emit only their seven displayed
+app roles from the same palette mixins.
 Dark variants emit their app overrides over the shared `.dark-theme` defaults
 on the same body element; their mixins skip repeating the full dark palette.
 Light and Cream likewise share the `.light-theme` defaults on the body; `html`
@@ -1817,12 +1817,10 @@ every surface and its plain selection tint; the selection-text role keeps
 `--app-selection-on-color` and `--mat-sys-on-primary`, keeps 4.5:1 on the
 accent, on Material primary and across the empty-state CTA gradient toward
 the heading ink; the accent darkens or lightens further until one does. The
-roles are re-derived on every theme change,
-including System's OS switches. `data-theme-accent` is a component-token
-boundary in `m3-theme.scss`, because light presets otherwise resolve Material
-component colours on `html`. The swatches preview each accent in the colour it
-takes on the current theme; the "theme colour" swatch reads the preset's own
-colour from a `data-theme-preview` context. Discard and completing a playlist
+roles are re-derived on every theme change, including System's OS switches.
+The swatches preview each accent in the current theme. The "theme colour"
+swatch reads the preset's own colour from a `data-theme-preview` context.
+Discard and completing a playlist
 backup import restore the saved appearance. The accent's specs read the shipped
 palettes, so a new preset or palette change re-runs every accent's contrast check.
 

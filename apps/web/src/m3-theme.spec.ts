@@ -296,9 +296,7 @@ describe('m3-theme accent boundary', () => {
         const css = compiledThemes.get(THEME) ?? '';
         const accentRule = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].find(
             ([, selectors, body]) =>
-                selectors
-                    .split(',')
-                    .some((value) => value.trim() === 'html [data-theme-accent]') &&
+                selectors.split(',').some((value) => value.trim() === 'body') &&
                 body.includes('var(--mat-sys-primary)')
         );
         expect(accentRule).toBeDefined();

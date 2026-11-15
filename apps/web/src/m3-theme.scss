@@ -108,18 +108,12 @@ $material-components: (
 }
 
 // ─── Apply Themes ────────────────────────────────────────────────────────────
-// Re-declare aliases at each color boundary: CSS custom properties resolve
-// where declared, so aliases inherited from html would keep the light colors.
-// `data-theme-accent` marks the body that carries a user accent's primary
-// roles inline (SettingsService); without it light themes keep html's.
+// CSS custom properties resolve where declared. The body carries both the
+// active preset and any inline accent roles. Nested dark panels have their
+// own Material colors, so they also need aliases in their own context.
 html,
-html [data-theme-accent],
-html .dark-theme,
-html [data-app-theme='cream'],
-html [data-app-theme='mocha'],
-html [data-app-theme='night-owl'],
-html [data-app-theme='black-oled'],
-html [data-app-theme='high-contrast'] {
+body,
+html .dark-theme {
     @include component-tokens($light-theme, (color));
 }
 
@@ -168,7 +162,8 @@ html {
         @include palettes.night-owl;
     }
 
-    [data-app-theme='black-oled'] {
+    [data-app-theme='black-oled'],
+    [data-app-theme='high-contrast'] {
         @include dark-variants.black-oled;
         @include palettes.black-oled;
     }
