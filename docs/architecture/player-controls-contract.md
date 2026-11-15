@@ -655,15 +655,16 @@ while at least one group exists. If the last group disappears, settings close.
 - **Colors** follow the color-as-state rule of the dock: cyan means "on",
   violet means "changed", and neutral rows/items read as the default.
 
-### Second-stream action
+### Multiview action
 
-The frame-copy host opts into `canAddSecondStream` and handles
-`secondStreamRequested` to open its channel picker. The
-`picture_in_picture_alt` action sits immediately before settings in the bottom
-controls and has the localized “Add second stream” tooltip. It is available
-while a single stream plays in the frame-copy host. Browser video engines can
-expose their native picture-in-picture action and leave `canAddSecondStream`
-disabled. The frame-copy host exposes no native video picture-in-picture.
+The frame-copy host sets `canOpenMultiview` during regular single-stream
+playback. The `grid_view` button sits immediately before Settings in the
+bottom controls and opens the localized Multiview menu. Its Add stream action
+emits `multiviewAddRequested` so the host opens its stream picker. Open 2×2
+grid emits `multiviewGridRequested` so the host opens the grid with the
+current stream. Once multiview is active, the stream bar provides its layout
+and stream actions. Browser video engines can expose their native
+picture-in-picture action when available.
 
 ### Stream info popover
 
