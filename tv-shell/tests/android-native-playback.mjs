@@ -312,11 +312,14 @@ try {
     await waitAudio();
     await back();
 
+    await page.waitForFunction(() => window.__nativeResult !== undefined);
+    await page.evaluate(() => { delete window.__nativeResult; });
+    const segmentsBeforeLive = seen.segments;
     await entry('Synthetic Live').click();
     await expect(action).toBeVisible();
     await action.click();
     await waitNative();
-    await expect.poll(() => seen.segments).toBeGreaterThan(0);
+    await expect.poll(() => seen.segments).toBeGreaterThan(segmentsBeforeLive);
     await delay(3200);
     await back();
     await page.waitForFunction(() => window.__nativeResult !== undefined);
