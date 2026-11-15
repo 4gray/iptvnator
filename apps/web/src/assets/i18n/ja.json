@@ -4,6 +4,7 @@
         "ADD_STREAM": "ストリームを追加",
         "OPEN_GRID": "2×2 グリッドを開く",
         "GRID_LAYOUT": "2×2 グリッド",
+        "FOCUS_LAYOUT": "フォーカス (3:1)",
         "PAIR_LAYOUT_HINT": "このレイアウトを使うにはウィンドウを 2 つ開いてください",
         "ADD_TO_WINDOW": "ウィンドウ {{slot}} にストリームを追加",
         "WINDOW": "ウィンドウ {{slot}}",

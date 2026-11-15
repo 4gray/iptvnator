@@ -303,14 +303,14 @@ existing `fullscreenchange` listener still triggers bounds sync so frame-copy
 render size follows the fullscreen DOM surface.
 
 Embedded MPV multiview keeps the fullscreen target on the player host,
-which contains all open viewports and the stream bar. The bar appears after
-entering multiview and disappears when returning to regular single
-playback. Leaving multiview from fullscreen expands the primary video
-within that same fullscreen host. The fullscreen overlay container keeps
-the stream picker available there. Only the selected viewport handles
-shared controls. Transport stays on that viewport, and volume and mute
-apply to the designated audio session. In the 2×2 grid, keys 1 through 4
-select occupied windows when the player owns keyboard input. Pointer clicks
+which contains all open viewports. The stream bar appears in windowed
+multiview and in fullscreen Grid and Focus. Regular single playback, and
+fullscreen Floating window and Side by side, have no stream bar. The
+fullscreen overlay container keeps the picker available from the bar,
+empty tiles or the floating window controls. Only the selected viewport
+handles shared controls. Transport stays on that viewport, and volume and
+mute apply to the designated audio session. In Grid and Focus, keys 1
+through 4 select occupied windows when the player owns keyboard input. Pointer clicks
 on the stream bar's window, sound, and layout toggles return focus to the grid
 stage so those shortcuts stay available. The selected window and audio session
 may differ.
@@ -662,11 +662,12 @@ while at least one group exists. If the last group disappears, settings close.
 The frame-copy host sets `canOpenMultiview` during regular single-stream
 playback. The `grid_view` button sits immediately before Settings in the
 bottom controls and opens the localized Multiview menu. Its Add stream action
-emits `multiviewAddRequested` so the host opens its stream picker. Open 2×2
-grid emits `multiviewGridRequested` so the host opens the grid with the
-current stream. Once multiview is active, the stream bar provides its layout
-and stream actions. Browser video engines can expose their native
-picture-in-picture action when available.
+emits `multiviewAddRequested` so the host opens its stream picker. Grid and
+Focus emit `multiviewLayoutRequested` with the selected layout so the host
+can open it with the current stream. The stream bar provides layout and
+stream actions in windowed multiview and in fullscreen Grid and Focus.
+Browser video engines can expose their native picture-in-picture action
+when available.
 
 ### Stream info popover
 

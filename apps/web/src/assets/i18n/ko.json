@@ -4,6 +4,7 @@
         "ADD_STREAM": "스트림 추가",
         "OPEN_GRID": "2×2 격자 열기",
         "GRID_LAYOUT": "2×2 격자",
+        "FOCUS_LAYOUT": "집중 (3:1)",
         "PAIR_LAYOUT_HINT": "이 배치를 사용하려면 창을 두 개 열어 두세요",
         "ADD_TO_WINDOW": "창 {{slot}}에 스트림 추가",
         "WINDOW": "창 {{slot}}",

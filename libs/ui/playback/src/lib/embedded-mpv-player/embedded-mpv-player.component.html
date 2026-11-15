@@ -109,7 +109,7 @@
             [showControls]="showControls()"
             [canOpenMultiview]="canOpenMultiview()"
             (multiviewAddRequested)="multiviewAddRequested.emit()"
-            (multiviewGridRequested)="multiviewGridRequested.emit()"
+            (multiviewLayoutRequested)="multiviewLayoutRequested.emit($event)"
             [shortcutsEnabled]="sharedShortcutsEnabled()"
             (previousEpisodeRequested)="requestPreviousEpisode()"
             (nextEpisodeRequested)="requestNextEpisode()"

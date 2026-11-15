@@ -3,7 +3,8 @@ import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 
 export type MultiviewSlot = 1 | 2 | 3 | 4;
 export type CompanionSlot = Exclude<MultiviewSlot, 1>;
-export type MultiviewLayout = 'single' | 'pip' | 'side-by-side' | 'grid';
+export type MultiviewLayout =
+    'single' | 'pip' | 'side-by-side' | 'grid' | 'focus';
 
 export interface SecondStreamOpenStream {
     readonly slot: MultiviewSlot;

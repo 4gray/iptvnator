@@ -4,6 +4,7 @@
         "ADD_STREAM": "Adás hozzáadása",
         "OPEN_GRID": "2×2-es rács megnyitása",
         "GRID_LAYOUT": "2×2-es rács",
+        "FOCUS_LAYOUT": "Fókusz (3:1)",
         "PAIR_LAYOUT_HINT": "Ehhez az elrendezéshez hagyj két ablakot nyitva",
         "ADD_TO_WINDOW": "Adás hozzáadása a(z) {{slot}}. ablakhoz",
         "WINDOW": "{{slot}}. ablak",

@@ -196,6 +196,10 @@ test('@playback @electron four frame-copy views retain their sessions through gr
             name: 'Open 2×2 grid',
             exact: true,
         });
+        const openFocus = page.getByRole('menuitem', {
+            name: 'Focus (3:1)',
+            exact: true,
+        });
         const add = strip.getByRole('button', {
             name: 'Add stream',
             exact: true,
@@ -206,6 +210,10 @@ test('@playback @electron four frame-copy views retain their sessions through gr
         });
         const grid = strip.getByRole('button', {
             name: '2×2 grid',
+            exact: true,
+        });
+        const focusLayout = strip.getByRole('button', {
+            name: 'Focus (3:1)',
             exact: true,
         });
         const beside = strip.getByRole('button', {
@@ -272,6 +280,8 @@ test('@playback @electron four frame-copy views retain their sessions through gr
                 })
                 .toBe(true);
         };
+        const fullscreen = () =>
+            page.evaluate(() => Boolean(document.fullscreenElement));
 
         const one = await rememberPlaying(1);
         await fullHeight();
@@ -285,11 +295,13 @@ test('@playback @electron four frame-copy views retain their sessions through gr
         await expect(multiview).toBeFocused();
         await fullHeight();
         await multiview.press('Enter');
-        await openGrid.press('Enter');
+        await openFocus.press('Enter');
         await expect(stage).toBeFocused();
+        await expect(focusLayout).toHaveAttribute('aria-pressed', 'true');
+        for (const slot of [2, 3, 4]) await expect(empty(slot)).toBeVisible();
+        await grid.click();
         await expect(grid).toHaveAttribute('aria-pressed', 'true');
         await expectEqualGridCells(stage);
-        for (const slot of [2, 3, 4]) await expect(empty(slot)).toBeVisible();
         await expect(stage.locator(canvasSelector)).toHaveCount(1);
         await expectHelpers(1);
 
@@ -393,6 +405,52 @@ test('@playback @electron four frame-copy views retain their sessions through gr
             )
             .toEqual(['playing', 'playing', 'playing', 'playing']);
 
+        await focusLayout.click();
+        await expect(focusLayout).toHaveAttribute('aria-pressed', 'true');
+        await page.keyboard.press('3');
+        await expect(control(3)).toHaveAttribute('aria-pressed', 'true');
+        await expect
+            .poll(async () => {
+                const [main, top, middle, bottom] = await Promise.all(
+                    [3, 1, 2, 4].map((slot) => tile(slot).boundingBox())
+                );
+                return Boolean(
+                    main &&
+                    top &&
+                    middle &&
+                    bottom &&
+                    main.x < top.x &&
+                    Math.abs(main.width - top.width * 3) < 2 &&
+                    top.x === middle.x &&
+                    middle.x === bottom.x &&
+                    top.y < middle.y &&
+                    middle.y < bottom.y
+                );
+            })
+            .toBe(true);
+        await expect(soundFromTwo).toHaveAttribute('aria-pressed', 'true');
+        for (const [slot, id] of [
+            [1, one],
+            [2, two],
+            [3, three],
+            [4, four],
+        ] as const)
+            await sameCanvas(slot, id);
+        await stage.press('f');
+        await expect.poll(fullscreen).toBe(true);
+        await expect(strip).toBeVisible();
+        await stage.press('4');
+        await expect(control(4)).toHaveAttribute('aria-pressed', 'true');
+        await sameCanvas(4, four);
+        await grid.click();
+        await expect(grid).toHaveAttribute('aria-pressed', 'true');
+        await expectEqualGridCells(stage);
+        await expect.poll(fullscreen).toBe(true);
+        await stage.press('f');
+        await expect.poll(fullscreen).toBe(false);
+        await expect(control(4)).toHaveAttribute('aria-pressed', 'true');
+        await expectEqualGridCells(stage);
+
         await strip.hover();
         let previous = await sampleGridFrames(page, stage);
         await expect
@@ -415,22 +473,11 @@ test('@playback @electron four frame-copy views retain their sessions through gr
                 name: `Replace stream in window ${slot}`,
                 exact: true,
             });
-        const fullscreen = () =>
-            page.evaluate(() => Boolean(document.fullscreenElement));
-        await stage.press('f');
-        await expect.poll(fullscreen).toBe(true);
-        await expectEqualGridCells(stage);
         await replace(3).click();
         await expect(picker(3).getByRole('searchbox')).toBeFocused();
-        expect(
-            await picker(3).evaluate((dialog) =>
-                document.fullscreenElement?.contains(dialog)
-            )
-        ).toBe(true);
         await page.keyboard.press('Escape');
         await expect(picker(3)).toHaveCount(0);
         await expect(replace(3)).toBeFocused();
-        await expect.poll(fullscreen).toBe(true);
 
         const survivorRequests = () => [requests[0], requests[2], requests[3]];
         const beforeRecovery = survivorRequests();
@@ -466,6 +513,22 @@ test('@playback @electron four frame-copy views retain their sessions through gr
         }
         await unchangedSurvivors();
 
+        await stage.press('f');
+        await expect.poll(fullscreen).toBe(true);
+        await expect(strip).toBeVisible();
+        await empty(2).click();
+        await expect(picker(2).getByRole('searchbox')).toBeFocused();
+        expect(
+            await picker(2).evaluate((dialog) =>
+                document.fullscreenElement?.contains(dialog)
+            )
+        ).toBe(true);
+        await page.keyboard.press('Escape');
+        await expect(picker(2)).toHaveCount(0);
+        await expect(empty(2)).toBeFocused();
+        await stage.press('f');
+        await expect.poll(fullscreen).toBe(false);
+
         await empty(2).click();
         await choose(2, 'Synthetic unavailable');
         const failed = await readId(2);
@@ -498,7 +561,6 @@ test('@playback @electron four frame-copy views retain their sessions through gr
             })
             .click();
         await expect(multiview).toBeFocused();
-        await expect.poll(fullscreen).toBe(true);
         await fullHeight();
         await sameCanvas(1, one);
         await expect(stage.locator(canvasSelector)).toHaveCount(1);
@@ -507,13 +569,6 @@ test('@playback @electron four frame-copy views retain their sessions through gr
                 .poll(async () => (await latest(id))?.status)
                 .toBe('closed');
         await expectHelpers(1);
-        await canvas(1).hover();
-        await stage
-            .getByRole('button', { name: 'Exit fullscreen', exact: true })
-            .click();
-        await expect.poll(fullscreen).toBe(false);
-        await fullHeight();
-
         await multiview.click();
         await addFromDock.click();
         await choose(2);
