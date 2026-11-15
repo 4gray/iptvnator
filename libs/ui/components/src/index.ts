@@ -13,6 +13,7 @@ export * from './lib/confirm-dialog/dialog.service';
 export * from './lib/content-hero/content-hero.component';
 export * from './lib/expandable-text/expandable-text.component';
 export * from './lib/form-field-defaults/form-field-defaults';
+export * from './lib/ime-input.directive';
 export * from './lib/external-playback-dock/external-playback-dock.component';
 export * from './lib/lazy-dialog/lazy-mat-dialog';
 export * from './lib/portal-detail-shell/content-about.component';

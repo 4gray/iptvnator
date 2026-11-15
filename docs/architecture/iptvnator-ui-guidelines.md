@@ -589,21 +589,16 @@ Shared season tabs have one Tab stop, wrapping Left/Right navigation
 The dropdown variant keeps Material menu keyboard behavior. Detail and
 fullscreen instances own distinct tab/panel IDs.
 
-A text field's own key handler (Enter to submit, arrows or Escape in a
-search-and-pick list) first returns when `isImeComposing(event)` from
-`@iptvnator/portal/shared/util` is true: during an input method composition
-Enter commits the text and arrows/Escape drive the candidate list. The check
-reads `isComposing`. A legacy Safari commit with `keyCode` 229 also counts
-within 50 ms of `compositionend` on the same field, until keyup or focus
-leaves the field. Ordinary Android keyboard events with 229 still submit.
-Leave the default behavior enabled on composition keys. A handler
-that owns Escape or arrows also stops their propagation, so the surrounding
-dialog or overlay cannot close on them. Guard in a component method, not inline
-in the template; an event binding that evaluates to `false` calls
-`preventDefault()`. The
-workspace search, command palette, playlist switcher and TMDB match search do
-this (unit specs and `settings.e2e.ts` dispatch composing keys; a real IME is
-still checked by hand). The TV client keeps its own `ime-guard.ts`.
+Search fields with custom Enter, Escape or arrow handlers use
+`ImeInputDirective` from `@iptvnator/ui/components`. Composing Enter commits
+the text and Escape and arrows drive the candidate list. The field also
+accepts legacy Safari's `keyCode` 229 for 50 ms after it receives
+`compositionend`, until keyup or blur. Ordinary Android Enter still submits.
+Handlers leave the default behavior enabled on composition keys and can
+stop those keys from reaching the surrounding overlay. Other shortcuts such
+as F11 still reach the shell. The workspace search, command palette, playlist
+switcher and TMDB match search use the directive. Tests dispatch composition
+and keyboard events. The TV client has its own `ime-guard.ts`.
 
 ## Keyboard Scrolling and Channel Focus
 

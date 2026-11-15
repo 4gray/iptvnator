@@ -222,13 +222,14 @@ describe('WorkspaceCommandPaletteComponent', () => {
                 keyCode: 27,
                 isComposing: true,
             });
+            const fullscreen = pressInQuery({ key: 'F11', isComposing: true });
             document.removeEventListener('keydown', bubbled);
 
             expect(component.selectedIndex()).toBe(0);
             expect(arrow.defaultPrevented).toBe(false);
             expect(escape.defaultPrevented).toBe(false);
             expect(dialogRef.close).not.toHaveBeenCalled();
-            expect(bubbled).not.toHaveBeenCalled();
+            expect(bubbled.mock.calls).toEqual([[fullscreen]]);
         });
 
         it('runs the selected command on a plain Enter', () => {
