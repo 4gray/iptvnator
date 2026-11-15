@@ -5,6 +5,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { diffSettingsValues } from './settings-change-tracking';
 import { SettingsForm } from './settings-form.utils';
+import { normalizeSavedAppearance } from './settings-theme-preview';
 
 export type SettingsFormValue = ReturnType<SettingsForm['getRawValue']>;
 
@@ -60,7 +61,10 @@ export function settingsToFormValue(
     settings: Settings,
     current: SettingsFormValue
 ): SettingsFormValue {
-    const stored = settings as unknown as Values;
+    const stored: Values = {
+        ...settings,
+        ...normalizeSavedAppearance(settings),
+    };
     const next: Values = { ...(current as unknown as Values) };
     for (const key of Object.keys(next)) {
         if (!(key in stored)) continue;

@@ -1,5 +1,5 @@
 import { FormBuilder } from '@angular/forms';
-import { Settings, VideoPlayer } from '@iptvnator/shared/interfaces';
+import { Settings, Theme, VideoPlayer } from '@iptvnator/shared/interfaces';
 import {
     epgUrlsAddedOutside,
     pickChangedSettings,
@@ -71,6 +71,23 @@ describe('settingsToFormValue', () => {
         expect(next.ageRatingCountry).toBe('auto');
         expect(next.theme).toBe(current.theme);
         expect(next.tmdb).toEqual(current.tmdb);
+    });
+
+    it('uses the same System theme defaults as opening Settings', () => {
+        const current = createSettingsForm(
+            new FormBuilder(),
+            true
+        ).getRawValue();
+        const next = settingsToFormValue(
+            {
+                systemLightTheme: Theme.DarkTheme,
+                systemDarkTheme: Theme.LightTheme,
+            } as Settings,
+            current
+        );
+
+        expect(next.systemLightTheme).toBe(Theme.LightTheme);
+        expect(next.systemDarkTheme).toBe(Theme.DarkTheme);
     });
 });
 

@@ -351,6 +351,23 @@ describe('SettingsComponent with settings changed outside the form', () => {
         expect(component.form.changedPaths()).toEqual(['tmdb.apiKey']);
     });
 
+    it('keeps an unacknowledged setting staged through a backup import', async () => {
+        jest.spyOn(window.electron, 'updateSettings').mockRejectedValueOnce(
+            new Error('runtime unavailable')
+        );
+        const form = component.settingsForm;
+        form.controls.showCaptions.setValue(true);
+        form.markAsDirty();
+        await expect(component.form.save(() => undefined)).rejects.toThrow();
+
+        importBackupAddingGuide(RESTORED_GUIDE);
+
+        expect(component.form.changedPaths()).toEqual(['showCaptions']);
+        expect(form.dirty).toBe(true);
+        await component.form.save(() => component.form.applySavedSettings());
+        expect(form.pristine).toBe(true);
+    });
+
     it('does not rewrite a half-failed save after Discard', async () => {
         const form = component.settingsForm;
         jest.spyOn(window.electron, 'updateSettings').mockRejectedValueOnce(
