@@ -232,6 +232,10 @@ test.describe('Live layout at the minimum window width (UI-67)', () => {
         await resetMockServers(request, ['xtream']);
         const credentials = { username: 'marketing', password: 'marketing' };
         const fixture = await fetchXtreamLiveFixture(request, credentials);
+        const channelName = fixture.items[0]?.name;
+        if (!channelName) {
+            throw new Error('Xtream fixture returned no named first channel.');
+        }
         const app = await launchElectronApp(dataDir);
         try {
             await routePlayableStreams(app.mainWindow);
@@ -245,7 +249,7 @@ test.describe('Live layout at the minimum window width (UI-67)', () => {
                 app.mainWindow,
                 fixture.categoryName
             );
-            await channelItemByTitle(app.mainWindow, fixture.items[0].name)
+            await channelItemByTitle(app.mainWindow, channelName)
                 .first()
                 .click();
 
