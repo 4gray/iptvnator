@@ -12,7 +12,6 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
-import { TranslatePipe } from '@ngx-translate/core';
 import {
     WorkspaceBackPhoneSlot,
     WorkspaceBackTarget,
@@ -126,7 +125,11 @@ describe('WorkspaceShellHeaderComponent', () => {
                         );
                 }
                 expect(pressEnter(init)).toEqual([]);
-                document.dispatchEvent(new Event('keyup'));
+                fixture.nativeElement
+                    .querySelector('input')
+                    .dispatchEvent(
+                        new KeyboardEvent('keyup', { bubbles: true })
+                    );
             }
         );
 

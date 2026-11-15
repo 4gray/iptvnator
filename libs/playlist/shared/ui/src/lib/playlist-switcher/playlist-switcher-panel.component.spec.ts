@@ -235,7 +235,9 @@ describe('PlaylistSwitcherPanelComponent', () => {
             press('Escape', init);
             press('Enter', init);
             document.removeEventListener('keydown', bubbled);
-            document.dispatchEvent(new Event('keyup'));
+            input().dispatchEvent(
+                new KeyboardEvent('keyup', { bubbles: true })
+            );
 
             expect(input().getAttribute('aria-activedescendant')).toBe(
                 highlighted

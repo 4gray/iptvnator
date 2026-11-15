@@ -195,7 +195,11 @@ describe('WorkspaceCommandPaletteComponent', () => {
                         );
                 }
                 const event = pressInQuery(init);
-                document.dispatchEvent(new Event('keyup'));
+                fixture.nativeElement
+                    .querySelector('input')
+                    .dispatchEvent(
+                        new KeyboardEvent('keyup', { bubbles: true })
+                    );
 
                 expect(dialogRef.close).not.toHaveBeenCalled();
                 expect(event.defaultPrevented).toBe(false);
