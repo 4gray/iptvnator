@@ -180,6 +180,12 @@
 
     input {
         flex: 1;
+        // An <input> carries an intrinsic min-width from its `size`, and
+        // `min-width: auto` on a flex item honours it: in a narrow header
+        // the input refused to shrink, squeezed the scope chip to "L…" and
+        // pushed the palette trigger out of the field onto the buttons
+        // beside it.
+        min-width: 0;
         border: none;
         outline: none;
         background: transparent;
@@ -450,14 +456,6 @@
         .search-chip--status,
         .search-chip--scope {
             display: none;
-        }
-
-        // An <input> carries an intrinsic min-width from its `size`, and
-        // `min-width: auto` on a flex item honours it — so the input refused
-        // to shrink and pushed the trigger out of the field and onto the
-        // buttons beside it.
-        input {
-            min-width: 0;
         }
 
         // This button is the only pointer-driven way into the command

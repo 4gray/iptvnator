@@ -845,6 +845,18 @@ remain local when the meaning is explicit.
   `XtreamContentGateComponent` then replaces the live layout with an error view,
   so the shell keeps the rail unfolded (`isLiveContentBlocked`) and the rail
   withholds its hide chevron, rather than hiding the only way back.
+- Compact desktop band (UI-67): between 641px and 1100px
+  (`LIVE_COMPACT_VIEWPORT_QUERY`, `live-compact-viewport.ts`) the portal
+  categories rail renders folded while the stored level is `expanded`, so the
+  900px window minimum still leaves the player about half the width.
+  `LiveLayoutSidebarStateService.areCategoriesHiddenFor('portal')` derives
+  this; nothing is persisted, and widening the window brings the stored level
+  back. The popover's "show categories panel" unfolds the rail inside the band
+  until the viewport leaves and re-enters it. The channel list's `max-width`
+  is `clamp(250px, 36vw, 600px)` (`_portal-layout.scss`), so a stored or
+  default width narrows with the window. Both values are local until the
+  breakpoint map (UI-36) absorbs them; `live-layout-compact-width.e2e.ts`
+  pins the player share at 900×700 for Xtream, Stalker and M3U.
 - Xtream Live TV's root view (`/live` with no selected category) follows the
   same paginated `All Items` shell as VOD and Series: a widget header with the
   total channel count, page-size controls, and page navigation above the shared

@@ -26,7 +26,12 @@
         box-sizing: border-box;
         padding-inline-end: 8px;
         min-width: 250px;
-        max-width: 600px;
+        // The cap follows the viewport so a stored or default width cannot
+        // starve the player on a narrow window: 36vw is 324px at the 900px
+        // desktop minimum and stops binding the 400px default above ~1110px.
+        // Below 641px the phone rules release it. (UI-67; the breakpoint map
+        // of UI-36 is meant to take this over.)
+        max-width: clamp(250px, 36vw, 600px);
         border-right: 1px solid var(--app-separator);
         display: flex;
         flex-direction: column;
