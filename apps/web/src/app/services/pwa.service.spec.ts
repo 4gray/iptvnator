@@ -11,7 +11,13 @@ import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { config as rxjsConfig, of, Subject } from 'rxjs';
+import {
+    config as rxjsConfig,
+    firstValueFrom,
+    of,
+    ReplaySubject,
+    Subject,
+} from 'rxjs';
 import {
     buildHostConnectivityFastFailMessage,
     CONNECTIVITY_GUARD_RESET,
@@ -98,7 +104,11 @@ describe('PwaService', () => {
         'binds a delayed refresh result to its requested URL and User-Agent (%s)',
         async (userAgent) => {
             const response = new Subject<Playlist>();
-            jest.spyOn(service, 'getPlaylistFromUrl').mockReturnValue(response);
+            const downloadStarted = new ReplaySubject<void>(1);
+            jest.spyOn(service, 'getPlaylistFromUrl').mockImplementation(() => {
+                downloadStarted.next();
+                return response;
+            });
             const payload = {
                 id: 'shared',
                 url: 'https://old.test/list',
@@ -106,6 +116,7 @@ describe('PwaService', () => {
             };
             const refreshing = service.refreshPlaylist(payload);
             payload.url = 'https://changed.test/list';
+            await firstValueFrom(downloadStarted);
             response.next({
                 _id: 'parsed',
                 playlist: { items: [] },
@@ -175,6 +186,7 @@ describe('PwaService', () => {
                 url: 'https://provider.example/list.m3u',
                 userAgent: '  IPTVnator-Test/1.0  ',
             });
+            await new Promise((resolve) => setTimeout(resolve));
             http.expectOne((req) =>
                 req.url.endsWith('/provider-targets')
             ).flush({ targetId: 'target-ua' });
@@ -276,6 +288,7 @@ describe('PwaService', () => {
             settled = true;
         });
 
+        await new Promise((resolve) => setTimeout(resolve));
         http.expectOne((req) => req.url.endsWith('/provider-targets')).flush({
             targetId: 'target-1',
         });
@@ -311,12 +324,16 @@ describe('PwaService', () => {
         const playlist = { _id: 'playlist-1' } as Playlist;
         jest.spyOn(service, 'getPlaylistFromUrl').mockReturnValue(of(playlist));
         const write = new Subject<Playlist>();
-        updatePlaylist.mockReturnValueOnce(write);
+        const saveStarted = new ReplaySubject<void>(1);
+        updatePlaylist.mockImplementationOnce(() => {
+            saveStarted.next();
+            return write;
+        });
         const pending = service.refreshPlaylist({
             id: 'playlist-1',
             url: 'https://provider.example/list.m3u',
         });
-        await Promise.resolve();
+        await firstValueFrom(saveStarted);
         expect(updatePlaylist).toHaveBeenCalled();
         write.error(new Error('Synthetic transaction abort'));
         await pending;
@@ -335,6 +352,7 @@ describe('PwaService', () => {
             url: 'https://provider.example/list.m3u',
         });
 
+        await new Promise((resolve) => setTimeout(resolve));
         http.expectOne((req) => req.url.endsWith('/provider-targets')).flush({
             targetId: 'target-1',
         });
@@ -363,7 +381,7 @@ describe('PwaService', () => {
                 url: 'https://provider.example/list.m3u',
             });
 
-            await Promise.resolve();
+            await new Promise((resolve) => setTimeout(resolve));
             http.expectOne((req) =>
                 req.url.endsWith('/provider-targets')
             ).flush({ targetId: 'target-1' });

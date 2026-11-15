@@ -1012,6 +1012,8 @@ controls host. The renderer files live under
   adapter for frame-copy. Maps session/support/playback signals to shared
   controls state and capabilities, delegates commands to
   `EmbeddedMpvSessionController`, and projects series navigation and recording.
+- `embedded-mpv-controls-status.ts` maps support and session snapshots to the
+  shared controls status and translated message.
 - `embedded-mpv-controls-recording.ts` — frame-copy shared-controls recording
   coordinator. Serializes toggles, correlates command settlement with fresh
   same-owner snapshots, and cancels pending state on ownership or engine
