@@ -41,9 +41,14 @@ import { handoffMpvAudio } from '../embedded-mpv-player/embedded-mpv-audio-hando
 import type {
     SecondStreamOpenStream,
     SecondStreamPickerData,
+    SecondStreamView,
 } from './second-stream-open-stream';
 import { PlaybackProgressConfirmation } from '../playback-history/playback-progress-confirmation';
 import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
+import {
+    blurFocusedControl,
+    clickPointerOrigin,
+} from '../player-controls/pointer-focus-release';
 
 @Component({
     selector: 'app-second-stream',
@@ -57,6 +62,7 @@ import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
         EmbeddedMpvPlayerComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    host: { '[class.second-stream--side-by-side]': 'sideBySide()' },
 })
 export class SecondStreamComponent implements OnDestroy {
     readonly primary = input.required<EmbeddedMpvPlayerComponent>();
@@ -82,23 +88,39 @@ export class SecondStreamComponent implements OnDestroy {
     });
     readonly active = computed(() => this.playback() !== null);
     readonly swapped = signal(false);
+    private readonly beside = signal(false);
+    private readonly sideControls = signal<SecondStreamView>('primary');
+    readonly sideBySide = computed(() => this.active() && this.beside());
+    readonly audioView = computed<SecondStreamView>(() =>
+        this.swapped() ? 'secondary' : 'primary'
+    );
+    readonly controlsView = computed(() =>
+        this.sideBySide() ? this.sideControls() : this.audioView()
+    );
+    private readonly audiblePlayer = computed(() =>
+        this.swapped() ? this.secondary() : this.primary()
+    );
     readonly openStreams = computed<SecondStreamOpenStream[]>(() => {
         const primary = this.primary().playback();
         const secondary = this.playback();
         const streams: SecondStreamOpenStream[] = [];
         if (primary)
             streams.push({
+                view: 'primary',
                 playback: primary,
                 small: this.swapped(),
                 muted: (this.primary().session()?.volume ?? 0) === 0,
             });
         if (secondary)
             streams.push({
+                view: 'secondary',
                 playback: secondary,
                 small: !this.swapped(),
                 muted: (this.secondary()?.session()?.volume ?? 0) === 0,
             });
-        return streams.sort((a, b) => Number(a.small) - Number(b.small));
+        return !this.sideBySide() && this.swapped()
+            ? streams.reverse()
+            : streams;
     });
     private readonly positions = inject(PORTAL_PLAYBACK_POSITIONS, {
         optional: true,
@@ -148,28 +170,7 @@ export class SecondStreamComponent implements OnDestroy {
         });
         effect((cleanup) => {
             const stage = this.fullscreenTarget();
-            if (!stage) return;
-            const measure = () =>
-                untracked(() =>
-                    this.placement.measure(
-                        stage.getBoundingClientRect(),
-                        {
-                            width: window.innerWidth,
-                            height: window.innerHeight,
-                        },
-                        document.fullscreenElement === stage
-                    )
-                );
-            const observer = new ResizeObserver(measure);
-            observer.observe(stage);
-            window.addEventListener('resize', measure);
-            document.addEventListener('fullscreenchange', measure);
-            measure();
-            cleanup(() => {
-                observer.disconnect();
-                window.removeEventListener('resize', measure);
-                document.removeEventListener('fullscreenchange', measure);
-            });
+            if (stage) cleanup(untracked(() => this.placement.observe(stage)));
         });
         effect(() => {
             if (!this.selection() || this.active()) return;
@@ -178,9 +179,7 @@ export class SecondStreamComponent implements OnDestroy {
         });
         effect(() => {
             if (this.busy() || this.relocking()) return;
-            const session = (
-                this.swapped() ? this.secondary() : this.primary()
-            )?.session();
+            const session = this.audiblePlayer()?.session();
             if (
                 (session?.status === 'playing' ||
                     session?.status === 'paused') &&
@@ -211,7 +210,7 @@ export class SecondStreamComponent implements OnDestroy {
                 autoFocus: 'input[type="search"]',
                 backdropClass: 'second-stream-picker-backdrop',
                 data: {
-                    returningToOriginal: this.swapped(),
+                    returningToOriginal: this.swapped() && !this.sideBySide(),
                     initialPlaylist:
                         [...(this.route?.snapshot.pathFromRoot ?? [])]
                             .reverse()
@@ -273,10 +272,32 @@ export class SecondStreamComponent implements OnDestroy {
         this.error.set(false);
     }
 
+    setSideBySide(enabled: boolean): void {
+        if (!this.active() || this.busy() || this.sideBySide() === enabled)
+            return;
+        this.sideControls.set(this.audioView());
+        this.beside.set(enabled);
+    }
+
+    selectControls(view: SecondStreamView): void {
+        if (this.sideBySide()) this.sideControls.set(view);
+    }
+
+    selectSound(view: SecondStreamView): void {
+        if (this.sideBySide() && view !== this.audioView()) void this.swap();
+    }
+
+    onStripClick(event: MouseEvent): void {
+        const strip = event.currentTarget;
+        if (strip instanceof HTMLElement && clickPointerOrigin(event)) {
+            blurFocusedControl(strip);
+        }
+    }
+
     async swap(): Promise<boolean> {
         const canContinue = () => !this.abort.signal.aborted && this.active();
         if (this.busy() || !this.ready() || !canContinue()) return false;
-        const outgoing = this.swapped() ? this.secondary() : this.primary();
+        const outgoing = this.audiblePlayer();
         const incoming = this.swapped() ? this.primary() : this.secondary();
         const from = outgoing?.controller.sessionId();
         const to = incoming?.controller.sessionId();
@@ -320,6 +341,7 @@ export class SecondStreamComponent implements OnDestroy {
         }
         this.flushPosition();
         this.selection.set(null);
+        this.beside.set(false);
         this.swapped.set(false);
         this.relocking.set(false);
         if (muted && !this.abort.signal.aborted)
@@ -343,6 +365,7 @@ export class SecondStreamComponent implements OnDestroy {
         this.swapped.set(false);
         this.flushPosition();
         this.selection.set(null);
+        this.beside.set(false);
     }
 
     pauseSmall(): void {

@@ -12,7 +12,6 @@ import {
     EmbeddedMpvSession,
     EmbeddedMpvSupport,
     RecordingStartMetadata,
-    RecordingStoppedEvent,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
@@ -43,7 +42,14 @@ import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller'
 import { EmbeddedMpvSubtitleSettings } from './embedded-mpv-subtitle-settings';
 import { toPlayerStreamStats } from './embedded-mpv-stream-stats';
 
+type VolumeController = Pick<
+    EmbeddedMpvSessionController,
+    'session' | 'applyVolume'
+>;
+
 export interface EmbeddedMpvControlsContext {
+    readonly volumeController?: () => VolumeController;
+    readonly volumeCommandsEnabled?: Signal<boolean>;
     readonly playback: Signal<ResolvedPortalPlayback>;
     readonly selectSubtitleTrack?: (trackId: number) => Promise<void>;
     readonly seriesNavigation: Signal<SeriesPlaybackNavigation | null>;
@@ -66,6 +72,9 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
 
     private readonly configuredContext =
         signal<EmbeddedMpvControlsContext | null>(null);
+    private readonly volumeController = computed(
+        () => this.configuredContext()?.volumeController?.() ?? this.controller
+    );
     private readonly playbackIdentity = computed(() => {
         const playback = this.configuredContext()?.playback();
         return playback ? JSON.stringify(playback) : null;
@@ -164,7 +173,8 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             durationSeconds,
             isLive,
             canSeek: !isLive && (durationSeconds ?? 0) > 0,
-            volume: session?.volume ?? readStoredVolume(),
+            volume:
+                this.volumeController().session()?.volume ?? readStoredVolume(),
             audioTracks: (session?.audioTracks ?? []).map((track, index) => ({
                 id: track.id,
                 label: audioTrackLabel(track, index, {
@@ -227,7 +237,10 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
         togglePlay: () => void this.controller.togglePaused(),
         seekTo: (seconds) => void this.controller.seekTo(seconds),
         seekBy: (deltaSeconds) => void this.controller.seekBy(deltaSeconds),
-        setVolume: (value) => void this.controller.applyVolume(value),
+        setVolume: (value) => {
+            if (this.configuredContext()?.volumeCommandsEnabled?.() !== false)
+                void this.volumeController().applyVolume(value);
+        },
         setAudioTrack: (id) => void this.controller.setAudioTrack(id),
         setSubtitleTrack: (id) =>
             void (

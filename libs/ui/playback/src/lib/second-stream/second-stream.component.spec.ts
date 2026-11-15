@@ -245,8 +245,13 @@ describe('SecondStreamComponent', () => {
             status: 'playing',
         });
         expect(component.openStreams()).toEqual([
-            { playback, small: false, muted: false },
-            { playback: companion, small: true, muted: true },
+            { view: 'primary', playback, small: false, muted: false },
+            {
+                view: 'secondary',
+                playback: companion,
+                small: true,
+                muted: true,
+            },
         ]);
         await component.swap();
         expect(
@@ -257,6 +262,42 @@ describe('SecondStreamComponent', () => {
             .mockResolvedValue(undefined);
         component.pauseSmall();
         expect(pause).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps side-by-side order and audio independent of the selected controls', async () => {
+        const companion = { ...playback, title: 'Fixture companion' };
+        component.selection.set({ ...selection, playback: companion });
+        expect(await component.swap()).toBe(true);
+        volume.mockClear();
+
+        component.setSideBySide(true);
+        expect(component.controlsView()).toBe('secondary');
+        expect(
+            component.openStreams().map((stream) => stream.playback)
+        ).toEqual([playback, companion]);
+        component.selectControls('primary');
+        expect(component.controlsView()).toBe('primary');
+        expect(component.audioView()).toBe('secondary');
+        expect(volume).not.toHaveBeenCalled();
+
+        component.setSideBySide(false);
+        expect(component.controlsView()).toBe('secondary');
+        expect(component.openStreams()[0]?.playback).toBe(companion);
+        expect(volume).not.toHaveBeenCalled();
+    });
+
+    it('returns to the original player and floating default when a pair closes', async () => {
+        component.selection.set(selection);
+        component.setSideBySide(true);
+        component.selectControls('secondary');
+
+        await component.close();
+        expect(component.sideBySide()).toBe(false);
+        expect(component.controlsView()).toBe('primary');
+        expect(first.controller.sessionId()).toBe('first');
+
+        component.selection.set(selection);
+        expect(component.sideBySide()).toBe(false);
     });
 
     it('records local progress and history after companion playback advances', async () => {

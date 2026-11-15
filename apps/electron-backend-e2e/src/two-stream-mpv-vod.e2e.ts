@@ -240,7 +240,7 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
             const picker = page.getByRole('dialog', {
                 name: 'Choose a second stream',
             });
-            const openStreams = page.locator('ul.second-stream__strip');
+            const openStreams = page.locator('.second-stream__strip');
             const tile = page.getByRole('group', {
                 name: 'Small view',
                 exact: true,
@@ -393,11 +393,28 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
             await episodeRow.click();
             const episodeSessionId = await assertResume(22, movieSessionId);
             await seek(episodeSessionId, 38);
-            await tile.hover();
-            await tile
+            const original = main.locator('canvas[data-embedded-mpv-frame]');
+            const originalSessionId =
+                await original.getAttribute('data-session-id');
+            if (!originalSessionId) throw new Error('Missing original session');
+            await openStreams
+                .getByRole('button', { name: 'Side by side' })
+                .click();
+            await expect(companion).toHaveAttribute(
+                'data-session-id',
+                episodeSessionId
+            );
+            await openStreams
                 .getByRole('button', { name: 'Close second stream and return' })
                 .click();
             await expect(companion).toHaveCount(0);
+            await expect(
+                openStreams.getByRole('button', { name: 'Side by side' })
+            ).toHaveCount(0);
+            await expect(original).toHaveAttribute(
+                'data-session-id',
+                originalSessionId
+            );
             const position = (id: number, type: 'vod' | 'episode') =>
                 page.evaluate(
                     ({ playlistId, id, type }) =>

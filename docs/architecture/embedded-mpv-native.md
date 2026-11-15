@@ -549,11 +549,11 @@ only and does not promise timeshift or an application buffer.
 The primary and companion retain their components and session IDs during
 main/small exchange. CSS changes their geometry; bounds sync resizes each
 helper's render target without loading the media again. Keyboard focus has no
-playback or audio side effect. Only the main view exposes shared controls;
-the small view has exchange, pause/resume, change stream and close-and-return
-controls. Change stream reopens the same picker. Selection replaces only the
-companion session and starts it muted. If the views are swapped, the original
-video and its sound return to the main view before the replacement starts.
+playback or audio side effect. In floating mode the main view exposes shared
+controls. The small view has exchange, pause/resume, change stream and
+close-and-return controls. Change stream reopens the same picker. Selection
+replaces only the companion session and starts it muted. If the companion owns
+sound, audio returns to the original before the replacement starts.
 The companion keeps its playlist and category identity for parental controls.
 A relock hides a withheld stream immediately and retires its session. The
 primary view resumes sound only after the companion acknowledges its mute,
@@ -578,6 +578,16 @@ or backdrop click, rather than disappearing on pointer leave. While a
 companion is open, primary end-of-file does not trigger episode autoplay.
 If sound transfer fails while closing, the companion still closes and the
 retained primary stays muted; its volume control remains available.
+
+With two streams, the strip offers Floating window and Side by side inside the
+same fullscreen host. Side by side shows equal panes in opening order. Clicking
+a pane or selecting its title in the strip gives it playback controls and
+shortcuts. The strip's speaker buttons move sound independently through the
+acknowledged handoff. The selected dock changes volume on the sound owner's
+session. Returning to Floating window makes the sound owner the main view and
+restores the floating geometry. Both layout changes preserve the mounted players,
+canvas attachments, pause state and recording. Closing or withholding the
+companion expands the original and resets the layout for the next pair.
 
 Preload frame pumps, attach cancellation epochs, canvases and native readers
 are session-owned. The renderer binds `data-session-id` before attaching and

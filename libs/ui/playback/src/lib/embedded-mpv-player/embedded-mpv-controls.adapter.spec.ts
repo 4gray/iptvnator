@@ -192,6 +192,31 @@ describe('EmbeddedMpvControlsAdapter', () => {
         expect(adapter.state()).toEqual(createEmptyControlsState());
     });
 
+    it('sends volume to the audio owner while transport stays on the selected view', () => {
+        const audioOwner = createController();
+        audioOwner.session.set(session({ volume: 0.4 }));
+        const volumeCommandsEnabled = signal(false);
+        adapter.configure({
+            playback,
+            seriesNavigation,
+            recordingFolder: signal('/recordings'),
+            volumeController: () => audioOwner,
+            volumeCommandsEnabled,
+        });
+
+        expect(adapter.state().volume).toBe(0.4);
+        adapter.commands.setVolume(0.8);
+        expect(audioOwner.applyVolume).not.toHaveBeenCalled();
+
+        volumeCommandsEnabled.set(true);
+        adapter.commands.setVolume(0.6);
+        adapter.commands.togglePlay();
+        expect(audioOwner.applyVolume).toHaveBeenCalledWith(0.6);
+        expect(controller.applyVolume).not.toHaveBeenCalled();
+        expect(controller.togglePaused).toHaveBeenCalledTimes(1);
+        expect(audioOwner.togglePaused).not.toHaveBeenCalled();
+    });
+
     it('derives baseline, optional, and VOD series capabilities', () => {
         configure();
 

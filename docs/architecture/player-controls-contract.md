@@ -298,6 +298,11 @@ changes, including when it is already fullscreen. The Embedded MPV host's
 existing `fullscreenchange` listener still triggers bounds sync so frame-copy
 render size follows the fullscreen DOM surface.
 
+In Embedded MPV side-by-side playback the fullscreen target contains both
+viewports and the stream strip. Only the selected viewport handles shared
+controls. Transport stays on that viewport, and the volume control applies to
+the separately selected audio session.
+
 The owner matters because `WebPlayerViewComponent` remounts the engine
 component for every playback application (`@for ... track application.token`:
 next episode, channel zap, alternative source, retry) and the Fullscreen API

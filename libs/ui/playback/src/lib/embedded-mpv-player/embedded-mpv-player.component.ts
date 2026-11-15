@@ -85,6 +85,8 @@ const RECORDING_MESSAGE_DISMISS_DELAY_MS = 5000;
 export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly playback = input.required<ResolvedPortalPlayback>();
     readonly showControls = input(true);
+    readonly sharedVolumeController = input<EmbeddedMpvSessionController>();
+    readonly inactiveSurfaceClicked = output<void>();
     readonly canAddSecondStream = input(false);
     readonly secondStreamRequested = output<void>();
     readonly initialVolumeOverride = input<number | null>(null);
@@ -429,6 +431,9 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
         this.sharedControls.configure({
             playback: this.playback,
+            volumeController: () =>
+                this.sharedVolumeController() ?? this.controller,
+            volumeCommandsEnabled: this.showControls,
             selectSubtitleTrack: this.applySubtitleTrack,
             seriesNavigation: this.seriesNavigation,
             recordingFolder: this.recordingFolder,
@@ -650,6 +655,8 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     }
 
     onViewportClick(event: MouseEvent): void {
+        if (!this.showControls() && event.target instanceof HTMLCanvasElement)
+            this.inactiveSurfaceClicked.emit();
         this.legacyInteractions.onViewportClick(event);
     }
 

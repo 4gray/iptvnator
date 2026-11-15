@@ -69,6 +69,17 @@
     background: var(--embedded-mpv-background, #000);
 }
 
+:host(.embedded-mpv-player-host--selected)
+    .embedded-mpv-player__viewport::after {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    box-sizing: border-box;
+    border: 2px solid var(--app-selection-color);
+    pointer-events: none;
+    content: '';
+}
+
 // Frame-copy engine: video frames are painted onto this canvas by the
 // preload frame pump. The helper renders at the aspect-fit size of the
 // video inside the viewport (no letterbox bars are baked into frames), so
