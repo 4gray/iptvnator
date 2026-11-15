@@ -15,6 +15,7 @@ export async function widenToDefaultDesktopWidth(
     application: ElectronApplication,
     mainWindow: Page
 ): Promise<void> {
+    const narrowWidth = await mainWindow.evaluate(() => window.innerWidth);
     const widened = await application.evaluate(({ BrowserWindow }, width) => {
         const [window] = BrowserWindow.getAllWindows();
         if (!window || window.isFullScreen() || window.isMaximized()) {
@@ -27,11 +28,12 @@ export async function widenToDefaultDesktopWidth(
     }, DEFAULT_E2E_WINDOW_WIDTH);
     if (!widened) return;
 
+    // Wait for the renderer to lay out at the new size. A restored zoom
+    // scales the CSS width, so the target is "wider than before", not a
+    // fixed number of CSS pixels.
     await mainWindow.waitForFunction(
-        (width) => window.innerWidth >= width,
-        // Zoomed renderers report fewer CSS pixels; the compact band's upper
-        // edge is the width that must be cleared.
-        1101,
+        (width) => window.innerWidth > width,
+        narrowWidth,
         { timeout: 5000 }
     );
 }
