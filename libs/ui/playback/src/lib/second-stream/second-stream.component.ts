@@ -37,7 +37,10 @@ import type {
 } from './second-stream-open-stream';
 import { SecondStreamPickerRequest } from './second-stream-picker-request';
 import { SecondStreamPosition } from './second-stream-position';
-import { samePositionKey } from './second-stream-slot-progress';
+import {
+    sameStreamIdentity,
+    type SecondStreamIdentity,
+} from './second-stream-identity';
 import { SecondStreamSlots } from './second-stream-slots';
 
 @Component({
@@ -310,8 +313,7 @@ export class SecondStreamComponent implements OnDestroy {
                 !this.slots.isClosing(slot) &&
                 this.selectionAt(slot) === previous &&
                 !this.isWithheld(slot),
-            findDuplicateSlot: (selection) =>
-                this.findDuplicateSlot(slot, selection.playback),
+            findDuplicateSlot: (identity) => this.findDuplicateSlot(identity),
             accept: async (selection, allowed) => {
                 if (
                     this.audioSlot() === slot &&
@@ -328,14 +330,11 @@ export class SecondStreamComponent implements OnDestroy {
     }
 
     private findDuplicateSlot(
-        slot: CompanionSlot,
-        playback: ResolvedPortalPlayback
+        identity: SecondStreamIdentity
     ): MultiviewSlot | undefined {
-        if (samePositionKey(this.primary()?.playback(), playback)) return 1;
-        return this.companionSlots.find(
-            (other) =>
-                other !== slot &&
-                samePositionKey(this.selectionAt(other)?.playback, playback)
+        if (sameStreamIdentity(this.primary()?.playback(), identity)) return 1;
+        return this.companionSlots.find((slot) =>
+            sameStreamIdentity(this.selectionAt(slot)?.playback, identity)
         );
     }
 

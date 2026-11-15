@@ -15,6 +15,12 @@ export interface ResolvedPortalPlayback {
     title: string;
     thumbnail?: string | null;
     isLive?: boolean;
+    /** Playlist entry identity, independent of expiring stream URLs. */
+    catalogIdentity?: {
+        playlistId: string;
+        type: 'live' | 'vod';
+        id: string | number;
+    };
     startTime?: number;
     launchId?: string;
     contentInfo?: PlayerContentInfo;

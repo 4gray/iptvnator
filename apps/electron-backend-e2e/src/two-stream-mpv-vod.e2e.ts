@@ -30,7 +30,6 @@ import {
     fetchStalkerCategoryFixture,
     fetchXtreamSeriesFixture,
     fetchXtreamVodFixture,
-    getXtreamTitle,
 } from './portal-mock-fixtures';
 import { applyTheme, expectTextContrast } from './theme-contrast';
 
@@ -38,6 +37,9 @@ const credentials = { username: 'minimal', password: 'minimal' };
 const sourceName = 'Synthetic Xtream';
 const stalkerName = 'Synthetic Stalker';
 const primaryName = 'Synthetic primary';
+const movieTitle = 'Synthetic feature 1';
+const seriesTitle = 'Synthetic series 1';
+const episodeTitle = 'Synthetic episode 1';
 
 test('@playback @xtream @stalker @electron second-stream VOD, history and positions', async ({
     dataDir,
@@ -132,12 +134,16 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                 !stalker &&
                 (action === 'get_vod_streams' || action === 'get_series')
             ) {
-                const rows: { stream_icon?: string; cover?: string }[] =
-                    await response.json();
-                for (const row of rows) {
+                const rows: {
+                    name: string;
+                    stream_icon?: string;
+                    cover?: string;
+                }[] = await response.json();
+                rows.forEach((row, index) => {
+                    row.name = `Synthetic ${action === 'get_series' ? 'series' : 'feature'} ${index + 1}`;
                     row.stream_icon = artwork;
                     row.cover = artwork;
-                }
+                });
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify(rows));
                 return;
@@ -149,6 +155,8 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
             ) {
                 const body = await response.json();
                 body.info.cover = artwork;
+                body.episodes['1'][0].title = episodeTitle;
+                body.episodes['1'][1].title = 'Synthetic episode 2';
                 body.episodes['1'][0].info = {
                     movie_image: artwork.replace('poster', 'still'),
                     plot: 'A synthetic crew follows a signal beyond the ridge.',
@@ -312,7 +320,7 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
             const main = slot(1);
             const companion = canvas(2);
             const picker = page.getByRole('dialog', {
-                name: /^Choose a stream for window [23]$/,
+                name: /^Choose a stream for window [234]$/,
             });
             const openStreams = page.locator('.second-stream__strip');
             const multiview = page.getByRole('button', {
@@ -407,13 +415,22 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
             await expect(openStreams).toHaveCount(0);
             await picker
                 .getByLabel('Playlist', { exact: true })
+                .selectOption({ label: 'synthetic-primary' });
+            const primaryRow = picker.getByRole('button', {
+                name: /Synthetic primary.*open in window 1/,
+            });
+            await expect(primaryRow).toBeDisabled();
+            await primaryRow.press('Enter');
+            await expect(picker).toBeVisible();
+            await picker
+                .getByLabel('Playlist', { exact: true })
                 .selectOption({ label: 'Recently viewed' });
             await picker
                 .getByRole('button', { name: 'Movies', exact: true })
                 .click();
             await expect(
                 picker.getByRole('button').filter({
-                    has: page.getByText(getXtreamTitle(movie), { exact: true }),
+                    has: page.getByText(movieTitle, { exact: true }),
                 })
             ).toBeVisible();
             await expect(
@@ -424,12 +441,12 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                 .click();
             await expect(
                 picker.getByRole('button').filter({
-                    has: page.getByText(getXtreamTitle(show), { exact: true }),
+                    has: page.getByText(seriesTitle, { exact: true }),
                 })
             ).toBeVisible();
             await expect(
                 picker.getByRole('button').filter({
-                    has: page.getByText(getXtreamTitle(movie), { exact: true }),
+                    has: page.getByText(movieTitle, { exact: true }),
                 })
             ).toHaveCount(0);
             await picker
@@ -439,7 +456,7 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                 .getByRole('button', { name: 'Series', exact: true })
                 .click();
             const favoriteSeries = picker.getByRole('button').filter({
-                has: page.getByText(getXtreamTitle(show), { exact: true }),
+                has: page.getByText(seriesTitle, { exact: true }),
             });
             await expect(
                 favoriteSeries.locator('.picker__poster img')
@@ -454,16 +471,17 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                 )
                 .toBeGreaterThan(0);
             await expect(favoriteSeries).toContainText(sourceName);
-            const movieTitle = getXtreamTitle(movie);
-            const movieRow = picker.getByRole('button', {
-                name: movieTitle,
-                exact: true,
+            const movieRow = picker.getByRole('button').filter({
+                has: page.getByText(movieTitle, { exact: true }),
             });
-            const chooseMovie = async () => {
+            const showMovies = async () => {
                 await selectSource();
                 await picker
                     .getByRole('button', { name: 'Movies', exact: true })
                     .click();
+            };
+            const chooseMovie = async () => {
+                await showMovies();
                 await movieRow.click();
             };
             await chooseMovie();
@@ -483,13 +501,15 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
             await expect(
                 openStreams.getByText(movieTitle, { exact: true })
             ).toBeVisible();
-            await chooseMovie();
-            await expect(
-                picker.getByText('This video is already open in window 2.')
-            ).toBeVisible();
+            await showMovies();
+            await expect(movieRow).toBeDisabled();
+            await expect(movieRow).toContainText('already open in window 2');
+            await expectTextContrast(movieRow.locator('.picker__opened'));
+            await movieRow.press('Enter');
+            await expect(picker).toBeVisible();
             await expect(canvas(3)).toHaveCount(0);
             const episodeRow = picker.getByRole('button').filter({
-                has: page.getByText(episode.title, { exact: true }),
+                has: page.getByText(episodeTitle, { exact: true }),
             });
             const chooseSeries = async () => {
                 await selectSource();
@@ -498,7 +518,7 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                     .click();
                 await picker
                     .getByRole('button', {
-                        name: getXtreamTitle(show),
+                        name: seriesTitle,
                         exact: true,
                     })
                     .click();
@@ -571,7 +591,7 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                 .getByRole('button', { name: 'Back', exact: true })
                 .click();
             const seriesRow = picker.getByRole('button', {
-                name: getXtreamTitle(show),
+                name: seriesTitle,
                 exact: true,
             });
             await expect(picker.getByRole('searchbox')).toBeFocused();
@@ -585,6 +605,30 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                 openStreams.getByRole('button', { name: '2×2 grid' })
             ).toHaveAttribute('aria-pressed', 'true');
             const episodeAt = await pauseAndSeek(3, episodeSessionId);
+            await addAnother.click();
+            await chooseSeries();
+            await expect(episodeRow).toBeDisabled();
+            await expect(episodeRow).toContainText('already open in window 3');
+            await expect(watchedRow).toBeEnabled();
+            await page.setViewportSize({ width: 390, height: 760 });
+            const occupiedLabel = episodeRow.locator('.picker__opened');
+            await expectTextContrast(occupiedLabel);
+            expect(
+                await occupiedLabel.evaluate(
+                    (label) => label.scrollWidth <= label.clientWidth
+                )
+            ).toBe(true);
+            await picker.screenshot({
+                path: testInfo.outputPath('second-stream-open-episode.png'),
+            });
+            await page.setViewportSize(
+                originalViewport ?? { width: 1280, height: 720 }
+            );
+            await episodeRow.press('Space');
+            await expect(picker).toBeVisible();
+            await expect(canvas(4)).toHaveCount(0);
+            await picker.press('Escape');
+            await expect(picker).toBeHidden();
             await expect(companion).toHaveAttribute(
                 'data-session-id',
                 movieSessionId

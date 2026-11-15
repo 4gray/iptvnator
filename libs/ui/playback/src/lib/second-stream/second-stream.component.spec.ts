@@ -14,6 +14,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { firstValueFrom, NEVER, Subject } from 'rxjs';
 import { EmbeddedMpvPlayerComponent } from '../embedded-mpv-player/embedded-mpv-player.component';
 import { createLoadingSession } from '../embedded-mpv-player/embedded-mpv-session-factory';
+import { pickerStreamIdentity } from './second-stream-identity';
 import type {
     CompanionSlot,
     MultiviewSlot,
@@ -554,11 +555,47 @@ describe('SecondStreamComponent', () => {
                 streamUrl: 'https://media.example.test/alternate.webm',
             },
         };
-        expect(data.findDuplicateSlot(duplicate)).toBe(4);
+        expect(data.findDuplicateSlot(duplicate.playback)).toBe(4);
         afterClosed.next(duplicate);
         expect(await result).toBeNull();
         expect(component.selectionAt(2)).toBeNull();
         expect(activity.begin).toHaveBeenCalledTimes(1);
+    });
+
+    it('matches live entries across URLs and collections while respecting playlist identity', async () => {
+        const catalogIdentity = {
+            playlistId: 'source-2',
+            type: 'live' as const,
+            id: 42,
+        };
+        const live = distinctSelection(2);
+        await choose(2, {
+            ...live,
+            playback: { ...live.playback, isLive: true, catalogIdentity },
+        });
+        const { result, data } = await dialogFor(3);
+        const favorite = {
+            ...live.item,
+            uid: 'synthetic-favorite',
+            sourceType: 'stalker' as const,
+            stalkerId: '42',
+        };
+        expect(data.findDuplicateSlot(pickerStreamIdentity(favorite))).toBe(2);
+        expect(
+            data.findDuplicateSlot(
+                pickerStreamIdentity({ ...favorite, playlistId: 'other' })
+            )
+        ).toBeUndefined();
+        afterClosed.next({
+            item: favorite,
+            playback: {
+                ...live.playback,
+                isLive: true,
+                catalogIdentity,
+                streamUrl: 'https://media.example.test/refreshed',
+            },
+        });
+        expect(await result).toBeNull();
     });
 
     it('returns sound and the large window to the primary before replacing a swapped companion', async () => {

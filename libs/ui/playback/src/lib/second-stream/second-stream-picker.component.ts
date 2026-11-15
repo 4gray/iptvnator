@@ -28,6 +28,7 @@ import {
     SecondStreamSelection,
     SecondStreamSource,
 } from '@iptvnator/portal/shared/data-access';
+import { pickerStreamIdentity } from './second-stream-identity';
 import { SecondStreamPickerEpg } from './second-stream-picker-epg';
 import { SecondStreamPickerVod } from './second-stream-picker-vod';
 import type {
@@ -232,16 +233,29 @@ export class SecondStreamPickerComponent {
         this.searchInput()?.nativeElement.focus();
     }
 
+    openSlot(
+        item: UnifiedCollectionItem,
+        episodeId?: string
+    ): MultiviewSlot | undefined {
+        return this.dialogData.findDuplicateSlot(
+            pickerStreamIdentity(item, episodeId)
+        );
+    }
+
     chooseMovie(item: UnifiedCollectionItem): void {
-        void this.resolve(item.uid, () => this.vod.service.resolveMovie(item));
+        void this.resolve(item.uid, this.openSlot(item), () =>
+            this.vod.service.resolveMovie(item)
+        );
     }
 
     chooseEpisode(
         series: UnifiedCollectionItem,
         row: SecondStreamEpisode
     ): void {
-        void this.resolve(row.episode.id, () =>
-            this.vod.service.resolveEpisode(series, row)
+        void this.resolve(
+            row.episode.id,
+            this.openSlot(series, row.episode.id),
+            () => this.vod.service.resolveEpisode(series, row)
         );
     }
 
@@ -313,7 +327,7 @@ export class SecondStreamPickerComponent {
     }
 
     async choose(row: SecondStreamChannel): Promise<void> {
-        await this.resolve(row.item.uid, async () => ({
+        await this.resolve(row.item.uid, this.openSlot(row.item), async () => ({
             item: row.item,
             playback: await this.catalog.resolve(row),
         }));
@@ -321,13 +335,15 @@ export class SecondStreamPickerComponent {
 
     private async resolve(
         key: string,
+        openSlot: MultiviewSlot | undefined,
         load: () => Promise<SecondStreamSelection>
     ): Promise<void> {
         if (this.resolving()) return;
         const generation = this.generation;
-        this.resolving.set(key);
         this.error.set(null);
-        this.duplicateSlot.set(null);
+        this.duplicateSlot.set(openSlot ?? null);
+        if (openSlot !== undefined) return;
+        this.resolving.set(key);
         try {
             const selection = await load();
             if (generation !== this.generation) return;
@@ -335,7 +351,9 @@ export class SecondStreamPickerComponent {
                 this.error.set('play');
                 return;
             }
-            const duplicate = this.dialogData.findDuplicateSlot(selection);
+            const duplicate = this.dialogData.findDuplicateSlot(
+                selection.playback
+            );
             if (duplicate === undefined) this.dialog.close(selection);
             else this.duplicateSlot.set(duplicate);
         } catch {

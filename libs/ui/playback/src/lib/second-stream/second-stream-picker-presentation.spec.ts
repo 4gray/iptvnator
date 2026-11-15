@@ -52,14 +52,18 @@ describe('SecondStreamPicker presentation', () => {
     let component: SecondStreamPickerComponent;
     let root: HTMLElement;
     const episodes = jest.fn();
+    const resolveEpisode = jest.fn();
+    const findDuplicateSlot = jest.fn();
     beforeEach(async () => {
         episodes.mockReset().mockResolvedValue([episode]);
+        resolveEpisode.mockReset();
+        findDuplicateSlot.mockReset();
         TestBed.configureTestingModule({
             imports: [SecondStreamPickerComponent, TranslateModule.forRoot()],
             providers: [
                 {
                     provide: MAT_DIALOG_DATA,
-                    useValue: { slot: 2, findDuplicateSlot: () => undefined },
+                    useValue: { slot: 2, findDuplicateSlot },
                 },
                 {
                     provide: MatDialogRef,
@@ -73,7 +77,10 @@ describe('SecondStreamPicker presentation', () => {
                         load: async () => ({ groups: [], channels: [] }),
                     },
                 },
-                { provide: SecondStreamVodService, useValue: { episodes } },
+                {
+                    provide: SecondStreamVodService,
+                    useValue: { episodes, resolveEpisode },
+                },
                 {
                     provide: SecondStreamEpgService,
                     useValue: { xmltvAvailable$: NEVER },
@@ -95,6 +102,9 @@ describe('SecondStreamPicker presentation', () => {
         const translate = TestBed.inject(TranslateService);
         translate.setTranslation('en', {
             XTREAM: { WATCHED: 'Watched' },
+            TWO_STREAMS: {
+                DUPLICATE_WINDOW: 'Already open in window {{slot}}',
+            },
             WORKSPACE: { DASHBOARD: { PERCENT_WATCHED: '{{value}}% watched' } },
             PORTALS: {
                 SEASON_TAB: 'Season {{number}}',
@@ -218,6 +228,24 @@ describe('SecondStreamPicker presentation', () => {
                 position: { ...early.position, positionSeconds: 108 },
             })
         ).toBe(0);
+    });
+
+    it('blocks just the open episode while keeping its series available', async () => {
+        findDuplicateSlot.mockImplementation((identity) =>
+            identity?.contentInfo?.contentXtreamId === 42 ? 3 : undefined
+        );
+        const row = root.querySelector<HTMLButtonElement>('.picker__vod-row');
+        expect(row?.getAttribute('aria-disabled')).toBeNull();
+        row?.click();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        const opened = root.querySelector<HTMLButtonElement>(
+            '[data-episode-id="42"]'
+        );
+        expect(opened?.textContent).toContain('Already open in window 3');
+        expect(opened?.getAttribute('aria-disabled')).toBe('true');
+        opened?.click();
+        expect(resolveEpisode).not.toHaveBeenCalled();
     });
 
     it('returns focus to the search after opening and leaving a series', async () => {

@@ -188,6 +188,19 @@
     opacity: 0.84;
 }
 
+.channel-status {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.channel-status-icon {
+    width: 14px;
+    height: 14px;
+    font-size: 14px;
+    vertical-align: middle;
+    margin-inline-end: 2px;
+}
+
 .epg-timeline {
     min-width: 0;
     display: grid;

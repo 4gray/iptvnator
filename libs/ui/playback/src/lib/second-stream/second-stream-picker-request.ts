@@ -88,7 +88,7 @@ export class SecondStreamPickerRequest {
             const allowed = () =>
                 requestCurrent() &&
                 this.catalog.isAllowed(selection.item) &&
-                data.findDuplicateSlot(selection) === undefined;
+                data.findDuplicateSlot(selection.playback) === undefined;
             return allowed() && (await accept(selection, allowed))
                 ? data.slot
                 : null;

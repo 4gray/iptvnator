@@ -531,9 +531,11 @@ from Floating window or Side by side opens the grid.
 The shared picker opens through the existing dialog shell and can extend
 below the video into the app window. The playlist selector sits inside the
 search bar above the scrolling results. The picker opens on the current
-portal when available. Global favorites and recently viewed are also available
-in the selector. The portal and collection views have Live TV, Movies and Series
-filters. Live playlists offer groups and search. Channel rows reuse the
+portal when available, otherwise on Global Favorites. Recently Viewed is also
+available in the selector. Both collections span sources. The picker starts on
+Live TV, and each query is scoped to the selected source or collection and the
+active type: Live TV, Movies or Series. A live group narrows the channel search.
+Channel rows reuse the
 sidebar's programme title, time range and progress. XMLTV previews are batched
 by guide scope, and Xtream and Stalker use the collection EPG resolver. The picker
 requests previews only near the visible list and honors the global EPG preference.
@@ -555,9 +557,12 @@ uses that video's playlist and content keys. It saves the latest accepted
 position when paused, ended, replaced or closed, including parental relock
 and player teardown. Episode positions retain the parent series and episode
 numbers. Additional videos start muted and record Recently Viewed once
-playback advances. Opening the same VOD twice would share a resume key, so
-the picker reports the already occupied window. Each open video requires
-its own provider connection. Live pause uses MPV pause.
+playback advances. Open channels, movies and episodes are marked with their
+window number and cannot be chosen again. The picker compares playlist and
+content IDs before resolving playback and checks again when accepting the
+selection. A series remains available so viewers can choose another episode.
+Each open video requires its own provider connection. Live pause uses MPV
+pause.
 
 The primary stays in window 1. Companion windows have stable numbers 2–4
 that determine their positions in the grid. Closing a companion leaves its
