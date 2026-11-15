@@ -1,11 +1,8 @@
 import { signal } from '@angular/core';
-
-export type WebKitFullscreenVideo = HTMLVideoElement & {
-    webkitSupportsFullscreen?: boolean;
-    webkitDisplayingFullscreen?: boolean;
-    webkitEnterFullscreen?: () => void;
-    webkitExitFullscreen?: () => void;
-};
+import {
+    isNativeVideoFullscreen,
+    type WebKitFullscreenVideo,
+} from '../web-video-support/webkit-video-fullscreen';
 
 const VIDEO_FULLSCREEN_EVENTS = [
     'loadedmetadata',
@@ -13,6 +10,7 @@ const VIDEO_FULLSCREEN_EVENTS = [
     'resize',
     'webkitbeginfullscreen',
     'webkitendfullscreen',
+    'webkitpresentationmodechanged',
 ] as const;
 
 /**
@@ -60,7 +58,7 @@ export class ControlsFullscreen {
                 (target &&
                     typeof document !== 'undefined' &&
                     document.fullscreenElement === target) ||
-                video?.webkitDisplayingFullscreen
+                isNativeVideoFullscreen(video)
             )
         );
     }
@@ -92,7 +90,7 @@ export class ControlsFullscreen {
 
     exitNativeVideo(): void {
         const video = this.video();
-        if (video?.webkitDisplayingFullscreen) {
+        if (video && isNativeVideoFullscreen(video)) {
             try {
                 video.webkitExitFullscreen?.();
             } catch {
@@ -118,7 +116,7 @@ export class ControlsFullscreen {
         const video = this.video();
         return video?.webkitEnterFullscreen &&
             video.webkitExitFullscreen &&
-            (video.webkitSupportsFullscreen || video.webkitDisplayingFullscreen)
+            (video.webkitSupportsFullscreen || isNativeVideoFullscreen(video))
             ? video
             : null;
     }
@@ -135,7 +133,7 @@ export class ControlsFullscreen {
                 return;
             }
             const video = this.fullscreenVideo();
-            if (video?.webkitDisplayingFullscreen) {
+            if (isNativeVideoFullscreen(video)) {
                 this.exitNativeVideo();
             } else {
                 video?.webkitEnterFullscreen?.();

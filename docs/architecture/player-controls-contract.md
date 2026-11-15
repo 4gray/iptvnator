@@ -301,6 +301,7 @@ changes, including when it is already fullscreen. If DOM fullscreen is
 unavailable, shared controls can use WebKit's native fullscreen on the video
 inside their player surface. The button becomes available when the video
 reports support, and WebKit's video events keep the button state in sync.
+The WebKit presentation mode distinguishes fullscreen from Picture in Picture.
 In native fullscreen, Safari supplies the controls and the app's channel and
 episode panels are unavailable. Fullscreen stays outside the engine command
 contract and requires no IPC. The Embedded MPV host's

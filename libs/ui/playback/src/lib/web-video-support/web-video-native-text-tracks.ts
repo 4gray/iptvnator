@@ -1,5 +1,5 @@
-import type { WebKitFullscreenVideo } from '../player-controls/controls-fullscreen';
 import type { PlayerTrack } from '../player-controls/player-controls.model';
+import { isNativeVideoFullscreen } from './webkit-video-fullscreen';
 
 const NATIVE_TRACK_EVENTS = ['addtrack', 'removetrack', 'change'] as const;
 
@@ -9,7 +9,7 @@ interface NativeSubtitleTrack {
 }
 
 export interface WebVideoNativeTextTracksConfig {
-    video: WebKitFullscreenVideo;
+    video: HTMLVideoElement;
     showCaptions: () => boolean;
     refresh: () => void;
     /**
@@ -152,7 +152,7 @@ export class WebVideoNativeTextTracks {
     private nativeFullscreen(): boolean {
         return (
             !this.config.playbackStarted &&
-            this.config.video.webkitDisplayingFullscreen === true
+            isNativeVideoFullscreen(this.config.video)
         );
     }
 
