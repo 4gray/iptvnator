@@ -17,6 +17,8 @@ import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 import {
     persistVolume,
+    readLastAudibleVolume,
+    rememberAudibleVolume,
     readStoredVolume,
 } from '../player-controls/controls-format.utils';
 import { readVideoVolume } from '../player-controls/web-video-controls.media-helpers';
@@ -37,6 +39,19 @@ type AndroidWindow = Window & {
     iptvnatorAndroidPlaybackLabels?: PlaybackLabels | null;
 };
 
+function isSmoothStreamingPath(pathname: string): boolean {
+    return /\.ism[l]?(?:\/|$)/i.test(pathname);
+}
+
+function isHlsManifest(pathname: string, extension: string): boolean {
+    // IIS Media Services and Azure Media Services can serve HLS from this path.
+    return (
+        extension === 'm3u8' ||
+        extension === 'm3u' ||
+        /\.ism[l]?\/manifest\(format=m3u8-aapl(?:-v3)?\)$/i.test(pathname)
+    );
+}
+
 export class AndroidTvPlayback {
     private readonly window = inject(DOCUMENT)
         .defaultView as AndroidWindow | null;
@@ -52,6 +67,7 @@ export class AndroidTvPlayback {
         readonly pending: boolean;
         readonly live: boolean;
         readonly volume: number;
+        readonly audibleVolume: number;
         readonly reportFailure: () => void;
         readonly failed?: boolean;
     } | null>(null);
@@ -204,7 +220,13 @@ export class AndroidTvPlayback {
                 playback.streamUrl
             );
             return (
-                !username && !password && !/\.ism[l]?(?:\/|$)/i.test(pathname)
+                !username &&
+                !password &&
+                (!isSmoothStreamingPath(pathname) ||
+                    isHlsManifest(
+                        pathname,
+                        getPlaybackMediaExtensionFromUrl(playback.streamUrl)
+                    ))
             );
         } catch {
             return false;
@@ -221,9 +243,12 @@ export class AndroidTvPlayback {
         const bridge = this.window?.TvShell;
         if (!bridge || !this.canOpen(playback) || this.pending()) return;
         const video = surface.querySelector('video');
+        const previous = this.ownedSession();
         const volume = video
             ? readVideoVolume(video)
-            : (this.ownedSession()?.volume ?? readStoredVolume());
+            : (previous?.volume ?? readStoredVolume());
+        const audibleVolume =
+            video?.volume || previous?.audibleVolume || readLastAudibleVolume();
         const id = crypto.randomUUID();
         const profile = sourceProfileName();
         const attempt = this.attempt();
@@ -235,6 +260,7 @@ export class AndroidTvPlayback {
             pending: true,
             live,
             volume,
+            audibleVolume,
             reportFailure: () =>
                 surface.dispatchEvent(
                     new CustomEvent('iptvnator:android-playback-failed', {
@@ -271,7 +297,10 @@ export class AndroidTvPlayback {
                         id,
                         {
                             url: playback.streamUrl,
-                            hls: extension === 'm3u8' || extension === 'm3u',
+                            hls: isHlsManifest(
+                                new URL(playback.streamUrl).pathname,
+                                extension
+                            ),
                             live,
                             startTime,
                             headers,
@@ -317,16 +346,17 @@ export class AndroidTvPlayback {
     }
 
     restoreWebVolume(): void {
-        const volume = this.ownedSession()?.volume;
+        const session = this.ownedSession();
         this.session.set(null);
-        if (volume !== undefined) {
+        if (session) {
             // Shared controls read the persisted volume when they attach to the new engine.
             try {
-                persistVolume(volume);
+                persistVolume(session.volume);
             } catch {
                 // The engine input still preserves the volume when storage is unavailable.
             }
-            this.webVolume.set(volume);
+            rememberAudibleVolume(session.audibleVolume);
+            this.webVolume.set(session.volume);
         }
     }
 

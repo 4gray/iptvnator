@@ -134,6 +134,11 @@ try {
             res.end(segment);
         } else if (req.url === '/synthetic-live') {
             res.writeHead(302, { Location: '/synthetic-manifest' }).end();
+        } else if (req.url === '/synthetic.ism/Manifest(format=m3u8-aapl)') {
+            const manifest = readFileSync(join(fixtures, 'synthetic.m3u8'), 'utf8')
+                .replace(/^synthetic/gm, '/synthetic');
+            res.writeHead(200, { 'Content-Type': 'application/vnd.apple.mpegurl' });
+            res.end(manifest);
         } else if (req.url === '/synthetic-manifest') {
             const manifest = readFileSync(join(fixtures, 'synthetic.m3u8'));
             // No CORS on the manifest either, so WebView cannot reach the segments.
@@ -182,6 +187,8 @@ try {
         origin + '/synthetic.mp4',
         '#EXTINF:-1 group-title="Live",Synthetic Live',
         origin + '/synthetic-live',
+        '#EXTINF:-1 group-title="Live",Synthetic Manifest HLS',
+        origin + '/synthetic.ism/Manifest(format=m3u8-aapl)',
         '#EXTINF:-1 group-title="Movies",Synthetic AC-3',
         origin + '/synthetic-ac3.mkv',
         '#EXTINF:-1 group-title="Movies",Synthetic Unplayable',
@@ -298,6 +305,13 @@ try {
     await expect.poll(() => video.evaluate((media) => media.muted ? 0 : media.volume)).toBe(0);
 
     await page.evaluate(() => { delete window.__nativeResult; });
+    await entry('Synthetic Manifest HLS').click();
+    await expect(action).toBeVisible();
+    await action.click();
+    await waitNative();
+    await waitAudio();
+    await back();
+
     await entry('Synthetic Live').click();
     await expect(action).toBeVisible();
     await action.click();

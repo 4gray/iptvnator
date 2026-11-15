@@ -1,3 +1,4 @@
+import { ControlsVolume } from '../player-controls/controls-volume';
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ParentalLockService } from '@iptvnator/services';
@@ -24,6 +25,7 @@ function setup() {
     });
     const events: string[] = [];
     const storedVolume = localStorage.getItem('volume');
+    const storedAudibleVolume = localStorage.getItem('volume.lastAudible');
     const token = signal(Symbol());
     const onPosition = jest.fn(() => events.push('position'));
     const fixture = TestBed.createComponent(RenderHost);
@@ -105,6 +107,9 @@ function setup() {
         Reflect.deleteProperty(tvWindow, 'iptvnatorAndroidPlaybackLabels');
         if (storedVolume === null) localStorage.removeItem('volume');
         else localStorage.setItem('volume', storedVolume);
+        if (storedAudibleVolume === null)
+            localStorage.removeItem('volume.lastAudible');
+        else localStorage.setItem('volume.lastAudible', storedAudibleVolume);
     };
     return {
         clear,
@@ -177,6 +182,56 @@ it('reports only an owned natural end after recording the final position', () =>
             'position',
             'ended',
         ]);
+    } finally {
+        clear();
+    }
+});
+
+it('restores the previous audible volume after the web controls remount muted', () => {
+    const { clear, open, playback, reply, surface } = setup();
+    try {
+        const apply = jest.fn();
+        const controls = () =>
+            new ControlsVolume({
+                apply,
+                flash: () => undefined,
+                mutedLabel: () => 'Muted',
+                openPopover: () => undefined,
+                closePopover: () => undefined,
+            });
+        const priorControls = controls();
+        priorControls.set(0.1);
+        priorControls.toggleMute();
+        surface.querySelector('video')!.volume = 0;
+        reply(open(), false);
+        playback.restoreWebVolume();
+        expect(playback.webVolume()).toBe(0);
+
+        const resumed = controls();
+        resumed.toggleMute();
+        expect(apply).toHaveBeenLastCalledWith(0.1);
+    } finally {
+        clear();
+    }
+});
+
+it('offers the HLS variant of a Smooth Streaming manifest path', () => {
+    const { clear, playback, fixture, postMessage, surface } = setup();
+    try {
+        const base = 'https://media.example.test/synthetic.ism/Manifest';
+        expect(playback.canOpen({ streamUrl: base, title: 'Synthetic' })).toBe(
+            false
+        );
+        const request = {
+            streamUrl: base + '(format=m3u8-aapl)?token=synthetic',
+            title: 'Synthetic HLS',
+        };
+        expect(playback.canOpen(request)).toBe(true);
+        playback.open(request, true, 0, false, surface);
+        fixture.detectChanges();
+        expect(JSON.parse(postMessage.mock.lastCall![0])[2]).toMatchObject({
+            hls: true,
+        });
     } finally {
         clear();
     }

@@ -117,13 +117,15 @@ Go to **Settings → General → Open Android app settings** and turn on
 **Enable built-in player (experimental)**. Open a channel or start a
 video, then select **Try built-in player** in the video area. It is also
 available when the web engine reports an error. The built-in player starts at
-the current app volume. Back returns to the same page.
+the current app volume. If muted, the web player restores the previous audible
+level when you unmute after switching back. Back returns to the same page.
 Home ends native playback and keeps the position when you return to the app.
 When a series episode finishes, IPTVnator applies the series autoplay setting
 and starts the next eligible episode in the web player. Choose **Return to web
 player** to compare the two engines on the same stream.
 
-The pilot plays HLS and direct HTTP(S) video such as MP4, MPEG-TS and MKV. Audio
+The pilot plays HLS, including HLS variants of Smooth Streaming manifest paths,
+and direct HTTP(S) video such as MP4, MPEG-TS and MKV. Audio
 and video codec support varies by device. The built-in player uses FFmpeg to
 decode AC-3 when the device cannot handle it. DASH, DRM, Smooth Streaming and
 temporary Stalker links stay in the web player. When parental controls are
