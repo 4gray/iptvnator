@@ -1,3 +1,4 @@
+import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -9,9 +10,6 @@ import {
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { MatIconButton } from '@angular/material/button';
-import { MatIcon } from '@angular/material/icon';
-import { MatTooltip } from '@angular/material/tooltip';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -20,7 +18,6 @@ import {
     WorkspaceBackTarget,
 } from '@iptvnator/portal/shared/util';
 import { WorkspaceShellHeaderComponent } from './workspace-shell-header.component';
-import { LayoutSlideDirective } from '../../layout-slide.directive';
 
 @Component({
     selector: 'app-playlist-switcher',
@@ -58,16 +55,8 @@ describe('WorkspaceShellHeaderComponent', () => {
             ],
         })
             .overrideComponent(WorkspaceShellHeaderComponent, {
-                set: {
-                    imports: [
-                        LayoutSlideDirective,
-                        MatIcon,
-                        MatIconButton,
-                        MatTooltip,
-                        MockPlaylistSwitcherComponent,
-                        TranslatePipe,
-                    ],
-                },
+                remove: { imports: [PlaylistSwitcherComponent] },
+                add: { imports: [MockPlaylistSwitcherComponent] },
             })
             .compileComponents();
 
