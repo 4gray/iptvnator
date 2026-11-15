@@ -33,6 +33,8 @@ export function scopeQuery(
     if (value === undefined) return DEFAULT_PERSONAL_SCOPE;
     let scope: PersonalScope;
     try {
+        // `?scope=a&scope=b` arrives as an array; only one scope is valid.
+        if (typeof value !== 'string') throw new Error('Not a single scope');
         scope = parsePersonalScope(value);
     } catch {
         throw new StorageRequestError(
