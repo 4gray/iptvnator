@@ -859,9 +859,15 @@ remain local when the meaning is explicit.
   `ResizableDirective` neither saves a drag the CSS cap stopped nor more
   than the cap shows: an edge that did not move emits `resizeCancel` (with
   the saved width, for hosts that mirrored `widthChange`) instead of
-  `resizeEnd`. Both values are local until the
+  `resizeEnd`. At ≤960px the header's playlist switcher yields
+  (`flex: 0 1 190px`, 120px floor) to a search field that keeps 200px, so the
+  Windows/Linux header, whose window controls take 196px, still shows a
+  readable scope chip at 900px. Both values are local until the
   breakpoint map (UI-36) absorbs them; `live-layout-compact-width.e2e.ts`
-  pins the player share at 900×700 for Xtream, Stalker and M3U.
+  pins the player share at 900×700 for Xtream, Stalker and M3U. The Windows
+  and macOS CI runners have 1024px screens, inside the band, so
+  `launchElectronApp` widens a narrower launch window to the default 1280px
+  (`electron-window-size.ts`); a spec that needs a narrow window resizes it.
 - Xtream Live TV's root view (`/live` with no selected category) follows the
   same paginated `All Items` shell as VOD and Series: a widget header with the
   total channel count, page-size controls, and page navigation above the shared

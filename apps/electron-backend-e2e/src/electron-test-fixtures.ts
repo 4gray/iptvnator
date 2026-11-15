@@ -38,6 +38,7 @@ import {
     xtreamPlaylistIdFromUrl,
 } from './xtream-import-wait';
 import { findMainWindow } from './electron-main-window';
+import { widenToDefaultDesktopWidth } from './electron-window-size';
 
 export const workspaceRoot = resolve(__dirname, '../../..');
 export const electronMainPath = join(
@@ -253,6 +254,7 @@ export async function launchElectronApp(
             attachElectronProcessDiagnostics(electronProcess);
             const mainWindow = await findMainWindow(application);
             await waitForAppReady(mainWindow);
+            await widenToDefaultDesktopWidth(application, mainWindow);
             await startPortalDebugCapture(mainWindow);
             await startDbOperationCapture(mainWindow);
             await startRendererFrameCapture(mainWindow);
