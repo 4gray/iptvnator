@@ -277,6 +277,35 @@ describe('SettingsComponent with settings changed outside the form', () => {
         expect(tmdb.apiKey.value).toBe(savedKey);
     });
 
+    it('keeps a key typed back while the desktop is acknowledging a save', async () => {
+        const { apiKey } = component.settingsForm.controls.tmdb.controls;
+        const savedKey = apiKey.value;
+        let finishUpdate!: () => void;
+        const pending = new Promise<void>((resolve) => {
+            finishUpdate = resolve;
+        });
+        jest.spyOn(window.electron, 'updateSettings').mockReturnValueOnce(
+            pending
+        );
+        apiKey.setValue('synthetic-key-b');
+        component.settingsForm.markAsDirty();
+        const saving = component.form.save(() =>
+            component.form.applySavedSettings()
+        );
+        await Promise.resolve();
+
+        apiKey.setValue(savedKey);
+        settingsStore.savedTmdbApiKey.set('synthetic-key-b');
+        fixture.detectChanges();
+        const keyWhilePending = apiKey.value;
+        finishUpdate();
+        await saving;
+
+        expect(keyWhilePending).toBe(savedKey);
+        expect(apiKey.value).toBe(savedKey);
+        expect(component.form.changedPaths()).toEqual(['tmdb.apiKey']);
+    });
+
     it('does not rewrite a half-failed save after Discard', async () => {
         const form = component.settingsForm;
         jest.spyOn(window.electron, 'updateSettings').mockRejectedValueOnce(
