@@ -6,7 +6,7 @@
     position: relative;
     display: block;
     height: 100%;
-    min-height: 96px;
+    min-height: 90px;
 }
 
 :host * {
@@ -26,10 +26,11 @@
 
     span {
         position: absolute;
-        top: 6px;
+        top: 4px;
         left: 7px;
         font-family: $font-mono;
-        font-size: 10.5px;
+        font-size: 11px;
+        line-height: 14px;
         color: $text-tertiary;
     }
 }
@@ -39,25 +40,25 @@
 
     span {
         position: absolute;
-        top: 6px;
+        top: 4px;
         left: 8px;
-        font-family: $font-mono;
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.04em;
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 14px;
         color: $accent-text;
         white-space: nowrap;
-        text-transform: uppercase;
     }
 }
 
-/* ── blocks ── */
+/* ── blocks ──
+   The axis row takes the top 24px; blocks fill the rest down to an 8px
+   margin, so the compact inline panel still fits the time and a title line. */
 .epg-timeline__block {
     position: absolute;
-    top: 38px;
-    bottom: 18px;
-    border-radius: 11px;
-    padding: 13px 14px;
+    top: 24px;
+    bottom: 8px;
+    border-radius: 10px;
+    padding: 8px 10px;
     overflow: hidden;
     cursor: pointer;
     border: 1px solid $line-strong;
@@ -65,7 +66,6 @@
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    gap: 6px;
     transform: translateZ(0);
     backface-visibility: hidden;
     transition:
@@ -133,9 +133,11 @@
     z-index: 0;
     pointer-events: none;
 
+    /* its edge is the "now" line inside the current block (the playhead
+       itself stops above the blocks, so it never crosses the text) */
     &--live {
         background: var(--app-selection-surface);
-        border-right: 2px solid $accent-cyan;
+        border-right: 2px solid $accent-live;
     }
 }
 
@@ -148,22 +150,34 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
     overflow: hidden;
 }
 
+/* hover actions sit over the block's lower edge and take no layout space,
+   so hovering never squeezes the title */
 .epg-timeline__block-foot {
-    position: relative;
-    z-index: 1;
-    flex: 0 0 auto;
+    position: absolute;
+    left: 8px;
+    bottom: 6px;
+    z-index: 2;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+}
+
+.epg-timeline__block-meta {
+    flex: 0 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 8px;
+    min-width: 0;
 }
 
 .epg-timeline__block-time {
-    font-family: $font-mono;
     font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    line-height: 14px;
     color: $text-tertiary;
     white-space: nowrap;
 }
@@ -208,7 +222,7 @@
    being cut mid-line by the parent's overflow:hidden. The title takes ≤2 lines,
    the description ≤3, leaving the rest as clean empty space above the foot. */
 .epg-timeline__block[data-tier='wide'] {
-    .epg-timeline__block-time,
+    .epg-timeline__block-meta,
     .epg-timeline__block-title,
     .epg-timeline__block-desc {
         flex: 0 0 auto;
@@ -230,7 +244,7 @@
     align-items: center;
     justify-content: center;
 
-    .epg-timeline__block-time,
+    .epg-timeline__block-meta,
     .epg-timeline__block-foot,
     .epg-timeline__info {
         display: none;
@@ -286,7 +300,6 @@
         height: 22px;
         border-radius: 2px;
         background: $text-tertiary;
-        margin-top: 14px;
     }
 
     &.is-now::before,
@@ -297,25 +310,27 @@
 
 /* ── tags / actions ── */
 .epg-timeline__tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-family: $font-mono;
-    font-size: 9.5px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    display: block;
+    max-width: 100%;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 
     &.is-now {
         color: $live-text;
 
         &::before {
             content: '';
+            display: inline-block;
             width: 6px;
             height: 6px;
+            margin: 0 5px 1px 0;
             border-radius: 50%;
+            vertical-align: middle;
             background: $accent-live;
-            box-shadow: 0 0 6px $accent-live;
         }
     }
 
@@ -328,8 +343,8 @@
     display: none;
     align-items: center;
     gap: 6px;
-    height: 27px;
-    padding: 0 11px;
+    height: 26px;
+    padding: 0 10px;
     border-radius: 999px;
     background: $surface-2;
     border: 1px solid $line-strong;
@@ -357,8 +372,8 @@
 
 .epg-timeline__info {
     position: absolute;
-    top: 9px;
-    right: 9px;
+    top: 6px;
+    right: 6px;
     z-index: 2;
     width: 26px;
     height: 26px;
@@ -395,10 +410,10 @@
 /* ── group-of-shorts chip (E) ── */
 .epg-timeline__group {
     position: absolute;
-    top: 38px;
-    bottom: 18px;
-    border-radius: 11px;
-    padding: 11px 10px;
+    top: 24px;
+    bottom: 8px;
+    border-radius: 10px;
+    padding: 8px 10px;
     cursor: pointer;
     border: 1px dashed $line-strong;
     background: repeating-linear-gradient(
@@ -435,44 +450,32 @@
 
 .epg-timeline__group-hint {
     margin-top: auto;
-    font-family: $font-mono;
-    font-size: 9px;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
+    font-size: 11px;
     color: $accent-text;
     white-space: nowrap;
 }
 
-/* ── playhead ── */
+/* ── playhead ──
+   The clock chip on the axis row with a short stem down to the blocks; inside
+   the current block the live fill's edge carries the line on. */
 .epg-timeline__playhead {
     position: absolute;
-    top: 30px;
-    bottom: 0;
+    top: 18px;
+    height: 6px;
     width: 2px;
+    margin-left: -1px;
     background: $accent-live;
-    box-shadow: 0 0 10px rgba(255, 91, 110, 0.7);
     z-index: 6;
     pointer-events: none;
 
-    &::before {
-        content: '';
-        position: absolute;
-        top: -5px;
-        left: -4px;
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: $accent-live;
-        box-shadow: 0 0 8px $accent-live;
-    }
-
     span {
         position: absolute;
-        top: -22px;
+        bottom: 100%;
         left: 50%;
         transform: translateX(-50%);
         font-family: $font-mono;
-        font-size: 9.5px;
+        font-size: 11px;
+        line-height: 14px;
         font-weight: 700;
         color: var(--app-widget-bg);
         background: $accent-live;

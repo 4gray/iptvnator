@@ -16,6 +16,7 @@ import {
     viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { normalizeDateLocale } from '@iptvnator/pipes';
@@ -45,6 +46,7 @@ import {
     EpgTimelineEmptyReason,
     EpgTimelineEmptyStateComponent,
 } from './epg-timeline-empty-state.component';
+import { EpgScheduleNoticeComponent } from './epg-schedule-notice.component';
 import { TimelineScrollController } from './epg-timeline-scroll.controller';
 import { TimelineWindowController } from './epg-timeline-window.controller';
 import {
@@ -83,9 +85,11 @@ export type { EpgTimelineSummary } from './epg-summary.util';
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         DatePipe,
+        EpgScheduleNoticeComponent,
         EpgTimelineEmptyStateComponent,
         EpgTimelineTrackComponent,
         MatIcon,
+        MatIconButton,
         MatTooltip,
         TranslatePipe,
     ],
@@ -94,7 +98,8 @@ export class EpgTimelineComponent {
     readonly programs = input<EpgProgram[]>([]);
     readonly channelName = input('');
     readonly channelLogo = input('');
-    readonly sourceLabel = input('Timeline');
+    /** Defaults to the translated "Programme guide". */
+    readonly sourceLabel = input('');
     readonly archivePlaybackAvailable = input(false);
     /** Source/channel identity captured by programme details, independent of playback. */
     readonly archiveDownloadAvailable = input(false);
