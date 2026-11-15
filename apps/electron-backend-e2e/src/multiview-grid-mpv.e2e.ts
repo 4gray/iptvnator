@@ -360,13 +360,15 @@ test('@playback @electron four frame-copy views retain their sessions through gr
                 )
             )
             .toBe(true);
-        await strip
-            .getByRole('button', {
-                name: `Sound from ${title(2)} · Window 2`,
-                exact: true,
-            })
-            .click();
-        await stage.press('4');
+        await control(1).click();
+        await expect(control(1)).toHaveAttribute('aria-pressed', 'true');
+        const soundFromTwo = strip.getByRole('button', {
+            name: `Sound from ${title(2)} · Window 2`,
+            exact: true,
+        });
+        await soundFromTwo.click();
+        await expect(soundFromTwo).toHaveAttribute('aria-pressed', 'true');
+        await page.keyboard.press('4');
         await expect(control(4)).toHaveAttribute('aria-pressed', 'true');
         await expect(control(2)).toHaveAttribute('aria-pressed', 'false');
         const volumes = async () =>

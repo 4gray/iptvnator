@@ -310,8 +310,10 @@ within that same fullscreen host. The fullscreen overlay container keeps
 the stream picker available there. Only the selected viewport handles
 shared controls. Transport stays on that viewport, and volume and mute
 apply to the designated audio session. In the 2×2 grid, keys 1 through 4
-select occupied windows when the player owns keyboard input. The selected
-window and audio session may differ.
+select occupied windows when the player owns keyboard input. Pointer clicks
+on the stream bar's window, sound, and layout toggles return focus to the grid
+stage so those shortcuts stay available. The selected window and audio session
+may differ.
 
 The owner matters because `WebPlayerViewComponent` remounts the engine
 component for every playback application (`@for ... track application.token`:

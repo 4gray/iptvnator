@@ -274,8 +274,15 @@ export class SecondStreamComponent implements OnDestroy {
 
     onStripClick(event: MouseEvent): void {
         const strip = event.currentTarget;
-        if (strip instanceof HTMLElement && clickPointerOrigin(event))
-            blurFocusedControl(strip);
+        if (!(strip instanceof HTMLElement) || !clickPointerOrigin(event))
+            return;
+        const keepGridShortcuts =
+            this.layout() === 'grid' &&
+            strip.ownerDocument.activeElement?.matches('button[aria-pressed]');
+        if (blurFocusedControl(strip) && keepGridShortcuts)
+            strip
+                .closest<HTMLElement>('[data-multiview-stage]')
+                ?.focus({ preventScroll: true });
     }
 
     openPicker(

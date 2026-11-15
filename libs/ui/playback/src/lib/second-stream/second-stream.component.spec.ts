@@ -258,6 +258,27 @@ describe('SecondStreamComponent', () => {
         });
     }
 
+    it('keeps number shortcuts on the grid stage after a pointer selects a control', () => {
+        component.setLayout('grid');
+        const stage = document.createElement('div');
+        stage.dataset['multiviewStage'] = '';
+        stage.tabIndex = 0;
+        const strip = stage.appendChild(document.createElement('div'));
+        const control = strip.appendChild(document.createElement('button'));
+        control.setAttribute('aria-pressed', 'false');
+        (fixture.nativeElement as HTMLElement).appendChild(stage);
+        strip.addEventListener('click', (event) =>
+            component.onStripClick(event)
+        );
+        const click = new MouseEvent('click', { bubbles: true });
+        Object.defineProperty(click, 'pointerType', { value: 'mouse' });
+
+        control.focus();
+        control.dispatchEvent(click);
+
+        expect(document.activeElement).toBe(stage);
+    });
+
     it('keeps stable slot numbers and playback through layout changes and reuses the first empty slot', async () => {
         expect(component.layout()).toBe('single');
         expect(component.stripVisible()).toBe(false);
