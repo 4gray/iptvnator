@@ -1,6 +1,7 @@
 import type { APIRequestContext, Browser, Page } from '@playwright/test';
 import { expect } from './fixtures';
 import {
+    addM3uUrlPlaylist,
     openSources,
     sourceRowByTitle,
     openSourceEditor,
@@ -101,6 +102,34 @@ export async function seedBrowserPlaylist(
             }),
         [id, title] as const
     );
+}
+
+/** A playlist added on one device appears, then a rename, on another. */
+export async function verifyCrossDeviceSourceRename(
+    browser: Browser
+): Promise<void> {
+    const first = await newServerPage(browser);
+    await openSources(first);
+    await addM3uUrlPlaylist(first, 'Shared M3U');
+
+    const second = await newServerPage(browser);
+    await openSources(second);
+    await expect(sourceRowByTitle(second, 'Shared M3U')).toBeVisible();
+
+    await first.locator('a[href="/workspace/sources"]').first().click();
+    const editor = await openSourceEditor(first, 'Shared M3U');
+    await updateSourceDialog(editor, { title: 'Renamed shared M3U' });
+    await editor
+        .locator('mat-dialog-actions')
+        .getByRole('button', { name: 'Save', exact: true })
+        .click();
+    await expect(editor).toBeHidden();
+    await expect(sourceRowByTitle(second, 'Renamed shared M3U')).toBeVisible({
+        timeout: 25000,
+    });
+
+    await first.context().close();
+    await second.context().close();
 }
 
 /** Editor regression: the writing client must replace its own parsed cache. */
