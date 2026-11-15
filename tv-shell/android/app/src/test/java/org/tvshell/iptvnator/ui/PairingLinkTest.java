@@ -29,6 +29,22 @@ public final class PairingLinkTest {
         PairingLink link = PairingLink.parse(VALID);
         if (!link.origin.equals("https://server.example") || !link.inviteId.equals(ID)) throw new AssertionError();
         if (!ID.equals(PairingLink.scannedInvite(VALID).inviteId)) throw new AssertionError();
+        String cloudflare = "https://server.example/connect-device.html#iptvnator-access=instance&invite=" + ID;
+        PairingLink.CloudflareInvite access = PairingLink.scannedCloudflareInvite(cloudflare);
+        if (access == null || !"https://server.example".equals(access.origin)
+            || !"instance".equals(access.instance) || !ID.equals(access.inviteId)) throw new AssertionError();
+        PairingLink.CloudflareInvite legacy = PairingLink.scannedCloudflareInvite("https://server.example/#iptvnator-access=instance");
+        if (legacy == null || !legacy.inviteId.isEmpty()) throw new AssertionError();
+        for (String invalid : new String[] {
+            cloudflare.replace("https:", "http:"),
+            cloudflare.replace("//server", "//user@server"),
+            cloudflare.replace(".html#", ".html?unexpected=1#"),
+            cloudflare.replace("connect-device.html", "other.html"),
+            cloudflare.substring(0, cloudflare.length() - ID.length()),
+            cloudflare + "&invite=" + ID
+        }) {
+            if (PairingLink.scannedCloudflareInvite(invalid) != null) throw new AssertionError("Accepted invalid Cloudflare QR");
+        }
         for (String address : new String[] {
             "https://user@server.example/pair-device#" + ID,
             "https://server.example/pair-device?invite=" + ID + "#" + ID,

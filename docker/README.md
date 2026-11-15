@@ -165,19 +165,18 @@ the desktop to its hosted library and preview or import its local sources.
 - For direct TLS, select **Custom HTTPS**. Enter the HTTPS origin and the
   absolute paths to its PEM certificate chain and private key. Select the
   network interface clients can reach, and ensure they trust the certificate.
-- For an existing reverse proxy on the same computer, select **External HTTPS
-  proxy (existing setup)**. Continue using HTTP upstream
-  `http://127.0.0.1:4335` and preserve the public Host header.
-- For Cloudflare, select **Cloudflare Tunnel**. Publish the HTTPS upstream
-  `https://127.0.0.1:4335`, preserve the public Host header, and configure
-  the origin certificate name and CA. Add an Access policy for the hostname.
+- For Cloudflare, select **Cloudflare Tunnel**. Publish the HTTP upstream
+  `http://127.0.0.1:4335`, preserve the public Host header, and add an Access
+  policy for the hostname. Cloudflare terminates public HTTPS.
+  Existing tunnel profiles with an origin certificate continue to use TLS
+  upstream and require the matching certificate name and trusted CA.
   Android also needs Managed OAuth with dynamic client registration and the
   exact redirect URI `org.tvshell.iptvnator://oauth/callback`.
 
-Start the selected mode and open **Pair a device** when you're ready to connect
-Android. Native HTTPS pairing uses desktop approval. A Cloudflare QR opens
-the native sign-in flow once the public route is verified. A regular browser
-uses its Cloudflare Access session.
+For Custom HTTPS, choose **Pair a device** and approve the Android device on
+the desktop. For Cloudflare Tunnel, choose **Connect device** after the public
+route is verified. Scan the QR in IPTVnator on Android to start native sign-in.
+A regular browser uses its Cloudflare Access session.
 
 See the [desktop hosting details](../docs/architecture/pwa-self-hosted.md#desktop-hosted-server)
 for certificate setup, Tunnel settings, TV approval and migration.

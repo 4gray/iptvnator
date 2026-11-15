@@ -81,6 +81,8 @@ public class MainActivity extends ComponentActivity {
     private String loadedConnection;
     private String offlineOrigin;
     private final HostedAccessFlow accessFlow = new HostedAccessFlow(this);
+    private static String pendingPairingAction;
+    private static PairingLink.CloudflareInvite pendingPairingInvite;
     private volatile HostedAccessSession accessSession;
     private volatile TvShellServer bundledAccessSite;
     private HostedAccessBridge accessBridge;
@@ -564,27 +566,47 @@ public class MainActivity extends ComponentActivity {
 
     boolean connectScannedLibrary(String scanned) {
         if (scanned == null || scanned.length() > 2048 || isFinishing() || isDestroyed()) return false;
+        PairingLink.CloudflareInvite invite = PairingLink.scannedCloudflareInvite(scanned);
+        if (invite != null) {
+            offerScannedCloudflareLibrary(invite);
+            return true;
+        }
         try {
             Uri uri = Uri.parse(scanned);
             String path = uri.getEncodedPath();
-            boolean browserPairingPage = "/connect-device.html".equals(path);
-            if (uri.getEncodedQuery() != null || (path != null && !path.isEmpty() && !"/".equals(path) && !browserPairingPage)) return false;
+            if (uri.getEncodedQuery() != null || (path != null && !path.isEmpty() && !"/".equals(path))) return false;
             String origin = HostedOrigin.normalize(uri.buildUpon().path(null).fragment(null).build().toString());
             String fragment = uri.getFragment();
-            if (fragment != null && fragment.startsWith("iptvnator-access=") && origin.startsWith("https://")) {
-                String[] parts = fragment.substring("iptvnator-access=".length()).split("&invite=", -1);
-                if (!parts[0].matches("[A-Za-z0-9_-]{1,200}")
-                    || (browserPairingPage ? parts.length != 2 || !parts[1].matches("[A-Za-z0-9_-]{43}") : parts.length != 1))
-                    return false;
-                accessFlow.cancel();
-                accessFlow.offer(origin, parts[0], browserPairingPage ? parts[1] : "");
-                return true;
-            }
-            if (browserPairingPage || fragment != null || !"http".equals(uri.getScheme()) || uri.getPort() != 4334) return false;
+            if (fragment != null || !"http".equals(uri.getScheme()) || uri.getPort() != 4334) return false;
             if (!PairingLink.privateIpv4(uri.getHost())) return false;
             handler.postDelayed(() -> connectLibrary(origin), 100);
             return true;
         } catch (IllegalArgumentException e) { return false; }
+    }
+
+    static boolean openScannedCloudflareLibrary(Activity settings, String scanned) {
+        PairingLink.CloudflareInvite invite = PairingLink.scannedCloudflareInvite(scanned);
+        if (invite == null || settings.isFinishing() || settings.isDestroyed()) return false;
+        // MainActivity is exported for OAuth callbacks. Keep the invitation in
+        // process and use a one-time action to match the Settings handoff.
+        pendingPairingInvite = invite;
+        pendingPairingAction = java.util.UUID.randomUUID().toString();
+        settings.startActivity(new Intent(settings, MainActivity.class).setAction(pendingPairingAction));
+        settings.finish();
+        return true;
+    }
+
+    private void acceptSettingsPairing(Intent intent) {
+        if (pendingPairingAction == null || !pendingPairingAction.equals(intent.getAction())) return;
+        PairingLink.CloudflareInvite invite = pendingPairingInvite;
+        pendingPairingAction = null;
+        pendingPairingInvite = null;
+        offerScannedCloudflareLibrary(invite);
+    }
+
+    private void offerScannedCloudflareLibrary(PairingLink.CloudflareInvite invite) {
+        accessFlow.cancel();
+        accessFlow.offer(invite.origin, invite.instance, invite.inviteId);
     }
 
     void offerAccessSignIn(String origin, String instance) {
@@ -614,6 +636,7 @@ public class MainActivity extends ComponentActivity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         if (Intent.ACTION_VIEW.equals(intent.getAction())) accessFlow.callback(intent.getData());
+        else acceptSettingsPairing(intent);
     }
 
     /** (Re)starts the ready watchdog for a full period; while paused onResume() does it. */
@@ -1084,6 +1107,7 @@ public class MainActivity extends ComponentActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        acceptSettingsPairing(getIntent());
         resumed = true;
         updatePresentation();
         if (webView == null) {

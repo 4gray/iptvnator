@@ -17,6 +17,40 @@ public final class PairingLink {
         this.inviteId = inviteId;
     }
 
+    static final class CloudflareInvite {
+        final String origin;
+        final String instance;
+        final String inviteId;
+
+        CloudflareInvite(String origin, String instance, String inviteId) {
+            this.origin = origin;
+            this.instance = instance;
+            this.inviteId = inviteId;
+        }
+    }
+
+    static CloudflareInvite scannedCloudflareInvite(String input) {
+        if (input == null || input.length() > 2048) return null;
+        try {
+            URI uri = new URI(input);
+            if (!"https".equals(uri.getScheme()) || uri.getRawUserInfo() != null
+                || uri.getRawQuery() != null) return null;
+            String path = uri.getRawPath();
+            boolean pairingPage = "/connect-device.html".equals(path);
+            if (!pairingPage && !"".equals(path) && !"/".equals(path)) return null;
+            String fragment = uri.getFragment();
+            String prefix = "iptvnator-access=";
+            if (fragment == null || !fragment.startsWith(prefix)) return null;
+            String[] parts = fragment.substring(prefix.length()).split("&invite=", -1);
+            if (!parts[0].matches("[A-Za-z0-9_-]{1,200}")
+                || (pairingPage ? parts.length != 2 || !opaqueId(parts[1]) : parts.length != 1))
+                return null;
+            return new CloudflareInvite(originOf(uri), parts[0], pairingPage ? parts[1] : "");
+        } catch (URISyntaxException | IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
     public static PairingLink parse(String input) {
         try {
             if (input == null || input.length() > 2048) throw new IllegalArgumentException();

@@ -62,6 +62,7 @@ final class LibraryQrScanner {
             return true;
         }
         if (activity instanceof MainActivity && ((MainActivity) activity).connectScannedLibrary(contents)) return true;
+        if (activity instanceof SettingsActivity && MainActivity.openScannedCloudflareLibrary(activity, contents)) return true;
         if (!PairingLink.isApprovalCode(contents)) { scanMessage(R.string.scan_qr_invalid); return true; }
         String origin = prefs.hostedOrigin();
         PairedCredentialStore credentials = new PairedCredentialStore(activity);
