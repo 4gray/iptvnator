@@ -106,6 +106,8 @@ describe('PwaService', () => {
             };
             const refreshing = service.refreshPlaylist(payload);
             payload.url = 'https://changed.test/list';
+            // The refresh flow loads on demand before it subscribes.
+            await new Promise((resolve) => setTimeout(resolve));
             response.next({
                 _id: 'parsed',
                 playlist: { items: [] },
@@ -175,6 +177,7 @@ describe('PwaService', () => {
                 url: 'https://provider.example/list.m3u',
                 userAgent: '  IPTVnator-Test/1.0  ',
             });
+            await new Promise((resolve) => setTimeout(resolve));
             http.expectOne((req) =>
                 req.url.endsWith('/provider-targets')
             ).flush({ targetId: 'target-ua' });
@@ -276,6 +279,7 @@ describe('PwaService', () => {
             settled = true;
         });
 
+        await new Promise((resolve) => setTimeout(resolve));
         http.expectOne((req) => req.url.endsWith('/provider-targets')).flush({
             targetId: 'target-1',
         });
@@ -316,7 +320,7 @@ describe('PwaService', () => {
             id: 'playlist-1',
             url: 'https://provider.example/list.m3u',
         });
-        await Promise.resolve();
+        await new Promise((resolve) => setTimeout(resolve));
         expect(updatePlaylist).toHaveBeenCalled();
         write.error(new Error('Synthetic transaction abort'));
         await pending;
@@ -335,6 +339,7 @@ describe('PwaService', () => {
             url: 'https://provider.example/list.m3u',
         });
 
+        await new Promise((resolve) => setTimeout(resolve));
         http.expectOne((req) => req.url.endsWith('/provider-targets')).flush({
             targetId: 'target-1',
         });
@@ -363,7 +368,7 @@ describe('PwaService', () => {
                 url: 'https://provider.example/list.m3u',
             });
 
-            await Promise.resolve();
+            await new Promise((resolve) => setTimeout(resolve));
             http.expectOne((req) =>
                 req.url.endsWith('/provider-targets')
             ).flush({ targetId: 'target-1' });

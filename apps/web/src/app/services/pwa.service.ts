@@ -10,7 +10,6 @@ import {
     isBackendUrl,
     isGatewayOutage,
     isServerAccessChallenge,
-    PlaylistsService,
     ServerStorageStatusService,
 } from '@iptvnator/services';
 import {
@@ -201,73 +200,33 @@ export class PwaService extends DataService {
         }
     }
 
+    /** Settles once the refresh has been saved and reported, or failed. */
     async refreshPlaylist(
         payload?: Partial<Playlist & { id: string }>
     ): Promise<void> {
         if (!payload?.url || !payload?.id) {
             return;
         }
-
-        const playlistId = payload.id;
-        const { url } = payload;
-        const userAgent = payload.userAgent?.trim() || undefined;
-
-        let playlist: Playlist;
-        try {
-            playlist = await firstValueFrom(
-                this.getPlaylistFromUrl(url, userAgent)
-            );
-        } catch (error) {
-            // Redacted: the error can carry the playlist URL.
-            this.logger.error('Playlist refresh download failed:', error);
-            void this.snackBar.open(
-                this.appendProviderErrorCode(
-                    this.getPlaylistRefreshErrorMessage(error),
-                    error
-                ),
-                this.translateService.instant('CLOSE'),
-                { duration: 5000 }
-            );
-            return;
-        }
-
-        try {
-            // Resolve after construction: PlaylistsService uses the runtime
-            // DataService, which resolves to this service in the browser.
-            const playlists = this.injector.get(PlaylistsService);
-            const saved = await firstValueFrom(
-                playlists.updatePlaylist(playlistId, {
-                    ...playlist,
-                    _id: playlistId,
-                    url,
-                    userAgent,
-                })
-            );
-            this.store.dispatch(
-                PlaylistActions.updatePlaylist({
-                    playlist: saved,
-                    playlistId,
-                    refreshEpg: true,
-                    persist: false,
-                })
-            );
-            void this.snackBar.open(
-                this.translateService.instant(
-                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
-                ),
-                undefined,
-                { duration: 2000 }
-            );
-        } catch (error) {
-            this.logger.error('Playlist refresh save failed:', error);
-            void this.snackBar.open(
-                this.translateService.instant(
-                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED'
-                ),
-                this.translateService.instant('CLOSE'),
-                { duration: 5000 }
-            );
-        }
+        // Read before the import: callers may reuse the payload object.
+        const request = { ...payload };
+        const { refreshPwaPlaylist } = await import('./pwa-playlist-refresh');
+        return refreshPwaPlaylist(
+            {
+                injector: this.injector,
+                store: this.store,
+                snackBar: this.snackBar,
+                translate: this.translateService,
+                logger: this.logger,
+                download: (url, userAgent) =>
+                    this.getPlaylistFromUrl(url, userAgent),
+                downloadErrorMessage: (error) =>
+                    this.appendProviderErrorCode(
+                        this.getPlaylistRefreshErrorMessage(error),
+                        error
+                    ),
+            },
+            request
+        );
     }
 
     private getPlaylistRefreshErrorMessage(error: unknown): string {
