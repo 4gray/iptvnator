@@ -164,6 +164,7 @@ public class MainActivity extends Activity {
             showError(getString(R.string.webview_unavailable) + "\n" + e);
             return;
         }
+        webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
         root.addView(webView, 0, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);

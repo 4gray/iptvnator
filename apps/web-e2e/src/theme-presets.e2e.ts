@@ -45,6 +45,41 @@ test.describe('PWA theme presets', () => {
         await openSettings(page);
     });
 
+    test('@theme @settings @persistence @web applies a saved accent before opening settings', async ({
+        page,
+    }) => {
+        const body = page.locator('body');
+        const accent = page.locator('[data-test-id="theme-accent-magenta"]');
+        await themeOption(page, 'light').click();
+        await accent.click();
+        await expect(body).toHaveAttribute('data-theme-accent', 'magenta');
+        const lightColor = await body.evaluate((element) =>
+            element.style.getPropertyValue('--app-selection-color')
+        );
+        expect(lightColor).toMatch(/^#[0-9a-f]{6}$/);
+        await saveSettings(page);
+
+        await page.goto('/workspace/dashboard');
+        await expectTheme(page, 'light');
+        await expect(body).toHaveAttribute('data-theme-accent', 'magenta');
+        expect(
+            await body.evaluate((element) =>
+                element.style.getPropertyValue('--app-selection-color')
+            )
+        ).toBe(lightColor);
+
+        await openSettings(page);
+        await themeOption(page, 'dark').click();
+        expect(
+            await body.evaluate((element) =>
+                element.style.getPropertyValue('--app-selection-color')
+            )
+        ).not.toBe(lightColor);
+        await page.locator('[data-test-id="discard-settings"]').click();
+        await expectTheme(page, 'light');
+        await expect(accent).toBeChecked();
+    });
+
     test('@theme @settings @persistence @web shares staged Appearance and General edits through Save and Discard', async ({
         page,
     }) => {

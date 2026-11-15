@@ -822,6 +822,32 @@ explicit dark WebKit scrollbars. The LG Chromium 68 target ignores
 Overflow is remeasured after rendering, scrolling and window resizing; the
 implementation does not require ResizeObserver or smooth scrolling.
 
+## Type, spacing and focus
+
+`apps/tv/src/tokens.css` holds the 1920×1080 type scale (display 88, title
+56, heading 32, body 28, meta 24, eyebrow 22 with +14% tracking), the 8px
+spacing scale, the 64×48 safe area, 72px controls with a 14px radius and 96px
+list rows. No text is below 22px; the serif face is only for content and
+channel titles. Styles use these tokens instead of literal sizes. Windows
+narrower than 1400px redefine the tokens to the earlier, denser scale.
+Virtualized channel rows keep a 9px spacing, which the list's step assumes.
+
+`apps/tv/src/focus.css` loads last and owns the three state signals:
+
+- Focus is the only use of the mint ring (5px outline, 5px offset). Action
+  buttons also take a mint fill; cards scale to 1.06; list rows and grid cells
+  use an inset ring on their own fill.
+- Selected (current nav item, settings category, tab, category, day) is a mint
+  bar, never a ring.
+- On toggles (`.tv-toggle`, such as Saved) show a filled glyph and no border.
+  Primary buttons are light at rest, so mint never suggests a second focus.
+
+Empty Favorites tabs are disabled: dimmed to 40% and skipped by spatial
+navigation. Chromium 68 constraints apply: no flex `gap`, no
+`backdrop-filter`, transitions only on `transform` and `opacity`, and outlines
+rather than large shadows. Chromium 68 draws outlines as rectangles around
+rounded controls.
+
 ## Media feasibility is a separate gate
 
 The API proxy does **not** relay media. Native video opens provider URLs on the

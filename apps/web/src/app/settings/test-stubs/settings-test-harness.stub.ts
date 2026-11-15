@@ -53,7 +53,7 @@ import { provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule } from '@ngx-translate/core';
 import { MockModule, MockProvider } from 'ng-mocks';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
-import { BehaviorSubject, from, of } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import { ElectronServiceStub } from '../../services/electron.service.stub';
 import { SettingsStorageFailure } from '@iptvnator/services';
 import { SettingsStore } from '../../services/settings-store.service';
@@ -232,19 +232,10 @@ export class MockSettingsStore {
 }
 
 export class MockSettingsService {
-    getAppVersion = jest.fn().mockReturnValue(from(Promise.resolve('1.0.0')));
     changeTheme = jest.fn();
     changeThemeAccent = jest.fn();
     changeSystemThemes = jest.fn();
     appliedThemePresetId = signal('light');
-    previewThemeAccentColor = jest.fn((accent: string) => `#${accent}`);
-    isVersionOutdated = jest.fn().mockImplementation(
-        (currentVersion: string, latestVersion: string) =>
-            currentVersion.localeCompare(latestVersion, undefined, {
-                numeric: true,
-                sensitivity: 'base',
-            }) < 0
-    );
 }
 
 export function createEpgBridgeStub(): Partial<EpgRuntimeBridgeService> {

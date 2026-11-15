@@ -119,6 +119,11 @@ export class AppComponent implements OnInit {
         startAppMenuActions();
         syncDocumentLanguage();
 
+        document.documentElement.classList.toggle(
+            'electron',
+            this.runtime.isElectron
+        );
+
         // Body-level class (like 'dark-theme') so layout adjustments also
         // reach content rendered outside app-root, e.g. cdk-overlay content.
         if (this.runtime.usesCustomWindowControls) {
@@ -191,11 +196,7 @@ export class AppComponent implements OnInit {
                     if (this.epgBridge.supportsImport)
                         void this.fetchStaleEpgData();
 
-                    // Before the theme, which derives the accent's lightness
-                    // and resolves System through the saved pair.
-                    this.settingsService.changeThemeAccent(
-                        settings.themeAccent
-                    );
+                    // System resolves through the saved pair.
                     this.settingsService.changeSystemThemes(
                         settings.systemLightTheme,
                         settings.systemDarkTheme
@@ -205,6 +206,9 @@ export class AppComponent implements OnInit {
                     } else {
                         this.detectDarkMode();
                     }
+                    void this.settingsService.changeThemeAccent(
+                        settings.themeAccent
+                    );
                 } else {
                     this.detectDarkMode();
                 }

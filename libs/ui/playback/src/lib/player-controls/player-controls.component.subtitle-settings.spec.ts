@@ -61,7 +61,7 @@ describe('PlayerControlsComponent subtitle settings', () => {
         fixture.nativeElement.querySelector(selector) as HTMLElement | null;
 
     const openSubtitleMenu = () => {
-        fixture.componentInstance.settings.open('subtitles');
+        query('[data-test-id="player-controls-settings-button"]')?.click();
         fixture.detectChanges();
     };
 
@@ -98,15 +98,15 @@ describe('PlayerControlsComponent subtitle settings', () => {
         fixture.detectChanges();
     });
 
-    it('renders the subtitle chip with zero tracks when external loading exists', () => {
-        const chip = () =>
-            query('[data-test-id="player-controls-subtitle-chip"]');
-        expect(chip()).toBeNull();
+    it('opens settings with zero tracks when external loading exists', () => {
+        const settings = () =>
+            query('[data-test-id="player-controls-settings-button"]');
+        expect(settings()).toBeNull();
 
         setCapabilities({ externalSubtitles: true });
         fixture.detectChanges();
 
-        expect(chip()).not.toBeNull();
+        expect(settings()).not.toBeNull();
         openSubtitleMenu();
         // No track list entries: no Off row without a selectable track…
         expect(query('.player-settings__option--selected')).toBeNull();
@@ -225,7 +225,7 @@ describe('PlayerControlsComponent subtitle settings', () => {
         const component = fixture.componentInstance;
         // Without a subtitle group the panel cannot open, and without the
         // capability the load action is not rendered inside it.
-        component.settings.open('subtitles');
+        query('[data-test-id="player-controls-settings-button"]')?.click();
         fixture.detectChanges();
         expect(
             query('[data-test-id="player-controls-load-subtitle"]')

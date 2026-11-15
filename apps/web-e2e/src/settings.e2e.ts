@@ -50,6 +50,25 @@ test.describe('Settings', () => {
         await page.waitForURL(/\/workspace\/dashboard$/);
     });
 
+    test('@settings @web text can be selected with the mouse', async ({
+        page,
+    }) => {
+        await openSettings(page);
+        const subtitle = page.getByText(
+            'Language, startup and channel preferences.'
+        );
+        await expect(subtitle).toBeVisible();
+        await page.evaluate(() => document.fonts.ready.then(() => undefined));
+        await subtitle.hover({ position: { x: 1, y: 8 } });
+        await page.mouse.down();
+        await subtitle.hover({ position: { x: 120, y: 8 } });
+        await page.mouse.up();
+
+        expect(
+            await page.evaluate(() => window.getSelection()?.toString())
+        ).toContain('Language');
+    });
+
     test('@settings @web settings opening the session lead to the dashboard', async ({
         page,
     }) => {

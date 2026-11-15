@@ -155,13 +155,6 @@
     flex: 0 0 auto;
     flex-direction: column;
     gap: 6px;
-    border-radius: 12px;
-    transition: box-shadow 220ms ease-out;
-}
-
-// The group a chip opened the panel for: a brief ring, no layout change.
-.player-settings__group--focused {
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
 }
 
 // Small caps text on glass over video: the secondary ramp step keeps it at

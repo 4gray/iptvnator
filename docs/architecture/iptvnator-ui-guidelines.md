@@ -23,6 +23,12 @@ Use it when changing existing views or introducing new list-based UI in the work
 
 5. Scroll ownership must be explicit.
    Headers stay visible. Lists scroll. Do not let nested panes compete for scroll.
+   The viewport and independent vertical page scrollers stop at their edges in
+   standalone PWAs and the native Android TV shell. The web stylesheet sets
+   `--app-overscroll-y` for those runtimes and applies it to the viewport.
+   The lazy workspace stylesheet applies it to routed scroll panes. Browser
+   tabs retain their normal behavior and horizontal rails still hand vertical
+   gestures to the page.
 
 6. Normal text, including metadata and selected labels, keeps at least 4.5:1
    contrast. Use `--app-muted-color` for secondary text and
@@ -244,8 +250,8 @@ The app mode is the exclusive `.dark-theme` or `.light-theme` class that
 `SettingsService` puts on `<body>`. Its `data-app-theme` attribute identifies
 the resolved palette: `light`, `dark`, `cream`, `mocha`, `night-owl`,
 `black-oled`, or `high-contrast`. Cream uses light mode; Mocha, Night Owl,
-Black OLED and High Contrast use dark mode. A "System" choice resolves the OS preference
-there and nowhere else, to the user's light-mode and dark-mode presets
+Black OLED and High Contrast use dark mode. A "System" choice resolves the OS
+preference there and nowhere else, to the user's light-mode and dark-mode presets
 (Light and Dark unless changed). Component styles never use a
 `prefers-color-scheme` query, which follows the OS: with the app set to dark
 on a light OS it paints light colours
@@ -340,6 +346,10 @@ instead, through `--app-list-selected-*`: a soft tint with no lift or glow,
 outlined in light theme. Its text is the heading colour in light theme (the
 selection blue on its own tint is 3.3:1) and the selection colour in dark.
 
+Browser tabs use standard text selection. Electron, the Android TV shell,
+and PWA windows in standalone display mode suppress general text selection.
+Text fields and explicitly copyable values remain selectable.
+
 ## Single-Choice Menus And Status Chips
 
 Catalog headers keep the category title/count on the left and the active
@@ -429,6 +439,10 @@ TMDB enrichment adds a moment later fills the compact hero instead of
 growing it. The pane is a size container (`detail`); the poster hides below
 760px of pane width.
 
+The detail shell owns vertical scrolling and follows the app's overscroll
+policy so dragging past the content cannot expose a gap beneath the workspace
+header in standalone apps.
+
 The pieces are shared and provider-neutral (`libs/ui/components/src/lib/detail-ui/`):
 `app-meta-chip` (pill; `rating` and `status` variants; facets as projected
 `.meta-chip__facet` buttons), `app-detail-action-button` (the light primary
@@ -453,6 +467,10 @@ arrow keys reveal the focused row, and Escape returns focus to the trigger.
 pointer handoffs for movie and series menus, including after scrolling.
 The page-level Sass mixin (`libs/ui/styles/_detail-view.scss`)
 only carries the page shell, meta items and the episodes section.
+
+On phones, Trailer uses an icon with its accessible label. Compact horizontal
+spacing leaves room for five 44px-tall controls at 375px, including with a
+classic scrollbar. The action row can wrap when it needs more space.
 
 With `detailTrailerBackdrop` on (Settings → Playback → "Play trailers in
 details background", default off) the hosts hand the trailer embed URL to the
@@ -689,11 +707,8 @@ them size from the `--cover-grid-min-width` / `--cover-rail-width` /
 row under VOD and series covers so the grid shows more rows per screen.
 
 - **Resolution.** `CoverTitlesService.postersOnly` (`libs/portal/shared/ui`)
-  is the single source: the opt-out AND a hover-capable pointer
-  (`(any-hover: hover)` media query, tracked live). On touch-only devices the
-  preference is ignored and titles stay under the covers, because a tap
-  already opens the item and there is no gesture left to peek at a hidden
-  name.
+  follows the saved preference on all devices. A tap on a touch screen
+  opens the item, and the card retains its accessible title.
 - **Scope.** Catalog grids (Xtream/Stalker VOD and series), unified
   favorites/recent grids and the portal favorites tab. Exempt, regardless of
   the setting: live channel grids (`type` `live`/`itv`/`radio` or the
@@ -1195,6 +1210,9 @@ actions (mark watched, download season, reset progress) live in that menu
 and drive the season container's presenters. Collection details also keep
 “View in portal” in that menu, in a navigation group before the provider
 actions, regardless of how many hero buttons are visible.
+At the phone breakpoint, Trailer uses a 44px icon button with its translated
+accessible name. Playback keeps its label and the action row can wrap when
+additional controls or long localized labels need more room.
 
 Every section below the hero (Episodes, Cast & crew, Similar) uses
 `app-detail-section-header`: an 18px/600 title, a muted 12.5px tabular
@@ -1626,7 +1644,10 @@ but the component has not.
   it has to opt into the row direction — a nested list that keeps
   `flex-direction: column` stacks its links out of the bar and over the header.
   The bar scrolls sideways once a portal contributes its sections, and the
-  settings link is `position: sticky` so it never scrolls out of reach.
+  settings link is `position: sticky` so it never scrolls out of reach. In
+  standalone mode, the inset for the status bar sits above the 52px scroller.
+- In narrow catalog panes, Refine shares a row with the category title and
+  count. Sort and filter chips wrap below when present.
 - The shell context panel (categories, filters, settings sections) is an
   off-canvas drawer: hidden by default so the route content owns the full
   pane, opened from a toggle in the workspace header, closed by selection,
@@ -1752,24 +1773,25 @@ named miniature samples use the same app tokens as the real theme, arranged in
 three columns on wide settings containers and two on narrow ones. System is a
 separate row in the same group. While System is selected, a pair of rows below
 it chooses the preset for a light device (Light or Cream) and for a dark one
-(Dark, Mocha, Night Owl, Black OLED or High Contrast), stored as `systemLightTheme` and
-`systemDarkTheme`; `normalizeSystemTheme()` falls back to Light or Dark for a
-missing value or one of the other mode. Selection previews immediately, Save
-persists it, and Discard restores the saved choice and its System listener
-when needed. The pair is applied before the theme, since System resolves
-through it.
+(Dark, Mocha, Night Owl, Black OLED or High Contrast). These choices are stored
+as `systemLightTheme` and `systemDarkTheme`. `normalizeSystemTheme()` falls
+back to Light or Dark for a missing value or one of the other mode. Selection
+previews immediately, Save persists it, and Discard restores the saved choice
+and its System listener when needed. The pair is applied before the theme,
+since System resolves through it.
 
-App palette declarations live in `apps/web/src/_theme-palettes.scss`, included
-by `m3-theme.scss` for both body contexts and decorative preview contexts.
+App palette declarations live in `apps/web/src/_theme-palettes.scss`.
+`m3-theme.scss` includes them for body contexts, and the lazy settings theme
+picker includes them for decorative preview contexts.
 `_warm-theme.scss` supplies the Material color ramps for Cream/Mocha;
-`_dark-variant-themes.scss` supplies Night Owl/Black OLED/High Contrast. Night
-Owl uses navy surfaces and cool accents; Black OLED keeps the main background
-black and uses raised graphite surfaces for cards, inputs and overlays. High
-Contrast is the accessibility preset: black surfaces, white text, a yellow
-selection, visible widget borders and separators, and a 3px focus ring through
-`--app-focus-ring-width`, which every other preset leaves at the mixin's 2px. Material
-component colors reference `--mat-sys-*` roles through one shared declaration
-block; each preset sets its system colors. The shared aliases are declared at
+`_dark-variant-themes.scss` supplies Night Owl, Black OLED and High Contrast.
+Night Owl uses navy surfaces and cool accents. Black OLED uses a black
+background and raised graphite surfaces for cards, inputs and overlays. High
+Contrast uses black surfaces, white text, a yellow selection, visible widget
+borders and separators, and a 3px focus ring. The `--app-focus-ring-width`
+token overrides the mixin's 2px default. Material component colors reference
+`--mat-sys-*` roles through one shared declaration block. Each preset sets its
+system colors. The shared aliases are declared at
 each color boundary, since inheriting an alias from `html` would retain the
 light value. Samples emit only their seven displayed app roles from the same
 palette mixins, avoiding full duplicate theme payloads.
@@ -1784,10 +1806,10 @@ spacing, media artwork and the fixed over-video control palette stay unchanged.
 
 An optional accent (`themeAccent`, ids in
 `libs/shared/interfaces/src/lib/theme-accent.ts`) lays a user colour over any
-preset; a missing or `null` value keeps the preset's own selection colour and
-sets nothing. `SettingsService` reads the active preset's surface tokens,
-derives the selection, selection-text, on-selection, focus-ring and Material
-primary roles in `theme-accent-tokens.ts`, and sets them inline on `<body>`
+preset. A missing or `null` value keeps the preset's own selection colour.
+`SettingsService` loads `theme-accent-tokens.ts` on the first custom accent,
+including a saved accent at startup. The module derives the roles against the
+active preset's surface tokens. The service sets the roles inline on `<body>`
 with a `data-theme-accent` attribute. Only the accent's OKLCH lightness moves.
 The accent is also text (badges, selected labels), so it keeps 4.5:1 against
 every surface and its plain selection tint; the selection-text role keeps
@@ -1800,9 +1822,9 @@ including System's OS switches. `data-theme-accent` is a component-token
 boundary in `m3-theme.scss`, because light presets otherwise resolve Material
 component colours on `html`. The swatches preview each accent in the colour it
 takes on the current theme; the "theme colour" swatch reads the preset's own
-colour from a `data-theme-preview` context. Previews, Save and Discard work as
-for the theme. The accent's specs read the shipped palettes, so a new preset
-or palette change re-runs every accent's contrast check.
+colour from a `data-theme-preview` context. Discard and completing a playlist
+backup import restore the saved appearance. The accent's specs read the shipped
+palettes, so a new preset or palette change re-runs every accent's contrast check.
 
 
 ### Light Theme

@@ -1455,6 +1455,10 @@ abort signals are
 never serialized across IPC. Keep that boundary when adding browser transport
 behavior rather than increasing the initial-byte baseline.
 
+The renderer loads the accent color calculations on demand when a custom
+accent is active or Appearance renders its swatches. The About page's
+release-version check belongs to the lazy settings route.
+
 Playlist history transformations and Xtream recent-item operations likewise load
 on first history access or action. Keep their data writes inside the existing
 playlist queue and capture source/profile ownership before loading write helpers.

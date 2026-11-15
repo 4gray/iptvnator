@@ -212,7 +212,7 @@ export class SettingsFormFacade {
         }
 
         this.patchAndMarkDirty({ themeAccent }, 'themeAccent');
-        this.settingsService.changeThemeAccent(themeAccent);
+        void this.settingsService.changeThemeAccent(themeAccent);
     }
 
     /**

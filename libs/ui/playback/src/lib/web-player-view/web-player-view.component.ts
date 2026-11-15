@@ -1,3 +1,5 @@
+import { SecondStreamFloatingDirective } from '../second-stream/second-stream-floating.directive';
+import { SecondStreamComponent } from '../second-stream/second-stream.component';
 import { WebPlayerActivity } from './web-player-activity';
 import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
 import {
@@ -21,7 +23,6 @@ import {
     type PlaybackDiagnostic,
     type PlaybackDiagnosticCode,
     type PlaybackFallbackRequest,
-    type PlaybackRecommendationTarget,
 } from '@iptvnator/playback/util';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
@@ -80,6 +81,8 @@ import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
     styleUrls: ['./web-player-view.component.scss'],
     host: { class: 'web-player-view' },
     imports: [
+        SecondStreamComponent,
+        SecondStreamFloatingDirective,
         ArtPlayerComponent,
         EmbeddedMpvPlayerComponent,
         FullscreenChannelPanelComponent,
@@ -298,9 +301,7 @@ export class WebPlayerViewComponent implements OnDestroy {
         const binding = this.activeBinding();
         const embeddedMpv =
             this.selectedPlayer() === VideoPlayer.EmbeddedMpv && !binding;
-        if (!binding && !embeddedMpv) {
-            return [];
-        }
+        if (!binding && !embeddedMpv) return [];
 
         return [
             Object.freeze({
@@ -427,9 +428,8 @@ export class WebPlayerViewComponent implements OnDestroy {
         return !!binding && this.applicationHandoff.owns(binding, token);
     }
 
-    requestRecommendedPlayer(target: PlaybackRecommendationTarget): void {
-        this.recovery.requestRecommendedPlayer(target);
-    }
+    readonly requestRecommendedPlayer =
+        this.recovery.requestRecommendedPlayer.bind(this.recovery);
 
     retryPlayback(binding?: PlaybackBinding): void {
         this.recovery.syncSession();

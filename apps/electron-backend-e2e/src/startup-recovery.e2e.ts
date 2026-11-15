@@ -111,7 +111,8 @@ test('recovers settings and updates from a failed source read @electron @setting
         });
         await expect(page).toHaveURL(/\/workspace\/settings\/general/);
         await openSettingsSection(page, 'appearance');
-        await page.getByRole('radio', { name: 'Dark', exact: true }).click();
+        const theme = page.getByTestId('select-theme');
+        await theme.getByRole('radio', { name: 'Dark', exact: true }).click();
         await page.getByTestId('save-settings').click();
         await expect(page.getByTestId('save-settings')).toBeHidden();
         await page.evaluate(() => {
@@ -128,7 +129,7 @@ test('recovers settings and updates from a failed source read @electron @setting
         ).toBeVisible();
         await page.getByTestId('startup-open-settings').click();
         await openSettingsSection(page, 'appearance');
-        await page.getByRole('radio', { name: 'Light', exact: true }).click();
+        await theme.getByRole('radio', { name: 'Light', exact: true }).click();
         await page.getByTestId('save-settings').click();
         await expect(page.getByTestId('save-settings')).toBeHidden();
         await page.evaluate(() => {

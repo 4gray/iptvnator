@@ -77,6 +77,8 @@ export class PlayerControlsComponent implements OnDestroy {
      */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly showControls = input(true);
+    readonly canAddSecondStream = input(false);
+    readonly secondStreamRequested = output<void>();
     readonly shortcutsEnabled = input(true);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
     /** Chapters / programmes drawn as track segments; null draws one. */
@@ -94,7 +96,13 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly layout = new ControlsLayout();
     /** Compact dock: narrow inline players and phone-sized viewports. */
     readonly isCompact = computed(() => this.layout.mode() === 'compact');
-    private readonly visibility = new ControlsVisibility(() => this.canHide());
+    private readonly visibility = new ControlsVisibility(
+        (): boolean =>
+            this.isPlaying() &&
+            !this.chrome.engaged &&
+            !this.menus.anyOpen() &&
+            !this.state().statusMessage
+    );
     private readonly fullscreen = new ControlsFullscreen(
         () => this.fullscreenTarget() ?? this.playerSurface(),
         () => this.reveal()
@@ -152,7 +160,6 @@ export class PlayerControlsComponent implements OnDestroy {
         capabilities: this.capabilities,
         showControls: this.showControls,
         menus: this.menus,
-        commands: () => this.controller().commands,
         reveal: (options) => this.reveal(options),
     });
     readonly upNextCard = new ControlsUpNext({
@@ -195,7 +202,7 @@ export class PlayerControlsComponent implements OnDestroy {
 
     /**
      * The top scrim is shared by every piece of top chrome (the fullscreen
-     * media title and the corner buttons): rendering one per consumer would
+     * media title and Stream info): rendering one per consumer would
      * stack two gradients and darken the overlap twice.
      */
     readonly showTopScrim = computed(
@@ -421,14 +428,5 @@ export class PlayerControlsComponent implements OnDestroy {
     reveal(options: { scheduleHide?: boolean } = {}): void {
         this.shortcuts.activate();
         this.visibility.reveal(options);
-    }
-
-    private canHide(): boolean {
-        return (
-            this.isPlaying() &&
-            !this.chrome.engaged &&
-            !this.menus.anyOpen() &&
-            !this.state().statusMessage
-        );
     }
 }

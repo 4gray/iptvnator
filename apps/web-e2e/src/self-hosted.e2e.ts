@@ -530,7 +530,6 @@ test('@self-hosted M3U User-Agent reaches the provider on import and refresh', a
             .click();
         await page.waitForURL(/playlists.*all/);
         await expect(page.getByText('1. Initial UA Channel')).toBeVisible();
-        const catalogUrl = page.url();
         await page.reload();
         await page.goto('/workspace/sources');
         const editor = await openSourceEditor(page, 'Protected M3U');
@@ -547,8 +546,15 @@ test('@self-hosted M3U User-Agent reaches the provider on import and refresh', a
         await expect(
             page.locator('.mat-mdc-snack-bar-label').last()
         ).toContainText('updated');
-        await page.goto(catalogUrl);
-        await expect(page.getByText('1. Refreshed UA Channel')).toBeVisible();
+        await row
+            .getByRole('button', { name: 'Protected M3U', exact: true })
+            .click();
+        // The success snackbar can precede the playlist write. Wait for the
+        // refreshed catalog before reloading to check that it was persisted.
+        const refreshedChannel = page.getByText('1. Refreshed UA Channel');
+        await expect(refreshedChannel).toBeVisible();
+        await page.reload();
+        await expect(refreshedChannel).toBeVisible();
         expect(received.slice(1)).toEqual([userAgent, userAgent]);
     } finally {
         await new Promise<void>((resolve, reject) =>

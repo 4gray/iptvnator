@@ -65,7 +65,7 @@ describe('ControlsLayout', () => {
         expect(layout.mode()).toBe('wide');
     });
 
-    it('reports room for chips and the side panel only from the roomy width', () => {
+    it('reports room for the side panel only from the roomy width', () => {
         const layout = new ControlsLayout();
         layout.attach(document.createElement('div'));
         expect(layout.roomy()).toBe(true);
