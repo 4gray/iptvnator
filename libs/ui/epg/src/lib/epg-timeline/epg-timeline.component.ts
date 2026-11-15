@@ -16,7 +16,6 @@ import {
     viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { normalizeDateLocale } from '@iptvnator/pipes';
@@ -46,7 +45,7 @@ import {
     EpgTimelineEmptyReason,
     EpgTimelineEmptyStateComponent,
 } from './epg-timeline-empty-state.component';
-import { EpgScheduleNoticeComponent } from './epg-schedule-notice.component';
+import { EPG_TIMELINE_TOOLBAR_IMPORTS } from './epg-schedule-notice.component';
 import { TimelineScrollController } from './epg-timeline-scroll.controller';
 import { TimelineWindowController } from './epg-timeline-window.controller';
 import {
@@ -85,11 +84,10 @@ export type { EpgTimelineSummary } from './epg-summary.util';
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         DatePipe,
-        EpgScheduleNoticeComponent,
+        ...EPG_TIMELINE_TOOLBAR_IMPORTS,
         EpgTimelineEmptyStateComponent,
         EpgTimelineTrackComponent,
         MatIcon,
-        MatIconButton,
         MatTooltip,
         TranslatePipe,
     ],

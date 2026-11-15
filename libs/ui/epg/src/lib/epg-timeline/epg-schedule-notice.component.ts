@@ -77,3 +77,9 @@ export class EpgScheduleNoticeComponent {
         this.close(true);
     }
 }
+
+/** The timeline toolbar's controls: this notice and the kit icon buttons. */
+export const EPG_TIMELINE_TOOLBAR_IMPORTS = [
+    EpgScheduleNoticeComponent,
+    MatIconButton,
+] as const;

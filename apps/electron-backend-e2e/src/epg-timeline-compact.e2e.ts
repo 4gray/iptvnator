@@ -245,9 +245,9 @@ test('@epg @m3u @electron keeps the inline EPG panel compact and translated', as
             // Collapsed: the bar is the toolbar's height, the source label is
             // translated and the channel name is not cut while room is left.
             await timeline.locator('.epg-timeline__collapse').click();
-            await expect(timeline.locator('.epg-timeline--collapsed')).toHaveCount(
-                1
-            );
+            await expect(
+                timeline.locator('.epg-timeline--collapsed')
+            ).toHaveCount(1);
             // (the M3U host draws a 1px separator above the panel)
             await expect
                 .poll(async () => Math.round((await box(timeline)).height))
@@ -283,9 +283,9 @@ test('@epg @m3u @electron keeps the inline EPG panel compact and translated', as
                 path: test.info().outputPath(`collapsed-${width}.png`),
             });
             await timeline.locator('.epg-timeline__collapse').click();
-            await expect(timeline.locator('.epg-timeline--collapsed')).toHaveCount(
-                0
-            );
+            await expect(
+                timeline.locator('.epg-timeline--collapsed')
+            ).toHaveCount(0);
         }
     } finally {
         await closeElectronApp(app);
