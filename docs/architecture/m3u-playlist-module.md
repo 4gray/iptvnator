@@ -281,6 +281,10 @@ User-Agent header itself, and this does not add custom browser playback-header
 support. Electron playback retains existing per-header precedence: channel
 headers override playlist defaults. File, text, and portal imports are unchanged.
 
+In the PWA, the source stays busy through the catalog write. A committed
+write publishes the updated channels and confirms the refresh. An aborted
+write reports a refresh error and keeps the previous catalog available.
+
 Regression coverage uses synthetic UA-gated HTTP endpoints in
 `playlist-auto-refresh.e2e.ts` (Electron) and `self-hosted.e2e.ts` (PWA), plus
 form, renderer, download, proxy, and refresh-action unit tests.

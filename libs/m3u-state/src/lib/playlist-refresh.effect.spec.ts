@@ -10,7 +10,7 @@ import { PlaylistActions } from './actions';
 import { PlaylistEffects } from './effects';
 
 describe('accepted refresh publication', () => {
-    it.each(['single', 'batch'] as const)(
+    it.each(['single', 'batch', 'already saved'] as const)(
         'publishes persisted %s channels instead of a superseded download',
         (mode) => {
             const accepted = {
@@ -26,6 +26,7 @@ describe('accepted refresh publication', () => {
             } as Playlist;
             const actions = new Subject<unknown>();
             const dispatch = jest.fn();
+            const updatePlaylist = jest.fn(() => of(accepted));
             const injector = Injector.create({
                 parent: { get: () => ({}) } as unknown as Injector,
                 providers: [
@@ -37,7 +38,7 @@ describe('accepted refresh publication', () => {
                     {
                         provide: PlaylistsService,
                         useValue: {
-                            updatePlaylist: () => of(accepted),
+                            updatePlaylist,
                             updateManyPlaylists: () => of([accepted]),
                         },
                     },
@@ -54,19 +55,28 @@ describe('accepted refresh publication', () => {
                 () => new PlaylistEffects()
             );
             const subscription =
-                mode === 'single'
-                    ? effects.updatePlaylist$.subscribe()
-                    : effects.updateManyPlaylists$.subscribe();
-            actions.next(
-                mode === 'single'
-                    ? PlaylistActions.updatePlaylist({
-                          playlistId: accepted._id,
-                          playlist: downloaded,
-                      })
-                    : PlaylistActions.updateManyPlaylists({
-                          playlists: [downloaded],
-                      })
-            );
+                mode === 'batch'
+                    ? effects.updateManyPlaylists$.subscribe()
+                    : effects.updatePlaylist$.subscribe();
+            if (mode === 'batch') {
+                actions.next(
+                    PlaylistActions.updateManyPlaylists({
+                        playlists: [downloaded],
+                    })
+                );
+            } else {
+                actions.next(
+                    PlaylistActions.updatePlaylist({
+                        playlistId: accepted._id,
+                        playlist:
+                            mode === 'already saved' ? accepted : downloaded,
+                        persist: mode !== 'already saved',
+                    })
+                );
+            }
+            if (mode === 'already saved') {
+                expect(updatePlaylist).not.toHaveBeenCalled();
+            }
             expect(dispatch).toHaveBeenCalledWith(
                 PlaylistActions.hydrateSharedPlaylist({
                     playlistId: accepted._id,
