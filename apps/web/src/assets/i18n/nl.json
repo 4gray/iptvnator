@@ -1556,6 +1556,7 @@
         "EPISODES_WATCHED_COUNT": "{{count}} bekeken",
         "BACK_TO_PLAYING_EPISODE": "Terug naar lopende aflevering",
         "GRID_VIEW": "Rasterweergave",
+        "PLAY_RANDOM_EPISODE": "Willekeurige aflevering afspelen",
         "LIST_VIEW": "Lijstweergave",
         "NO_EPISODES_AVAILABLE": "Geen afleveringen beschikbaar",
         "NO_EPISODES_AVAILABLE_MESSAGE": "Deze serie staat in de lijst van je provider, maar er zijn geen seizoenen of afleveringen beschikbaar om af te spelen.",

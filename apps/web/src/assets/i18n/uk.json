@@ -1556,6 +1556,7 @@
         "EPISODES_WATCHED_COUNT": "{{count}} переглянуто",
         "BACK_TO_PLAYING_EPISODE": "Повернутися до відтворюваної серії",
         "GRID_VIEW": "Сітка",
+        "PLAY_RANDOM_EPISODE": "Відтворити випадкову серію",
         "LIST_VIEW": "Список",
         "NO_EPISODES_AVAILABLE": "Немає доступних серій",
         "NO_EPISODES_AVAILABLE_MESSAGE": "Цей серіал є у списку вашого провайдера, але доступних для відтворення сезонів або серій немає.",

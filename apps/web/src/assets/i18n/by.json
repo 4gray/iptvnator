@@ -1556,6 +1556,7 @@
         "EPISODES_WATCHED_COUNT": "{{count}} прагледжана",
         "BACK_TO_PLAYING_EPISODE": "Назад да бягучага эпізоду",
         "GRID_VIEW": "Выгляд сеткай",
+        "PLAY_RANDOM_EPISODE": "Прайграць выпадковы эпізод",
         "LIST_VIEW": "Выгляд спісам",
         "NO_EPISODES_AVAILABLE": "Няма даступных эпізодаў",
         "NO_EPISODES_AVAILABLE_MESSAGE": "Гэты серыял пазначаны вашым правайдэрам, але сезоны або эпізоды для прайгравання недаступныя.",

@@ -1556,6 +1556,7 @@
         "EPISODES_WATCHED_COUNT": "{{count}} izlendi",
         "BACK_TO_PLAYING_EPISODE": "Oynatılan bölüme dön",
         "GRID_VIEW": "Izgara görünümü",
+        "PLAY_RANDOM_EPISODE": "Rastgele bölüm oynat",
         "LIST_VIEW": "Liste görünümü",
         "NO_EPISODES_AVAILABLE": "Bölüm mevcut değil",
         "NO_EPISODES_AVAILABLE_MESSAGE": "Bu dizi sağlayıcınız tarafından listeleniyor, ancak oynatılabilecek sezon veya bölüm bulunmuyor.",
