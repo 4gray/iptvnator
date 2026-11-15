@@ -261,6 +261,12 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
         this.isResizing.set(true);
         this.startX = clientX;
         this.startWidth = this.renderedWidth();
+        // A host may drive the width through its own `[style.width.px]`
+        // binding; the inline width is the one to keep if this is no resize.
+        const inlineWidth = parseFloat(this.el.nativeElement.style.width);
+        if (Number.isFinite(inlineWidth)) {
+            this.currentWidth.set(inlineWidth);
+        }
         this.widthBeforeResize = this.currentWidth();
         this.resizeStart.emit();
     }

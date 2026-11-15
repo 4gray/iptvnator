@@ -237,6 +237,19 @@ describe('ResizableDirective', () => {
         expect(lastHost().cancelled).toEqual([]);
     });
 
+    it('keeps a width the host set itself when the handle is only clicked', () => {
+        localStorage.setItem('sidebar-width', '400');
+        const aside = render();
+        // The host's own [style.width.px] binding, outside the directive.
+        aside.style.width = '520px';
+
+        drag(aside, 100, 100);
+
+        expect(aside.style.width).toBe('520px');
+        expect(lastHost().cancelled).toEqual([520]);
+        expect(localStorage.getItem('sidebar-width')).toBe('400');
+    });
+
     it('saves an inward drag below a CSS cap', () => {
         localStorage.setItem('sidebar-width', '400');
         const aside = render();

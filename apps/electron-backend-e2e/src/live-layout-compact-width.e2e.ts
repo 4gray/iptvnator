@@ -56,14 +56,48 @@ const M3U_CHANNELS = [
 const M3U_STREAM_MEDIA = readFileSync(
     join(__dirname, '../../web-e2e/src/fixtures/playback/episode.webm')
 );
+const MPEG_TS_CLIP = readFileSync(
+    join(__dirname, '../../xtream-mock-server/src/fixtures/live.mpegts')
+);
+const CLIP_URL = 'https://media.example.test/compact-clip.ts';
+const CLIP_PLAYLIST = [
+    '#EXTM3U',
+    '#EXT-X-VERSION:3',
+    '#EXT-X-TARGETDURATION:10',
+    '#EXT-X-MEDIA-SEQUENCE:0',
+    '#EXTINF:10.0,',
+    CLIP_URL,
+    '#EXT-X-ENDLIST',
+].join('\n');
 
 /**
- * Blocks the network, then serves the M3U channels a real clip: a failed
- * stream replaces the control bar with the error panel, and the bar is what
- * the width checks measure.
+ * Blocks the network and serves every player a real clip: a failed stream
+ * replaces the control bar with the error panel, and the bar is what the
+ * width checks measure. The mocks' own live links point at public HLS
+ * (Stalker) or a zero-filled download (Xtream), so HLS manifests get a
+ * one-segment playlist of the Xtream mock's MPEG-TS clip, `.ts` URLs the
+ * clip itself, and the M3U fixture's `.webm` channels a WebM clip.
  */
-async function routeM3uStreams(page: Page): Promise<void> {
+async function routePlayableStreams(page: Page): Promise<void> {
     await page.route('https://**', (route) => route.abort());
+    await page.route(
+        (url) => /\.m3u8$/.test(url.pathname),
+        (route) =>
+            route.fulfill({
+                status: 200,
+                contentType: 'application/vnd.apple.mpegurl',
+                body: CLIP_PLAYLIST,
+            })
+    );
+    await page.route(
+        (url) => /\.ts$/.test(url.pathname),
+        (route) =>
+            route.fulfill({
+                status: 200,
+                contentType: 'video/mp2t',
+                body: MPEG_TS_CLIP,
+            })
+    );
     await page.route('https://streams.example.test/**', (route) =>
         route.fulfill({
             status: 200,
@@ -91,10 +125,7 @@ async function resizeWindow(
 }
 
 /** The player's box against the window, once the layout has settled. */
-async function expectUsablePlayer(
-    page: Page,
-    { controls = true }: { controls?: boolean } = {}
-): Promise<void> {
+async function expectUsablePlayer(page: Page): Promise<void> {
     const player = page.locator('app-web-player-view').first();
     await expect(player).toBeVisible({ timeout: 20000 });
     // The rails animate their width (180 ms); poll until the box settles.
@@ -111,7 +142,21 @@ async function expectUsablePlayer(
     expect(box).not.toBeNull();
     expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(WIDTH + 1);
 
-    if (!controls) return;
+    // The served clip decodes, so no playback error hides the control bar.
+    await expect
+        .poll(
+            () =>
+                player
+                    .locator('video')
+                    .first()
+                    .evaluate(
+                        (video: HTMLVideoElement) =>
+                            video.readyState >=
+                            HTMLMediaElement.HAVE_CURRENT_DATA
+                    ),
+            { timeout: 15000 }
+        )
+        .toBe(true);
     // Overflowing controls do not widen the player's own box, so the
     // control bar's buttons are measured one by one against it.
     await player.hover();
@@ -189,7 +234,7 @@ test.describe('Live layout at the minimum window width (UI-67)', () => {
         const fixture = await fetchXtreamLiveFixture(request, credentials);
         const app = await launchElectronApp(dataDir);
         try {
-            await app.mainWindow.route('https://**', (route) => route.abort());
+            await routePlayableStreams(app.mainWindow);
             await addXtreamPortal(app.mainWindow, {
                 name: 'Compact Xtream',
                 ...credentials,
@@ -230,7 +275,7 @@ test.describe('Live layout at the minimum window width (UI-67)', () => {
         const item = fixture.items[0];
         const app = await launchElectronApp(dataDir);
         try {
-            await app.mainWindow.route('https://**', (route) => route.abort());
+            await routePlayableStreams(app.mainWindow);
             await addStalkerPortal(app.mainWindow, { name: 'Compact Stalker' });
             await waitForStalkerCatalog(app.mainWindow);
             await openWorkspaceSection(app.mainWindow, 'Live TV');
@@ -247,11 +292,7 @@ test.describe('Live layout at the minimum window width (UI-67)', () => {
 
             await resizeWindow(app, WIDTH, HEIGHT);
             await expectCategoriesFolded(app.mainWindow);
-            // The Stalker mock links public HLS streams, which this test blocks
-            // and no local fixture can stand in for; a failed stream hides
-            // the control bar, so the shared controls are measured by the
-            // Xtream and M3U cases instead.
-            await expectUsablePlayer(app.mainWindow, { controls: false });
+            await expectUsablePlayer(app.mainWindow);
         } finally {
             await closeElectronApp(app);
         }
@@ -267,7 +308,7 @@ test.describe('Live layout at the minimum window width (UI-67)', () => {
         );
         const app = await launchElectronApp(dataDir);
         try {
-            await routeM3uStreams(app.mainWindow);
+            await routePlayableStreams(app.mainWindow);
             await importM3uPlaylistFromNativeDialog(app, filePath);
             await waitForM3uCatalog(app.mainWindow);
             await channelItemByTitle(app.mainWindow, 'Compact Alpha')
@@ -291,7 +332,7 @@ test.describe('Live layout at the minimum window width (UI-67)', () => {
         );
         const app = await launchElectronApp(dataDir);
         try {
-            await routeM3uStreams(app.mainWindow);
+            await routePlayableStreams(app.mainWindow);
             await importM3uPlaylistFromNativeDialog(app, filePath);
             await waitForM3uCatalog(app.mainWindow);
             // The widest rail the Groups view lets a user save.
