@@ -464,20 +464,14 @@ export class SettingsFormFacade {
         snapshot: SettingsFormValue;
     }): void {
         const current = this.form.getRawValue();
-        const { next, staged } = rebaseSettingsForm(
+        const { next, staged, addedEpgUrls } = rebaseSettingsForm(
             current,
             this.savedSnapshot,
             this.settingsStore.getSettings(),
             this.unsettledSavePaths,
+            this.ownEpgUrls(),
             submitted
         );
-        const addedEpgUrls = staged.has('epgUrl')
-            ? epgUrlsAddedOutside(
-                  current.epgUrl,
-                  this.ownEpgUrls(),
-                  next.epgUrl
-              )
-            : [];
         for (const path of diffSettingsValues(next, current)) {
             if (staged.has(path)) continue;
             if (path === 'epgUrl') {

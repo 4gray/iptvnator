@@ -1,3 +1,5 @@
+import { normalizeSourceUrlIdentity } from './playlist-source-identity.util';
+
 /**
  * Classification of the value a user types as an EPG source.
  *
@@ -52,6 +54,14 @@ export function isLocalEpgSourceReference(
     value: string | null | undefined
 ): boolean {
     return classifyEpgSourceReference(value) === 'local';
+}
+
+/** Backup matching keeps local path spelling, including case and separators. */
+export function epgSourceReferenceIdentity(value: string): string {
+    const reference = value.trim();
+    return isRemoteEpgSourceUrl(reference)
+        ? normalizeSourceUrlIdentity(reference)
+        : reference;
 }
 
 /**

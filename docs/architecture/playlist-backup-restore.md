@@ -236,13 +236,15 @@ or updated; the next settings write persists that canonical code.
 - Exported: `settings.epgUrls`
 - Excluded: cached EPG database content
 
-An open settings form takes the restored sources in without dropping staged
-edits (`SettingsFormFacade.syncWithStore()`): untouched controls show the
-stored values, a staged EPG source list gains the restored URLs, and the form
-turns pristine when nothing differs and no earlier Save needs a retry. The next Save
-writes only the staged paths, so it cannot undo the restore. Covered by
-`settings.component.outside-changes.spec.ts` and browser
-`backup-restore.e2e.ts`.
+Backup restore matches remote EPG URLs by their URL identity. Local XMLTV
+references keep their exact trimmed spelling, including path case.
+
+An open settings form takes in restored EPG sources alongside the staged
+edits (`SettingsFormFacade.syncWithStore()`). When the restore saves the
+same sources as the source draft, the form adopts the saved list order.
+It becomes pristine once all edits are saved and any outstanding Save has
+been acknowledged. The next Save writes the staged paths. Coverage lives
+in `settings.component.outside-changes.spec.ts` and `backup-restore.e2e.ts`.
 
 ## Import Flow
 

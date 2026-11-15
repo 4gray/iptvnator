@@ -1,8 +1,9 @@
 import { normalizeAgeRatingCountry } from '@iptvnator/shared/interfaces/age-rating';
 import {
-    normalizeSourceUrlIdentity,
+    epgSourceReferenceIdentity,
     Settings,
 } from '@iptvnator/shared/interfaces';
+import { epgSourceUrlsChanged } from '@iptvnator/services';
 import { diffSettingsValues } from './settings-change-tracking';
 import { SettingsForm } from './settings-form.utils';
 import { normalizeSavedAppearance } from './settings-theme-preview';
@@ -92,8 +93,13 @@ export function rebaseSettingsForm(
     saved: SettingsFormValue,
     stored: Settings,
     unsettledPaths: ReadonlySet<string>,
+    ownEpgUrls: unknown[],
     submitted?: { paths: readonly string[]; snapshot: SettingsFormValue }
-): { next: SettingsFormValue; staged: ReadonlySet<string> } {
+): {
+    next: SettingsFormValue;
+    staged: ReadonlySet<string>;
+    addedEpgUrls: string[];
+} {
     const next = settingsToFormValue(stored, current);
     const staged = new Set(diffSettingsValues(current, saved));
     if (submitted) {
@@ -113,7 +119,26 @@ export function rebaseSettingsForm(
             staged.add(path);
         }
     }
-    return { next, staged };
+    const addedEpgUrls = staged.has('epgUrl')
+        ? epgUrlsAddedOutside(current.epgUrl, ownEpgUrls, next.epgUrl)
+        : [];
+    if (staged.has('epgUrl') && !submitted && !unsettledPaths.has('epgUrl')) {
+        const draft = [
+            ...normalizeFormEpgUrls(current.epgUrl),
+            ...addedEpgUrls,
+        ];
+        const stored = normalizeFormEpgUrls(next.epgUrl);
+        if (
+            !epgSourceUrlsChanged(
+                draft.map(epgSourceReferenceIdentity),
+                stored.map(epgSourceReferenceIdentity)
+            )
+        ) {
+            staged.delete('epgUrl');
+            return { next, staged, addedEpgUrls: [] };
+        }
+    }
+    return { next, staged, addedEpgUrls };
 }
 
 /** Reads a dotted settings path (`dashboardRails.hero`). */
@@ -156,11 +181,11 @@ export function epgUrlsAddedOutside(
         [
             ...normalizeFormEpgUrls(staged),
             ...normalizeFormEpgUrls(previous),
-        ].map(normalizeSourceUrlIdentity)
+        ].map(epgSourceReferenceIdentity)
     );
     const added: string[] = [];
     for (const url of normalizeFormEpgUrls(next)) {
-        const identity = normalizeSourceUrlIdentity(url);
+        const identity = epgSourceReferenceIdentity(url);
         if (known.has(identity)) continue;
         known.add(identity);
         added.push(url);

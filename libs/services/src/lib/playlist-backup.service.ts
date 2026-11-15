@@ -25,6 +25,7 @@ import { removesParentalLocks } from './parental-lock/parental-lock-store.util';
 import {
     isParentalLockPlaylistLocksEmpty,
     isM3uRecentlyViewedItem,
+    epgSourceReferenceIdentity,
     normalizeXtreamPendingRestoreState,
     normalizeSourceUrlIdentity,
     normalizeXtreamContentTypes,
@@ -1584,7 +1585,7 @@ export class PlaylistBackupService {
         const merged = new Map<string, string>();
 
         for (const url of [...primary, ...secondary]) {
-            const normalized = normalizeSourceUrlIdentity(url);
+            const normalized = epgSourceReferenceIdentity(url);
 
             if (!normalized || merged.has(normalized)) {
                 continue;

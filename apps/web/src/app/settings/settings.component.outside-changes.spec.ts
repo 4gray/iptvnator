@@ -392,6 +392,41 @@ describe('SettingsComponent with settings changed outside the form', () => {
         );
     });
 
+    it('clears the EPG draft when a backup saves the same sources in a different order', () => {
+        component.form.setEpgUrls(STAGED_GUIDE);
+        component.settingsForm.markAsDirty();
+        jest.spyOn(component.backup, 'importData').mockImplementation(
+            (onImported) => {
+                settingsStore._setSettings({
+                    epgUrl: [STAGED_GUIDE, SAVED_GUIDE],
+                });
+                onImported();
+            }
+        );
+
+        component.importData();
+
+        expect(component.form.epgUrls).toEqual([STAGED_GUIDE, SAVED_GUIDE]);
+        expect(component.form.changedPaths()).toEqual([]);
+        expect(component.settingsForm.pristine).toBe(true);
+    });
+
+    it('keeps restored local guides distinct when only their path case differs', async () => {
+        const staged = '/example/Guide.xml';
+        const restored = '/example/guide.xml';
+        component.form.setEpgUrls(staged);
+        component.settingsForm.markAsDirty();
+
+        importBackupAddingGuide(restored);
+        await component.form.save(() => component.form.applySavedSettings());
+
+        expect(settingsStore.getSettings().epgUrl).toEqual([
+            SAVED_GUIDE,
+            staged,
+            restored,
+        ]);
+    });
+
     it('merges restored EPG sources into a staged source list', async () => {
         component.form.setEpgUrls(STAGED_GUIDE);
         component.settingsForm.markAsDirty();
