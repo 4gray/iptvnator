@@ -444,14 +444,14 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
 });
 
 function createHost(): HTMLElement {
-    return {
+    return Object.assign(document.createElement('div'), {
         getBoundingClientRect: () => ({
             left: 10,
             top: 20,
             width: 640,
             height: 360,
         }),
-    } as HTMLElement;
+    });
 }
 
 function createPlayback(): ResolvedPortalPlayback {

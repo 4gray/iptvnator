@@ -94,6 +94,152 @@ describe('SettingsComponent form', () => {
         }
     );
 
+    it('previews an accent from the swatches and restores the saved one on Discard', () => {
+        setSettingsSection('appearance');
+        fixture.detectChanges();
+        const service = TestBed.inject(SettingsService);
+        const changeThemeAccent = jest.spyOn(service, 'changeThemeAccent');
+        const root = fixture.nativeElement as HTMLElement;
+        const themeSwatch = root.querySelector(
+            '[data-test-id="theme-accent-theme"]'
+        ) as HTMLButtonElement;
+        const magenta = root.querySelector(
+            '[data-test-id="theme-accent-magenta"]'
+        ) as HTMLButtonElement;
+        expect(themeSwatch.getAttribute('aria-checked')).toBe('true');
+        // The theme's own colour comes from its preview palette.
+        expect(
+            themeSwatch.querySelector('[data-theme-preview="light"]')
+        ).not.toBeNull();
+
+        magenta.click();
+        fixture.detectChanges();
+        expect(component.settingsForm.value.themeAccent).toBe('magenta');
+        expect(changeThemeAccent).toHaveBeenLastCalledWith('magenta');
+        expect(magenta.getAttribute('aria-checked')).toBe('true');
+        expect(component.settingsForm.dirty).toBe(true);
+        expect(settingsStore.updateSettings).not.toHaveBeenCalled();
+
+        component.discardChanges();
+        fixture.detectChanges();
+        expect(component.settingsForm.value.themeAccent).toBeNull();
+        expect(changeThemeAccent).toHaveBeenLastCalledWith(null);
+        expect(themeSwatch.getAttribute('aria-checked')).toBe('true');
+    });
+
+    it('restores the saved appearance when a backup import replaces the draft', () => {
+        const service = TestBed.inject(SettingsService);
+        const changeThemeAccent = jest.spyOn(service, 'changeThemeAccent');
+        const changeSystemThemes = jest.spyOn(service, 'changeSystemThemes');
+        const changeTheme = jest.spyOn(service, 'changeTheme');
+        jest.spyOn(component.backup, 'importData').mockImplementation(
+            (onImported) => onImported()
+        );
+
+        component.form.selectThemeAccent('magenta');
+        component.form.selectSystemTheme('light', Theme.CreamTheme);
+        component.form.selectTheme(Theme.DarkTheme);
+        expect(component.settingsForm.dirty).toBe(true);
+
+        component.importData();
+
+        expect(component.settingsForm.pristine).toBe(true);
+        expect(changeThemeAccent).toHaveBeenLastCalledWith(null);
+        expect(changeSystemThemes).toHaveBeenLastCalledWith(
+            Theme.LightTheme,
+            Theme.DarkTheme
+        );
+        expect(changeTheme).toHaveBeenLastCalledWith(Theme.SystemTheme);
+    });
+
+    it('stages the System pair, previews it and restores it on Discard', () => {
+        setSettingsSection('appearance');
+        fixture.detectChanges();
+        const service = TestBed.inject(SettingsService);
+        const changeSystemThemes = jest.spyOn(service, 'changeSystemThemes');
+        const root = fixture.nativeElement as HTMLElement;
+        expect(component.settingsForm.value.theme).toBe(Theme.SystemTheme);
+
+        const dark = root.querySelector('[data-test-id="system-dark-theme"]');
+        const options = [
+            ...(dark?.querySelectorAll('button') ?? []),
+        ].map((button) => button.getAttribute('data-test-id'));
+        // Only dark presets can be the dark choice.
+        expect(options).toEqual([
+            'system-dark-dark',
+            'system-dark-mocha',
+            'system-dark-night-owl',
+            'system-dark-black-oled',
+        ]);
+
+        (
+            root.querySelector(
+                '[data-test-id="system-light-cream"]'
+            ) as HTMLButtonElement
+        ).click();
+        fixture.detectChanges();
+        expect(component.settingsForm.value.systemLightTheme).toBe(
+            Theme.CreamTheme
+        );
+        expect(changeSystemThemes).toHaveBeenLastCalledWith(
+            Theme.CreamTheme,
+            Theme.DarkTheme
+        );
+        expect(settingsStore.updateSettings).not.toHaveBeenCalled();
+
+        component.discardChanges();
+        fixture.detectChanges();
+        expect(component.settingsForm.value.systemLightTheme).toBe(
+            Theme.LightTheme
+        );
+        expect(changeSystemThemes).toHaveBeenLastCalledWith(
+            Theme.LightTheme,
+            Theme.DarkTheme
+        );
+    });
+
+    it('keeps arrow keys in the System pair apart from the theme group', () => {
+        setSettingsSection('appearance');
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const press = (testId: string) =>
+            root
+                .querySelector(`[data-test-id="${testId}"]`)
+                ?.dispatchEvent(
+                    new KeyboardEvent('keydown', {
+                        key: 'ArrowRight',
+                        bubbles: true,
+                    })
+                );
+
+        // The last dark preset wraps to the first one, inside the pair only.
+        press('system-dark-black-oled');
+        fixture.detectChanges();
+        expect(component.settingsForm.value.systemDarkTheme).toBe(
+            Theme.DarkTheme
+        );
+        expect(component.settingsForm.value.theme).toBe(Theme.SystemTheme);
+
+        // System, the theme group's last option, wraps to its first preset.
+        press(Theme.SystemTheme);
+        fixture.detectChanges();
+        expect(component.settingsForm.value.theme).toBe(Theme.LightTheme);
+        expect(component.settingsForm.value.systemLightTheme).toBe(
+            Theme.LightTheme
+        );
+    });
+
+    it('hides the System pair while an explicit theme is selected', () => {
+        setSettingsSection('appearance');
+        fixture.detectChanges();
+        component.form.selectTheme(Theme.MochaTheme);
+        fixture.detectChanges();
+
+        expect(
+            (fixture.nativeElement as HTMLElement).querySelector('.system-pair')
+        ).toBeNull();
+    });
+
     it('updates the saved key in the open form without saving an unrelated draft', async () => {
         await fixture.whenStable();
         const form = component.settingsForm;

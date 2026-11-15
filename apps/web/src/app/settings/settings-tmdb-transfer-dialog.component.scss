@@ -1,0 +1,41 @@
+mat-form-field {
+    width: 100%;
+}
+
+.transfer-code {
+    display: grid;
+    justify-items: center;
+    gap: 16px;
+    margin-block: 24px 4px;
+}
+
+.transfer-code__value {
+    position: relative;
+    display: flex;
+    max-width: 100%;
+    justify-content: center;
+    gap: 8px;
+    color: var(--app-heading-color);
+    font-family: var(--app-font-mono);
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.transfer-code__character {
+    display: grid;
+    place-items: center;
+    inline-size: clamp(34px, 12vw, 64px);
+    aspect-ratio: 1;
+    border-radius: 12px;
+    background: var(--app-selection-surface);
+    color: var(--app-selection-text-color);
+    font-size: clamp(22px, 6vw, 36px);
+    line-height: 1;
+}
+
+.transfer-code__actions {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+}

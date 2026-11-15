@@ -19,7 +19,7 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    padding: 36px 28px;
+    padding: var(--tv-safe-y) 32px;
     background: rgba(11, 20, 16, 0.94);
 }
 .channels-overlay .live-overlay-panel {
@@ -51,7 +51,7 @@
 }
 .live-overlay-panel > [role='alert'] {
     margin: 12px 8px 0;
-    font-size: 18px;
+    font-size: var(--tv-type-meta);
 }
 .live-information .section-title {
     display: block;
@@ -60,13 +60,13 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    line-height: 36px;
+    line-height: 1.3;
 }
 .live-information .section-title .actions {
     margin-top: 8px;
 }
 .live-information .section-title button {
-    font-size: 18px;
+    font-size: var(--tv-type-meta);
 }
 @media (max-width: 1400px) {
     .live-overlay-panel {

@@ -1,4 +1,27 @@
 @use '../../../../../libs/ui/styles/focus-ring';
+@use '../../theme-palettes' as palettes;
+
+html {
+    // Samples use the same declarations as the app, independent of its theme.
+    [data-theme-preview='light'] {
+        @include palettes.light($preview: true);
+    }
+    [data-theme-preview='dark'] {
+        @include palettes.dark($preview: true);
+    }
+    [data-theme-preview='cream'] {
+        @include palettes.cream($preview: true);
+    }
+    [data-theme-preview='mocha'] {
+        @include palettes.mocha($preview: true);
+    }
+    [data-theme-preview='night-owl'] {
+        @include palettes.night-owl($preview: true);
+    }
+    [data-theme-preview='black-oled'] {
+        @include palettes.black-oled($preview: true);
+    }
+}
 
 .theme-picker {
     display: grid;
@@ -146,5 +169,158 @@
 @container (max-width: 600px) {
     .theme-picker {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.accent-picker {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+
+    &__swatches {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    &__name {
+        color: var(--app-muted-color);
+        font-size: 12px;
+        font-weight: 500;
+    }
+}
+
+.accent-swatch {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    app-region: no-drag;
+
+    &:hover {
+        border-color: var(--app-line-strong);
+    }
+    &:focus-visible {
+        @include focus-ring.focus-ring-declarations($offset: 2px);
+    }
+
+    &--selected,
+    &--selected:hover {
+        border-color: var(--app-heading-color);
+    }
+
+    &__fill {
+        display: grid;
+        place-items: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        // The theme swatch's preview context supplies its own colour here.
+        background: var(--app-selection-color);
+        box-shadow: inset 0 0 0 1px var(--app-line-strong);
+    }
+
+    // A centre dot marks the choice by shape as well as by the ring.
+    &--selected &__fill::after {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--app-widget-bg);
+    }
+}
+
+// The theme's own colour is a ring, so it never reads as the blue accent.
+.accent-swatch__fill--theme {
+    background: transparent;
+    box-shadow: inset 0 0 0 5px var(--app-selection-color);
+}
+.accent-swatch--selected .accent-swatch__fill--theme::after {
+    background: var(--app-selection-color);
+}
+
+// The theme group and, beside it rather than inside, the System pair.
+.theme-picker-stack {
+    display: grid;
+    gap: 10px;
+    width: min(100%, 540px);
+}
+
+.system-pair {
+    display: grid;
+    gap: 8px;
+    padding: 10px 11px;
+    border: 1px solid var(--app-line-strong);
+    border-radius: 12px;
+
+    &__row {
+        display: grid;
+        grid-template-columns: minmax(110px, auto) minmax(0, 1fr);
+        align-items: center;
+        gap: 8px 12px;
+    }
+
+    &__label {
+        color: var(--app-muted-color);
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    &__options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    &__option {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 10px 5px 6px;
+        border: 1px solid var(--app-line-strong);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--app-heading-color);
+        font: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        app-region: no-drag;
+
+        &:hover {
+            background: var(--app-hover-overlay);
+        }
+        &:focus-visible {
+            @include focus-ring.focus-ring-declarations($offset: 2px);
+        }
+        &--selected {
+            border-color: var(--app-selection-text-color);
+            background: var(--app-selection-surface);
+        }
+    }
+
+    // The preset's page and accent, from its own preview palette.
+    &__swatch {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: linear-gradient(
+            135deg,
+            var(--app-shell-bg) 50%,
+            var(--app-selection-color) 50%
+        );
+        box-shadow: inset 0 0 0 1px var(--app-line-strong);
+    }
+}
+
+@container (max-width: 600px) {
+    .system-pair__row {
+        grid-template-columns: minmax(0, 1fr);
     }
 }

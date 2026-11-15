@@ -745,6 +745,51 @@
     }
 }
 
+@media (max-width: 640px) {
+    .hero {
+        // Container units exclude the dashboard gutters; the art bleeds
+        // across both. The viewport cap keeps short windows usable.
+        --hero-art-height: min(
+            (100cqw + 2 * var(--hero-inset)) * 9 / 16,
+            33svh
+        );
+
+        min-height: 0;
+        padding-top: var(--hero-art-height);
+    }
+
+    .hero__stage {
+        bottom: auto;
+        height: var(--hero-art-height);
+        overflow: hidden;
+    }
+
+    .hero__backdrop-image {
+        object-position: center;
+    }
+
+    .hero__scrim {
+        background: linear-gradient(
+            180deg,
+            transparent 72%,
+            var(--hero-scrim) 100%
+        );
+    }
+
+    .hero__content {
+        padding-top: 4px;
+        text-shadow: none;
+
+        &::before {
+            content: none;
+        }
+    }
+
+    .hero__controls {
+        background: var(--hero-scrim);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .hero__backdrop,
     .hero__backdrop-image {

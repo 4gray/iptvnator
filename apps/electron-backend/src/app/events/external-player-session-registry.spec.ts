@@ -18,6 +18,7 @@ describe('ExternalPlayerSessionRegistry', () => {
     it('creates launching sessions and marks them opened', () => {
         const session = registry.beginSession({
             player: 'mpv',
+            launchId: 'synthetic-launch',
             title: 'Example',
             streamUrl: 'https://example.com/video.m3u8',
         });
@@ -28,6 +29,10 @@ describe('ExternalPlayerSessionRegistry', () => {
         const opened = registry.markOpened(session.id);
         expect(opened?.status).toBe('opened');
         expect(updates.at(-1)?.status).toBe('opened');
+        expect(updates.map((update) => update.launchId)).toEqual([
+            'synthetic-launch',
+            'synthetic-launch',
+        ]);
     });
 
     it('numbers sessions in the order they began', () => {
@@ -51,13 +56,15 @@ describe('ExternalPlayerSessionRegistry', () => {
     });
 
     it('keeps close capability and closes the session explicitly', async () => {
-        const close = jest.fn();
         const session = registry.beginSession({
             player: 'vlc',
             title: 'Example',
             streamUrl: 'https://example.com/video.m3u8',
         });
 
+        const close = jest.fn(() => {
+            registry.markClosed(session.id);
+        });
         registry.attachCloser(session.id, close);
 
         expect(registry.getSession(session.id)?.canClose).toBe(true);
@@ -66,6 +73,7 @@ describe('ExternalPlayerSessionRegistry', () => {
 
         expect(close).toHaveBeenCalled();
         expect(closed?.status).toBe('closed');
+        expect(closed?.closedByRequest).toBe(true);
         expect(closed?.canClose).toBe(false);
         expect(registry.getActiveSessionId()).toBeNull();
     });
@@ -83,6 +91,7 @@ describe('ExternalPlayerSessionRegistry', () => {
         const closed = await registry.closeSession(session.id);
 
         expect(close).not.toHaveBeenCalled();
+        expect(closed?.closedByRequest).toBeUndefined();
         expect(closed).toMatchObject({
             id: session.id,
             status: 'closed',

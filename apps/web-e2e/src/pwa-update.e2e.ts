@@ -62,7 +62,11 @@ test('retains the offline library after failed updates and protects unsaved sett
         await page
             .locator('[data-test-id="settings-section-appearance"]')
             .click();
-        await page.getByRole('radio', { name: 'Dark', exact: true }).click();
+        await page
+            .locator('[data-test-id="select-theme"]')
+            .getByRole('radio', { name: 'Dark', exact: true })
+            .click();
+        await page.locator('[data-test-id="theme-accent-magenta"]').click();
         await page.locator('[data-test-id="save-settings"]').click();
         await expect(
             page.locator('[data-test-id="save-settings"]')
@@ -91,6 +95,10 @@ test('retains the offline library after failed updates and protects unsaved sett
         expect(offline?.fromServiceWorker()).toBe(true);
         await expect(rows).toHaveCount(1);
         await expect(page.locator('body')).toHaveClass(/dark-theme/);
+        await expect(page.locator('body')).toHaveAttribute(
+            'data-theme-accent',
+            'magenta'
+        );
         await page.screenshot({
             path: info.outputPath('offline-library-retained.png'),
         });
@@ -127,7 +135,10 @@ test('retains the offline library after failed updates and protects unsaved sett
         await page
             .locator('[data-test-id="settings-section-appearance"]')
             .click();
-        await page.getByRole('radio', { name: 'Light', exact: true }).click();
+        await page
+            .locator('[data-test-id="select-theme"]')
+            .getByRole('radio', { name: 'Light', exact: true })
+            .click();
         const beforeUnload = page.waitForEvent('dialog');
         const refreshClick = notice
             .getByRole('button', { name: 'Refresh', exact: true })

@@ -27,16 +27,17 @@ const compiledThemes = new Map<string, string>();
 
 /** Read actual emitted roles from the mode boundary and preset overrides. */
 function themeContexts(preview = false, theme = THEME): Record<string, string> {
-    let css = compiledThemes.get(theme);
+    const source = preview ? '@use "app/settings/theme-picker";' : theme;
+    let css = compiledThemes.get(source);
     if (!css) {
-        css = compileString(theme, {
+        css = compileString(source, {
             url: pathToFileURL(
                 resolve(process.cwd(), 'apps/web/src/m3-theme.scss')
             ),
             loadPaths: [resolve(process.cwd(), 'node_modules')],
             quietDeps: true,
         }).css.replace(/\/\*[\s\S]*?\*\//g, '');
-        compiledThemes.set(theme, css);
+        compiledThemes.set(source, css);
     }
     const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
     const declarations = (...selectors: string[]) =>
@@ -65,6 +66,11 @@ function themeContexts(preview = false, theme = THEME): Record<string, string> {
 }
 
 describe('theme context extraction', () => {
+    it('keeps decorative previews out of the global theme', () => {
+        themeContexts();
+        expect(compiledThemes.get(THEME)).not.toContain('[data-theme-preview');
+    });
+
     it('does not invent shared dark roles when the mode stops supplying them', () => {
         const contexts = themeContexts(
             false,
@@ -276,5 +282,22 @@ describe('theme preset text palettes', () => {
                 ].map((token) => hexToken(contexts[name], token))
             ).toEqual(colors);
         }
+    });
+});
+
+describe('m3-theme accent boundary', () => {
+    it('re-declares Material component colours where a user accent applies', () => {
+        // SettingsService sets the accent's primary roles inline on body;
+        // component tokens inherited from html would keep the theme's own.
+        themeContexts();
+        const css = compiledThemes.get(THEME) ?? '';
+        const accentRule = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].find(
+            ([, selectors, body]) =>
+                selectors
+                    .split(',')
+                    .some((value) => value.trim() === 'html [data-theme-accent]') &&
+                body.includes('var(--mat-sys-primary)')
+        );
+        expect(accentRule).toBeDefined();
     });
 });

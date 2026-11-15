@@ -1,0 +1,180 @@
+@if (available()) {
+    @if (selection(); as current) {
+        <section
+            class="second-stream__video"
+            [appSecondStreamFloating]="!swapped()"
+            [style.visibility]="active() ? null : 'hidden'"
+            [class.second-stream__video--main]="swapped()"
+            [attr.aria-label]="'TWO_STREAMS.SECOND' | translate"
+        >
+            <app-embedded-mpv-player
+                [playback]="current.playback"
+                [initialVolumeOverride]="swapped() ? audibleVolume() : 0"
+                [retryEnabled]="!busy()"
+                [showControls]="active() && swapped() && !busy()"
+                [fullscreenTarget]="fullscreenTarget()"
+                [recordingFolder]="primary().recordingFolder()"
+                (timeUpdate)="savePosition($event)"
+                (recordingStopped)="recordingStopped.emit($event)"
+            />
+        </section>
+    }
+
+    <ul
+        class="second-stream__strip"
+        [attr.aria-label]="'TWO_STREAMS.OPEN_STREAMS' | translate"
+    >
+        @for (stream of openStreams(); track stream.small) {
+            <li>
+                <span class="second-stream__number" aria-hidden="true">{{
+                    stream.small ? 2 : 1
+                }}</span>
+                <span class="cdk-visually-hidden"
+                    >{{
+                        (stream.small
+                            ? 'TWO_STREAMS.SMALL_VIEW'
+                            : 'TWO_STREAMS.MAIN_VIEW'
+                        ) | translate
+                    }}
+                </span>
+                <span
+                    class="second-stream__title"
+                    [title]="stream.playback.title"
+                    >{{ stream.playback.title }}</span
+                >
+                <mat-icon
+                    role="img"
+                    [attr.aria-label]="
+                        (stream.muted
+                            ? 'TWO_STREAMS.MUTED'
+                            : 'AUDIO_PLAYER.VOLUME'
+                        ) | translate
+                    "
+                    >{{ stream.muted ? 'volume_off' : 'volume_up' }}</mat-icon
+                >
+            </li>
+        }
+    </ul>
+
+    @if (active()) {
+        <div
+            class="second-stream__tile"
+            [appSecondStreamFloating]="true"
+            [floatingControls]="true"
+            tabindex="0"
+            role="group"
+            [attr.aria-label]="'TWO_STREAMS.SMALL_VIEW' | translate"
+            [attr.aria-description]="'TWO_STREAMS.MOVE' | translate"
+            (pointerdown)="placement.down($event)"
+            (pointermove)="placement.move($event)"
+            (pointerup)="placement.up($event)"
+            (pointercancel)="placement.up($event)"
+            (lostpointercapture)="placement.up($event)"
+            (keydown)="placement.key($event)"
+            [class.second-stream__tile--dragging]="placement.dragging()"
+            [class.second-stream__tile--resizing]="placement.resizing()"
+        >
+            <div class="second-stream__chrome second-stream__top">
+                <span>{{ small()?.playback()?.title }}</span>
+                <button
+                    type="button"
+                    aria-haspopup="dialog"
+                    [disabled]="busy()"
+                    (click)="openPicker()"
+                    [matTooltip]="'TWO_STREAMS.CHANGE_CHANNEL' | translate"
+                    [attr.aria-label]="'TWO_STREAMS.CHANGE_CHANNEL' | translate"
+                >
+                    <mat-icon>playlist_play</mat-icon>
+                </button>
+                <button
+                    type="button"
+                    [disabled]="busy()"
+                    (click)="close()"
+                    [matTooltip]="'TWO_STREAMS.CLOSE' | translate"
+                    [attr.aria-label]="'TWO_STREAMS.CLOSE' | translate"
+                >
+                    <mat-icon>close</mat-icon>
+                </button>
+            </div>
+            <div class="second-stream__chrome second-stream__bottom">
+                <button
+                    type="button"
+                    [disabled]="busy() || !ready()"
+                    (click)="swap()"
+                    [matTooltip]="'TWO_STREAMS.SWAP' | translate"
+                    [attr.aria-label]="'TWO_STREAMS.SWAP' | translate"
+                >
+                    <mat-icon>swap_horiz</mat-icon>
+                </button>
+                <span>{{
+                    (small()?.isPaused()
+                        ? 'TWO_STREAMS.PAUSED'
+                        : 'TWO_STREAMS.MUTED'
+                    ) | translate
+                }}</span>
+                @if (small()?.isErrored()) {
+                    <button
+                        [disabled]="busy()"
+                        (click)="small()?.retry()"
+                        [attr.aria-label]="
+                            'EMBEDDED_MPV.PLAYER.RETRY' | translate
+                        "
+                    >
+                        <mat-icon>refresh</mat-icon>
+                    </button>
+                } @else {
+                    <button
+                        type="button"
+                        [disabled]="busy() || !small()?.controller.sessionId()"
+                        (click)="pauseSmall()"
+                        [matTooltip]="
+                            (small()?.isPaused()
+                                ? 'TWO_STREAMS.RESUME'
+                                : 'TWO_STREAMS.PAUSE'
+                            ) | translate
+                        "
+                        [attr.aria-label]="
+                            (small()?.isPaused()
+                                ? 'TWO_STREAMS.RESUME'
+                                : 'TWO_STREAMS.PAUSE'
+                            ) | translate
+                        "
+                    >
+                        <mat-icon>{{
+                            small()?.isPaused() ? 'play_arrow' : 'pause'
+                        }}</mat-icon>
+                    </button>
+                }
+            </div>
+            @for (corner of resizeCorners; track corner) {
+                <div
+                    class="second-stream__resize"
+                    [class.second-stream__resize--left]="corner === 'left'"
+                    [attr.data-corner]="corner"
+                    role="slider"
+                    tabindex="0"
+                    [attr.aria-label]="
+                        (corner === 'left'
+                            ? 'TWO_STREAMS.RESIZE_LEFT'
+                            : 'TWO_STREAMS.RESIZE_RIGHT'
+                        ) | translate
+                    "
+                    [attr.aria-valuemin]="placement.minimumWidth()"
+                    [attr.aria-valuemax]="placement.maximumWidth()"
+                    [attr.aria-valuenow]="placement.geometry().width"
+                    (pointerdown)="placement.down($event, corner)"
+                    (pointermove)="placement.move($event)"
+                    (pointerup)="placement.up($event)"
+                    (pointercancel)="placement.up($event)"
+                    (lostpointercapture)="placement.up($event)"
+                    (keydown)="placement.resizeKey($event, corner)"
+                ></div>
+            }
+        </div>
+        @if (error()) {
+            <p class="second-stream__error" role="alert">
+                {{ 'TWO_STREAMS.AUDIO_ERROR' | translate }}
+            </p>
+        }
+    }
+}

@@ -12,6 +12,9 @@ jest.mock(
         latestSeq: jest.fn(),
         copyLatest: jest.fn(),
         close: jest.fn(),
+        createReader() {
+            return this;
+        },
     }),
     { virtual: true }
 );
@@ -108,6 +111,7 @@ describe('embedded MPV frame pump', () => {
             COLOR_BUFFER_BIT: 0x4000,
             clearColor: jest.fn(),
             clear: jest.fn(),
+            deleteTexture: jest.fn(),
         };
         const canvas = { width: 300, height: 150, getContext: () => gl };
         const globals = [
@@ -231,6 +235,7 @@ describe('embedded MPV frame pump', () => {
             });
             reader.latestSeq.mockReturnValue(0);
             gl.drawArrays.mockClear();
+            detachEmbeddedMpvFrameView('resize-test');
             const nextAttach = attachEmbeddedMpvFrameView('next-stream-test');
             expect(gl.clearColor).toHaveBeenCalledWith(0, 0, 0, 1);
             expect(gl.clear).toHaveBeenCalledWith(gl.COLOR_BUFFER_BIT);
@@ -243,6 +248,111 @@ describe('embedded MPV frame pump', () => {
         } finally {
             detachEmbeddedMpvFrameView();
             globals.forEach((name, index) => {
+                const descriptor = descriptors[index];
+                if (descriptor)
+                    Object.defineProperty(globalThis, name, descriptor);
+                else Reflect.deleteProperty(globalThis, name);
+            });
+        }
+    });
+    it('keeps two canvas pumps independent when one is detached', async () => {
+        const makeReader = () => ({
+            open: jest.fn(() => ({ width: 2, height: 2, frameBytes: 16 })),
+            latestSeq: jest.fn(() => 1),
+            copyLatest: jest.fn(() => ({ seq: 1, ageMs: 0, torn: false })),
+            close: jest.fn(),
+        });
+        const readers = [makeReader(), makeReader()];
+        const module = jest.requireMock<{
+            createReader(): ReturnType<typeof makeReader>;
+        }>('embedded-mpv-test-reader');
+        const factory = jest
+            .spyOn(module, 'createReader')
+            .mockReturnValueOnce(readers[0])
+            .mockReturnValueOnce(readers[1]);
+        const makeCanvas = () => {
+            const gl = {
+                createProgram: jest.fn(() => ({})),
+                createShader: jest.fn(() => ({})),
+                shaderSource: jest.fn(),
+                compileShader: jest.fn(),
+                getShaderParameter: jest.fn(() => true),
+                attachShader: jest.fn(),
+                linkProgram: jest.fn(),
+                useProgram: jest.fn(),
+                createVertexArray: jest.fn(() => ({})),
+                bindVertexArray: jest.fn(),
+                createTexture: jest.fn(() => ({})),
+                bindTexture: jest.fn(),
+                texParameteri: jest.fn(),
+                viewport: jest.fn(),
+                texImage2D: jest.fn(),
+                texSubImage2D: jest.fn(),
+                drawArrays: jest.fn(),
+                clearColor: jest.fn(),
+                clear: jest.fn(),
+                deleteTexture: jest.fn(),
+            };
+            return { width: 300, height: 150, getContext: () => gl, gl };
+        };
+        const canvases = [makeCanvas(), makeCanvas()];
+        const names = [
+            'document',
+            'requestAnimationFrame',
+            'cancelAnimationFrame',
+        ] as const;
+        const descriptors = names.map((name) =>
+            Object.getOwnPropertyDescriptor(globalThis, name)
+        );
+        const frames = new Map<number, FrameRequestCallback>();
+        let frameId = 0;
+        Object.defineProperty(globalThis, 'document', {
+            configurable: true,
+            value: {
+                querySelector: (selector: string) =>
+                    selector.includes('first') ? canvases[0] : canvases[1],
+            },
+        });
+        Object.defineProperty(globalThis, 'requestAnimationFrame', {
+            configurable: true,
+            value: (callback: FrameRequestCallback) => {
+                frames.set(++frameId, callback);
+                return frameId;
+            },
+        });
+        Object.defineProperty(globalThis, 'cancelAnimationFrame', {
+            configurable: true,
+            value: (id: number) => frames.delete(id),
+        });
+        jest.mocked(ipcRenderer.invoke).mockImplementation(
+            async (_channel, id) => ({
+                shmName: `/impv-${id}`,
+                readerPath: 'embedded-mpv-test-reader',
+            })
+        );
+        try {
+            expect(await attachEmbeddedMpvFrameView('first')).toBe(true);
+            expect(await attachEmbeddedMpvFrameView('second')).toBe(true);
+            for (const callback of [...frames.values()]) callback(0);
+            expect(canvases[0].gl.drawArrays).toHaveBeenCalledTimes(1);
+            expect(canvases[1].gl.drawArrays).toHaveBeenCalledTimes(1);
+            detachEmbeddedMpvFrameView('second');
+            expect(readers[1].close).toHaveBeenCalledTimes(1);
+            expect(readers[0].close).not.toHaveBeenCalled();
+            expect(canvases[0].gl.clear).not.toHaveBeenCalled();
+            readers[0].latestSeq.mockReturnValue(2);
+            readers[0].copyLatest.mockReturnValue({
+                seq: 2,
+                ageMs: 0,
+                torn: false,
+            });
+            for (const callback of [...frames.values()]) callback(16);
+            expect(canvases[0].gl.drawArrays).toHaveBeenCalledTimes(2);
+            expect(canvases[1].gl.drawArrays).toHaveBeenCalledTimes(1);
+        } finally {
+            detachEmbeddedMpvFrameView();
+            factory.mockRestore();
+            names.forEach((name, index) => {
                 const descriptor = descriptors[index];
                 if (descriptor)
                     Object.defineProperty(globalThis, name, descriptor);

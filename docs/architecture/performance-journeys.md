@@ -1155,6 +1155,10 @@ programmes near the visible range. On the runner
 734 mutations per run, except one iteration with a fifth bridge call and
 748 mutations.
 
+The Xtream multi-channel guide adds actions to Live TV and its EPG panel.
+The single-channel ribbon writes each programme card's position and width
+together in one style update to keep J3 within the existing mutation budget.
+
 `renderer.ipcSerialDepthToPlaying` came later. One local macOS
 `perf:journeys` run on 2026-10-10 read 3 in all six iterations, warm-up
 included, with `depthLowerBound` 3, no ambiguous completion and no call in
@@ -1451,6 +1455,10 @@ abort signals are
 never serialized across IPC. Keep that boundary when adding browser transport
 behavior rather than increasing the initial-byte baseline.
 
+The renderer loads the accent color calculations on demand when a custom
+accent is active or Appearance renders its swatches. The About page's
+release-version check belongs to the lazy settings route.
+
 Playlist history transformations and Xtream recent-item operations likewise load
 on first history access or action. Keep their data writes inside the existing
 playlist queue and capture source/profile ownership before loading write helpers.
@@ -1635,8 +1643,8 @@ stays and is not part of the evidence.
 The job also refuses a weakened baselines file:
 `tools/performance/check-baseline-direction.mjs` compares
 `journey-baselines.json` with the revision the change is measured against
-(the target branch of a pull request, the previous head of a `master` push,
-`master` for a manual dispatch) and fails when any
+(the first parent of the tested PR merge commit, the previous head of a
+`master` push, or `master` for a manual dispatch) and fails when any
 entry's enforced limit (`value × toleranceRatio` or `value + slack`) went up,
 a tolerance or slack widened or an entry disappeared, so a PR cannot grow the
 payload and raise the baseline to match. A counter's `value` may not go up

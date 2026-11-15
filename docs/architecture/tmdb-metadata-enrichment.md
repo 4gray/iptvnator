@@ -40,17 +40,23 @@ Related:
 
 ## One-time key transfer
 
-Connect both the PWA and Electron to the same IPTVnator library server. In
+Connect both devices to the same IPTVnator library server. The Android TV
+shell uses the PWA's transfer dialog. In
 **Settings → Metadata (TMDB) → Transfer key from another device**, choose
 **Receive key** on the receiver, then **Send a saved key** on the sender. Enter
-the receiver's temporary code and explicitly send the key. The receiver saves
+the receiver's four-character code and explicitly send the key. The receiver saves
 it locally only after **Save key** or **Replace key**. TMDB enablement and other
 settings do not travel with the key. Start a new transfer after rotating it.
 
 The transfer uses the selected server's authenticated transport and checks the
 instance identity. Use HTTPS or a trusted local network; the relay sees the key
 in memory. The five-minute session has separate send and receive capabilities.
-The shared code can submit one key and cannot read it. The receiver claims the
+The shared code can submit one key and cannot read it. The server limits
+short-code checks and sends to 12 requests per minute per connecting IP.
+Updated clients request the short format from the server and also accept the
+original long code. A receiver with an older client or server still displays a
+long code, which works with either sender version. Sending to a short code
+requires an updated sender. The receiver claims the
 key once; claim, cancellation, expiration or server restart discards the server
 copy. The receiving device needs writable IndexedDB. It compares the previous
 key and saves the replacement in one transaction. A failed local write can be

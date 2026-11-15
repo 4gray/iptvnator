@@ -1,0 +1,17 @@
+{
+    "name": "electron-test-tools",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "tools/testing/electron",
+    "projectType": "library",
+    "tags": ["scope:tools", "domain:testing", "type:tool"],
+    "targets": {
+        "ensure-electron-binary": {
+            "executor": "nx:run-commands",
+            "cache": false,
+            "options": {
+                "command": "node tools/testing/electron/ensure-electron-binary.mjs",
+                "cwd": "{workspaceRoot}"
+            }
+        }
+    }
+}

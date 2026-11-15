@@ -3,6 +3,7 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamApiService,
     XtreamUrlService,
+    loadXtreamVodDetailsRequest,
     type IXtreamDataSource,
     type XtreamCredentials,
 } from '@iptvnator/portal/xtream/data-access';
@@ -80,8 +81,13 @@ export class VodSourceResolverService {
 
     async resolve(
         candidate: VodSourceCandidate,
-        options: { startTime?: number } = {}
+        options: {
+            startTime?: number;
+            categoryId?: string | number;
+            isCurrent?: () => boolean;
+        } = {}
     ): Promise<ResolvedVodSource | null> {
+        if (options.isCurrent?.() === false) return null;
         if (candidate.portalType !== 'xtream') {
             // v1 discovers Xtream only; the guard keeps a future Stalker
             // candidate from silently resolving to a broken Xtream URL.
@@ -97,7 +103,7 @@ export class VodSourceResolverService {
             deps.dataSource,
             candidate.playlistId
         );
-        if (!playlist) {
+        if (!playlist || options.isCurrent?.() === false) {
             return null;
         }
 
@@ -114,14 +120,43 @@ export class VodSourceResolverService {
             credentials,
             candidate
         );
-        if (!details) {
+        if (!details || options.isCurrent?.() === false) {
             return null;
         }
 
-        const streamUrl = deps.urlService.constructVodUrl(
-            credentials,
-            details.vodDetails
+        const { buildXtreamVodSelection, resolveXtreamVodDetailsSelection } =
+            await loadXtreamVodDetailsRequest();
+        if (options.isCurrent?.() === false) return null;
+
+        const selection = buildXtreamVodSelection(
+            details.vodDetails,
+            undefined,
+            candidate.contentId
         );
+        let streamUrl = deps.urlService.constructVodUrl(credentials, selection);
+        if (!streamUrl && options.categoryId != null && details.vodDetails) {
+            const categoryId = options.categoryId;
+            const { recovery } = resolveXtreamVodDetailsSelection({
+                apiService: deps.api,
+                credentials,
+                dataSource: deps.dataSource,
+                isCurrent: options.isCurrent ?? (() => true),
+                playlistId: candidate.playlistId,
+                routeCategoryId: categoryId,
+                vodId: candidate.contentId,
+                currentCategories: [{ category_id: categoryId }],
+                currentCategoriesPlaylistId: candidate.playlistId,
+                currentStreams: [],
+                currentStreamsPlaylistId: undefined,
+                vodDetails: details.vodDetails,
+            });
+            const recovered = await recovery;
+            if (recovered)
+                streamUrl = deps.urlService.constructVodUrl(
+                    credentials,
+                    recovered.selection
+                );
+        }
         if (!streamUrl) {
             return null;
         }
@@ -241,8 +276,7 @@ export function providerVodMetadataOf(
     const info = Array.isArray(vodDetails?.info)
         ? undefined
         : (vodDetails?.info as
-              | { video?: unknown; audio?: unknown }
-              | undefined);
+              { video?: unknown; audio?: unknown } | undefined);
     const video = readStreamInfo(info?.video);
     const audio = readStreamInfo(info?.audio);
 

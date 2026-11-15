@@ -65,8 +65,10 @@ describe('EpgGuideRowComponent', () => {
         fixture.componentRef.setInput('nowMs', nowMs);
         fixture.componentRef.setInput('hourWidthPx', 240);
         fixture.componentRef.setInput(
-            'catchUpAvailable',
-            overrides.catchUpAvailable ?? false
+            'catchUp',
+            overrides.catchUpAvailable
+                ? { canWatch: () => true, watch: jest.fn() }
+                : undefined
         );
         fixture.componentRef.setInput(
             'rowFocused',
@@ -111,6 +113,31 @@ describe('EpgGuideRowComponent', () => {
         });
         fixture = TestBed.createComponent(EpgGuideRowComponent);
         component = fixture.componentInstance;
+    });
+
+    it('allows a double-click retry only when the row was active on its first click', () => {
+        render([]);
+        const committed = jest.fn();
+        const activated = jest.fn();
+        component.channelCommitted.subscribe(committed);
+        component.channelActivated.subscribe(activated);
+        const channel = fixture.nativeElement.querySelector(
+            '.epg-guide-row__channel'
+        ) as HTMLElement;
+        const click = (detail: number) =>
+            channel.dispatchEvent(
+                new MouseEvent('click', { detail, bubbles: true })
+            );
+        click(1);
+        fixture.componentRef.setInput('active', true);
+        fixture.detectChanges();
+        click(2);
+        channel.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+        click(1);
+        click(2);
+        channel.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+        expect(committed.mock.calls).toEqual([[false], [true]]);
+        expect(activated).toHaveBeenCalledTimes(2);
     });
 
     it('activates the channel when the on-now card is clicked', () => {

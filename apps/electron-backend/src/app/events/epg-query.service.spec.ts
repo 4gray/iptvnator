@@ -108,6 +108,18 @@ describe('EpgQueryService', () => {
         service = new EpgQueryService('[Test EPG]');
     });
 
+    it('distinguishes a failed schedule lookup when requested by the guide', async () => {
+        getDatabase.mockRejectedValue(new Error('synthetic database failure'));
+        await expect(
+            service.getChannelPrograms('synthetic.channel')
+        ).resolves.toEqual([]);
+        await expect(
+            service.getChannelPrograms('synthetic.channel', {
+                rejectOnError: true,
+            })
+        ).rejects.toThrow('XMLTV schedule unavailable');
+    });
+
     it('scopes display-name current program fallback by program source ownership for shared channels', async () => {
         const whereCalls: unknown[] = [];
         const select = jest

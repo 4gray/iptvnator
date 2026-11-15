@@ -78,7 +78,16 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
             'black oled',
             'appearance',
             'color',
+            'system',
+            'automatic',
         ],
+    },
+    {
+        id: 'theme-accent',
+        section: 'appearance',
+        labelKey: 'SETTINGS.THEME_ACCENT',
+        descriptionKey: 'SETTINGS.THEME_ACCENT_DESCRIPTION',
+        keywords: ['accent', 'color', 'highlight', 'selection', 'theme'],
     },
     {
         id: 'cover-size',

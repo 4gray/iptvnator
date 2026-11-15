@@ -100,6 +100,7 @@ export interface ContentState {
     vodStreamsPlaylistId: string | null;
     serialStreams: XtreamSerieItem[];
     isLoadingCategories: boolean;
+    areCategoriesWithheld: boolean;
     isLoadingContent: boolean;
     isImporting: boolean;
     contentLoadStateByType: XtreamContentLoadStateByType;
@@ -136,6 +137,7 @@ const initialContentState: ContentState = {
     vodStreamsPlaylistId: null,
     serialStreams: [],
     isLoadingCategories: false,
+    areCategoriesWithheld: false,
     isLoadingContent: false,
     isImporting: false,
     contentLoadStateByType: { ...initialContentLoadStateByType },
@@ -1556,6 +1558,7 @@ export function withContent() {
                         reloadAfterInitialization = true;
                     }
                     patchState(store, {
+                        areCategoriesWithheld: true,
                         liveCategories: [],
                         vodCategories: [],
                         serialCategories: [],
@@ -1633,6 +1636,7 @@ export function withContent() {
 
                         if (!shouldPublish()) return;
                         patchState(store, {
+                            areCategoriesWithheld: false,
                             liveCategories: live,
                             vodCategories: vod,
                             vodCategoriesPlaylistId: ctx.playlistId,

@@ -7,6 +7,7 @@
     [class.play-btn--two-line]="!!meta()"
     [disabled]="disabled()"
     [attr.data-testid]="testId()"
+    [attr.aria-label]="variant() === 'secondary' ? label() : null"
     [attr.aria-busy]="state() === 'launching' ? 'true' : null"
     (click)="pressed.emit()"
 >

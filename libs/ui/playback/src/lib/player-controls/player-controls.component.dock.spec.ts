@@ -616,7 +616,7 @@ describe('PlayerControlsComponent dock', () => {
                 query('[data-test-id="player-controls-up-next"]')
             ).not.toBeNull();
 
-            component.settings.open('speed');
+            query('[data-test-id="player-controls-settings-button"]')?.click();
             fixture.detectChanges();
             expect(
                 query('[data-test-id="player-controls-up-next"]')

@@ -42,7 +42,7 @@ export function isCancelledPortalRequest(error: unknown): boolean {
  * `validateStatus`-accepted 4xx as an error carrying `status`; a 5xx arrives
  * as an axios error with a `response`.
  */
-function readHttpStatus(
+export function readHttpStatus(
     error: unknown
 ): { status: number; statusText?: string } | null {
     if (!error || typeof error !== 'object') {
