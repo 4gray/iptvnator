@@ -339,13 +339,26 @@ References: [AppImage desktop keys](https://docs.appimage.org/reference/desktop-
 
 ## Rolling test drafts
 
-On PRs, the packaging workflow compares the checked-out merge tree with its
-first parent. If there are no changes outside `apps/website/`, it skips
-Electron packaging and checks the website instead. Moves across that boundary
-and changes to shared files run the full matrix. A missing comparison also
-runs the matrix. Nightly pushes, tags and manual runs keep their packaging
-scope. The PR scope job takes the place of nightly version resolution on PRs
-and cancels older scope checks for the same PR.
+On PRs, `tools/packaging/pr-build-scope.mjs` compares the checked-out merge
+with its first parent, including both sides of renames. Ordinary renderer,
+shared-library source, browser-backend and non-desktop app changes skip full
+packaging. Electron main/preload/native code, Electron/native library paths,
+SQLite, packaging/runtime/release tooling, dependency manifests, project and
+TypeScript configuration, and unknown paths select the complete matrix.
+An unavailable or empty comparison also selects packaging. The scope decision
+is summarized in the workflow; website-only changes retain the AppStream check.
+
+Selected PRs lint affected projects and typecheck web/Electron entry points in
+the scope job before allocating packaging runners. Packaging stays independent
+of CI's workflow-level cancellation so a new push cannot interrupt a rolling
+draft update. Its existing build-job cancellation and release serialization
+remain in place. This duplicates the short preflight only for packaging PRs.
+
+Nightly pushes and release tags retain their existing triggers and full matrix.
+To request all packages for any branch, run
+`gh workflow run build-and-make.yaml --ref <branch>`; the manual run packages
+the selected branch and uses its existing `test-<branch>` draft, not the PR
+merge tree or `test-pr-<n>` draft. It does not require a packaging-related diff.
 
 The website-only job builds the site with offline release data and checks the
 four nonempty PNG files at their published paths. Every Linux packaging
@@ -356,7 +369,7 @@ Every non-fork PR build publishes its artifacts to a rolling **draft** release
 tagged `test-pr-<n>`; a non-PR, non-tag build (a dispatch on a branch) uses
 `test-<branch>`, the shape master pushes used before the nightly channel took
 over. The tag is stable per PR, so the draft is updated in place and a PR has
-at most one. If a new diff only changes the website, already running packages
+at most one. If a new diff no longer requires packaging, already running packages
 can finish. The release job checks that the PR is open at the built head
 before pruning or uploading, so an older draft can remain until the PR
 closes. Its title and body identify the packaged commit.

@@ -1,11 +1,12 @@
 name: Build and Make Electron App
 
 # The workflow keeps running on website PRs to verify the AppStream screenshots
-# in the built site. The packaging jobs skip PRs with no changes outside the
-# website. Tag pushes always run the full build; path filters do not apply to tags.
+# in the built site. Ordinary renderer PRs skip packaging; Electron, native,
+# packaging, dependency and unknown build inputs select the full matrix.
+# Tag pushes always run the full build; path filters do not apply to tags.
 #
 # Known accepted edge case: if a PR built a test-pr-<n> draft and later
-# reverts its code changes so only docs or website changes remain, new pushes
+# reverts its code changes so only non-packaging changes remain, new pushes
 # skip packaging and any existing draft keeps assets from the older commit. The
 # draft's title/body name the exact commit they were built from, and
 # cleanup-pr-draft.yml deletes the draft when the PR closes, so the stale
@@ -85,7 +86,7 @@ jobs:
                   echo "Nightly version: ${VERSION}"
 
     appstream-website:
-        name: Check website PR scope and AppStream assets
+        name: Check PR packaging scope and AppStream assets
         if: github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         timeout-minutes: 15
@@ -94,6 +95,7 @@ jobs:
             cancel-in-progress: true
         outputs:
             website-only: ${{ steps.scope.outputs.website-only }}
+            packaging: ${{ steps.scope.outputs.packaging }}
         steps:
             - name: Checkout code
               uses: actions/checkout@v7
@@ -102,34 +104,37 @@ jobs:
                   fetch-depth: 2
                   persist-credentials: false
 
-            - name: Check whether the PR only changes the website
+            - name: Select PR packaging inputs
               id: scope
-              shell: bash
-              run: |
-                  set -euo pipefail
-
-                  # Unavailable diffs and moves across the boundary need packaging.
-                  if git diff --quiet --no-renames --ignore-submodules=none HEAD^1 HEAD -- . ':(top,exclude)apps/website/'; then
-                      echo 'website-only=true' >> "${GITHUB_OUTPUT}"
-                      echo 'No changes outside apps/website. Checking AppStream website assets.' >> "${GITHUB_STEP_SUMMARY}"
-                  else
-                      echo 'website-only=false' >> "${GITHUB_OUTPUT}"
-                  fi
+              run: node tools/packaging/pr-build-scope.mjs
 
             - name: Install pnpm
-              if: steps.scope.outputs.website-only == 'true'
+              if: steps.scope.outputs.website-only == 'true' || steps.scope.outputs.packaging == 'true'
               uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
-              if: steps.scope.outputs.website-only == 'true'
+              if: steps.scope.outputs.website-only == 'true' || steps.scope.outputs.packaging == 'true'
               uses: actions/setup-node@v7
               with:
                   node-version-file: '.nvmrc'
                   cache: 'pnpm'
 
-            - name: Install website dependencies
-              if: steps.scope.outputs.website-only == 'true'
-              run: pnpm install --frozen-lockfile --ignore-scripts
+            - name: Install preflight dependencies
+              if: steps.scope.outputs.website-only == 'true' || steps.scope.outputs.packaging == 'true'
+              run: pnpm install --frozen-lockfile
+
+            # Keep this workflow independent: cancelling CI must never interrupt
+            # the rolling draft update. Only selected PRs pay for this preflight.
+            - name: Lint packaging PR changes
+              if: steps.scope.outputs.packaging == 'true'
+              run: pnpm nx affected --target=lint --base=HEAD^1 --head=HEAD --parallel=3 --output-style=static
+              env:
+                  CI: true
+                  NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
+
+            - name: Typecheck packaging PR entry points
+              if: steps.scope.outputs.packaging == 'true'
+              run: pnpm run typecheck:ci
 
             - name: Build website
               if: steps.scope.outputs.website-only == 'true'
@@ -159,7 +164,7 @@ jobs:
             ${{ !cancelled() &&
                 (github.event_name != 'pull_request' ||
                 (needs.appstream-website.result == 'success' &&
-                 needs.appstream-website.outputs.website-only != 'true')) }}
+                 needs.appstream-website.outputs.packaging == 'true')) }}
         runs-on: ubuntu-22.04
         timeout-minutes: 120
         # Concurrency lives on the build jobs, not the workflow: cancelling a
@@ -461,7 +466,7 @@ jobs:
             ${{ !cancelled() &&
                 ((github.event_name == 'pull_request' &&
                   needs.appstream-website.result == 'success' &&
-                  needs.appstream-website.outputs.website-only != 'true') ||
+                  needs.appstream-website.outputs.packaging == 'true') ||
                  (github.event_name != 'pull_request' && needs.nightly-version.result == 'success')) }}
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 120

@@ -78,13 +78,21 @@ test(
 );
 
 test(
-    'only website changes in a PR merge tree can skip Electron packaging',
+    'PR merge scope selects packaging inputs and preserves website validation',
     posixOnly,
     (t) => {
         const root = fs.mkdtempSync(path.join(os.tmpdir(), 'packaging-pr-'));
         t.after(() => fs.rmSync(root, { recursive: true, force: true }));
         const repo = path.join(root, 'repo');
         fs.mkdirSync(path.join(repo, 'apps', 'website'), { recursive: true });
+        fs.mkdirSync(path.join(repo, 'tools', 'packaging'), {
+            recursive: true,
+        });
+        fs.copyFileSync(
+            new URL('./pr-build-scope.mjs', import.meta.url),
+            path.join(repo, 'tools/packaging/pr-build-scope.mjs')
+        );
+
         const output = path.join(root, 'output');
         const env = {
             ...Object.fromEntries(
@@ -118,7 +126,7 @@ test(
             assert.equal(result.status, 0, result.stderr);
         }
 
-        function check(expected) {
+        function check(expected, packaging = !expected, e2e = !expected) {
             fs.writeFileSync(output, '');
             const result = spawnSync('bash', ['-c', scope.run], {
                 cwd: repo,
@@ -132,8 +140,26 @@ test(
             assert.equal(result.status, 0, result.stderr);
             assert.equal(
                 fs.readFileSync(output, 'utf8'),
-                `website-only=${expected}\n`
+                `website-only=${expected}\npackaging=${packaging}\n`
             );
+            const ci = parse(
+                fs.readFileSync(
+                    new URL('../../.github/workflows/ci.yml', import.meta.url),
+                    'utf8'
+                )
+            );
+            const e2eScope = ci.jobs['performance-journeys-scope'].steps.find(
+                ({ id }) => id === 'e2e'
+            );
+            assert.ok(e2eScope, 'PR E2E needs the original path filter');
+            fs.writeFileSync(output, '');
+            const e2eResult = spawnSync('bash', ['-c', e2eScope.run], {
+                cwd: repo,
+                encoding: 'utf8',
+                env: { ...env, GITHUB_OUTPUT: output },
+            });
+            assert.equal(e2eResult.status, 0, e2eResult.stderr);
+            assert.equal(fs.readFileSync(output, 'utf8'), `run=${e2e}\n`);
         }
 
         git('init', '-b', 'main');
@@ -155,6 +181,52 @@ test(
         git('mv', 'pnpm-lock.yaml', 'apps/website/moved.yaml');
         git('commit', '-m', 'move into site');
         check(false);
+
+        for (const [file, packaging] of [
+            ['apps/web/src/app/example.ts', false],
+            ['libs/portal/example/src/example.ts', false],
+            ['apps/web-backend/src/example.ts', false],
+            ['apps/tv/src/example.ts', false],
+            ['apps/web-e2e/src/example.e2e.ts', false],
+            ['apps/electron-backend-e2e/src/example.e2e.ts', false],
+            ['libs/portal/webpack.config.cjs', true],
+            ['docs/example.md', false],
+            ['apps/electron-backend/src/example.ts', true],
+            ['apps/electron-backend/native/example.cc', true],
+            ['libs/services/src/lib/example-electron.ts', true],
+            ['libs/shared/database/src/example.ts', true],
+            ['tools/packaging/example.mjs', true],
+            ['tools/embedded-mpv/example.mjs', true],
+            ['tools/build/example.mjs', true],
+            ['tools/release/nightly-version.mjs', true],
+            ['tools/testing/launch-packaged-electron.mjs', true],
+            ['patches/example.patch', true],
+            ['package.json', true],
+            ['pnpm-workspace.yaml', true],
+            ['.nvmrc', true],
+            ['apps/web/project.json', true],
+            ['libs/portal/tsconfig.lib.json', true],
+            ['.github/workflows/build-and-make.yaml', true],
+            ['unknown-input', true],
+            ['libs/portal/unusual\nname.ts', true],
+        ]) {
+            fs.mkdirSync(path.dirname(path.join(repo, file)), {
+                recursive: true,
+            });
+            fs.writeFileSync(path.join(repo, file), 'fixture');
+            git('add', '.');
+            git('commit', '-m', 'change fixture');
+            check(false, packaging, !file.startsWith('docs/'));
+        }
+        git(
+            'mv',
+            'apps/electron-backend/src/example.ts',
+            'apps/web/src/moved.ts'
+        );
+        git('commit', '-m', 'move out of Electron');
+        check(false, true);
+        git('commit', '--allow-empty', '-m', 'empty fixture');
+        check(false, true, false);
 
         assert.equal(scopeJob.if, "github.event_name == 'pull_request'");
         assert.equal(
@@ -178,7 +250,7 @@ test(
             assert.match(job.if, /github\.event_name != 'pull_request'/);
             assert.match(
                 job.if,
-                /needs\.appstream-website\.result == 'success'\s*&&\s*needs\.appstream-website\.outputs\.website-only != 'true'/
+                /needs\.appstream-website\.result == 'success'\s*&&\s*needs\.appstream-website\.outputs\.packaging == 'true'/
             );
         }
         // Skipped planning jobs must not propagate past successful builds.
@@ -277,6 +349,90 @@ test(
                 steps.find((step) => step.name === name).if,
                 /steps\.pr-state\.outputs\.current == 'true'/
             );
+        }
+    }
+);
+
+test(
+    'fast CI checks gate expensive PR jobs without cancelling draft publication',
+    posixOnly,
+    () => {
+        const readWorkflow = (name) =>
+            parse(
+                fs.readFileSync(
+                    new URL(`../../.github/workflows/${name}`, import.meta.url),
+                    'utf8'
+                )
+            );
+        const ci = readWorkflow('ci.yml');
+        const e2e = readWorkflow('e2e-tests.yaml');
+        const gate = ci.jobs.preflight;
+        assert.ok(gate, 'CI needs a fast validation gate');
+        assert.deepEqual(gate.needs, [
+            'actionlint',
+            'release-note-gate',
+            'lint',
+        ]);
+        assert.match(gate.if, /!cancelled\(\)/);
+        assert.match(gate.steps[0].run, /needs\.release-note-gate\.result/);
+        for (const [lint, note, actionlint, success] of [
+            ['success', 'success', 'success', true],
+            ['success', 'skipped', 'success', true],
+            ['failure', 'success', 'success', false],
+            ['success', 'failure', 'success', false],
+            ['success', 'success', 'failure', false],
+            ['cancelled', 'success', 'success', false],
+            ['skipped', 'success', 'success', false],
+        ]) {
+            const script = gate.steps[0].run
+                .replaceAll('${{ needs.lint.result }}', lint)
+                .replaceAll('${{ needs.release-note-gate.result }}', note)
+                .replaceAll('${{ needs.actionlint.result }}', actionlint);
+            assert.equal(
+                spawnSync('bash', ['-e', '-c', script]).status === 0,
+                success
+            );
+        }
+
+        for (const id of [
+            'unit-and-typecheck',
+            'initial-bytes-ratchet',
+            'pr-e2e',
+        ]) {
+            assert.ok([ci.jobs[id].needs].flat().includes('preflight'), id);
+        }
+        assert.ok(ci.jobs['performance-journeys'].needs.includes('preflight'));
+        assert.ok(
+            ci.jobs.lint.steps.some(
+                ({ run }) => run === 'pnpm run typecheck:ci'
+            )
+        );
+        assert.ok(
+            !ci.jobs['unit-and-typecheck'].steps.some(
+                ({ run }) => run === 'pnpm run typecheck:ci'
+            )
+        );
+        assert.ok('workflow_call' in e2e.on);
+        assert.ok(
+            !('pull_request' in e2e.on),
+            'PR E2E must run only through CI'
+        );
+        assert.ok('push' in e2e.on && 'workflow_dispatch' in e2e.on);
+        assert.equal(
+            ci.jobs['pr-e2e'].uses,
+            './.github/workflows/e2e-tests.yaml'
+        );
+        assert.notEqual(e2e.concurrency.group, ci.concurrency.group);
+        assert.ok('pull_request' in buildWorkflowConfig.on);
+        assert.equal(buildWorkflowConfig.concurrency, undefined);
+        const steps = buildWorkflowConfig.jobs['appstream-website'].steps;
+        for (const command of [
+            'pnpm run typecheck:ci',
+            'pnpm nx affected --target=lint',
+        ]) {
+            const step = steps.find(({ run }) => run?.startsWith(command));
+            assert.ok(step, command);
+            assert.equal(step.if, "steps.scope.outputs.packaging == 'true'");
         }
     }
 );
