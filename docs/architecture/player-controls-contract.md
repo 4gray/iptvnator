@@ -302,10 +302,18 @@ changes, including when it is already fullscreen. The Embedded MPV host's
 existing `fullscreenchange` listener still triggers bounds sync so frame-copy
 render size follows the fullscreen DOM surface.
 
-In Embedded MPV side-by-side playback the fullscreen target contains both
-viewports and the stream strip. Only the selected viewport handles shared
-controls. Transport stays on that viewport, and the volume control applies to
-the separately selected audio session.
+Embedded MPV multiview keeps the fullscreen target on the player host,
+which contains all open viewports and the stream bar. The bar appears after
+entering multiview and disappears when returning to regular single
+playback. Leaving multiview from fullscreen expands the primary video
+within that same fullscreen host. The fullscreen overlay container keeps
+the stream picker available there. Only the selected viewport handles
+shared controls. Transport stays on that viewport, and volume and mute
+apply to the designated audio session. In the 2×2 grid, keys 1 through 4
+select occupied windows when the player owns keyboard input. Pointer clicks
+on the stream bar's window, sound, and layout toggles return focus to the grid
+stage so those shortcuts stay available. The selected window and audio session
+may differ.
 
 The owner matters because `WebPlayerViewComponent` remounts the engine
 component for every playback application (`@for ... track application.token`:
@@ -649,15 +657,16 @@ while at least one group exists. If the last group disappears, settings close.
 - **Colors** follow the color-as-state rule of the dock: cyan means "on",
   violet means "changed", and neutral rows/items read as the default.
 
-### Second-stream action
+### Multiview action
 
-The frame-copy host opts into `canAddSecondStream` and handles
-`secondStreamRequested` to open its channel picker. The
-`picture_in_picture_alt` action sits immediately before settings in the bottom
-controls and has the localized “Add second stream” tooltip. It is available
-while a single stream plays in the frame-copy host. Browser video engines can
-expose their native picture-in-picture action and leave `canAddSecondStream`
-disabled. The frame-copy host exposes no native video picture-in-picture.
+The frame-copy host sets `canOpenMultiview` during regular single-stream
+playback. The `grid_view` button sits immediately before Settings in the
+bottom controls and opens the localized Multiview menu. Its Add stream action
+emits `multiviewAddRequested` so the host opens its stream picker. Open 2×2
+grid emits `multiviewGridRequested` so the host opens the grid with the
+current stream. Once multiview is active, the stream bar provides its layout
+and stream actions. Browser video engines can expose their native
+picture-in-picture action when available.
 
 ### Stream info popover
 

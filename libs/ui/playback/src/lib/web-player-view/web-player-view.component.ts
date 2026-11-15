@@ -1,6 +1,7 @@
 import { SecondStreamFloatingDirective } from '../second-stream/second-stream-floating.directive';
 import { SecondStreamComponent } from '../second-stream/second-stream.component';
 import { WebPlayerActivity } from './web-player-activity';
+import { TranslatePipe } from '@ngx-translate/core';
 import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
 import {
     Component,
@@ -66,7 +67,7 @@ import {
 import { WebPlayerApplicationHandoffCoordinator } from './web-player-application-handoff';
 import {
     ownsPlaybackApplication,
-    type PlaybackApplicationOwnership,
+    type PlaybackApplicationOwnership as PlaybackOwnership,
 } from './web-player-application-ownership';
 import { createWebPlayerApplicationState } from './web-player-application-state';
 import { resolveWebPlayerMediaTitle } from './web-player-playback-state';
@@ -89,6 +90,7 @@ import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
     imports: [
         SecondStreamComponent,
         SecondStreamFloatingDirective,
+        TranslatePipe,
         ArtPlayerComponent,
         EmbeddedMpvPlayerComponent,
         FullscreenChannelPanelComponent,
@@ -150,7 +152,8 @@ export class WebPlayerViewComponent implements OnDestroy {
     openAndroidExternal(): void {
         if (this.androidExternalAvailable()) this.androidShell?.openExternal();
     }
-    private readonly runtime = inject(RuntimeCapabilitiesService);
+   
+    protected readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK, {
         optional: true,
@@ -321,28 +324,25 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly recordingFolder = computed(
         () => this.settingsStore.recordingFolder?.() ?? ''
     );
-    get supportsManagedExternalPlayers(): boolean {
-        return this.runtime.supportsManagedExternalPlayers;
-    }
-    readonly renderedApplications = computed<
-        readonly PlaybackApplicationOwnership[]
-    >(() => {
-        if (this.liveAutoFormat.pending()) return [];
-        const binding = this.activeBinding();
-        const embeddedMpv =
-            this.selectedPlayer() === VideoPlayer.EmbeddedMpv && !binding;
-        if (!binding && !embeddedMpv) return [];
+    readonly renderedApplications = computed<readonly PlaybackOwnership[]>(
+        () => {
+            if (this.liveAutoFormat.pending()) return [];
+            const binding = this.activeBinding();
+            const embeddedMpv =
+                this.selectedPlayer() === VideoPlayer.EmbeddedMpv && !binding;
+            if (!binding && !embeddedMpv) return [];
 
-        return [
-            Object.freeze({
-                binding,
-                embeddedMpv,
-                isLive: this.resolvedIsLive(),
-                sourceRevision: this.playbackSourceRevisionToken(),
-                token: this.playbackApplicationToken(),
-            }),
-        ];
-    });
+            return [
+                Object.freeze({
+                    binding,
+                    embeddedMpv,
+                    isLive: this.resolvedIsLive(),
+                    sourceRevision: this.playbackSourceRevisionToken(),
+                    token: this.playbackApplicationToken(),
+                }),
+            ];
+        }
+    );
 
     private readonly activity = new WebPlayerActivity(
         inject(PLAYBACK_ACTIVITY_EVENTS, { optional: true })
@@ -418,7 +418,7 @@ export class WebPlayerViewComponent implements OnDestroy {
 
     handleTimeUpdate(
         event: PlayerTimeUpdate,
-        ownership: PlaybackApplicationOwnership
+        ownership: PlaybackOwnership
     ): void {
         if (!this.ownsApplication(ownership)) return;
 
@@ -433,14 +433,14 @@ export class WebPlayerViewComponent implements OnDestroy {
         this.timeUpdate.emit(event);
     }
 
-    handleActivityEnded(ownership: PlaybackApplicationOwnership): void {
+    handleActivityEnded(ownership: PlaybackOwnership, notify = true): void {
         if (!this.ownsApplication(ownership)) return;
         if (!ownership.isLive) this.activity.finish();
         this.recovery.recordEnd(ownership.token);
-        this.playbackEnded.emit();
+        if (notify) this.playbackEnded.emit();
     }
 
-    private ownsApplication(ownership: PlaybackApplicationOwnership): boolean {
+    private ownsApplication(ownership: PlaybackOwnership): boolean {
         return ownsPlaybackApplication({
             ownership,
             currentToken: this.playbackApplicationToken(),
