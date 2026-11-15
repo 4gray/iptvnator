@@ -88,6 +88,11 @@ its worker. Disconnecting returns to the retained standalone database.
 
 ## Upgrade Compatibility And Migrations
 
+Xtream startup refresh records the latest server order in nullable
+`categories.provider_order` so retained categories can keep their SQLite IDs.
+The additive migration leaves existing rows with NULL and reads them in
+insertion order.
+
 M3U automatic EPG import uses nullable `playlists.auto_import_epg`: NULL keeps
 the historical default-on behavior, and 0 records an import opt-out. It is
 projected by metadata reads without loading the playlist payload. The additive

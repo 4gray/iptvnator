@@ -157,6 +157,7 @@ const CREATE_TABLE_STATEMENTS = [
       xtream_id INTEGER NOT NULL,
       hidden INTEGER DEFAULT 0,
       locked INTEGER DEFAULT 0,
+      provider_order INTEGER,
       UNIQUE(playlist_id, type, xtream_id),
       FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
   )`,
@@ -359,6 +360,7 @@ const COLUMN_MIGRATION_STATEMENTS = [
     `ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0`,
     // Parental lock: per-category lock index (issue #285)
     `ALTER TABLE categories ADD COLUMN locked INTEGER DEFAULT 0`,
+    `ALTER TABLE categories ADD COLUMN provider_order INTEGER`,
     // v1.1.0 -> v1.2.0: Add playlist metadata/payload columns for M3U + unified playlist persistence
     `ALTER TABLE playlists ADD COLUMN portal_url TEXT`,
     `ALTER TABLE playlists ADD COLUMN count INTEGER`,

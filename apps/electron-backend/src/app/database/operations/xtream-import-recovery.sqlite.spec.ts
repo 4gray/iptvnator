@@ -22,7 +22,7 @@ describe('Xtream import persistence with real SQLite', () => {
             const schema = await import('@iptvnator/shared/database/schema');
             const { __databaseConnectionTestHooks: hooks } = await import(${JSON.stringify(url('libs/shared/database/src/lib/connection.ts'))});
             const { saveContent, clearXtreamImportCache } = await import(${JSON.stringify(url(join(__dirname, 'content.operations.ts')))});
-            const { saveCategories } = await import(${JSON.stringify(url(join(__dirname, 'category.operations.ts')))});
+            const { getCategories, saveCategories } = await import(${JSON.stringify(url(join(__dirname, 'category.operations.ts')))});
             const { getAppState } = await import(${JSON.stringify(url(join(__dirname, 'playlist.operations.ts')))});
             const sqlite = new Database(${JSON.stringify(join(directory, 'fixture.db'))});
             sqlite.pragma('journal_mode = WAL');
@@ -111,25 +111,30 @@ describe('Xtream import persistence with real SQLite', () => {
         });
     });
 
-    it('keeps the SQLite category ID across a startup replacement', () => {
+    it('keeps the SQLite category ID and uses the updated provider order across replacement', () => {
         const result = JSON.parse(
             run(`
             db.insert(schema.playlists).values({ id: 'p', name: 'Synthetic source', type: 'xtream' }).run();
-            await saveCategories(db, 'p', categories, 'live');
+            await saveCategories(db, 'p', [
+                ...categories, { category_id: 3, category_name: 'Synthetic retained category' }
+            ], 'live');
+            const otherRetainedId = sqlite.prepare('SELECT id FROM categories WHERE xtream_id = 3').get().id;
             const oldId = sqlite.prepare('SELECT id FROM categories WHERE xtream_id = 1').get().id;
             await clearXtreamImportCache(db, 'p', 'live');
             const replacement = [
                 { category_id: 2, category_name: 'Synthetic new category' },
+                { category_id: 3, category_name: 'Synthetic retained category' },
                 { category_id: 1, category_name: 'Synthetic renamed category' },
                 { category_id: 1, category_name: 'Synthetic duplicate category' },
             ];
-            await saveCategories(db, 'p', replacement, 'live', [1], [1], undefined, [[1, oldId]]);
+            await saveCategories(db, 'p', replacement, 'live', [1], [1], undefined, [[1, oldId], [3, otherRetainedId]]);
+            const providerOrder = (await getCategories(db, 'p', 'live')).map((row) => row.xtream_id);
             await saveContent(db, 'p', streams.slice(0, 2), 'live');
             const retained = sqlite.prepare('SELECT id, name, hidden, locked FROM categories WHERE xtream_id = 1').get();
             const added = sqlite.prepare('SELECT id FROM categories WHERE xtream_id = 2').get();
             const channelCategories = sqlite.prepare('SELECT category_id FROM content ORDER BY xtream_id').all();
             sqlite.close();
-            console.log(JSON.stringify({ oldId, retained, added, channelCategories }));
+            console.log(JSON.stringify({ oldId, retained, added, providerOrder, channelCategories }));
         `)
         );
         expect(result.retained).toEqual({
@@ -139,6 +144,7 @@ describe('Xtream import persistence with real SQLite', () => {
             locked: 1,
         });
         expect(result.added.id).toBeGreaterThan(result.oldId);
+        expect(result.providerOrder).toEqual([2, 3]);
         expect(result.channelCategories).toEqual([
             { category_id: result.oldId },
             { category_id: result.oldId },

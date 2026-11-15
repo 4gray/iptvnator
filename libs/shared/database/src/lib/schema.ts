@@ -82,6 +82,7 @@ export const categories = sqliteTable(
         // DB_SET_CATEGORY_LOCKS. While the lock is active every content read
         // in the worker filters on it — see parental-lock-state.ts.
         locked: integer('locked', { mode: 'boolean' }).default(false),
+        providerOrder: integer('provider_order'),
     },
     (table) => ({
         playlistIdx: index('idx_categories_playlist').on(table.playlistId),

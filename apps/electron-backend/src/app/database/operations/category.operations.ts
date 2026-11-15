@@ -52,7 +52,7 @@ function normalizeXtreamCategories(
     const lockedSet = new Set(lockedCategoryXtreamIds || []);
     const retained = retainedCategoryIds && new Map(retainedCategoryIds);
 
-    return categories.flatMap((category) => {
+    return categories.flatMap((category, providerOrder) => {
         const xtreamId = normalizeXtreamCategoryId(category.category_id);
 
         if (xtreamId === null) {
@@ -65,6 +65,7 @@ function normalizeXtreamCategories(
         return [
             {
                 id,
+                providerOrder: retained ? providerOrder : undefined,
                 playlistId,
                 name: category.category_name,
                 type,
@@ -126,10 +127,8 @@ export async function getCategories(
     type: 'live' | 'movies' | 'series',
     capturePhase?: DatabaseOperationPerformancePhaseCapture
 ) {
-    // Xtream categories are inserted once in provider order and existing
-    // xtream IDs are preserved, so row id order represents server order.
-    // If partial category re-inserts are added later, persist a provider
-    // sort index instead of relying on the insertion id.
+    // Startup refresh retains category IDs and stores the new provider order.
+    // Older rows and first imports are already numbered in provider order.
     const query = db
         .select(categoryWireShape)
         .from(schema.categories)
@@ -141,7 +140,10 @@ export async function getCategories(
                 unlockedCategoryCondition()
             )
         )
-        .orderBy(schema.categories.id);
+        .orderBy(
+            sql`coalesce(${schema.categories.providerOrder}, ${schema.categories.id})`,
+            schema.categories.id
+        );
 
     return capturePhase
         ? capturePhase.captureAsync(

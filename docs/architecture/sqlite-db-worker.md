@@ -336,7 +336,9 @@ the main-process and EPG-worker connections give up after their 5 s
   bound-parameter limit. All statements remain in one transaction, preserving
   provider order and rolling back earlier batches if a later batch fails.
   Startup live refresh reuses the prior row ID of each retained provider
-  category from that source. New categories use the SQLite sequence.
+  category from that source. New categories use the SQLite sequence. Startup
+  refresh persists the current provider position so sorting by server order
+  continues to match the response. Older rows use the insertion order.
 - A cold content save persists its type's `importing` marker before committing
   any content rows. Failure to persist the marker prevents all content writes;
   only the import owner records completion after the save succeeds.
