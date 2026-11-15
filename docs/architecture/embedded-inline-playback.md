@@ -152,7 +152,9 @@ default position if the stream is shorter than that offset. A source that
 cannot seek keeps its previous resume point on Back or Home and still reports
 watch time. Natural VOD completion reports the terminal position, using the
 final playhead as the duration when the stream supplies none. It closes the
-native activity and reaches the same series autoplay handler as the web player.
+native activity and reaches the same series autoplay handler as the web player
+after the WebView's foreground playback guard clears. The app translates both
+handoff actions using its selected language.
 When native playback ends, Android writes the position to app-private
 storage before returning to the web player. It retains the position until
 the WebView acknowledges it, including after Home or a failed web write. The checkpoint
@@ -164,8 +166,10 @@ profile leaves the checkpoint pending. A reset or backup restore records its
 time in the same write as the position change. Older checkpoints cannot undo
 that change. While a reset is pending, Android retains the checkpoint so
 recovery can retry if the reset fails. An older Android checkpoint cannot
-replace a newer local position staged for retry. Bulk resets use one marker for the season or series. Retries
-retain the original playback time when comparing positions for recovery.
+replace a newer local position staged for retry. Bulk resets record the season
+or series and the IDs whose stored positions were removed. This covers queued
+checkpoints recorded before an episode moved. Retries retain the original
+playback time when comparing positions for recovery.
 Activity Sync uses server timestamps to order acknowledged positions across
 devices.
 While a VOD plays, Android keeps an in-memory checkpoint so a launcher relaunch

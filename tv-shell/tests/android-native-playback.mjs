@@ -169,7 +169,7 @@ try {
         }
         adb('shell', 'input', 'keyevent', '4');
         settingsOpen = false;
-        await page.waitForFunction((value) => Boolean(window.iptvnatorAndroidPlaybackLabels) === value, enabled);
+        await page.waitForFunction((value) => window.iptvnatorAndroidPlaybackEnabled === value, enabled);
     }
     await setExperiment(false);
     await page.goto(new URL('/workspace/settings/playback', page.url()).href);
@@ -227,8 +227,15 @@ try {
         assert.equal(rejected, true, 'The bridge must reject Smooth Streaming and DASH.');
     }
     await page.evaluate(() => {
+        let foreground = true;
+        const setForeground = window.__tvShell.setForeground.bind(window.__tvShell);
+        window.__tvShell.setForeground = (on) => {
+            foreground = on;
+            setForeground(on);
+        };
         window.addEventListener('iptvnator:android-playback-result', (event) => {
             window.__nativeResult = event.detail.result;
+            if (event.detail.result?.ended) window.__nativeCompletedInForeground = foreground;
         });
     });
     const channelRoute = page.url();
@@ -382,6 +389,8 @@ try {
     adb('shell', 'input', 'keyevent', 'KEYCODE_MEDIA_PLAY');
     await waitAudio();
     await page.waitForFunction(() => window.__nativeResult?.ended === true, undefined, { timeout: 30000 });
+    assert.equal(await page.evaluate(() => window.__nativeCompletedInForeground), true,
+        'Natural completion must reach autoplay after the foreground guard clears.');
     await expect.poll(topActivity).toContain('.ui.MainActivity');
     await setExperiment(false);
     await expect(action).toHaveCount(0);

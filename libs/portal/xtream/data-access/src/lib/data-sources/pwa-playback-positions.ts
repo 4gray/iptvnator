@@ -183,22 +183,28 @@ export class PwaPlaybackPositions {
         const playlistPositions = allPositions[playlistId];
         const android = 'TvShell' in globalThis;
         if (!playlistPositions && !android) return;
+        const resetKeys = scope
+            ? [nativePlaybackScopeId(playlistId, scope)]
+            : items.map((item) => nativePlaybackResetId(playlistId, item));
         if (playlistPositions) {
             const removedKeys = new Set(
                 items.map(
                     (item) => `${item.contentType}_${item.contentXtreamId}`
                 )
             );
-            allPositions[playlistId] = playlistPositions.filter(
-                (p) => !removedKeys.has(`${p.contentType}_${p.contentXtreamId}`)
-            );
+            allPositions[playlistId] = playlistPositions.filter((position) => {
+                if (
+                    !removedKeys.has(
+                        `${position.contentType}_${position.contentXtreamId}`
+                    )
+                )
+                    return true;
+                if (scope && android)
+                    resetKeys.push(nativePlaybackResetId(playlistId, position));
+                return false;
+            });
         }
-        stampNativePlaybackReset(
-            allPositions,
-            ...(scope
-                ? [nativePlaybackScopeId(playlistId, scope)]
-                : items.map((item) => nativePlaybackResetId(playlistId, item)))
-        );
+        stampNativePlaybackReset(allPositions, ...resetKeys);
         this.savePlaybackPositionsToStorage(allPositions);
     }
 }

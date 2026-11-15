@@ -23,7 +23,6 @@ import {
 } from '../player-controls/controls-format.utils';
 import { readVideoVolume } from '../player-controls/web-video-controls.media-helpers';
 
-type PlaybackLabels = { readonly open: string; readonly back: string };
 type PlaybackResult = {
     readonly positionMs: number;
     readonly durationMs: number;
@@ -36,7 +35,7 @@ type PlaybackResult = {
 
 type AndroidWindow = Window & {
     TvShell?: { postMessage(message: string): void };
-    iptvnatorAndroidPlaybackLabels?: PlaybackLabels | null;
+    iptvnatorAndroidPlaybackEnabled?: boolean;
 };
 
 function isSmoothStreamingPath(pathname: string): boolean {
@@ -48,7 +47,9 @@ function isHlsManifest(pathname: string, extension: string): boolean {
     return (
         extension === 'm3u8' ||
         extension === 'm3u' ||
-        /\.isml?\/manifest\((?:[^,()]+,)*format=m3u8-aapl(?:-v3)?(?:,[^,()]+)*\)$/i.test(pathname)
+        /\.isml?\/manifest\((?:[^,()]+,)*format=m3u8-aapl(?:-v3)?(?:,[^,()]+)*\)$/i.test(
+            pathname
+        )
     );
 }
 
@@ -72,10 +73,9 @@ export class AndroidTvPlayback {
         readonly failed?: boolean;
     } | null>(null);
 
-    readonly labels = signal(
-        this.window?.iptvnatorAndroidPlaybackLabels ?? null
+    private readonly enabled = signal(
+        this.window?.iptvnatorAndroidPlaybackEnabled === true
     );
-    private readonly enabled = computed(() => this.labels() !== null);
     private readonly continuedAttempt = signal<{
         token: symbol;
         attempt: string;
@@ -124,9 +124,9 @@ export class AndroidTvPlayback {
             }
         });
         const availability = () => {
-            const labels = window.iptvnatorAndroidPlaybackLabels ?? null;
-            this.labels.set(labels);
-            if (!labels && this.ownedSession()) this.returnToWeb();
+            const enabled = window.iptvnatorAndroidPlaybackEnabled === true;
+            this.enabled.set(enabled);
+            if (!enabled && this.ownedSession()) this.returnToWeb();
         };
         const result = (event: Event) => {
             if (!(event instanceof CustomEvent)) return;
@@ -207,7 +207,7 @@ export class AndroidTvPlayback {
 
     canOpen(playback: ResolvedPortalPlayback): boolean {
         if (
-            this.labels() === null ||
+            !this.enabled() ||
             typeof this.window?.TvShell?.postMessage !== 'function' ||
             this.parentalLock?.enabled() ||
             playback.requiresFreshStreamUrl ||

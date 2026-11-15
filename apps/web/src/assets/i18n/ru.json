@@ -979,6 +979,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Попробовать встроенный плеер",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Вернуться в веб-плеер",
         "HLS_WAIT": "Данные потока не поступают. Можно подождать или повторить подключение.",
         "STAGE_LOADER": "Загрузка потока",
         "STAGE_DEMUX": "Разбор контейнера",

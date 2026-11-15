@@ -81,6 +81,7 @@ public class MainActivity extends Activity {
     private Bundle nativePlaybackContent;
     private NativePlaybackCheckpoints nativePlaybackCheckpoints;
     private boolean nativePlaybackDocumentCurrent;
+    private Runnable pendingNativePlaybackResult;
     private final WebFileChooser fileChooser = new WebFileChooser(this);
     private FrameLayout root;
     private View splash;
@@ -255,6 +256,7 @@ public class MainActivity extends Activity {
 
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                pendingNativePlaybackResult = null;
                 if (nativePlaybackId != null || !nativePlaybackCheckpoints.isEmpty()) {
                     nativePlaybackDocumentCurrent = false;
                     pageReady = false;
@@ -648,11 +650,7 @@ public class MainActivity extends Activity {
 
     private void updateNativePlaybackAvailability() {
         if (!pageReady) return;
-        String labels = prefs.nativePlayback()
-            ? "{open:" + JSONObject.quote(getString(R.string.native_playback_try))
-                + ",back:" + JSONObject.quote(getString(R.string.native_playback_back)) + "}"
-            : "null";
-        js("window.iptvnatorAndroidPlaybackLabels=" + labels
+        js("window.iptvnatorAndroidPlaybackEnabled=" + prefs.nativePlayback()
             + ";window.dispatchEvent(new Event('iptvnator:android-playback-availability'))");
     }
 
@@ -682,6 +680,13 @@ public class MainActivity extends Activity {
             + ",failed:" + result.getBooleanExtra("failed", false) + "}";
         js("window.dispatchEvent(new CustomEvent('iptvnator:android-playback-result',{detail:{id:"
             + JSONObject.quote(id) + ",result:" + data + "}}))");
+    }
+
+    private void deliverNativePlaybackResult() {
+        if (!resumed || pendingNativePlaybackResult == null) return;
+        Runnable result = pendingNativePlaybackResult;
+        pendingNativePlaybackResult = null;
+        result.run();
     }
 
     void stopNative(String id) {
@@ -784,9 +789,10 @@ public class MainActivity extends Activity {
             return;
         }
         webView.onResume();
-        updateNativePlaybackAvailability();
-        deliverNativePlaybackCheckpoint();
         js("window.__tvShell && typeof window.__tvShell.setForeground === 'function' && window.__tvShell.setForeground(true)");
+        updateNativePlaybackAvailability();
+        deliverNativePlaybackResult();
+        deliverNativePlaybackCheckpoint();
         if (errorPanel.getVisibility() != View.VISIBLE) webView.requestFocus(View.FOCUS_DOWN);
         // Give a foreground startup a fresh ready budget.
         if (!pageReady && errorPanel.getVisibility() != View.VISIBLE) armWatchdog();
@@ -846,8 +852,14 @@ public class MainActivity extends Activity {
             Intent fallback = id == null ? null : NativePlayerActivity.takeCheckpoint(id);
             Intent result = resultCode == RESULT_OK && data != null ? data : fallback;
             if (result == fallback) nativePlaybackCheckpoints.saveResult(content, id, result);
-            if (id != null && nativePlaybackDocumentCurrent) replyToNativePlayback(id, result);
-            deliverNativePlaybackCheckpoint();
+            if (id != null && nativePlaybackDocumentCurrent) {
+                // Autoplay can start from the result handler as soon as it runs.
+                pendingNativePlaybackResult = () -> replyToNativePlayback(id, result);
+            }
+            if (resumed) {
+                deliverNativePlaybackResult();
+                deliverNativePlaybackCheckpoint();
+            }
             return;
         }
         if (!fileChooser.onActivityResult(requestCode, resultCode, data)) {

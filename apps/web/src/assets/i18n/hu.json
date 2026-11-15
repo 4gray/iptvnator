@@ -979,6 +979,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Beépített lejátszó kipróbálása",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Vissza a webes lejátszóhoz",
         "HLS_WAIT": "Az adatfolyamból még nem érkeztek adatok. Várhat tovább, vagy újrapróbálkozhat.",
         "STAGE_LOADER": "Adatfolyam betöltése",
         "STAGE_DEMUX": "Konténer elemzése",

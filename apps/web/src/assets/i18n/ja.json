@@ -979,6 +979,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "内蔵プレーヤーを試す",
+        "ACTION_RETURN_TO_WEB_PLAYER": "ウェブプレーヤーに戻る",
         "HLS_WAIT": "ストリームデータを待機しています。このまま待つか、再試行できます。",
         "STAGE_LOADER": "ストリームの読み込み",
         "STAGE_DEMUX": "コンテナの解析",

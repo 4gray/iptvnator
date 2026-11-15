@@ -979,6 +979,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Спробувати вбудований програвач",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Повернутися до вебпрогравача",
         "HLS_WAIT": "Очікуємо на дані потоку. Можна зачекати або спробувати ще раз.",
         "STAGE_LOADER": "Завантаження потоку",
         "STAGE_DEMUX": "Аналіз контейнера",

@@ -979,6 +979,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Integrierten Player ausprobieren",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Zum Webplayer zurückkehren",
         "HLS_WAIT": "Warte weiter auf Stream-Daten. Du kannst warten oder die Wiedergabe erneut versuchen.",
         "STAGE_LOADER": "Stream laden",
         "STAGE_DEMUX": "Container verarbeiten",

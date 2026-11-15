@@ -979,6 +979,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Experimentar o leitor integrado",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Voltar ao leitor web",
         "HLS_WAIT": "Ainda à espera dos dados da transmissão. Pode continuar à espera ou tentar novamente.",
         "STAGE_LOADER": "Carregamento da transmissão",
         "STAGE_DEMUX": "Análise do contentor",

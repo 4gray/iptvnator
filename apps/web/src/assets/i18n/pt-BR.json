@@ -979,6 +979,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Experimentar o player integrado",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Voltar ao player web",
         "HLS_WAIT": "Ainda aguardando os dados da transmissão. Você pode continuar aguardando ou tentar novamente.",
         "STAGE_LOADER": "Carregamento do fluxo",
         "STAGE_DEMUX": "Análise do contêiner",

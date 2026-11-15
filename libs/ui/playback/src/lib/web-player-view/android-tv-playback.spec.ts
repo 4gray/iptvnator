@@ -21,7 +21,7 @@ function setup() {
     const shell = { postMessage };
     const tvWindow = Object.assign(window, {
         TvShell: shell,
-        iptvnatorAndroidPlaybackLabels: { open: 'Open', back: 'Back' },
+        iptvnatorAndroidPlaybackEnabled: true,
     });
     const events: string[] = [];
     const storedVolume = localStorage.getItem('volume');
@@ -106,7 +106,7 @@ function setup() {
 
     const clear = () => {
         Reflect.deleteProperty(tvWindow, 'TvShell');
-        Reflect.deleteProperty(tvWindow, 'iptvnatorAndroidPlaybackLabels');
+        Reflect.deleteProperty(tvWindow, 'iptvnatorAndroidPlaybackEnabled');
         if (storedVolume === null) localStorage.removeItem('volume');
         else localStorage.setItem('volume', storedVolume);
         if (storedAudibleVolume === null)
@@ -135,10 +135,6 @@ it('keeps an attempt across Android settings refreshes and retires it for a new 
     try {
         const attempt = playback.attempt();
         expect(attempt).toBeTruthy();
-        tvWindow.iptvnatorAndroidPlaybackLabels = {
-            open: 'Open again',
-            back: 'Back',
-        };
         tvWindow.dispatchEvent(
             new Event('iptvnator:android-playback-availability')
         );
@@ -390,11 +386,11 @@ it('restores the web engine if Android rejects playback or is disabled', () => {
         expect(reload).toHaveBeenCalledTimes(1);
 
         reply(open(), false);
-        Reflect.deleteProperty(tvWindow, 'iptvnatorAndroidPlaybackLabels');
+        Reflect.deleteProperty(tvWindow, 'iptvnatorAndroidPlaybackEnabled');
         window.dispatchEvent(
             new Event('iptvnator:android-playback-availability')
         );
-        expect(playback.labels()).toBeNull();
+        expect(playback.attempt()).toBeNull();
         expect(playback.suspended()).toBe(false);
         expect(reload).toHaveBeenCalledTimes(2);
     } finally {

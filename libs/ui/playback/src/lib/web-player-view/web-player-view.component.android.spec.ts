@@ -6,7 +6,12 @@ import {
 import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { of } from 'rxjs';
+import { firstValueFrom, of } from 'rxjs';
+import {
+    TranslateModule,
+    TranslatePipe,
+    TranslateService,
+} from '@ngx-translate/core';
 import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
@@ -40,13 +45,13 @@ describe('returning from the Android live player', () => {
         postMessage = jest.fn();
         Object.assign(window, {
             TvShell: { postMessage },
-            iptvnatorAndroidPlaybackLabels: { open: 'Open', back: 'Back' },
+            iptvnatorAndroidPlaybackEnabled: true,
         });
         const { WebPlayerViewComponent } =
             await import('./web-player-view.component');
         await TestBed.configureTestingModule({
             deferBlockBehavior: DeferBlockBehavior.Playthrough,
-            imports: [WebPlayerViewComponent],
+            imports: [WebPlayerViewComponent, TranslateModule.forRoot()],
             providers: [
                 {
                     provide: StorageMap,
@@ -64,6 +69,7 @@ describe('returning from the Android live player', () => {
                 set: {
                     imports: [
                         MatButtonModule,
+                        TranslatePipe,
                         StubArtPlayerComponent,
                         StubEmbeddedMpvPlayerComponent,
                         StubFullscreenChannelPanelComponent,
@@ -87,7 +93,30 @@ describe('returning from the Android live player', () => {
     afterEach(() => {
         fixture?.destroy();
         Reflect.deleteProperty(window, 'TvShell');
-        Reflect.deleteProperty(window, 'iptvnatorAndroidPlaybackLabels');
+        Reflect.deleteProperty(window, 'iptvnatorAndroidPlaybackEnabled');
+    });
+
+    it('updates the native player action when the app language changes', async () => {
+        const translate = TestBed.inject(TranslateService);
+        const open = () =>
+            fixture.nativeElement.querySelector('[data-tv-native-playback]')
+                .textContent;
+        translate.setTranslation('en', {
+            PLAYBACK_DIAGNOSTICS: {
+                ACTION_TRY_BUILT_IN_PLAYER: 'Try built-in player',
+            },
+        });
+        translate.setTranslation('fr', {
+            PLAYBACK_DIAGNOSTICS: {
+                ACTION_TRY_BUILT_IN_PLAYER: 'Essayer le lecteur intégré',
+            },
+        });
+        await firstValueFrom(translate.use('en'));
+        fixture.detectChanges();
+        expect(open()).toContain('Try built-in player');
+        await firstValueFrom(translate.use('fr'));
+        fixture.detectChanges();
+        expect(open()).toContain('Essayer le lecteur intégré');
     });
 
     it.each([false, true])(
