@@ -20,8 +20,26 @@ export interface PwaPlaylistRefreshDeps {
     translate: Pick<TranslateService, 'instant'>;
     logger: ReturnType<typeof createLogger>;
     download: (url: string, userAgent?: string) => Observable<Playlist>;
-    /** The localized download failure, with the proxy's network code. */
-    downloadErrorMessage: (error: unknown) => string;
+    errorStatus: (error: unknown) => number | null | undefined;
+    /** Appends the proxy's network code (ETIMEDOUT, ...) to a message. */
+    withProviderCode: (message: string, error: unknown) => string;
+}
+
+const DOWNLOAD_ERROR_KEYS: Readonly<Record<number, string>> = {
+    401: 'HOME.URL_UPLOAD.ERROR_401',
+    403: 'HOME.URL_UPLOAD.ERROR_403',
+    404: 'HOME.URL_UPLOAD.ERROR_404',
+};
+
+function downloadErrorMessage(
+    deps: PwaPlaylistRefreshDeps,
+    error: unknown
+): string {
+    const status = deps.errorStatus(error);
+    const key =
+        (status != null && DOWNLOAD_ERROR_KEYS[status]) ||
+        'HOME.URL_UPLOAD.ERROR_FETCH_FAILED';
+    return deps.withProviderCode(deps.translate.instant(key), error);
 }
 
 /** Downloads, saves and publishes a playlist; settles after reporting. */
@@ -45,7 +63,7 @@ export async function refreshPwaPlaylist(
         // Redacted: the error can carry the playlist URL.
         deps.logger.error('Playlist refresh download failed:', error);
         void snackBar.open(
-            deps.downloadErrorMessage(error),
+            downloadErrorMessage(deps, error),
             translate.instant('CLOSE'),
             { duration: 5000 }
         );

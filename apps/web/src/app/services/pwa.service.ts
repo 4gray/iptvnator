@@ -209,8 +209,23 @@ export class PwaService extends DataService {
         }
         // Read before the import: callers may reuse the payload object.
         const request = { ...payload };
-        const { refreshPwaPlaylist } = await import('./pwa-playlist-refresh');
-        return refreshPwaPlaylist(
+        let refresh: typeof import('./pwa-playlist-refresh').refreshPwaPlaylist;
+        try {
+            ({ refreshPwaPlaylist: refresh } =
+                await import('./pwa-playlist-refresh'));
+        } catch (error) {
+            // A stale or offline PWA cannot load the chunk: report, settle.
+            this.logger.error('Playlist refresh failed to load:', error);
+            void this.snackBar.open(
+                this.translateService.instant(
+                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED'
+                ),
+                this.translateService.instant('CLOSE'),
+                { duration: 5000 }
+            );
+            return;
+        }
+        return refresh(
             {
                 injector: this.injector,
                 store: this.store,
@@ -219,32 +234,13 @@ export class PwaService extends DataService {
                 logger: this.logger,
                 download: (url, userAgent) =>
                     this.getPlaylistFromUrl(url, userAgent),
-                downloadErrorMessage: (error) =>
-                    this.appendProviderErrorCode(
-                        this.getPlaylistRefreshErrorMessage(error),
-                        error
-                    ),
+                errorStatus: (error) =>
+                    this.getErrorDetails(error)?.status ??
+                    this.extractHttpStatusCode(error),
+                withProviderCode: (message, error) =>
+                    this.appendProviderErrorCode(message, error),
             },
             request
-        );
-    }
-
-    private getPlaylistRefreshErrorMessage(error: unknown): string {
-        const statusCode =
-            this.getErrorDetails(error)?.status ??
-            this.extractHttpStatusCode(error);
-
-        if (statusCode === 404) {
-            return this.translateService.instant('HOME.URL_UPLOAD.ERROR_404');
-        }
-        if (statusCode === 403) {
-            return this.translateService.instant('HOME.URL_UPLOAD.ERROR_403');
-        }
-        if (statusCode === 401) {
-            return this.translateService.instant('HOME.URL_UPLOAD.ERROR_401');
-        }
-        return this.translateService.instant(
-            'HOME.URL_UPLOAD.ERROR_FETCH_FAILED'
         );
     }
 
