@@ -206,6 +206,28 @@ describe('SeasonContainerComponent default-season fallback', () => {
         expect(component.selectedSeason()).toBe('1');
     });
 
+    it('continues to the next named season in natural order', () => {
+        setRequiredInputs({
+            'Season 10': [createEpisode({ id: '1001', season: 10 })],
+            'Season 2': [createEpisode({ id: '201', season: 2 })],
+            'Season 1': [createEpisode()],
+            'Season 3': [createEpisode({ id: '301', season: 3 })],
+        });
+        fixture.componentRef.setInput(
+            'playbackPositions',
+            new Map([[101, watchedPosition(101)]])
+        );
+        fixture.detectChanges();
+
+        expect(component.sortedSeasonKeys()).toEqual([
+            'Season 1',
+            'Season 2',
+            'Season 3',
+            'Season 10',
+        ]);
+        expect(component.selectedSeason()).toBe('Season 2');
+    });
+
     it('keeps a manual selection during hydration and resets it for another series with the same season keys', () => {
         const seasons = {
             '1': [createEpisode()],

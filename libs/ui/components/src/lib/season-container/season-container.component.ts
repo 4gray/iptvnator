@@ -20,6 +20,7 @@ import { type SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data
 import {
     createLogger,
     isPortalPlaybackInProgress,
+    compareSeriesSeasonKeys,
     isPortalPlaybackWatched,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -172,7 +173,7 @@ export class SeasonContainerComponent implements OnInit {
     readonly viewMode = signal<EpisodeViewMode>('list');
 
     readonly sortedSeasonKeys = computed(() =>
-        Object.keys(this.seasons()).sort((a, b) => Number(a) - Number(b))
+        Object.keys(this.seasons()).sort(compareSeriesSeasonKeys)
     );
 
     readonly episodeCounts = computed(() => {

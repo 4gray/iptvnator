@@ -57,6 +57,9 @@ const naturalCollator = new Intl.Collator(undefined, {
     sensitivity: 'base',
 });
 
+export function compareSeriesSeasonKeys(a: string, b: string): number {
+    return naturalCollator.compare(a, b);
+}
 export function getSeriesNextUp(
     request: SeriesProgressRequest
 ): SeriesNextUp | null {
@@ -121,7 +124,7 @@ function getOrderedSeriesEpisodes(
     const entries: SeriesEpisodeEntry[] = [];
     Object.entries(request.seasons)
         .sort(([seasonA], [seasonB]) =>
-            naturalCollator.compare(seasonA, seasonB)
+            compareSeriesSeasonKeys(seasonA, seasonB)
         )
         .forEach(([seasonKey, episodes]) => {
             [...episodes].sort(compareEpisodes).forEach((episode) => {

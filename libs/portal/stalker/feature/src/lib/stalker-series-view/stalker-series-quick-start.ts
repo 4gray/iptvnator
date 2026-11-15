@@ -1,6 +1,7 @@
 import { playbackTimestamp } from '@iptvnator/shared/interfaces';
 import {
     SERIES_QUICK_START_ACTION_KIND,
+    compareSeriesSeasonKeys,
     formatSeriesEpisodeCode,
     getSeriesQuickStartAction,
     isExtrasSeason,
@@ -34,11 +35,6 @@ interface StalkerQuickStartRequest {
     playbackPositions: Map<number, PlaybackPositionData>;
     vodSeriesSeasons: ReadonlyArray<VodSeriesSeasonVm>;
 }
-
-const naturalCollator = new Intl.Collator(undefined, {
-    numeric: true,
-    sensitivity: 'base',
-});
 
 export function getStalkerSeriesQuickStartButton(
     request: StalkerQuickStartRequest
@@ -92,7 +88,7 @@ function getOrderedVodSeriesSeasons(
     seasons: ReadonlyArray<VodSeriesSeasonVm>
 ): VodSeriesSeasonVm[] {
     return [...seasons].sort((seasonA, seasonB) =>
-        naturalCollator.compare(
+        compareSeriesSeasonKeys(
             getVodSeriesSeasonKey(seasonA),
             getVodSeriesSeasonKey(seasonB)
         )

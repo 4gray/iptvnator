@@ -343,8 +343,10 @@ Season navigation inside `SeasonContainerComponent` uses season tabs
 seasons-grid + "Back to seasons" level. The picker opens the inline-playing
 episode's season, then tries the most recent in-progress episode's season,
 then the first season with an unwatched episode or pending list after the last
-watched episode. It falls back to the earliest unwatched season or the latest
-non-empty season when the series is watched. With pending regular seasons and
+watched episode. The picker and quick start both use natural season order,
+including named seasons such as Season 2 and Season 10. The picker falls back
+to the earliest unwatched season or the latest non-empty season when the
+series is watched. With pending regular seasons and
 no next season derived from progress, Stalker opens the first season still to
 load or holding episodes. A manual pick or local watched toggle holds the
 selection while progress arrives for the current series. Extras (season 0)
