@@ -20,6 +20,7 @@ import {
     WorkspaceCommandGroup,
     WorkspaceCommandSelection,
     WorkspaceResolvedCommandItem,
+    isImeComposing,
 } from '@iptvnator/portal/shared/util';
 import { foldSearchText } from '@iptvnator/shared/interfaces';
 
@@ -229,6 +230,13 @@ export class WorkspaceCommandPaletteComponent implements AfterViewInit {
     }
 
     onInputKeydown(event: KeyboardEvent): void {
+        // The keys belong to the input method; the dialog's Escape and the
+        // shell's shortcuts must not see them either.
+        if (isImeComposing(event)) {
+            event.stopPropagation();
+            return;
+        }
+
         if (event.key === 'ArrowDown') {
             event.preventDefault();
             this.moveSelection(1);

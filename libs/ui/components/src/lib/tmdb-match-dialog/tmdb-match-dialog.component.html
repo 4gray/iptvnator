@@ -53,7 +53,7 @@
                 [ngModel]="query()"
                 (ngModelChange)="setQuery($event)"
                 [disabled]="saving()"
-                (keydown.enter)="search()"
+                (keydown.enter)="onSearchEnter($event)"
                 autocomplete="off"
             />
         </mat-form-field>

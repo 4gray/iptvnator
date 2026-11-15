@@ -584,6 +584,22 @@ Shared season tabs have one Tab stop, wrapping Left/Right navigation
 The dropdown variant keeps Material menu keyboard behavior. Detail and
 fullscreen instances own distinct tab/panel IDs.
 
+A text field's own key handler (Enter to submit, arrows or Escape in a
+search-and-pick list) first returns when `isImeComposing(event)` from
+`@iptvnator/portal/shared/util` is true: during an input method composition
+Enter commits the text and arrows/Escape drive the candidate list. The check
+reads `isComposing`, and `keyCode` 229 only between a `compositionend` and the
+next `keyup`: Safari sends the committing Enter after `compositionend` with
+just 229, while Android soft keyboards report 229 for ordinary keys — Enter
+included — without a composition, and those must still submit. Never call `preventDefault()` on those keys; a handler
+that owns Escape or arrows also stops their propagation, so the surrounding
+dialog or overlay cannot close on them. Guard in a component method, not inline
+in the template; an event binding that evaluates to `false` calls
+`preventDefault()`. The
+workspace search, command palette, playlist switcher and TMDB match search do
+this (unit specs and `settings.e2e.ts` dispatch composing keys; a real IME is
+still checked by hand). The TV client keeps its own `ime-guard.ts`.
+
 ## Keyboard Scrolling and Channel Focus
 
 `ChannelScrollFocusDirective` belongs on the actual channel scroll owner,

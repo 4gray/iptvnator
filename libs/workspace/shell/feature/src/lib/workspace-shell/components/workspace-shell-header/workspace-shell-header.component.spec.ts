@@ -97,6 +97,51 @@ describe('WorkspaceShellHeaderComponent', () => {
         expect(emitted).toEqual(['matrix']);
     });
 
+    describe('search Enter', () => {
+        const pressEnter = (init: KeyboardEventInit = {}) => {
+            const submitted: string[] = [];
+            component.searchSubmitted.subscribe((value) =>
+                submitted.push(value)
+            );
+            const input: HTMLInputElement = fixture.nativeElement.querySelector(
+                'input[type="search"]'
+            );
+            input.value = 'matrix';
+            input.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key: 'Enter',
+                    bubbles: true,
+                    cancelable: true,
+                    ...init,
+                })
+            );
+            return submitted;
+        };
+
+        it('submits the typed search', () => {
+            expect(pressEnter()).toEqual(['matrix']);
+        });
+
+        it.each([
+            ['isComposing', { isComposing: true }],
+            ['keyCode 229 after compositionend', { keyCode: 229 }],
+        ])(
+            'does not submit an Enter that commits an IME composition (%s)',
+            (_label, init) => {
+                // Safari: the commit key follows compositionend with 229.
+                if (!('isComposing' in init)) {
+                    document.dispatchEvent(new Event('compositionend'));
+                }
+                expect(pressEnter(init)).toEqual([]);
+                document.dispatchEvent(new Event('keyup'));
+            }
+        );
+
+        it('submits an Android Enter that reports keyCode 229 without a composition', () => {
+            expect(pressEnter({ keyCode: 229 })).toEqual(['matrix']);
+        });
+    });
+
     it('focuses and selects the search input on request', () => {
         const input: HTMLInputElement = fixture.nativeElement.querySelector(
             'input[type="search"]'

@@ -15,6 +15,7 @@ import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
 import {
     WorkspaceBackTarget,
     WorkspaceHeaderAction,
+    isImeComposing,
 } from '@iptvnator/portal/shared/util';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { WorkspaceHeaderSidebarToggle } from '../../services/helpers/workspace-shell-constants';
@@ -176,6 +177,9 @@ export class WorkspaceShellHeaderComponent {
     }
 
     onSearchEnter(event: Event): void {
+        if (isImeComposing(event as KeyboardEvent)) {
+            return;
+        }
         const target = event.target as HTMLInputElement | null;
         this.searchSubmitted.emit(target?.value ?? this.searchQuery());
     }

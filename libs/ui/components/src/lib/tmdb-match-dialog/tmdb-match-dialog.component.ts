@@ -25,6 +25,7 @@ import {
     type TmdbSearchResult,
 } from '@iptvnator/services';
 import { TmdbMatchService } from '@iptvnator/services/tmdb-match';
+import { isImeComposing } from '@iptvnator/portal/shared/util';
 import { cleanTitleForSearch } from '@iptvnator/shared/interfaces';
 import { DialogShellComponent } from '../dialog-shell/dialog-shell.component';
 import { DialogFooterDirective } from '../dialog-shell/dialog-shell.directives';
@@ -127,6 +128,11 @@ export class TmdbMatchDialogComponent {
         this.searched.set(false);
         this.loading.set(value.trim().length >= 2);
         this.timer = setTimeout(() => void this.search(), 300);
+    }
+
+    /** Enter that commits an IME composition is not a search request. */
+    onSearchEnter(event: Event): void {
+        if (!isImeComposing(event as KeyboardEvent)) void this.search();
     }
 
     async search(): Promise<void> {

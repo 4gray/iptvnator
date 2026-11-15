@@ -25,6 +25,7 @@ import {
     SourceStatusService,
     sourceStatusBucket,
 } from '@iptvnator/portal/shared/data-access';
+import { isImeComposing } from '@iptvnator/portal/shared/util';
 import {
     countSourcesByType,
     orderFailingFirst,
@@ -243,6 +244,8 @@ export class PlaylistSwitcherPanelComponent {
     }
 
     onSearchKeydown(event: KeyboardEvent): void {
+        // The keys belong to the input method, not to the overlay's Escape.
+        if (isImeComposing(event)) return event.stopPropagation();
         const count = this.options().length;
         switch (event.key) {
             case 'ArrowDown':
