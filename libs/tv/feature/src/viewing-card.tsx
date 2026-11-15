@@ -55,7 +55,7 @@ export function ViewingCard({
                 sourceName={source?.name ?? 'Source unavailable'}
                 poster={storedMediaPoster(item, source, [
                     ...tv.home,
-                    ...tv.data.favorites,
+                    ...tv.favoriteItems(),
                 ])}
                 open={() => {
                     actions.leave();

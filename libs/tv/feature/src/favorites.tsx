@@ -9,7 +9,7 @@ import {
 import { Kind, Media } from '@iptvnator/tv/util';
 import { TvModel } from './use-tv';
 export function favoritesFor(tv: TvModel, kind: Kind) {
-    return tv.data.favorites.filter(
+    return tv.favoriteItems().filter(
         (item) =>
             (tv.data.favoriteScope === 'all' ||
                 item.sourceId === tv.data.activeId) &&

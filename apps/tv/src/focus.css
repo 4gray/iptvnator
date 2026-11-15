@@ -4,7 +4,7 @@
  * - Focus: the mint ring, used for nothing else. Action buttons also take a
  *   mint fill; cards scale to 1.06 (transform only); list rows and dense grid
  *   cells keep their fill and show the ring.
- * - Selected (active nav item, tab, season, category, day): a mint bar.
+ * - Selected (active nav item, tab, season, category, day): a tinted fill or bottom indicator.
  * - On (Saved, favourite): a filled icon, never a border.
  * - Empty, unavailable choices: 40% and not focusable (disabled).
  */
@@ -27,14 +27,13 @@ button:focus span {
     color: inherit;
 }
 
-/* Selected: a mint bar, never a ring. */
-button[aria-pressed='true'],
+/* Keep selection distinct from the focus ring. */
 nav button[aria-current='page'],
 .settings-categories [aria-selected='true'],
 .tv-picker-options [aria-selected='true'] {
     border-color: transparent;
     color: var(--tv-text);
-    box-shadow: inset var(--tv-selected-bar) 0 0 var(--tv-accent);
+    background: var(--tv-control-hover);
 }
 .favorite-types button[aria-pressed='true'],
 .filters button[aria-pressed='true'],

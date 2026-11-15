@@ -22,7 +22,7 @@ export function useHomeFeature(
                     progress.item,
                     seriesForEpisode(progress.item, [
                         ...tv.home,
-                        ...tv.data.favorites,
+                        ...tv.favoriteItems(),
                     ])
                 );
                 return item === progress.item
@@ -35,6 +35,8 @@ export function useHomeFeature(
             tv.data.activeId,
             tv.home,
             tv.data.favorites,
+            tv.data.sharedFavorites,
+            tv.data.favoritesMode,
             revision,
         ]
     );
@@ -47,15 +49,15 @@ export function useHomeFeature(
     const progress = slides[index];
     const original =
         progress?.item ??
-        tv.data.favorites.find(
+        tv.favoriteItems().find(
             (m) => m.kind === 'movie' || m.kind === 'series'
         ) ??
-        tv.data.favorites[0] ??
+        tv.favoriteItems()[0] ??
         tv.home.find((m) => m.kind === 'movie') ??
         tv.home[0];
     const parent =
         original &&
-        seriesForEpisode(original, [...tv.home, ...tv.data.favorites]);
+        seriesForEpisode(original, [...tv.home, ...tv.favoriteItems()]);
     const source = tv.data.sources.find((s) => s.id === original?.sourceId);
     const item = useMemo<Media | undefined>(() => {
         if (!original) return undefined;
@@ -65,7 +67,7 @@ export function useHomeFeature(
             ...featured,
             poster: storedMediaPoster(original, source, [
                 ...tv.home,
-                ...tv.data.favorites,
+                ...tv.favoriteItems(),
             ]),
             backdrop: featured.backdrop || saved?.backdrop,
             year: featured.year || saved?.year,

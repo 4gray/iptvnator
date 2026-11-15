@@ -37,8 +37,8 @@ on TV. Build the matching TV branch until its backend changes are published;
 verify `/api/tv/connection` reports protocol 1 and pairing support, and include
 `file://com.iptvnator.tv.prototype-webos` alongside the NAS web origin in
 `CLIENT_URL`. The existing Compose restart policy is `unless-stopped`.
-TV favorites/progress remain local. Sources can optionally connect through
-Settings → Server library, independently from the provider backend URL. See the
+TV progress stays local. Enable shared favorites in Settings → Library & sync.
+The server library can connect independently from the provider backend. See the
 [server source library contract](../architecture/tv-application.md#optional-server-source-library)
 and [companion container instructions](../../docker/tv/README.md).
 
@@ -53,7 +53,8 @@ and [companion container instructions](../../docker/tv/README.md).
 - [x] Add optional TV server sources: M3U/Xtream/Stalker, explicit copy of a
   local source, cached reads, refresh/status, instance checks and identity-safe
   disconnect. See the server library contract above for conflict/deletion rules.
-- [ ] Add shared favorites, history and resume, with provider-specific mapping
+- [x] Add shared favorites with provider-specific mapping.
+- [ ] Add shared history and resume, with provider-specific mapping
   and conflict/offline tests; these remain local on TV.
 
 Server sources and NAS deployment are verified in 0.1.9. Cross-device viewing

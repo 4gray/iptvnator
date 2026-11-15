@@ -1,0 +1,288 @@
+import type { StalkerPortalItem } from '@iptvnator/shared/interfaces';
+import { loadM3uItems, m3uMedia } from './m3u';
+import type { ProviderTransport } from './transport';
+import {
+    m3uFavoriteReference,
+    parseFavoriteReference,
+    parseFavoriteSnapshot,
+    stalkerFavoriteReference,
+    type FavoriteAddress,
+    type FavoriteReference,
+    type FavoriteSnapshot,
+} from '@iptvnator/shared/interfaces/favorites-sync';
+import {
+    identity,
+    text,
+    type Kind,
+    type Media,
+    type Source,
+} from '@iptvnator/tv/util';
+
+/** Episodes and local-only sources never produce a shared reference. */
+export async function mediaFavoriteReference(
+    item: Media,
+    source: Source
+): Promise<FavoriteReference | null> {
+    if (item.kind === 'episode' || !source.libraryId) return null;
+    try {
+        const reference = await rawReference(item, source);
+        return reference ? parseFavoriteReference(reference) : null;
+    } catch {
+        return null;
+    }
+}
+
+async function rawReference(
+    item: Media,
+    source: Source
+): Promise<FavoriteReference | null> {
+    if (source.provider === 'xtream') {
+        if (!['live', 'movie', 'series'].includes(item.kind)) return null;
+        return {
+            provider: 'xtream',
+            kind: item.kind as 'live' | 'movie' | 'series',
+            id: item.providerId,
+        };
+    }
+    if (source.provider === 'stalker') return stalkerMediaReference(item);
+    if (source.provider === 'm3u' && item.providerId)
+        return m3uFavoriteReference(item.providerId);
+    return null;
+}
+
+export function stalkerMediaReference(item: Media, streamFirst = true) {
+    if (item.raw.sharedReference)
+        return item.raw.sharedReference as ReturnType<
+            typeof stalkerFavoriteReference
+        >;
+    const raw = item.raw as StalkerPortalItem;
+    const origin = item.raw.origin;
+    const type =
+        origin === 'itv' || origin === 'series' || origin === 'vod'
+            ? origin
+            : undefined;
+    return stalkerFavoriteReference({
+        ...raw,
+        id: streamFirst && text(raw.stream_id).trim() ? raw.stream_id : raw.id,
+        favoriteContentType: raw.favoriteContentType ?? type,
+    });
+}
+
+export function mediaFavoriteSnapshot(
+    item: Media,
+    reference?: FavoriteReference
+): FavoriteSnapshot {
+    const episodes =
+        reference?.provider === 'stalker' &&
+        reference.kind === 'series' &&
+        reference.mode === 'embedded' &&
+        Array.isArray(item.raw.series)
+            ? item.raw.series
+                  .filter(
+                      (value) =>
+                          typeof value === 'number' ||
+                          (typeof value === 'string' &&
+                              /^\d+$/.test(value.trim()))
+                  )
+                  .map(Number)
+                  .filter((value) => Number.isSafeInteger(value) && value >= 0)
+            : undefined;
+    try {
+        return parseFavoriteSnapshot({
+            title:
+                Array.from(item.title, (character) =>
+                    character.charCodeAt(0) < 32 ? ' ' : character
+                )
+                    .join('')
+                    .trim()
+                    .slice(0, 512) || undefined,
+            ...(item.category ? { categoryId: item.category } : {}),
+            ...(item.metadata?.tmdbId
+                ? { tmdbId: String(item.metadata.tmdbId) }
+                : {}),
+            ...(item.year && /^[0-9]+$/.test(item.year)
+                ? { releaseYear: item.year }
+                : {}),
+            ...(episodes ? { episodes } : {}),
+        });
+    } catch {
+        /* Out-of-contract titles still share; they only lose metadata. */
+        return {};
+    }
+}
+
+/** The requested catalog kind encoded in a Stalker media identity. */
+function stalkerCatalogKind(
+    reference: Extract<FavoriteReference, { provider: 'stalker' }>
+): Kind {
+    if (reference.kind === 'series')
+        return reference.mode === 'regular' ? 'series' : 'movie';
+    return reference.kind === 'movie' ? 'movie' : 'live';
+}
+
+/** Minimal provider row fields so saved Stalker commands resolve identically. */
+function stalkerRaw(
+    reference: Extract<FavoriteReference, { provider: 'stalker' }>,
+    snapshot?: FavoriteSnapshot
+): Record<string, unknown> {
+    const id = reference.id;
+    const kind = reference.kind;
+    if (kind === 'series') {
+        const origin = reference.mode === 'regular' ? 'series' : 'vod';
+        return {
+            id,
+            movie_id: id,
+            ...(reference.mode === 'embedded'
+                ? { series: snapshot?.episodes ?? [] }
+                : {}),
+            ...(reference.mode === 'lazy' ? { is_series: true } : {}),
+            stream_type: 'movie',
+            origin,
+            favoriteContentType: origin,
+        };
+    }
+    if (kind === 'movie')
+        return {
+            id,
+            movie_id: id,
+            stream_type: 'movie',
+            origin: 'vod',
+            favoriteContentType: 'vod',
+            category_id: 'vod',
+        };
+    return {
+        id,
+        stream_id: id,
+        stream_type: 'live',
+        origin: 'itv',
+        favoriteContentType: kind === 'radio' ? 'radio' : 'itv',
+        category_id: kind === 'radio' ? 'radio' : 'itv',
+        ...(kind === 'radio' ? { radio: 'true' } : {}),
+    };
+}
+
+/**
+ * Rebuilds a playable TV item from a shared favorite. Provider detail and
+ * episode hydration happen through the normal open/play paths; an M3U item
+ * additionally needs its playlist URL matched by hash.
+ */
+export function resolveFavoriteMedia(
+    source: Source,
+    address: FavoriteAddress,
+    snapshot?: FavoriteSnapshot
+): Media | null {
+    const reference = address.content;
+    const title = snapshot?.title ?? '';
+    if (snapshot?.identityConflict) return null;
+    if (reference.provider === 'xtream')
+        return {
+            id: identity(source, reference.kind, reference.id),
+            sourceId: source.id,
+            providerId: reference.id,
+            kind: reference.kind,
+            title,
+            category: snapshot?.categoryId,
+            year: snapshot?.releaseYear,
+            raw: {
+                sharedFavoriteHints: {
+                    tmdbId: snapshot?.tmdbId,
+                    releaseYear: snapshot?.releaseYear,
+                },
+            },
+        };
+    if (reference.provider === 'stalker') {
+        const catalogKind = stalkerCatalogKind(reference);
+        return {
+            id: identity(
+                source,
+                reference.kind === 'radio' ? 'live' : reference.kind,
+                `${catalogKind}:${reference.id}`
+            ),
+            sourceId: source.id,
+            providerId: reference.id,
+            kind: reference.kind === 'radio' ? 'live' : reference.kind,
+            title,
+            category: snapshot?.categoryId,
+            year: snapshot?.releaseYear,
+            raw: {
+                ...stalkerRaw(reference, snapshot),
+                sharedReference: reference,
+            },
+        };
+    }
+    return null;
+}
+
+/**
+ * M3U identity is one-way hashed; indexing hashes every playlist URL once so
+ * each shared favorite costs a single lookup instead of a full scan.
+ */
+export async function m3uFavoriteIndex(
+    items: Record<string, unknown>[],
+    signal: AbortSignal
+): Promise<Map<string, Record<string, unknown>>> {
+    const index = new Map<string, Record<string, unknown>>();
+    for (const raw of items) {
+        if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+        const url = text(raw.url);
+        if (url) index.set((await m3uFavoriteReference(url)).urlHash, raw);
+    }
+    return index;
+}
+
+export class FavoriteM3uCatalogs {
+    private inline = new WeakMap<
+        Record<string, unknown>[],
+        Map<string, Record<string, unknown>>
+    >();
+    private urls = new Map<
+        string,
+        { expires: number; index: Map<string, Record<string, unknown>> }
+    >();
+
+    async index(
+        source: Source,
+        transport: ProviderTransport | undefined,
+        signal: AbortSignal,
+        refresh: boolean
+    ) {
+        if (source.m3uItems) {
+            const cached = this.inline.get(source.m3uItems);
+            if (cached) return cached;
+            const index = await m3uFavoriteIndex(source.m3uItems, signal);
+            this.inline.set(source.m3uItems, index);
+            return index;
+        }
+        if (!transport)
+            throw new Error('Connect a provider backend for URL playlists.');
+        const key = JSON.stringify([
+            transport.backend,
+            source.id,
+            source.url,
+            source.userAgent,
+        ]);
+        const cached = this.urls.get(key);
+        if (!refresh && cached && cached.expires > Date.now())
+            return cached.index;
+        const index = await m3uFavoriteIndex(
+            await loadM3uItems(source, transport, signal),
+            signal
+        );
+        if (this.urls.size >= 8) {
+            const oldest = this.urls.keys().next().value;
+            if (oldest !== undefined) this.urls.delete(oldest);
+        }
+        this.urls.set(key, { expires: Date.now() + 5 * 60_000, index });
+        return index;
+    }
+}
+
+export function resolveM3uFavoriteMedia(
+    source: Source,
+    address: FavoriteAddress,
+    index: Map<string, Record<string, unknown>>
+): Media | null {
+    if (address.content.provider !== 'm3u') return null;
+    const raw = index.get(address.content.urlHash);
+    return raw ? m3uMedia(source, raw) : null;
+}

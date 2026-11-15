@@ -117,6 +117,23 @@ export class XtreamProvider implements ProviderClient {
             categories,
         };
     }
+    private checkSharedIdentity(item: Media, row: Record<string, unknown>) {
+        const hint = item.raw.sharedFavoriteHints as
+            { tmdbId?: string; releaseYear?: string } | undefined;
+        if (!hint) return;
+        const tmdbId = text(row.tmdb_id ?? row.tmdb).match(
+            /^[1-9][0-9]*$/
+        )?.[0];
+        const year = text(row.year ?? row.releasedate ?? row.releaseDate).match(
+            /^\d{4}/
+        )?.[0];
+        if (
+            (hint.tmdbId && tmdbId && hint.tmdbId !== tmdbId) ||
+            (hint.releaseYear && year && hint.releaseYear !== year)
+        )
+            throw new Error('Favorite no longer matches the provider catalog.');
+    }
+
     async details(item: Media, signal: AbortSignal): Promise<Media> {
         if (item.kind === 'episode') return item;
         const result = (await this.client.request(
@@ -128,6 +145,12 @@ export class XtreamProvider implements ProviderClient {
             signal
         )) as Record<string, unknown>;
         const info = (result.info ?? {}) as Record<string, unknown>;
+        this.checkSharedIdentity(item, info);
+        if (result.movie_data && typeof result.movie_data === 'object')
+            this.checkSharedIdentity(
+                item,
+                result.movie_data as Record<string, unknown>
+            );
         return {
             ...item,
             raw: { ...item.raw, details: result },
@@ -191,7 +214,27 @@ export class XtreamProvider implements ProviderClient {
         }));
     }
     async resolve(item: Media, signal: AbortSignal) {
-        if (item.kind === 'live')
+        if (item.kind === 'live') {
+            if (item.raw.sharedFavoriteHints) {
+                const streams =
+                    this.catalogs.get('live') ??
+                    rows(
+                        await this.client.request(
+                            'get_live_streams',
+                            {},
+                            signal
+                        )
+                    );
+                const row = streams.find(
+                    (stream) =>
+                        text(stream.stream_id ?? stream.id) === item.providerId
+                );
+                if (!row)
+                    throw new Error(
+                        'Favorite is unavailable from its provider.'
+                    );
+                this.checkSharedIdentity(item, row);
+            }
             return {
                 url: this.client.stream(
                     'live',
@@ -202,6 +245,7 @@ export class XtreamProvider implements ProviderClient {
                         : this.client.formats[0]
                 ),
             };
+        }
         if (item.kind === 'episode')
             return {
                 url: this.client.stream(
@@ -210,6 +254,8 @@ export class XtreamProvider implements ProviderClient {
                     text(item.raw.container_extension)
                 ),
             };
+        if (item.raw.sharedFavoriteHints && !item.raw.details)
+            item = await this.details(item, signal);
         let source =
             resolveXtreamVodPlaybackSource(
                 item.raw.details as XtreamVodDetails

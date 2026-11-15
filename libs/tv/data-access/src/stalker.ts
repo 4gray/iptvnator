@@ -27,6 +27,8 @@ import {
     stalkerEpisodes,
     unwrap,
 } from './stalker-series';
+import { hydrateSharedStalker } from './stalker-favorite-media';
+import { stalkerMediaReference } from './favorites-refs';
 import { ProviderTransport } from './transport';
 export class StalkerProvider implements ProviderClient {
     readonly capabilities = {
@@ -140,7 +142,19 @@ export class StalkerProvider implements ProviderClient {
             categories,
         };
     }
-    async details(item: Media) {
+    private hydrateShared(item: Media, signal: AbortSignal) {
+        return hydrateSharedStalker(
+            item,
+            signal,
+            this.session,
+            this.pages,
+            (raw, kind) => this.media(raw, kind)
+        );
+    }
+
+    async details(item: Media, signal = new AbortController().signal) {
+        if (item.kind === 'movie' || Array.isArray(item.raw.series))
+            item = await this.hydrateShared(item, signal);
         return {
             ...item,
             poster:
@@ -154,8 +168,11 @@ export class StalkerProvider implements ProviderClient {
                 ),
         };
     }
-    episodes(item: Media, signal: AbortSignal) {
-        return stalkerEpisodes(this.session, this.source, item, signal);
+    async episodes(item: Media, signal: AbortSignal) {
+        const parent = Array.isArray(item.raw.series)
+            ? await this.hydrateShared(item, signal)
+            : item;
+        return stalkerEpisodes(this.session, this.source, parent, signal);
     }
     async epg(item: Media, signal: AbortSignal) {
         let bulk: Record<string, unknown> = {};
@@ -203,6 +220,7 @@ export class StalkerProvider implements ProviderClient {
     }
 
     async resolve(item: Media, signal: AbortSignal) {
+        item = await this.hydrateShared(item, signal);
         let cmd =
             item.kind === 'episode'
                 ? await stalkerEpisodeCommand(
@@ -239,7 +257,9 @@ export class StalkerProvider implements ProviderClient {
                 {
                     type:
                         item.kind === 'live'
-                            ? 'itv'
+                            ? stalkerMediaReference(item)?.kind === 'radio'
+                                ? 'radio'
+                                : 'itv'
                             : item.raw.origin === 'series'
                               ? 'series'
                               : 'vod',

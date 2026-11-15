@@ -2,6 +2,7 @@ import { createSourceSwitcher } from './source-selection';
 import { useNotice, connectionNotice } from './use-notice';
 import { useReconnect } from './use-reconnect';
 import { useLibrary } from './use-library';
+import { useFavoritesSync } from './use-favorites-sync';
 import { useBackend } from './use-backend';
 import { firstRoute, isSavedView, type View } from './navigation';
 import { useRouteHistory, type NavigationOrigin } from './use-route-history';
@@ -63,6 +64,13 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         pendingScroll.current = undefined;
     });
     const library = useLibrary(data, storageReady, !!playing, update);
+    const favorites = useFavoritesSync(
+        data,
+        storageReady,
+        !!playing,
+        repo.current!,
+        user
+    );
     const backend = useBackend(data, storageReady, update);
     const { provider, ready, busy, connectionKey, enabled } = useProvider(
         data,
@@ -351,6 +359,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     return {
         ...user,
         library,
+        ...favorites,
         guideClient: ready ? provider.current : undefined,
         retryPlayback,
         retryConnection,

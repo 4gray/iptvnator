@@ -264,11 +264,29 @@ The server controls linked source configuration. Edit/delete happen in the PWA;
 refresh applies changes and removes missing server entries, retaining local viewing
 data and restoring an original local source when one was linked. Disconnect restores
 original local configurations and keeps other downloaded sources as local copies.
-Favorites, history, progress and TV preferences are not synchronized in this phase.
+History, progress and TV preferences stay on the TV.
 Source credentials are cached locally just like manually entered TV sources.
 Custom header fields are retained for copying; only the existing M3U parser's
 User-Agent option is applied here. Native video still cannot attach arbitrary
 provider headers, and this change does not add Xtream header handling.
+
+### Shared favorites
+
+Library & sync offers a separate opt-in for favorites when the server advertises
+`favorites-v1`. The TV verifies the server instance and source incarnation,
+receives current memberships, and then sends queued edits. Operations and their
+optimistic projection commit together in IndexedDB. Divergent edits pause for an explicit choice in Library & sync. Confirming
+the TV choice sends a fresh operation against the received server revision. Disconnecting or changing consent ends
+the old scope. Turning sharing off restores the TV's local favorites archive
+and keeps unsent manual edits on the TV.
+
+Enabling sharing can import TV favorites with explicit confirmation. Previously
+recorded server choices are preserved. Episodes and favorites on unlinked sources
+stay local. M3U URL sources use the provider parser to match exact URL hashes. Background
+refreshes reuse the URL index for five minutes. A manual refresh reloads the
+playlist.
+Shared Stalker snapshots carry no playback commands; the TV resolves the matching
+provider row when opening or playing an item.
 
 Copy to server is an explicit per-source action. It re-reads the library, keeps an
 existing provider account unchanged and creates missing records with stable IDs and
@@ -837,8 +855,8 @@ Virtualized channel rows keep a 9px spacing, which the list's step assumes.
 - Focus is the only use of the mint ring (5px outline, 5px offset). Action
   buttons also take a mint fill; cards scale to 1.06; list rows and grid cells
   use an inset ring on their own fill.
-- Selected (current nav item, settings category, tab, category, day) is a mint
-  bar, never a ring.
+- Selected (current nav item, settings category, tab, category, day) uses a tinted
+  fill or a bottom indicator.
 - On toggles (`.tv-toggle`, such as Saved) show a filled glyph and no border.
   Primary buttons are light at rest, so mint never suggests a second focus.
 

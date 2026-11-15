@@ -2,8 +2,8 @@
 
 This optional development deployment adds the matching TV API and phone setup
 alongside an existing self-hosted IPTVnator. It never mounts the existing database.
-`/api` serves the new TV backend; `/library/v1` forwards only GET/PUT/OPTIONS to the
-existing library API. Its server token passes through unchanged. CORS allows the
+`/api` serves the new TV backend; `/library/v1` forwards GET/PUT/OPTIONS and permits POST
+only at `/library/v1/favorites/operations`. It targets the existing library API. Its server token passes through unchanged. CORS allows the
 packaged TV origin, `null` for webOS file origins and the configured web origin.
 Access logging is disabled because provider requests can carry credentials.
 This is a trusted-LAN deployment; do not expose the unauthenticated TV proxy to

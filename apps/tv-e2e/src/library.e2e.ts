@@ -77,6 +77,108 @@ test.beforeEach(async ({ request }) => {
         (await request.delete(`${server}/v1/playlists`, { headers })).ok()
     ).toBeTruthy();
 });
+test('TV shared favorites receive and write membership, then disconnect to the local archive', async ({
+    page,
+    request,
+}) => {
+    const sourceId = 'favorites-fixture';
+    await put(request, sourceId, {
+        serverUrl: xtream,
+        username: 'user1',
+        password: 'pass1',
+    });
+    const info = await (await request.get(`${server}/v1/instance`)).json();
+    const favoriteHeaders = {
+        ...headers,
+        'x-iptvnator-instance-id': info.instanceId,
+    };
+    const sourceContext = await (
+        await request.get(`${server}/v1/favorites/sources/${sourceId}`, {
+            headers: favoriteHeaders,
+        })
+    ).json();
+    const address = {
+        scope: 'shared',
+        instanceId: info.instanceId,
+        sourceId,
+        sourceIncarnation: sourceContext.sourceIncarnation,
+        content: { provider: 'xtream', kind: 'movie', id: '1' },
+    };
+    const seeded = await request.post(`${server}/v1/favorites/operations`, {
+        headers: favoriteHeaders,
+        data: {
+            address,
+            operation: {
+                operationId: 'synthetic-add',
+                deviceId: 'synthetic-web-device',
+                expectedRevision: 0,
+                member: true,
+                snapshot: { title: 'Synthetic Shared Movie' },
+            },
+        },
+    });
+    expect(seeded.ok()).toBeTruthy();
+
+    await start(page);
+    await fillTvField(page.getByLabel('IPTVnator backend URL'), backend);
+    await page.getByRole('button', { name: 'Check and connect' }).click();
+    const pane = await connect(page);
+    await chooseTv(page, 'Favorites', 'shared');
+    const sharing = pane.getByRole('region', { name: 'Shared favorites' });
+    await expect(sharing.getByRole('status')).toHaveText('Synced');
+    await nav(page, 'Favorites');
+    const shared = page
+        .locator('.poster-card')
+        .filter({ hasText: 'Synthetic Shared Movie' });
+    await expect(shared).toBeVisible();
+    await shared.click();
+    await page.getByRole('button', { name: '♥ Saved', exact: true }).click();
+    await expect
+        .poll(async () => {
+            const list = await request.get(
+                `${server}/v1/favorites/sources/${sourceId}/items`,
+                {
+                    headers: favoriteHeaders,
+                }
+            );
+            return (await list.json()).entries[0]?.state;
+        })
+        .toMatchObject({ member: false, revision: 2 });
+    expect((await snapshot(page)).favorites).toEqual([]);
+
+    const addedAgain = await request.post(`${server}/v1/favorites/operations`, {
+        headers: favoriteHeaders,
+        data: {
+            address,
+            operation: {
+                operationId: 'synthetic-add-again',
+                deviceId: 'synthetic-web-device',
+                expectedRevision: 2,
+                member: true,
+                snapshot: { title: 'Synthetic Shared Movie' },
+            },
+        },
+    });
+    expect(addedAgain.ok()).toBeTruthy();
+    await nav(page, 'Settings');
+    await page.getByRole('tab', { name: 'Library & sync' }).click();
+    await sharing
+        .getByRole('button', { name: 'Refresh favorites now' })
+        .click();
+    await expect
+        .poll(async () => {
+            const rows = Object.values((await snapshot(page)).sharedFavorites);
+            return rows[0]?.record.state.member;
+        })
+        .toBe(true);
+    await pane.getByRole('button', { name: 'Disconnect library' }).click();
+    await expect
+        .poll(async () => (await snapshot(page)).library)
+        .toBeUndefined();
+    expect((await snapshot(page)).favoritesMode).toBe('local');
+    await nav(page, 'Favorites');
+    await expect(shared).toHaveCount(0);
+});
 test('source replacement leaves stale details and keeps new playback under the replacement identity', async ({
     page,
     request,

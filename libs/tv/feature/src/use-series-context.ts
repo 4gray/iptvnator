@@ -7,7 +7,7 @@ export function useSeriesContext(tv: TvModel) {
         const parents = [
             ...tv.home,
             ...tv.catalog.items,
-            ...tv.data.favorites,
+            ...tv.favoriteItems(),
             tv.selected,
         ];
         if (recoverSeriesContext(tv.data, parents) === tv.data) return;
@@ -20,6 +20,8 @@ export function useSeriesContext(tv: TvModel) {
         tv.selected,
         tv.data.history,
         tv.data.favorites,
+        tv.data.sharedFavorites,
+        tv.data.favoritesMode,
         tv.data.positions,
     ]);
 }

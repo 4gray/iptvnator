@@ -68,7 +68,7 @@ export function Detail({
         (e) => (e.season ?? 1) === currentSeason
     );
     const action = primary;
-    const saved = tv.data.favorites.some((m) => m.id === item.id);
+    const saved = tv.isFavorite(item);
     return (
         <>
             <section class="detail-hero">
