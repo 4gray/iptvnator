@@ -53,7 +53,7 @@ export class PwaXtreamBackupStorage {
         await preparePwaRestore(this.storage, playlistId);
         const android =
             'TvShell' in globalThis
-                ? await import('./pwa-native-playback-resets')
+                ? await import('./pwa-native-playback-resets.js')
                 : undefined;
         const map = this.readMap('playbackPositions');
         map[playlistId] = positions;
@@ -306,7 +306,7 @@ export class PwaXtreamBackupStorage {
         const now = new Date().toISOString();
         const android =
             'TvShell' in globalThis
-                ? await import('./pwa-native-playback-resets')
+                ? await import('./pwa-native-playback-resets.js')
                 : undefined;
         progress.writeList(
             'playbackPositions',
