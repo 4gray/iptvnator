@@ -1307,6 +1307,23 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   the change count, Discard and Save (Cmd/Ctrl+S); the sidebar marks pages
   with staged edits. A saved change that waits for a restart shows a sticky
   notice at the top of the page.
+- Save writes only the paths that differ from the form's saved baseline
+  (`pickChangedSettings` in `settings-form-rebase.ts`); a changed dashboard
+  rail goes out over the rails as stored now. Settings another surface wrote
+  while the page was open (the command palette's player switch, or any
+  other store writer) keep their value, and after Save the untouched
+  controls show the stored values. A staged edit wins over an outside
+  change to the same setting. A staged EPG source list is saved together
+  with sources added elsewhere since the page loaded, but it also keeps a
+  source removed elsewhere meanwhile (the list on the page wins). A setting
+  an unsettled save already wrote is written again by the next Save, so an
+  edit typed back to its saved value (the TMDB key included) overrides it.
+  Desktop
+  still receives the whole merged settings object. Untouched controls are
+  not live-synced: they show an outside change after Save or a reload.
+- A backup import re-baselines the form on the store and keeps staged edits:
+  restored EPG sources join a staged source list, and a form with nothing
+  left to save turns pristine. Discard still reloads every stored value.
 
 ### Light Theme
 

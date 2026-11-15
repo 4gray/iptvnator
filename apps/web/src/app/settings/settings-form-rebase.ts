@@ -1,0 +1,142 @@
+import { normalizeAgeRatingCountry } from '@iptvnator/shared/interfaces/age-rating';
+import { Settings } from '@iptvnator/shared/interfaces';
+import { SettingsForm } from './settings-form.utils';
+
+export type SettingsFormValue = ReturnType<SettingsForm['getRawValue']>;
+
+type Values = Record<string, unknown>;
+
+/**
+ * Groups the store merges into its current value itself. Every other group
+ * goes out complete, since the store default-fills a partial one.
+ */
+const STORE_MERGED_GROUPS = new Set(['tmdb']);
+
+/**
+ * The part of `settings` (built from the whole form) that the user changed:
+ * only the top-level keys named by `changedPaths`. A changed leaf of a
+ * nested group goes out over the group as stored now, so a sibling changed
+ * outside the form keeps its value. Everything else is left to the store,
+ * which keeps what other surfaces wrote while the page was open.
+ */
+export function pickChangedSettings(
+    settings: Settings,
+    changedPaths: readonly string[],
+    stored: Settings
+): Partial<Settings> {
+    const source = settings as unknown as Values;
+    const current = stored as unknown as Values;
+    const patch: Values = {};
+    for (const path of changedPaths) {
+        const [key, leaf] = path.split('.');
+        if (!(key in source)) continue;
+        if (leaf === undefined) {
+            patch[key] = source[key];
+            continue;
+        }
+        const group = (patch[key] ??
+            (STORE_MERGED_GROUPS.has(key)
+                ? {}
+                : {
+                      ...((current[key] as Values | undefined) ?? {}),
+                  })) as Values;
+        group[leaf] = (source[key] as Values | undefined)?.[leaf];
+        patch[key] = group;
+    }
+    return patch as Partial<Settings>;
+}
+
+/**
+ * What the form would show after `hydrateFromStore()` for these settings,
+ * computed without touching the form: a control takes the stored value when
+ * the settings carry its key (a group, each leaf it carries), EPG sources
+ * are trimmed and blank rows dropped, and anything else keeps `current`.
+ */
+export function settingsToFormValue(
+    settings: Settings,
+    current: SettingsFormValue
+): SettingsFormValue {
+    const stored = settings as unknown as Values;
+    const next: Values = { ...(current as unknown as Values) };
+    for (const key of Object.keys(next)) {
+        if (!(key in stored)) continue;
+        const value = stored[key];
+        const shape = next[key];
+        if (key === 'epgUrl') {
+            if (value) next[key] = normalizeFormEpgUrls(value);
+        } else if (isGroup(shape)) {
+            if (isGroup(value)) next[key] = mergeLeaves(shape, value);
+        } else {
+            next[key] = value;
+        }
+    }
+    if ('ageRatingCountry' in stored) {
+        next['ageRatingCountry'] = normalizeAgeRatingCountry(
+            settings.ageRatingCountry
+        );
+    }
+    return next as unknown as SettingsFormValue;
+}
+
+/** Reads a dotted settings path (`dashboardRails.hero`). */
+export function readSettingsPath(value: unknown, path: string): unknown {
+    return path
+        .split('.')
+        .reduce<unknown>(
+            (node, key) => (isGroup(node) ? node[key] : undefined),
+            value
+        );
+}
+
+/** Writes a dotted settings path in place. */
+export function writeSettingsPath(
+    value: SettingsFormValue,
+    path: string,
+    leafValue: unknown
+): void {
+    const keys = path.split('.');
+    const last = keys.pop() as string;
+    let node = value as unknown as Values;
+    for (const key of keys) {
+        node[key] = { ...((node[key] as Values | undefined) ?? {}) };
+        node = node[key] as Values;
+    }
+    node[last] = leafValue;
+}
+
+/**
+ * EPG sources that arrived in the saved list from outside the form (a
+ * restored backup), so a staged list can take
+ * them in instead of dropping them on the next Save.
+ */
+export function epgUrlsAddedOutside(
+    staged: unknown,
+    previous: unknown,
+    next: unknown
+): string[] {
+    const known = new Set([
+        ...normalizeFormEpgUrls(staged),
+        ...normalizeFormEpgUrls(previous),
+    ]);
+    return normalizeFormEpgUrls(next).filter((url) => !known.has(url));
+}
+
+function normalizeFormEpgUrls(value: unknown): string[] {
+    const urls = Array.isArray(value) ? value : [value];
+    return urls
+        .filter((url): url is string => typeof url === 'string')
+        .map((url) => url.trim())
+        .filter((url) => url !== '');
+}
+
+function mergeLeaves(shape: Values, value: Values): Values {
+    const merged = { ...shape };
+    for (const leaf of Object.keys(shape)) {
+        if (leaf in value) merged[leaf] = value[leaf];
+    }
+    return merged;
+}
+
+function isGroup(value: unknown): value is Values {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}

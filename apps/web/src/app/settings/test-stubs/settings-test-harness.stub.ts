@@ -215,7 +215,33 @@ export class MockSettingsStore {
 
     loadSettings = jest.fn().mockResolvedValue(undefined);
 
-    updateSettings = jest.fn().mockResolvedValue(undefined);
+    /**
+     * Applies the patch like the real store: in memory first (merging the
+     * TMDB group), so Save mirrors and re-reads the merged settings.
+     */
+    updateSettings = jest.fn<
+        Promise<void>,
+        [patch: Record<string, unknown>, options?: unknown]
+    >(async (patch) => this.applyPatch(patch));
+
+    /**
+     * The next update applies its patch in memory, then settles with
+     * `settle()` — a pending write, or a cleanup failure after the write.
+     */
+    applyNextUpdateThen(settle: () => Promise<void>): void {
+        this.updateSettings.mockImplementationOnce(async (patch) => {
+            this.applyPatch(patch);
+            await settle();
+        });
+    }
+
+    private applyPatch(patch: Record<string, unknown>): void {
+        const tmdb = patch['tmdb'] as object | undefined;
+        this._setSettings({
+            ...patch,
+            ...(tmdb && { tmdb: { ...this._settings().tmdb, ...tmdb } }),
+        } as Partial<typeof DEFAULT_SETTINGS>);
+    }
 
     storageFailure = signal<SettingsStorageFailure | null>(null);
 
