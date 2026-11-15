@@ -22,33 +22,41 @@ export function createCloudflareAccessCheck(
 
     const issuer = `https://${team}.cloudflareaccess.com`;
     let keys: Promise<Map<string, SigningKey>> | undefined;
-    let expires = 0;
+    let expires: number | undefined;
 
     function signingKeys() {
-        if (!keys || Date.now() >= expires) {
-            expires = Date.now() + KEY_CACHE_MS;
+        if (!keys || (expires !== undefined && Date.now() >= expires)) {
+            expires = undefined;
             keys = fetchKeys(`${issuer}/cdn-cgi/access/certs`, {
                 redirect: 'error',
                 signal: AbortSignal.timeout(3000),
-            }).then(async (response) => {
-                if (!response.ok) throw new Error('Access keys unavailable');
-                const jwks = (await response.json()) as {
-                    keys: Array<{
-                        kid: string;
-                        kty: string;
-                        n: string;
-                        e: string;
-                    }>;
-                };
-                return new Map(
-                    jwks.keys
-                        .filter((key) => key.kty === 'RSA')
-                        .map((key) => [
-                            key.kid,
-                            { key, format: 'jwk' } as const,
-                        ])
-                );
-            });
+            })
+                .then(async (response) => {
+                    if (!response.ok)
+                        throw new Error('Access keys unavailable');
+                    const jwks = (await response.json()) as {
+                        keys: Array<{
+                            kid: string;
+                            kty: string;
+                            n: string;
+                            e: string;
+                        }>;
+                    };
+                    const downloaded = new Map(
+                        jwks.keys
+                            .filter((key) => key.kty === 'RSA')
+                            .map((key) => [
+                                key.kid,
+                                { key, format: 'jwk' } as const,
+                            ])
+                    );
+                    expires = Date.now() + KEY_CACHE_MS;
+                    return downloaded;
+                })
+                .catch((error: unknown) => {
+                    keys = undefined;
+                    throw error;
+                });
         }
         return keys;
     }

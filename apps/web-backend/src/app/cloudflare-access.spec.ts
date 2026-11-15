@@ -93,6 +93,20 @@ describe('Cloudflare Access for hosted HTTPS', () => {
         expect(fetchKeys).toHaveBeenCalledTimes(1);
     });
 
+    it('retries a failed signing-key download and shares the retry across requests', async () => {
+        const { origin, fetchKeys, check, assertion, mockRequest } = fixture();
+        fetchKeys.mockRejectedValueOnce(new Error('Synthetic timeout'));
+        const req = mockRequest(assertion(), origin);
+
+        await expect(check(req)).resolves.toBe(false);
+        await expect(Promise.all([check(req), check(req)])).resolves.toEqual([
+            true,
+            true,
+        ]);
+        await expect(check(req)).resolves.toBe(true);
+        expect(fetchKeys).toHaveBeenCalledTimes(2);
+    });
+
     it('uses Access identity on the protected listener only', async () => {
         const { origin, fetchKeys, check, assertion } = fixture();
         const app = createWebBackendApp({
