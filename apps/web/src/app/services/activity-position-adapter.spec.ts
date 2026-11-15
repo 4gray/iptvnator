@@ -213,10 +213,12 @@ describe('activity projection local preservation', () => {
             'vod',
         ]);
         try {
-            await adapter.invoke(raw, 'savePlaybackPosition', [
-                'synthetic-source',
-                position,
-            ]);
+            await expect(
+                adapter.invoke(raw, 'savePlaybackPosition', [
+                    'synthetic-source',
+                    position,
+                ])
+            ).rejects.toThrow('Playback position reset still pending');
         } finally {
             read.resolve([position]);
             await clearing;

@@ -349,7 +349,14 @@ public final class NativePlayerActivity extends Activity {
 
     private void showError() {
         view.setCustomErrorMessage(getString(R.string.native_playback_failed));
-        view.hideController();
+        view.setUseController(false);
+        releaseMediaSession();
+    }
+
+    private void releaseMediaSession() {
+        if (mediaSession == null) return;
+        mediaSession.release();
+        mediaSession = null;
     }
 
     @Override
@@ -377,7 +384,7 @@ public final class NativePlayerActivity extends Activity {
             played = playedMs();
             trackPreferences = player.getTrackSelectionParameters();
             view.setPlayer(null);
-            mediaSession.release();
+            releaseMediaSession();
             player.release();
             player = null;
         }

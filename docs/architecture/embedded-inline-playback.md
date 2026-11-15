@@ -159,7 +159,8 @@ listener loads only with the Android bridge. It saves through the portal resume
 store for the original WebView origin and source profile. A page in another
 profile leaves the checkpoint pending. A reset or backup restore records its
 time in the same write as the position change. Older checkpoints cannot undo
-that change, and recovery yields while an explicit reset is in progress. Bulk resets use one marker for the season or series. Retries
+that change. While a reset is pending, Android retains the checkpoint so
+recovery can retry if the reset fails. Bulk resets use one marker for the season or series. Retries
 retain the original playback time when comparing positions for recovery.
 Activity Sync uses server timestamps to order acknowledged positions across
 devices.

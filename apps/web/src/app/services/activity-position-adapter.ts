@@ -2,7 +2,10 @@ import { clearActivityPositions } from './activity-position-clear';
 import { ActivityPositionWriteFence } from './activity-position-write-fence';
 import type { IXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
-import type { ActivitySyncClient } from '@iptvnator/services/activity-sync';
+import {
+    ActivitySupersededError,
+    type ActivitySyncClient,
+} from '@iptvnator/services/activity-sync';
 import {
     ActivityLocalOnlyPositions,
     type LocalActivitySnapshot,
@@ -65,7 +68,9 @@ export class ActivityPositionAdapter {
                     position.nativeCheckpointAt &&
                     this.writeFence.resetPending(sourceId, position)
                 )
-                    continue;
+                    throw new ActivitySupersededError(
+                        'Playback position reset still pending'
+                    );
                 const { current, finish } = this.writeFence.start(
                     sourceId,
                     position

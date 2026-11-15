@@ -62,7 +62,7 @@ try {
             readFileSync(join(fixtures, `synthetic${index}.ts`))
         )
     );
-    const seen = { origin: [], target: [], segments: 0, sessionCookie: '' };
+    const seen = { origin: [], target: [], segments: 0, failedStreamRequests: 0, sessionCookie: '' };
     const respond = (req, res, data, mime) => {
         const range = /^bytes=(\d+)-(\d*)$/.exec(req.headers.range ?? '');
         const start = range ? Number(range[1]) : 0;
@@ -123,6 +123,7 @@ try {
         } else if (req.url === '/synthetic-audio.m4a') {
             respond(req, res, readFileSync(audioOnly), 'audio/mp4');
         } else if (req.url === '/synthetic-unplayable.mp4') {
+            seen.failedStreamRequests++;
             respond(req, res, Buffer.from('Synthetic unsupported media'), 'video/mp4');
         } else if (req.url === '/synthetic-ac3.mkv') {
             respond(req, res, ac3Clip, 'video/x-matroska');
@@ -609,6 +610,13 @@ try {
     await action.click();
     await waitNative();
     await expect.poll(() => dumpLayout().includes('The built-in player could not play this stream')).toBe(true);
+    const failedStreamRequests = seen.failedStreamRequests;
+    adb('shell', 'input', 'keyevent', 'KEYCODE_MEDIA_PLAY');
+    await delay(1000);
+    assert.equal(seen.failedStreamRequests, failedStreamRequests,
+        'Remote Play must not restart a failed native session.');
+    assert.ok(!adb('shell', 'cmd', 'media_session', 'list-sessions').includes(app),
+        'A failed native session must also release its system transport controls.');
     await back();
     await expect.poll(() => dumpLayout().includes('This stream cannot be played here')).toBe(true);
     adb('shell', 'input', 'keyevent', '4');
