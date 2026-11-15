@@ -1,4 +1,8 @@
-import { createServer, type Server } from 'node:http';
+import { createServer, type RequestListener, type Server } from 'node:http';
+import {
+    createServer as createTlsServer,
+    type ServerOptions,
+} from 'node:https';
 import { BlockList } from 'node:net';
 import { networkInterfaces } from 'node:os';
 import type { Express } from 'express';
@@ -8,11 +12,12 @@ export function listenHosted(
     app: Express,
     host: string,
     port: number,
-    httpsOrigin?: URL
+    httpsOrigin?: URL,
+    tls?: ServerOptions
 ): Promise<Server> {
     const lan = host !== '127.0.0.1';
     const peers = new BlockList();
-    if (lan) {
+    if (lan && !tls) {
         const address = Object.values(networkInterfaces())
             .flat()
             .find(
@@ -32,7 +37,7 @@ export function listenHosted(
             throw new Error('LAN subnet is unavailable');
         peers.addSubnet(host, prefix, 'ipv4');
     }
-    const server = createServer((request, response) => {
+    const handle: RequestListener = (request, response) => {
         const authority = `${host}:${request.socket.localPort}`;
         const origin = request.headers.origin;
         const local =
@@ -42,14 +47,14 @@ export function listenHosted(
         // The configured proxy connects over loopback and preserves Host.
         // Forwarded headers do not decide whether a request is trusted.
         const proxied =
-            !lan &&
-            request.socket.remoteAddress === '127.0.0.1' &&
+            (tls || (!lan && request.socket.remoteAddress === '127.0.0.1')) &&
             httpsOrigin !== undefined &&
             request.headers.host === httpsOrigin.host &&
             (!origin || origin === httpsOrigin.origin);
         // Reject unrelated browser origins and DNS rebinding to this listener.
         if (
             (lan &&
+                !tls &&
                 (!request.socket.remoteAddress ||
                     !peers.check(request.socket.remoteAddress, 'ipv4'))) ||
             (!local && !proxied)
@@ -63,7 +68,8 @@ export function listenHosted(
             response.setHeader('Cache-Control', 'no-store');
         }
         app(request, response);
-    });
+    };
+    const server = tls ? createTlsServer(tls, handle) : createServer(handle);
     return new Promise((resolve, reject) => {
         server.once('error', reject);
         server.listen(port, host, () => {

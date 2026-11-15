@@ -4,7 +4,7 @@ plugins {
 
 android {
     namespace 'org.tvshell.iptvnator'
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId 'org.tvshell.iptvnator'
@@ -70,12 +70,42 @@ android {
     }
 }
 
+configurations { hostedQrTest }
+
 dependencies {
     implementation project(':backend')
+    implementation 'com.google.zxing:core:3.5.3'
+    hostedQrTest 'com.google.zxing:core:3.5.3'
+    implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
     implementation 'androidx.webkit:webkit:1.13.0'
+    implementation 'androidx.browser:browser:1.9.0'
+    // Auth Tab's ComponentActivity and result launcher are used directly here.
+    // Browser exposes Activity only at runtime, so it must also be a compile dependency.
+    implementation 'androidx.activity:activity:1.9.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     // Last published NanoHTTPD. Known advisories do not apply: CVE-2020-13697 is in
     // RouterNanoHTTPD (nanolets, not used); CVE-2022-21230 concerns temp files in a shared
     // java.io.tmpdir, which on Android is the app-private cache dir. Request bodies are
     // capped in TvShellServer before NanoHTTPD parses them.
     implementation 'org.nanohttpd:nanohttpd:2.3.1'
 }
+
+// Pure-Java origin and redirect rules run without an emulator or Android stubs.
+def hostedTestClasses = layout.buildDirectory.dir('hostedConnectionTests')
+tasks.register('compileHostedConnectionTests', JavaCompile) {
+    source fileTree('src/main/java') { include '**/LayoutPolicy.java', '**/HostedOrigin.java', '**/HostedAccessRedirect.java', '**/PairingLink.java', '**/PairingTransport.java', '**/PairingAttempts.java', '**/QrImageDecoder.java' }
+    source fileTree('src/test/java') { include '**/LayoutPolicyTest.java', '**/HostedOriginTest.java', '**/HostedAccessRedirectTest.java', '**/PairingLinkTest.java', '**/PairingTransportTest.java', '**/PairingAttemptsTest.java', '**/PairingQrTest.java' }
+    classpath = configurations.hostedQrTest
+    destinationDirectory = hostedTestClasses
+    sourceCompatibility = '11'
+    targetCompatibility = '11'
+    options.encoding = 'UTF-8'
+}
+tasks.register('hostedConnectionTests', JavaExec) {
+    group = 'verification'
+    description = 'Checks hosted origin validation and Access redirect diagnostics.'
+    dependsOn 'compileHostedConnectionTests'
+    classpath = files(hostedTestClasses) + configurations.hostedQrTest
+    mainClass = 'org.tvshell.iptvnator.ui.HostedAccessRedirectTest'
+}
+tasks.named('check') { dependsOn 'hostedConnectionTests' }

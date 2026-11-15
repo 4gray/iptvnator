@@ -36,6 +36,13 @@ une release : **Actions → Build TV shell APK → Run workflow**, cochez
 `prerelease` doit rester coché : une release « Latest » sans les fichiers de
 l'app desktop casserait sa mise à jour automatique).
 
+## Téléphones et tablettes Android
+
+Le mode **Auto** utilise une interface tactile à la largeur de l’écran sur
+téléphone et tablette. La rotation conserve la page ouverte. Le bouton
+**Réglages** permet de choisir le mode **Auto**, **Téléphone / tablette** ou
+**TV**. Le mode **TV** conserve les largeurs 960, 1280 et 1600 px.
+
 ## Touches
 
 | Télécommande | Action |

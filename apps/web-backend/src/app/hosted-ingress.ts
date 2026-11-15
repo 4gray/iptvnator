@@ -24,3 +24,9 @@ export function markHostedLan(request: IncomingMessage, origin: string): void {
 export function hostedLanOrigin(request: IncomingMessage): string | undefined {
     return lan.get(request);
 }
+
+export const hostedWorkerSockets = new WeakSet<object>();
+
+export function isHostedWorkerRequest(request: IncomingMessage): boolean {
+    return hostedWorkerSockets.has(request.socket);
+}

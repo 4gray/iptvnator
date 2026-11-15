@@ -62,6 +62,15 @@ export async function prepareSourceConnection(
             selected = window.electron.sourceSyncConnection();
             return;
         }
+        const nativeAccess = window as Window & {
+            HostedAccessApi?: unknown;
+            __iptvnatorHostedAccessInstance?: string;
+        };
+        const instanceId = nativeAccess.__iptvnatorHostedAccessInstance;
+        if (nativeAccess.HostedAccessApi && typeof instanceId === 'string' && instanceId) {
+            selected = { apiUrl: `${location.origin}/api`, instanceId };
+            return;
+        }
         const bridge = hostedPairingBridge();
         if (bridge && runtimeBackendUrl) {
             const paired = await restoreNativeHostedPairing(

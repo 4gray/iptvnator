@@ -24,6 +24,12 @@ import {
 } from '../services/source-server-config';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 import { SourceServerTransport } from './source-server-transport';
+import {
+    getHostedServerInstanceId,
+    hostedWorkerRequest,
+    HOSTED_SERVER_LOCAL_URL,
+} from '../services/hosted-server-session';
+import { HOSTED_SERVER_INSTANCE_ID, store } from '../services/store.service';
 
 function route(request: SourceServerRequest): { path: string; method: string } {
     const id = encodeURIComponent(request.id ?? '');
@@ -77,10 +83,47 @@ export async function sourceServerRequest(
     apiUrl: string,
     token: string,
     request: SourceServerRequest,
-    instanceId?: string
+    instanceId?: string,
+    useHosted = false
 ): Promise<SourceServerResponse> {
     const target = route(request);
     if (request.source) validateSource(request.source);
+    if (apiUrl === HOSTED_SERVER_LOCAL_URL + '/api') {
+        const hostedInstance = store.get(HOSTED_SERVER_INSTANCE_ID);
+        if (useHosted || (instanceId && instanceId === hostedInstance)) {
+            const worker = hostedWorkerRequest(
+                instanceId ? { apiUrl, instanceId } : undefined
+            );
+            if (!worker) throw new Error('SOURCE_SYNC.OFFLINE');
+            try {
+                return await worker({
+                    ...target,
+                    headers: {
+                        ...(instanceId
+                            ? { 'X-IPTVnator-Instance-Id': instanceId }
+                            : {}),
+                        ...(request.operation === 'create'
+                            ? { 'If-None-Match': '*' }
+                            : {}),
+                        ...(request.revision
+                            ? {
+                                  [request.operation === 'list'
+                                      ? 'If-None-Match'
+                                      : 'If-Match']: request.revision,
+                              }
+                            : {}),
+                    },
+                    body:
+                        request.history ??
+                        request.favorite ??
+                        request.activity ??
+                        request.source,
+                });
+            } catch {
+                throw new Error('SOURCE_SYNC.OFFLINE');
+            }
+        }
+    }
     try {
         const response = await requestWithValidatedRedirects(
             `${apiUrl}${target.path}`,
@@ -170,7 +213,13 @@ export function registerSourceSyncEvents(
     );
     ipcMain.handle(
         SOURCE_SYNC_CONFIGURE,
-        async (_event, url: string, token: string, restart: boolean) => {
+        async (
+            _event,
+            url: string,
+            token: string,
+            restart: boolean,
+            useHosted = false
+        ) => {
             let configured: ReturnType<typeof readSourceServerConfig> = null;
             try {
                 configured = readSourceServerConfig();
@@ -183,9 +232,32 @@ export function registerSourceSyncEvents(
                     : normalizeSourceServerUrl(url);
             if (typeof token !== 'string' || token.length > 8192)
                 throw new Error('Invalid access token');
-            const probe = await sourceServerRequest(apiUrl, token, {
-                operation: 'instance',
-            });
+            if (
+                useHosted &&
+                (apiUrl !== HOSTED_SERVER_LOCAL_URL + '/api' ||
+                    !hostedWorkerRequest())
+            )
+                throw new Error('SOURCE_SYNC.OFFLINE');
+            const previousInstance =
+                configured?.apiUrl === apiUrl
+                    ? configured.instanceId
+                    : undefined;
+            const hosted =
+                useHosted ||
+                (apiUrl === HOSTED_SERVER_LOCAL_URL + '/api' &&
+                    !!previousInstance &&
+                    (configured?.hosted === true ||
+                        previousInstance ===
+                            store.get(HOSTED_SERVER_INSTANCE_ID)));
+            const probe = await sourceServerRequest(
+                apiUrl,
+                token,
+                {
+                    operation: 'instance',
+                },
+                useHosted ? getHostedServerInstanceId() : previousInstance,
+                hosted
+            );
             if ([401, 403].includes(probe.status))
                 throw new Error('SOURCE_SYNC.LOCKED');
             if (probe.status >= 500)
@@ -213,7 +285,8 @@ export function registerSourceSyncEvents(
                 apiUrl,
                 token,
                 { operation: 'list' },
-                instance.instanceId
+                instance.instanceId,
+                hosted
             );
             if (check.status !== 200)
                 throw new Error(
@@ -222,7 +295,11 @@ export function registerSourceSyncEvents(
                         : 'SOURCE_SYNC.REQUEST_FAILED'
                 );
             const persisted = saveSourceServerConfig(
-                { apiUrl, instanceId: instance.instanceId },
+                {
+                    apiUrl,
+                    instanceId: instance.instanceId,
+                    ...(hosted ? { hosted: true } : {}),
+                },
                 token
             );
             const needsRestart =

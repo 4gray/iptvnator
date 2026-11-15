@@ -27,6 +27,23 @@ describe('source server selection and authorization', () => {
         window.electron = originalElectron;
         globalThis.fetch = originalFetch;
         Reflect.deleteProperty(window, 'HostedPairing');
+        Reflect.deleteProperty(window, 'HostedAccessApi');
+        Reflect.deleteProperty(window, '__iptvnatorHostedAccessInstance');
+    });
+
+    it('uses the verified native tunnel instance despite cached browser settings', async () => {
+        Reflect.set(window, 'HostedAccessApi', {});
+        Reflect.set(window, '__iptvnatorHostedAccessInstance', 'verified-host');
+        localStorage.setItem('iptvnator:source-server', '{invalid');
+        localStorage.setItem('iptvnator:source-server-disabled', 'true');
+        const fetch = jest.fn();
+        globalThis.fetch = fetch;
+        await prepareSourceConnection('/api');
+        expect(sourceConnection()).toEqual({
+            apiUrl: `${location.origin}/api`,
+            instanceId: 'verified-host',
+        });
+        expect(fetch).not.toHaveBeenCalled();
     });
 
     it('restores an Android pairing only for the verified same-origin API and lets the device forget it', async () => {

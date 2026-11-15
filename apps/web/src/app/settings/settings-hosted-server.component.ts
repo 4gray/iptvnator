@@ -2,82 +2,71 @@ import {
     ChangeDetectionStrategy,
     Component,
     DestroyRef,
-    inject,
+    Injectable,
     computed,
+    inject,
     signal,
 } from '@angular/core';
-import { NgTemplateOutlet } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Clipboard } from '@angular/cdk/clipboard';
+import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
-import { MatRadioModule } from '@angular/material/radio';
-import { FormsModule } from '@angular/forms';
-import { QRCodeComponent } from 'angularx-qrcode';
-import { parseHostedHttpsOrigin } from '@iptvnator/shared/interfaces';
+import { MatSelectModule } from '@angular/material/select';
+import { TranslateModule } from '@ngx-translate/core';
+import { timer } from 'rxjs';
+import {
+    parseHostedHttpsOrigin,
+    type HostedCloudflareStatus,
+    type HostedServerMode,
+    type HostedServerCommand,
+    type HostedServerStatus,
+} from '@iptvnator/shared/interfaces';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 import { SERVER_GUIDES } from './settings-server-about-dialog.component';
 import { SettingsHostedDevicesComponent } from './settings-hosted-devices.component';
 import { SettingsSyncStatusComponent } from './settings-sync-status.component';
-import { MatIconModule } from '@angular/material/icon';
-import { MatButtonModule } from '@angular/material/button';
-import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
-import { TranslateModule } from '@ngx-translate/core';
-import type {
-    HostedCloudflareCommand,
-    HostedCloudflareStatus,
-    HostedServerCommand,
-    HostedServerStatus,
-} from '@iptvnator/shared/interfaces';
-import { timer } from 'rxjs';
 
-type CloudflareStart = Extract<HostedCloudflareCommand, { start: true }>;
-type AccessMethod = 'lan' | 'https' | 'cloudflare';
+type Mode = Exclude<HostedServerMode['mode'], 'proxy'>;
 
-const unavailableConnector: HostedCloudflareStatus = {
-    state: 'unavailable',
-    savedToken: false,
-    secureStorage: false,
+const ACCESS_MODE_LABELS = {
+    lan: 'HOSTED_SERVER.HOME_NETWORK',
+    https: 'HOSTED_SERVER.CUSTOM_HTTPS',
+    cloudflare: 'HOSTED_SERVER.TUNNEL',
+} satisfies Record<Mode, string>;
+
+type ServerDraft = {
+    address: string;
+    openLan: boolean;
+    origin: string;
+    certificate: string;
+    key: string;
+    team: string;
+    audience: string;
+    managed: boolean;
+    token: string;
 };
 
-function shareableUrl(
-    value: string | undefined,
-    protocol: 'http:' | 'https:'
-): string {
-    if (!value) return '';
-    try {
-        const url = new URL(value);
-        const host = url.hostname.replace(/\.$/, '');
-        const validHost =
-            protocol === 'http:'
-                ? /^\d{1,3}(\.\d{1,3}){3}$/.test(host) &&
-                  /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host)
-                : !/^(127\.|0\.|\[::1\]$|\[::\]$|\[::ffff:)/.test(host) &&
-                  host !== 'localhost' &&
-                  !host.endsWith('.localhost');
-        return url.protocol === protocol && validHost ? value : '';
-    } catch {
-        return '';
-    }
+@Injectable({ providedIn: 'root' })
+class HostedServerDrafts {
+    mode?: Mode;
+    readonly values = new Map<Mode, ServerDraft>();
 }
 
 @Component({
     selector: 'app-settings-hosted-server',
     providers: [provideFormFieldDefaults()],
     imports: [
-        NgTemplateOutlet,
         SettingsHostedDevicesComponent,
         SettingsSyncStatusComponent,
-        MatIconModule,
+        FormsModule,
         MatButtonModule,
         MatCheckboxModule,
         MatFormFieldModule,
-        MatSelectModule,
         MatInputModule,
-        MatRadioModule,
-        FormsModule,
-        QRCodeComponent,
+        MatSelectModule,
         TranslateModule,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -89,102 +78,83 @@ function shareableUrl(
 })
 export class SettingsHostedServerComponent {
     readonly guides = SERVER_GUIDES;
-    readonly deviceControlAvailable = !!window.electron?.hostedDeviceControl;
-    readonly accessOptions = [
-        { value: 'lan', label: 'HOME_NETWORK' },
-        { value: 'https', label: 'CUSTOM_HTTPS' },
-        { value: 'cloudflare', label: 'MANUAL_CLOUDFLARE' },
-    ] as const;
-    readonly stateKeys = {
-        unavailable: '',
-        stopped: 'HOSTED_SERVER.STATE_stopped',
-        starting: 'HOSTED_SERVER.STATE_starting',
-        running: 'HOSTED_SERVER.STATE_running',
-        stopping: 'HOSTED_SERVER.STATE_stopping',
-        error: 'HOSTED_SERVER.STATE_error',
-    } satisfies Record<HostedServerStatus['state'], string>;
-    readonly errorKeys = {
-        port: 'HOSTED_SERVER.ERROR_port',
-        startup: 'HOSTED_SERVER.ERROR_startup',
-    };
     readonly status = signal<HostedServerStatus>({ state: 'unavailable' });
+    readonly connector = signal<HostedCloudflareStatus | undefined>(undefined);
     readonly busy = signal(false);
-    readonly lanSetup = signal(false);
-    readonly addressChoice = signal('');
-    readonly addresses = computed(() => this.status().availableAddresses ?? []);
-    readonly address = computed(() => {
-        const selected = this.addressChoice() || this.status().lanAddress;
-        return selected && this.addresses().includes(selected)
-            ? selected
-            : this.addresses()[0];
-    });
-    readonly code = signal('');
+    readonly error = signal('');
     readonly feedback = signal('');
-    readonly accessChoice = signal<AccessMethod | null>(null);
-    readonly accessMethod = computed(() => {
-        const choice = this.accessChoice();
-        if (choice && (choice !== 'cloudflare' || this.cloudflareAvailable()))
-            return choice;
-        return 'lan';
+    readonly mode = signal<Mode>('lan');
+    readonly address = signal('');
+    readonly lanShareAddress = signal('');
+    readonly openLan = signal(false);
+    readonly origin = signal('');
+    readonly certificate = signal('');
+    readonly key = signal('');
+    readonly team = signal('');
+    readonly audience = signal('');
+    readonly managed = signal(false);
+    readonly token = signal('');
+    readonly endpoint = computed(
+        () =>
+            this.status().endpoint ??
+            this.status().lanUrl ??
+            this.status().httpsOrigin
+    );
+    readonly accessModeLabel = computed(() => {
+        if (!this.endpoint()) return 'HOSTED_SERVER.PC_ONLY';
+        const status = this.status();
+        const mode = status.mode;
+        return ACCESS_MODE_LABELS[
+            mode && mode !== 'proxy' ? mode : status.httpsOrigin ? 'https' : 'lan'
+        ];
     });
-    readonly remoteSelected = computed(
+    readonly canPair = computed(
         () =>
-            this.accessMethod() === 'https' ||
-            this.accessMethod() === 'cloudflare'
+            !!this.endpoint() &&
+            (this.status().mode !== 'cloudflare' ||
+                this.status().publicRoute === 'access-protected')
     );
-    readonly httpsAddress = signal('');
-    readonly httpsInvalid = signal(false);
-    readonly qrAddress = signal('');
-    readonly lanUrl = computed(() =>
-        shareableUrl(this.status().lanUrl, 'http:')
-    );
-    readonly httpsQrAddress = computed(() =>
-        shareableUrl(this.status().httpsOrigin, 'https:')
-    );
-    readonly cloudflare = signal(unavailableConnector);
-    readonly cloudflareAvailable = computed(
+    readonly pairingUnavailableReason = computed(() => {
+        const { mode, publicRoute } = this.status();
+        return mode === 'cloudflare' && !this.canPair()
+            ? `HOSTED_SERVER.ROUTE_${publicRoute ?? 'unchecked'}`
+            : undefined;
+    });
+    readonly canShareOnLan = computed(
         () =>
-            this.cloudflare().state !== 'unavailable' &&
-            !this.connectorStatusUnknown()
+            this.status().state === 'running' &&
+            !this.busy() &&
+            !this.endpoint() &&
+            !!this.status().availableAddresses?.includes(this.lanShareAddress())
     );
-    readonly cloudflareToken = signal('');
-    readonly cloudflareProtected = signal(false);
-    readonly cloudflareVerified = signal(false);
-    readonly cloudflareError = signal('');
-    readonly canStartCloudflare = computed(
+    readonly canSubmit = computed(
         () =>
-            this.cloudflareAvailable() &&
-            !this.connectorStatusUnknown() &&
-            this.cloudflare().secureStorage &&
-            this.cloudflareProtected() &&
-            (!!this.cloudflareToken().trim() || this.cloudflare().savedToken)
+            !this.busy() &&
+            (this.mode() === 'lan'
+                ? !this.openLan() || !!this.address()
+                : !!this.origin().trim() &&
+                  (this.mode() !== 'https' ||
+                      (!!this.certificate().trim() && !!this.key().trim())) &&
+                  (this.mode() !== 'cloudflare' ||
+                      (!!this.team().trim() &&
+                          !!this.audience().trim() &&
+                          (!this.managed() ||
+                              (this.connector()?.secureStorage &&
+                                  (!!this.token().trim() ||
+                                      this.connector()?.savedToken))))))
     );
-    readonly httpsSetupComplete = computed(
-        () =>
-            !!this.httpsAddress().trim() &&
-            (this.accessMethod() !== 'cloudflare' || this.canStartCloudflare())
-    );
-    private readonly cloudflareIngress = signal(false);
-    private readonly connectorStatusUnknown = signal(false);
-    readonly isCloudflareHttps = computed(
-        () =>
-            this.cloudflareIngress() ||
-            (this.cloudflareAvailable() &&
-                this.cloudflare().state !== 'stopped')
-    );
-    readonly canShareHttps = computed(
-        () =>
-            !this.connectorStatusUnknown() &&
-            (!this.isCloudflareHttps() ||
-                (!this.busy() &&
-                    this.cloudflare().state === 'running' &&
-                    this.cloudflareVerified()))
-    );
-    private transition = 0;
+
     private readonly clipboard = inject(Clipboard);
     private readonly destroyRef = inject(DestroyRef);
+    private readonly drafts = inject(HostedServerDrafts);
+    private initialized = false;
+    private reading = false;
+    private revision = 0;
 
     constructor() {
+        this.destroyRef.onDestroy(() => {
+            if (this.initialized) this.rememberDraft();
+        });
         timer(0, 3000)
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe(() => {
@@ -192,197 +162,85 @@ export class SettingsHostedServerComponent {
             });
     }
 
-    private async readStatus(): Promise<void> {
-        const transition = this.transition;
-        try {
-            const [status, cloudflare] = await Promise.all([
-                window.electron.hostedServerControl!('status'),
-                window.electron
-                    .hostedCloudflareControl?.('status')
-                    .catch(() => null),
-            ]);
-            if (transition !== this.transition) return;
-            this.connectorStatusUnknown.set(cloudflare === null);
-            if (cloudflare) this.cloudflare.set(cloudflare);
-            if (cloudflare?.state !== 'running')
-                this.cloudflareVerified.set(false);
-            this.status.set(status);
-            if (status.state !== 'running') this.code.set('');
-            if (!status.httpsOrigin) this.cloudflareIngress.set(false);
-        } catch {
-            if (transition === this.transition)
-                this.status.set({ state: 'error', error: 'startup' });
-        }
+    selectMode(mode: Mode): void {
+        if (mode === this.mode()) return;
+        this.rememberDraft();
+        this.showMode(mode, this.status());
     }
 
-    async control(
-        command: Exclude<HostedServerCommand, 'status'>,
-        httpsOrigin?: string,
-        cloudflareStart?: CloudflareStart
-    ): Promise<void> {
-        if (this.busy()) return;
-        const httpsCommand =
-            typeof command === 'object' && 'httpsOrigin' in command;
-        const restartCommand =
-            typeof command === 'object' && 'restart' in command;
-        this.transition++;
-        this.busy.set(true);
-        this.code.set('');
-        this.qrAddress.set('');
-        this.feedback.set('');
-        this.cloudflareError.set('');
-        this.cloudflareVerified.set(false);
-        this.status.update((current) => ({
-            ...current,
-            state: httpsCommand
-                ? current.state
-                : command === 'stop'
-                  ? 'stopping'
-                  : 'starting',
-            error: undefined,
-        }));
-        try {
-            let status = await window.electron.hostedServerControl!(command);
-            this.status.set(status);
-            if (httpsOrigin && status.state === 'running') {
-                status = await window.electron.hostedServerControl!({
-                    httpsOrigin,
-                });
-                this.status.set(status);
-            }
-            if (cloudflareStart && status.httpsOrigin && !status.httpsError)
-                await this.startCloudflare(cloudflareStart);
-            if (!this.status().httpsOrigin) this.cloudflareIngress.set(false);
-            if (command === 'stop' || restartCommand) {
-                this.lanSetup.set(false);
-                this.cloudflareProtected.set(false);
-            }
-            if (restartCommand && this.lanUrl()) this.accessChoice.set(null);
-        } catch {
-            if (restartCommand) {
-                await this.readStatus();
-                this.feedback.set('HOSTED_SERVER.LAN_RESTART_FAILED');
-            } else if (httpsCommand || this.status().state === 'running') {
-                this.status.update((current) => ({
-                    ...current,
-                    httpsError: true,
-                }));
-            } else {
-                this.status.set({ state: 'error', error: 'startup' });
-            }
-        } finally {
-            this.busy.set(false);
-        }
-    }
-
-    restartForLan(): void {
+    async start(): Promise<void> {
+        if (!this.canSubmit()) return;
+        const mode = this.mode();
         const address = this.address();
-        const status = this.status();
-        if (
-            !this.lanSetup() ||
-            status.state !== 'running' ||
-            status.httpsOrigin ||
-            this.lanUrl() ||
-            !address
-        )
-            return;
-        void this.control({ restart: true, lanAddress: address });
-    }
-
-    start(): void {
-        if (this.busy()) return;
-        const address = this.accessMethod() === 'lan' ? this.address() : '';
-        if (address === undefined) return;
-        const useHttps = this.remoteSelected();
-        const useCloudflare = this.accessMethod() === 'cloudflare';
-        if (useCloudflare && !this.canStartCloudflare()) return;
-        const httpsOrigin = useHttps ? this.readHttpsOrigin() : undefined;
-        if (useHttps && !httpsOrigin) return;
-        if (useCloudflare) this.cloudflareIngress.set(true);
-        void this.control(
-            address ? { start: true, lanAddress: address } : { start: true },
-            httpsOrigin,
-            useCloudflare ? this.cloudflareStartCommand() : undefined
-        );
-    }
-
-    enableHttps(): void {
-        if (this.status().state !== 'running' || this.busy()) return;
-        const useCloudflare = this.accessMethod() === 'cloudflare';
-        if (useCloudflare && !this.canStartCloudflare()) return;
-        const httpsOrigin = this.readHttpsOrigin();
-        if (!httpsOrigin) return;
-        if (useCloudflare) this.cloudflareIngress.set(true);
-        void this.control(
-            { httpsOrigin },
-            undefined,
-            useCloudflare ? this.cloudflareStartCommand() : undefined
-        );
-    }
-
-    async stopHttps(): Promise<void> {
-        await this.control({ httpsOrigin: '' });
-        if (!this.status().httpsOrigin) {
-            this.accessChoice.set(null);
-            this.cloudflareProtected.set(false);
-        }
-    }
-
-    editHttpsAddress(value: string): void {
-        if (value !== this.httpsAddress()) this.cloudflareProtected.set(false);
-        this.httpsAddress.set(value);
-        this.httpsInvalid.set(false);
-    }
-
-    async forgetCloudflare(): Promise<void> {
-        if (this.busy()) return;
-        this.transition++;
-        this.busy.set(true);
-        this.cloudflareError.set('');
+        let configuration: HostedServerMode;
         try {
-            this.cloudflare.set(
+            if (mode === 'lan') {
+                configuration = {
+                    mode,
+                    address,
+                    access: this.openLan() ? 'open' : 'paired',
+                };
+            } else {
+                const origin = parseHostedHttpsOrigin(
+                    this.origin().trim()
+                ).origin;
+                const certificatePath = this.certificate().trim();
+                const keyPath = this.key().trim();
+                configuration =
+                    mode === 'cloudflare'
+                        ? {
+                              mode,
+                              origin,
+                              certificatePath,
+                              keyPath,
+                              team: this.team().trim(),
+                              audience: this.audience().trim(),
+                              managed: this.managed(),
+                          }
+                        : { mode, origin, address, certificatePath, keyPath };
+            }
+        } catch {
+            this.error.set('HOSTED_SERVER.HTTPS_INVALID');
+            return;
+        }
+        const connectorToken =
+            mode === 'cloudflare' && this.managed() ? this.token().trim() : '';
+        if (mode === 'cloudflare') this.token.set('');
+        await this.control({
+            start: true,
+            configuration,
+            ...(connectorToken ? { connectorToken } : {}),
+        });
+    }
+
+    async stop(): Promise<void> {
+        await this.control('stop');
+    }
+
+    async shareOnLan(): Promise<void> {
+        if (!this.canShareOnLan()) return;
+
+        const address = this.lanShareAddress();
+        this.selectMode('lan');
+        this.address.set(address);
+        this.openLan.set(false);
+        await this.start();
+        if (this.endpoint()) this.lanShareAddress.set('');
+    }
+
+    async forgetToken(): Promise<void> {
+        if (this.busy() || this.status().state === 'running') return;
+        this.busy.set(true);
+        this.revision++;
+        try {
+            this.connector.set(
                 await window.electron.hostedCloudflareControl!('forget')
             );
-            this.cloudflareToken.set('');
+            this.token.set('');
         } catch {
-            this.cloudflareError.set('HOSTED_SERVER.CLOUDFLARE_FORGET_FAILED');
+            this.error.set('HOSTED_SERVER.CLOUDFLARE_FORGET_FAILED');
         } finally {
             this.busy.set(false);
-        }
-    }
-
-    private cloudflareStartCommand(): CloudflareStart {
-        const token = this.cloudflareToken().trim();
-        return token ? { start: true, token } : { start: true };
-    }
-
-    private async startCloudflare(command: CloudflareStart): Promise<void> {
-        this.cloudflareToken.set('');
-        try {
-            const result =
-                await window.electron.hostedCloudflareControl!(command);
-            this.cloudflare.set(result);
-            if (result.state === 'running') return;
-        } catch {
-            // Bridge errors can contain credential or process details.
-        }
-        this.cloudflareError.set('HOSTED_SERVER.CLOUDFLARE_FAILED');
-        const status = await window.electron.hostedServerControl!({
-            httpsOrigin: '',
-        });
-        this.status.set(status);
-    }
-
-    private readHttpsOrigin(): string | undefined {
-        try {
-            const origin = parseHostedHttpsOrigin(
-                this.httpsAddress().trim()
-            ).origin;
-            this.httpsInvalid.set(false);
-            return origin;
-        } catch {
-            this.httpsInvalid.set(true);
-            return undefined;
         }
     }
 
@@ -394,17 +252,102 @@ export class SettingsHostedServerComponent {
         );
     }
 
-    async showCode(): Promise<void> {
-        if (this.code()) {
-            this.code.set('');
-            return;
-        }
-        const transition = this.transition;
+    selectPemFile(input: HTMLInputElement, field: 'certificate' | 'key'): void {
+        const file = input.files?.[0];
+        input.value = '';
+        if (!file || this.busy() || this.mode() !== 'https') return;
+        const path = window.electron.getPathForFile?.(file);
+        if (path) this[field].set(path);
+    }
+
+    private async readStatus(): Promise<void> {
+        if (this.reading) return;
+        this.reading = true;
+        const revision = this.revision;
         try {
-            const code = await window.electron.hostedServerAccessCode!();
-            if (transition === this.transition) this.code.set(code);
+            const [status, connector] = await Promise.all([
+                window.electron.hostedServerControl!('status'),
+                window.electron
+                    .hostedCloudflareControl?.('status')
+                    .catch(() => undefined),
+            ]);
+            if (revision !== this.revision || this.destroyRef.destroyed) return;
+            this.status.set(status);
+            this.connector.set(connector);
+            if (!this.initialized) {
+                this.initialized = true;
+                const savedMode = status.configuration?.mode;
+                const supportedMode = savedMode === 'proxy'
+                    ? status.savedConfigurations?.https ? 'https' : 'lan'
+                    : savedMode ?? 'lan';
+                this.showMode(this.drafts.mode ?? supportedMode, status);
+            }
         } catch {
-            this.feedback.set('HOSTED_SERVER.CODE_FAILED');
+            if (revision === this.revision)
+                this.error.set('HOSTED_SERVER.ERROR_startup');
+        } finally {
+            this.reading = false;
+        }
+    }
+
+    private rememberDraft(): void {
+        const mode = this.mode();
+        this.drafts.mode = mode;
+        this.drafts.values.set(mode, {
+            address: this.address(),
+            openLan: this.openLan(),
+            origin: this.origin(),
+            certificate: this.certificate(),
+            key: this.key(),
+            team: this.team(),
+            audience: this.audience(),
+            managed: this.managed(),
+            token: this.token(),
+        });
+    }
+
+    private showMode(mode: Mode, status: HostedServerStatus): void {
+        const config = status.configuration?.mode === mode
+            ? status.configuration
+            : status.savedConfigurations?.[mode];
+        const draft = this.drafts.values.get(mode);
+        const tls = config && config.mode !== 'lan' ? config : undefined;
+        const tunnel = config?.mode === 'cloudflare' ? config : undefined;
+        this.mode.set(mode);
+        const defaultAddress = mode === 'lan'
+            ? status.lanAddress ?? status.availableAddresses?.[0] ?? ''
+            : '';
+        this.address.set(draft?.address ?? (config && 'address' in config
+            ? config.address
+            : defaultAddress));
+        this.openLan.set(draft?.openLan ?? (config?.mode === 'lan' && config.access === 'open'));
+        this.origin.set(draft?.origin ?? tls?.origin ?? '');
+        this.certificate.set(draft?.certificate ?? tls?.certificatePath ?? '');
+        this.key.set(draft?.key ?? tls?.keyPath ?? '');
+        this.team.set(draft?.team ?? tunnel?.team ?? '');
+        this.audience.set(draft?.audience ?? tunnel?.audience ?? '');
+        this.managed.set(draft?.managed ?? tunnel?.managed ?? false);
+        this.token.set(draft?.token ?? '');
+        this.drafts.values.delete(mode);
+    }
+
+    private async control(
+        command: Exclude<HostedServerCommand, 'status'>
+    ): Promise<void> {
+        if (this.busy()) return;
+        this.busy.set(true);
+        this.revision++;
+        this.error.set('');
+        this.feedback.set('');
+        try {
+            this.status.set(
+                await window.electron.hostedServerControl!(command)
+            );
+        } catch {
+            this.error.set('HOSTED_SERVER.MODE_INVALID');
+        } finally {
+            this.busy.set(false);
+            void this.readStatus();
         }
     }
 }

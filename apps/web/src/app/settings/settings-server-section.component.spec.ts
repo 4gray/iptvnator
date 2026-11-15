@@ -33,7 +33,6 @@ describe('source server settings', () => {
         stateKey: signal('SOURCE_SYNC.STATE_connected'),
         errorKey: signal<string | null>(null),
         lastSync: signal<number | null>(null),
-        errorKey: signal<string | null>(null),
         refresh: jest.fn(),
     };
     const local = {
@@ -180,11 +179,26 @@ describe('source server settings', () => {
                 );
                 expect(findControl('android-library-connection')).toBeNull();
                 const scan = findControl('android-library-scan');
-                expect(scan).not.toBeNull();
+                expect(scan?.textContent).toContain('SETTINGS.ANDROID_SCAN_QR');
+                expect(scan?.closest('details')).toBeNull();
+                expect(scan?.classList.contains('settings-primary-button')).toBe(
+                    !origin
+                );
+                if (!origin) {
+                    const sourceSyncOptions = findControl(
+                        'android-source-sync-options'
+                    );
+                    expect(sourceSyncOptions?.closest('details')?.open).toBe(
+                        false
+                    );
+                }
                 scan?.click();
                 expect(scanLibraryQr).toHaveBeenCalledTimes(1);
                 const disconnect = findControl('android-library-disconnect');
                 if (origin) {
+                    expect(findControl('android-library-address')?.textContent).toContain(
+                        origin
+                    );
                     expect(disconnect).not.toBeNull();
                     disconnect?.click();
                     expect(disconnectLibrary).toHaveBeenCalledTimes(1);
@@ -193,6 +207,52 @@ describe('source server settings', () => {
                 }
             }
         );
+
+        it('reconnects to a saved server with the address shown separately', () => {
+            const origin = 'https://iptvnator-library.example';
+            const connectLibrary = jest.fn();
+            const removeLibraryPairing = jest.fn();
+            useAndroidShell(
+                {
+                    handheld: true,
+                    openSettingsSection,
+                    libraryConnection: () => ({
+                        origin: '',
+                        savedOrigin: origin,
+                        canScanQr: true,
+                        paired: true,
+                    }),
+                    scanLibraryQr: jest.fn(),
+                    disconnectLibrary: jest.fn(),
+                    pairLibrary: jest.fn(),
+                    connectLibrary,
+                    removeLibraryPairing,
+                },
+                null
+            );
+
+            expect(findControl('android-library-state')?.textContent).toContain(
+                'SETTINGS.ANDROID_LOCAL_LIBRARY'
+            );
+            expect(findControl('android-library-address')?.textContent).toContain(origin);
+            const reconnect = findControl('android-library-reconnect');
+            expect(reconnect?.textContent?.trim()).toBe('SOURCE_SYNC.CONNECT');
+            expect(reconnect?.classList.contains('settings-primary-button')).toBe(true);
+            reconnect?.click();
+            expect(connectLibrary).toHaveBeenCalledWith(origin);
+
+            const removePairing = findControl('android-library-remove-pairing');
+            const options = removePairing?.closest('details');
+            expect(options?.open).toBe(false);
+            if (options) options.open = true;
+            removePairing?.click();
+            expect(removeLibraryPairing).toHaveBeenCalledTimes(1);
+
+            findControl('android-source-sync-options')?.click();
+            fixture.detectChanges();
+            expect(findControl('source-server-url')?.closest('details')).toBe(options);
+            expect(findControl('source-server-connect')?.closest('details')).toBe(options);
+        });
 
         it('opens native Server settings and omits the browser connection form for a local library', () => {
             sync.state.set('local');

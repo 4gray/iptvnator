@@ -1,4 +1,5 @@
 import { SettingsHostedServerComponent } from './settings-hosted-server.component';
+import { NgTemplateOutlet } from '@angular/common';
 import {
     getAndroidLibraryControls,
     getAndroidSettingsControls,
@@ -54,6 +55,7 @@ import {
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [provideFormFieldDefaults()],
     imports: [
+        NgTemplateOutlet,
         SettingsActivitySectionComponent,
         SettingsHostedServerComponent,
         SettingsFavoritesSectionComponent,
@@ -106,10 +108,12 @@ export class SettingsServerSectionComponent {
     async connectHosted(url: string): Promise<void> {
         if (this.busy()) return;
         try {
-            const code = await window.electron.hostedServerAccessCode!();
+            const code = this.hostedServer()?.status().mode
+                ? ''
+                : await window.electron.hostedServerAccessCode!();
             this.urlControl.setValue(url);
             this.token = code;
-            await this.connect();
+            await this.connect(!!this.hostedServer()?.status().mode);
         } catch {
             this.message.set('HOSTED_SERVER.CODE_FAILED');
         } finally {
@@ -165,12 +169,12 @@ export class SettingsServerSectionComponent {
         }
     }
 
-    async connect(): Promise<void> {
+    async connect(useHosted = false): Promise<void> {
         if (this.busy()) return;
         this.message.set('');
         this.urlControl.markAsTouched();
         if (this.urlControl.invalid) return;
-        if (this.isCurrentServer() && !this.token) {
+        if (this.isCurrentServer() && !this.token && !useHosted) {
             await this.refresh();
             return;
         }
@@ -186,7 +190,8 @@ export class SettingsServerSectionComponent {
                 await window.electron.sourceSyncConfigure(
                     apiUrl,
                     this.token,
-                    !this.isCurrentServer()
+                    !this.isCurrentServer(),
+                    ...(useHosted ? ([true] as const) : [])
                 );
                 this.token = '';
                 if (this.isCurrentServer()) await this.sync.refresh();

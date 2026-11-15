@@ -769,7 +769,8 @@ export interface ElectronBridgeApi {
     sourceSyncConfigure?: (
         url: string,
         token: string,
-        restart: boolean
+        restart: boolean,
+        useHosted?: boolean
     ) => Promise<
         import('./source-sync.interface').SourceServerConnection & {
             tokenPersisted: boolean;

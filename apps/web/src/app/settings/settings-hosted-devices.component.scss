@@ -29,14 +29,59 @@
     color: var(--app-heading-color);
 }
 
+.pairing-requests {
+    width: 100%;
+
+    h4 {
+        margin: 0;
+        color: var(--app-heading-color);
+        font-size: 14px;
+        font-weight: 600;
+    }
+}
+
+.pairing-request-list {
+    display: grid;
+    gap: 8px;
+}
+
+.pairing-request {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: 12px 20px;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid var(--app-selection-border);
+    border-radius: 8px;
+    background: var(--app-selection-surface);
+
+    button {
+        max-inline-size: 100%;
+        min-block-size: 36px;
+        block-size: auto;
+        white-space: normal;
+    }
+}
+
+.pairing-request-identity {
+    flex: 1 1 12ch;
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+}
+
+.pairing-device-name {
+    color: var(--app-heading-color);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
 .pairing-code-group {
     display: grid;
-    justify-items: center;
+    justify-items: start;
     gap: 2px;
-    padding: 4px 12px;
-    border: 1px solid var(--app-widget-border);
-    border-radius: 6px;
-    background: var(--app-widget-bg);
 }
 
 .pairing-code-label {
@@ -46,22 +91,29 @@
 }
 
 .pairing-code {
-    color: var(--app-heading-color);
-    font-size: 24px;
-    font-weight: 700;
+    color: var(--app-selection-text-color);
+    font-family: var(--app-font-mono);
+    font-size: clamp(28px, 7cqi, 44px);
+    font-weight: 500;
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.14em;
     line-height: 1.2;
+    white-space: nowrap;
+    user-select: text;
 }
 
 .phone-pairing {
     width: 100%;
 
-    h4 {
-        margin: 0;
+    summary {
+        cursor: pointer;
         color: var(--app-heading-color);
         font-size: 13px;
         font-weight: 600;
         line-height: 1.5;
     }
+}
+
+.phone-pairing-content {
+    margin-block-start: 8px;
 }

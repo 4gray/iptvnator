@@ -32,6 +32,20 @@
     width: min(100%, 420px);
 }
 
+.hosted-lan-setup {
+    width: 100%;
+
+    summary {
+        color: var(--app-heading-color);
+        cursor: pointer;
+        font-weight: 600;
+    }
+
+    .hosted-stack {
+        margin-block-start: 8px;
+    }
+}
+
 .hosted-access-choices {
     width: 100%;
     display: grid;
@@ -112,4 +126,38 @@
 
 .hosted-guide {
     white-space: normal;
+}
+
+.hosted-mode-picker {
+    min-inline-size: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+
+    legend {
+        margin-block-end: 8px;
+        color: var(--app-heading-color);
+        font-weight: 600;
+    }
+
+    .hosted-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-block-size: 44px;
+        padding: 8px 12px;
+        cursor: pointer;
+    }
+
+    input {
+        margin: 0;
+        flex-shrink: 0;
+        accent-color: var(--mat-sys-primary);
+    }
+}
+
+.hosted-configuration-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+    gap: 12px;
 }

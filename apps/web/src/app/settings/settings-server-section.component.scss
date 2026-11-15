@@ -52,8 +52,39 @@
     }
 }
 
+.android-library-address {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    min-width: 0;
+
+    dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+    }
+
+    code {
+        color: var(--app-heading-color);
+        font-family: var(--app-font-mono);
+        font-size: 13px;
+    }
+}
+
+.android-connection-options {
+    border-top: 1px solid var(--app-widget-border);
+    padding-block-start: 12px;
+
+    summary {
+        color: var(--app-heading-color);
+        cursor: pointer;
+    }
+}
+
 .android-connection-fields {
+    display: grid;
+    gap: 12px;
     margin-block-start: 12px;
+    min-width: 0;
 }
 .server-actions {
     display: flex;

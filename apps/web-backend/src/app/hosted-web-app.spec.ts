@@ -6,7 +6,32 @@ import type { AddressInfo } from 'node:net';
 import { closeGracefully } from './graceful-shutdown';
 import { listenHosted } from './hosted-listener';
 import { createHostedWebApp } from './hosted-web-app';
+import { createHostedWorkerTransport } from './hosted-worker-transport';
 import { createWebBackendApp } from './web-backend-app';
+
+it('keeps Cloudflare authentication paths out of the hosted player', async () => {
+    const assets = await mkdtemp(join(tmpdir(), '.iptvnator-hosted-web-'));
+    try {
+        await writeFile(join(assets, 'index.html'), '<title>Synthetic PWA</title>');
+        const send = createHostedWorkerTransport(
+            createHostedWebApp(createWebBackendApp({}), assets)
+        );
+        const headers = { Accept: 'text/html' };
+        for (const path of [
+            '/cdn-cgi/access/authorize',
+            '/.well-known/oauth-authorization-server',
+        ]) {
+            const response = await send({ method: 'GET', path, headers });
+            expect(response.status).toBe(404);
+            expect(response.body).not.toContain('Synthetic PWA');
+        }
+        const player = await send({ method: 'GET', path: '/workspace/dashboard', headers });
+        expect(player.status).toBe(200);
+        expect(player.body).toContain('Synthetic PWA');
+    } finally {
+        await rm(assets, { recursive: true, force: true });
+    }
+});
 
 it('serves browser routes and authenticated API at one origin and rejects foreign hosts', async () => {
     const worktree = await mkdtemp(join(tmpdir(), '.iptvnator-hosted-web-'));

@@ -23,6 +23,7 @@ describe('hosted device settings', () => {
     let passwordConfigured: boolean;
     let fixture: ComponentFixture<SettingsHostedDevicesComponent>;
     let root: HTMLElement;
+    let currentInviteUrl: string;
 
     function clickButton(selector: string): void {
         const button = root.querySelector<HTMLButtonElement>(selector);
@@ -36,6 +37,7 @@ describe('hosted device settings', () => {
         jest.useFakeTimers();
         jest.setSystemTime(new Date('2030-01-01T12:00:00.000Z'));
         snapshot = { pending: [], devices: [] };
+        currentInviteUrl = inviteUrl;
         passwordConfigured = false;
         control.mockImplementation(
             async ({ action, password, deviceId, canApprove }) => {
@@ -46,7 +48,7 @@ describe('hosted device settings', () => {
                     passwordConfigured = password !== null;
                 if (action === 'invite')
                     return {
-                        url: inviteUrl,
+                        url: currentInviteUrl,
                         expiresAt: '2030-01-01T12:05:00.000Z',
                     };
                 if (action === 'approve')
@@ -94,6 +96,9 @@ describe('hosted device settings', () => {
     });
 
     it('shows a single-use QR, allows copying it, and requires approval and revocation actions', async () => {
+        expect(
+            root.querySelector('[data-test-id="hosted-device-pair"]')?.textContent
+        ).toContain('HOSTED_SERVER.PAIR_DEVICE');
         clickButton('[data-test-id="hosted-device-pair"]');
         await jest.advanceTimersByTimeAsync(0);
         fixture.detectChanges();
@@ -108,17 +113,26 @@ describe('hosted device settings', () => {
         expect(
             root.querySelector('[data-test-id="hosted-device-pair-qr"]')
         ).toBeNull();
-        const confirmationCode = root.querySelector(
-            '.pairing-code'
-        );
+        const confirmationCode = root.querySelector('.pairing-code');
         expect(confirmationCode?.textContent).toBe('012345');
-        expect(confirmationCode?.closest('.pairing-code-group')?.textContent)
-            .toContain('HOSTED_SERVER.PAIR_CODE');
+        expect(confirmationCode?.getAttribute('dir')).toBe('ltr');
+        expect(
+            confirmationCode?.closest('.pairing-code-group')?.textContent
+        ).toContain('HOSTED_SERVER.PAIR_CODE');
+        const approveSelector = '[data-test-id="hosted-device-approve"]';
+        const approve = root.querySelector(approveSelector);
+        expect(approve?.closest('li')).toBe(confirmationCode?.closest('li'));
+        expect(approve?.textContent).toContain('HOSTED_SERVER.PAIR_APPROVE');
+        expect(approve?.getAttribute('aria-describedby')?.split(' ')).toEqual([
+            `hosted-pairing-name-${claim.claimId}`,
+            `hosted-pairing-code-${claim.claimId}`,
+            'hosted-pairing-compare',
+        ]);
         expect(control).not.toHaveBeenCalledWith(
             expect.objectContaining({ action: 'approve' })
         );
 
-        clickButton('.device-row button');
+        clickButton(approveSelector);
         await jest.advanceTimersByTimeAsync(0);
         fixture.detectChanges();
         expect(control).toHaveBeenCalledWith({
@@ -142,6 +156,30 @@ describe('hosted device settings', () => {
         expect(root.textContent).toContain(
             'HOSTED_SERVER.PAIRED_DEVICES_EMPTY'
         );
+    });
+
+    it('hides the Cloudflare QR only when that invitation is closed', async () => {
+        fixture.componentRef.setInput('cloudflare', true);
+        fixture.detectChanges();
+        currentInviteUrl = `https://library.example.test/connect-device.html#iptvnator-access=synthetic&invite=${inviteId}`;
+        const qr = () => root.querySelector('[data-test-id="hosted-device-pair-qr"]');
+        snapshot = { pending: [], devices: [], inviteActive: true };
+        clickButton('[data-test-id="hosted-device-pair"]');
+        await jest.advanceTimersByTimeAsync(0);
+        fixture.detectChanges();
+        expect(control).toHaveBeenCalledWith({ action: 'list', inviteId });
+        expect(qr()).not.toBeNull();
+        // A different invitation was used.
+        snapshot = { pending: [], devices: [device], inviteActive: true };
+        await jest.advanceTimersByTimeAsync(2000);
+        fixture.detectChanges();
+        expect(qr()).not.toBeNull();
+        snapshot = { ...snapshot, inviteActive: false };
+        await jest.advanceTimersByTimeAsync(2000);
+        fixture.detectChanges();
+        expect(qr()).toBeNull();
+        expect(root.querySelector('[data-test-id="hosted-device-copy-link"]')).toBeNull();
+        expect(root.querySelector('.device-row')?.textContent).toContain(device.name);
     });
 
     it('shows pairing approval only after the server confirms the device setting', async () => {
@@ -198,6 +236,34 @@ describe('hosted device settings', () => {
         ).not.toBeNull();
     });
 
+    it('clears a displayed QR when the pairing mode or device address changes', async () => {
+        const qr = '[data-test-id="hosted-device-pair-qr"]';
+        const pair = '[data-test-id="hosted-device-pair"]';
+        fixture.componentRef.setInput('addressOnly', true);
+        fixture.componentRef.setInput('deviceEndpoint', 'http://192.168.40.5:4334');
+        fixture.detectChanges();
+        control.mockResolvedValueOnce({
+            url: 'http://192.168.40.5:4334',
+            expiresAt: null,
+        });
+        clickButton(pair);
+        await jest.advanceTimersByTimeAsync(0);
+        fixture.detectChanges();
+        expect(root.querySelector(qr)).not.toBeNull();
+
+        fixture.componentRef.setInput('addressOnly', false);
+        fixture.detectChanges();
+        expect(root.querySelector(qr)).toBeNull();
+        clickButton(pair);
+        await jest.advanceTimersByTimeAsync(0);
+        fixture.detectChanges();
+        expect(root.querySelector(qr)).not.toBeNull();
+
+        fixture.componentRef.setInput('deviceEndpoint', 'http://192.168.40.6:4334');
+        fixture.detectChanges();
+        expect(root.querySelector(qr)).toBeNull();
+    });
+
     it('configures, replaces and clears a masked phone approval password only while HTTPS is active', async () => {
         const passwordSelector =
             '[data-test-id="hosted-browser-pairing-password"]';
@@ -218,6 +284,10 @@ describe('hosted device settings', () => {
         expect(root.querySelector(clearSelector)).toBeNull();
 
         const input = root.querySelector<HTMLInputElement>(passwordSelector);
+        const options = input?.closest('details');
+        expect(options?.open).toBe(false);
+        options?.querySelector('summary')?.click();
+        expect(options?.open).toBe(true);
         expect(input?.type).toBe('password');
         expect(input?.minLength).toBe(12);
         expect(input?.maxLength).toBe(128);

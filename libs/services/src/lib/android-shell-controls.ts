@@ -17,6 +17,7 @@ export interface AndroidLibraryControls {
         paired?: boolean;
     };
     scanLibraryQr(): void;
+    inviteAccessDevice?(): void;
     disconnectLibrary(): void;
     removeLibraryPairing?(): void;
     pairLibrary(address: string, approvalAddress: string): void;

@@ -1,4 +1,9 @@
-import { HOSTED_SERVER_ACCESS_CODE, HOSTED_SERVER_CONTROL, HOSTED_CLOUDFLARE_CONTROL, HOSTED_DEVICE_CONTROL } from '@iptvnator/shared/interfaces';
+import {
+    HOSTED_SERVER_ACCESS_CODE,
+    HOSTED_SERVER_CONTROL,
+    HOSTED_CLOUDFLARE_CONTROL,
+    HOSTED_DEVICE_CONTROL,
+} from '@iptvnator/shared/interfaces';
 import { createAppMenuListener } from './app-menu-listener';
 import type {
     ElectronBridgeFavoriteReorderUpdate,
@@ -319,12 +324,21 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('DB_ACTIVITY_LOCAL', request),
     sourceSyncRequest: (request) =>
         ipcRenderer.invoke(SOURCE_SYNC_REQUEST, request),
-    hostedCloudflareControl: (command) => ipcRenderer.invoke(HOSTED_CLOUDFLARE_CONTROL, command),
-    hostedServerControl: (command) => ipcRenderer.invoke(HOSTED_SERVER_CONTROL, command),
+    hostedCloudflareControl: (command) =>
+        ipcRenderer.invoke(HOSTED_CLOUDFLARE_CONTROL, command),
+    hostedServerControl: (command) =>
+        ipcRenderer.invoke(HOSTED_SERVER_CONTROL, command),
     hostedServerAccessCode: () => ipcRenderer.invoke(HOSTED_SERVER_ACCESS_CODE),
-    hostedDeviceControl: (command) => ipcRenderer.invoke(HOSTED_DEVICE_CONTROL, command),
-    sourceSyncConfigure: (url, token, restart) =>
-        ipcRenderer.invoke(SOURCE_SYNC_CONFIGURE, url, token, restart),
+    hostedDeviceControl: (command) =>
+        ipcRenderer.invoke(HOSTED_DEVICE_CONTROL, command),
+    sourceSyncConfigure: (url, token, restart, useHosted) =>
+        ipcRenderer.invoke(
+            SOURCE_SYNC_CONFIGURE,
+            url,
+            token,
+            restart,
+            useHosted
+        ),
     sourceSyncDisconnect: () => ipcRenderer.invoke(SOURCE_SYNC_DISCONNECT),
     sourceSyncLocalSources: () => ipcRenderer.invoke(SOURCE_SYNC_LOCAL_SOURCES),
     onSourceSyncResume: (callback) => {

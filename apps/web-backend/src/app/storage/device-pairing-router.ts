@@ -6,9 +6,12 @@ import express, { type RequestHandler } from 'express';
 import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
 import { DevicePairingStore } from './device-pairing-store';
 import { matchesAccessToken, readBearerToken } from './access-guard';
+import type { CloudflareAccessCheck } from '../cloudflare-access';
+import { inviteFromCloudflareDevice, registerCloudflareDevice } from './cloudflare-device-access';
 import {
     hostedIngressOrigin,
     hostedLanOrigin,
+    isHostedWorkerRequest,
     type HostedIngressState,
 } from '../hosted-ingress';
 
@@ -17,7 +20,9 @@ export function createDevicePairingRouter(
     store: DevicePairingStore,
     sharedToken: string,
     instanceId: string,
-    ingress?: HostedIngressState
+    ingress?: HostedIngressState,
+    workerOnly = false,
+    cloudflareAccess?: CloudflareAccessCheck
 ) {
     const router = express.Router();
     const pairingPaths = ['/device-pairing', '/devices'];
@@ -38,8 +43,12 @@ export function createDevicePairingRouter(
     );
     router.use(pairingPaths, express.json({ limit: '4kb' }));
     const admin: RequestHandler = (req, res, next) => {
+        if (isHostedWorkerRequest(req)) {
+            next();
+            return;
+        }
         const local =
-            !hostedIngressOrigin(req) &&
+            !workerOnly && !hostedIngressOrigin(req) &&
             req.socket.remoteAddress === '127.0.0.1' &&
             req.socket.localAddress === '127.0.0.1' &&
             req.get('host') === `127.0.0.1:${req.socket.localPort}`;
@@ -234,14 +243,27 @@ export function createDevicePairingRouter(
             res.sendStatus(204);
         }
     );
-    router.post('/device-pairing/invite', admin, (_req, res) => {
-        const invite = store.invite();
+    router.post('/device-pairing/invite', admin, (req, res) => {
+        const origin = workerOnly ? req.body?.origin : undefined;
+        if (workerOnly && (typeof origin !== 'string' || origin.length > 2048)) {
+            res.sendStatus(400);
+            return;
+        }
+        if (cloudflareAccess && origin !== ingress?.origin) {
+            res.sendStatus(400);
+            return;
+        }
+        const invite = store.invite(origin, !!cloudflareAccess);
         if (!invite) {
             res.sendStatus(429);
             return;
         }
         res.status(201).json(invite);
     });
+    if (cloudflareAccess) {
+        router.post('/device-pairing/cloudflare', registerCloudflareDevice(store, instanceId, cloudflareAccess));
+        router.post('/device-pairing/cloudflare-invite', inviteFromCloudflareDevice(store, instanceId, cloudflareAccess));
+    }
     router.post('/device-pairing/claim', (req, res) => {
         const { inviteId, name } = req.body ?? {};
         if (
@@ -254,7 +276,11 @@ export function createDevicePairingRouter(
             res.sendStatus(400);
             return;
         }
-        const claim = store.claim(inviteId, name.trim());
+        const claim = store.claim(
+            inviteId,
+            name.trim(),
+            hostedIngressOrigin(req) ?? hostedLanOrigin(req)
+        );
         if (!claim) {
             res.sendStatus(404);
             return;
@@ -281,7 +307,15 @@ export function createDevicePairingRouter(
             result.status === 'approved' ? { ...result, instanceId } : result
         );
     });
-    router.get('/devices', admin, (_req, res) => res.json(store.list()));
+    router.get('/devices', admin, (req, res) => {
+        const invite = req.query.invite;
+        res.json(store.list(
+            !!cloudflareAccess,
+            typeof invite === 'string' && /^[A-Za-z0-9_-]{43}$/.test(invite)
+                ? invite
+                : undefined
+        ));
+    });
     router.post('/device-pairing/approve', admin, (req, res) => {
         if (
             typeof req.body?.claimId !== 'string' ||
@@ -301,14 +335,14 @@ export function createDevicePairingRouter(
             res.sendStatus(400);
             return;
         }
-        if (!store.setApproval(String(req.params.id), req.body.canApprove)) {
+        if (!store.setApproval(String(req.params.id), req.body.canApprove, !!cloudflareAccess)) {
             res.sendStatus(404);
             return;
         }
         res.sendStatus(204);
     });
     router.delete('/devices/:id', admin, (req, res) => {
-        if (!store.revoke(String(req.params.id))) {
+        if (!store.revoke(String(req.params.id), !!cloudflareAccess)) {
             res.sendStatus(404);
             return;
         }

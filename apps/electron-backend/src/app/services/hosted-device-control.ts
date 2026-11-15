@@ -8,13 +8,34 @@ import {
 } from '@iptvnator/shared/interfaces';
 import {
     getHostedServerAccessCode,
+    getHostedServerInstanceId,
     HOSTED_SERVER_LOCAL_URL,
+    hostedWorkerRequest,
 } from './hosted-server-session';
 
 const pairingId = /^[A-Za-z0-9_-]{43}$/;
 const deviceId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
 
-async function request(path: string, code: string, options?: RequestInit) {
+async function request<T = unknown>(
+    path: string,
+    code: string,
+    options?: RequestInit
+): Promise<T> {
+    const worker = hostedWorkerRequest();
+    if (worker) {
+        const response = await worker({
+            path: `/v1${path}`,
+            method: options?.method ?? 'GET',
+            ...(typeof options?.body === 'string'
+                ? { body: JSON.parse(options.body) }
+                : {}),
+        });
+        if (response.status < 200 || response.status >= 300)
+            throw new Error('Hosted device request failed');
+        return response.status === 204
+            ? (undefined as T)
+            : (response.body as T);
+    }
     const response = await fetch(`${HOSTED_SERVER_LOCAL_URL}/api/v1${path}`, {
         ...options,
         headers: {
@@ -25,7 +46,9 @@ async function request(path: string, code: string, options?: RequestInit) {
         signal: AbortSignal.timeout(4000),
     });
     if (!response.ok) throw new Error('Hosted device request failed');
-    return response;
+    return response.status === 204
+        ? (undefined as T)
+        : ((await response.json()) as T);
 }
 
 export function registerHostedDeviceEvents(
@@ -45,16 +68,24 @@ export function registerHostedDeviceEvents(
 
             switch (command.action) {
                 case 'invite': {
-                    if (!current.lanUrl)
-                        throw new Error('Home network sharing is unavailable');
-                    const response = await request(
-                        '/device-pairing/invite',
-                        code,
-                        {
-                            method: 'POST',
-                        }
-                    );
-                    const { inviteId, expiresAt } = await response.json();
+                    const endpoint = current.endpoint ?? current.lanUrl;
+                    if (!endpoint)
+                        throw new Error('Hosted sharing is unavailable');
+                    const cloudflare = current.mode === 'cloudflare';
+                    const instanceId = getHostedServerInstanceId();
+                    if (cloudflare && (current.publicRoute !== 'access-protected' || !instanceId))
+                        throw new Error('Cloudflare Access route is unavailable');
+                    if (current.lanAccess === 'open')
+                        return { url: endpoint, expiresAt: null };
+                    const { inviteId, expiresAt } = await request<{
+                        inviteId: unknown;
+                        expiresAt: unknown;
+                    }>('/device-pairing/invite', code, {
+                        method: 'POST',
+                        ...(current.mode
+                            ? { body: JSON.stringify({ origin: endpoint }) }
+                            : {}),
+                    });
                     if (
                         typeof inviteId !== 'string' ||
                         !pairingId.test(inviteId) ||
@@ -62,15 +93,22 @@ export function registerHostedDeviceEvents(
                         !Number.isFinite(Date.parse(expiresAt))
                     )
                         throw new Error('Invalid hosted device invitation');
-                    const url = new URL('/pair-device', current.lanUrl);
-                    url.hash = inviteId;
+                    const url = new URL(cloudflare ? '/connect-device.html' : '/pair-device', endpoint);
+                    url.hash = cloudflare
+                        ? new URLSearchParams({ 'iptvnator-access': instanceId!, invite: inviteId }).toString()
+                        : inviteId;
                     return { url: url.href, expiresAt };
                 }
                 case 'list': {
-                    const response = await request('/devices', code);
-                    const { pending, devices }: HostedDeviceList =
-                        await response.json();
+                    const invite = 'inviteId' in command ? command.inviteId : undefined;
+                    const query = current.mode === 'cloudflare' &&
+                        typeof invite === 'string' && pairingId.test(invite)
+                        ? '?invite=' + invite
+                        : '';
+                    const { pending, devices, inviteActive } =
+                        await request<HostedDeviceList>('/devices' + query, code);
                     return {
+                        ...(typeof inviteActive === 'boolean' ? { inviteActive } : {}),
                         pending: pending.map(
                             ({
                                 claimId,
@@ -133,17 +171,15 @@ export function registerHostedDeviceEvents(
                     return;
                 }
                 case 'browser-settings': {
-                    const response = await request(
-                        '/device-pairing/browser-settings',
-                        code
-                    );
-                    const { passwordConfigured } = await response.json();
+                    const { passwordConfigured } = await request<{
+                        passwordConfigured: unknown;
+                    }>('/device-pairing/browser-settings', code);
                     if (typeof passwordConfigured !== 'boolean')
                         throw new Error('Invalid hosted pairing settings');
                     return { passwordConfigured };
                 }
                 case 'set-browser-password': {
-                    if (!current.httpsOrigin)
+                    if (!current.httpsOrigin || current.mode === 'cloudflare')
                         throw new Error('Hosted HTTPS access is unavailable');
                     const password =
                         'password' in command ? command.password : undefined;

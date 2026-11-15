@@ -30,105 +30,108 @@ a patched base rather than reusing the older published digest.
 
 ## Desktop-hosted server
 
-Desktop Settings → Server can launch the packaged web backend in an Electron
-utility process. It serves the bundled browser app and the existing API under
-`/api`. The server has its own database under the app data directory
-(`hosted-server/databases/iptvnator.db`). Connecting the desktop to it follows
-the same profile and opt-in rules as connecting to another server.
+In **Settings → Server**, choose a mode, enter its settings, then click
+**Start server**. Each mode serves the bundled browser app and API under
+`/api` from one Electron utility process. They share the same instance ID,
+device records and SQLite database at `hosted-server/databases/iptvnator.db`.
+Each mode retains the configuration used the last time it started successfully.
+Switching modes also retains unsaved edits for the current app session. Custom
+HTTPS has its own network interface selection, which defaults to loopback.
 
-The server starts on loopback port 4334. Home-network access is opt-in and binds
-a selected private IPv4 interface. The LAN listener accepts that address in
-the Host header and peers on that interface's subnet. The protected routes
-require a generated access code. HTTP carries this code and library data
-without encryption, so the settings UI asks users to share only on a trusted
-network. The code is stored in the server data directory with user-only file
-permissions where supported. A change to the selected network address requires
-selecting the new address and starting the server again.
+| Mode | Listener | Client address |
+| --- | --- | --- |
+| Home network | HTTP on the selected private IPv4 interface or loopback for this computer only | The selected LAN address and port 4334 |
+| Custom HTTPS | TLS on the selected interface and configured port (443 by default) | The HTTPS origin |
+| Cloudflare Tunnel | HTTP on `127.0.0.1:4335` | The public HTTPS origin through Cloudflare Access |
 
-For Android enrollment, **Pair a device** shows a short-lived invitation QR
-while home network access is active. The browser handoff opens the native app,
-which confirms the server and shows a code. The host compares that code in
-**Paired devices** and approves the request. The invitation cannot authenticate
-library requests. The approved Android app stores a separate credential in
-Android Keystore-backed storage and supplies it to the hosted page for its
-current server session after instance discovery.
+For native HTTPS, enter absolute paths to the PEM certificate chain and matching
+private key. The hostname must resolve to the host from the client and match a
+certificate the client trusts. If a selected win-acme leaf certificate ends in
+`-crt.pem`, Custom HTTPS can use the adjacent `-chain.pem` when it contains the
+same leaf and its ordered issuer chain. An older External HTTPS proxy profile is left
+stopped on upgrade. Its saved Custom HTTPS, Cloudflare Tunnel and Home network
+profiles remain available to start manually. Each hosted listener checks its
+Host and Origin before processing browser requests. Home network also checks
+the peer's subnet. Standalone Docker uses its own listener and configuration.
 
-Pending invitations and claims expire and are lost on worker restart. The
-hosted database stores only paired-device credential digests. The desktop can
-list and revoke devices through its loopback listener using the server access
-code. A paired device can use the library APIs but cannot administer pairing.
-Revoke access removes that credential without changing the shared access code
-or other paired devices. The ordinary web-player QR still contains the address.
+The running desktop server shows its active mode and device address. If it is
+running for this computer only, open **Share on home network**, select an
+address, and choose **Restart and share** to require pairing on that network. Use
+**Pair a device** to open an invitation QR in Home network and HTTPS modes.
+On Android, open **Settings → Connectivity → Scan QR code**, then compare the
+matching code after the request appears and approve on the PC. The invitation
+expires and the hosted database retains only the digest of each issued device
+credential. **Revoke access** removes that device's credential. Home network
+defaults to requiring pairing. **Allow anyone on the local network** enables
+an address-only **Connect device** QR and permits unpaired library reads and
+playback over trusted Wi-Fi. Shared favorites and watch history writes still
+require pairing. Turning the setting off restores the pairing requirement.
 
-For a TV without a camera, **Pair with server** in the native Android library
-settings starts a request and displays a QR code and a six-digit confirmation
-code. Pair the phone first, then enable **Allow this device to approve pairing**
-for it under **Paired devices** on the PC. On that phone, choose **Scan TV QR**
-in the native IPTVnator settings, compare the code and approve. The phone uses
-its paired credential against its saved server. The TV receives its own
-credential and opens the hosted library without entering the shared code.
+For a TV without a camera, open **Pair with server** in the Android library
+settings. Approve on the PC, or pair a phone and enable **Allow this device
+to approve pairing** before using **Scan TV QR**. The phone and TV use the
+same active server endpoint. A regular QR reader can open the TV approval
+page over HTTPS if the owner has set a separate **Phone approval password**
+under **Approve TVs from your phone** on the desktop.
+The short-lived browser session uses a Secure, HttpOnly cookie. The TV keeps
+the claim secret needed to retrieve its device credential.
 
-The QR is a regular URL. A generic QR reader opens the server's approval page.
-The page accepts browser approval over HTTPS after the owner sets a **Phone
-approval password** in **Paired devices**. On LAN HTTP, the page directs you
-to the IPTVnator scanner or approval on the PC. The PC can approve directly
-and can turn off a phone's approval permission without disconnecting it.
+### Cloudflare Tunnel
 
-For a TV at home and a phone using Cloudflare Access, start **Home network**
-first and enable Cloudflare from **Remote access** while it is running. Use the
-LAN address for the TV's library and enter the matching public hostname in its
-optional **HTTPS approval address** field. The phone passes the Cloudflare
-Access policy in its browser before signing in to IPTVnator's approval page.
-This flow keeps the TV's library connection on the LAN.
+Publish an HTTP upstream of `http://127.0.0.1:4335` and preserve the public Host header. Cloudflare provides the public TLS endpoint. Existing saved configurations with origin certificates continue to use TLS. Enter the public HTTPS origin, Zero Trust
+team name and Access application AUD tag in IPTVnator.
 
-Device approval permission defaults to off and only the PC owner can change it.
-It permits reading and approving a pending TV request and is checked for each
-request. The phone sends its credential only to the stored paired origin.
-The browser password is separate from the library access code. The backend
-keeps a salted verifier and grants a five-minute approval session through a
-Secure, HttpOnly cookie. The session is scoped to TV approval and the HTTPS
-listener. Changing or clearing the password invalidates existing approval
-sessions. A QR contains a claim identifier. The TV keeps the separate claim
-secret needed to retrieve the issued device credential.
+Protect the public hostname with Access and enable Managed OAuth with dynamic
+client registration. Add the exact redirect
+`org.tvshell.iptvnator://oauth/callback` to the allowed URIs. Configure the
+Access policy for the intended viewers. The origin verifies Cloudflare's
+signed application assertion on each tunnel request. The browser web player uses
+its Access session. Android opens **Sign in with Cloudflare Access** from the
+in-app QR scan and uses the returned OAuth session for its bundled player.
+In Cloudflare mode the host creates a one-time invitation under **Connect a
+device**. After Access sign-in, Android registers a device key from its encrypted
+credential store. Open a separate invitation in a browser to register it. The
+host closes the QR panel when that invitation is used.
 
-The utility process inherits the desktop environment, including operating-system
-variables such as Windows `SystemRoot`, `PATH` and temporary-directory settings.
-Hosted storage, data paths, access code, assets, LAN binding and port override
-any inherited values so the worker always uses its dedicated server profile.
-The desktop's `IPTVNATOR_SOURCE_PROFILE` is cleared in the worker environment,
-so switching desktop server connections does not change the hosted database.
-The worker also clears `IPTVNATOR_E2E_DATA_DIR`, which otherwise takes
-precedence over the hosted data directory during Electron tests.
+Cloudflare library API requests require both Access and a registered device.
+The host stores only key digests. Revocation blocks the device until it signs
+in through Cloudflare and uses a fresh invitation from the host. Android
+clears the configured server and switches to the local library when it receives
+the revocation. Manually disconnecting also clears the server address.
+Existing Cloudflare clients need one fresh invitation after upgrading the host.
+The host can enable **Allow this device to approve pairing** for a paired
+Cloudflare device. Its Android **Pair a device** action creates a short-lived,
+single-use QR. The recipient still signs in through Access. Removing permission
+or revoking the issuing device invalidates its outstanding invitations.
 
-Optional HTTPS uses a separate `127.0.0.1:4335` listener on the same Express
-application and database. The renderer sends an exact HTTPS origin through the
-existing guarded hosted-server IPC. Main validates it, serializes the command
-with server lifecycle operations, and waits for a correlated worker reply.
-The worker serializes configuration and shutdown. Remote stop closes active
-connections without stopping LAN/loopback port 4334. Remote exposure is opt-in
-again after each server restart. An unacknowledged command stops the worker
-rather than reporting a potentially exposed origin as stopped.
+Desktop builds with `IPTVNATOR_BUNDLE_CLOUDFLARED=1` include the connector.
+Managed mode starts it after the TLS listener and stores the connector token
+using OS-backed encryption. Worker, connector and public Access route status
+are shown separately. **Pair a device** stays visible while the public route
+check verifies the OAuth challenge. The button becomes available when the
+challenge is detected.
+The hosted web player leaves Cloudflare authorization and discovery paths to
+the edge. Android requests an isolated browser session for sign-in and bypasses
+older service workers when opening the same-origin authorization endpoint.
 
-The remote listener accepts only loopback peers, its configured public Host
-and an absent or exactly matching HTTPS Origin. It rejects the loopback Host
-on this port and ignores forwarded headers for trust decisions. Hosted backend
-CORS reflects origins only after listener admission; standalone Docker CORS
-is unchanged. The existing access-code middleware remains in force. Viewer
-authentication for the whole site belongs to the trusted local gateway; for
-Cloudflare the operator configures Access and connector JWT validation before
-publishing a route. Desktop builds with `IPTVNATOR_BUNDLE_CLOUDFLARED=1` include
-a checksum-pinned connector under the app's resources directory. Electron starts
-that executable only with active HTTPS ingress, stores its tunnel token with
-OS-backed encryption, and stops the process when HTTPS or hosting stops. A running
-connector status reflects process state. Operators verify connectivity and viewer
-authorization in Cloudflare and their browser. See the
-[HTTPS setup guide](../../docker/README.md#optional-https-and-cloudflare-tunnel).
+The Android bridge streams hosted API responses in bounded chunks, with an
+inactivity timeout for the transfer. Cloudflare OAuth calls keep a separate
+deadline. This lets long Xtream catalog downloads complete as data arrives.
 
-The desktop package includes `web-backend:build` and `web:build-hosted`. The
-latter emits a separate PWA bundle, so the Electron renderer and Docker
-deployment keep their own build outputs. The outer Nx graph builds shared
-dependencies once for both renderer builds. The hosted server reads the PWA
-shell at startup and reuses it for browser navigation requests.
+Android callback, token renewal and playback still require a live Access
+application for end-to-end validation.
+
+Owner operations and **Use this server** use private Electron-to-worker IPC.
+Desktop source sync checks the stored instance ID before using that transport
+for an existing loopback profile. Server transitions are serialized. Stopping
+the server closes its listener and any bundled connector. Existing autostart
+settings migrate to Home network with pairing, and an explicitly selected
+mode is remembered for subsequent autostart. The worker clears the desktop
+profile and test-directory overrides to keep its database separate.
+
+The desktop package includes `web-backend:build` and `web:build-hosted`.
+The hosted browser app is a separate build from the desktop renderer and
+standalone Docker PWA.
 
 ## Runtime Backend Configuration
 

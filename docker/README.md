@@ -137,86 +137,43 @@ the `restart: unless-stopped` policy.
 
 ## Run the server from the desktop app
 
-Open **Settings → Server** in the desktop app. Under **Server on this
-computer**, choose **Start server**. The server starts again the next time
-IPTVnator opens until you choose **Stop server**. Minimizing the app leaves it
-running. Quitting IPTVnator, shutting down the computer, or putting it to sleep
-makes the server unavailable to other devices. On macOS, closing the window
-can leave IPTVnator running. Use **Quit IPTVnator** to exit the app.
-If the server fails to start automatically, choose **Disable automatic start**
-to stop trying again when the app opens.
+Open **Settings → Server**. Under **Server on this computer**, choose
+**Home network**, **Custom HTTPS**, or **Cloudflare Tunnel**, enter the
+settings, and click **Start server**. The app remembers the successful mode
+for autostart. Choose **Stop server** to stop hosting or **Disable automatic
+start** if the saved configuration fails at launch. The computer and app
+must stay running to serve other devices.
 
-To use a tablet or another computer, choose **Home network** before starting.
-If home network sharing is off on a running server, choose **Share on
-home network** and confirm the restart. Stop active HTTPS sharing before
-changing the home network binding. The running screen shows the home network
-address and its QR code. Open the address on the other device and enter the
-access code. Use this option on a trusted network because HTTP carries the code
-and library data without encryption.
+For **Home network**, select your private network interface. Use **Pair a
+device** to open a short-lived QR, scan it in IPTVnator on Android, and
+approve the request on the PC. For read-only sharing on trusted Wi-Fi, enable
+**Allow anyone on the local network** and choose **Connect device** to display
+the address QR. Devices may also open the LAN address manually.
 
-Under **Connection on this device**, you can connect the desktop to its own
-server or to another server. Connecting to your own server lets you preview
-and import the desktop's original local sources into the shared library.
+Under **Connection on this device**, choose **Use this server** to connect
+the desktop to its hosted library and preview or import its local sources.
 
 ## Optional HTTPS and Cloudflare Tunnel
 
-In desktop **Settings → Server**, choose how devices will reach the library
-before starting the server. Choose **Custom HTTPS** for a proxy or tunnel you
-run separately, and enter its public address, such as
-`https://library.example.com`. To use home network HTTP and HTTPS together,
-start with **Home network**, then set up HTTPS from the running screen.
-IPTVnator opens a separate origin at
-`http://127.0.0.1:4335` for the proxy on the same computer. The public address
-must be an exact HTTPS origin without a path or credentials. Preserve the public
-`Host` and `Origin` headers. Do not proxy port 4334 or expose either port on the
-router.
+- For direct TLS, select **Custom HTTPS**. Enter the HTTPS origin and the
+  absolute paths to its PEM certificate chain and private key. Select the
+  network interface clients can reach, and ensure they trust the certificate.
+- For an existing reverse proxy on the same computer, select **External HTTPS
+  proxy (existing setup)**. Continue using HTTP upstream
+  `http://127.0.0.1:4335` and preserve the public Host header.
+- For Cloudflare, select **Cloudflare Tunnel**. Publish the HTTPS upstream
+  `https://127.0.0.1:4335`, preserve the public Host header, and configure
+  the origin certificate name and CA. Add an Access policy for the hostname.
+  Android also needs Managed OAuth with dynamic client registration and the
+  exact redirect URI `org.tvshell.iptvnator://oauth/callback`.
 
-Home-network HTTP continues to work independently. Both paths use the same
-running server, library database and access code. **Stop HTTPS access** closes
-only the proxy origin and its active connections. **Stop server** and quitting
-IPTVnator stop both paths. After a server restart, enable HTTPS again explicitly.
-The status confirms the local listener only, not public DNS, TLS or connectivity.
-**Show QR code** shares only the address. Share the access code separately;
-neither it nor connector credentials are included in the QR code.
+Start the selected mode and open **Pair a device** when you're ready to connect
+Android. Native HTTPS pairing uses desktop approval. A Cloudflare QR opens
+the native sign-in flow once the public route is verified. A regular browser
+uses its Cloudflare Access session.
 
-For an existing Cloudflare Tunnel:
-
-1. Create a self-hosted Cloudflare Access application for the entire hostname
-   with an Allow policy for yourself and explicitly invited viewers. Configure
-   this before publishing a route; do not use a Bypass policy.
-2. In the tunnel's published application route, use service
-   `http://127.0.0.1:4335`. Set **HTTP Host Header** to the hostname you entered
-   in IPTVnator, including any non-default public port.
-3. Enable **Protect with Access**, using the Access application's audience tag
-   and team name. This makes the connector validate Access tokens before it
-   forwards requests. See Cloudflare's
-   [origin parameters](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/origin-parameters/).
-4. Select **Cloudflare Manual** when the desktop build
-   offers it. Enter the public address, paste the tunnel token into the token
-   field, and confirm the Access settings. IPTVnator stores the token in
-   OS-backed credential storage and runs the bundled connector. For a connector
-   you run separately on this computer, select **Custom HTTPS**. For an
-   existing protected token file, use
-   `cloudflared tunnel run --token-file <path>`
-   ([run parameters](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/run-parameters/)).
-5. Enable the matching HTTPS address in IPTVnator. From a signed-out browser,
-   verify that Access requires sign-in for the page and `/api/v1/instance`.
-   Confirm an uninvited account is denied, then sign in and enter the IPTVnator
-   access code. Check that `/api/v1/sources` still rejects a missing/wrong code.
-   For the bundled connector, confirm the browser check before sharing its QR.
-
-On Android and Fire TV, open Access-protected addresses in a browser. The APK's
-hosted-library connection cannot complete the Cloudflare Access sign-in redirect.
-
-Stopping HTTPS closes the local origin and stops a connector launched by
-IPTVnator. Manage separately launched connectors and Cloudflare resources in
-Cloudflare. A desktop package builder can opt into the pinned connector with
-`IPTVNATOR_BUNDLE_CLOUDFLARED=1`. This setting belongs to the package build.
-For another HTTPS proxy, apply equivalent gateway authentication to the entire
-hostname and disable caching for authenticated traffic. The gateway owns viewer
-authentication; IPTVnator continues enforcing its access code on protected APIs.
-Use normal certificate validation. HTTPS browser playback may block HTTP-only
-media; use a supported external player instead of disabling browser security.
+See the [desktop hosting details](../docs/architecture/pwa-self-hosted.md#desktop-hosted-server)
+for certificate setup, Tunnel settings, TV approval and migration.
 
 ## Server Storage
 

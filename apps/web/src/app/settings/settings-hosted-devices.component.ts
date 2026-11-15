@@ -2,6 +2,7 @@ import {
     ChangeDetectionStrategy,
     Component,
     DestroyRef,
+    computed,
     inject,
     input,
     linkedSignal,
@@ -12,6 +13,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import {
     MAT_SLIDE_TOGGLE_DEFAULT_OPTIONS,
@@ -37,6 +39,7 @@ import { timer } from 'rxjs';
     imports: [
         MatButtonModule,
         MatFormFieldModule,
+        MatIconModule,
         MatInputModule,
         MatSlideToggleModule,
         QRCodeComponent,
@@ -58,10 +61,29 @@ import { timer } from 'rxjs';
 })
 export class SettingsHostedDevicesComponent {
     readonly lanAvailable = input.required<boolean>();
+    readonly pairingUnavailableReason = input<string>();
+    readonly deviceEndpoint = input<string>();
     readonly httpsOrigin = input<string>();
+    readonly addressOnly = input(false);
+    readonly cloudflare = input(false);
+    private readonly pairingTarget = computed(() =>
+        this.lanAvailable()
+            ? {
+                  endpoint: this.deviceEndpoint(),
+                  addressOnly: this.addressOnly(),
+                  cloudflare: this.cloudflare(),
+              }
+            : null
+    );
     readonly expanded = signal(false);
-    readonly invite = signal<HostedDeviceInvite | null>(null);
-    readonly inviteExpired = signal(false);
+    readonly invite = linkedSignal({
+        source: this.pairingTarget,
+        computation: (): HostedDeviceInvite | null => null,
+    });
+    readonly inviteExpired = linkedSignal({
+        source: this.pairingTarget,
+        computation: () => false,
+    });
     readonly list = signal<HostedDeviceList | null>(null);
     readonly listFailed = signal(false);
     readonly busy = signal(false);
@@ -89,11 +111,12 @@ export class SettingsHostedDevicesComponent {
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe(() => {
                 const invite = this.invite();
-                if (invite && Date.parse(invite.expiresAt) <= Date.now()) {
+                if (invite?.expiresAt && Date.parse(invite.expiresAt) <= Date.now()) {
                     this.invite.set(null);
                     this.inviteExpired.set(true);
                 }
-                if (this.expanded() && !this.busy()) void this.readDevices();
+                if ((this.expanded() || (this.cloudflare() && this.invite())) && !this.busy())
+                    void this.readDevices();
             });
     }
 
@@ -103,13 +126,16 @@ export class SettingsHostedDevicesComponent {
     }
 
     async pair(): Promise<void> {
-        if (!this.lanAvailable()) return;
+        const target = this.pairingTarget();
+        if (!target) return;
         await this.run(async () => {
             this.inviteExpired.set(false);
             this.invite.set(null);
             const invite = await this.request({ action: 'invite' });
+            if (this.destroyRef.destroyed || this.pairingTarget() !== target)
+                return;
             this.invite.set(invite);
-            this.expanded.set(true);
+            if (invite.expiresAt) this.expanded.set(true);
         });
     }
 
@@ -135,7 +161,7 @@ export class SettingsHostedDevicesComponent {
 
     copyPairingLink(): void {
         const invite = this.invite();
-        if (!invite || Date.parse(invite.expiresAt) <= Date.now()) return;
+        if (!invite || (invite.expiresAt && Date.parse(invite.expiresAt) <= Date.now())) return;
         this.message.set(
             this.clipboard.copy(invite.url)
                 ? 'HOSTED_SERVER.PAIR_LINK_COPIED'
@@ -236,15 +262,20 @@ export class SettingsHostedDevicesComponent {
         if (this.loading || this.destroyRef.destroyed) return;
         this.loading = true;
         try {
-            const snapshot = await this.request({ action: 'list' });
             const invite = this.invite();
             const fragment = invite ? new URL(invite.url).hash : '';
+            const inviteId = this.cloudflare()
+                ? new URLSearchParams(fragment.slice(1)).get('invite') ?? undefined
+                : undefined;
+            const snapshot = await this.request({ action: 'list', ...(inviteId ? { inviteId } : {}) });
+            if (this.destroyRef.destroyed) return;
             if (
-                snapshot.pending.some(
-                    ({ inviteId }) => fragment === `#${inviteId}`
-                )
+                invite && this.invite() === invite &&
+                ((inviteId && snapshot.inviteActive === false) ||
+                    snapshot.pending.some(({ inviteId }) => fragment === `#${inviteId}`))
             ) {
                 this.invite.set(null);
+                if (this.message() === 'HOSTED_SERVER.PAIR_LINK_COPIED') this.message.set('');
             }
             this.list.set(snapshot);
             this.listFailed.set(false);

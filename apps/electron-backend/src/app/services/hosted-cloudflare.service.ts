@@ -78,6 +78,22 @@ export function stopHostedCloudflare(): void {
         phase = 'stopped';
     }
 }
+export function shutdownHostedCloudflare(): Promise<void> {
+    const processChild = child;
+    if (!processChild) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+        const deadline = setTimeout(() => {
+            processChild.off('close', closed);
+            reject(new Error('Cloudflare connector did not stop'));
+        }, 6000);
+        const closed = () => {
+            clearTimeout(deadline);
+            resolve();
+        };
+        processChild.once('close', closed);
+        stopHostedCloudflare();
+    });
+}
 function connectorEnvironment(secret: string): NodeJS.ProcessEnv {
     const env = Object.fromEntries(
         Object.entries(process.env).filter(
@@ -86,7 +102,7 @@ function connectorEnvironment(secret: string): NodeJS.ProcessEnv {
     );
     return { ...env, TUNNEL_TOKEN: secret };
 }
-function start(token?: string): Promise<HostedCloudflareStatus> {
+export function startHostedCloudflare(token?: string): Promise<HostedCloudflareStatus> {
     if (child) throw new Error('Connector is already running or stopping');
     if (status().state === 'unavailable')
         throw new Error('Bundled connector is unavailable');
@@ -174,7 +190,7 @@ export function registerHostedCloudflareEvents(
                         'token' in command ? command.token : undefined;
                     if (token !== undefined && typeof token !== 'string')
                         throw new Error('Invalid tunnel token');
-                    return start(typeof token === 'string' ? token : undefined);
+                    return startHostedCloudflare(typeof token === 'string' ? token : undefined);
                 }
                 throw new Error('Invalid connector command');
             });

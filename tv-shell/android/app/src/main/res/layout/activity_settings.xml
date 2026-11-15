@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/settings_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#1f1f23"
@@ -8,6 +9,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:id="@+id/settings_content"
         android:orientation="vertical"
         android:padding="40dp">
 
@@ -19,11 +21,58 @@
             android:textSize="26sp"
             android:textStyle="bold" />
 
+        <TextView style="@style/SettingsSection" android:text="@string/connection_title" />
+        <TextView style="@style/SettingsHint" android:text="@string/connection_hint" />
+        <EditText android:id="@+id/host_address" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:singleLine="true"
+            android:inputType="textUri" android:hint="https://server.example" />
+        <TextView style="@style/SettingsHint" android:text="@string/approval_address_hint" />
+        <EditText android:id="@+id/approval_address" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:singleLine="true"
+            android:inputType="textUri" android:hint="https://server.example" />
+        <Button android:id="@+id/pair_host" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:text="@string/pair_host" />
+        <Button android:id="@+id/connect_host" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:text="@string/connect_host" />
+        <Button android:id="@+id/local_library" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:text="@string/local_library" />
+        <Button android:id="@+id/scan_tv" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:text="@string/scan_tv" />
+        <TextView android:id="@+id/connection_status" style="@style/SettingsHint" />
+
         <TextView
+            style="@style/SettingsSection"
+            android:text="@string/setting_layout_mode" />
+
+        <RadioGroup
+            android:id="@+id/layout_mode_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <RadioButton
+                android:id="@+id/layout_auto"
+                style="@style/SettingsRadio"
+                android:text="@string/layout_auto" />
+
+            <RadioButton
+                android:id="@+id/layout_touch"
+                style="@style/SettingsRadio"
+                android:text="@string/layout_touch" />
+
+            <RadioButton
+                android:id="@+id/layout_tv"
+                style="@style/SettingsRadio"
+                android:text="@string/layout_tv" />
+        </RadioGroup>
+
+        <TextView
+            android:id="@+id/width_heading"
             style="@style/SettingsSection"
             android:text="@string/setting_width" />
 
         <TextView
+            android:id="@+id/width_hint"
             style="@style/SettingsHint"
             android:text="@string/setting_width_hint" />
 

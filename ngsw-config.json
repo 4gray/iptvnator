@@ -8,7 +8,11 @@
         "!/**/*__*/**",
         "!/pair-device",
         "!/approve-device",
-        "!/approve-device/**"
+        "!/approve-device/**",
+        "!/cdn-cgi",
+        "!/cdn-cgi/**",
+        "!/.well-known",
+        "!/.well-known/**"
     ],
     "assetGroups": [
         {

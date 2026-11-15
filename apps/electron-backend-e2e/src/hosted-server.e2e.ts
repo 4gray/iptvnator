@@ -1,6 +1,6 @@
 import { once } from 'node:events';
-import { get, request } from 'node:http';
-import { createServer as createTlsServer } from 'node:https';
+import { get } from 'node:http';
+import { get as getTls } from 'node:https';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -9,7 +9,7 @@ import {
     HOSTED_SERVER_HTTPS_PORT,
     HOSTED_SERVER_PORT,
 } from '@iptvnator/shared/interfaces';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import {
     closeElectronApp,
     launchElectronApp,
@@ -46,6 +46,17 @@ test.skip(
     'Run with the hosted-server Nx target'
 );
 
+async function qrAddress(qr: Locator): Promise<string> {
+    await expect(qr.locator('svg')).toBeVisible();
+    return qr.evaluate((element) => {
+        const debug = window as Window & {
+            ng?: { getComponent(node: Element): { qrdata: string } };
+        };
+        if (!debug.ng) throw new Error('Angular debug tools unavailable');
+        return debug.ng.getComponent(element).qrdata;
+    });
+}
+
 test('starts locally, reconnects through the hosted library, and stops on request', async () => {
     const directory = mkdtempSync(join(tmpdir(), 'iptvnator-hosted-e2e-'));
     const origin = `http://127.0.0.1:${HOSTED_SERVER_PORT}`;
@@ -56,25 +67,12 @@ test('starts locally, reconnects through the hosted library, and stops on reques
         await openSettings(page);
         await openSettingsSection(page, 'server');
         const setup = page.getByTestId('hosted-access-method');
-        await expect(
-            setup.getByRole('radio', { name: 'Home network' })
-        ).toBeChecked();
-        await expect(
-            setup.getByRole('radio', { name: 'Computer only' })
-        ).toHaveCount(0);
-        await setup
-            .getByRole('radio', {
-                name: 'Custom HTTPS',
-            })
-            .check();
-        await expect(page.getByTestId('hosted-server-start')).toBeDisabled();
-        await page
-            .getByTestId('hosted-https-origin')
-            .fill('https://library.example.test');
+        await expect(setup).toContainText('Home network');
+        await page.getByTestId('hosted-network-address').click();
+        await page.getByRole('option', { name: 'This computer only' }).click();
         await page.getByTestId('hosted-server-start').click();
-        await expect(page.getByTestId('hosted-server-status')).toHaveText(
-            'Server running'
-        );
+        const status = page.getByTestId('hosted-server-status');
+        await expect(status).toHaveText('Server running');
         expect((await fetch(origin + '/workspace/dashboard')).status).toBe(200);
         expect((await fetch(origin + '/api/v1/sources')).status).toBe(401);
         const identity = await (
@@ -82,20 +80,35 @@ test('starts locally, reconnects through the hosted library, and stops on reques
         ).json();
         expect(identity.auth).toBe('token');
         expect(identity.instanceId).toEqual(expect.any(String));
+        const qr = page.getByTestId('hosted-device-pair-qr');
+        await expect(qr).toHaveCount(0);
 
-        await expect(page.getByTestId('hosted-https-stop')).toBeVisible();
-        const remoteOrigin = 'http://127.0.0.1:4335';
+        await page.getByTestId('hosted-server-stop').click();
+        await expect(status).toHaveText('Server stopped');
+        await page
+            .getByRole('radio', {
+                name: 'External HTTPS proxy (existing setup)',
+            })
+            .click();
+        await expect(page.getByTestId('hosted-server-start')).toBeDisabled();
+        await page
+            .getByTestId('hosted-https-origin')
+            .fill('https://library.example.test');
+        await page.getByTestId('hosted-server-start').click();
+        await expect(status).toHaveText('Server running');
+        await expect(qr).toHaveCount(0);
+        const remoteOrigin = 'http://127.0.0.1:' + HOSTED_SERVER_HTTPS_PORT;
         const remoteHeaders = {
             host: 'library.example.test',
             origin: 'https://library.example.test',
         };
-        expect(
-            (
-                await proxyGet(remoteOrigin + '/api/v1/instance', {
-                    headers: remoteHeaders,
-                }).then((response) => response.json())
-            )['instanceId']
-        ).toBe(identity.instanceId);
+        const remoteInstance = () =>
+            proxyGet(remoteOrigin + '/api/v1/instance', {
+                headers: remoteHeaders,
+            }).then((response) => response.json());
+        expect((await remoteInstance())['instanceId']).toBe(
+            identity.instanceId
+        );
         expect(
             (
                 await proxyGet(remoteOrigin + '/api/v1/sources', {
@@ -108,23 +121,12 @@ test('starts locally, reconnects through the hosted library, and stops on reques
                 await proxyGet(remoteOrigin + '/', {
                     headers: {
                         ...remoteHeaders,
-                        origin: 'https://attacker.test',
+                        origin: 'https://other.example.test',
                     },
                 })
             ).status
         ).toBe(403);
-        await page.getByTestId('hosted-https-stop').click();
-        await expect(page.getByTestId('hosted-https-setup')).toBeVisible();
-        await expect(
-            proxyGet(remoteOrigin + '/', { headers: remoteHeaders })
-        ).rejects.toThrow();
-        expect(
-            (
-                await fetch(origin + '/api/v1/instance').then((response) =>
-                    response.json()
-                )
-            )['instanceId']
-        ).toBe(identity.instanceId);
+        await expect(fetch(origin + '/api/health')).rejects.toThrow();
 
         // Keep the process restart under the fixture's ownership.
         await desktop.electronApp.evaluate(({ app }) => {
@@ -135,7 +137,7 @@ test('starts locally, reconnects through the hosted library, and stops on reques
         await expect
             .poll(async () => {
                 try {
-                    await fetch(origin + '/api/health');
+                    await remoteInstance();
                     return true;
                 } catch {
                     return false;
@@ -160,11 +162,10 @@ test('starts locally, reconnects through the hosted library, and stops on reques
         await expect(page.getByTestId('source-server-state')).toContainText(
             'Connected'
         );
-        expect(
-            (await (await fetch(origin + '/api/v1/instance')).json())[
-                'instanceId'
-            ]
-        ).toBe(identity.instanceId);
+        expect((await remoteInstance())['instanceId']).toBe(
+            identity.instanceId
+        );
+        await expect(fetch(origin + '/api/health')).rejects.toThrow();
         const databaseInstanceId = await desktop.electronApp.evaluate(
             (_electron, { dependency, file }) => {
                 const Database = process
@@ -197,7 +198,7 @@ test('starts locally, reconnects through the hosted library, and stops on reques
         await expect(page.getByTestId('hosted-server-status')).toHaveText(
             'Server stopped'
         );
-        await expect(fetch(origin + '/api/health')).rejects.toThrow();
+        await expect(remoteInstance()).rejects.toThrow();
     } finally {
         if (desktop) await closeElectronApp(desktop);
         rmSync(directory, { recursive: true, force: true });
@@ -208,7 +209,6 @@ test('lets a paired phone approve a TV and revokes access per device', async ({
     browser,
 }) => {
     const directory = mkdtempSync(join(tmpdir(), 'iptvnator-hosted-lan-'));
-    const origin = `http://127.0.0.1:${HOSTED_SERVER_PORT}`;
     let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
     try {
         desktop = await launchElectronApp(directory);
@@ -225,54 +225,68 @@ test('lets a paired phone approve a TV and revokes access per device', async ({
             'No private IPv4 interface for the LAN listener'
         );
 
+        await page.getByTestId('hosted-network-address').click();
+        await page.getByRole('option', { name: 'This computer only' }).click();
         await page.getByTestId('hosted-server-start').click();
-        const qr = page.getByTestId('hosted-server-lan-qr');
-        await expect(qr.locator('svg')).toBeVisible();
-        const identity = await (
-            await fetch(origin + '/api/v1/instance')
-        ).json();
-        await page.getByTestId('hosted-server-stop').click();
-        await expect(page.getByTestId('hosted-server-status')).toHaveText(
-            'Server stopped'
+        await expect(page.getByTestId('hosted-server-active-mode')).toHaveText(
+            'This computer only'
         );
-        await page.evaluate(() =>
-            window.electron.hostedServerControl!({ start: true })
-        );
-        await expect(page.getByTestId('hosted-server-status')).toHaveText(
-            'Server running'
-        );
-        await expect(qr).toHaveCount(0);
         await page.getByTestId('hosted-server-share-lan').click();
-        const restart = page.getByTestId('hosted-server-restart-lan');
-        await expect(restart).toBeVisible();
-        await expect(qr).toHaveCount(0);
-        await restart.click();
-
-        await expect(qr.locator('svg')).toBeVisible();
-        const lan = await page.getByTestId('hosted-server-address').innerText();
-        expect(available).toContain(new URL(lan.trim()).hostname);
-        expect(new URL(lan.trim()).search).toBe('');
-        expect(
-            (await (await fetch(lan.trim() + '/api/v1/instance')).json())
-                .instanceId
-        ).toBe(identity.instanceId);
-        expect(
-            (await (await fetch(origin + '/api/v1/instance')).json()).instanceId
-        ).toBe(identity.instanceId);
-
-        await page.getByTestId('hosted-device-pair').click();
-        const pairQr = page.getByTestId('hosted-device-pair-qr');
-        await expect(pairQr.locator('svg')).toBeVisible();
-        const invite = new URL(
-            await pairQr.evaluate((element) => {
-                const debug = window as Window & {
-                    ng?: { getComponent(node: Element): { qrdata: string } };
-                };
-                if (!debug.ng)
-                    throw new Error('Angular debug tools unavailable');
-                return debug.ng.getComponent(element).qrdata;
+        const restartShare = page.getByTestId('hosted-server-restart-share');
+        await expect(restartShare).toBeDisabled();
+        await page.getByTestId('hosted-server-share-address').click();
+        await page
+            .getByRole('option', { name: available[0], exact: true })
+            .click();
+        await restartShare.click();
+        const openLan = page.getByRole('checkbox', {
+            name: 'Allow anyone on the local network',
+        });
+        await expect(openLan).toBeVisible();
+        await expect(openLan).not.toBeChecked();
+        const address = page.getByTestId('hosted-server-address');
+        await expect(address).toBeVisible();
+        const lan = (await address.innerText()).trim();
+        expect(new URL(lan).hostname).toBe(available[0]);
+        expect((await fetch(lan + '/api/v1/sources')).status).toBe(401);
+        await openLan.check();
+        await expect
+            .poll(async () => {
+                try {
+                    return (await fetch(lan + '/api/v1/sources')).status;
+                } catch {
+                    return 0;
+                }
             })
-        );
+            .toBe(200);
+        const identity = await (await fetch(lan + '/api/v1/instance')).json();
+        expect(identity.auth).toBe('none');
+        expect((await fetch(lan + '/api/v1/sources')).status).toBe(200);
+        expect(
+            (
+                await fetch(lan + '/api/v1/favorites/operations', {
+                    method: 'POST',
+                })
+            ).status
+        ).toBe(401);
+        expect((await fetch(lan + '/api/v1/devices')).status).toBe(403);
+        const pairQr = page.getByTestId('hosted-device-pair-qr');
+        await expect(pairQr).toHaveCount(0);
+        await page.getByRole('button', { name: 'Connect device' }).click();
+        expect(new URL(await qrAddress(pairQr)).href).toBe(new URL(lan).href);
+        await openLan.uncheck();
+        await expect
+            .poll(async () => {
+                try {
+                    return (await fetch(lan + '/api/v1/sources')).status;
+                } catch {
+                    return 0;
+                }
+            })
+            .toBe(401);
+        await expect(pairQr).toHaveCount(0);
+        await page.getByTestId('hosted-device-pair').click();
+        const invite = new URL(await qrAddress(pairQr));
         expect(invite.origin).toBe(lan.trim());
         expect(invite.pathname).toBe('/pair-device');
         expect(invite.search).toBe('');
@@ -441,35 +455,18 @@ test('lets a paired phone approve a TV and revokes access per device', async ({
     }
 });
 
-test('approves a LAN TV from a phone over HTTPS', async ({ browser }) => {
+test('approves and revokes a TV over native HTTPS', async ({ browser }) => {
     const directory = mkdtempSync(join(tmpdir(), 'iptvnator-tv-pairing-'));
     const certificate = join(workspaceRoot, 'apps/web-backend/src/app/testing');
-    const proxy = createTlsServer(
-        {
-            cert: readFileSync(join(certificate, 'provider-test.pem')),
-            key: readFileSync(join(certificate, 'provider-test.key')),
-        },
-        (incoming, outgoing) => {
-            const upstream = request(
-                {
-                    hostname: '127.0.0.1',
-                    port: HOSTED_SERVER_HTTPS_PORT,
-                    method: incoming.method,
-                    path: incoming.url,
-                    headers: incoming.headers,
-                },
-                (response) => {
-                    outgoing.writeHead(
-                        response.statusCode ?? 502,
-                        response.headers
-                    );
-                    response.pipe(outgoing);
-                }
-            );
-            upstream.on('error', () => outgoing.writeHead(502).end());
-            incoming.pipe(upstream);
-        }
-    );
+    const cert = join(certificate, 'provider-test.pem');
+    const key = join(certificate, 'provider-test.key');
+    const portProbe = createServer().listen(0, '127.0.0.1');
+    await once(portProbe, 'listening');
+    const endpoint = portProbe.address();
+    await new Promise<void>((resolve) => portProbe.close(() => resolve()));
+    if (!endpoint || typeof endpoint === 'string')
+        throw new Error('Expected the HTTPS fixture port');
+    const httpsOrigin = 'https://127.0.0.1:' + endpoint.port;
     let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
     const phone = await browser.newContext({
         ignoreHTTPSErrors: true,
@@ -480,43 +477,54 @@ test('approves a LAN TV from a phone over HTTPS', async ({ browser }) => {
         const page = desktop.mainWindow;
         await openSettings(page);
         await openSettingsSection(page, 'server');
-        const startServer = page.getByTestId('hosted-server-start');
-        await expect(startServer).toBeVisible();
-        test.skip(
-            !(await page.evaluate(
-                async () =>
-                    (await window.electron.hostedServerControl?.('status'))
-                        ?.availableAddresses?.length
-            )),
-            'No private IPv4 interface for the LAN listener'
-        );
-        await startServer.click();
-        const address = page.getByTestId('hosted-server-address');
-        await expect(address).toBeVisible();
-        const lan = (await address.innerText()).trim();
-        const tvPost = (action: string, body: object) =>
-            fetch(`${lan}/api/v1/device-pairing/${action}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-            });
-        const lanOnly = await (
-            await tvPost('start', { name: 'LAN-only TV' })
-        ).json();
-        expect(lanOnly.approvalUrl).toBe(
-            `${lan}/approve-device/${lanOnly.claimId}`
-        );
-
-        proxy.listen(0, '127.0.0.1');
-        await once(proxy, 'listening');
-        const endpoint = proxy.address();
-        if (!endpoint || typeof endpoint === 'string')
-            throw new Error('Expected the HTTPS fixture port');
-        const httpsOrigin = `https://127.0.0.1:${endpoint.port}`;
-        await page.getByTestId('hosted-https-setup').click();
+        await page.getByRole('radio', { name: 'Custom HTTPS' }).click();
+        await page.getByTestId('hosted-network-address').click();
+        await page.getByRole('option', { name: 'This computer only' }).click();
         await page.getByTestId('hosted-https-origin').fill(httpsOrigin);
-        await page.getByTestId('hosted-https-start').click();
-        await expect(page.getByTestId('hosted-https-stop')).toBeVisible();
+        await page.getByTestId('hosted-certificate-path').fill(cert);
+        await page.getByTestId('hosted-key-path').fill(cert);
+        const startServer = page.getByTestId('hosted-server-start');
+        await startServer.click();
+        await expect(page.getByRole('alert')).toContainText('certificate');
+        await expect(fetch(httpsOrigin)).rejects.toThrow();
+        await page.getByTestId('hosted-key-path').fill(key);
+        await startServer.click();
+        await expect(page.getByTestId('hosted-server-status')).toHaveText(
+            'Server running'
+        );
+        await expect(page.getByTestId('hosted-device-pair-qr')).toHaveCount(0);
+        await expect(
+            fetch('http://127.0.0.1:' + HOSTED_SERVER_PORT)
+        ).rejects.toThrow();
+        await expect(fetch(httpsOrigin)).rejects.toThrow();
+
+        const verified = await new Promise<number>((resolve, reject) => {
+            getTls(
+                httpsOrigin + '/api/v1/instance',
+                {
+                    ca: readFileSync(cert),
+                    servername: 'provider.example',
+                },
+                (response) => {
+                    response.resume();
+                    resolve(response.statusCode!);
+                }
+            ).on('error', reject);
+        });
+        expect(verified).toBe(200);
+        await page.getByTestId('hosted-device-pair').click();
+        const invite = new URL(
+            await qrAddress(page.getByTestId('hosted-device-pair-qr'))
+        );
+        expect(invite.origin).toBe(httpsOrigin);
+        expect(invite.pathname).toBe('/pair-device');
+        expect(invite.search).toBe('');
+        expect(invite.hash).toMatch(/^#[A-Za-z0-9_-]{43}$/);
+        const tvPost = (action: string, body: object) =>
+            phone.request.post(
+                httpsOrigin + '/api/v1/device-pairing/' + action,
+                { data: body }
+            );
         const approval = await phone.newPage();
         const password = approval.getByLabel('Phone approval password');
         const appOnly = await (
@@ -532,6 +540,7 @@ test('approves a LAN TV from a phone over HTTPS', async ({ browser }) => {
         await expect(password).toBeHidden();
 
         const ownerPassword = 'synthetic test owner password';
+        await page.getByTestId('hosted-browser-pairing-options').click();
         await page
             .getByTestId('hosted-browser-pairing-password')
             .fill(ownerPassword);
@@ -543,7 +552,7 @@ test('approves a LAN TV from a phone over HTTPS', async ({ browser }) => {
         const start = await tvPost('start', {
             name: 'Synthetic living room TV',
         });
-        expect(start.status).toBe(201);
+        expect(start.status()).toBe(201);
         const { approvalUrl, claimId, claimSecret, confirmationCode } =
             await start.json();
         expect(approvalUrl).toBe(`${httpsOrigin}/approve-device/${claimId}`);
@@ -551,11 +560,6 @@ test('approves a LAN TV from a phone over HTTPS', async ({ browser }) => {
         const complete = () => tvPost('complete', { claimId, claimSecret });
         expect(await (await complete()).json()).toEqual({ status: 'pending' });
 
-        await approval.goto(`${lan}/approve-device/${claimId}`);
-        await expect(approval.getByRole('status')).toContainText(
-            'requires HTTPS'
-        );
-        await expect(password).toBeHidden();
         await approval.goto(approvalUrl);
         await expect(password).toBeVisible();
         await expect(
@@ -593,14 +597,22 @@ test('approves a LAN TV from a phone over HTTPS', async ({ browser }) => {
         await expect(approval.getByRole('status')).toContainText('TV approved');
         const enrolled = await (await complete()).json();
         expect(enrolled.status).toBe('approved');
-        const identity = await (await fetch(`${lan}/api/v1/instance`)).json();
+        const identity = await (
+            await phone.request.get(httpsOrigin + '/api/v1/instance')
+        ).json();
         expect(enrolled.instanceId).toBe(identity.instanceId);
         const headers = { Authorization: `Bearer ${enrolled.token}` };
-        expect((await fetch(`${lan}/api/v1/sources`, { headers })).status).toBe(
-            200
-        );
+        expect(
+            (
+                await phone.request.get(httpsOrigin + '/api/v1/sources', {
+                    headers,
+                })
+            ).status()
+        ).toBe(200);
 
-        await page.getByRole('button', { name: 'Show devices' }).click();
+        await expect(
+            page.getByRole('button', { name: 'Hide devices' })
+        ).toBeVisible();
         const device = page.getByRole('listitem').filter({
             hasText: 'Synthetic living room TV',
         });
@@ -610,13 +622,15 @@ test('approves a LAN TV from a phone over HTTPS', async ({ browser }) => {
             page.getByText('Device access revoked.', { exact: true })
         ).toBeVisible();
         await expect(device).toHaveCount(0);
-        expect((await fetch(`${lan}/api/v1/sources`, { headers })).status).toBe(
-            401
-        );
+        expect(
+            (
+                await phone.request.get(httpsOrigin + '/api/v1/sources', {
+                    headers,
+                })
+            ).status()
+        ).toBe(401);
     } finally {
         await phone.close();
-        if (proxy.listening)
-            await new Promise<void>((resolve) => proxy.close(() => resolve()));
         if (desktop) await closeElectronApp(desktop);
         rmSync(directory, { recursive: true, force: true });
     }
@@ -631,7 +645,10 @@ test('can disable automatic hosting when the server port is occupied', async () 
         await openSettings(desktop.mainWindow);
         await openSettingsSection(desktop.mainWindow, 'server');
         await desktop.mainWindow.evaluate(() =>
-            window.electron.hostedServerControl!({ start: true })
+            window.electron.hostedServerControl!({
+                start: true,
+                configuration: { mode: 'lan', address: '', access: 'paired' },
+            })
         );
         await expect(
             desktop.mainWindow.getByTestId('hosted-server-status')
@@ -647,9 +664,12 @@ test('can disable automatic hosting when the server port is occupied', async () 
         await openSettings(desktop.mainWindow);
         await openSettingsSection(desktop.mainWindow, 'server');
         await expect(
-            desktop.mainWindow.getByText('Port 4334 is in use.', {
-                exact: false,
-            })
+            desktop.mainWindow.getByText(
+                'The selected server port is in use.',
+                {
+                    exact: false,
+                }
+            )
         ).toBeVisible();
         await desktop.mainWindow
             .getByRole('button', { name: 'Disable automatic start' })
@@ -673,6 +693,73 @@ test('can disable automatic hosting when the server port is occupied', async () 
             await new Promise<void>((resolve) =>
                 blocker.close(() => resolve())
             );
+        rmSync(directory, { recursive: true, force: true });
+    }
+});
+
+test('starts a tunnel TLS origin on loopback and requires Access for both pages and APIs', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'iptvnator-tunnel-e2e-'));
+    const certificate = join(workspaceRoot, 'apps/web-backend/src/app/testing');
+    const cert = join(certificate, 'provider-test.pem');
+    const key = join(certificate, 'provider-test.key');
+    const tlsOrigin = `https://127.0.0.1:${HOSTED_SERVER_HTTPS_PORT}`;
+    const publicOrigin = 'https://library.example.test';
+    const read = (path: string) =>
+        new Promise<number>((resolve, reject) => {
+            getTls(
+                tlsOrigin + path,
+                {
+                    ca: readFileSync(cert),
+                    servername: 'provider.example',
+                    headers: { Host: new URL(publicOrigin).host },
+                },
+                (response) => {
+                    response.resume();
+                    resolve(response.statusCode!);
+                }
+            ).on('error', reject);
+        });
+    let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
+    try {
+        desktop = await launchElectronApp(directory);
+        const page = desktop.mainWindow;
+        const status = await page.evaluate(
+            ({ origin, certificatePath, keyPath }) =>
+                window.electron.hostedServerControl!({
+                    start: true,
+                    configuration: {
+                        mode: 'cloudflare',
+                        origin,
+                        certificatePath,
+                        keyPath,
+                        team: 'example-team',
+                        audience: 'a'.repeat(64),
+                        managed: false,
+                    },
+                }),
+            { origin: publicOrigin, certificatePath: cert, keyPath: key }
+        );
+        expect(status).toMatchObject({
+            state: 'running',
+            mode: 'cloudflare',
+            endpoint: publicOrigin,
+        });
+        expect(status.lanUrl).toBeUndefined();
+        await expect(
+            fetch(`http://127.0.0.1:${HOSTED_SERVER_PORT}`)
+        ).rejects.toThrow();
+        await expect(read('/')).resolves.toBe(403);
+        await expect(read('/api/v1/instance')).resolves.toBe(403);
+        await openSettings(page);
+        await openSettingsSection(page, 'server');
+        await expect(page.getByTestId('hosted-device-pair')).toHaveCount(0);
+        await page.getByTestId('hosted-server-stop').click();
+        await expect(page.getByTestId('hosted-server-status')).toHaveText(
+            'Server stopped'
+        );
+        await expect(read('/')).rejects.toThrow();
+    } finally {
+        if (desktop) await closeElectronApp(desktop);
         rmSync(directory, { recursive: true, force: true });
     }
 });

@@ -24,7 +24,12 @@ const digest = (value: string) =>
 
 /** Invitations and pending claims die with the process; only token digests persist. */
 export class DevicePairingStore {
-    private readonly invites = new Map<string, number>();
+    private readonly invites = new Map<string, {
+        expires: number;
+        origin?: string;
+        cloudflare: boolean;
+        approverId?: string;
+    }>();
     private readonly claims = new Map<string, Claim>();
     private readonly sessions = new Map<string, number>();
     constructor(
@@ -41,35 +46,42 @@ export class DevicePairingStore {
             db.exec(
                 'ALTER TABLE server_paired_devices ADD COLUMN can_approve INTEGER NOT NULL DEFAULT 0'
             );
+        if (!columns.some((column) => column.name === 'cloudflare'))
+            db.exec('ALTER TABLE server_paired_devices ADD COLUMN cloudflare INTEGER NOT NULL DEFAULT 0');
+        if (!columns.some((column) => column.name === 'revoked'))
+            db.exec('ALTER TABLE server_paired_devices ADD COLUMN revoked INTEGER NOT NULL DEFAULT 0');
         db.exec(
             'CREATE TABLE IF NOT EXISTS server_pairing_settings (id INTEGER PRIMARY KEY CHECK(id = 1), password_hash TEXT NOT NULL)'
         );
     }
     private prune(): void {
         const now = this.now();
-        for (const [id, expires] of this.invites)
+        for (const [id, { expires }] of this.invites)
             if (expires <= now) this.invites.delete(id);
         for (const [id, claim] of this.claims)
             if (claim.expires <= now) this.claims.delete(id);
     }
-    invite(): { inviteId: string; expiresAt: string } | null {
+    invite(origin?: string, cloudflare = false, approverId?: string): { inviteId: string; expiresAt: string } | null {
         this.prune();
         if (this.invites.size + this.claims.size >= MAX_PENDING) return null;
         const id = secret();
         const expires = this.now() + LIFETIME;
-        this.invites.set(id, expires);
+        this.invites.set(id, { expires, origin, cloudflare, approverId });
         return { inviteId: id, expiresAt: new Date(expires).toISOString() };
     }
     claim(
         inviteId: string,
-        name: string
+        name: string,
+        origin?: string
     ): {
         claimId: string;
         claimSecret: string;
         confirmationCode: string;
     } | null {
         this.prune();
-        if (!this.invites.delete(inviteId)) return null;
+        const invite = this.invites.get(inviteId);
+        if (!invite || invite.cloudflare || (invite.origin && invite.origin !== origin)) return null;
+        this.invites.delete(inviteId);
         const result = this.start(name, inviteId);
         if (!result) return null;
         const { claimId, claimSecret, confirmationCode } = result;
@@ -193,10 +205,40 @@ export class DevicePairingStore {
         this.claims.delete(id);
         return { status: 'approved', token };
     }
-    list() {
+    cloudflareDevice(key: string): 'active' | 'revoked' | 'unknown' {
+        const row = this.db.prepare(
+            'SELECT revoked FROM server_paired_devices WHERE token_digest = ? AND cloudflare = 1'
+        ).get(digest(key)) as { revoked: number } | undefined;
+        return !row ? 'unknown' : row.revoked ? 'revoked' : 'active';
+    }
+    registerCloudflareDevice(inviteId: string, origin: string, name: string, key: string) {
+        const state = this.cloudflareDevice(key);
+        if (state === 'active') return state;
+        this.prune();
+        const invite = this.invites.get(inviteId);
+        if (!invite?.cloudflare || invite.origin !== origin) return state;
+        if (invite.approverId && !this.db.prepare(
+            'SELECT 1 FROM server_paired_devices WHERE id = ? AND cloudflare = 1 AND revoked = 0 AND can_approve = 1'
+        ).get(invite.approverId)) return state;
+        if (state === 'revoked') {
+            this.db.prepare(
+                'UPDATE server_paired_devices SET revoked = 0, name = ? WHERE token_digest = ? AND cloudflare = 1'
+            ).run(name, digest(key));
+        } else {
+            this.db.prepare(
+                'INSERT INTO server_paired_devices (id, name, token_digest, cloudflare) VALUES (?, ?, ?, 1)'
+            ).run(randomUUID(), name, digest(key));
+        }
+        this.invites.delete(inviteId);
+        return 'active';
+    }
+    list(cloudflare = false, inviteId?: string) {
         this.prune();
         return {
-            pending: Array.from(this.claims, ([claimId, claim]) => ({
+            ...(cloudflare && inviteId
+                ? { inviteActive: this.invites.get(inviteId)?.cloudflare === true }
+                : {}),
+            pending: cloudflare ? [] : Array.from(this.claims, ([claimId, claim]) => ({
                 claimId,
                 inviteId: claim.inviteId,
                 name: claim.name,
@@ -204,9 +246,9 @@ export class DevicePairingStore {
             })),
             devices: this.db
                 .prepare(
-                    'SELECT id, name, can_approve AS canApprove FROM server_paired_devices ORDER BY rowid'
+                    'SELECT id, name, can_approve AS canApprove FROM server_paired_devices WHERE cloudflare = ? AND revoked = 0 ORDER BY rowid'
                 )
-                .all()
+                .all(cloudflare ? 1 : 0)
                 .map((row) => {
                     const device = row as {
                         id: string;
@@ -217,33 +259,48 @@ export class DevicePairingStore {
                 }),
         };
     }
-    setApproval(id: string, canApprove: boolean): boolean {
+    cloudflareApprover(key: string): string | undefined {
+        const row = this.db.prepare(
+            'SELECT id FROM server_paired_devices WHERE token_digest = ? AND cloudflare = 1 AND revoked = 0 AND can_approve = 1'
+        ).get(digest(key)) as { id: string } | undefined;
+        return row?.id;
+    }
+    setApproval(id: string, canApprove: boolean, cloudflare = false): boolean {
+        if (cloudflare && !canApprove) this.retractInvites(id);
         return (
             this.db
                 .prepare(
-                    'UPDATE server_paired_devices SET can_approve = ? WHERE id = ?'
+                    'UPDATE server_paired_devices SET can_approve = ? WHERE id = ? AND cloudflare = ? AND revoked = 0'
                 )
-                .run(canApprove ? 1 : 0, id).changes > 0
+                .run(canApprove ? 1 : 0, id, cloudflare ? 1 : 0).changes > 0
         );
     }
     canApprove(token: string): boolean {
         return !!this.db
             .prepare(
-                'SELECT 1 FROM server_paired_devices WHERE token_digest = ? AND can_approve = 1'
+                'SELECT 1 FROM server_paired_devices WHERE token_digest = ? AND can_approve = 1 AND cloudflare = 0'
             )
             .get(digest(token));
     }
-    revoke(id: string): boolean {
+    revoke(id: string, cloudflare = false): boolean {
+        if (cloudflare) this.retractInvites(id);
         return (
             this.db
-                .prepare('DELETE FROM server_paired_devices WHERE id = ?')
+                .prepare(cloudflare
+                     ? 'UPDATE server_paired_devices SET revoked = 1, can_approve = 0 WHERE id = ? AND cloudflare = 1 AND revoked = 0'
+                    : 'DELETE FROM server_paired_devices WHERE id = ? AND cloudflare = 0')
                 .run(id).changes > 0
         );
+    }
+
+    private retractInvites(id: string): void {
+        for (const [inviteId, invite] of this.invites)
+            if (invite.approverId === id) this.invites.delete(inviteId);
     }
     accepts(token: string): boolean {
         return !!this.db
             .prepare(
-                'SELECT 1 FROM server_paired_devices WHERE token_digest = ?'
+                'SELECT 1 FROM server_paired_devices WHERE token_digest = ? AND cloudflare = 0'
             )
             .get(digest(token));
     }

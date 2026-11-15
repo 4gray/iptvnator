@@ -6,7 +6,7 @@ export const HOSTED_PAIRING_PASSWORD_MAX_LENGTH = 128;
 
 export type HostedDeviceCommand =
     | { action: 'invite' }
-    | { action: 'list' }
+    | { action: 'list'; inviteId?: string }
     | { action: 'approve'; claimId: string }
     | { action: 'revoke'; deviceId: string }
     | { action: 'set-device-approval'; deviceId: string; canApprove: boolean }
@@ -15,10 +15,11 @@ export type HostedDeviceCommand =
 
 export interface HostedDeviceInvite {
     url: string;
-    expiresAt: string;
+    expiresAt: string | null;
 }
 
 export interface HostedDeviceList {
+    inviteActive?: boolean;
     pending: {
         claimId: string;
         inviteId: string;
@@ -41,6 +42,38 @@ export interface HostedDeviceResults {
 export const HOSTED_SERVER_PORT = 4334;
 export const HOSTED_SERVER_HTTPS_PORT = 4335;
 
+export type HostedServerMode =
+    | { mode: 'lan'; address: string; access: 'paired' | 'open' }
+    | {
+          mode: 'https' | 'proxy';
+          origin: string;
+          address: string;
+          certificatePath: string;
+          keyPath: string;
+      }
+    | {
+          mode: 'cloudflare';
+          origin: string;
+          certificatePath: string;
+          keyPath: string;
+          team: string;
+          audience: string;
+          managed: boolean;
+      };
+
+export interface HostedWorkerRequest {
+    path: string;
+    method: string;
+    headers?: Record<string, string>;
+    body?: unknown;
+}
+
+export interface HostedWorkerResponse {
+    status: number;
+    etag?: string;
+    body: unknown;
+}
+
 export function parseHostedHttpsOrigin(value: string): URL {
     if (!/^https:\/\/[^/?#\\\s]+\/?$/i.test(value))
         throw new Error('Expected an HTTPS origin');
@@ -61,6 +94,7 @@ export function parseHostedHttpsOrigin(value: string): URL {
 export type HostedServerCommand =
     | 'status'
     | 'stop'
+    | { start: true; configuration: HostedServerMode; connectorToken?: string }
     | { start: true; lanAddress?: string }
     | { restart: true; lanAddress: string }
     | { httpsOrigin: string };
@@ -78,7 +112,13 @@ export interface HostedServerStatus {
     lanUrl?: string;
     lanAddress?: string;
     availableAddresses?: string[];
-    error?: 'port' | 'startup';
+    error?: 'port' | 'startup' | 'tls' | 'connector';
+    configuration?: HostedServerMode;
+    savedConfigurations?: Partial<Record<HostedServerMode['mode'], HostedServerMode>>;
+    mode?: HostedServerMode['mode'];
+    lanAccess?: 'paired' | 'open';
+    endpoint?: string;
+    publicRoute?: 'unchecked' | 'access-protected' | 'unverified';
     /** Separately enabled local origin for an externally managed HTTPS proxy. */
     httpsOrigin?: string;
     httpsError?: boolean;
@@ -86,8 +126,9 @@ export interface HostedServerStatus {
 
 export type HostedServerWorkerMessage =
     | { ready: true; instanceId: string }
+    | { reply: string; response?: HostedWorkerResponse }
     | { https: true; requestId: string; origin: string; failed?: boolean }
-    | { error: 'port' | 'startup' };
+    | { error: 'port' | 'startup' | 'tls' };
 
 /** The connector process state; running does not verify external tunnel connectivity. */
 export const HOSTED_CLOUDFLARE_CONTROL = 'hosted-cloudflare:control';

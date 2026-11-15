@@ -6,16 +6,25 @@
         {{ 'HOSTED_SERVER.PAIRED_DEVICES' | translate }}
     </h3>
     <div class="server-actions">
-        @if (lanAvailable()) {
+        @if (lanAvailable() || pairingUnavailableReason()) {
             <button
                 mat-flat-button
                 type="button"
                 class="settings-primary-button"
-                [disabled]="busy() || !!invite()"
+                [disabled]="busy() || !lanAvailable()"
+                [attr.aria-describedby]="
+                    pairingUnavailableReason() ? 'hosted-pairing-unavailable' : null
+                "
                 (click)="pair()"
                 data-test-id="hosted-device-pair"
             >
-                {{ 'HOSTED_SERVER.PAIR_DEVICE' | translate }}
+                <mat-icon aria-hidden="true">qr_code_2</mat-icon>
+                {{
+                    (addressOnly() || cloudflare()
+                        ? 'HOSTED_SERVER.CONNECT_DEVICE'
+                        : 'HOSTED_SERVER.PAIR_DEVICE'
+                    ) | translate
+                }}
             </button>
         }
         <button
@@ -33,11 +42,16 @@
             }}
         </button>
     </div>
+    @if (pairingUnavailableReason(); as reason) {
+        <p class="server-message" id="hosted-pairing-unavailable" role="status">
+            {{ reason | translate }}
+        </p>
+    }
     @if (lanAvailable()) {
         @if (invite(); as pairing) {
             <div class="hosted-stack">
                 <p class="server-message">
-                    {{ 'HOSTED_SERVER.PAIR_SCAN' | translate }}
+                    {{ (cloudflare() ? 'HOSTED_SERVER.SCAN_CLOUDFLARE' : 'HOSTED_SERVER.SCAN_IN_APP') | translate }}
                 </p>
                 <qrcode
                     class="hosted-qr"
@@ -78,44 +92,63 @@
                 </p>
             } @else if (list(); as snapshot) {
                 @if (snapshot.pending.length) {
-                    <p class="server-message">
-                        {{ 'HOSTED_SERVER.PAIR_COMPARE' | translate }}
-                    </p>
-                    <ul
-                        class="device-rows"
-                        [attr.aria-label]="
-                            'HOSTED_SERVER.PAIR_REQUESTS' | translate
-                        "
+                    <section
+                        class="hosted-stack pairing-requests"
+                        aria-labelledby="hosted-pairing-requests-title"
                     >
-                        @for (claim of snapshot.pending; track claim.claimId) {
-                            <li class="device-row">
-                                <span class="device-name">{{
-                                    claim.name
-                                }}</span>
-                                <span class="pairing-code-group">
-                                    <span class="pairing-code-label">
-                                        {{
-                                            'HOSTED_SERVER.PAIR_CODE'
-                                                | translate
-                                        }}
-                                    </span>
-                                    <code class="pairing-code">{{
-                                        claim.confirmationCode
-                                    }}</code>
-                                </span>
-                                <button
-                                    mat-button
-                                    type="button"
-                                    [disabled]="busy()"
-                                    (click)="approve(claim.claimId)"
-                                >
-                                    {{
-                                        'HOSTED_SERVER.PAIR_APPROVE' | translate
-                                    }}
-                                </button>
-                            </li>
-                        }
-                    </ul>
+                        <h4 id="hosted-pairing-requests-title">
+                            {{ 'HOSTED_SERVER.PAIR_REQUESTS' | translate }}
+                        </h4>
+                        <p class="server-message" id="hosted-pairing-compare">
+                            {{ 'HOSTED_SERVER.PAIR_COMPARE' | translate }}
+                        </p>
+                        <ul class="device-rows pairing-request-list">
+                            @for (claim of snapshot.pending; track claim.claimId) {
+                                <li class="pairing-request">
+                                    <div class="pairing-request-identity">
+                                        <span
+                                            class="pairing-device-name"
+                                            [id]="
+                                                'hosted-pairing-name-' + claim.claimId
+                                            "
+                                            >{{ claim.name }}</span
+                                        >
+                                        <span class="pairing-code-group">
+                                            <span class="pairing-code-label">
+                                                {{
+                                                    'HOSTED_SERVER.PAIR_CODE'
+                                                        | translate
+                                                }}
+                                            </span>
+                                            <code
+                                                class="pairing-code"
+                                                dir="ltr"
+                                                [id]="
+                                                    'hosted-pairing-code-' + claim.claimId
+                                                "
+                                                >{{ claim.confirmationCode }}</code
+                                            >
+                                        </span>
+                                    </div>
+                                    <button
+                                        mat-flat-button
+                                        type="button"
+                                        class="settings-primary-button"
+                                        [attr.aria-describedby]="
+                                            'hosted-pairing-name-' + claim.claimId +
+                                            ' hosted-pairing-code-' + claim.claimId +
+                                            ' hosted-pairing-compare'
+                                        "
+                                        [disabled]="busy()"
+                                        (click)="approve(claim.claimId)"
+                                        data-test-id="hosted-device-approve"
+                                    >
+                                        {{ 'HOSTED_SERVER.PAIR_APPROVE' | translate }}
+                                    </button>
+                                </li>
+                            }
+                        </ul>
+                    </section>
                 }
                 @if (snapshot.devices.length) {
                     <ul
@@ -181,98 +214,97 @@
         <p class="server-message" role="status">{{ message() | translate }}</p>
     }
     @if (httpsOrigin()) {
-        <section
-            class="hosted-stack phone-pairing"
-            aria-labelledby="hosted-phone-pairing-title"
-        >
-            <h4 id="hosted-phone-pairing-title">
+        <details class="phone-pairing">
+            <summary data-test-id="hosted-browser-pairing-options">
                 {{ 'HOSTED_SERVER.PHONE_PAIRING_TITLE' | translate }}
-            </h4>
-            <p class="server-message">
-                {{ 'HOSTED_SERVER.PHONE_PAIRING_DESCRIPTION' | translate }}
-            </p>
-            @if (passwordSettings.hasValue()) {
-                <form
-                    class="hosted-stack phone-pairing"
-                    (submit)="savePassword($event, passwordInput)"
-                >
-                    <mat-form-field appearance="outline">
-                        <mat-label>{{
-                            'HOSTED_SERVER.PHONE_PASSWORD_LABEL' | translate
-                        }}</mat-label>
-                        <input
-                            #passwordInput
-                            matInput
-                            type="password"
-                            autocomplete="new-password"
-                            required
-                            [minLength]="passwordMinLength"
-                            [maxLength]="passwordMaxLength"
-                            [disabled]="passwordBusy()"
-                            data-test-id="hosted-browser-pairing-password"
-                        />
-                        <mat-hint>{{
-                            'HOSTED_SERVER.PHONE_PASSWORD_LENGTH'
-                                | translate
-                                    : {
-                                          min: passwordMinLength,
-                                          max: passwordMaxLength,
-                                      }
-                        }}</mat-hint>
-                    </mat-form-field>
-                    <div class="server-actions">
-                        <button
-                            mat-stroked-button
-                            type="submit"
-                            [disabled]="passwordBusy()"
-                            data-test-id="hosted-browser-pairing-save"
-                        >
-                            {{
-                                'HOSTED_SERVER.PHONE_PASSWORD_SAVE' | translate
-                            }}
-                        </button>
-                        @if (passwordSettings.value().passwordConfigured) {
-                            <button
-                                mat-button
-                                type="button"
-                                class="app-destructive-button"
+            </summary>
+            <div class="hosted-stack phone-pairing-content">
+                <p class="server-message">
+                    {{ 'HOSTED_SERVER.PHONE_PAIRING_DESCRIPTION' | translate }}
+                </p>
+                @if (passwordSettings.hasValue()) {
+                    <form
+                        class="hosted-stack phone-pairing"
+                        (submit)="savePassword($event, passwordInput)"
+                    >
+                        <mat-form-field appearance="outline">
+                            <mat-label>{{
+                                'HOSTED_SERVER.PHONE_PASSWORD_LABEL' | translate
+                            }}</mat-label>
+                            <input
+                                #passwordInput
+                                matInput
+                                type="password"
+                                autocomplete="new-password"
+                                required
+                                [minLength]="passwordMinLength"
+                                [maxLength]="passwordMaxLength"
                                 [disabled]="passwordBusy()"
-                                (click)="confirmClearPassword()"
-                                data-test-id="hosted-browser-pairing-clear"
+                                data-test-id="hosted-browser-pairing-password"
+                            />
+                            <mat-hint>{{
+                                'HOSTED_SERVER.PHONE_PASSWORD_LENGTH'
+                                    | translate
+                                        : {
+                                              min: passwordMinLength,
+                                              max: passwordMaxLength,
+                                          }
+                            }}</mat-hint>
+                        </mat-form-field>
+                        <div class="server-actions">
+                            <button
+                                mat-stroked-button
+                                type="submit"
+                                [disabled]="passwordBusy()"
+                                data-test-id="hosted-browser-pairing-save"
                             >
                                 {{
-                                    'HOSTED_SERVER.PHONE_PASSWORD_CLEAR'
-                                        | translate
+                                    'HOSTED_SERVER.PHONE_PASSWORD_SAVE' | translate
                                 }}
                             </button>
-                        }
-                    </div>
-                </form>
-            } @else if (passwordSettings.error()) {
-                <p class="server-message server-message--error" role="alert">
-                    {{ 'HOSTED_SERVER.PHONE_PASSWORD_LOAD_FAILED' | translate }}
-                </p>
-                <button
-                    mat-button
-                    type="button"
-                    (click)="passwordSettings.reload()"
-                >
-                    {{ 'RETRY' | translate }}
-                </button>
-            } @else {
-                <p class="server-message" role="status">
-                    {{ 'LOADING' | translate }}
-                </p>
-            }
-            @if (passwordNotice(); as notice) {
-                <p
-                    class="server-message"
-                    [class.server-message--error]="notice.error"
-                    [attr.role]="notice.error ? 'alert' : 'status'"
-                >
-                    {{ notice.key | translate }}
-                </p>
-            }
-        </section>
+                            @if (passwordSettings.value().passwordConfigured) {
+                                <button
+                                    mat-button
+                                    type="button"
+                                    class="app-destructive-button"
+                                    [disabled]="passwordBusy()"
+                                    (click)="confirmClearPassword()"
+                                    data-test-id="hosted-browser-pairing-clear"
+                                >
+                                    {{
+                                        'HOSTED_SERVER.PHONE_PASSWORD_CLEAR'
+                                            | translate
+                                    }}
+                                </button>
+                            }
+                        </div>
+                    </form>
+                } @else if (passwordSettings.error()) {
+                    <p class="server-message server-message--error" role="alert">
+                        {{ 'HOSTED_SERVER.PHONE_PASSWORD_LOAD_FAILED' | translate }}
+                    </p>
+                    <button
+                        mat-button
+                        type="button"
+                        (click)="passwordSettings.reload()"
+                    >
+                        {{ 'RETRY' | translate }}
+                    </button>
+                } @else {
+                    <p class="server-message" role="status">
+                        {{ 'LOADING' | translate }}
+                    </p>
+                }
+                @if (passwordNotice(); as notice) {
+                    <p
+                        class="server-message"
+                        [class.server-message--error]="notice.error"
+                        [attr.role]="notice.error ? 'alert' : 'status'"
+                    >
+                        {{ notice.key | translate }}
+                    </p>
+                }
+            </div>
+        </details>
     }
 </section>

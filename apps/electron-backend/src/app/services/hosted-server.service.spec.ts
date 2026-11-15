@@ -21,7 +21,10 @@ import {
 import { getHostedServerAccessCode } from './hosted-server-session';
 import {
     HOSTED_SERVER_ENABLED,
+    HOSTED_SERVER_CONFIGURATIONS,
+    HOSTED_SERVER_INSTANCE_ID,
     HOSTED_SERVER_LAN_ADDRESS,
+    HOSTED_SERVER_MODE,
     store,
 } from './store.service';
 
@@ -39,7 +42,10 @@ jest.mock('@iptvnator/shared/database/path-utils', () => ({
 }));
 jest.mock('./store.service', () => ({
     HOSTED_SERVER_ENABLED: 'HOSTED_SERVER_ENABLED',
+    HOSTED_SERVER_CONFIGURATIONS: 'HOSTED_SERVER_CONFIGURATIONS',
+    HOSTED_SERVER_INSTANCE_ID: 'HOSTED_SERVER_INSTANCE_ID',
     HOSTED_SERVER_LAN_ADDRESS: 'HOSTED_SERVER_LAN_ADDRESS',
+    HOSTED_SERVER_MODE: 'HOSTED_SERVER_MODE',
     store: { get: jest.fn(), set: jest.fn() },
 }));
 
@@ -144,6 +150,95 @@ describe('desktop hosted server lifecycle', () => {
         rmSync(directory, { recursive: true, force: true });
     });
 
+    it('leaves a retired proxy stopped and keeps saved profiles for a manual restart', async () => {
+        addAssets(join(directory, 'hosted-backend/main.cjs'), join(directory, 'hosted-pwa'));
+        const proxy = {
+            mode: 'proxy',
+            origin: 'https://retired.example.test',
+            address: '',
+            certificatePath: '',
+            keyPath: '',
+        };
+        const https = {
+            mode: 'https',
+            origin: 'https://library.example.test',
+            address: lanAddress,
+            certificatePath: join(directory, 'certificate.pem'),
+            keyPath: join(directory, 'key.pem'),
+        };
+        settings.set(HOSTED_SERVER_ENABLED, true);
+        settings.set(HOSTED_SERVER_MODE, proxy);
+        settings.set(HOSTED_SERVER_CONFIGURATIONS, { https });
+        expect(await restoreHostedServer()).toMatchObject({
+            state: 'stopped',
+            autoStart: false,
+            savedConfigurations: { https },
+        });
+        expect(utilityProcess.fork).not.toHaveBeenCalled();
+        expect(() => control({ start: true, configuration: proxy })).toThrow(
+            'Invalid hosted server mode'
+        );
+        nextWorker(ready);
+        expect(await control({ start: true, configuration: https })).toMatchObject({
+            state: 'running',
+            endpoint: https.origin,
+            configuration: https,
+        });
+    });
+
+    it('keeps separate mode profiles and the legacy LAN address across starts and restore', async () => {
+        addAssets(
+            join(directory, 'hosted-backend/main.cjs'),
+            join(directory, 'hosted-pwa')
+        );
+        jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, {
+            status: 401,
+            headers: { 'WWW-Authenticate': 'Bearer resource_metadata="https://tunnel.example.test"' },
+        }));
+        const lan = { mode: 'lan', address: lanAddress, access: 'open' };
+        const tunnel = {
+            mode: 'cloudflare',
+            origin: 'https://tunnel.example.test',
+            team: 'example-team',
+            audience: 'a'.repeat(64),
+            managed: false,
+            certificatePath: '',
+            keyPath: '',
+        };
+        const https = {
+            mode: 'https',
+            address: '',
+            origin: 'https://custom.example.test',
+            certificatePath: join(directory, 'cert.pem'),
+            keyPath: join(directory, 'key.pem'),
+        };
+
+        settings.set(HOSTED_SERVER_MODE, lan);
+        settings.set(HOSTED_SERVER_LAN_ADDRESS, lanAddress);
+        nextWorker(ready);
+        expect(await control({ start: true, configuration: tunnel })).toMatchObject({
+            configuration: tunnel,
+            lanAddress,
+            savedConfigurations: { lan, cloudflare: tunnel },
+        });
+        nextWorker(ready);
+        expect(await control({ start: true, configuration: https })).toMatchObject({
+            configuration: https,
+            lanAddress,
+            savedConfigurations: { lan, cloudflare: tunnel, https },
+        });
+        expect(settings.get(HOSTED_SERVER_CONFIGURATIONS)).toEqual({ lan, cloudflare: tunnel, https });
+
+        await stopHostedServerForRestart();
+        nextWorker(ready);
+        expect(await restoreHostedServer()).toMatchObject({
+            state: 'running',
+            mode: 'https',
+            configuration: https,
+            savedConfigurations: { lan, cloudflare: tunnel, https },
+        });
+    });
+
     it('uses guarded loopback IPC for device pairing and management', async () => {
         addAssets(
             join(directory, 'hosted-backend/main.cjs'),
@@ -155,9 +250,7 @@ describe('desktop hosted server lifecycle', () => {
         await expect(invite()).rejects.toThrow('Hosted server is unavailable');
         nextWorker(ready);
         await control({ start: true });
-        await expect(invite()).rejects.toThrow(
-            'Home network sharing is unavailable'
-        );
+        await expect(invite()).rejects.toThrow('Hosted sharing is unavailable');
         expect(fetchMock).not.toHaveBeenCalled();
         await control('stop');
         nextWorker(ready);
@@ -360,6 +453,7 @@ describe('desktop hosted server lifecycle', () => {
                     IPTVNATOR_ACCESS_TOKEN: invoke(HOSTED_SERVER_ACCESS_CODE),
                     IPTVNATOR_HOSTED_ASSETS: assets,
                     IPTVNATOR_HOSTED_LAN: '',
+                    IPTVNATOR_HOSTED_MODE: '',
                     PORT: String(HOSTED_SERVER_PORT),
                 },
             })
@@ -425,13 +519,22 @@ describe('desktop hosted server lifecycle', () => {
         expect(getHostedServerAccessCode()).toBe('');
         nextWorker(ready);
         expect(await restoreHostedServer()).toMatchObject({ state: 'running' });
-        expect(invoke(HOSTED_SERVER_ACCESS_CODE)).toBe(code);
+        expect(settings.get(HOSTED_SERVER_MODE)).toEqual({
+            mode: 'lan',
+            address: '',
+            access: 'paired',
+        });
+        expect(settings.get(HOSTED_SERVER_INSTANCE_ID)).toBe(ready.instanceId);
+        expect(getHostedServerAccessCode()).toBe(code);
+        expect(() => invoke(HOSTED_SERVER_ACCESS_CODE)).toThrow(
+            'Server access code is unavailable'
+        );
         expect(await control('stop')).toMatchObject({
             state: 'stopped',
             autoStart: false,
         });
         expect(() => invoke(HOSTED_SERVER_ACCESS_CODE)).toThrow(
-            'Server is unavailable'
+            'Server access code is unavailable'
         );
     });
 
@@ -561,9 +664,9 @@ describe('desktop hosted server lifecycle', () => {
         });
         await control({ httpsOrigin: 'https://library.example.test' });
 
-        await expect(
-            control({ restart: true, lanAddress })
-        ).rejects.toThrow('Stop HTTPS access before changing the LAN address');
+        await expect(control({ restart: true, lanAddress })).rejects.toThrow(
+            'Stop HTTPS access before changing the LAN address'
+        );
         expect(utilityProcess.fork).toHaveBeenCalledTimes(1);
         expect(worker.postMessage).not.toHaveBeenCalledWith('stop');
     });
