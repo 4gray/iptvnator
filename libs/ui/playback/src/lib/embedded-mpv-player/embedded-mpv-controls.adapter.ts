@@ -310,10 +310,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
     }
 
     private isLivePlayback(playback: ResolvedPortalPlayback): boolean {
-        if (typeof playback.isLive === 'boolean') {
-            return playback.isLive;
-        }
-        return !playback.contentInfo;
+        return playback.isLive ?? !playback.contentInfo;
     }
 
     private mapStatus(
@@ -410,11 +407,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
 
     private recordingElapsedSeconds(startedAt: string | undefined): number {
         this.recordingTick();
-        if (!startedAt) {
-            return 0;
-        }
-
-        const startedAtMs = Date.parse(startedAt);
+        const startedAtMs = Date.parse(startedAt ?? '');
         if (!Number.isFinite(startedAtMs)) {
             return 0;
         }

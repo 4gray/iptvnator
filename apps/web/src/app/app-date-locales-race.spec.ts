@@ -1,12 +1,10 @@
+import { APP_DATE_LOCALE_LOADERS } from './app-date-locale-data';
 import localePt from '@angular/common/locales/pt';
 import localePtPt from '@angular/common/locales/pt-PT';
 import { formatDate } from '@angular/common';
 import { TestBed } from '@angular/core/testing';
 import { TranslateService } from '@ngx-translate/core';
-import {
-    APP_DATE_LOCALE_LOADERS,
-    AppDateLocaleService,
-} from './app-date-locales';
+import { AppDateLocaleService } from './app-date-locales';
 import { PREFERRED_LANGUAGE_STORAGE_KEY } from './app-language-preference';
 
 describe('Portuguese switches with delayed locale chunks', () => {
@@ -16,19 +14,17 @@ describe('Portuguese switches with delayed locale chunks', () => {
     });
 
     it('keeps the latest choice when the first locale chunk finishes last', async () => {
-        let finishPortugal!: (value: { default: typeof localePtPt }) => void;
-        let finishBrazil!: (value: { default: typeof localePt }) => void;
-        jest.spyOn(APP_DATE_LOCALE_LOADERS, 'pt-PT').mockImplementation(
-            () =>
-                new Promise((resolve) => {
-                    finishPortugal = resolve;
-                })
+        const portugalLocale = Promise.withResolvers<{
+            default: typeof localePtPt;
+        }>();
+        const brazilLocale = Promise.withResolvers<{
+            default: typeof localePt;
+        }>();
+        jest.spyOn(APP_DATE_LOCALE_LOADERS, 'pt-PT').mockReturnValue(
+            portugalLocale.promise
         );
-        jest.spyOn(APP_DATE_LOCALE_LOADERS, 'pt-BR').mockImplementation(
-            () =>
-                new Promise((resolve) => {
-                    finishBrazil = resolve;
-                })
+        jest.spyOn(APP_DATE_LOCALE_LOADERS, 'pt-BR').mockReturnValue(
+            brazilLocale.promise
         );
         const translate = { use: jest.fn() };
         TestBed.configureTestingModule({
@@ -44,13 +40,13 @@ describe('Portuguese switches with delayed locale chunks', () => {
         expect(localStorage.getItem(PREFERRED_LANGUAGE_STORAGE_KEY)).toBe(
             'pt-BR'
         );
-        finishBrazil({ default: localePt });
+        brazilLocale.resolve({ default: localePt });
         await brazil;
         expect(translate.use).toHaveBeenCalledWith('pt-BR');
         expect(formatDate(new Date(2024, 0, 15), 'MMMM', 'pt-BR')).toBe(
             'janeiro'
         );
-        finishPortugal({ default: localePtPt });
+        portugalLocale.resolve({ default: localePtPt });
         await portugal;
         expect(translate.use).toHaveBeenCalledTimes(1);
         expect(localStorage.getItem(PREFERRED_LANGUAGE_STORAGE_KEY)).toBe(
