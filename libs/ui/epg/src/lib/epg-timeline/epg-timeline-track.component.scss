@@ -66,6 +66,9 @@
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
+    gap: 4px;
+    /* lets the foot drop out when the block is short (see block-foot) */
+    container: epg-block / size;
     transform: translateZ(0);
     backface-visibility: hidden;
     transition:
@@ -154,15 +157,21 @@
     overflow: hidden;
 }
 
-/* hover actions sit over the block's lower edge and take no layout space,
-   so hovering never squeezes the title */
+/* The hover Watch action takes its own row below the title, never a place
+   over it. A block too short for that row (the compact inline panel) leaves
+   it out: clicking the block starts the same catch-up. */
 .epg-timeline__block-foot {
-    position: absolute;
-    left: 8px;
-    bottom: 6px;
-    z-index: 2;
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
+}
+
+@container epg-block (max-height: 95px) {
+    .epg-timeline__block-foot {
+        display: none;
+    }
 }
 
 .epg-timeline__block-meta {
