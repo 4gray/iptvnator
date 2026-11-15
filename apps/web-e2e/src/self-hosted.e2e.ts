@@ -481,6 +481,45 @@ test('@self-hosted Stalker portal loads through web-backend proxy', async ({
     expectRequestsUseTargetId(stalkerRequests, '/stalker');
 });
 
+async function abortNextPlaylistWrite(page: Page, playlistId: string) {
+    await page.evaluate((id) => {
+        const transaction = IDBDatabase.prototype.transaction;
+        IDBDatabase.prototype.transaction = function (
+            ...args: Parameters<IDBDatabase['transaction']>
+        ) {
+            const write = transaction.apply(this, args);
+            if (
+                write.mode !== 'readwrite' ||
+                !write.objectStoreNames.contains('playlists')
+            )
+                return write;
+            write.addEventListener(
+                'success',
+                (event) => {
+                    if (
+                        !(event.target instanceof IDBRequest) ||
+                        event.target.result !== id
+                    )
+                        return;
+                    IDBDatabase.prototype.transaction = transaction;
+                    write.addEventListener(
+                        'abort',
+                        () => {
+                            document.documentElement.dataset[
+                                'playlistWriteAborted'
+                            ] = 'true';
+                        },
+                        { once: true }
+                    );
+                    write.abort();
+                },
+                { capture: true }
+            );
+            return write;
+        };
+    }, playlistId);
+}
+
 test('@self-hosted M3U User-Agent reaches the provider on import and refresh', async ({
     page,
 }) => {
@@ -531,6 +570,10 @@ test('@self-hosted M3U User-Agent reaches the provider on import and refresh', a
         await page.waitForURL(/playlists.*all/);
         await expect(page.getByText('1. Initial UA Channel')).toBeVisible();
         const catalogUrl = page.url();
+        const playlistId = new URL(catalogUrl).pathname.match(
+            /\/playlists\/([^/]+)\//
+        )?.[1];
+        if (!playlistId) throw new Error('Missing playlist route');
         await page.reload();
         await page.goto('/workspace/sources');
         const editor = await openSourceEditor(page, 'Protected M3U');
@@ -547,9 +590,26 @@ test('@self-hosted M3U User-Agent reaches the provider on import and refresh', a
         await expect(
             page.locator('.mat-mdc-snack-bar-label').last()
         ).toContainText('updated');
+        const refreshedChannel = page.getByText('1. Refreshed UA Channel');
         await page.goto(catalogUrl);
-        await expect(page.getByText('1. Refreshed UA Channel')).toBeVisible();
-        expect(received.slice(1)).toEqual([userAgent, userAgent]);
+        await expect(refreshedChannel).toBeVisible();
+
+        await page.getByRole('link', { name: 'Sources', exact: true }).click();
+        await row.hover();
+        await abortNextPlaylistWrite(page, decodeURIComponent(playlistId));
+        channel = 'Aborted UA Channel';
+        await row.locator('.source-row__refresh').click();
+        await expect(page.locator('html')).toHaveAttribute(
+            'data-playlist-write-aborted',
+            'true'
+        );
+        await expect(
+            page.locator('.mat-mdc-snack-bar-label').last()
+        ).toHaveText("Couldn't update the playlist.");
+        await page.goto(catalogUrl);
+        await expect(refreshedChannel).toBeVisible();
+        await expect(page.getByText('1. Aborted UA Channel')).toHaveCount(0);
+        expect(received.slice(1)).toEqual([userAgent, userAgent, userAgent]);
     } finally {
         await new Promise<void>((resolve, reject) =>
             server.close((error) => (error ? reject(error) : resolve()))

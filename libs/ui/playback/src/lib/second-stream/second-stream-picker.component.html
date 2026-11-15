@@ -1,9 +1,11 @@
 <app-dialog-shell
-    [heading]="'TWO_STREAMS.PICK_SOURCE' | translate"
+    [heading]="
+        'TWO_STREAMS.PICK_FOR_WINDOW' | translate: { slot: dialogData.slot }
+    "
     [subtitle]="
         (dialogData.returningToOriginal
             ? 'TWO_STREAMS.REPLACE_SWAPPED_HINT'
-            : 'TWO_STREAMS.PICK_HINT'
+            : 'TWO_STREAMS.PICK_MUTED_HINT'
         ) | translate
     "
     icon="picture_in_picture_alt"
@@ -350,7 +352,11 @@
             </div>
         }
         <div class="picker__status" aria-live="polite">
-            @if (error() === 'play') {
+            @if (duplicateSlot(); as slot) {
+                <span role="alert">{{
+                    'TWO_STREAMS.DUPLICATE_WINDOW' | translate: { slot }
+                }}</span>
+            } @else if (error() === 'play') {
                 <span role="alert">{{
                     'TWO_STREAMS.PLAY_ERROR' | translate
                 }}</span>

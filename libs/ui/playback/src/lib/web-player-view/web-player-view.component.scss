@@ -39,7 +39,37 @@ app-html-video-player {
 .embedded-mpv-pair--with-strip {
     --second-stream-strip-height: 40px;
     display: grid;
-    grid-template-rows: minmax(0, 1fr) var(--second-stream-strip-height);
+    grid-template: minmax(0, 1fr) var(--second-stream-strip-height) / minmax(
+            0,
+            1fr
+        );
+
+    > app-embedded-mpv-player {
+        grid-area: 1 / 1;
+        min-width: 0;
+        min-height: 0;
+    }
+}
+.embedded-mpv-pair--side-by-side,
+.embedded-mpv-pair--grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 4px;
+    background: #000;
+}
+.embedded-mpv-pair--grid {
+    grid-template-rows: repeat(2, minmax(0, 1fr)) var(
+            --second-stream-strip-height
+        );
+    row-gap: 4px;
+
+    &:focus-visible::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+        border: 2px solid var(--app-focus-ring);
+        pointer-events: none;
+    }
 }
 .embedded-mpv-pair--swapped > app-embedded-mpv-player {
     position: absolute;
@@ -54,4 +84,11 @@ app-html-video-player {
 .embedded-mpv-pair > app-embedded-mpv-player[popover] {
     @include floating-surface.surface;
     @include floating-surface.frame;
+}
+
+// The diagnostic panel replaces Video.js's own error dialog for the same
+// failure. Hide the vendor layer while the panel shows, so its text does not
+// show through behind the panel's title.
+.web-player-view:has(> app-playback-diagnostic-panel) .vjs-error-display {
+    display: none;
 }

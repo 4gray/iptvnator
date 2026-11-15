@@ -85,6 +85,15 @@ $night-owl: mat.define-theme(
         ),
     )
 );
+$high-contrast: mat.define-theme(
+    (
+        color: (
+            theme-type: dark,
+            primary: palette($oled-neutral, mat.$yellow-palette),
+            tertiary: mat.$yellow-palette,
+        ),
+    )
+);
 $black-oled: mat.define-theme(
     (
         color: (
@@ -119,4 +128,28 @@ $black-oled: mat.define-theme(
             surface-dim: #000000,
         )
     );
+}
+
+@mixin high-contrast {
+    // The OLED rule supplies the neutral ramp and shared Material roles.
+    $overrides: (
+        primary: #ffd60a,
+        on-surface: #ffffff,
+        on-surface-variant: #e6e6e6,
+        outline: #ffffff,
+        outline-variant: #bdbdbd,
+    );
+    @each $role in secondary, on-secondary, secondary-container,
+        on-secondary-container, secondary-fixed, secondary-fixed-dim,
+        on-secondary-fixed, on-secondary-fixed-variant, tertiary, on-tertiary,
+        tertiary-container, on-tertiary-container, tertiary-fixed,
+        tertiary-fixed-dim, on-tertiary-fixed, on-tertiary-fixed-variant
+    {
+        $overrides: map.set(
+            $overrides,
+            $role,
+            mat.get-theme-color($high-contrast, $role)
+        );
+    }
+    @include mat.theme-overrides($overrides);
 }

@@ -322,6 +322,11 @@ pnpm run coverage:e2e:summary
 The `electron-backend-e2e:e2e` target owns its `electron-backend:build-e2e`
 dependency, including renderer and remote-control assets. CI calls that target
 without a separate production build before each shard.
+Each Electron E2E runner, including the Windows hosted-server smoke job,
+prepares the pinned Electron binary before building or launching the app.
+The helper verifies the binary version and uses the GitHub release asset API
+as a checksum-verified fallback when the direct download fails. Linux also
+checks for `xvfb-run` and missing shared libraries before starting Playwright.
 
 CI runs the Electron suite as Playwright shards (`--shard=<n>/<total>`, split
 by spec file because the suite is sequential): three shards on Ubuntu, four

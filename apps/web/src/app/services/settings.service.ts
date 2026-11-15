@@ -1,74 +1,27 @@
-import { HttpClient } from '@angular/common/http';
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { catchError, map, Observable } from 'rxjs';
+import { Observable } from 'rxjs';
 import {
+    normalizeSystemTheme,
     normalizeTheme,
+    normalizeThemeAccent,
+    resolveThemeAccentHex,
     resolveThemePreset,
     STORE_KEY,
     Theme,
+    ThemeAccent,
+    ThemePreset,
 } from '@iptvnator/shared/interfaces';
-
-const PRERELEASE_KEYWORDS = [
-    'beta',
-    'alpha',
-    'rc',
-    'preview',
-    'dev',
-    'canary',
-    'nightly',
-] as const;
-
-interface ParsedVersion {
-    major: number;
-    minor: number;
-    patch: number;
-    prerelease: boolean;
-}
 
 type LegacyMediaQueryList = MediaQueryList & {
     addListener?: (listener: (event: MediaQueryListEvent) => void) => void;
     removeListener?: (listener: (event: MediaQueryListEvent) => void) => void;
 };
 
-function parseVersion(input: string): ParsedVersion | null {
-    const normalized = input.trim().replace(/^v/i, '');
-    const match = normalized.match(
-        /(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:[-+]?([0-9A-Za-z.-]+))?/
-    );
-
-    if (!match) {
-        return null;
-    }
-
-    return {
-        major: Number(match[1] ?? 0),
-        minor: Number(match[2] ?? 0),
-        patch: Number(match[3] ?? 0),
-        prerelease: Boolean(match[4]),
-    };
-}
-
-function hasPrereleaseKeyword(value: string): boolean {
-    const normalized = value.toLowerCase();
-    return PRERELEASE_KEYWORDS.some((keyword) => normalized.includes(keyword));
-}
-
-function compareVersions(a: ParsedVersion, b: ParsedVersion): number {
-    if (a.major !== b.major) {
-        return a.major - b.major;
-    }
-    if (a.minor !== b.minor) {
-        return a.minor - b.minor;
-    }
-    return a.patch - b.patch;
-}
-
 @Injectable({
     providedIn: 'root',
 })
 export class SettingsService {
-    private http = inject(HttpClient);
     private storage = inject(StorageMap);
     private readonly systemThemeMediaQuery =
         typeof window !== 'undefined' && 'matchMedia' in window
@@ -77,11 +30,19 @@ export class SettingsService {
     private readonly systemThemeChangeHandler = (
         event: MediaQueryListEvent
     ): void => {
-        this.applyResolvedTheme(
-            event.matches ? Theme.DarkTheme : Theme.LightTheme
-        );
+        this.applyResolvedTheme(this.resolveSystemTheme(event.matches));
     };
     private isSystemThemeSyncActive = false;
+    private isSystemThemeSelected = false;
+    private systemThemes = {
+        light: Theme.LightTheme as Theme,
+        dark: Theme.DarkTheme as Theme,
+    };
+    private accent: ThemeAccent | null = null;
+    private accentTokens?: typeof import('./theme-accent-tokens');
+
+    /** The preset on screen; "System" resolves to light or dark. */
+    readonly appliedThemePresetId = signal<ThemePreset['id']>('light');
 
     /**
      * Changes the visual theme of the application
@@ -91,12 +52,11 @@ export class SettingsService {
         this.stopSystemThemeSync();
 
         const theme = normalizeTheme(selectedTheme);
+        this.isSystemThemeSelected = theme === Theme.SystemTheme;
         if (theme === Theme.SystemTheme) {
             this.startSystemThemeSync();
             this.applyResolvedTheme(
-                this.systemThemeMediaQuery?.matches
-                    ? Theme.DarkTheme
-                    : Theme.LightTheme
+                this.resolveSystemTheme(!!this.systemThemeMediaQuery?.matches)
             );
             return;
         }
@@ -104,19 +64,92 @@ export class SettingsService {
         this.applyResolvedTheme(theme);
     }
 
+    /**
+     * The presets "System" shows while the device is light or dark. Applies
+     * at once when System is the active theme.
+     */
+    changeSystemThemes(light: unknown, dark: unknown): void {
+        this.systemThemes = {
+            light: normalizeSystemTheme(light, 'light'),
+            dark: normalizeSystemTheme(dark, 'dark'),
+        };
+        if (this.isSystemThemeSelected) {
+            this.applyResolvedTheme(
+                this.resolveSystemTheme(!!this.systemThemeMediaQuery?.matches)
+            );
+        }
+    }
+
+    private resolveSystemTheme(deviceIsDark: boolean): Theme {
+        return deviceIsDark ? this.systemThemes.dark : this.systemThemes.light;
+    }
+
+    /**
+     * Lays an accent colour over whichever theme is active (and over the
+     * themes applied later); `null` restores the theme's own colour.
+     */
+    changeThemeAccent(accent: unknown): Promise<void> {
+        this.accent = normalizeThemeAccent(accent);
+        return this.applyThemeAccent();
+    }
+
     private applyResolvedTheme(selectedTheme: Theme): void {
         const preset = resolveThemePreset(selectedTheme);
-        document.body.dataset['appTheme'] = preset.id;
+        const body = document.body;
+        body.dataset['appTheme'] = preset.id;
         // Shared component styles, including the resize handles, use an
         // explicit .light-theme selector for their light-mode overrides.
         if (preset.mode === 'dark') {
-            document.body.classList.add('dark-theme');
-            document.body.classList.remove('light-theme');
+            body.classList.add('dark-theme');
+            body.classList.remove('light-theme');
+        } else {
+            body.classList.remove('dark-theme');
+            body.classList.add('light-theme');
+        }
+        this.appliedThemePresetId.set(preset.id);
+        // The accent's lightness depends on the new theme's surfaces.
+        void this.applyThemeAccent();
+    }
+
+    /**
+     * Overrides the selection and Material primary roles on `body`, where
+     * `m3-theme.scss` declares the app and Material tokens that read them.
+     */
+    private async applyThemeAccent(): Promise<void> {
+        if (this.accent && !this.accentTokens) {
+            try {
+                this.accentTokens = await import('./theme-accent-tokens');
+            } catch {
+                console.warn('Theme accent colors could not be loaded');
+                return;
+            }
+        }
+        if (!this.accentTokens) return;
+
+        // Read the current selection and surfaces after the chunk arrives.
+        const {
+            deriveThemeAccentTokens,
+            readThemeAccentSurfaces,
+            THEME_ACCENT_TOKEN_NAMES,
+        } = this.accentTokens;
+        const body = document.body;
+        for (const token of THEME_ACCENT_TOKEN_NAMES) {
+            body.style.removeProperty(token);
+        }
+        const hex = resolveThemeAccentHex(this.accent);
+        const surfaces = hex
+            ? readThemeAccentSurfaces(getComputedStyle(body))
+            : null;
+        if (!hex || !surfaces || !this.accent) {
+            delete body.dataset['themeAccent'];
             return;
         }
 
-        document.body.classList.remove('dark-theme');
-        document.body.classList.add('light-theme');
+        body.dataset['themeAccent'] = this.accent;
+        const tokens = deriveThemeAccentTokens(hex, surfaces);
+        for (const [token, value] of Object.entries(tokens)) {
+            body.style.setProperty(token, value);
+        }
     }
 
     private startSystemThemeSync(): void {
@@ -182,66 +215,5 @@ export class SettingsService {
         }
 
         this.storage.set(key, value).subscribe();
-    }
-
-    /**
-     * Returns the version of the released app
-     * Filters out pre-release versions (beta, alpha, rc)
-     */
-    getAppVersion() {
-        return this.http
-            .get<
-                { created_at: string; name: string }[]
-            >('https://api.github.com/repos/4gray/iptvnator/releases')
-            .pipe(
-                map((response) => {
-                    // Filter out pre-release versions (beta, alpha, rc, etc.)
-                    const stableReleases = response.filter((release) => {
-                        if (hasPrereleaseKeyword(release.name)) {
-                            return false;
-                        }
-
-                        const version = parseVersion(release.name);
-                        if (!version) return false;
-
-                        return !version.prerelease;
-                    });
-
-                    // Sort stable releases by creation date
-                    const sortedReleases = stableReleases.sort(
-                        (a, b) =>
-                            new Date(b.created_at).getTime() -
-                            new Date(a.created_at).getTime()
-                    );
-
-                    return sortedReleases[0];
-                }),
-                map((response) => response.name),
-                catchError((err) => {
-                    console.error(err);
-                    throw new Error(err);
-                })
-            );
-    }
-
-    /**
-     * Compares current version with latest version
-     * @param currentVersion current version of the app
-     * @param latestVersion latest stable version from GitHub
-     * @returns true if current version is outdated
-     */
-    isVersionOutdated(currentVersion: string, latestVersion: string): boolean {
-        const cleanCurrent = parseVersion(currentVersion);
-        const cleanLatest = parseVersion(latestVersion);
-
-        if (!cleanCurrent || !cleanLatest) {
-            console.warn('Invalid version format:', {
-                currentVersion,
-                latestVersion,
-            });
-            return false;
-        }
-
-        return compareVersions(cleanCurrent, cleanLatest) < 0;
     }
 }

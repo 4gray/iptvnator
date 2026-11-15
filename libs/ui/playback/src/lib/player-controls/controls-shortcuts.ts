@@ -48,6 +48,25 @@ const INTERACTIVE_SELECTOR = [
     '[role="textbox"]',
 ].join(',');
 
+export function targetsInteractivePlayerControl(event: KeyboardEvent): boolean {
+    const path =
+        typeof event.composedPath === 'function' ? event.composedPath() : [];
+    const nodes = path.length > 0 ? path : [event.target];
+    return nodes.some((node) => {
+        const element = node as HTMLElement | null;
+        if (!element || typeof element.tagName !== 'string') {
+            return false;
+        }
+        if (
+            typeof element.matches === 'function' &&
+            element.matches(INTERACTIVE_SELECTOR)
+        ) {
+            return true;
+        }
+        return element.isContentEditable === true;
+    });
+}
+
 export class ControlsShortcuts {
     private static readonly instances = new Set<ControlsShortcuts>();
     private static active: ControlsShortcuts | null = null;
@@ -188,24 +207,7 @@ export class ControlsShortcuts {
             return true;
         }
 
-        const path =
-            typeof event.composedPath === 'function'
-                ? event.composedPath()
-                : [];
-        const nodes = path.length > 0 ? path : [event.target];
-        return nodes.some((node) => {
-            const element = node as HTMLElement | null;
-            if (!element || typeof element.tagName !== 'string') {
-                return false;
-            }
-            if (
-                typeof element.matches === 'function' &&
-                element.matches(INTERACTIVE_SELECTOR)
-            ) {
-                return true;
-            }
-            return element.isContentEditable === true;
-        });
+        return targetsInteractivePlayerControl(event);
     }
 
     private static resolvePlaybackOwner(): ControlsShortcuts | null {

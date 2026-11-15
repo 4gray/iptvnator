@@ -1,18 +1,15 @@
-import {
-    Empty,
-    VirtualCollection,
-    TvSelect,
-    TvDescription,
-} from '@iptvnator/tv/ui';
+import { Empty, TvSelect, TvDescription } from '@iptvnator/tv/ui';
 import { TvModel } from './use-tv';
 import { TvMetadata } from '@iptvnator/tv/data-access';
 import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
 import { restoreFocus } from '@iptvnator/tv/ui';
-import { EpisodeCard } from './episode-card';
-import { WatchActions, WatchStatus } from './watch-actions';
+import { EpisodeRail } from './episode-rail';
+import { MoreActions, WatchOptions, WatchStatus } from './watch-actions';
 import {
     mediaTitle,
     watchLabel,
+    watchState,
+    resumeLabel,
     seriesAction,
     episodeCode,
 } from '@iptvnator/tv/util';
@@ -69,6 +66,9 @@ export function Detail({
     );
     const action = primary;
     const saved = tv.data.favorites.some((m) => m.id === item.id);
+    const position = tv.data.positions[item.id];
+    // Rare actions live in ⋯: the title itself, or a series' next episode.
+    const options = item.kind === 'series' ? action?.item : item;
     return (
         <>
             <section class="detail-hero">
@@ -97,7 +97,7 @@ export function Detail({
                         }
                     />
                     {item.kind !== 'series' ? (
-                        <WatchStatus progress={tv.data.positions[item.id]} />
+                        <WatchStatus progress={position} />
                     ) : null}
                     <div class="actions">
                         {item.kind === 'series' && action ? (
@@ -126,7 +126,16 @@ export function Detail({
                                 data-focus="detail-play"
                                 onClick={() => tv.play(item)}
                             >
-                                {watchLabel(tv.data.positions[item.id])} ▶
+                                {resumeLabel(position)} ▶
+                            </button>
+                        ) : null}
+                        {item.kind !== 'series' &&
+                        watchState(position) === 'in-progress' ? (
+                            <button
+                                data-focus="detail-start-over"
+                                onClick={() => tv.startOver(item)}
+                            >
+                                ↺ Start over
                             </button>
                         ) : null}
                         <button
@@ -137,21 +146,31 @@ export function Detail({
                         >
                             {saved ? '♥ Saved' : '♡ Add to favorites'}
                         </button>
-                        {item.kind !== 'series' ? (
-                            <WatchActions tv={tv} item={item} />
+                        {options ? (
+                            <MoreActions
+                                title={
+                                    options === item
+                                        ? mediaTitle(item)
+                                        : `${episodeCode(options)} · ${options.title}`
+                                }
+                                focusKey="detail-more"
+                            >
+                                {(close) => (
+                                    <WatchOptions
+                                        tv={tv}
+                                        item={options}
+                                        close={close}
+                                        returnFocus="detail-more"
+                                        startOver={options !== item}
+                                    />
+                                )}
+                            </MoreActions>
                         ) : null}
                     </div>
                 </div>
             </section>
-            <MetadataCredits item={item} open={tv.openPerson} />
             {item.kind === 'series' ? (
-                <section
-                    class={
-                        episodes.some((e) => e.episodeStill)
-                            ? 'rich-episodes'
-                            : ''
-                    }
-                >
+                <section class="detail-episodes">
                     <div class="section-title">
                         <h2>Episodes</h2>
                         <label>
@@ -178,12 +197,18 @@ export function Detail({
                             </button>
                         </p>
                     ) : null}
-                    <VirtualCollection
-                        key={`${item.id}:${currentSeason}`}
-                        layout="episodes"
-                        items={episodes}
-                        render={(e) => <EpisodeCard tv={tv} item={e} />}
-                    />
+                    {episodes.length ? (
+                        <EpisodeRail
+                            key={`${item.id}:${currentSeason}`}
+                            tv={tv}
+                            episodes={episodes}
+                            initial={
+                                episodes.some((e) => e.id === tv.restoreKey)
+                                    ? tv.restoreKey
+                                    : action?.item.id
+                            }
+                        />
+                    ) : null}
                     {!tv.busy && !episodes.length ? (
                         <Empty>
                             No episodes were supplied for this series.
@@ -191,6 +216,7 @@ export function Detail({
                     ) : null}
                 </section>
             ) : null}
+            <MetadataCredits item={item} open={tv.openPerson} />
         </>
     );
 }

@@ -301,16 +301,11 @@ export class GlobalFavoritesListComponent {
             });
     }
 
-    /**
-     * The stalker item id lives in the uid's third segment
-     * (`stalker::{playlistId}::{stalkerId}`) — same extraction the
-     * unified favorites data service uses.
-     */
     private stalkerItemId(channel: UnifiedFavoriteChannel): string | null {
         if (channel.sourceType !== 'stalker') {
             return null;
         }
-        const id = channel.uid.split('::')[2]?.trim();
+        const id = String(channel.stalkerId ?? '').trim();
         return id || null;
     }
 

@@ -81,6 +81,10 @@
     max-width: min(430px, 36cqi);
     flex-wrap: wrap;
     app-region: no-drag;
+
+    &:empty {
+        display: none;
+    }
 }
 
 .refinement-chip {
@@ -217,36 +221,24 @@
     font-variant-numeric: tabular-nums;
 }
 
-// Keep the title and controls together in tablet/desktop panes. Only a
-// genuinely narrow pane needs a second toolbar row; long titles can ellipsize.
+// In narrow panes, give the chips room to wrap below the title and menu.
 @container category-content (max-width: 640px) {
     .category-content-header {
         grid-template-columns: minmax(0, 1fr) auto;
-        grid-template-areas:
-            'meta meta'
-            'refinements refine';
+        grid-template-areas: 'meta refine';
         padding: 8px 16px;
         min-height: unset;
     }
 
-    .category-meta {
-        width: 100%;
-    }
-
     .active-refinements {
-        width: 100%;
+        grid-area: 2 / 1 / auto / -1;
         justify-self: stretch;
-        flex: 1 1 auto;
         justify-content: flex-start;
         max-width: none;
     }
 
     .refinement-chip {
-        max-width: min(220px, calc(100cqi - 160px));
-    }
-
-    .refine-action {
-        justify-self: end;
+        max-width: min(220px, calc(100cqi - 32px));
     }
 }
 
