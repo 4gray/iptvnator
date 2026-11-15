@@ -223,4 +223,94 @@ describe('profiles routes', () => {
                 expect(notUuid.status).toBe(404);
             })
         ));
+
+    it('lets only one of two overlapping creates take a name', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const call = client(baseUrl, storage);
+                // The PIN makes each request wait for its hash before writing.
+                const results = await Promise.all(
+                    [0, 1, 2].map(() =>
+                        call('/profiles', {
+                            method: 'POST',
+                            body: { name: 'Twin', pin: '4321' },
+                        })
+                    )
+                );
+                expect(results.map((r) => r.status).sort()).toEqual([
+                    201, 409, 409,
+                ]);
+                expect(await profilesIn(await call('/profiles'))).toHaveLength(
+                    2
+                );
+            })
+        ));
+
+    it('counts overlapping wrong guesses towards the lock', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const call = client(baseUrl, storage);
+                const { id } = (await (
+                    await call('/profiles', {
+                        method: 'POST',
+                        body: { name: 'Kid', pin: '1234' },
+                    })
+                ).json()) as ServerProfile;
+                const guesses = await Promise.all(
+                    Array.from({ length: 7 }, () =>
+                        call(`/profiles/${id}/unlock`, {
+                            method: 'POST',
+                            body: { pin: '0000' },
+                        })
+                    )
+                );
+                expect(
+                    guesses.every((r) => r.status === 403 || r.status === 429)
+                ).toBe(true);
+                const right = await call(`/profiles/${id}/unlock`, {
+                    method: 'POST',
+                    body: { pin: '1234' },
+                });
+                expect(right.status).toBe(429);
+            })
+        ));
+
+    it('keeps a lockout through edits that do not change the PIN', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const call = client(baseUrl, storage);
+                const { id } = (await (
+                    await call('/profiles', {
+                        method: 'POST',
+                        body: { name: 'Kid', pin: '1234' },
+                    })
+                ).json()) as ServerProfile;
+                for (let i = 0; i < 5; i++) {
+                    await call(`/profiles/${id}/unlock`, {
+                        method: 'POST',
+                        body: { pin: '0000' },
+                    });
+                }
+                await call(`/profiles/${id}`, { method: 'PATCH', body: {} });
+                await call(`/profiles/${id}`, {
+                    method: 'PATCH',
+                    body: { colour: '#123456' },
+                });
+                const locked = await call(`/profiles/${id}/unlock`, {
+                    method: 'POST',
+                    body: { pin: '1234' },
+                });
+                expect(locked.status).toBe(429);
+
+                await call(`/profiles/${id}`, {
+                    method: 'PATCH',
+                    body: { pin: '5678' },
+                });
+                const reset = await call(`/profiles/${id}/unlock`, {
+                    method: 'POST',
+                    body: { pin: '5678' },
+                });
+                expect(reset.status).toBe(200);
+            })
+        ));
 });
