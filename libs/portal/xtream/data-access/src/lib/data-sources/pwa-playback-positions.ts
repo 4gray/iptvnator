@@ -3,13 +3,15 @@ import {
     writeXtreamUserDataMap,
     type UserDataStorage,
 } from '@iptvnator/services';
-import { stampNativePlaybackReset } from '@iptvnator/services/pwa-native-playback-resets';
+import {
+    stampNativePlaybackEpisodeResets,
+    stampNativePlaybackReset,
+} from '@iptvnator/services/pwa-native-playback-resets';
 import type {
     PlaybackPositionData,
     PlaybackPositionResetScope,
 } from '@iptvnator/shared/interfaces';
 import {
-    nativePlaybackScopeId,
     nativePlaybackResetIn,
     nativePlaybackResetId,
 } from './pwa-android-playback-resets';
@@ -183,28 +185,35 @@ export class PwaPlaybackPositions {
         const playlistPositions = allPositions[playlistId];
         const android = 'TvShell' in globalThis;
         if (!playlistPositions && !android) return;
-        const resetKeys = scope
-            ? [nativePlaybackScopeId(playlistId, scope)]
-            : items.map((item) => nativePlaybackResetId(playlistId, item));
         if (playlistPositions) {
             const removedKeys = new Set(
                 items.map(
                     (item) => `${item.contentType}_${item.contentXtreamId}`
                 )
             );
-            allPositions[playlistId] = playlistPositions.filter((position) => {
-                if (
+            allPositions[playlistId] = playlistPositions.filter(
+                (position) =>
                     !removedKeys.has(
                         `${position.contentType}_${position.contentXtreamId}`
                     )
-                )
-                    return true;
-                if (scope && android)
-                    resetKeys.push(nativePlaybackResetId(playlistId, position));
-                return false;
-            });
+            );
         }
-        stampNativePlaybackReset(allPositions, ...resetKeys);
+        if (android) {
+            if (scope)
+                stampNativePlaybackEpisodeResets(
+                    allPositions,
+                    playlistId,
+                    items
+                        .filter((item) => item.contentType === 'episode')
+                        .map((item) => item.contentXtreamId)
+                );
+            stampNativePlaybackReset(
+                allPositions,
+                ...items
+                    .filter((item) => !scope || item.contentType !== 'episode')
+                    .map((item) => nativePlaybackResetId(playlistId, item))
+            );
+        }
         this.savePlaybackPositionsToStorage(allPositions);
     }
 }

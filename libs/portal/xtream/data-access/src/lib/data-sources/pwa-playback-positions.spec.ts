@@ -92,32 +92,48 @@ describe('Android playback position resets', () => {
         }
     });
 
-    it('rejects a queued position with the old season after clearing a moved episode', async () => {
-        const playlist = 'synthetic-playlist';
-        const episode = position({
-            contentType: 'episode',
-            seriesXtreamId: 3,
-            seasonNumber: 2,
-        });
-        Object.assign(window, { TvShell: { postMessage: jest.fn() } });
-        try {
-            await positions.savePlaybackPosition(playlist, episode);
-            await positions.clearPlaybackPositionsBatch(playlist, [episode], {
+    it.each([true, false])(
+        'matches resets to episode IDs after a season changes (stored position: %s)',
+        async (stored) => {
+            const playlist = 'synthetic-playlist';
+            const episode = position({
+                contentType: 'episode',
                 seriesXtreamId: 3,
                 seasonNumber: 2,
             });
-            await positions.savePlaybackPosition(playlist, {
-                ...episode,
-                seasonNumber: 1,
-                nativeCheckpointAt: '2025-01-01T00:00:00.000Z',
-            });
-            expect(await positions.getAllPlaybackPositions(playlist)).toEqual(
-                []
-            );
-        } finally {
-            Reflect.deleteProperty(window, 'TvShell');
+            Object.assign(window, { TvShell: { postMessage: jest.fn() } });
+            try {
+                if (stored)
+                    await positions.savePlaybackPosition(playlist, episode);
+                const secondTarget = { ...episode, contentXtreamId: 102 };
+                await positions.clearPlaybackPositionsBatch(
+                    playlist,
+                    [episode, secondTarget],
+                    {
+                        seriesXtreamId: 3,
+                        seasonNumber: 2,
+                    }
+                );
+                const nativeCheckpointAt = '2025-01-01T00:00:00.000Z';
+                for (const target of [episode, secondTarget])
+                    await positions.savePlaybackPosition(playlist, {
+                        ...target,
+                        seasonNumber: 1,
+                        nativeCheckpointAt,
+                    });
+                const movedOut = { ...episode, contentXtreamId: 101 };
+                await positions.savePlaybackPosition(playlist, {
+                    ...movedOut,
+                    nativeCheckpointAt,
+                });
+                expect(
+                    await positions.getAllPlaybackPositions(playlist)
+                ).toEqual([{ ...movedOut, updatedAt: nativeCheckpointAt }]);
+            } finally {
+                Reflect.deleteProperty(window, 'TvShell');
+            }
         }
-    });
+    );
 
     it.each([undefined, 2])(
         'clears a series or season at quota (%s)',
@@ -172,7 +188,7 @@ describe('Android playback position resets', () => {
                 expect(
                     androidPlaybackResetAt(localStorage, playlist, {
                         ...unwritten,
-                        seriesXtreamId: 4,
+                        contentXtreamId: 160,
                     })
                 ).toBe(0);
                 if (seasonNumber !== undefined) {
@@ -181,7 +197,7 @@ describe('Android playback position resets', () => {
                             ...unwritten,
                             seasonNumber: 1,
                         })
-                    ).toBe(0);
+                    ).toBeGreaterThan(0);
                 }
             } finally {
                 setItem.mockRestore();

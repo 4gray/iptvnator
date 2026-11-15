@@ -166,9 +166,10 @@ profile leaves the checkpoint pending. A reset or backup restore records its
 time in the same write as the position change. Older checkpoints cannot undo
 that change. While a reset is pending, Android retains the checkpoint so
 recovery can retry if the reset fails. An older Android checkpoint cannot
-replace a newer local position staged for retry. Bulk resets record the season
-or series and the IDs whose stored positions were removed. This covers queued
-checkpoints recorded before an episode moved. Retries retain the original
+replace a newer local position staged for retry. Bulk resets record the exact
+episode IDs from the reset request, including episodes with no saved position.
+Adjacent IDs share a compact range in storage. Checkpoints for other episodes
+stay eligible for recovery even if their season changed. Retries retain the original
 playback time when comparing positions for recovery.
 Activity Sync uses server timestamps to order acknowledged positions across
 devices.
