@@ -56,6 +56,14 @@ describe('ControlsShortcuts', () => {
         expect(handlers.toggleMute).toHaveBeenCalledTimes(1);
     });
 
+    it('claims Escape only when the handler closed something', () => {
+        expect(dispatchKey('Escape')).toBe(false);
+        expect(handlers.onEscape).toHaveBeenCalledTimes(1);
+
+        handlers.onEscape.mockReturnValue(true);
+        expect(dispatchKey('Escape')).toBe(true);
+    });
+
     it('ignores every shortcut while the host sits inside an inert region', () => {
         const inertRegion = document.createElement('div');
         inertRegion.setAttribute('inert', '');

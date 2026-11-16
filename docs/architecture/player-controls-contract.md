@@ -582,11 +582,17 @@ few localized names), the card appears when it starts instead, at most
 5 min before the end. A credits start supplied through the optional `creditsStart`
 dependency (a metadata source such as TheIntroDB, #2239) wins over chapters.
 The timing lives in `upNextLeadSeconds` (`@iptvnator/shared/interfaces`,
-`up-next-timing.util.ts`), so the TV client shows its card at the same moment. Embedded MPV under the frame-copy engine supplies
+`up-next-timing.util.ts`), so the TV client shows its card at the same moment.
+Embedded MPV under the frame-copy engine supplies
 file chapters (see the chapter producer above); every other engine, and a
 file without a credits chapter, uses the adaptive lead. The countdown shows
-whole minutes and switches to seconds in the last minute. It appears only when
-series autoplay is enabled and the next episode is in the current season.
+whole minutes and switches to seconds in the last minute, beside a ring that
+empties from the moment the card appears (`leadSeconds`). Both appear only when
+series autoplay is enabled. At a season's last episode autoplay continues into
+the next season: `PortalInlinePlayerComponent.onPlaybackEnded` emits
+`upNextEpisodeSelected` for the next rail entry instead of `playbackEnded`.
+Escape dismisses a visible card for the episode wherever focus is, after any
+open menu closes (`ControlsUpNext.dismissIfVisible`).
 A still that fails to load falls back to the label tile. A click emits
 `nextEpisodeRequested` directly — not through the
 transport's `canNextEpisode` guard, which is season-local — so the card

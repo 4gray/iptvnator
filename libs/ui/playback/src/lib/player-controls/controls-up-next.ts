@@ -117,6 +117,15 @@ export class ControlsUpNext {
         this.dismissedLabel.set(this.item()?.label ?? null);
     }
 
+    /** Escape: dismisses a visible card; true when there was one. */
+    dismissIfVisible(): boolean {
+        if (!this.visible()) {
+            return false;
+        }
+        this.dismiss();
+        return true;
+    }
+
     /** Shrinks the card to its pill for the rest of this episode. */
     collapse(): void {
         this.collapsedLabel.set(this.item()?.label ?? null);

@@ -253,7 +253,9 @@ export class PlayerControlsComponent implements OnDestroy {
             canSeek: () => this.capabilities().seek && this.state().canSeek,
             canAdjustVolume: () => this.capabilities().volume,
             canToggleFullscreen: () => this.vm.canFullscreen(),
-            onEscape: () => this.closePopovers(),
+            // Open menus first, then a visible Up next card, wherever focus is.
+            onEscape: () =>
+                this.closePopovers() || this.upNextCard.dismissIfVisible(),
             togglePaused: () => this.togglePlay(),
             toggleFullscreen: () => void this.toggleFullscreen(),
             seekBy: (delta) => this.transport.seekBy(delta),
@@ -418,12 +420,11 @@ export class PlayerControlsComponent implements OnDestroy {
         }
         await this.fullscreen.toggle();
     }
-    private closePopovers(): void {
-        if (!this.menus.anyOpen()) {
-            return;
-        }
+    private closePopovers(): boolean {
+        if (!this.menus.anyOpen()) return false;
         this.menus.closeAll();
         this.visibility.scheduleHide();
+        return true;
     }
 
     reveal(options: { scheduleHide?: boolean } = {}): void {

@@ -184,7 +184,7 @@ describe('PortalInlinePlayerComponent up next rail', () => {
             autoplayEnabled: true,
         });
         fixture.detectChanges();
-        expect(component.playerUpNext()?.showCountdown).toBe(false);
+        expect(component.playerUpNext()?.showCountdown).toBe(true);
         component.onNextEpisodeRequested();
         expect(selected).toHaveBeenCalledWith(upNextItems[1]);
         expect(next).not.toHaveBeenCalled();
@@ -198,6 +198,48 @@ describe('PortalInlinePlayerComponent up next rail', () => {
         component.onNextEpisodeRequested();
         expect(next).toHaveBeenCalledTimes(1);
         expect(selected).toHaveBeenCalledTimes(1);
+    });
+
+    it('autoplays into the next season when the season ends', async () => {
+        await setup(true);
+        fixture.componentRef.setInput('playback', seriesPlayback);
+        fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+        const selected = jest.fn();
+        const ended = jest.fn();
+        component.upNextEpisodeSelected.subscribe(selected);
+        component.playbackEnded.subscribe(ended);
+
+        fixture.componentRef.setInput('seriesNavigation', {
+            canPrevious: true,
+            canNext: false,
+            autoplayEnabled: true,
+        });
+        fixture.detectChanges();
+        component.onPlaybackEnded();
+        expect(selected).toHaveBeenCalledWith(upNextItems[1]);
+        expect(ended).not.toHaveBeenCalled();
+
+        // Inside a season the host keeps its own autoplay path.
+        fixture.componentRef.setInput('seriesNavigation', {
+            canPrevious: true,
+            canNext: true,
+            autoplayEnabled: true,
+        });
+        fixture.detectChanges();
+        component.onPlaybackEnded();
+        expect(ended).toHaveBeenCalledTimes(1);
+
+        // Autoplay off: the episode just ends.
+        fixture.componentRef.setInput('seriesNavigation', {
+            canPrevious: true,
+            canNext: false,
+            autoplayEnabled: false,
+        });
+        fixture.detectChanges();
+        component.onPlaybackEnded();
+        expect(ended).toHaveBeenCalledTimes(2);
+        expect(selected).toHaveBeenCalledTimes(1);
+        expect(component.playerUpNext()?.showCountdown).toBe(false);
     });
 
     /** Renders, then feeds a stage size as the ResizeObserver would. */

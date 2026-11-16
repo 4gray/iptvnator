@@ -19,7 +19,11 @@ export interface ControlsShortcutHandlers {
     canSeek: () => boolean;
     canAdjustVolume: () => boolean;
     canToggleFullscreen: () => boolean;
-    onEscape: () => void;
+    /**
+     * Escape, before any other check. Return true when it closed something
+     * (a popover, the Up next card) so the key goes no further.
+     */
+    onEscape: () => boolean | void;
     togglePaused: () => void;
     toggleFullscreen: () => void;
     seekBy: (deltaSeconds: number) => void;
@@ -143,7 +147,9 @@ export class ControlsShortcuts {
         }
 
         if (event.key === 'Escape') {
-            handlers.onEscape();
+            if (handlers.onEscape() === true) {
+                event.preventDefault();
+            }
             return;
         }
 

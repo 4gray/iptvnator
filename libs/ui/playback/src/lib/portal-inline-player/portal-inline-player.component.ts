@@ -246,8 +246,9 @@ export class PortalInlinePlayerComponent {
             title: next.title,
             thumbnailUrl: next.thumbnailUrl,
             progressPercent: next.progressPercent,
-            showCountdown:
-                navigation?.autoplayEnabled === true && navigation.canNext,
+            // Autoplay crosses into the next season too (see onPlaybackEnded),
+            // so the countdown holds wherever there is a next episode.
+            showCountdown: navigation?.autoplayEnabled === true,
         };
     });
 
@@ -338,6 +339,19 @@ export class PortalInlinePlayerComponent {
     }
 
     onPlaybackEnded(): void {
+        // Hosts autoplay within a season; at a season's last episode the
+        // next season's first plays through the rail selection path, the
+        // same way the TV client continues a series.
+        const navigation = this.seriesNavigation();
+        const next = this.upNextRailNext();
+        if (
+            navigation?.autoplayEnabled === true &&
+            navigation.canNext === false &&
+            next
+        ) {
+            this.upNextEpisodeSelected.emit(next);
+            return;
+        }
         this.playbackEnded.emit();
     }
 

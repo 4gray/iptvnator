@@ -6,7 +6,10 @@ import {
     upNextThresholdSeconds,
 } from './up-next-timing.util';
 
-const chapter = (startSeconds: number, title: string | null): UpNextChapter => ({
+const chapter = (
+    startSeconds: number,
+    title: string | null
+): UpNextChapter => ({
     startSeconds,
     title,
 });
@@ -41,7 +44,9 @@ describe('creditsStartSeconds', () => {
     });
 
     it('recognises anime ending themes and localized titles', () => {
-        expect(creditsStartSeconds([chapter(1600, 'ED1')], duration)).toBe(1600);
+        expect(creditsStartSeconds([chapter(1600, 'ED1')], duration)).toBe(
+            1600
+        );
         expect(creditsStartSeconds([chapter(1600, 'Abspann')], duration)).toBe(
             1600
         );

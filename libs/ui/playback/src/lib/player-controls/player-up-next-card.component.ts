@@ -39,6 +39,8 @@ export const UP_NEXT_COLLAPSE_DELAY_MS = 10_000;
 export class PlayerUpNextCardComponent {
     readonly item = input.required<PlayerUpNextItem>();
     readonly remainingSeconds = input.required<number>();
+    /** Remaining time at which the card appeared; the ring empties from it. */
+    readonly leadSeconds = input<number | null>(null);
     readonly compact = input(false);
     readonly collapsed = input(false);
     readonly selected = output<void>();
@@ -63,6 +65,15 @@ export class PlayerUpNextCardComponent {
                   key: 'EMBEDDED_MPV.PLAYER.UP_NEXT_IN',
                   params: { minutes: Math.ceil(seconds / 60) },
               };
+    });
+
+    /** Share of the lead still to run, 1 → 0, for the countdown ring. */
+    readonly ring = computed(() => {
+        const lead = this.leadSeconds();
+        if (lead === null || !Number.isFinite(lead) || lead <= 0) {
+            return null;
+        }
+        return Math.min(1, Math.max(0, this.remainingSeconds() / lead));
     });
 
     /** The still that failed to load; a new URL gets its own attempt. */

@@ -124,6 +124,38 @@ describe('PlayerUpNextCardComponent', () => {
         ).toContain('Up next · in 45 s');
     });
 
+    it('empties the countdown ring over the lead', () => {
+        const ring = () =>
+            query('.player-up-next__ring-fill')?.getAttribute(
+                'stroke-dashoffset'
+            );
+        expect(
+            query('[data-test-id="player-controls-up-next-ring"]')
+        ).toBeNull();
+
+        fixture.componentRef.setInput('leadSeconds', 60);
+        fixture.componentRef.setInput('remainingSeconds', 45);
+        fixture.detectChanges();
+        expect(ring()).toBe('25');
+
+        fixture.componentRef.setInput('remainingSeconds', 0);
+        fixture.detectChanges();
+        expect(ring()).toBe('100');
+
+        // No countdown without autoplay: no ring either.
+        fixture.componentRef.setInput('item', {
+            label: 'S01E03',
+            title: 'The Third One',
+            thumbnailUrl: null,
+            progressPercent: null,
+            showCountdown: false,
+        });
+        fixture.detectChanges();
+        expect(
+            query('[data-test-id="player-controls-up-next-ring"]')
+        ).toBeNull();
+    });
+
     it('dismisses from the close button and from Escape without reaching the player', () => {
         const dismissed = jest.fn();
         const selected = jest.fn();
