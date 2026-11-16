@@ -15,6 +15,7 @@ import { MockPipe } from 'ng-mocks';
 import { Subject, of } from 'rxjs';
 import {
     LIVE_CATEGORIES_POPOVER,
+    LIVE_COMPACT_VIEWPORT_QUERY,
     LiveLayoutSidebarStateService,
     liveSidebarStateStorageKey,
 } from '@iptvnator/portal/shared/util';
@@ -47,6 +48,14 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
     let routerEvents: Subject<unknown>;
     const drawer = { open: jest.fn(), close: jest.fn(), isOpen: () => false };
     let phoneViewport = false;
+    let compactListeners: ((event: MediaQueryListEvent) => void)[] = [];
+
+    function crossCompactBand(matches: boolean): void {
+        for (const listener of compactListeners) {
+            listener({ matches } as MediaQueryListEvent);
+        }
+        TestBed.inject(ApplicationRef).tick();
+    }
 
     // Portal-attached views render on the next application tick; no fixture
     // drives change detection here.
@@ -66,13 +75,21 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
         routerEvents = new Subject();
         drawer.open.mockClear();
         phoneViewport = false;
+        compactListeners = [];
         Object.defineProperty(window, 'matchMedia', {
             configurable: true,
             writable: true,
             value: (query: string) => ({
                 matches: query.includes('640') && phoneViewport,
                 media: query,
-                addEventListener: jest.fn(),
+                addEventListener: (
+                    _type: string,
+                    listener: (event: MediaQueryListEvent) => void
+                ) => {
+                    if (query === LIVE_COMPACT_VIEWPORT_QUERY) {
+                        compactListeners.push(listener);
+                    }
+                },
                 removeEventListener: jest.fn(),
             }),
         });
@@ -263,6 +280,19 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
         sidebarState.collapse('portal');
         TestBed.inject(ApplicationRef).tick();
 
+        expect(pane()).toBeNull();
+    });
+
+    it('closes when widening past the compact band unfolds the rail without a level change (UI-67)', () => {
+        sidebarState.setState('portal', 'expanded');
+        crossCompactBand(true);
+        expect(sidebarState.areCategoriesHiddenFor('portal')()).toBe(true);
+        open();
+        expect(pane()).not.toBeNull();
+
+        crossCompactBand(false);
+
+        expect(sidebarState.stateOf('portal')()).toBe('expanded');
         expect(pane()).toBeNull();
     });
 

@@ -250,6 +250,16 @@ export function withStalkerPlayer() {
                         origin: crossOriginStream
                             ? undefined
                             : playlist.origin || portalOrigin,
+                        catalogIdentity:
+                            !isEpisode &&
+                            item?.id != null &&
+                            selectedItemId === 0
+                                ? {
+                                      playlistId: playlist._id,
+                                      type: 'vod',
+                                      id: item.id,
+                                  }
+                                : undefined,
                         contentInfo: {
                             playlistId: playlist._id,
                             contentXtreamId:
@@ -330,6 +340,13 @@ export function withStalkerPlayer() {
                         title: item.o_name || item.name || item.title || '',
                         thumbnail: item.logo ?? item.cover ?? null,
                         isLive: true,
+                        catalogIdentity: {
+                            playlistId: playlist._id,
+                            type: 'live',
+                            id:
+                                normalizeStalkerEntityId(item.id) ||
+                                normalizeStalkerEntityId(item.stream_id),
+                        },
                         headers,
                         userAgent:
                             headers['User-Agent'] ||

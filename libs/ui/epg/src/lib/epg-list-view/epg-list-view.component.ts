@@ -78,10 +78,9 @@ export class EpgListViewComponent {
     readonly programs = input<EpgProgram[]>([]);
     readonly channelName = input('');
     readonly channelLogo = input('');
-    /** Same input as the timeline's, but a list-appropriate default: hosts
-     * that don't pass a label (M3U, unified tab) would otherwise show the
-     * timeline's literal "Timeline" while in list mode. */
-    readonly sourceLabel = input('Programme guide');
+    /** Same input as the timeline's. Empty shows the translated
+     * "Programme guide", for hosts that pass no label (M3U, unified tab). */
+    readonly sourceLabel = input('');
     readonly archivePlaybackAvailable = input(false);
     /** Source/channel identity captured by programme details, independent of playback. */
     readonly archiveDownloadAvailable = input(false);
