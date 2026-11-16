@@ -56,15 +56,20 @@ export class DashboardHeroTmdbService {
      * with TMDB on, so the store stays off startup.
      */
     private readonly matches = signal<TmdbMatchService | null>(null);
-    private matchesRequested = false;
+    private matchLoad: Promise<TmdbMatchService | null> | null = null;
 
-    private loadMatches(): void {
-        if (this.matchesRequested || !this.enrichment.isEnabled()) return;
-        this.matchesRequested = true;
-        void this.enrichment.getMatches?.().then((matches) => {
-            this.matchesRequested = matches !== null;
+    private loadMatches(): Promise<TmdbMatchService | null> {
+        const loaded = this.matches();
+        if (loaded || !this.enrichment.isEnabled()) {
+            return Promise.resolve(loaded);
+        }
+        return (this.matchLoad ??= (
+            this.enrichment.getMatches?.() ?? Promise.resolve(null)
+        ).then((matches) => {
+            this.matchLoad = null;
             this.matches.set(matches);
-        });
+            return matches;
+        }));
     }
 
     /** Reactive when read inside a computed (settings signal underneath) */
@@ -82,10 +87,16 @@ export class DashboardHeroTmdbService {
     keyFor(item: DashboardHeroTmdbItem): string {
         // The viewer's match choice too: a title re-matched in its detail
         // view must not keep the previous match's extras.
-        this.loadMatches();
-        return `${this.enrichment.language()}//${dashboardTmdbLookupKey(
-            item
-        )}//${dashboardTmdbMatchToken(this.matches(), dashboardTmdbMatchIdentity(item))}`;
+        void this.loadMatches();
+        const matches = this.matches();
+        const identity = dashboardTmdbMatchIdentity(item);
+        // The presenter also caches by this key. A cold request can load a
+        // manual choice, so it must not share the final automatic key.
+        const matchKey =
+            identity && !matches
+                ? `pending:${JSON.stringify(identity)}`
+                : dashboardTmdbMatchToken(matches, identity);
+        return `${this.enrichment.language()}//${dashboardTmdbLookupKey(item)}//${matchKey}`;
     }
 
     getExtras(
@@ -100,10 +111,12 @@ export class DashboardHeroTmdbService {
         }
 
         const key = this.keyFor(item);
-        // The lookup waits for the store and can already return a saved
-        // match. Before the store is ready the key still says "automatic".
         if (identity && !this.matches()) {
-            return this.loadExtras(item);
+            // Both the cold caller and the presenter's key-change rerun must
+            // reach the same memo entry before starting the TMDB lookup.
+            return this.loadMatches().then((matches) =>
+                matches ? this.getExtras(item) : null
+            );
         }
         const cached = this.memo.get(key);
         if (cached) {
@@ -130,7 +143,8 @@ export class DashboardHeroTmdbService {
         try {
             const resolved = await resolveDashboardTmdbDetails(
                 this.enrichment,
-                item
+                item,
+                this.matches()
             );
             return resolved?.details ? toHeroExtras(resolved.details) : null;
         } catch (error) {

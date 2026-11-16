@@ -1019,8 +1019,8 @@ since shipped.)
   the recommendations load key and seed de-duplication
   (`dashboardTmdbMatchToken`), so re-matching a title reloads both. The
   match store loads on first use with TMDB on, off the startup path: the
-  hero keeps it in a signal so keys computed before it arrived are
-  computed again. The recommendations rail waits for the store before
+  hero uses an activity-specific key while the store loads. Waiting
+  callers share one enrichment request keyed by the resolved choice. The recommendations rail waits for the store before
   deduplicating and keying seeds. Rows with the same lookup and match
   choice share one request and keep their separate match identities for
   offline pruning. A row with a match identity skips TMDB when the store
