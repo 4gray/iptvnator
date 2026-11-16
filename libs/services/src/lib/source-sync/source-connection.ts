@@ -3,10 +3,6 @@ import {
     type SourceServerConnection,
     type ServerInstanceInfo,
 } from '@iptvnator/shared/interfaces';
-import {
-    hostedPairingBridge,
-    requestHostedPairing,
-} from './hosted-pairing-bridge';
 
 export const CONNECTION_KEY = 'iptvnator:source-server';
 export const DISABLED_KEY = 'iptvnator:source-server-disabled';
@@ -94,12 +90,12 @@ export async function prepareSourceConnection(
             selected = { apiUrl: `${location.origin}/api`, instanceId };
             return;
         }
-        const bridge = hostedPairingBridge();
-        if (bridge && runtimeBackendUrl) {
-            const paired = await restoreNativeHostedPairing(
-                bridge,
-                runtimeBackendUrl
-            );
+        if (runtimeBackendUrl && 'HostedPairing' in window) {
+            const paired = await import('./hosted-pairing-bridge')
+                .then(({ restoreNativeHostedPairing }) =>
+                    restoreNativeHostedPairing(runtimeBackendUrl)
+                )
+                .catch(() => null);
             if (paired) {
                 selected = nativePairing = paired;
                 return;
@@ -163,49 +159,13 @@ export async function prepareSourceConnection(
     }
 }
 
-async function restoreNativeHostedPairing(
-    bridge: NonNullable<ReturnType<typeof hostedPairingBridge>>,
-    runtimeBackendUrl: string
-): Promise<SourceServerConnection | null> {
-    try {
-        const api = new URL(runtimeBackendUrl, location.href);
-        if (api.href !== `${location.origin}/api`) return null;
-        const response = await fetch(`${api.href}/v1/instance`, {
-            signal: AbortSignal.timeout(5000),
-            redirect: 'error',
-        });
-        if (!response.ok) return null;
-        const info: unknown = await response.json();
-        assertSourceInstance(info);
-        const instanceId = info.instanceId!;
-        const reply = await requestHostedPairing(
-            bridge,
-            'credential',
-            instanceId
-        );
-        const token = reply?.token;
-        if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token))
-            return null;
-        const connection = { apiUrl: api.href, instanceId };
-        sessionStorage.setItem(tokenKey(connection), token);
-        localStorage.setItem(CONNECTION_KEY, JSON.stringify(connection));
-        localStorage.removeItem(DISABLED_KEY);
-        return connection;
-    } catch {
-        return null;
-    }
-}
-
 export async function forgetNativeHostedPairing(): Promise<void> {
     if (!nativePairing || nativePairing !== selected) return;
-    const bridge = hostedPairingBridge();
-    if (
-        !bridge ||
-        (await requestHostedPairing(bridge, 'forget', nativePairing.instanceId))
-            ?.forgotten !== true
-    ) {
+    const pairing = nativePairing;
+    const { forgetHostedPairing } = await import('./hosted-pairing-bridge');
+    if (!(await forgetHostedPairing(pairing.instanceId)))
         throw new Error('SOURCE_SYNC.REQUEST_FAILED');
-    }
+    if (nativePairing !== pairing) return;
     nativePairing = null;
 }
 

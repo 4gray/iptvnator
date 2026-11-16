@@ -30,6 +30,7 @@ import type {
     HostedDeviceResults,
 } from '@iptvnator/shared/interfaces';
 import { DialogService } from '@iptvnator/ui/components';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { timer } from 'rxjs';
@@ -46,6 +47,7 @@ import { timer } from 'rxjs';
         TranslateModule,
     ],
     providers: [
+        provideFormFieldDefaults(),
         {
             provide: MAT_SLIDE_TOGGLE_DEFAULT_OPTIONS,
             useValue: { disableToggleValue: true },
