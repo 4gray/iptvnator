@@ -1,6 +1,9 @@
+import {
+    createRandomId,
+    playbackTimestamp,
+    type PlaybackPositionData,
+} from '@iptvnator/shared/interfaces';
 import { ActivitySupersededError } from './activity-action-fence';
-import { createRandomId } from '@iptvnator/shared/interfaces';
-import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import {
     applyActivityOperation,
     emptyActivityState,
@@ -142,38 +145,30 @@ export function beginActivity(
 export async function saveActivity(
     this: ActivitySyncClient,
     sourceId: string,
-    position: PlaybackPositionData
+    position: PlaybackPositionData,
+    playedAt: string,
+    currentAction: () => boolean
 ): Promise<'local-only' | void> {
-    const currentAction = position.activitySessionId
-        ? this.actions.checkpoint(sourceId, position)
-        : this.actions.position(sourceId, position);
-    const failed = position.activitySessionId
-        ? this.localSessions.get(position.activitySessionId)
+    const sessionId = position.activitySessionId;
+    const nativeCheckpointAt = sessionId
+        ? position.nativeCheckpointAt
         : undefined;
+    const failed = sessionId ? this.localSessions.get(sessionId) : undefined;
     const currentScope = this.contexts.get(sourceId)?.sourceIncarnation;
     if (
         failed?.incarnation &&
         currentScope &&
         failed.incarnation !== currentScope
     ) {
-        this.localSessions.delete(position.activitySessionId!);
-        this.retiredSessions.add(position.activitySessionId!);
+        this.localSessions.delete(sessionId!);
+        this.retiredSessions.add(sessionId!);
         return;
     }
     // Failed explicit launches have no shared owner. Keep the adapter's local
     // fallback active until another explicit launch commits ownership.
-    if (
-        position.activitySessionId &&
-        this.localSessions.has(position.activitySessionId) &&
-        !this.sessions.has(position.activitySessionId)
-    )
+    if (sessionId && failed && !this.sessions.has(sessionId))
         return 'local-only';
-    if (
-        position.activitySessionId &&
-        this.retiredSessions.has(position.activitySessionId)
-    )
-        return;
-    const sessionId = position.activitySessionId;
+    if (sessionId && this.retiredSessions.has(sessionId)) return;
     let session;
     try {
         session = sessionId ? await this.sessions.get(sessionId) : undefined;
@@ -190,6 +185,10 @@ export async function saveActivity(
                     !(error instanceof ActivitySupersededError)
                 )
                     throw error;
+                if (nativeCheckpointAt)
+                    throw new ActivitySupersededError(
+                        'Activity checkpoint superseded'
+                    );
             }
         ));
     if (!address) return;
@@ -227,14 +226,31 @@ export async function saveActivity(
                 throw new ActivitySupersededError('Activity action superseded');
             const state = current?.state ?? emptyActivityState();
             if (
+                current &&
+                nativeCheckpointAt &&
+                playbackTimestamp(
+                    current.position?.activityPlayedAt ??
+                        state.positionMetadata?.playedAt
+                ) >= playbackTimestamp(nativeCheckpointAt)
+            )
+                return current;
+            if (
                 session &&
-                (this.retiredSessions.has(position.activitySessionId!) ||
+                (this.retiredSessions.has(sessionId!) ||
                     (state.generation > session.generation &&
-                        state.owner?.sessionId !== position.activitySessionId))
+                        state.owner?.sessionId !== sessionId))
             ) {
-                this.retiredSessions.add(position.activitySessionId!);
+                this.retiredSessions.add(sessionId!);
                 return current!;
             }
+            const recoveredTitle =
+                nativeCheckpointAt && !position.activityTitle
+                    ? (state.positionMetadata?.title ??
+                      current?.position?.activityTitle)
+                    : undefined;
+            const snapshot = recoveredTitle
+                ? { ...position, activityTitle: recoveredTitle }
+                : position;
             const operation: ActivityOperation = session
                 ? {
                       kind: 'checkpoint',
@@ -242,23 +258,22 @@ export async function saveActivity(
                       deviceId: this.options.deviceId,
                       generation:
                           state.owner?.deviceId === this.options.deviceId &&
-                          state.owner?.sessionId === position.activitySessionId
+                          state.owner?.sessionId === sessionId
                               ? state.generation
                               : session.generation,
-                      sessionId: position.activitySessionId!,
+                      sessionId: sessionId!,
                       sequence:
                           Math.max(
                               state.owner?.sequence ?? 0,
                               ...(current?.pending ?? []).map((p) =>
                                   p.operation.kind === 'checkpoint' &&
-                                  p.operation.sessionId ===
-                                      position.activitySessionId
+                                  p.operation.sessionId === sessionId
                                       ? p.operation.sequence
                                       : 0
                               )
                           ) + 1,
                       resume: activityResume(position),
-                      positionMetadata: metadata(position),
+                      positionMetadata: { ...metadata(snapshot), playedAt },
                   }
                 : {
                       kind: 'mark-watched',
@@ -272,9 +287,10 @@ export async function saveActivity(
                 ...current,
                 state: result.state,
                 position: {
-                    ...position,
+                    ...snapshot,
                     watched: result.state.watched,
-                    updatedAt: new Date().toISOString(),
+                    updatedAt: playedAt,
+                    ...(session ? { activityPlayedAt: playedAt } : {}),
                 },
                 pending: [
                     ...(current?.pending ?? []),
@@ -292,8 +308,10 @@ export async function saveActivity(
         });
     } catch (error) {
         this.delivery.settled(operationId);
-        if (!currentAction()) return;
-        throw error;
+        if (currentAction()) throw error;
+        if (nativeCheckpointAt)
+            throw new ActivitySupersededError('Activity checkpoint superseded');
+        return;
     }
     if (
         committed.pending.some(

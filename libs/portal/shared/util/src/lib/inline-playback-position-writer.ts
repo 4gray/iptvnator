@@ -1,7 +1,9 @@
 import type { Signal } from '@angular/core';
-import type {
-    PlaybackPositionData,
-    ResolvedPortalPlayback,
+import {
+    hasReachedPlaybackStart,
+    type PlaybackPositionData,
+    type PlaybackPositionUpdate,
+    type ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 
 /**
@@ -20,9 +22,6 @@ import type {
 /** The player fires ~4x/second; persisting that often would hammer SQLite. */
 const DEFAULT_THROTTLE_MS = 15000;
 
-/** Engines land near, not exactly on, the requested `startTime`. */
-const RESUME_TOLERANCE_SECONDS = 5;
-
 export interface InlinePlaybackPositionWriterConfig {
     /** The playback currently mounted in the inline player. */
     playback: Signal<ResolvedPortalPlayback | null>;
@@ -39,7 +38,7 @@ export interface InlinePlaybackPositionWriter {
      * the same answer to carry a timecode across, and one latch has to serve
      * both or the two disagree about where playback is.
      */
-    handleTimeUpdate(event: { currentTime: number; duration: number }): boolean;
+    handleTimeUpdate(event: PlaybackPositionUpdate): boolean;
     /** Persists the latest accepted update if it was held by the throttle. */
     flush(): void;
     /** Clears the throttle and the resume latch for a new playback. */
@@ -81,29 +80,23 @@ export function createInlinePlaybackPositionWriter(
             // This is a one-shot latch, not a filter: once playback has
             // reached the resume point the guard is done, so a deliberate seek
             // backwards is still saved normally.
-            if (!resumeSettled) {
-                const startTime = playback.startTime ?? 0;
-                // A shorter cut can never reach a position carried into it,
-                // and latching on that would suppress every save this session.
-                const reachable =
-                    !(event.duration > 0) || startTime < event.duration;
-                if (
-                    reachable &&
-                    startTime > 0 &&
-                    event.currentTime < startTime - RESUME_TOLERANCE_SECONDS
-                ) {
-                    return false;
-                }
-                resumeSettled = true;
-            }
+            if (
+                !resumeSettled &&
+                !hasReachedPlaybackStart(event, playback.startTime ?? 0)
+            )
+                return false;
+            resumeSettled = true;
 
             pending = {
                 ...playback.contentInfo,
                 positionSeconds: Math.floor(event.currentTime),
                 durationSeconds: Math.floor(event.duration),
+                ...(event.nativeCheckpointAt
+                    ? { nativeCheckpointAt: event.nativeCheckpointAt }
+                    : {}),
             };
 
-            if (Date.now() - lastSaveTime > throttleMs) flush();
+            if (event.checkpoint || Date.now() - lastSaveTime > throttleMs) flush();
             return true;
         },
 

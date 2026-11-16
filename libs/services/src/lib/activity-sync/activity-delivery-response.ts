@@ -94,20 +94,20 @@ export async function commitActivityDelivery(
             return { ...current, conflict: result.state };
         }
         const pending = current.pending.slice(1);
-        return {
-            ...current,
-            pending,
-            ...(pending.length
-                ? {}
-                : {
-                      state: result.state,
-                      position: projectActivity(
-                          address,
-                          result.state,
-                          client.alias(address)
-                      ),
-                  }),
-        };
+        if (pending.length) return { ...current, pending };
+        const position = projectActivity(
+            address,
+            result.state,
+            client.alias(address)
+        );
+        // A compatible server can acknowledge a checkpoint without storing its capture time.
+        const playedAt =
+            head.operation.kind === 'checkpoint'
+                ? head.operation.positionMetadata?.playedAt
+                : undefined;
+        if (playedAt && !position.activityPlayedAt)
+            position.activityPlayedAt = playedAt;
+        return { ...current, pending, state: result.state, position };
     });
     if (rebased) {
         client.delivery.begins.set(rebasedId, next.consentGeneration);

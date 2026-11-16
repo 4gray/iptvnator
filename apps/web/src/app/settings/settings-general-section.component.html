@@ -2,6 +2,17 @@
     <header class="settings-group__header">
         <h2>{{ 'SETTINGS.GENERAL' | translate }}</h2>
         <p>{{ 'SETTINGS.GENERAL_SUBTITLE' | translate }}</p>
+        @if (canOpenAndroidSettings) {
+            <button
+                mat-flat-button
+                type="button"
+                class="android-shell-settings"
+                data-test-id="open-android-shell-settings"
+                (click)="openAndroidSettings()"
+            >
+                {{ 'SETTINGS.OPEN_ANDROID_APP_SETTINGS' | translate }}
+            </button>
+        }
     </header>
 
     <section class="settings-section">

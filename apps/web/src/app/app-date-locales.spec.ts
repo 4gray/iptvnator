@@ -1,3 +1,4 @@
+import { APP_DATE_LOCALE_LOADERS } from './app-date-locale-data';
 import { formatDate } from '@angular/common';
 import { TestBed } from '@angular/core/testing';
 import { TranslateService } from '@ngx-translate/core';
@@ -5,7 +6,6 @@ import { normalizeDateLocale } from '@iptvnator/pipes';
 import { Language } from '@iptvnator/shared/interfaces';
 import { PREFERRED_LANGUAGE_STORAGE_KEY } from './app-language-preference';
 import {
-    APP_DATE_LOCALE_LOADERS,
     AppDateLocaleService,
     registerAppDateLocale,
 } from './app-date-locales';

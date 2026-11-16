@@ -1,3 +1,4 @@
+import type { PlaybackPositionResetScope } from '@iptvnator/shared/interfaces';
 import { activityEnabled } from './activity-consent';
 import { Injectable, inject } from '@angular/core';
 import {
@@ -116,9 +117,14 @@ export class AppPortalPlaybackPositionsService implements PortalPlaybackPosition
 
     async clearPlaybackPositionsBatch(
         playlistId: string,
-        items: { contentXtreamId: number; contentType: 'vod' | 'episode' }[]
+        items: { contentXtreamId: number; contentType: 'vod' | 'episode' }[],
+        scope?: PlaybackPositionResetScope
     ): Promise<void> {
-        await this.dataSource.clearPlaybackPositionsBatch(playlistId, items);
+        await this.dataSource.clearPlaybackPositionsBatch(
+            playlistId,
+            items,
+            scope
+        );
     }
 }
 

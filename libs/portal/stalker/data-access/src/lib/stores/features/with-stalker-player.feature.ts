@@ -40,6 +40,7 @@ import {
     fetchStalkerPlaybackLink,
     hasStalkerLinkFlagEvidence,
     shouldResolveMovieFileId,
+    resolveStalkerPlaybackLink,
     type StalkerLinkFlagSource,
 } from '../utils';
 
@@ -198,17 +199,15 @@ export function withStalkerPlayer() {
                         }
                     }
 
-                    const streamUrl = await fetchStalkerPlaybackLink(
-                        requestDeps,
-                        {
+                    const { streamUrl, requiresFreshStreamUrl } =
+                        await resolveStalkerPlaybackLink(requestDeps, {
                             playlist,
                             selectedContentType:
                                 storeState.selectedContentType(),
                             cmd: cmdToUse,
                             series: episodeNum,
                             linkFlags: item,
-                        }
-                    );
+                        });
 
                     recordRecent(streamUrl, item, cmd, thumbnail, title);
 
@@ -235,6 +234,8 @@ export function withStalkerPlayer() {
 
                     return {
                         streamUrl,
+                        requiresFreshStreamUrl:
+                            isEpisode || requiresFreshStreamUrl,
                         title: title ?? '',
                         thumbnail,
                         startTime,
@@ -303,17 +304,15 @@ export function withStalkerPlayer() {
                         throw new Error('nothing_to_play');
                     }
 
-                    const streamUrl = await fetchStalkerPlaybackLink(
-                        requestDeps,
-                        {
+                    const { streamUrl, requiresFreshStreamUrl } =
+                        await resolveStalkerPlaybackLink(requestDeps, {
                             playlist,
                             selectedContentType:
                                 storeState.selectedContentType(),
                             cmd: item.cmd,
                             forcedContentType: 'itv',
                             linkFlags: item,
-                        }
-                    );
+                        });
 
                     const token = stalkerSession.getCachedToken(playlist._id);
                     const headers = buildStalkerExternalPlaybackHeaders(
@@ -337,6 +336,7 @@ export function withStalkerPlayer() {
 
                     return {
                         streamUrl,
+                        requiresFreshStreamUrl,
                         title: item.o_name || item.name || item.title || '',
                         thumbnail: item.logo ?? item.cover ?? null,
                         isLive: true,

@@ -392,6 +392,7 @@
         "SEARCH_EMPTY_HINT": "Nincs a keresésnek megfelelő beállítás. Próbálkozzon másik kifejezéssel, például: lejátszó, téma vagy EPG.",
         "GENERAL": "Általános",
         "GENERAL_SUBTITLE": "Nyelv, indítás és csatornabeállítások.",
+        "OPEN_ANDROID_APP_SETTINGS": "Az Android-alkalmazás beállításainak megnyitása",
         "PLAYBACK": "Lejátszás",
         "SAVE_EPG_SOURCES": "EPG-források mentése",
         "EPG_SOURCES": "EPG-források",
@@ -979,6 +980,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Beépített lejátszó kipróbálása",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Vissza a webes lejátszóhoz",
         "HLS_WAIT": "Az adatfolyamból még nem érkeztek adatok. Várhat tovább, vagy újrapróbálkozhat.",
         "STAGE_LOADER": "Adatfolyam betöltése",
         "STAGE_DEMUX": "Konténer elemzése",

@@ -102,18 +102,22 @@ describe('attachHtmlVideoLegacyShortcuts', () => {
         expect(video.volume).toBe(0.5);
     });
 
-    it('restores the remembered volume when unmuting after mute zeroed out', () => {
-        video.volume = 0.7;
-        dispatchKey('m');
-        expect(video.muted).toBe(true);
+    it.each([true, false])(
+        'restores the remembered volume from zero (muted: %s)',
+        (muted) => {
+            video.volume = 0.7;
+            dispatchKey('m');
+            expect(video.muted).toBe(true);
 
-        dispatchKey('ArrowDown');
-        expect(video.volume).toBe(0);
+            dispatchKey('ArrowDown');
+            expect(video.volume).toBe(0);
+            video.muted = muted;
 
-        dispatchKey('m');
-        expect(video.muted).toBe(false);
-        expect(video.volume).toBe(0.7);
-    });
+            dispatchKey('m');
+            expect(video.muted).toBe(false);
+            expect(video.volume).toBe(0.7);
+        }
+    );
 
     it('fullscreens the video element itself with F', () => {
         const requestFullscreen = jest.fn(() => Promise.resolve());

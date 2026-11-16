@@ -1,5 +1,8 @@
 import { InjectionToken } from '@angular/core';
-import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import {
+    PlaybackPositionData,
+    PlaybackPositionResetScope,
+} from '@iptvnator/shared/interfaces';
 
 export interface PortalPlaybackPositions {
     savePlaybackPosition(
@@ -43,7 +46,8 @@ export interface PortalPlaybackPositions {
     ): Promise<void>;
     clearPlaybackPositionsBatch(
         playlistId: string,
-        items: { contentXtreamId: number; contentType: 'vod' | 'episode' }[]
+        items: { contentXtreamId: number; contentType: 'vod' | 'episode' }[],
+        scope?: PlaybackPositionResetScope
     ): Promise<void>;
 }
 

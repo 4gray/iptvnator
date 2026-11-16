@@ -151,10 +151,14 @@ describe('SerialDetailsComponent watched toggles', () => {
         );
 
         expect(clearPlaybackPositionsBatch).toHaveBeenCalledTimes(1);
-        expect(clearPlaybackPositionsBatch).toHaveBeenCalledWith('xtream-1', [
-            { contentXtreamId: 1001, contentType: 'episode' },
-            { contentXtreamId: 1002, contentType: 'episode' },
-        ]);
+        expect(clearPlaybackPositionsBatch).toHaveBeenCalledWith(
+            'xtream-1',
+            [
+                { contentXtreamId: 1001, contentType: 'episode' },
+                { contentXtreamId: 1002, contentType: 'episode' },
+            ],
+            { seriesXtreamId: 103, seasonNumber: 1 }
+        );
         expect(clearPlaybackPosition).not.toHaveBeenCalled();
         expect(playbackService.episodePlaybackPositions().has(1001)).toBe(
             false

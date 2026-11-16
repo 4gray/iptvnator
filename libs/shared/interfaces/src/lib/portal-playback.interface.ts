@@ -10,6 +10,8 @@ export interface PlayerContentInfo extends Omit<
 
 export interface ResolvedPortalPlayback {
     streamUrl: string;
+    /** The provider must resolve a fresh URL before another playback engine opens it. */
+    requiresFreshStreamUrl?: boolean;
     /** Source-owner supplied, advertised TS alternative for Xtream live Auto only. */
     liveAutoTsUrl?: string;
     title: string;

@@ -392,6 +392,7 @@
         "SEARCH_EMPTY_HINT": "Keine passenden Einstellungen. Ein anderes Wort versuchen, etwa Player, Design oder EPG.",
         "GENERAL": "Allgemein",
         "GENERAL_SUBTITLE": "Sprache, Startverhalten und Kanaleinstellungen.",
+        "OPEN_ANDROID_APP_SETTINGS": "Android-App-Einstellungen öffnen",
         "PLAYBACK": "Wiedergabe",
         "SAVE_EPG_SOURCES": "EPG-Quellen speichern",
         "EPG_SOURCES": "EPG-Quellen",
@@ -979,6 +980,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Integrierten Player ausprobieren",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Zum Webplayer zurückkehren",
         "HLS_WAIT": "Warte weiter auf Stream-Daten. Du kannst warten oder die Wiedergabe erneut versuchen.",
         "STAGE_LOADER": "Stream laden",
         "STAGE_DEMUX": "Container verarbeiten",
