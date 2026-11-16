@@ -402,6 +402,25 @@
             max-width: 150px;
         }
     }
+
+    // On Windows/Linux the "Ctrl+K" label is ~50px against macOS's "⌘K";
+    // beside the window controls that width came out of the scope chip and
+    // the input. The bolt icon takes its place; the tooltip keeps the
+    // shortcut.
+    :host-context(body.frameless-platform) .search-field {
+        .command-trigger {
+            min-width: 28px;
+            padding: 0 4px;
+        }
+
+        .command-trigger__shortcut {
+            display: none;
+        }
+
+        .command-trigger__icon {
+            display: inline-flex;
+        }
+    }
 }
 
 @media (max-width: 780px) {
