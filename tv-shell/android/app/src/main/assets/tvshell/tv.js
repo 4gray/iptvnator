@@ -1364,10 +1364,9 @@
         }
         function offerAfterWebError(url, title, code, root, promptRoot) {
             var stage = root instanceof Element ? root.closest('app-web-player-view') : null;
-            var button = stage && stage.querySelector('[data-tv-native-playback]');
-            var attempt = button && button.getAttribute('data-tv-native-playback');
-            if (attempt) {
-                webFailures.set(stage, attempt);
+            var attempt = stage && stage.getAttribute('data-tv-playback-attempt');
+            if (attempt) webFailures.set(stage, attempt);
+            if (attempt && stage.querySelector('[data-tv-native-playback]')) {
                 offerIfBothFailed(stage);
                 return;
             }
@@ -1378,7 +1377,7 @@
             var detail = event.detail;
             var button = stage instanceof Element && stage.querySelector('[data-tv-native-playback]');
             if (!button || !detail || !detail.attempt ||
-                button.getAttribute('data-tv-native-playback') !== detail.attempt ||
+                stage.getAttribute('data-tv-playback-attempt') !== detail.attempt ||
                 typeof detail.url !== 'string') return;
             var previous = nativeFailures.get(stage);
             if (previous && previous.attempt === detail.attempt) return;

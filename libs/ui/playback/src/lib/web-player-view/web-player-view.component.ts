@@ -81,7 +81,10 @@ import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
     selector: 'app-web-player-view',
     templateUrl: './web-player-view.component.html',
     styleUrls: ['./web-player-view.component.scss'],
-    host: { class: 'web-player-view' },
+    host: {
+        class: 'web-player-view',
+        '[attr.data-tv-playback-attempt]': 'androidPlayback.attempt()',
+    },
     imports: [
         SecondStreamComponent,
         SecondStreamFloatingDirective,
@@ -421,16 +424,12 @@ export class WebPlayerViewComponent implements OnDestroy {
         if (notify) this.playbackEnded.emit();
     }
 
-    returnToWebPlayback(): void {
-        this.androidPlayback.returnToWeb();
-    }
-
     readonly requestRecommendedPlayer =
         this.recovery.requestRecommendedPlayer.bind(this.recovery);
 
     retryPlayback(binding?: PlaybackBinding): void {
         if (!binding && this.androidPlayback.suspended()) {
-            this.returnToWebPlayback();
+            this.androidPlayback.returnToWeb();
             return;
         }
         this.recovery.syncSession();

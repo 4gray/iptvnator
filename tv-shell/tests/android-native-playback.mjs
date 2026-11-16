@@ -220,6 +220,7 @@ try {
     for (const request of [
         { url: origin + '/synthetic.ism/Manifest' },
         { url: origin + '/synthetic.mpd', hls: true },
+        { url: origin + '/synthetic.mpd/' },
     ]) {
         const rejected = await page.evaluate((request) => new Promise((resolve) => {
             const id = crypto.randomUUID();

@@ -98,8 +98,9 @@ from the configured `--www` directory, with symbolic links confined to that dire
   a **"This stream cannot be played here"** prompt offering to open them in
   another player (VLC, Kodi, MX Player...). When Media3 is available, you can
   try it first. If it fails too, the shell offers the external player after
-  Back, provided the external-player prompt is enabled. The app's "Copy stream
-  URL" button also offers an external player on a TV.
+  Back, provided the external-player prompt is enabled. Enabling Media3 in
+  settings preserves a web error for the same playback attempt. The app's
+  "Copy stream URL" button also offers an external player on a TV.
 - **IPTVnator settings** (Settings → General → Open Android app settings, or
   hold Menu or Back on the remote): interface size (960 / 1280 / 1600 px),
   preferred external player, data reset, and diagnostics (WebView version, screen).

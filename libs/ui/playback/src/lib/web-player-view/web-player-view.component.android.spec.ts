@@ -126,6 +126,28 @@ describe('returning from the Android live player', () => {
         expect(open()).toContain('Essayer le lecteur intégré');
     });
 
+    it('keeps the playback attempt when Media3 is enabled from settings', () => {
+        function setEnabled(enabled: boolean): void {
+            Object.assign(window, { iptvnatorAndroidPlaybackEnabled: enabled });
+            window.dispatchEvent(
+                new Event('iptvnator:android-playback-availability')
+            );
+            fixture.detectChanges();
+        }
+        const host = fixture.nativeElement as HTMLElement;
+        setEnabled(false);
+        const attempt = host.getAttribute('data-tv-playback-attempt');
+        expect(attempt).toBeTruthy();
+        expect(host.querySelector('[data-tv-native-playback]')).toBeNull();
+
+        setEnabled(true);
+        expect(
+            host
+                .querySelector('[data-tv-native-playback]')
+                ?.getAttribute('data-tv-native-playback')
+        ).toBe(attempt);
+    });
+
     it.each(['ready', 'cancelled', 'destroyed', 'failed'] as const)(
         'waits for a durable VOD session before opening Media3 (%s)',
         async (outcome) => {

@@ -280,7 +280,7 @@ it.each([
     }
 });
 
-it.each(['.mpd', '%2Empd'])(
+it.each(['.mpd', '%2Empd', '.mpd/', '%2Empd//'])(
     'rejects DASH path %s regardless of the extension hint',
     (suffix) => {
         const { clear, playback } = setup();
@@ -404,7 +404,7 @@ it('restores the web engine if Android rejects playback or is disabled', () => {
         window.dispatchEvent(
             new Event('iptvnator:android-playback-availability')
         );
-        expect(playback.attempt()).toBeNull();
+        expect(playback.attempt()).toBeTruthy();
         expect(playback.suspended()).toBe(false);
         expect(reload).toHaveBeenCalledTimes(2);
     } finally {

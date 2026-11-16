@@ -81,7 +81,7 @@ export class AndroidTvPlayback {
         attempt: string;
     } | null>(null);
     readonly attempt = computed(() => {
-        if (!this.enabled()) return null;
+        if (!this.window?.TvShell?.postMessage) return null;
         const token = this.currentToken();
         const continued = this.continuedAttempt();
         return continued?.token === token
@@ -224,7 +224,7 @@ export class AndroidTvPlayback {
             const { pathname, username, password } = new URL(
                 playback.streamUrl
             );
-            const path = decodeURIComponent(pathname);
+            const path = decodeURIComponent(pathname.replace(/\/+$/, ''));
             return (
                 !username &&
                 !password &&
