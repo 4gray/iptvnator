@@ -877,6 +877,8 @@ remain local when the meaning is explicit.
   and macOS CI runners have 1024px screens, inside the band, so
   `launchElectronApp` widens a narrower launch window to the default 1280px
   (`electron-window-size.ts`); a spec that needs a narrow window resizes it.
+  Only a stored maximized or fullscreen startup mode keeps its window:
+  macOS reports a default window that fills a small screen as maximized.
 - Xtream Live TV's root view (`/live` with no selected category) follows the
   same paginated `All Items` shell as VOD and Series: a widget header with the
   total channel count, page-size controls, and page navigation above the shared

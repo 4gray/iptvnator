@@ -254,7 +254,7 @@ export async function launchElectronApp(
             attachElectronProcessDiagnostics(electronProcess);
             const mainWindow = await findMainWindow(application);
             await waitForAppReady(mainWindow);
-            await widenToDefaultDesktopWidth(application, mainWindow);
+            await widenToDefaultDesktopWidth(application, mainWindow, dataDir);
             await startPortalDebugCapture(mainWindow);
             await startDbOperationCapture(mainWindow);
             await startRendererFrameCapture(mainWindow);
