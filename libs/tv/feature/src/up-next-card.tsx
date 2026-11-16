@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { RefObject } from 'preact';
+import { AutoplayStreak } from '@iptvnator/shared/interfaces';
 import { restoreFocus } from '@iptvnator/tv/ui';
 import {
     episodeCode,
@@ -14,6 +15,12 @@ import type { TvModel } from './use-tv';
 import type { VodSequence } from './use-vod-sequence';
 
 const FOCUS_KEY = 'player-up-next';
+
+/**
+ * Episodes autoplayed in a row on this TV (#2245), shared with desktop's
+ * rules: autoplay claims each one, any other start resets the run.
+ */
+export const tvAutoplayStreak = new AutoplayStreak();
 
 /**
  * Up next for the fullscreen TV player, matching the desktop and web card:
@@ -55,7 +62,12 @@ export function useUpNext(
         const ended = () => {
             tick();
             const { vod: sequence, autoplay: on } = latest.current;
-            if (on && sequence.next && !sequence.activating)
+            if (
+                on &&
+                sequence.next &&
+                !sequence.activating &&
+                tvAutoplayStreak.beginAutoplay()
+            )
                 void sequence.playNext();
         };
         element.addEventListener('timeupdate', tick);
@@ -65,6 +77,12 @@ export function useUpNext(
             element.removeEventListener('ended', ended);
         };
     }, [element]);
+
+    // Every start reports to the autoplay run; one the viewer chose resets it.
+    const playingId = tv.playing?.id;
+    useEffect(() => {
+        if (playingId) tvAutoplayStreak.playbackStarted();
+    }, [playingId]);
 
     // The card takes focus when it appears, so OK plays the next episode.
     const visible = !!card;

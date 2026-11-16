@@ -11,6 +11,7 @@ import {
     output,
     signal,
     TemplateRef,
+    untracked,
     viewChild,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
@@ -28,6 +29,7 @@ import {
 import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import type { PlaybackDiagnosticCode } from '@iptvnator/playback/util';
 import { SettingsStore } from '@iptvnator/services';
+import { AutoplayStreakService } from './autoplay-streak.service';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 import type { PlayerMediaTitle, PlayerUpNextItem } from '../player-controls';
 import {
@@ -305,10 +307,17 @@ export class PortalInlinePlayerComponent {
     readonly nextEpisodeRequested = output<void>();
     /** An episode picked in the Up Next rail or the fullscreen episode panel. */
     readonly upNextEpisodeSelected = output<UpNextRailItem>();
+    private readonly autoplayStreak = inject(AutoplayStreakService);
     /** A season tab picked in the fullscreen episode panel (lazy load hook). */
     readonly episodePanelSeasonSelected = output<string>();
 
     constructor() {
+        // Every episode start reports to the autoplay run (#2245); one the
+        // viewer started, rather than autoplay, resets it.
+        effect(() => {
+            this.playbackSessionKey();
+            untracked(() => this.autoplayStreak.playbackStarted());
+        });
         effect((onCleanup) => {
             const element = this.stageViewport()?.nativeElement;
             if (!element || typeof ResizeObserver === 'undefined') {
@@ -347,7 +356,8 @@ export class PortalInlinePlayerComponent {
         if (
             navigation?.autoplayEnabled === true &&
             navigation.canNext === false &&
-            next
+            next &&
+            this.autoplayStreak.beginAutoplay()
         ) {
             this.upNextEpisodeSelected.emit(next);
             return;

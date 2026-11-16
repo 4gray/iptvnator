@@ -242,6 +242,49 @@ describe('PortalInlinePlayerComponent up next rail', () => {
         expect(component.playerUpNext()?.showCountdown).toBe(false);
     });
 
+    it('stops season-crossing autoplay once the autoplay run is at its limit', async () => {
+        await setup(true);
+        fixture.componentRef.setInput('playback', seriesPlayback);
+        fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+        fixture.componentRef.setInput('seriesNavigation', {
+            canPrevious: true,
+            canNext: false,
+            autoplayEnabled: true,
+        });
+        fixture.detectChanges();
+        const { AutoplayStreakService } =
+            await import('./autoplay-streak.service');
+        const streak = TestBed.inject(AutoplayStreakService);
+        jest.spyOn(streak, 'canContinue').mockReturnValue(false);
+        const selected = jest.fn();
+        const ended = jest.fn();
+        component.upNextEpisodeSelected.subscribe(selected);
+        component.playbackEnded.subscribe(ended);
+
+        component.onPlaybackEnded();
+        expect(selected).not.toHaveBeenCalled();
+        expect(ended).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the autoplay run across autoplayed episodes and resets it otherwise', async () => {
+        await setup(true);
+        fixture.detectChanges();
+        const { AutoplayStreakService } =
+            await import('./autoplay-streak.service');
+        const streak = TestBed.inject(AutoplayStreakService);
+        streak.reset();
+
+        expect(streak.beginAutoplay()).toBe(true);
+        fixture.componentRef.setInput('playbackSessionKey', 'episode-2');
+        fixture.detectChanges();
+        expect(streak.length).toBe(1);
+
+        // Started by the viewer, not by autoplay.
+        fixture.componentRef.setInput('playbackSessionKey', 'episode-7');
+        fixture.detectChanges();
+        expect(streak.length).toBe(0);
+    });
+
     /** Renders, then feeds a stage size as the ResizeObserver would. */
     function renderWithStage(width: number, height: number): void {
         fixture.detectChanges();

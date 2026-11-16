@@ -86,6 +86,7 @@ import {
     StalkerVodSource,
 } from '@iptvnator/portal/stalker/data-access';
 import {
+    AutoplayStreakService,
     buildUpNextRailItems,
     getSeriesEpisodeMetadata,
     getSeriesPlaybackNavigation,
@@ -176,6 +177,7 @@ interface StalkerSeriesPlaybackRequestContext {
 export class StalkerSeriesViewComponent implements OnDestroy {
     readonly stalkerStore = inject(StalkerStore);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly autoplayStreak = inject(AutoplayStreakService);
     readonly heroPresenter = inject(StalkerSeriesHeroPresenter);
     readonly menu = inject(StalkerSeriesMenuService);
     private readonly episodeResolver = inject(StalkerEpisodeResolver);
@@ -1186,7 +1188,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
     handleInlinePlaybackEnded(): void {
         const navigation = this.inlineSeriesNavigation();
-        if (!navigation?.autoplayEnabled || !navigation.canNext) {
+        if (
+            !navigation?.autoplayEnabled ||
+            !navigation.canNext ||
+            !this.autoplayStreak.beginAutoplay()
+        ) {
             return;
         }
         this.playNextEpisode();

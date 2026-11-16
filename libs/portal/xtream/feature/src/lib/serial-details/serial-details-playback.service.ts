@@ -37,6 +37,7 @@ import {
     SeasonContainerSeriesPlaybackToggleRequest,
 } from '@iptvnator/ui/components';
 import {
+    AutoplayStreakService,
     getSeriesEpisodeMetadata,
     getSeriesPlaybackNavigation,
     inlineSeriesEpisodeState,
@@ -83,6 +84,7 @@ export class SerialDetailsPlaybackService {
     private readonly route = inject(ActivatedRoute);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly autoplayStreak = inject(AutoplayStreakService);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly playbackPositionBridge = inject(
         PlaybackPositionRuntimeBridgeService
@@ -300,7 +302,11 @@ export class SerialDetailsPlaybackService {
 
     handleInlinePlaybackEnded(): void {
         const navigation = this.inlineSeriesNavigation();
-        if (!navigation?.autoplayEnabled || !navigation.canNext) {
+        if (
+            !navigation?.autoplayEnabled ||
+            !navigation.canNext ||
+            !this.autoplayStreak.beginAutoplay()
+        ) {
             return;
         }
         this.playNextEpisode();
