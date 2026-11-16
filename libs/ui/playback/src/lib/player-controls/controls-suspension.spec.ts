@@ -55,4 +55,38 @@ describe('watchPlayerSuspension', () => {
 
         expect(onSuspend).not.toHaveBeenCalled();
     });
+
+    it('is a no-op without MutationObserver', () => {
+        const original = globalThis.MutationObserver;
+        // Very old runtimes and some test environments lack it.
+        Reflect.deleteProperty(globalThis, 'MutationObserver');
+        try {
+            const onSuspend = jest.fn();
+            const dispose = watchPlayerSuspension(host, onSuspend);
+
+            container.setAttribute(PLAYER_SUSPENDED_ATTRIBUTE, '');
+
+            expect(() => dispose()).not.toThrow();
+            expect(onSuspend).not.toHaveBeenCalled();
+        } finally {
+            globalThis.MutationObserver = original;
+        }
+    });
+
+    it('is a no-op for a host in a document without a body', async () => {
+        const xml = document.implementation.createDocument(null, 'root');
+        const detached = xml.createElementNS(
+            'http://www.w3.org/1999/xhtml',
+            'div'
+        ) as HTMLElement;
+        xml.documentElement.appendChild(detached);
+        const onSuspend = jest.fn();
+        const dispose = watchPlayerSuspension(detached, onSuspend);
+
+        xml.documentElement.setAttribute(PLAYER_SUSPENDED_ATTRIBUTE, '');
+        await flush();
+
+        expect(onSuspend).not.toHaveBeenCalled();
+        expect(() => dispose()).not.toThrow();
+    });
 });
