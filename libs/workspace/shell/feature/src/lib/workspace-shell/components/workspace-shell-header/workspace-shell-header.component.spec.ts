@@ -885,6 +885,38 @@ describe('WorkspaceShellHeaderComponent', () => {
                 expect(openMenu().length).toBeGreaterThanOrEqual(2);
             });
 
+            it('hands focus to the menu trigger when the focused action moves', async () => {
+                headerWidth = 2000;
+                measure();
+                const actions: HTMLButtonElement[] = Array.from(
+                    fixture.nativeElement.querySelectorAll(
+                        '.header-actions--contextual button'
+                    )
+                );
+                expect(actions.length).toBeGreaterThan(0);
+                actions[0].focus();
+
+                headerWidth = 360;
+                measure();
+                await fixture.whenStable();
+
+                expect(document.activeElement).toBe(overflowTrigger());
+            });
+
+            it('leaves focus alone when it is outside the actions', async () => {
+                headerWidth = 2000;
+                measure();
+                const input: HTMLInputElement =
+                    fixture.nativeElement.querySelector('input[type="search"]');
+                input.focus();
+
+                headerWidth = 360;
+                measure();
+                await fixture.whenStable();
+
+                expect(document.activeElement).toBe(input);
+            });
+
             it('settles on the same plan when measured again', () => {
                 headerWidth = 400;
                 measure();

@@ -1,4 +1,5 @@
 import {
+    afterNextRender,
     afterRenderEffect,
     ChangeDetectionStrategy,
     Component,
@@ -6,6 +7,7 @@ import {
     DestroyRef,
     ElementRef,
     inject,
+    Injector,
     input,
     output,
     signal,
@@ -59,6 +61,7 @@ const PHONE_VIEWPORT_QUERY = '(max-width: 640px)';
 export class WorkspaceShellHeaderComponent {
     private readonly imeInput = viewChild(ImeInputDirective);
     private readonly hostElement = inject(ElementRef<HTMLElement>);
+    private readonly injector = inject(Injector);
     private readonly searchInput =
         viewChild<ElementRef<HTMLInputElement>>('searchInput');
     // read: ElementRef because mat-icon-button is a component, so a bare
@@ -370,7 +373,9 @@ export class WorkspaceShellHeaderComponent {
     private isActionPresent(id: HeaderOverflowItemId): boolean {
         switch (id) {
             case 'layout':
-                return !this.isSettingsRoute() && this.headerShortcut() !== null;
+                return (
+                    !this.isSettingsRoute() && this.headerShortcut() !== null
+                );
             case 'sidebar':
                 return (
                     !this.isSettingsRoute() &&
@@ -414,8 +419,36 @@ export class WorkspaceShellHeaderComponent {
             current: this.overflowedActions().size,
         });
         if (next !== this.overflowCount()) {
+            if (
+                next > this.overflowCount() &&
+                actions.contains(document.activeElement)
+            ) {
+                this.keepFocusInActions(actions);
+            }
             this.overflowCount.set(next);
         }
+    }
+
+    /**
+     * A focused action that moves into "More actions" is destroyed with its
+     * button; focus goes to the menu trigger so a keyboard user keeps their
+     * place.
+     */
+    private keepFocusInActions(actions: HTMLElement): void {
+        afterNextRender(
+            {
+                write: () => {
+                    const active = document.activeElement;
+                    if (active && active !== document.body) {
+                        return;
+                    }
+                    actions
+                        .querySelector<HTMLElement>('.header-overflow-trigger')
+                        ?.focus();
+                },
+            },
+            { injector: this.injector }
+        );
     }
 }
 
