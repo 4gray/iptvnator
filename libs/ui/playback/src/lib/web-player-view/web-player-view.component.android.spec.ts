@@ -14,6 +14,7 @@ import {
 } from '@ngx-translate/core';
 import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
 import {
     PlaybackDiagnosticCode,
     PlaybackDiagnosticSource,
@@ -35,6 +36,7 @@ jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
 describe('returning from the Android live player', () => {
     let fixture: ComponentFixture<WebPlayerView>;
     let postMessage: jest.Mock;
+    let beginActivity: jest.Mock<Promise<void>>;
     const playback = {
         streamUrl: 'https://media.example.test/synthetic-channel.m3u8',
         title: 'Synthetic channel',
@@ -43,6 +45,7 @@ describe('returning from the Android live player', () => {
 
     beforeEach(async () => {
         postMessage = jest.fn();
+        beginActivity = jest.fn().mockResolvedValue(undefined);
         Object.assign(window, {
             TvShell: { postMessage },
             iptvnatorAndroidPlaybackEnabled: true,
@@ -53,6 +56,10 @@ describe('returning from the Android live player', () => {
             deferBlockBehavior: DeferBlockBehavior.Playthrough,
             imports: [WebPlayerViewComponent, TranslateModule.forRoot()],
             providers: [
+                {
+                    provide: PLAYBACK_ACTIVITY_EVENTS,
+                    useValue: { begin: beginActivity, active: () => true },
+                },
                 {
                     provide: StorageMap,
                     useValue: {
@@ -118,6 +125,58 @@ describe('returning from the Android live player', () => {
         fixture.detectChanges();
         expect(open()).toContain('Essayer le lecteur intégré');
     });
+
+    it.each(['ready', 'cancelled', 'destroyed', 'failed'] as const)(
+        'waits for a durable VOD session before opening Media3 (%s)',
+        async (outcome) => {
+            let finishBegin!: () => void;
+            let failBegin!: (error: Error) => void;
+            beginActivity.mockReturnValue(
+                new Promise<void>((resolve, reject) => {
+                    finishBegin = resolve;
+                    failBegin = reject;
+                })
+            );
+            fixture.componentRef.setInput('playback', {
+                ...playback,
+                isLive: false,
+                contentInfo: {
+                    playlistId: 'synthetic-source',
+                    contentType: 'vod',
+                    contentXtreamId: 17,
+                    activitySessionId: 'synthetic-activity',
+                },
+            });
+            fixture.detectChanges();
+            expect(beginActivity).toHaveBeenCalledTimes(1);
+
+            fixture.nativeElement
+                .querySelector('[data-tv-native-playback]')
+                .click();
+            fixture.detectChanges();
+            expect(postMessage).not.toHaveBeenCalled();
+
+            const native = fixture.componentInstance.androidPlayback;
+            if (outcome === 'cancelled') native.returnToWeb();
+            if (outcome === 'destroyed') fixture.destroy();
+            if (outcome === 'failed') failBegin(new Error('Synthetic failure'));
+            else finishBegin();
+            await fixture.whenStable();
+
+            const playRequests = postMessage.mock.calls
+                .map(([message]) => JSON.parse(message))
+                .filter(([command]) => command === 'playNative');
+            if (outcome === 'ready') {
+                expect(playRequests).toHaveLength(1);
+                expect(playRequests[0][2]).toMatchObject({
+                    checkpoint: { activitySessionId: 'synthetic-activity' },
+                });
+            } else {
+                expect(playRequests).toEqual([]);
+                expect(native.suspended()).toBe(false);
+            }
+        }
+    );
 
     it.each([false, true])(
         'allows the guide to retune after live Media3 exit, EOF=%s',

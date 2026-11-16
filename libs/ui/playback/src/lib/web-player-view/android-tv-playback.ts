@@ -105,7 +105,10 @@ export class AndroidTvPlayback {
             replayTime: number
         ) => void,
         private readonly onEnded: () => void,
-        private readonly reloadWeb: () => void
+        private readonly reloadWeb: () => void,
+        private readonly waitForActivity?: (
+            sessionId: string | undefined
+        ) => Promise<void> | undefined
     ) {
         this.webVolume = linkedSignal({
             source: () => [this.currentOwner(), volume()],
@@ -193,6 +196,7 @@ export class AndroidTvPlayback {
         window.addEventListener('iptvnator:android-playback-result', result);
         inject(DestroyRef).onDestroy(() => {
             const session = this.session();
+            this.session.set(null);
             if (session?.pending) this.cancel(session.id);
             window.removeEventListener(
                 'iptvnator:android-playback-availability',
@@ -295,9 +299,18 @@ export class AndroidTvPlayback {
         }
         // Let Angular destroy the previous engine before the provider sees a new request.
         afterNextRender(
-            () => {
+            async () => {
                 if (this.ownedSession()?.id !== id) return;
                 try {
+                    const beginning = this.waitForActivity?.(
+                        contentInfo?.activitySessionId
+                    );
+                    if (beginning) await beginning;
+                    if (
+                        this.ownedSession()?.id !== id ||
+                        this.parentalLock?.enabled()
+                    )
+                        return;
                     const message = JSON.stringify([
                         'playNative',
                         id,
@@ -338,7 +351,7 @@ export class AndroidTvPlayback {
                     }
                     bridge.postMessage(message);
                 } catch {
-                    this.resumeWeb();
+                    if (this.ownedSession()?.id === id) this.resumeWeb();
                 }
             },
             { injector: this.injector }

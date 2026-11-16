@@ -256,7 +256,8 @@ export class WebPlayerViewComponent implements OnDestroy {
             this.timeUpdate.emit(update);
         },
         () => this.emitPlaybackEnded(this.resolvedIsLive()),
-        () => this.reloadToken.update((value) => value + 1)
+        () => this.reloadToken.update((value) => value + 1),
+        (sessionId) => this.activity.waitForBegin(sessionId)
     );
     readonly playbackSourceRevisionToken = this.applicationState.sourceRevision;
     readonly playbackApplicationToken = this.applicationState.token;
