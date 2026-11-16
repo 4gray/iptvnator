@@ -567,7 +567,15 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
             };
             const detailFor = (item: UnifiedCollectionItem) => ({
                 epgMode: 'm3u' as const,
-                playback: { streamUrl: item.streamUrl, title: item.name },
+                playback: {
+                    streamUrl: item.streamUrl,
+                    title: item.name,
+                    catalogIdentity: {
+                        playlistId: item.playlistId,
+                        type: 'live' as const,
+                        id: item.channelId,
+                    },
+                },
                 channel: {
                     id: item.channelId,
                     name: item.name,
@@ -616,11 +624,15 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
                 By.directive(StubWebPlayerViewComponent)
             ).nativeElement;
             const archiveUrl = 'https://example.com/m3u-archive.m3u8';
+            expect(component.inlinePlayback()?.catalogIdentity?.id).toBe(
+                first.channelId
+            );
             component.activeTimeshift.set({
                 url: archiveUrl,
                 program: { title: 'Archived show' } as EpgProgram,
             });
             expect(component.inlinePlayback()?.streamUrl).toBe(archiveUrl);
+            expect(component.inlinePlayback()?.catalogIdentity).toBeUndefined();
 
             const pending = component.onChannelSelected(
                 component.channelsForList()[1]

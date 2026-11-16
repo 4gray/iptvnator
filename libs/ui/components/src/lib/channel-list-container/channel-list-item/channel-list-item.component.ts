@@ -45,6 +45,7 @@ export class ChannelListItemComponent {
     readonly name = input('');
     readonly disabled = input(false);
     readonly statusLabel = input('');
+    readonly statusIcon = input('');
     readonly displayName = computed(() =>
         applyChannelNameStrip(
             this.name(),

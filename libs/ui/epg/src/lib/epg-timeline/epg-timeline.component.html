@@ -34,7 +34,9 @@
                         {{ summary()?.title }}
                     </span>
                 } @else {
-                    <span>{{ sourceLabel() }}</span>
+                    <span class="epg-timeline__source">{{
+                        sourceLabel() || ('EPG.GUIDE.TITLE' | translate)
+                    }}</span>
                 }
             </span>
         </button>
@@ -52,9 +54,11 @@
                 }}</span>
             } @else if (hasSummary()) {
                 @if (isLivePlayback()) {
-                    <span class="epg-timeline__summary-tag is-live">{{
-                        'EPG.TIMELINE.ON_NOW' | translate
-                    }}</span>
+                    <span class="epg-timeline__summary-tag is-live"
+                        ><span class="epg-timeline__summary-tag-text">{{
+                            'EPG.TIMELINE.ON_NOW' | translate
+                        }}</span></span
+                    >
                     <span class="epg-timeline__summary-title">{{
                         summary()?.title
                     }}</span>
@@ -103,10 +107,15 @@
                     {{ 'EPG.TIMELINE.RETURN_TO_LIVE' | translate }}
                 </button>
             }
+            @if (state === 'ribbon' && !archivePlaybackAvailable()) {
+                <!-- the provider has history but no catch-up -->
+                <app-epg-schedule-notice />
+            }
             @if (showRibbonControls()) {
                 @if (guideAvailable()) {
                     <button
                         type="button"
+                        mat-icon-button
                         class="epg-timeline__iconbtn epg-timeline__guide"
                         (click)="openGuide.emit()"
                         [matTooltip]="'EPG.TIMELINE.OPEN_GUIDE' | translate"
@@ -117,6 +126,7 @@
                 }
                 <button
                     type="button"
+                    mat-icon-button
                     class="epg-timeline__iconbtn epg-timeline__jump"
                     (click)="jumpToNow()"
                     [matTooltip]="'EPG.TIMELINE.JUMP_NOW' | translate"
@@ -129,6 +139,7 @@
                         | translate: { level: (zoomLabelKey() | translate) };
                 <button
                     type="button"
+                    mat-icon-button
                     class="epg-timeline__iconbtn epg-timeline__zoom"
                     [attr.data-zoom-level]="zoomLevel()"
                     (click)="cycleZoom()"
@@ -160,8 +171,7 @@
                             }
                         </span>
                         <small>{{
-                            viewDate()
-                                | date: 'EEE, d MMM' : '' : currentLocale()
+                            viewDate() | date: 'd MMM' : '' : currentLocale()
                         }}</small>
                     </div>
                     <button
@@ -178,16 +188,6 @@
     </div>
 
     @if (!collapsed()) {
-        <!-- Schedule-only notice (provider exposes history but no catch-up) -->
-        @if (state === 'ribbon' && !archivePlaybackAvailable()) {
-            <div class="epg-timeline__notice" role="note">
-                <mat-icon>info</mat-icon>
-                <span>{{
-                    'EPG.TIMELINE.SCHEDULE_ONLY_NOTICE' | translate
-                }}</span>
-            </div>
-        }
-
         @switch (state) {
             @case ('loading') {
                 <div

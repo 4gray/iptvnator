@@ -15,6 +15,7 @@
 .picker {
     display: flex;
     flex-direction: column;
+    container-type: inline-size;
     color: var(--app-on-surface);
 }
 
@@ -229,8 +230,13 @@ select {
     gap: 8px;
     padding-bottom: 4px;
 
+    > button {
+        flex: none;
+    }
+
     h3 {
         @include side-list.title;
+        @include side-list.row-label;
         font-size: 15px;
     }
 }
@@ -254,6 +260,12 @@ select {
         cursor: default;
         opacity: 0.65;
     }
+
+    &[aria-disabled='true'] {
+        background: var(--app-list-selected-bg);
+        box-shadow: inset 0 0 0 1px var(--app-list-selected-outline);
+        cursor: default;
+    }
 }
 
 .picker__vod-text {
@@ -268,22 +280,83 @@ select {
     }
 
     > span {
+        @include side-list.row-label;
         color: var(--app-muted-color);
         font-size: 12px;
+    }
+
+    > .picker__opened {
+        white-space: normal;
+        overflow-wrap: anywhere;
+
+        .mat-icon {
+            vertical-align: middle;
+            margin-inline-end: 2px;
+        }
+    }
+}
+
+.picker__poster,
+.picker__episode-thumb {
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--app-on-surface) 8%, transparent);
+    box-shadow: inset 0 0 0 1px var(--app-separator);
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+}
+
+.picker__poster {
+    width: 38px;
+    height: 57px;
+}
+
+.picker__episode-thumb {
+    position: relative;
+    width: 88px;
+    aspect-ratio: 16 / 9;
+
+    &--fallback img {
+        opacity: 0.55;
+    }
+}
+
+.picker__episode-watched .mat-icon {
+    color: var(--app-success-color);
+}
+
+@container (max-width: 420px) {
+    .picker__episode-plot {
+        display: none;
+    }
+
+    .picker__vod-row {
+        padding-inline: 6px;
+        gap: 8px;
+    }
+
+    .picker__episode-thumb {
+        width: 72px;
     }
 }
 
 .picker__progress {
     display: block;
-    width: min(160px, 100%);
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
     height: 3px;
-    border-radius: 4px;
     background: var(--app-separator);
 
     > span {
         display: block;
         height: 100%;
-        border-radius: inherit;
         background: var(--app-progress-color);
     }
 }
