@@ -589,6 +589,18 @@ Shared season tabs have one Tab stop, wrapping Left/Right navigation
 The dropdown variant keeps Material menu keyboard behavior. Detail and
 fullscreen instances own distinct tab/panel IDs.
 
+Search fields with custom Enter, Escape or arrow handlers use
+`ImeInputDirective` from `@iptvnator/ui/components`. Composing Enter commits
+the text and Escape and arrows drive the candidate list. The field also
+accepts legacy Safari's `keyCode` 229 after receiving `compositionend`. A
+50 ms timer closes the window once the event loop can run it. Keyup and
+blur also close it. Ordinary Android Enter still submits.
+Handlers leave the default behavior enabled on composition keys and can
+stop those keys from reaching the surrounding overlay. Other shortcuts such
+as F11 still reach the shell. The workspace search, command palette, playlist
+switcher and TMDB match search use the directive. Tests dispatch composition
+and keyboard events. The TV client has its own `ime-guard.ts`.
+
 ## Keyboard Scrolling and Channel Focus
 
 `ChannelScrollFocusDirective` belongs on the actual channel scroll owner,
