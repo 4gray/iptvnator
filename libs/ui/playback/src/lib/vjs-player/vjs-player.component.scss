@@ -43,9 +43,7 @@
     color: palette.$text;
     border: 1px solid rgba(palette.$text, 0.2);
     border-radius: 8px;
-    font:
-        14px/1.45 Roboto,
-        sans-serif;
+    font: 14px/1.45 var(--app-font-family);
     p {
         flex: 1;
         min-width: 0;

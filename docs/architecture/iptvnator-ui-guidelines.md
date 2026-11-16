@@ -1779,11 +1779,14 @@ whose list shows the toggle again, takes the toggle's slot.
 
 ## Typography
 
-The app stack is DM Sans with Roboto behind it (`$app-font-stack` in
-`apps/web/src/m3-theme.scss`). DM Sans covers Latin only, so Cyrillic and Greek
-UI text (ru, by, el) renders in Roboto. `apps/web/src/styles.scss` bundles both
-families in 400, 500, 600 and 700, and JetBrains Mono in 400 and 500 (its
-heavier faces would exceed the initial-bytes ratchet).
+The app stack is `'Inter Variable', Inter, system-ui, sans-serif`
+(`$app-font-stack` in `apps/web/src/m3-theme.scss`, read everywhere through
+`--app-font-family`). Inter Variable covers Latin, Cyrillic and Greek, so a
+channel name that mixes scripts renders in one face. `apps/web/src/styles.scss`
+bundles it from `@fontsource-variable/inter` (one weight axis, 100–900), and
+JetBrains Mono in 400 and 500 (its heavier faces would exceed the
+initial-bytes ratchet). Font files never count toward initial bytes: the
+browser fetches only the subsets the text on screen needs.
 
 - Use only those four weights: in `font-weight`, in the `font` shorthand, and in
   any custom property, Sass variable or token map that feeds one. A weight
@@ -1797,10 +1800,12 @@ heavier faces would exceed the initial-bytes ratchet).
   included, from its own stylesheet module or another one. It cannot see what
   a mono modifier class inherits from its base rule; set `font-weight: 500`
   there.
-- Import whole `@fontsource/<family>/<weight>.css` files. The single-script
-  files such as `cyrillic-600.css` have no `unicode-range`, so a Cyrillic-only
-  face wins the weight match for Latin text in `Roboto, …` stacks and sends it
-  to the next family.
+- Import a package's index or whole-weight CSS (`@fontsource-variable/inter/index.css`,
+  `@fontsource/<family>/<weight>.css`). The single-script files such as
+  `cyrillic-600.css` have no `unicode-range`, so a Cyrillic-only face would
+  claim Latin glyphs too and send them to the next family.
+- Set `font-family: var(--app-font-family)` rather than naming a face, so the
+  stack changes in one place.
 - `<html lang>` follows the UI language (`syncDocumentLanguage()` maps `by` to
   `be` and `zhtw` to `zh-TW`), so `hyphens`, `text-transform` (Turkish İ) and
   Han glyph fallback use the right locale.
