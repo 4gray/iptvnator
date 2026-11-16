@@ -209,6 +209,27 @@ describe('DashboardTrendingService', () => {
         expect(service.items()[0].match).toBeNull();
     });
 
+    it('loads the new language even if the in-flight request returns nothing', async () => {
+        let finish!: (entries: TmdbTrendingEntry[]) => void;
+        getTrendingWeek.mockReturnValueOnce(
+            new Promise<TmdbTrendingEntry[]>((resolve) => (finish = resolve))
+        );
+        getTrendingWeek.mockResolvedValueOnce([
+            entry({ title: 'Synthetic Local Title' }),
+        ]);
+        const service = createService();
+        const pending = service.load();
+
+        language = 'de';
+        await service.load();
+        expect(getTrendingWeek).toHaveBeenCalledTimes(1);
+
+        finish([]);
+        await pending;
+        expect(getTrendingWeek).toHaveBeenCalledTimes(2);
+        expect(service.items()[0].title).toBe('Synthetic Local Title');
+    });
+
     it('retries on the next visit when the first load came back empty', async () => {
         getTrendingWeek.mockResolvedValueOnce([]);
         const service = createService();

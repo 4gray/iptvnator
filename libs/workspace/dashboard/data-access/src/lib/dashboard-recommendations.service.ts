@@ -16,6 +16,7 @@ import {
 } from './dashboard-tmdb-lookup.util';
 import {
     DashboardTmdbMatchItem,
+    dashboardTmdbMatchIdentity,
     dashboardTmdbMatchToken,
     resolveDashboardTmdbDetails,
 } from './dashboard-tmdb-match.util';
@@ -40,6 +41,7 @@ interface SeedRecommendations {
     resolved: boolean;
     /** The viewer chose the provider's data: no TMDB, and no verdict on TMDB */
     skipped?: true;
+    seedKey: string;
     seedTitle: string;
     entries: RecommendationCandidate[];
 }
@@ -192,7 +194,7 @@ export class DashboardRecommendationsService {
                     new Set(
                         perSeed
                             .filter((seed) => seed.skipped)
-                            .map((seed) => seed.seedTitle)
+                            .map((seed) => seed.seedKey)
                     )
                 );
             } else {
@@ -272,7 +274,7 @@ export class DashboardRecommendationsService {
         const kept: LoadedRecommendations = {
             candidates: candidates.filter(
                 (candidate) =>
-                    !optedOutSeeds.has(candidate.seedTitle) &&
+                    !optedOutSeeds.has(candidate.seedKey) &&
                     !isExcludedCandidate(candidate, excluded)
             ),
             matches: matches.filter((match) =>
@@ -312,7 +314,7 @@ export class DashboardRecommendationsService {
      * without it a deleted playlist would leave cards linking nowhere and
      * a new import would stay invisible until the seeds changed. A
      * refreshed playlist keeps its id and is NOT detected (parity with
-     * the trending rail's once-per-session load).
+     * the trending rail).
      */
     private catalogKey(): string {
         return this.data
@@ -350,29 +352,41 @@ export class DashboardRecommendationsService {
     private async recommendationsForSeed(
         seed: DashboardTmdbMatchItem
     ): Promise<SeedRecommendations> {
+        const identity = dashboardTmdbMatchIdentity(seed);
+        const seedKey = identity
+            ? JSON.stringify(identity)
+            : dashboardTmdbLookupKey(seed);
         const resolved = await resolveDashboardTmdbDetails(
             this.enrichment,
             seed
         );
         if (!resolved) {
-            return { resolved: false, seedTitle: seed.title, entries: [] };
+            return {
+                resolved: false,
+                seedKey,
+                seedTitle: seed.title,
+                entries: [],
+            };
         }
         const { attempt, details } = resolved;
         if (!details) {
             return {
                 resolved: true,
                 skipped: true,
+                seedKey,
                 seedTitle: attempt.title,
                 entries: [],
             };
         }
         return {
             resolved: true,
+            seedKey,
             seedTitle: attempt.title,
             entries: toCandidates(
-                details?.recommendations?.results ?? [],
+                details.recommendations?.results ?? [],
                 attempt.mediaType,
-                attempt.title
+                attempt.title,
+                seedKey
             ),
         };
     }

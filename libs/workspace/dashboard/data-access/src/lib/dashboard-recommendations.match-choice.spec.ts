@@ -57,17 +57,15 @@ describe('DashboardRecommendationsService and TMDB match choices', () => {
                     useValue: {
                         isAvailable: true,
                         matchTitles: async (queries: string[]) =>
-                            queries.map(
-                                (queryTitle, i): CatalogTitleMatch => ({
-                                    queryTitle,
-                                    playlistId: 'pl-1',
-                                    playlistName: 'Synthetic Portal',
-                                    categoryId: 7,
-                                    xtreamId: 1000 + i,
-                                    type: 'movie',
-                                    trailingYear: null,
-                                })
-                            ),
+                            queries.map((queryTitle, i): CatalogTitleMatch => ({
+                                queryTitle,
+                                playlistId: 'pl-1',
+                                playlistName: 'Synthetic Portal',
+                                categoryId: 7,
+                                xtreamId: 1000 + i,
+                                type: 'movie',
+                                trailingYear: null,
+                            })),
                         visibleMatches: (matches: CatalogTitleMatch[]) =>
                             matches,
                     },
@@ -120,32 +118,22 @@ describe('DashboardRecommendationsService and TMDB match choices', () => {
         expect(service.items()[0].title).toBe('Alpha 500');
     });
 
-    it('drops an opted-out seed from a rail kept while TMDB is unreachable', async () => {
-        const other = {
-            title: 'Synthetic Other',
-            type: 'movie',
-            source: 'xtream',
-            playlist_id: 'pl-1',
-            xtream_id: 43,
-        };
-        seeds = [seed, other];
+    it('keeps the other same-titled seed when one opts out during an outage', async () => {
+        seeds = [seed, { ...seed, xtream_id: 43 }];
+        choice = { mode: 'manual', tmdbId: 604, title: 'Synthetic Match' };
         const service = createService();
         await service.load();
-        expect(service.items().some((item) => item.seedTitle === seed.title)).toBe(
-            true
+        expect(service.items().map(({ tmdbId }) => tmdbId)).toEqual(
+            expect.arrayContaining([100, 500])
         );
 
-        // The viewer takes the seed off TMDB; the other seed's lookup finds
-        // nothing (the enrichment layer answers an offline lookup with null).
         choice = { mode: 'provider' };
         enrichMovie.mockResolvedValue(null);
         await service.load();
 
-        expect(enrichMovie).toHaveBeenCalledTimes(3);
-        expect(service.items().length).toBeGreaterThan(0);
-        expect(
-            service.items().some((item) => item.seedTitle === seed.title)
-        ).toBe(false);
+        expect(service.items().map(({ tmdbId }) => tmdbId)).toEqual(
+            titles.map((_, i) => 100 + i)
+        );
     });
 
     it('loads again when the seed is re-matched', async () => {

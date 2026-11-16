@@ -90,11 +90,8 @@ export class DashboardTrendingService {
             console.warn('Dashboard trending load failed:', error);
         } finally {
             this.loading.set(false);
-        }
-        // The language or the playlists changed while this load ran; the
-        // call that noticed returned on the loading guard.
-        if (this.loadKey() !== key) {
-            void this.load();
+            // The call that noticed a change returned on the loading guard.
+            if (this.loadKey() !== key) await this.load();
         }
     }
 
