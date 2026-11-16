@@ -242,6 +242,7 @@ export class ActivitySyncClient {
                     )
                         throw new Error('Activity scope mismatch');
                     await this.store.mutate(entry.address, (current) => {
+                        // An equal revision may omit a locally acknowledged capture time.
                         if (
                             current?.pending.length ||
                             (current &&
