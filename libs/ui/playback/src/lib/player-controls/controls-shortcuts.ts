@@ -1,3 +1,8 @@
+import {
+    PLAYER_SUSPENDED_ATTRIBUTE,
+    watchPlayerSuspension,
+} from './controls-suspension';
+
 export interface ControlsShortcutHandlers {
     isAvailable: () => boolean;
     /**
@@ -22,8 +27,7 @@ export interface ControlsShortcutHandlers {
     toggleMute: () => void;
 }
 
-export const PLAYER_SHORTCUTS_SUSPENDED_SELECTOR =
-    '[inert], [data-player-shortcuts-suspended]';
+export const PLAYER_SHORTCUTS_SUSPENDED_SELECTOR = `[inert], [${PLAYER_SUSPENDED_ATTRIBUTE}]`;
 
 const INTERACTIVE_SELECTOR = [
     'a[href]',
@@ -72,10 +76,19 @@ export class ControlsShortcuts {
     private static active: ControlsShortcuts | null = null;
 
     private handlers: ControlsShortcutHandlers | null = null;
+    private stopSuspensionWatch: (() => void) | null = null;
     private readonly listener = (event: KeyboardEvent) => this.handle(event);
 
     attach(handlers: ControlsShortcutHandlers): void {
         this.handlers = handlers;
+        // Being suspended acts like Escape for the popovers: the surface
+        // that takes over (the docked guide) owns the chrome, and a settings
+        // sheet left open would keep the bar inert under hidden controls.
+        this.stopSuspensionWatch?.();
+        const host = handlers.hostElement?.();
+        this.stopSuspensionWatch = host
+            ? watchPlayerSuspension(host, () => handlers.onEscape())
+            : null;
         ControlsShortcuts.instances.add(this);
         ControlsShortcuts.active ??= this;
         if (typeof document !== 'undefined') {
@@ -90,6 +103,8 @@ export class ControlsShortcuts {
     }
 
     detach(): void {
+        this.stopSuspensionWatch?.();
+        this.stopSuspensionWatch = null;
         if (typeof document !== 'undefined') {
             document.removeEventListener('keydown', this.listener);
         }

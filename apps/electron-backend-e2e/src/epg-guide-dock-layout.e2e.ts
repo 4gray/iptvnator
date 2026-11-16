@@ -21,6 +21,7 @@ interface NowBlockGeometry {
     readonly overlaps: boolean;
     readonly tagInside: boolean;
     readonly titleInside: boolean;
+    readonly titleReadable: boolean;
 }
 
 function nowBlockGeometry(page: Page): Promise<NowBlockGeometry[]> {
@@ -40,19 +41,23 @@ function nowBlockGeometry(page: Page): Promise<NowBlockGeometry[]> {
                 if (!time || !tag || !title) {
                     throw new Error('A now block lost its time, tag or title.');
                 }
-                const overlaps =
-                    time.left < tag.right &&
-                    tag.left < time.right &&
-                    time.top < tag.bottom &&
-                    tag.top < time.bottom;
+                const intersects = (a: DOMRect, b: DOMRect) =>
+                    a.left < b.right &&
+                    b.left < a.right &&
+                    a.top < b.bottom &&
+                    b.top < a.bottom;
                 return {
-                    overlaps,
+                    // Compact blocks put all three on one row.
+                    overlaps: intersects(time, tag) || intersects(title, tag),
                     tagInside: tag.right <= box.right + 0.5,
                     // Inside on both axes: a tag wrapped onto a third line
                     // pushes the title out of the bottom of the block.
                     titleInside:
                         title.right <= box.right + 0.5 &&
                         title.bottom <= box.bottom + 0.5,
+                    // The tag must not squeeze the title away (a 30-minute
+                    // compact block left it a few pixels wide).
+                    titleReadable: title.width >= 40,
                 };
             }
         )
@@ -81,6 +86,10 @@ async function expectCompactGuideLayout(page: Page): Promise<void> {
     const dockBox = await dock.boundingBox();
     expect(dockBox?.height ?? 0).toBeLessThanOrEqual(128);
 
+    await expectNowBlocksClear(page);
+}
+
+async function expectNowBlocksClear(page: Page): Promise<void> {
     await expect
         .poll(async () => (await nowBlockGeometry(page)).length)
         .toBeGreaterThan(0);
@@ -89,6 +98,7 @@ async function expectCompactGuideLayout(page: Page): Promise<void> {
             overlaps: false,
             tagInside: true,
             titleInside: true,
+            titleReadable: true,
         });
     }
 }
@@ -168,6 +178,14 @@ test('@epg @xtream @electron docks a compact mini player and keeps ON NOW clear 
         await expectCompactGuideLayout(page);
         await expectKitButtons(page);
 
+        // Compact density puts time, title and tag on one row.
+        const guideRows = page.locator('app-epg-guide-row');
+        await page.locator('.guide-toolbar__density').click();
+        await expect(guideRows.first()).toHaveClass(/is-compact/);
+        await expectNowBlocksClear(page);
+        await page.locator('.guide-toolbar__density').click();
+        await expect(guideRows.first()).not.toHaveClass(/is-compact/);
+
         await resize(900, 700);
         await expectCompactGuideLayout(page);
 
@@ -180,6 +198,28 @@ test('@epg @xtream @electron docks a compact mini player and keeps ON NOW clear 
                 'app-live-stream-layout app-player-controls .player-controls__actions'
             )
         ).toBeVisible();
+
+        // Settings left open in a sheet-sized player must not survive the
+        // dock: the sheet makes the bar inert, and the dock hides the sheet.
+        await resize(900, 700);
+        const controls = page.locator(
+            'app-live-stream-layout app-player-controls'
+        );
+        await page.locator('app-live-stream-layout .video-player').hover();
+        await controls.locator('.player-controls__tune').click();
+        await expect(
+            controls.locator('.player-controls__settings')
+        ).toHaveCount(1);
+        // G, not a click: a click outside the sheet would already close it.
+        await page.keyboard.press('g');
+        await expect(page.locator('app-epg-guide')).toBeVisible();
+        await expect(
+            controls.locator('.player-controls__settings')
+        ).toHaveCount(0);
+        await expect(
+            controls.locator('.player-controls__bar')
+        ).not.toHaveAttribute('inert', '');
+        await expect(controls.locator('.player-controls__play')).toBeVisible();
     } finally {
         await closeElectronApp(app);
     }

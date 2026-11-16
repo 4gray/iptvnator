@@ -1078,7 +1078,11 @@ keyboard. `EmbeddedMpvShortcutHandlers` (the native-view legacy dock) and
 the radio audio player's document-level volume/mute keys apply the same
 rule. Shared and native-view player controls also yield every shortcut while
 an ancestor carries `data-player-shortcuts-suspended`, used by the programme
-guide while the player is docked.
+guide while the player is docked. Gaining that attribute also closes the
+shared controls' open popovers, as Escape would (`watchPlayerSuspension` in
+`controls-suspension.ts`, started by `ControlsShortcuts.attach`): the docked
+mini player shows only play/pause, and a settings sheet left open would keep
+the controls bar `inert` behind hidden chrome.
 
 Action-specific keys are prevented only when the active controller can handle
 them: seek requires both capability and current seekability, volume/mute

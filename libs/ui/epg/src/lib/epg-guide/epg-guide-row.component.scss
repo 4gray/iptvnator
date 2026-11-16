@@ -314,11 +314,12 @@
     }
 }
 
-// "16:30 – 17:00" plus the full tag need ~160px of block; below that the tag
-// is reduced to its dot. Compact blocks show only the start time and push the
-// tag to the far end of the row, so they keep the label.
+// Below ~160px of block the full tag no longer fits beside the rest: in a
+// comfortable block "16:30 – 17:00" plus the tag fill the line, and in a
+// compact one the start time and the tag would leave the title on the same
+// row almost no width. Either way the tag is reduced to its dot.
 @container epg-guide-block (max-width: 160px) {
-    :host(:not(.is-compact)) .epg-guide-row__tag {
+    .epg-guide-row__tag {
         font-size: 0;
         letter-spacing: 0;
 
