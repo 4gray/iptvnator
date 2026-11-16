@@ -51,7 +51,16 @@
                 }
             </div>
             @if (statusLabel()) {
-                <div class="epg-title">{{ statusLabel() }}</div>
+                <div class="epg-title" [class.channel-status]="!!statusIcon()">
+                    @if (statusIcon(); as icon) {
+                        <mat-icon
+                            class="channel-status-icon"
+                            aria-hidden="true"
+                            >{{ icon }}</mat-icon
+                        >
+                    }
+                    {{ statusLabel() }}
+                </div>
             } @else if (showEpg()) {
                 @if (epgProgram(); as program) {
                     <div class="epg-title">

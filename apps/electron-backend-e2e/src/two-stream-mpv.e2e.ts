@@ -587,6 +587,10 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
             .click();
         await expect(pickerSearch).toBeFocused();
         await expect(picker).toBeVisible();
+        await expect(liveRow.getByRole('button')).toBeDisabled();
+        await expect(liveRow).toContainText('already open in window 2');
+        await liveRow.getByRole('button').press('Enter');
+        await expect(picker).toBeVisible();
         await page.keyboard.press('Escape');
         await expect(picker).toBeHidden();
         await expect

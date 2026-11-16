@@ -192,14 +192,14 @@ describe('SecondStreamPickerComponent', () => {
     it('keeps the picker open and identifies the existing window for a duplicate', async () => {
         const playback = { streamUrl: 'https://media.example.test/live' };
         resolve.mockResolvedValue(playback);
-        findDuplicateSlot.mockReturnValueOnce(4);
+        findDuplicateSlot.mockImplementation((identity) =>
+            identity === playback ? 4 : undefined
+        );
         await component.choose(row);
-        expect(findDuplicateSlot).toHaveBeenCalledWith({
-            item: row.item,
-            playback,
-        });
+        expect(findDuplicateSlot).toHaveBeenCalledWith(playback);
         expect(component.duplicateSlot()).toBe(4);
         expect(close).not.toHaveBeenCalled();
+        findDuplicateSlot.mockReturnValue(undefined);
         await component.choose(row);
         expect(component.duplicateSlot()).toBeNull();
         expect(close).toHaveBeenCalledWith({ item: row.item, playback });

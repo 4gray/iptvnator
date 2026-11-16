@@ -6,7 +6,6 @@ import {
     createRandomId,
     type EmbeddedMpvSession,
     type PlaybackPositionData,
-    type ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import { PlaybackProgressConfirmation } from '../playback-history/playback-progress-confirmation';
 import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
@@ -75,22 +74,4 @@ export class SecondStreamSlotProgress {
         this.activity.flush();
         this.writer.flush();
     }
-}
-
-export function samePositionKey(
-    left: ResolvedPortalPlayback | null | undefined,
-    right: ResolvedPortalPlayback
-): boolean {
-    const a = left?.contentInfo;
-    const b = right.contentInfo;
-    return Boolean(
-        left &&
-        !left.isLive &&
-        !right.isLive &&
-        a &&
-        b &&
-        a.playlistId === b.playlistId &&
-        a.contentType === b.contentType &&
-        a.contentXtreamId === b.contentXtreamId
-    );
 }

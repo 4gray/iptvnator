@@ -432,6 +432,11 @@ export class StreamResolverService {
             title: item.name,
             thumbnail: item.logo ?? null,
             isLive: true,
+            catalogIdentity: {
+                playlistId: item.playlistId,
+                type: 'live',
+                id: item.xtreamId,
+            },
         };
     }
 
@@ -679,6 +684,14 @@ export class StreamResolverService {
             title: item.name,
             thumbnail: item.logo ?? null,
             isLive: resolved.isLive,
+            catalogIdentity:
+                resolved.isLive && item.stalkerId != null
+                    ? {
+                          playlistId: item.playlistId,
+                          type: 'live',
+                          id: item.stalkerId,
+                      }
+                    : undefined,
             headers,
             userAgent: headers['User-Agent'] || playlist?.userAgent,
             referer: crossOriginStream
@@ -956,7 +969,14 @@ export class StreamResolverService {
                 : [];
 
         return {
-            playback: this.buildM3uPlayback(channel, playlist),
+            playback: {
+                ...this.buildM3uPlayback(channel, playlist),
+                catalogIdentity: {
+                    playlistId: item.playlistId,
+                    type: 'live',
+                    id: channel.id,
+                },
+            },
             epgMode: 'm3u',
             channel,
             epgPrograms,
