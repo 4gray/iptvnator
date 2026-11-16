@@ -1788,10 +1788,12 @@ JetBrains Mono in 400 and 500 (its heavier faces would exceed the
 initial-bytes ratchet). Font files never count toward initial bytes: the
 browser fetches only the subsets the text on screen needs.
 
-- Use only those four weights: in `font-weight`, in the `font` shorthand, and in
-  any custom property, Sass variable or token map that feeds one. A weight
-  between faces snaps to a neighbour (650 renders as 700), and 600 or more with
-  no face of at least 600 gets Chromium's synthetic bold. CI runs
+- Use only the weights 400, 500, 600 and 700: in `font-weight`, in the `font`
+  shorthand, and in any custom property, Sass variable or token map that feeds
+  one. Inter Variable can render any weight on its axis; the limit keeps the
+  type scale to four steps. In a family with static faces (JetBrains Mono, or
+  a local fallback) a weight between faces snaps to a neighbour, and 600 or
+  more with no face of at least 600 gets Chromium's synthetic bold. CI runs
   `pnpm run styles:font-weights:validate`, which rejects any other value.
 - JetBrains Mono text stays at 500 or lighter, also where it is a fallback
   behind `ui-monospace` (only macOS resolves that). The check enforces this in
