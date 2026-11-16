@@ -449,4 +449,61 @@ test.describe('Live layout at the minimum window width (UI-67)', () => {
             await closeElectronApp(app);
         }
     });
+
+    test('@electron @m3u an outward drag on a capped Groups rail never leaves it narrower', async ({
+        dataDir,
+    }) => {
+        const filePath = writeTemporaryM3uFile(
+            dataDir,
+            'capped-groups-drag.m3u',
+            M3U_CHANNELS
+        );
+        const app = await launchElectronApp(dataDir);
+        try {
+            await importM3uPlaylistFromNativeDialog(app, filePath);
+            await waitForM3uCatalog(app.mainWindow);
+            // The sidebar's cap (100% - 160px) holds the 280px rail narrower.
+            await app.mainWindow.evaluate(() => {
+                localStorage.setItem('m3u-groups-nav-width', '280');
+                localStorage.setItem('m3u-groups-sidebar-width', '400');
+            });
+            await openWorkspaceSection(app.mainWindow, 'Groups');
+            const rail = app.mainWindow.locator(
+                'app-groups-view .groups-nav-panel'
+            );
+            const railWidth = async () =>
+                Math.round((await rail.boundingBox())?.width ?? 0);
+            await expect.poll(railWidth).toBeLessThan(280);
+            const initial = await railWidth();
+            const box = await rail.locator('> .resize-handle').boundingBox();
+            expect(box).not.toBeNull();
+            const x = (box?.x ?? 0) + 3;
+            const y = (box?.y ?? 0) + (box?.height ?? 0) / 2;
+
+            const mouse = app.mainWindow.mouse;
+            await mouse.move(x, y);
+            await mouse.down();
+            await mouse.move(x + 10, y, { steps: 4 });
+            await app.mainWindow.waitForTimeout(300);
+            await mouse.up();
+
+            // The rail ends where the pointer left it (Playwright rounds the
+            // pointer, so the edge moves about 8px), keeps that width once
+            // the sidebar settles, and saves the width it shows. Before the
+            // fix the commit took the sidebar's 9px of padding and border
+            // from the capped rail, leaving it narrower than at the start.
+            await expect.poll(railWidth).toBeGreaterThan(initial + 5);
+            await app.mainWindow.waitForTimeout(300);
+            const settled = (await rail.boundingBox())?.width ?? 0;
+            expect(settled).toBeGreaterThan(initial + 5);
+            const saved = Number(
+                await app.mainWindow.evaluate(() =>
+                    localStorage.getItem('m3u-groups-nav-width')
+                )
+            );
+            expect(Math.abs(saved - settled)).toBeLessThanOrEqual(1);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
 });

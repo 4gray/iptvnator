@@ -582,7 +582,8 @@ export class GroupsViewComponent {
 
     onGroupsNavResizeStart(): void {
         if (this.compact()) return;
-        this.preservedContentWidth = this.measureContentPanelWidth();
+        this.preservedContentWidth =
+            this.measureContentPanelWidth() + this.measureSidebarChrome();
         this.sidebarWidthAtResizeStart = this.sidebarWidth();
     }
 
@@ -728,6 +729,23 @@ export class GroupsViewComponent {
         }
 
         return 0;
+    }
+
+    /**
+     * The part of the enclosing resizable sidebar's `width` that is neither
+     * rail nor channel pane (its padding and border). A requested sidebar
+     * width that left it out took that much from the rail on every commit
+     * once the rail's responsive cap followed the sidebar.
+     */
+    private measureSidebarChrome(): number {
+        const host: HTMLElement = this.hostEl.nativeElement;
+        const sidebar =
+            host.parentElement?.closest<HTMLElement>('.resizable-element');
+        if (!sidebar) return 0;
+        const sidebarWidth = parseFloat(getComputedStyle(sidebar).width);
+        const hostWidth = this.readWidth(host);
+        if (!Number.isFinite(sidebarWidth) || hostWidth <= 0) return 0;
+        return Math.max(0, sidebarWidth - hostWidth);
     }
 
     private readWidth(element: Element | null): number {

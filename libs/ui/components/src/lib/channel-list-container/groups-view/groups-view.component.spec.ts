@@ -803,6 +803,48 @@ describe('GroupsViewComponent', () => {
         expect(committed).toHaveBeenCalledWith(512);
     });
 
+    it("keeps the enclosing sidebar's padding and border in the widths it requests (UI-67)", () => {
+        const requested = jest.fn();
+        const committed = jest.fn();
+        component.sidebarWidthRequested.subscribe(requested);
+        component.sidebarWidthRequestEnded.subscribe(committed);
+
+        const host = fixture.nativeElement as HTMLElement;
+        const sidebar = document.createElement('div');
+        sidebar.className = 'resizable-element';
+        sidebar.style.width = '409px';
+        host.parentElement?.appendChild(sidebar);
+        sidebar.appendChild(host);
+        const rect = (width: number) => () =>
+            ({
+                width,
+                height: 0,
+                top: 0,
+                left: 0,
+                right: width,
+                bottom: 0,
+                x: 0,
+                y: 0,
+                toJSON: () => ({}),
+            }) as DOMRect;
+        jest.spyOn(host, 'getBoundingClientRect').mockImplementation(rect(400));
+        const contentPanel = host.querySelector(
+            '.groups-content-panel'
+        ) as HTMLElement;
+        jest.spyOn(contentPanel, 'getBoundingClientRect').mockImplementation(
+            rect(160)
+        );
+
+        component.onGroupsNavResizeStart();
+        component.onGroupsNavWidthChange(250);
+        component.onGroupsNavResizeEnd(250);
+
+        // 250px rail + 160px pane + the sidebar's 9px of padding and border.
+        expect(requested).toHaveBeenCalledWith(419);
+        expect(committed).toHaveBeenCalledWith(419);
+        sidebar.remove();
+    });
+
     it('restores the live sidebar width and commits nothing when the rail edge did not move (UI-67)', () => {
         const requested = jest.fn();
         const committed = jest.fn();
