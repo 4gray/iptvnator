@@ -6,14 +6,11 @@ import { Language } from '@iptvnator/shared/interfaces';
 import { SettingsGeneralSectionComponent } from './settings-general-section.component';
 
 // Settings renders inside the workspace shell, which provides the
-// shortcuts service; the stand-in keeps the shell's barrel out of the test.
-jest.mock('@iptvnator/workspace/shell/feature', () => ({
-    WorkspaceKeyboardShortcutsService: class {
-        openShortcutsDialog(): void {
-            // Replaced per test.
-        }
-    },
-}));
+// shortcuts service. The stand-in token keeps the shell's barrel, which the
+// component imports on click, out of the test.
+abstract class ShortcutsServiceStandIn {
+    abstract openShortcutsDialog(): void;
+}
 
 function createSection(
     providers: unknown[] = []
@@ -40,6 +37,9 @@ function createSection(
     fixture.componentRef.setInput('languageEnum', Language);
     fixture.componentRef.setInput('startupBehaviorOptions', []);
     fixture.componentRef.setInput('startupWindowModeOptions', []);
+    Object.assign(fixture.componentInstance, {
+        loadShortcutsService: async () => ShortcutsServiceStandIn,
+    });
     fixture.detectChanges();
     return fixture;
 }
@@ -56,13 +56,10 @@ describe('SettingsGeneralSectionComponent keyboard shortcuts', () => {
     afterEach(() => TestBed.resetTestingModule());
 
     it('opens the shell shortcuts dialog from the Help row', async () => {
-        // The same import the component makes, so both see one token.
-        const { WorkspaceKeyboardShortcutsService } =
-            await import('@iptvnator/workspace/shell/feature');
         const openShortcutsDialog = jest.fn();
         const fixture = createSection([
             {
-                provide: WorkspaceKeyboardShortcutsService,
+                provide: ShortcutsServiceStandIn,
                 useValue: { openShortcutsDialog },
             },
         ]);
@@ -73,7 +70,7 @@ describe('SettingsGeneralSectionComponent keyboard shortcuts', () => {
 
         shortcutsButton(fixture).click();
         await fixture.whenStable();
-        await Promise.resolve();
+        await new Promise((resolve) => setTimeout(resolve));
 
         expect(openShortcutsDialog).toHaveBeenCalledTimes(1);
     });

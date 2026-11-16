@@ -77,10 +77,12 @@ export class SettingsGeneralSectionComponent {
      * with the shell would land in the startup bundle instead.
      */
     protected async openKeyboardShortcuts(): Promise<void> {
-        const { WorkspaceKeyboardShortcutsService } =
-            await import('@iptvnator/workspace/shell/feature');
-        this.injector
-            .get(WorkspaceKeyboardShortcutsService, null)
-            ?.openShortcutsDialog();
+        const service = await this.loadShortcutsService();
+        this.injector.get(service, null)?.openShortcutsDialog();
     }
+
+    /** Replaced in specs: ESM Jest cannot mock a dynamic import. */
+    protected loadShortcutsService = async () =>
+        (await import('@iptvnator/workspace/shell/feature'))
+            .WorkspaceKeyboardShortcutsService;
 }
