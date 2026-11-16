@@ -288,13 +288,28 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
      * The width the element settles at, not a frame of a running width
      * transition (the directive's own, or a host's rail animation): turning
      * the transition off for the read cancels it, and turning it back on
-     * starts nothing, since the width does not change again.
+     * starts nothing, since the width does not change again. Enclosing
+     * resizable elements are settled too: a nested rail (the M3U Groups rail)
+     * caps itself against a parent sidebar that its own drag is resizing.
      */
     private settledWidth(): number {
-        const el = this.el.nativeElement;
-        this.renderer.setStyle(el, 'transition', 'none');
+        const el: HTMLElement = this.el.nativeElement;
+        const settled: HTMLElement[] = [el];
+        let parent = el.parentElement?.closest<HTMLElement>(
+            '.resizable-element'
+        );
+        while (parent) {
+            settled.push(parent);
+            parent = parent.parentElement?.closest<HTMLElement>(
+                '.resizable-element'
+            );
+        }
+        const inline = settled.map((element) => element.style.transition);
+        settled.forEach((element) => (element.style.transition = 'none'));
         const width = this.renderedWidth();
-        this.renderer.removeStyle(el, 'transition');
+        settled.forEach(
+            (element, index) => (element.style.transition = inline[index])
+        );
         return width;
     }
 

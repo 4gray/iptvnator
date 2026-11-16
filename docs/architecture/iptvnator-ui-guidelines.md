@@ -859,7 +859,10 @@ remain local when the meaning is explicit.
   `ResizableDirective` neither saves a drag the CSS cap stopped nor more
   than the cap shows: an edge that did not move emits `resizeCancel` (with
   the saved width, for hosts that mirrored `widthChange`) instead of
-  `resizeEnd`. At ≤960px the header's playlist switcher yields
+  `resizeEnd`. The width it commits is read with the transitions of the host
+  and every enclosing `.resizable-element` suspended, so a Groups rail
+  released while the sidebar it resizes is still animating saves where it
+  settles. At ≤960px the header's playlist switcher yields
   (`flex: 0 1 190px`, 120px floor) to a search field that keeps 200px, so the
   Windows/Linux header, whose window controls take 196px, still shows a
   readable scope chip at 900px. Both values are local until the

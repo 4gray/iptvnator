@@ -393,4 +393,60 @@ test.describe('Live layout at the minimum window width (UI-67)', () => {
             await closeElectronApp(app);
         }
     });
+
+    test('@electron @m3u a quick Groups rail drag saves the width it settles at, not a frame of the sidebar animation', async ({
+        dataDir,
+    }) => {
+        const filePath = writeTemporaryM3uFile(
+            dataDir,
+            'quick-groups-drag.m3u',
+            M3U_CHANNELS
+        );
+        const app = await launchElectronApp(dataDir);
+        try {
+            await importM3uPlaylistFromNativeDialog(app, filePath);
+            await waitForM3uCatalog(app.mainWindow);
+            await app.mainWindow.evaluate(() => {
+                localStorage.setItem('m3u-groups-nav-width', '208');
+                localStorage.setItem('m3u-groups-sidebar-width', '400');
+            });
+            await openWorkspaceSection(app.mainWindow, 'Groups');
+            const rail = app.mainWindow.locator(
+                'app-groups-view .groups-nav-panel'
+            );
+            await expect
+                .poll(async () =>
+                    Math.round((await rail.boundingBox())?.width ?? 0)
+                )
+                .toBe(208);
+            const handle = rail.locator('> .resize-handle');
+            const box = await handle.boundingBox();
+            expect(box).not.toBeNull();
+            // The handle straddles the rail's edge and the channel pane covers
+            // its outer half, so the drag starts on the half inside the rail.
+            const x = (box?.x ?? 0) + 3;
+            const y = (box?.y ?? 0) + (box?.height ?? 0) / 2;
+
+            // Released within the outer sidebar's 150 ms width transition:
+            // the rail's cap follows the still-narrow sidebar mid-animation.
+            const mouse = app.mainWindow.mouse;
+            await mouse.move(x, y);
+            await mouse.down();
+            await mouse.move(x + 80, y, { steps: 8 });
+            await mouse.up();
+
+            await expect
+                .poll(async () =>
+                    Math.round((await rail.boundingBox())?.width ?? 0)
+                )
+                .toBe(288);
+            expect(
+                await app.mainWindow.evaluate(() =>
+                    localStorage.getItem('m3u-groups-nav-width')
+                )
+            ).toBe('288');
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
 });
