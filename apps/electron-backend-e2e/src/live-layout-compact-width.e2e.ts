@@ -184,6 +184,12 @@ async function expectUsablePlayer(page: Page): Promise<void> {
  * (the shortcut hint) stays clear of the keyboard-shortcuts button.
  */
 async function expectHeaderSearchFits(page: Page): Promise<void> {
+    // Windows and Linux give the window controls 196px of the header; apply
+    // that padding on every platform so macOS runs check the tightest case.
+    await page.evaluate(() =>
+        document.body.classList.add('frameless-platform')
+    );
+    await page.waitForTimeout(250);
     const layout = await page.evaluate(() => {
         const header = document.querySelector('app-workspace-shell-header');
         const box = (selector: string) => {
@@ -195,13 +201,17 @@ async function expectHeaderSearchFits(page: Page): Promise<void> {
         return {
             scopeLabel: box('.search-chip--scope .search-chip__label'),
             field: box('.search-field'),
+            input: box('.search-field input'),
             trigger: box('.command-trigger'),
             shortcuts: box('.shortcuts-trigger'),
         };
     });
-    // A long scope may still ellipsize at the chip's own cap; before the fix
-    // the input's intrinsic width squeezed it to a single letter ("L…").
-    expect(layout.scopeLabel?.width ?? 0).toBeGreaterThanOrEqual(64);
+    // The scope chip and the input share the field: a long scope ellipsizes,
+    // but neither squeezes the other out. Before the fixes the input's
+    // intrinsic width cut the chip to "L…", and then a long chip left the
+    // input only its padding.
+    expect(layout.scopeLabel?.width ?? 0).toBeGreaterThanOrEqual(40);
+    expect(layout.input?.width ?? 0).toBeGreaterThanOrEqual(40);
     expect(layout.field?.right ?? 0).toBeLessThanOrEqual(
         (layout.shortcuts?.left ?? 0) + 1
     );

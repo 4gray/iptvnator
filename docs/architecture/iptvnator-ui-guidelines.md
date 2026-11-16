@@ -867,7 +867,9 @@ remain local when the meaning is explicit.
   capped rail never loses that chrome on commit. At ≤960px the header's playlist switcher yields
   (`flex: 0 1 190px`, 120px floor) to a search field that keeps 200px, so the
   Windows/Linux header, whose window controls take 196px, still shows a
-  readable scope chip at 900px. Both values are local until the
+  readable scope chip at 900px. Inside the field the input has a 64px flex
+  basis and the scope chip shrinks twice as fast, so a long scope ellipsizes
+  instead of leaving the input only its padding. Both values are local until the
   breakpoint map (UI-36) absorbs them; `live-layout-compact-width.e2e.ts`
   pins the player share at 900×700 for Xtream, Stalker and M3U. The Windows
   and macOS CI runners have 1024px screens, inside the band, so

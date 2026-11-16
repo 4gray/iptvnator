@@ -108,7 +108,9 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        flex-shrink: 1;
+        // Yields faster than the input, so a long scope label truncates
+        // before it squeezes out the text being typed.
+        flex-shrink: 2;
         min-width: 48px;
     }
 
@@ -179,7 +181,9 @@
     }
 
     input {
-        flex: 1;
+        // A 64px basis gives the input its share when the field is tight; a
+        // basis of 0 let a long scope chip take the whole text area.
+        flex: 1 1 64px;
         // An <input> carries an intrinsic min-width from its `size`, and
         // `min-width: auto` on a flex item honours it: in a narrow header
         // the input refused to shrink, squeezed the scope chip to "L…" and
@@ -391,6 +395,8 @@
     .search-field {
         min-width: 120px;
         flex: 1 0 200px;
+        gap: 6px;
+        padding-inline: 10px;
 
         .search-chip {
             max-width: 150px;
