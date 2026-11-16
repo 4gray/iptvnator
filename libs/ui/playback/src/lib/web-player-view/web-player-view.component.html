@@ -102,18 +102,20 @@
                 companion.layout() === 'side-by-side'
             "
             [class.embedded-mpv-pair--grid]="companion.layout() === 'grid'"
+            [class.embedded-mpv-pair--focus]="companion.layout() === 'focus'"
+            [class.embedded-mpv-pair--multiview]="companion.multiviewOpen()"
             [class.embedded-mpv-pair--with-strip]="companion.stripVisible()"
-            [attr.data-multiview-stage]="companion.stripVisible() ? '' : null"
-            [attr.role]="companion.stripVisible() ? 'group' : null"
+            [attr.data-multiview-stage]="companion.multiviewOpen() ? '' : null"
+            [attr.role]="companion.multiviewOpen() ? 'group' : null"
             [attr.tabindex]="
-                companion.layout() === 'grid'
+                companion.fourWindowLayout()
                     ? 0
-                    : companion.stripVisible()
+                    : companion.multiviewOpen()
                       ? -1
                       : null
             "
             [attr.aria-label]="
-                companion.stripVisible()
+                companion.multiviewOpen()
                     ? ('TWO_STREAMS.MULTIVIEW' | translate)
                     : null
             "
@@ -127,19 +129,19 @@
                 #embeddedMpvPlayer
                 data-multiview-slot="1"
                 [canOpenMultiview]="
-                    companion.available() && !companion.stripVisible()
+                    companion.available() && !companion.multiviewOpen()
                 "
                 (multiviewAddRequested)="
                     companion.focus.pick(companion.openPicker(2))
                 "
-                (multiviewGridRequested)="
-                    companion.setLayout('grid'); companion.focus.enterGrid()
+                (multiviewLayoutRequested)="
+                    companion.setLayout($event);
+                    companion.focus.enterMultiview()
                 "
                 [appSecondStreamFloating]="companion.swapped()"
+                [style.grid-area]="companion.focusGridArea(1)"
                 [class.embedded-mpv-player-host--selected]="
-                    (companion.layout() === 'grid' ||
-                        companion.layout() === 'side-by-side') &&
-                    companion.controlsSlot() === 1
+                    companion.tiled() && companion.controlsSlot() === 1
                 "
                 [showControls]="
                     !companion.busy() && companion.controlsSlot() === 1
@@ -149,7 +151,7 @@
                 [initialVolumeOverride]="
                     companion.audioSlot() !== 1
                         ? 0
-                        : companion.stripVisible() || companion.error()
+                        : companion.multiviewOpen() || companion.error()
                           ? companion.audibleVolume()
                           : null
                 "
@@ -173,10 +175,7 @@
             />
             <app-second-stream
                 #companion
-                [class.second-stream--tiled]="
-                    companion.layout() === 'side-by-side' ||
-                    companion.layout() === 'grid'
-                "
+                [class.second-stream--tiled]="companion.tiled()"
                 [primary]="embeddedMpvPlayer"
                 [fullscreenTarget]="fullscreenSurface"
                 (recordingStopped)="recordingStopped.emit($event)"

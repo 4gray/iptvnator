@@ -748,7 +748,7 @@ describe('WebPlayerViewComponent', () => {
         expect(host.querySelector('.second-stream__strip')).toBeNull();
         expect(document.activeElement).toBe(trigger);
 
-        player.multiviewGridRequested.emit();
+        player.multiviewLayoutRequested.emit('grid');
         fixture.detectChanges();
         expect(stage?.classList).toContain('embedded-mpv-pair--with-strip');
         expect(stage?.classList).toContain('embedded-mpv-pair--grid');

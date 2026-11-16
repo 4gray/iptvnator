@@ -21,6 +21,23 @@ branch commit instead of the PR merge commit. Verify each run's head SHA before
 using its result as evidence. Docker validation can use
 `gh workflow run docker.yml --ref <branch> -f push=false`.
 
+## Fast validation before expensive PR checks
+
+CI runs workflow lint, the PR release-note gate, affected lint and entry-point
+typechecks first. `Fast validation` requires those checks to pass (the note
+gate is intentionally skipped on master/manual runs). Unit validation, the
+production byte-budget build and performance journeys depend on that gate.
+PR E2E runs through `ci.yml` after fast validation and the byte-budget check,
+using `e2e-tests.yaml` as a reusable workflow. The full matrix is unchanged;
+master pushes and manual E2E dispatches still run directly. Caller/callee
+concurrency groups differ so the reusable workflow cannot cancel its caller.
+
+Packaging stays independent to protect rolling draft publication from CI
+cancellation. Selected packaging PRs run affected lint and entry-point
+typechecks before their matrix; selection and manual packaging are documented
+in [Release pipeline](release-pipeline.md#rolling-test-drafts). CodeQL and Docker
+retain their independent triggers.
+
 ## Unit And Type Checks
 
 | Area                               | Command                             |
@@ -42,7 +59,8 @@ positional argument filters by path), and fails on any diagnostic. ts-jest
 transpiles with `isolatedModules`, and `tsx` and Playwright strip types without
 checking them, so this is the only check that catches a spec or harness file
 whose types drifted from the code it exercises. CI runs it in the
-`unit-and-typecheck` job after `typecheck:ci`. Conventions the gate relies on:
+`unit-and-typecheck` job; entry-point `typecheck:ci` runs earlier in `Lint`.
+Conventions the gate relies on:
 
 - Spec tsconfigs use `module: preserve` with `moduleResolution: bundler`, the
   same as the library's own `tsconfig.json`; ts-jest forces CommonJS emit
@@ -110,8 +128,9 @@ same workspace output paths and JUnit classnames relative to the repository.
 Migrated Jest commands keep the workspace working directory for subprocess and
 file-based test contracts, independently of the Jest config's root directory.
 Docs-only changes (Markdown, `docs/`, `.plans/`, `.codex/`, `.claude/`) and
-`apps/website/**` changes skip the E2E workflow via `paths-ignore` — for those
-PRs no E2E validation runs in CI, which is intentional: they cannot affect app
+`apps/website/**` changes skip E2E through the PR merge-diff filter (or
+`paths-ignore` on master pushes) — for those PRs no E2E validation runs in CI,
+which is intentional: they cannot affect app
 behavior.
 
 Tier A coverage is fail-closed. `coverage:unit:ci` relays Jest output but exits
@@ -280,8 +299,9 @@ only to the Web E2E workflow step.
 On pull requests, the CI Lint job summarizes which E2E suites project-level
 Nx affected selects for the PR merge diff. Use the preview to check that the
 graph includes each suite that consumes the changed code before using it to
-skip any jobs. The preview is informational. The E2E workflow keeps its
-existing path filters and matrix, and TV E2E remains a separate local target.
+skip any jobs. The preview is informational. CI preserves the E2E path
+exclusions in its PR merge-diff gate and keeps the existing matrix, and TV E2E
+remains a separate local target.
 
 Use atomized E2E targets when available, for example
 `pnpm nx run web-e2e:e2e-ci--src/xtream.e2e.ts`.
