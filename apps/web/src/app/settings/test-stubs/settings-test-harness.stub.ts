@@ -36,6 +36,7 @@ import {
     DatabaseService,
     DataService,
     PlaylistsService,
+    type SettingsUpdateOptions,
 } from '@iptvnator/services';
 import { PlaylistBackupService } from '@iptvnator/services/playlist-backup';
 import {
@@ -224,16 +225,19 @@ export class MockSettingsStore {
      */
     updateSettings = jest.fn<
         Promise<void>,
-        [patch: Record<string, unknown>, options?: unknown]
-    >(async (patch) => this.applyPatch(patch));
+        [patch: Record<string, unknown>, options?: SettingsUpdateOptions]
+    >(async (patch, options) => {
+        this.applyPatch(patch);
+        options?.onPersisted?.();
+    });
 
     /**
-     * The next update applies its patch in memory, then settles with
-     * `settle()` — a pending write, or a cleanup failure after the write.
+     * The next update persists its patch before awaiting runtime side effects.
      */
     applyNextUpdateThen(settle: () => Promise<void>): void {
-        this.updateSettings.mockImplementationOnce(async (patch) => {
+        this.updateSettings.mockImplementationOnce(async (patch, options) => {
             this.applyPatch(patch);
+            options?.onPersisted?.();
             await settle();
         });
     }

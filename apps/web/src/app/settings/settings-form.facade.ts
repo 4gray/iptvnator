@@ -43,6 +43,7 @@ import {
     createSettingsFromFormValue,
     SettingsForm,
 } from './settings-form.utils';
+import { SettingsFormEpgWrites } from './settings-form-epg-writes';
 import {
     epgUrlsAddedOutside,
     pickChangedSettings,
@@ -120,8 +121,7 @@ export class SettingsFormFacade {
      * edit reverted to the saved value still overrides the older save.
      */
     private readonly unsettledSavePaths = new Set<string>();
-    /** EPG sources an unsettled save wrote: the form's own, never outside. */
-    private readonly unsettledEpgUrls = new Map<number, string[]>();
+    private readonly epgWrites = new SettingsFormEpgWrites();
 
     constructor() {
         this.form.valueChanges
@@ -164,7 +164,7 @@ export class SettingsFormFacade {
         // any more and must not be rewritten from the reloaded form.
         this.saveNeedsConfirmation = false;
         this.unsettledSavePaths.clear();
-        this.unsettledEpgUrls.clear();
+        this.epgWrites.clear();
         const currentSettings = this.settingsStore.getSettings();
         this.form.patchValue({
             ...currentSettings,
@@ -333,20 +333,23 @@ export class SettingsFormFacade {
         if (settings.epgUrl) {
             const addedEpgUrls = epgUrlsAddedOutside(
                 settings.epgUrl,
-                this.ownEpgUrls(),
+                this.epgWrites.knownUrls(this.savedSnapshot.epgUrl),
                 stored.epgUrl
             );
-            this.unsettledEpgUrls.set(saveRevision, this.epgUrls);
+            this.epgWrites.submit(saveRevision, this.epgUrls);
             settings.epgUrl = [...settings.epgUrl, ...addedEpgUrls];
         }
         let cleanupError: EpgSourceReconciliationError | undefined;
         try {
             await this.settingsStore.updateSettings(settings, {
                 retryEpgCleanup: this.epgUrl?.dirty ?? false,
+                ...(settings.epgUrl && {
+                    onPersisted: () => this.epgWrites.persist(saveRevision),
+                }),
             });
         } catch (error) {
             const cleanupFailed = error instanceof EpgSourceReconciliationError;
-            if (!cleanupFailed) this.unsettledEpgUrls.delete(saveRevision);
+            if (!cleanupFailed) this.epgWrites.reject(saveRevision);
             if (saveRevision !== this.saveRevision) return;
             if (!cleanupFailed) throw error;
             // This error follows a successful settings write. Mirror the
@@ -378,7 +381,7 @@ export class SettingsFormFacade {
         });
         this.saveNeedsConfirmation = false;
         this.unsettledSavePaths.clear();
-        this.unsettledEpgUrls.clear();
+        this.epgWrites.clear();
         onSaved();
         this.refreshRestartPending();
     }
@@ -473,7 +476,7 @@ export class SettingsFormFacade {
             this.savedSnapshot,
             this.settingsStore.getSettings(),
             this.unsettledSavePaths,
-            this.ownEpgUrls(),
+            this.epgWrites.knownUrls(this.savedSnapshot.epgUrl),
             submitted
         );
         for (const path of diffSettingsValues(next, current)) {
@@ -493,18 +496,9 @@ export class SettingsFormFacade {
         this.takeSavedSnapshot(next);
     }
 
-    /**
-     * Saved sources plus those an unsettled save of this form wrote: a
-     * source the user removes after a half-failed save is not "outside".
-     */
-    private ownEpgUrls(): unknown[] {
-        const urls = [...(this.savedSnapshot.epgUrl ?? [])];
-        for (const own of this.unsettledEpgUrls.values()) urls.push(...own);
-        return urls;
-    }
-
     private takeSavedSnapshot(snapshot = this.form.getRawValue()): void {
         this.savedSnapshot = snapshot;
+        this.epgWrites.adoptStoreSnapshot();
         this.refreshChangedPaths();
     }
 

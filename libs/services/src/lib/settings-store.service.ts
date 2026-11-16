@@ -42,6 +42,12 @@ import {
 
 export type { SettingsStorageFailure } from './settings-store.defaults';
 
+export interface SettingsUpdateOptions {
+    retryEpgCleanup?: boolean;
+    /** Runs after storage persists the update, before runtime side effects. */
+    onPersisted?: () => void;
+}
+
 export const SettingsStore = signalStore(
     { providedIn: 'root' },
     withState<Settings>(DEFAULT_SETTINGS),
@@ -146,7 +152,7 @@ export const SettingsStore = signalStore(
 
             async updateSettings(
                 settings: Partial<Settings>,
-                options: { retryEpgCleanup?: boolean } = {}
+                options: SettingsUpdateOptions = {}
             ) {
                 const previousEpgUrls = store.epgUrl();
                 const previousEpgEnabled = store.epgEnabled?.();
@@ -188,6 +194,7 @@ export const SettingsStore = signalStore(
                     });
                     throw error;
                 }
+                options.onPersisted?.();
                 if (completeSettings.player === VideoPlayer.EmbeddedMpv) {
                     const { scheduleEmbeddedMpvPrepare } =
                         await import('./settings-store.embedded-mpv');

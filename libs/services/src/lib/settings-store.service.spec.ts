@@ -345,15 +345,22 @@ describe('SettingsStore dashboard rail settings', () => {
         reconcile.mockClear();
         const write = new Subject<void>();
         storage.set.mockReturnValue(write);
-        const saving = store.updateSettings({ epgUrl: [] });
+        const onPersisted = jest.fn();
+        const saving = store.updateSettings({ epgUrl: [] }, { onPersisted });
+        expect(onPersisted).not.toHaveBeenCalled();
         expect(reconcile).not.toHaveBeenCalled();
         write.error(new Error('storage unavailable'));
         await expect(saving).rejects.toThrow('storage unavailable');
         expect(reconcile).not.toHaveBeenCalled();
         expect(store.epgUrl()).toEqual(['https://old.example/guide.xml']);
+        expect(onPersisted).not.toHaveBeenCalled();
         storage.set.mockReturnValue(of(undefined));
-        await store.updateSettings({ epgUrl: [] });
+        await store.updateSettings({ epgUrl: [] }, { onPersisted });
         expect(reconcile).toHaveBeenCalledWith([]);
+        expect(onPersisted).toHaveBeenCalledTimes(1);
+        expect(onPersisted.mock.invocationCallOrder[0]).toBeLessThan(
+            reconcile.mock.invocationCallOrder[0]
+        );
     });
 
     it('never reconciles empty defaults after settings storage fails to load', async () => {

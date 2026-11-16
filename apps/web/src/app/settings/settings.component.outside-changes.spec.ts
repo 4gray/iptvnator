@@ -490,6 +490,44 @@ describe('SettingsComponent with settings changed outside the form', () => {
         expect(component.settingsForm.pristine).toBe(true);
     });
 
+    it.each(['EPG cleanup', 'Electron acknowledgement'])(
+        'preserves a source restored after its removal was persisted during %s',
+        async (pendingStage) => {
+            let finish!: () => void;
+            const pending = new Promise<void>((resolve) => {
+                finish = resolve;
+            });
+            if (pendingStage === 'EPG cleanup') {
+                settingsStore.applyNextUpdateThen(() => pending);
+            } else {
+                jest.spyOn(
+                    window.electron,
+                    'updateSettings'
+                ).mockReturnValueOnce(pending);
+            }
+
+            component.form.removeEpgSource(0);
+            const saving = component.form.save(() =>
+                component.form.applySavedSettings()
+            );
+            await Promise.resolve();
+            expect(settingsStore.getSettings().epgUrl).toEqual([]);
+
+            importBackupAddingGuide(SAVED_GUIDE);
+            finish();
+            await saving;
+
+            expect(component.form.epgUrls).toEqual([SAVED_GUIDE]);
+            expect(component.settingsForm.pristine).toBe(true);
+            component.settingsForm.controls.showCaptions.setValue(true);
+            component.settingsForm.markAsDirty();
+            await component.form.save(() =>
+                component.form.applySavedSettings()
+            );
+            expect(settingsStore.getSettings().epgUrl).toEqual([SAVED_GUIDE]);
+        }
+    );
+
     it('keeps a removal of a source restored while Save is pending', async () => {
         let finishUpdate!: () => void;
         const pending = new Promise<void>((resolve) => {
