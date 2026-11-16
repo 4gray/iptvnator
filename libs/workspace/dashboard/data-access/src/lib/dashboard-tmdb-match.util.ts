@@ -90,9 +90,8 @@ export function dashboardTmdbMatchIdentity(
  */
 export function dashboardTmdbMatchToken(
     matches: TmdbMatchService | null,
-    item: DashboardTmdbMatchItem
+    identity: TmdbMatchIdentity | null
 ): string {
-    const identity = dashboardTmdbMatchIdentity(item);
     const choice = identity ? matches?.read(identity) : null;
     if (choice?.mode === 'manual') return `manual:${choice.tmdbId}`;
     return choice?.mode === 'provider' ? 'provider' : '';

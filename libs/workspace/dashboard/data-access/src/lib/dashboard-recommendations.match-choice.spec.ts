@@ -32,6 +32,7 @@ describe('DashboardRecommendationsService and TMDB match choices', () => {
     };
 
     let choice: unknown;
+    let otherChoice: unknown;
     let enrichMovie: jest.Mock;
     let seeds: object[];
 
@@ -45,10 +46,9 @@ describe('DashboardRecommendationsService and TMDB match choices', () => {
                         enrichMovie,
                         enrichTv: jest.fn(async () => null),
                         language: () => 'en-US',
-                        // The choice belongs to the first seed only.
                         getMatches: async () => ({
                             read: (identity: { itemId: string }) =>
-                                identity.itemId === '42' ? choice : null,
+                                identity.itemId === '42' ? choice : otherChoice,
                         }),
                     },
                 },
@@ -86,6 +86,7 @@ describe('DashboardRecommendationsService and TMDB match choices', () => {
 
     beforeEach(() => {
         choice = null;
+        otherChoice = null;
         seeds = [seed];
         enrichMovie = jest.fn(
             async (query: { matchIdentity?: unknown; title: string }) =>
@@ -141,6 +142,24 @@ describe('DashboardRecommendationsService and TMDB match choices', () => {
             );
         }
     );
+
+    it('retires cards from a seed deduplicated after switching to the same match offline', async () => {
+        seeds = [seed, { ...seed, xtream_id: 43 }];
+        choice = { mode: 'manual', tmdbId: 604, title: 'Synthetic Match' };
+        const service = createService();
+        await service.load();
+        expect(service.items().map(({ tmdbId }) => tmdbId)).toEqual(
+            expect.arrayContaining([100, 500])
+        );
+
+        otherChoice = choice;
+        enrichMovie.mockResolvedValue(null);
+        await service.load();
+
+        expect(service.items().map(({ tmdbId }) => tmdbId)).toEqual(
+            titles.map((_, i) => 500 + i)
+        );
+    });
 
     it('loads again when the seed is re-matched', async () => {
         const service = createService();

@@ -4,7 +4,11 @@ import {
     pickTitleMatch,
     tmdbPosterUrl,
 } from '@iptvnator/services';
-import type { CatalogTitleLookup, TmdbSearchResult } from '@iptvnator/services';
+import type {
+    CatalogTitleLookup,
+    TmdbMatchIdentity,
+    TmdbSearchResult,
+} from '@iptvnator/services';
 import {
     CatalogTitleMatch,
     normalizeTitleKeys,
@@ -41,7 +45,7 @@ export interface DashboardRecommendationItem {
 export type RecommendationCandidate = Omit<
     DashboardRecommendationItem,
     'match'
-> & { seedKey: string; matchToken: string };
+> & { seedIdentity: TmdbMatchIdentity | null; matchToken: string };
 
 /**
  * The release year an activity row STATES in a metadata field, never one
@@ -210,7 +214,7 @@ export function toCandidates(
     results: readonly TmdbSearchResult[],
     mediaType: 'movie' | 'tv',
     seedTitle: string,
-    seedKey: string,
+    seedIdentity: TmdbMatchIdentity | null,
     matchToken: string
 ): RecommendationCandidate[] {
     return results
@@ -232,7 +236,7 @@ export function toCandidates(
                 posterUrl: tmdbPosterUrl(result.poster_path),
                 rating,
                 seedTitle,
-                seedKey,
+                seedIdentity,
                 matchToken,
             };
         })

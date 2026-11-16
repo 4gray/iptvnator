@@ -151,20 +151,21 @@ describe('dashboard TMDB match choice', () => {
     });
 
     it('tokens the stored choice for cache keys', () => {
+        const identity = dashboardTmdbMatchIdentity(xtreamSeries);
         const matches = (choice: unknown) =>
             ({ read: () => choice }) as unknown as Parameters<
                 typeof dashboardTmdbMatchToken
             >[0];
 
-        expect(dashboardTmdbMatchToken(null, xtreamSeries)).toBe('');
+        expect(dashboardTmdbMatchToken(null, identity)).toBe('');
         expect(
             dashboardTmdbMatchToken(
                 matches({ mode: 'manual', tmdbId: 9, title: 'X' }),
-                xtreamSeries
+                identity
             )
         ).toBe('manual:9');
         expect(
-            dashboardTmdbMatchToken(matches({ mode: 'provider' }), xtreamSeries)
+            dashboardTmdbMatchToken(matches({ mode: 'provider' }), identity)
         ).toBe('provider');
     });
 });

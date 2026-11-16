@@ -85,7 +85,7 @@ export class DashboardHeroTmdbService {
         this.loadMatches();
         return `${this.enrichment.language()}//${dashboardTmdbLookupKey(
             item
-        )}//${dashboardTmdbMatchToken(this.matches(), item)}`;
+        )}//${dashboardTmdbMatchToken(this.matches(), dashboardTmdbMatchIdentity(item))}`;
     }
 
     getExtras(

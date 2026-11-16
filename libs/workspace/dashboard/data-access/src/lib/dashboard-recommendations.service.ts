@@ -41,8 +41,6 @@ interface SeedRecommendations {
     resolved: boolean;
     /** The viewer chose the provider's data: no TMDB, and no verdict on TMDB */
     skipped?: true;
-    seedKey: string;
-    matchToken: string;
     seedTitle: string;
     entries: RecommendationCandidate[];
 }
@@ -150,7 +148,13 @@ export class DashboardRecommendationsService {
             excluded,
             this.catalogKey()
         )}//${seeds
-            .map((seed) => dashboardTmdbMatchToken(this.matches, seed))
+            .map((seed) => {
+                const identity = dashboardTmdbMatchIdentity(seed);
+                return JSON.stringify([
+                    identity,
+                    dashboardTmdbMatchToken(this.matches, identity),
+                ]);
+            })
             .join(',')}`;
         if (loadKey === this.loadedKey) {
             return;
@@ -174,16 +178,7 @@ export class DashboardRecommendationsService {
                 answered.length > 0 &&
                 !answered.some((seed) => seed.resolved)
             ) {
-                // Kept offline, except cards from a seed with a new choice.
-                this.dropExcludedCards(
-                    excluded,
-                    new Map(
-                        perSeed.map(({ seedKey, matchToken }) => [
-                            seedKey,
-                            matchToken,
-                        ])
-                    )
-                );
+                this.dropExcludedCards(excluded);
             } else {
                 const candidates = this.mergeCandidates(
                     perSeed.map((seed) => seed.entries),
@@ -246,10 +241,7 @@ export class DashboardRecommendationsService {
      * or favorited since the last successful load cannot linger. Falling
      * under the match threshold hides the rail, as everywhere else.
      */
-    private dropExcludedCards(
-        excluded: ExclusionIndex,
-        currentChoices: ReadonlyMap<string, string>
-    ): void {
+    private dropExcludedCards(excluded: ExclusionIndex): void {
         const { candidates, matches } = this.loaded();
         // A card whose playlist is gone would navigate to a dead route,
         // and the failed refresh is no excuse for keeping it — this is
@@ -259,13 +251,15 @@ export class DashboardRecommendationsService {
             this.data.playlists().map((playlist) => playlist._id)
         );
         const kept: LoadedRecommendations = {
-            candidates: candidates.filter((candidate) => {
-                const choice = currentChoices.get(candidate.seedKey);
-                return (
-                    (choice === undefined || choice === candidate.matchToken) &&
+            // A cached seed may be absent from the current deduplicated list.
+            candidates: candidates.filter(
+                (candidate) =>
+                    dashboardTmdbMatchToken(
+                        this.matches,
+                        candidate.seedIdentity
+                    ) === candidate.matchToken &&
                     !isExcludedCandidate(candidate, excluded)
-                );
-            }),
+            ),
             matches: matches.filter((match) =>
                 livePlaylists.has(match.playlistId)
             ),
@@ -324,7 +318,7 @@ export class DashboardRecommendationsService {
             // Two rows can look alike yet carry different match choices.
             const key = `${dashboardTmdbLookupKey(item)}//${dashboardTmdbMatchToken(
                 this.matches,
-                item
+                dashboardTmdbMatchIdentity(item)
             )}`;
             if (seen.has(key)) {
                 continue;
@@ -342,10 +336,7 @@ export class DashboardRecommendationsService {
         seed: DashboardTmdbMatchItem
     ): Promise<SeedRecommendations> {
         const identity = dashboardTmdbMatchIdentity(seed);
-        const seedKey = identity
-            ? JSON.stringify(identity)
-            : dashboardTmdbLookupKey(seed);
-        const matchToken = dashboardTmdbMatchToken(this.matches, seed);
+        const matchToken = dashboardTmdbMatchToken(this.matches, identity);
         const resolved = await resolveDashboardTmdbDetails(
             this.enrichment,
             seed,
@@ -354,8 +345,6 @@ export class DashboardRecommendationsService {
         if (!resolved) {
             return {
                 resolved: false,
-                seedKey,
-                matchToken,
                 seedTitle: seed.title,
                 entries: [],
             };
@@ -365,22 +354,18 @@ export class DashboardRecommendationsService {
             return {
                 resolved: true,
                 skipped: true,
-                seedKey,
-                matchToken,
                 seedTitle: attempt.title,
                 entries: [],
             };
         }
         return {
             resolved: true,
-            seedKey,
-            matchToken,
             seedTitle: attempt.title,
             entries: toCandidates(
                 details.recommendations?.results ?? [],
                 attempt.mediaType,
                 attempt.title,
-                seedKey,
+                identity,
                 matchToken
             ),
         };
