@@ -1026,8 +1026,8 @@ since shipped.)
   deduplicating and keying seeds. Rows with the same lookup and match
   choice share one request and keep their separate match identities for
   offline pruning. A row with a match identity skips TMDB when the store
-  cannot be read. A seed taken off TMDB is no TMDB verdict —
-  it neither keeps an offline rail alive nor stays on one.
+  cannot be read. Rows whose viewers chose provider data leave room for
+  older usable seeds and lose any cached recommendations from the old match.
 - **Hero extras**: `DashboardHeroTmdbService`
   (`libs/workspace/dashboard/feature`) patches each movie/series hero slide
   with a TMDB backdrop (when the activity row has none), a rating badge, up

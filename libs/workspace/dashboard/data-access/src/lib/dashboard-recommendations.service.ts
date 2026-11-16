@@ -334,7 +334,10 @@ export class DashboardRecommendationsService {
                     : null;
             const identity = dashboardTmdbMatchIdentity(item, position);
             const matchToken = dashboardTmdbMatchToken(this.matches, identity);
-            if (!matchToken && buildDashboardTmdbAttempts(item).length === 0) {
+            if (
+                matchToken === 'provider' ||
+                (!matchToken && buildDashboardTmdbAttempts(item).length === 0)
+            ) {
                 continue;
             }
             const key = JSON.stringify([

@@ -257,6 +257,39 @@ describe('DashboardRecommendationsService and TMDB match choices', () => {
         expect(service.items()).toEqual([]);
     });
 
+    it.each(['Unknown', 'Synthetic Provider Title'])(
+        'lets usable seeds fill the request budget ahead of a provider-only row (%s)',
+        async (title) => {
+            seeds = [
+                {
+                    ...seed,
+                    title,
+                    source: 'stalker',
+                    stalker_item: {
+                        id: '42',
+                        category_id: '7',
+                        info: title === 'Unknown' ? {} : { name: title },
+                    },
+                },
+                { ...seed, title: 'Synthetic Miss One', xtream_id: 43 },
+                { ...seed, title: 'Synthetic Miss Two', xtream_id: 44 },
+                { ...seed, title: 'Synthetic Hit', xtream_id: 45 },
+            ];
+            choice = { mode: 'provider' };
+            enrichMovie.mockImplementation(async (query: { title: string }) =>
+                query.title === 'Synthetic Hit' ? recommendations(500) : null
+            );
+
+            const service = createService();
+            await service.load();
+
+            expect(enrichMovie).toHaveBeenCalledTimes(3);
+            expect(service.items().map(({ tmdbId }) => tmdbId)).toEqual(
+                titles.map((_, i) => 500 + i)
+            );
+        }
+    );
+
     it('uses a manual match as a seed when the provider title cannot be searched', async () => {
         seeds = [
             {
