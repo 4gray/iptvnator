@@ -101,6 +101,12 @@ export function Settings({
                                 tv={tv}
                                 field="epg"
                             />
+                        ) : id === 'playback' ? (
+                            <SettingsPreferences
+                                key={`playback:${phoneRevision}`}
+                                tv={tv}
+                                field="seriesAutoplay"
+                            />
                         ) : id === 'metadata' ? (
                             <TmdbSettings
                                 key={`tmdb:${phoneRevision}`}

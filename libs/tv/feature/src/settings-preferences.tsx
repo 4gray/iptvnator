@@ -2,6 +2,25 @@ import { TvSelect } from '@iptvnator/tv/ui';
 import { useEffect, useState } from 'preact/hooks';
 import type { TvModel } from './use-tv';
 
+const copy = {
+    layout: {
+        title: 'Appearance',
+        description: 'Choose how titles appear on Home.',
+        label: 'Home composition',
+    },
+    epg: {
+        title: 'Programme guide',
+        description: 'Show programme information supplied by your TV provider.',
+        label: 'Show provider programme guide',
+    },
+    seriesAutoplay: {
+        title: 'Playback',
+        description:
+            'When an episode ends, the next one plays. Up next counts down to it near the end.',
+        label: 'Autoplay next episode',
+    },
+} as const;
+
 // Each form owns one persisted field. Saving one category must never commit
 // another category's draft, including after a phone settings update.
 export function SettingsPreferences({
@@ -9,7 +28,7 @@ export function SettingsPreferences({
     field,
 }: {
     tv: TvModel;
-    field: 'layout' | 'epg';
+    field: 'layout' | 'epg' | 'seriesAutoplay';
 }) {
     const persisted = tv.data[field];
     const [value, setValue] = useState(persisted);
@@ -30,7 +49,7 @@ export function SettingsPreferences({
                               ...data,
                               layout: draft === 'shelf' ? 'shelf' : 'cinema',
                           }
-                        : { ...data, epg: draft === true }
+                        : { ...data, [field]: draft === true }
                 );
                 setSaved(true);
                 tv.setError('');
@@ -49,12 +68,8 @@ export function SettingsPreferences({
     };
     return (
         <form class="source-form" onSubmit={save}>
-            <h2>{field === 'layout' ? 'Appearance' : 'Programme guide'}</h2>
-            <p class="muted">
-                {field === 'layout'
-                    ? 'Choose how titles appear on Home.'
-                    : 'Show programme information supplied by your TV provider.'}
-            </p>
+            <h2>{copy[field].title}</h2>
+            <p class="muted">{copy[field].description}</p>
             {field === 'layout' ? (
                 <label>
                     Home composition
@@ -76,15 +91,15 @@ export function SettingsPreferences({
                 <label class="check">
                     <input
                         type="checkbox"
-                        name="epg"
-                        data-focus="settings:epg:value"
+                        name={field}
+                        data-focus={`settings:${field}:value`}
                         checked={value === true}
                         onChange={(event) => {
                             setValue(event.currentTarget.checked);
                             setSaved(false);
                         }}
                     />
-                    Show provider programme guide
+                    {copy[field].label}
                 </label>
             )}
             <button

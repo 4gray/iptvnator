@@ -6,6 +6,7 @@ import { episodeCode, mediaTitle } from '@iptvnator/tv/util';
 import type { TvModel } from './use-tv';
 import type { useLiveOverlay } from './live-overlay';
 import type { useSeriesDetails } from './use-series-details';
+import { UpNextCard, useUpNext } from './up-next-card';
 
 export function NativePlayerView({
     tv,
@@ -30,6 +31,7 @@ export function NativePlayerView({
 }) {
     const current = tv.playing;
     const element = video.current;
+    const upNext = useUpNext(tv, video, vod, !!overlay.panel);
     useLayoutEffect(() => {
         if (!element?.ended || !vod.next || !tv.fullscreen) return;
         let owns = true;
@@ -51,6 +53,9 @@ export function NativePlayerView({
             hidden={!current}
         >
             <video ref={video} playsInline preload="metadata" />
+            {tv.fullscreen && upNext.card ? (
+                <UpNextCard card={upNext.card} play={upNext.play} />
+            ) : null}
             {tv.fullscreen ? (
                 <div
                     class={`player-controls ${controlsVisible || tv.error ? '' : 'dormant'}`}
@@ -113,7 +118,9 @@ export function NativePlayerView({
                             <p role="status">
                                 Episode finished.{' '}
                                 {vod.next
-                                    ? 'Choose Next episode to continue.'
+                                    ? tv.data.seriesAutoplay !== false
+                                        ? 'Playing the next episode…'
+                                        : 'Choose Next episode to continue.'
                                     : vod.busy
                                       ? 'Finding the next episode…'
                                       : vod.failed

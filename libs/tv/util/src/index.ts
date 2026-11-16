@@ -151,6 +151,8 @@ export interface UserData {
     layout: 'cinema' | 'shelf';
     epg: boolean;
     tmdb: { enabled: boolean; apiKey: string; language: string };
+    /** Play the next episode when one ends; same name and default as desktop. */
+    seriesAutoplay: boolean;
 }
 export const initialData = (): UserData => ({
     sources: [],
@@ -165,6 +167,7 @@ export const initialData = (): UserData => ({
     layout: 'cinema',
     epg: true,
     tmdb: { enabled: false, apiKey: '', language: 'en' },
+    seriesAutoplay: true,
 });
 export const identity = (source: Source, kind: Kind, id: unknown) =>
     JSON.stringify([source.id, source.provider, kind, String(id)]);
@@ -243,6 +246,7 @@ export function hydrateUserData(saved: Partial<UserData>): UserData {
         series: normalizeCatalogSort(saved.catalogSort?.series),
     };
     data.tmdb = { ...initialData().tmdb, ...saved.tmdb };
+    data.seriesAutoplay = saved.seriesAutoplay !== false;
     if (!saved.positions) {
         data.positions = {};
         data.history.forEach((progress) => {
@@ -278,6 +282,7 @@ export * from './grid-guide';
 export * from './detail-metadata';
 export * from './watch-state';
 export * from './series-continuity';
+export * from './up-next';
 export * from './recent-channels';
 export * from './confirmed-live-channels';
 export * from './platform';

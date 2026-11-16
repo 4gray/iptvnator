@@ -1,0 +1,113 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import * as tv from '@iptvnator/tv/util';
+
+const episode = (id: string, season: number, number: number): tv.Media => ({
+    id,
+    sourceId: 'source',
+    providerId: id,
+    kind: 'episode',
+    title: `Episode ${number}`,
+    parentId: 'show',
+    season,
+    episode: number,
+    raw: {},
+});
+const current = episode('e1', 1, 1);
+const next = episode('e2', 1, 2);
+const base: tv.UpNextInput = {
+    current,
+    next,
+    durationSeconds: 22 * 60,
+    positionSeconds: 22 * 60 - 30,
+    ended: false,
+    dismissed: false,
+    hidden: false,
+    autoplay: true,
+};
+
+test('up next shows inside the shared adaptive lead', () => {
+    const card = tv.upNextCard(base);
+    assert.equal(card?.next.id, 'e2');
+    assert.equal(card?.leadSeconds, 53);
+    assert.equal(card?.remainingSeconds, 30);
+    assert.equal(card?.countdown, true);
+    assert.equal(
+        tv.upNextCard({ ...base, positionSeconds: 22 * 60 - 60 }),
+        undefined
+    );
+});
+
+test('up next starts at a supplied credits time', () => {
+    const card = tv.upNextCard({
+        ...base,
+        positionSeconds: 22 * 60 - 100,
+        creditsStartSeconds: 22 * 60 - 120,
+    });
+    assert.equal(card?.leadSeconds, 120);
+});
+
+test('up next needs an episode, a next one and a finite length', () => {
+    assert.equal(tv.upNextCard({ ...base, next: undefined }), undefined);
+    assert.equal(
+        tv.upNextCard({ ...base, current: { ...current, kind: 'movie' } }),
+        undefined
+    );
+    assert.equal(
+        tv.upNextCard({ ...base, durationSeconds: Infinity }),
+        undefined
+    );
+    assert.equal(tv.upNextCard({ ...base, durationSeconds: NaN }), undefined);
+});
+
+test('up next hides once ended, dismissed or covered', () => {
+    assert.equal(tv.upNextCard({ ...base, ended: true }), undefined);
+    assert.equal(tv.upNextCard({ ...base, dismissed: true }), undefined);
+    assert.equal(tv.upNextCard({ ...base, hidden: true }), undefined);
+});
+
+test('up next drops the countdown when autoplay is off', () => {
+    assert.equal(tv.upNextCard({ ...base, autoplay: false })?.countdown, false);
+});
+
+test('up next shows partial progress of the next episode only', () => {
+    const progress = (seconds: number, extra: Partial<tv.Progress> = {}) => ({
+        item: next,
+        seconds,
+        duration: 1000,
+        updated: 1,
+        ...extra,
+    });
+    assert.equal(
+        tv.upNextCard({ ...base, nextProgress: progress(400) })
+            ?.progressPercent,
+        40
+    );
+    assert.equal(
+        tv.upNextCard({ ...base, nextProgress: progress(0) })?.progressPercent,
+        null
+    );
+    assert.equal(
+        tv.upNextCard({
+            ...base,
+            nextProgress: progress(400, { watched: true }),
+        })?.progressPercent,
+        null
+    );
+});
+
+test('up next countdown label and ring match the desktop card', () => {
+    assert.equal(tv.upNextCountdownLabel(44.2), 'in 45 s');
+    assert.equal(tv.upNextCountdownLabel(6 * 60 + 40), 'in 7 min');
+    const card = tv.upNextCard(base);
+    assert.ok(card);
+    assert.equal(tv.upNextRingShare(card), 30 / 53);
+    assert.equal(tv.upNextRingShare({ ...card, remainingSeconds: 0 }), 0);
+});
+
+test('a dismissal is keyed to this episode and its next one', () => {
+    assert.notEqual(
+        tv.upNextDismissKey(current, next),
+        tv.upNextDismissKey(next, episode('e3', 1, 3))
+    );
+});
