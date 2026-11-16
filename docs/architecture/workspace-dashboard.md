@@ -170,14 +170,30 @@ a scrim-coloured text shadow, and the slide enters without a fade so that
 scrim never flashes the art on a rotation. Body text is 85% of the heading
 colour; the rating chip uses `--app-rating-color`, set per theme in
 `m3-theme.scss`. Buttons end long labels in an ellipsis.
-At the phone breakpoint (≤640px), artwork uses a full-width 16:9 area
-capped at 33% of the small viewport height. Its lower edge fades into the
-page colour above the slide text. The artwork area stays the same height
-for every slide, while the tallest slide still sets the banner's total height.
+At the phone breakpoint (≤640px) the slide moves up over the art, as on
+wide screens. The art area is as tall as the banner is wide, capped at 52% of
+the small viewport height (`--hero-art-height`), and the slides begin 60% of
+the way down it (`--hero-overlap-top`), so they cover its lower ~40%. The art
+itself spans the whole banner. One long vertical scrim (no side gradient, no
+text-block scrim) leaves the art clear, rises over the lower part of the art
+to 90% of the page colour where the slides begin, keeps closing behind them,
+and reaches the page colour across the first rail's heading: a 64px
+`--hero-tail` tucks that rail into the fade, as on desktop. All the stops are
+fractions of the overlap, so a short landscape phone keeps the same curve,
+only shorter. The overlap is a share of the viewport, never of a slide, so
+it is the same for every slide; the tallest slide still sets the banner's
+total height (the slides share one cell aligned to its bottom, so a shorter
+slide starts lower, over more scrim). A live slide's logo sits in the clear
+area above the slides.
 `dashboard-hero-legibility.e2e.ts` replaces every image with a black-and-white
 checkerboard and measures each piece of slide text from the screen in both
 themes, at wide, narrow and phone widths, for a backdrop, a blurred poster, a
-no-artwork and a live slide.
+no-artwork and a live slide, and checks the phone geometry at two heights.
+`apps/web-e2e/src/mobile-layout.e2e.ts` checks the phone hero in Chromium and
+WebKit at 390×844, 430×932 and a 640×360 landscape: overlap, art under the
+whole banner, the first rail's heading inside the tail, one height across
+slides, a reachable primary action, and the hero starting under the header
+when the installed PWA pads the top bar for the status bar.
 
 Semantics: the page has one stable, visually hidden `h1` ("Dashboard",
 `dashboard-page-heading`); each slide title is an `h2`, like the rail titles.

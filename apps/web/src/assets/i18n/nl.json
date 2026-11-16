@@ -4,6 +4,7 @@
         "ADD_STREAM": "Stream toevoegen",
         "OPEN_GRID": "2×2-raster openen",
         "GRID_LAYOUT": "2×2-raster",
+        "FOCUS_LAYOUT": "Focusweergave (3:1)",
         "PAIR_LAYOUT_HINT": "Houd twee vensters open voor deze indeling",
         "ADD_TO_WINDOW": "Stream toevoegen aan venster {{slot}}",
         "WINDOW": "Venster {{slot}}",

@@ -4,6 +4,7 @@
         "ADD_STREAM": "Adicionar emissão",
         "OPEN_GRID": "Abrir grelha 2×2",
         "GRID_LAYOUT": "Grelha 2×2",
+        "FOCUS_LAYOUT": "Foco (3:1)",
         "PAIR_LAYOUT_HINT": "Mantenha duas janelas abertas para usar esta disposição",
         "ADD_TO_WINDOW": "Adicionar emissão à janela {{slot}}",
         "WINDOW": "Janela {{slot}}",

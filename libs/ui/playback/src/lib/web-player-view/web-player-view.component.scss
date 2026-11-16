@@ -55,13 +55,19 @@ app-html-video-player {
     width: 100%;
     height: 100%;
 }
-.embedded-mpv-pair--with-strip {
-    --second-stream-strip-height: 40px;
+.embedded-mpv-pair--multiview {
+    --multiview-rows: 1;
+    --second-stream-strip-height: 0px;
     display: grid;
-    grid-template: minmax(0, 1fr) var(--second-stream-strip-height) / minmax(
-            0,
-            1fr
-        );
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(var(--multiview-rows), minmax(0, 1fr));
+
+    &.embedded-mpv-pair--with-strip {
+        --second-stream-strip-height: 40px;
+        grid-template-rows:
+            repeat(var(--multiview-rows), minmax(0, 1fr))
+            var(--second-stream-strip-height);
+    }
 
     > app-embedded-mpv-player {
         grid-area: 1 / 1;
@@ -70,15 +76,21 @@ app-html-video-player {
     }
 }
 .embedded-mpv-pair--side-by-side,
-.embedded-mpv-pair--grid {
+.embedded-mpv-pair--grid,
+.embedded-mpv-pair--focus {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: 4px;
     background: #000;
 }
 .embedded-mpv-pair--grid {
-    grid-template-rows: repeat(2, minmax(0, 1fr)) var(
-            --second-stream-strip-height
-        );
+    --multiview-rows: 2;
+}
+.embedded-mpv-pair--focus {
+    --multiview-rows: 3;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
+}
+.embedded-mpv-pair--grid,
+.embedded-mpv-pair--focus {
     row-gap: 4px;
 
     &:focus-visible::after {

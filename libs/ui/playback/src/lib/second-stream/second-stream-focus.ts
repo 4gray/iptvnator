@@ -49,7 +49,7 @@ export class SecondStreamFocus {
         );
     }
 
-    enterGrid(trigger = this.entry()): void {
+    enterMultiview(trigger = this.entry()): void {
         this.restore(
             () => this.host().querySelector('[data-multiview-stage]'),
             trigger

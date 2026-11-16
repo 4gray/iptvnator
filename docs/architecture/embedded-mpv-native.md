@@ -521,12 +521,14 @@ Trade-offs and constraints:
 ## Frame-copy multiview
 
 The Multiview action in the frame-copy player controls opens a menu to add a
-stream or open the 2×2 grid. In regular single-stream playback the stream bar
-is absent and the player occupies the full stage. Adding a second stream
-from single playback opens a floating window. Opening the grid explicitly
-with one stream shows three empty windows with an add action. The bar stays
-visible in the grid until the viewer exits multiview. Adding a third stream
-from Floating window or Side by side opens the grid.
+stream, open the 2×2 grid or open Focus (3:1). In regular single-stream
+playback the stream bar is absent and the player occupies the full stage.
+Adding a second stream from single playback opens a floating window. Opening
+Grid or Focus with one stream shows three empty windows with an add action.
+Adding a third stream from Floating window or Side by side opens the grid.
+The stream bar is visible in windowed multiview and in fullscreen Grid and
+Focus. In fullscreen Floating window or Side by side, exit fullscreen to use
+the bar. The current layout and playback sessions stay active.
 
 The shared picker opens through the existing dialog shell and can extend
 below the video into the app window. The playlist selector sits inside the
@@ -554,12 +556,13 @@ The primary stays in window 1. Companion windows have stable numbers 2–4
 that determine their positions in the grid. Closing a companion leaves its
 cell available for another stream. The global add button fills the lowest
 available number. Side by side and Floating window can be selected when
-there are exactly two open windows. Layout changes update CSS and native
-render bounds while preserving the mounted players and their playback.
-Clicking an equal pane or choosing its window in the bar selects the player
-for playback commands. A separate speaker action selects the sole audio
-session. Floating window makes the audio session the main video and
-restores the previous floating geometry.
+there are exactly two open windows. Focus shows the selected player in a
+large viewport and the other three slots in number order down the narrow
+column. Clicking a viewport or using keys 1–4 in Grid or Focus selects that
+player for playback commands. The speaker action independently selects the
+sole audio session. Layout changes update CSS and native render bounds while
+preserving mounted players and their playback. Floating window makes the
+audio session the main video and restores the previous floating geometry.
 
 Replacing or retrying a stream operates on that window's session. When a
 companion with sound is replaced, the primary resumes sound before the

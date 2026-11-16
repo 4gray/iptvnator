@@ -4,6 +4,7 @@
         "ADD_STREAM": "Dodaj strumień",
         "OPEN_GRID": "Otwórz siatkę 2×2",
         "GRID_LAYOUT": "Siatka 2×2",
+        "FOCUS_LAYOUT": "Skupienie (3:1)",
         "PAIR_LAYOUT_HINT": "Pozostaw dwa otwarte okna, aby użyć tego układu",
         "ADD_TO_WINDOW": "Dodaj strumień do okna {{slot}}",
         "WINDOW": "Okno {{slot}}",

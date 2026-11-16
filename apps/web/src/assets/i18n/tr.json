@@ -4,6 +4,7 @@
         "ADD_STREAM": "Yayın ekle",
         "OPEN_GRID": "2×2 ızgarayı aç",
         "GRID_LAYOUT": "2×2 ızgara",
+        "FOCUS_LAYOUT": "Odak (3:1)",
         "PAIR_LAYOUT_HINT": "Bu düzeni kullanmak için iki pencereyi açık tutun",
         "ADD_TO_WINDOW": "{{slot}}. pencereye yayın ekle",
         "WINDOW": "{{slot}}. pencere",

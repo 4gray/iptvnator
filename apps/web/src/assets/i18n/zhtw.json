@@ -4,6 +4,7 @@
         "ADD_STREAM": "新增串流",
         "OPEN_GRID": "開啟 2×2 格狀版面",
         "GRID_LAYOUT": "2×2 格狀版面",
+        "FOCUS_LAYOUT": "聚焦 (3:1)",
         "PAIR_LAYOUT_HINT": "保留兩個視窗即可使用此版面",
         "ADD_TO_WINDOW": "新增串流至視窗 {{slot}}",
         "WINDOW": "視窗 {{slot}}",
