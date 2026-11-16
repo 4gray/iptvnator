@@ -93,6 +93,41 @@ async function expectCompactGuideLayout(page: Page): Promise<void> {
     }
 }
 
+/** The guide's buttons use the kit's small (32px, 8px radius) roles. */
+async function expectKitButtons(page: Page): Promise<void> {
+    const guide = page.locator('app-epg-guide');
+    const strip = page.locator('app-epg-guide-now-playing');
+    for (const button of [
+        strip.getByRole('button', { name: /^Close guide/ }),
+        strip.getByRole('button', { name: /collapse player/i }),
+        guide.locator('.guide-toolbar__now'),
+        guide.locator('.guide-toolbar__scope'),
+        guide.locator('.guide-toolbar__density'),
+    ]) {
+        await expect(button).toHaveCSS('border-radius', '8px');
+        await expect(button).toHaveCSS('height', '32px');
+    }
+    // The kit's small label size, not the toolbar's inherited font.
+    for (const label of [
+        guide.locator('.guide-toolbar__now'),
+        guide.locator('.guide-toolbar__scope .mdc-button__label'),
+        guide.locator('.guide-toolbar__toggle'),
+    ]) {
+        await expect(label).toHaveCSS('font-size', '12.5px');
+    }
+    // No outlined (stroked) Material buttons are left in the guide chrome.
+    await expect(
+        page.locator(
+            'app-epg-guide .mat-mdc-outlined-button, app-epg-guide-now-playing .mat-mdc-outlined-button'
+        )
+    ).toHaveCount(0);
+    // The day chevrons are segments of the kit's segmented track.
+    await expect(guide.getByRole('button', { name: 'Previous day' })).toHaveCSS(
+        'height',
+        '26px'
+    );
+}
+
 test('@epg @xtream @electron docks a compact mini player and keeps ON NOW clear of the time', async ({
     dataDir,
     request,
@@ -131,6 +166,7 @@ test('@epg @xtream @electron docks a compact mini player and keeps ON NOW clear 
         await expect(page.locator('app-epg-guide')).toBeVisible();
 
         await expectCompactGuideLayout(page);
+        await expectKitButtons(page);
 
         await resize(900, 700);
         await expectCompactGuideLayout(page);
