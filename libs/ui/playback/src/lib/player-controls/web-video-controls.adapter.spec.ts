@@ -237,17 +237,43 @@ describe('WebVideoControlsAdapter', () => {
         expect(video.currentTime).toBe(0);
     });
 
-    it('gates capabilities: recording always false, aspectRatio false', () => {
+    it('supports aspect ratio while keeping recording disabled', () => {
         adapter.attach(createVideo({ duration: 100 }), {
             isLive: () => false,
         });
         const caps = adapter.capabilities();
         expect(caps.recording).toBe(false);
-        expect(caps.aspectRatio).toBe(false);
+        expect(caps.aspectRatio).toBe(true);
         expect(caps.seek).toBe(true);
         expect(caps.volume).toBe(true);
         expect(caps.playbackSpeed).toBe(true);
         expect(caps.fullscreen).toBe(true);
+    });
+
+    it('fills the player for 21:9 and restores the original fit on detach', () => {
+        const video = createVideo();
+        video.style.objectFit = 'contain';
+        adapter.attach(video);
+
+        expect(adapter.state().aspectRatio).toBe('no');
+        expect(
+            adapter.state().aspectPresets.map((preset) => preset.value)
+        ).toEqual(['no', '21:9']);
+
+        adapter.commands.setAspectRatio('21:9');
+        expect(video.style.objectFit).toBe('cover');
+        expect(adapter.state().aspectRatio).toBe('21:9');
+
+        adapter.detach();
+        expect(video.style.objectFit).toBe('contain');
+
+        const replacement = createVideo();
+        adapter.attach(replacement);
+        expect(replacement.style.objectFit).toBe('cover');
+
+        adapter.commands.setAspectRatio('no');
+        expect(replacement.style.objectFit).toBe('');
+        adapter.detach();
     });
 
     it('enables audioTracks only when more than one track is exposed', () => {

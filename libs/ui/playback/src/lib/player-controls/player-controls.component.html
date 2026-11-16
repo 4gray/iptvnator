@@ -444,6 +444,33 @@
                     </mat-menu>
                 }
 
+                @if (capabilities().aspectRatio) {
+                    <button
+                        mat-icon-button
+                        type="button"
+                        class="player-controls__button player-controls__screen-fit"
+                        [class.player-controls__screen-fit--active]="
+                            state().aspectRatio === '21:9'
+                        "
+                        data-test-id="player-controls-screen-fit-button"
+                        (click)="
+                            menuSelection.aspect(
+                                state().aspectRatio === '21:9' ? 'no' : '21:9'
+                            )
+                        "
+                        [attr.aria-pressed]="state().aspectRatio === '21:9'"
+                        [attr.aria-label]="
+                            'EMBEDDED_MPV.PLAYER.ASPECT_RATIO' | translate
+                        "
+                        [matTooltip]="
+                            'EMBEDDED_MPV.PLAYER.ASPECT_RATIO' | translate
+                        "
+                        matTooltipPosition="above"
+                    >
+                        <mat-icon>aspect_ratio</mat-icon>
+                    </button>
+                }
+
                 @if (settings.available()) {
                     <button
                         mat-icon-button

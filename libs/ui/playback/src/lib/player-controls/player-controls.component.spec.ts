@@ -178,6 +178,18 @@ describe('PlayerControlsComponent', () => {
             fixture.detectChanges();
             expect(query('[aria-label="Enter fullscreen"]')).not.toBeNull();
         });
+
+        it('shows the screen-fit button only when aspect ratio is supported', () => {
+            expect(
+                query('[data-test-id="player-controls-screen-fit-button"]')
+            ).toBeNull();
+
+            setCapabilities({ aspectRatio: true });
+            fixture.detectChanges();
+            expect(
+                query('[data-test-id="player-controls-screen-fit-button"]')
+            ).not.toBeNull();
+        });
     });
 
     describe('command wiring', () => {
@@ -206,6 +218,26 @@ describe('PlayerControlsComponent', () => {
             query('[aria-label="Back 10 seconds"]')?.click();
             expect(fake.commands.seekBy).toHaveBeenCalledWith(10);
             expect(fake.commands.seekBy).toHaveBeenCalledWith(-10);
+        });
+
+        it('toggles between default and 21:9 aspect ratio', () => {
+            setCapabilities({ aspectRatio: true });
+            fixture.detectChanges();
+
+            const button = query(
+                '[data-test-id="player-controls-screen-fit-button"]'
+            ) as HTMLButtonElement;
+            expect(button.getAttribute('aria-pressed')).toBe('false');
+
+            button.click();
+            expect(fake.commands.setAspectRatio).toHaveBeenCalledWith('21:9');
+
+            setState({ aspectRatio: '21:9' });
+            fixture.detectChanges();
+            expect(button.getAttribute('aria-pressed')).toBe('true');
+
+            button.click();
+            expect(fake.commands.setAspectRatio).toHaveBeenLastCalledWith('no');
         });
 
         it('selects an audio track', () => {
