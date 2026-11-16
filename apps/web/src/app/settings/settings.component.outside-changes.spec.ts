@@ -961,6 +961,46 @@ describe('SettingsComponent with settings changed outside the form', () => {
         ]);
     });
 
+    it('keeps a second EPG removal when a restore finishes during Save retry', async () => {
+        jest.spyOn(window.electron, 'updateSettings').mockRejectedValueOnce(
+            new Error('runtime unavailable')
+        );
+        component.form.removeEpgSource(0);
+        await expect(component.form.save(() => undefined)).rejects.toThrow();
+        expect(settingsStore.getSettings().epgUrl).toEqual([]);
+
+        let completeImport!: () => void;
+        jest.spyOn(component.backup, 'importData').mockImplementation(
+            (imported) => {
+                settingsStore._setSettings({ epgUrl: [SAVED_GUIDE] });
+                completeImport = imported;
+            }
+        );
+        component.importData();
+
+        let persist!: () => void;
+        settingsStore.updateSettings.mockImplementationOnce(
+            async (patch, _options, onPersisted) => {
+                settingsStore._setSettings(patch);
+                await new Promise<void>((resolve) => (persist = resolve));
+                onPersisted?.();
+            }
+        );
+        const retry = component.form.save(() =>
+            component.form.applySavedSettings()
+        );
+        completeImport();
+        expect(component.form.epgUrls).toEqual([SAVED_GUIDE]);
+        component.form.removeEpgSource(0);
+        persist();
+        await retry;
+
+        expect(component.form.epgUrls).toEqual([]);
+        expect(component.form.changedPaths()).toEqual(['epgUrl']);
+        await component.form.save(() => component.form.applySavedSettings());
+        expect(settingsStore.getSettings().epgUrl).toEqual([]);
+    });
+
     it('keeps a removal of a source restored while Save is pending', async () => {
         let finishUpdate!: () => void;
         const pending = new Promise<void>((resolve) => {

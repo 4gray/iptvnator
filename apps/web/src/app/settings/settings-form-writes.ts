@@ -78,8 +78,9 @@ export class SettingsFormWrites {
     }
 
     rebase(previous: EpgUrls | undefined, next: EpgUrls | undefined): void {
+        const previouslyKnown = this.persistedFormUrls ?? previous;
         for (const known of this.pendingEpg.values()) {
-            known.push(...epgUrlsAddedOutside(previous, known, next));
+            known.push(...epgUrlsAddedOutside(previouslyKnown, known, next));
         }
         this.persistedFormUrls = undefined;
     }
