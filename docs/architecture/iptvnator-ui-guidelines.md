@@ -1375,6 +1375,9 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   An EPG retry keeps sources added elsewhere, including ones merged by the
   earlier Save. Desktop receives the complete merged settings object.
 - A backup import brings in restored EPG URLs and keeps staged edits.
+  If overlapping settings writes fail, the EPG list falls back to the last
+  list that reached storage. A playlist-only restore during a pending removal
+  keeps the removal staged for retry if storage fails.
   The form becomes pristine when it has no edits or pending Save failures.
   Discard reloads stored values.
 

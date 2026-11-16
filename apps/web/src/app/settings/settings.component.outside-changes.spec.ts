@@ -965,6 +965,37 @@ describe('SettingsComponent with settings changed outside the form', () => {
         expect(settingsStore.getSettings().epgUrl).toEqual([]);
     });
 
+    it('keeps removal of a saved source after a playlist-only import and a failed retry', async () => {
+        jest.spyOn(window.electron, 'updateSettings').mockRejectedValueOnce(
+            new Error('runtime unavailable')
+        );
+        component.form.setEpgUrls(STAGED_GUIDE);
+        await expect(component.form.save(() => undefined)).rejects.toThrow();
+        expect(settingsStore.getSettings().epgUrl).toEqual([
+            SAVED_GUIDE,
+            STAGED_GUIDE,
+        ]);
+
+        component.form.removeEpgSource(1);
+        let failWrite!: () => void;
+        settingsStore.updateSettings.mockImplementationOnce(async (patch) => {
+            settingsStore._setSettings(patch);
+            await new Promise<void>((resolve) => (failWrite = resolve));
+            settingsStore._setSettings({ epgUrl: [SAVED_GUIDE, STAGED_GUIDE] });
+            throw new Error('storage unavailable');
+        });
+        const saving = component.form.save(() => undefined);
+        jest.spyOn(component.backup, 'importData').mockImplementation((done) =>
+            done()
+        );
+        component.importData();
+        failWrite();
+        await expect(saving).rejects.toThrow('storage unavailable');
+
+        await component.form.save(() => component.form.applySavedSettings());
+        expect(settingsStore.getSettings().epgUrl).toEqual([SAVED_GUIDE]);
+    });
+
     it('keeps a restored source removal when the earlier EPG write commits', async () => {
         let completeImport!: () => void;
         jest.spyOn(component.backup, 'importData').mockImplementation(

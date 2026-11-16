@@ -86,7 +86,9 @@ export class SettingsFormWrites {
         for (const known of this.pendingEpg.values()) {
             known.push(...epgUrlsAddedOutside(previouslyKnown, known, next));
         }
-        this.persistedFormUrls = undefined;
+        // A backup can see an optimistic list while a removal is still
+        // pending. Keep its confirmed sources available if the write fails.
+        if (!this.pendingEpg.size) this.persistedFormUrls = undefined;
     }
 
     clear(): void {

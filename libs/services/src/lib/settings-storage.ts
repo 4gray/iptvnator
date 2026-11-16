@@ -1,10 +1,41 @@
 import { type StorageMap } from '@ngx-pwa/local-storage';
+import { firstValueFrom } from 'rxjs';
 import {
     DEFAULT_TMDB_SETTINGS,
     STORE_KEY,
     type Settings,
 } from '@iptvnator/shared/interfaces';
 import { notifyTmdbKeyChange } from './settings-store.defaults';
+import type { SettingsStore } from './settings-store.service';
+
+export async function readSavedTmdbKey(storage: StorageMap): Promise<string> {
+    const saved = (await firstValueFrom(storage.get(STORE_KEY.Settings))) as
+        Partial<Settings> | undefined;
+    const key = saved?.tmdb?.apiKey;
+    return typeof key === 'string' ? key : '';
+}
+
+export async function saveTransferredTmdbKey(
+    storage: StorageMap,
+    store: Pick<
+        InstanceType<typeof SettingsStore>,
+        'applySavedTmdbKey' | 'refreshSavedTmdbKey'
+    >,
+    apiKey: string,
+    expectedKey: string,
+    isCurrent: () => boolean
+): Promise<boolean> {
+    const saved = await writeTransferredTmdbKey(
+        storage,
+        apiKey,
+        expectedKey,
+        isCurrent
+    );
+    if (saved) store.applySavedTmdbKey(apiKey);
+    else if (isCurrent())
+        await store.refreshSavedTmdbKey().catch(() => undefined);
+    return saved;
+}
 
 export async function writeSettings(
     storage: StorageMap,

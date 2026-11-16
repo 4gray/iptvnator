@@ -46,6 +46,9 @@ export interface SettingsUpdateOptions {
     retryEpgCleanup?: boolean;
 }
 
+const pickEpg = ({ epgUrl, epgEnabled }: Settings) => ({ epgUrl, epgEnabled });
+const settingsStorage = () => import('./settings-storage');
+
 export const SettingsStore = signalStore(
     { providedIn: 'root' },
     withState<Settings>(DEFAULT_SETTINGS),
@@ -72,7 +75,8 @@ export const SettingsStore = signalStore(
         let settingsLoadPromise: Promise<void> | undefined;
         let tmdbKeyRevision = 0;
         let epgSaveRevision = 0;
-        let committedEpgUrls: Settings['epgUrl'];
+        let pendingSettingsWrites = 0;
+        let committedEpg = pickEpg(DEFAULT_SETTINGS);
 
         return {
             loadSettings() {
@@ -154,8 +158,8 @@ export const SettingsStore = signalStore(
                 options: SettingsUpdateOptions = {},
                 onPersisted?: () => void
             ) {
-                const previousEpgUrls = store.epgUrl();
-                const previousEpgEnabled = store.epgEnabled?.();
+                if (!pendingSettingsWrites++)
+                    committedEpg = pickEpg(getState(store));
                 patchState(store, {
                     ...normalizeSettingsPatch(settings),
                     ...(settings.tmdb && {
@@ -164,12 +168,13 @@ export const SettingsStore = signalStore(
                 });
                 // Save the complete settings object, not just the partial update
                 const completeSettings = this.getSettings();
+                let storageFailure: 'save' | null = null;
+                let previousEpgUrls: Settings['epgUrl'];
                 try {
                     const preserveTmdbKey = settings.tmdb?.apiKey === undefined;
                     let apiKey = completeSettings.tmdb?.apiKey ?? '';
                     if (storage.backingEngine === 'indexedDB') {
-                        const { writeSettings } =
-                            await import('./settings-storage');
+                        const { writeSettings } = await settingsStorage();
                         apiKey = await writeSettings(
                             storage,
                             completeSettings,
@@ -182,37 +187,39 @@ export const SettingsStore = signalStore(
                     }
                     this.applySavedTmdbKey(apiKey);
                     if (!preserveTmdbKey) notifyTmdbKeyChange();
-                    patchState(store, { storageFailure: null });
+                    previousEpgUrls = committedEpg.epgUrl;
+                    committedEpg = pickEpg(completeSettings);
                 } catch (error) {
                     console.error('Failed to save settings:', error);
-                    // The in-memory patch above already applied, so without
-                    // this flag the change looks saved until the next restart.
-                    patchState(store, {
-                        storageFailure: 'save',
-                        epgUrl: previousEpgUrls,
-                        epgEnabled: previousEpgEnabled,
-                    });
+                    storageFailure = 'save';
                     throw error;
+                } finally {
+                    // Keep a newer write visible while it is pending. Once
+                    // writes settle, roll back to the last committed values.
+                    patchState(store, {
+                        storageFailure,
+                        ...(--pendingSettingsWrites === 0 && committedEpg),
+                    });
                 }
+                const epgSave = ++epgSaveRevision;
                 onPersisted?.();
                 if (completeSettings.player === VideoPlayer.EmbeddedMpv) {
                     const { scheduleEmbeddedMpvPrepare } =
                         await import('./settings-store.embedded-mpv');
                     scheduleEmbeddedMpvPrepare();
                 }
-                // Failed writes cannot retire an earlier committed preference.
-                const epgSave = ++epgSaveRevision;
-                committedEpgUrls = completeSettings.epgUrl;
                 const enableEpg = completeSettings.epgEnabled !== false;
-                const wasEpgEnabled = epgPreferences.enabled();
                 if (!enableEpg) await epgPreferences.apply(false);
                 if (
-                    epgSourceUrlsChanged(previousEpgUrls, settings.epgUrl) ||
+                    epgSourceUrlsChanged(
+                        previousEpgUrls,
+                        completeSettings.epgUrl
+                    ) ||
                     options.retryEpgCleanup ||
-                    (enableEpg && !wasEpgEnabled)
+                    (enableEpg && !epgPreferences.enabled())
                 ) {
                     // A native acknowledgement may arrive after a newer save.
-                    await epgSources.synchronize(committedEpgUrls);
+                    await epgSources.synchronize(committedEpg.epgUrl);
                 }
                 if (enableEpg && epgSave === epgSaveRevision)
                     await epgPreferences.apply(true);
@@ -231,12 +238,9 @@ export const SettingsStore = signalStore(
 
             async refreshSavedTmdbKey(): Promise<void> {
                 const revision = ++tmdbKeyRevision;
-                const saved = (await firstValueFrom(
-                    storage.get(STORE_KEY.Settings)
-                )) as Partial<Settings> | undefined;
-                const key = saved?.tmdb?.apiKey;
-                if (revision === tmdbKeyRevision)
-                    this.applySavedTmdbKey(typeof key === 'string' ? key : '');
+                const { readSavedTmdbKey } = await settingsStorage();
+                const key = await readSavedTmdbKey(storage);
+                if (revision === tmdbKeyRevision) this.applySavedTmdbKey(key);
             },
 
             async saveTransferredTmdbKey(
@@ -244,18 +248,14 @@ export const SettingsStore = signalStore(
                 expectedKey: string,
                 isCurrent: () => boolean
             ): Promise<boolean> {
-                const { writeTransferredTmdbKey } =
-                    await import('./settings-storage');
-                const saved = await writeTransferredTmdbKey(
+                const { saveTransferredTmdbKey } = await settingsStorage();
+                return saveTransferredTmdbKey(
                     storage,
+                    this,
                     apiKey,
                     expectedKey,
                     isCurrent
                 );
-                if (saved) this.applySavedTmdbKey(apiKey);
-                else if (isCurrent())
-                    await this.refreshSavedTmdbKey().catch(() => undefined);
-                return saved;
             },
 
             getSettings() {

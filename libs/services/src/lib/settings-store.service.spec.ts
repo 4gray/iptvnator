@@ -91,7 +91,7 @@ describe('SettingsStore dashboard rail settings', () => {
                 newValue: 'synthetic-change-notification',
             })
         );
-        await Promise.resolve();
+        await new Promise((resolve) => setTimeout(resolve, 0));
         expect(store.tmdb?.()).toEqual({
             enabled: true,
             apiKey: 'synthetic-new-key',
@@ -255,6 +255,37 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(injector.get(EpgPreferencesService).enabled()).toBe(true);
         expect(store.getSettings().epgEnabled).toBe(true);
     });
+
+    it.each([false, true])(
+        'keeps the latest committed EPG sources after an overlapping write fails (latest fails: %s)',
+        async (latestFails) => {
+            const initial = 'https://example.test/initial.xml';
+            const earlier = 'https://example.test/earlier.xml';
+            const latest = 'https://example.test/latest.xml';
+            storedSettings = { epgUrl: [initial] };
+            const store = injector.get(SettingsStore);
+            await store.loadSettings();
+            const firstWrite = new Subject<void>();
+            const secondWrite = new Subject<void>();
+            storage.set
+                .mockReturnValueOnce(firstWrite)
+                .mockReturnValueOnce(secondWrite);
+            const first = store.updateSettings({ epgUrl: [earlier] });
+            const second = store.updateSettings({ epgUrl: [latest] });
+            firstWrite.error(new Error('Earlier write failed'));
+            await expect(first).rejects.toThrow('Earlier write failed');
+            if (latestFails) {
+                secondWrite.error(new Error('Latest write failed'));
+                await expect(second).rejects.toThrow('Latest write failed');
+            } else {
+                secondWrite.next();
+                await second;
+            }
+            expect(store.getSettings().epgUrl).toEqual([
+                latestFails ? initial : latest,
+            ]);
+        }
+    );
 
     it('preserves an explicit age-rating country across saved settings reloads', async () => {
         storedSettings = { ageRatingCountry: 'DE' };
