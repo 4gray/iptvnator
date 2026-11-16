@@ -1,4 +1,5 @@
 @use '../player-controls/player-palette' as palette;
+@use '@yangkghjh/videojs-aspect-ratio-panel/dist/videojs-aspect-ratio-panel.css';
 
 :host {
     // Vendor chrome over video takes the player's focus ring.

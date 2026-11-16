@@ -112,6 +112,9 @@ ownership when the session, playback, engine, or component changes.
 
 ## Diagnostics And Recovery Ownership Boundary
 
+The Video.js component loads its aspect-ratio plugin stylesheet with the
+engine, so opening the workspace does not fetch those styles.
+
 The diagnostic panel publishes a bubbling `iptvnator:playback-issue` DOM event
 after rendering each issue, with only its bounded `code` in the detail. It contains
 no stream URL or provider credentials; the TV
