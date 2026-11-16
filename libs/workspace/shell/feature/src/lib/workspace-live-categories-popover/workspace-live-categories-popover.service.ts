@@ -33,12 +33,11 @@ import { WorkspaceLiveCategoriesPopoverComponent } from './workspace-live-catego
  * floating over the destination page, re-rendered for the new route's
  * context. So does any live-panel level change: `Cmd/Ctrl+B` reaches the
  * layout's document-level handler through the dialog, and the trigger that
- * owns this popover is then inside a folded, `inert` rail.
+ * owns this popover is then inside a folded, `inert` rail. A window resize
+ * across the compact band does the same without a level change.
  */
 @Injectable()
-export class WorkspaceLiveCategoriesPopoverService
-    implements LiveCategoriesPopover
-{
+export class WorkspaceLiveCategoriesPopoverService implements LiveCategoriesPopover {
     private readonly overlay = inject(Overlay);
     private readonly injector = inject(Injector);
     private readonly sidebarState = inject(LiveLayoutSidebarStateService);
@@ -56,10 +55,15 @@ export class WorkspaceLiveCategoriesPopoverService
             .subscribe(() => this.close());
         // Seeded by the effect's first run, not at construction: the state
         // may move between the two before anything is open.
+        // The effective fold counts too: the compact window band (UI-67)
+        // folds and unfolds the rail without changing the stored level, and
+        // unfolding removes the dropdown that owns this popover.
         const sidebarState = this.sidebarState.stateOf('portal');
+        const categoriesHidden =
+            this.sidebarState.areCategoriesHiddenFor('portal');
         let previous: string | null = null;
         effect(() => {
-            const next = sidebarState();
+            const next = `${sidebarState()}:${categoriesHidden()}`;
             const changed = previous !== null && next !== previous;
             previous = next;
             if (changed) {
