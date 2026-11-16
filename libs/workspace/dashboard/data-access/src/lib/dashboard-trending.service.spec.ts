@@ -129,6 +129,7 @@ describe('DashboardTrendingService', () => {
     });
 
     it('falls back to a copy in an unlocked portal when the chosen match is withheld', async () => {
+        playlists.set([{ _id: 'pl-1' }, { _id: 'pl-2' }]);
         matchTitles.mockResolvedValue([
             match(),
             match({ playlistId: 'pl-2', playlistName: 'Other', categoryId: 8 }),
@@ -206,6 +207,18 @@ describe('DashboardTrendingService', () => {
         await service.load();
 
         expect(matchTitles).toHaveBeenCalledTimes(2);
+        expect(service.items()[0].match).toBeNull();
+    });
+
+    it('removes links to a deleted playlist even if TMDB is unreachable', async () => {
+        const service = createService();
+        await service.load();
+        expect(service.items()[0].match?.playlistId).toBe('pl-1');
+
+        playlists.set([]);
+        getTrendingWeek.mockResolvedValueOnce([]);
+        await service.load();
+        expect(service.items()).toHaveLength(1);
         expect(service.items()[0].match).toBeNull();
     });
 

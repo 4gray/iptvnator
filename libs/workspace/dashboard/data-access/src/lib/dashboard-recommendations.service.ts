@@ -42,6 +42,7 @@ interface SeedRecommendations {
     /** The viewer chose the provider's data: no TMDB, and no verdict on TMDB */
     skipped?: true;
     seedKey: string;
+    matchToken: string;
     seedTitle: string;
     entries: RecommendationCandidate[];
 }
@@ -188,13 +189,14 @@ export class DashboardRecommendationsService {
                 answered.length > 0 &&
                 !answered.some((seed) => seed.resolved)
             ) {
-                // Kept offline, except what a seed taken off TMDB added.
+                // Kept offline, except cards from a seed with a new choice.
                 this.dropExcludedCards(
                     excluded,
-                    new Set(
-                        perSeed
-                            .filter((seed) => seed.skipped)
-                            .map((seed) => seed.seedKey)
+                    new Map(
+                        perSeed.map(({ seedKey, matchToken }) => [
+                            seedKey,
+                            matchToken,
+                        ])
                     )
                 );
             } else {
@@ -261,7 +263,7 @@ export class DashboardRecommendationsService {
      */
     private dropExcludedCards(
         excluded: ExclusionIndex,
-        optedOutSeeds: ReadonlySet<string> = new Set()
+        currentChoices: ReadonlyMap<string, string>
     ): void {
         const { candidates, matches } = this.loaded();
         // A card whose playlist is gone would navigate to a dead route,
@@ -272,11 +274,13 @@ export class DashboardRecommendationsService {
             this.data.playlists().map((playlist) => playlist._id)
         );
         const kept: LoadedRecommendations = {
-            candidates: candidates.filter(
-                (candidate) =>
-                    !optedOutSeeds.has(candidate.seedKey) &&
+            candidates: candidates.filter((candidate) => {
+                const choice = currentChoices.get(candidate.seedKey);
+                return (
+                    (choice === undefined || choice === candidate.matchToken) &&
                     !isExcludedCandidate(candidate, excluded)
-            ),
+                );
+            }),
             matches: matches.filter((match) =>
                 livePlaylists.has(match.playlistId)
             ),
@@ -356,6 +360,7 @@ export class DashboardRecommendationsService {
         const seedKey = identity
             ? JSON.stringify(identity)
             : dashboardTmdbLookupKey(seed);
+        const matchToken = dashboardTmdbMatchToken(this.matches, seed);
         const resolved = await resolveDashboardTmdbDetails(
             this.enrichment,
             seed
@@ -364,6 +369,7 @@ export class DashboardRecommendationsService {
             return {
                 resolved: false,
                 seedKey,
+                matchToken,
                 seedTitle: seed.title,
                 entries: [],
             };
@@ -374,6 +380,7 @@ export class DashboardRecommendationsService {
                 resolved: true,
                 skipped: true,
                 seedKey,
+                matchToken,
                 seedTitle: attempt.title,
                 entries: [],
             };
@@ -381,12 +388,14 @@ export class DashboardRecommendationsService {
         return {
             resolved: true,
             seedKey,
+            matchToken,
             seedTitle: attempt.title,
             entries: toCandidates(
                 details.recommendations?.results ?? [],
                 attempt.mediaType,
                 attempt.title,
-                seedKey
+                seedKey,
+                matchToken
             ),
         };
     }

@@ -917,7 +917,8 @@ since shipped.)
   deleting a playlist re-runs the matching (a deleted one would leave cards
   linking nowhere). An empty or failed load does not latch. If the inputs
   change during a request, the pending inputs load after it settles,
-  even when that request returned no entries.
+  even when that request returned no entries. Cached cards stop linking
+  to deleted playlists even while TMDB is unreachable.
 - **Recommendations rail** ("Because you watched",
   `dashboardRails.tmdbRecommendations` toggle): TMDB has no account-free
   "recommendations for you" endpoint, so `DashboardRecommendationsService`
@@ -997,8 +998,8 @@ since shipped.)
   clears the rail (the service is root-provided and outlives the
   dashboard); a load requested while one is in flight is queued and
   re-run afterwards; a load where no seed resolved (TMDB unreachable)
-  does not latch and retries instead. Offline, a seed switched to provider
-  data removes only the cards attributed to that catalog item, even when
+  does not latch and retries instead. Offline, changing a seed's choice
+  removes only the cards attributed to its previous match, even when
   another seed has the same title. Same gating as trending: TMDB
   opt-in + Electron DB worker, deferred behind the dashboard's own data.
 - **The viewer's match choice** (`TmdbMatchService`, set in a detail view's

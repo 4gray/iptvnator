@@ -41,7 +41,7 @@ export interface DashboardRecommendationItem {
 export type RecommendationCandidate = Omit<
     DashboardRecommendationItem,
     'match'
-> & { seedKey: string };
+> & { seedKey: string; matchToken: string };
 
 /**
  * The release year an activity row STATES in a metadata field, never one
@@ -210,7 +210,8 @@ export function toCandidates(
     results: readonly TmdbSearchResult[],
     mediaType: 'movie' | 'tv',
     seedTitle: string,
-    seedKey: string
+    seedKey: string,
+    matchToken: string
 ): RecommendationCandidate[] {
     return results
         .map((result) => {
@@ -232,6 +233,7 @@ export function toCandidates(
                 rating,
                 seedTitle,
                 seedKey,
+                matchToken,
             };
         })
         .filter((entry) => entry.tmdbId > 0 && entry.title !== '');

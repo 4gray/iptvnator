@@ -118,23 +118,29 @@ describe('DashboardRecommendationsService and TMDB match choices', () => {
         expect(service.items()[0].title).toBe('Alpha 500');
     });
 
-    it('keeps the other same-titled seed when one opts out during an outage', async () => {
-        seeds = [seed, { ...seed, xtream_id: 43 }];
-        choice = { mode: 'manual', tmdbId: 604, title: 'Synthetic Match' };
-        const service = createService();
-        await service.load();
-        expect(service.items().map(({ tmdbId }) => tmdbId)).toEqual(
-            expect.arrayContaining([100, 500])
-        );
+    it.each([
+        { mode: 'provider' },
+        { mode: 'manual', tmdbId: 605, title: 'Synthetic New Match' },
+    ])(
+        'keeps only the other same-titled seed when the choice changes to $mode during an outage',
+        async (newChoice) => {
+            seeds = [seed, { ...seed, xtream_id: 43 }];
+            choice = { mode: 'manual', tmdbId: 604, title: 'Synthetic Match' };
+            const service = createService();
+            await service.load();
+            expect(service.items().map(({ tmdbId }) => tmdbId)).toEqual(
+                expect.arrayContaining([100, 500])
+            );
 
-        choice = { mode: 'provider' };
-        enrichMovie.mockResolvedValue(null);
-        await service.load();
+            choice = newChoice;
+            enrichMovie.mockResolvedValue(null);
+            await service.load();
 
-        expect(service.items().map(({ tmdbId }) => tmdbId)).toEqual(
-            titles.map((_, i) => 100 + i)
-        );
-    });
+            expect(service.items().map(({ tmdbId }) => tmdbId)).toEqual(
+                titles.map((_, i) => 100 + i)
+            );
+        }
+    );
 
     it('loads again when the seed is re-matched', async () => {
         const service = createService();

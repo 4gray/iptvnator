@@ -40,8 +40,11 @@ export class DashboardTrendingService {
      */
     readonly items = computed<DashboardTrendingItem[]>(() => {
         const { entries, matches } = this.loaded();
+        const playlists = new Set(this.data.playlists().map(({ _id }) => _id));
         const grouped = groupTitleMatchesByKey(
-            this.titleMatch.visibleMatches(matches)
+            this.titleMatch.visibleMatches(
+                matches.filter((match) => playlists.has(match.playlistId))
+            )
         );
         return entries.map((entry) => ({
             ...entry,
