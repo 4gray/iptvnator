@@ -384,17 +384,18 @@
 @media (max-width: 960px) {
     // A 900px Windows/Linux header gives 196px to the window controls. With
     // a fixed 260px switcher the search field was left 146px and its scope
-    // chip shrank to "L…". The switcher ellipsizes its name, so it is what
-    // yields; the field keeps room for a readable chip.
+    // chip shrank to "L…". The switcher ellipsizes its name, so it yields
+    // first (four times faster); the field still shrinks when a route adds
+    // more actions, so they never reach the window controls.
     .playlist-switcher {
         width: auto;
-        flex: 0 1 190px;
-        min-width: 120px;
+        flex: 0 4 190px;
+        min-width: 88px;
     }
 
     .search-field {
         min-width: 120px;
-        flex: 1 0 200px;
+        flex: 1 1 200px;
         gap: 6px;
         padding-inline: 10px;
 

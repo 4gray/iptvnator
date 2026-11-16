@@ -865,9 +865,10 @@ remain local when the meaning is explicit.
   settles. The Groups view requests sidebar widths as rail + channel pane +
   the sidebar's own padding and border, measured when the drag starts, so a
   capped rail never loses that chrome on commit. At ≤960px the header's playlist switcher yields
-  (`flex: 0 1 190px`, 120px floor) to a search field that keeps 200px, so the
-  Windows/Linux header, whose window controls take 196px, still shows a
-  readable scope chip at 900px. Inside the field the input has a 64px flex
+  first (`flex: 0 4 190px`, 88px floor) to a search field with a 200px basis,
+  so the Windows/Linux header, whose window controls take 196px, still shows
+  a scope chip and input at 900px; the field shrinks too, so a route's full
+  set of actions never reaches the window controls. Inside the field the input has a 64px flex
   basis and the scope chip shrinks twice as fast, so a long scope ellipsizes
   instead of leaving the input only its padding. On Windows/Linux the
   palette trigger shows its bolt icon instead of the ~50px "Ctrl+K" label at

@@ -185,10 +185,20 @@ async function expectUsablePlayer(page: Page): Promise<void> {
  */
 async function expectHeaderSearchFits(page: Page): Promise<void> {
     // Windows and Linux give the window controls 196px of the header; apply
-    // that padding on every platform so macOS runs check the tightest case.
-    await page.evaluate(() =>
-        document.body.classList.add('frameless-platform')
-    );
+    // that padding on every platform so macOS runs check the tightest case,
+    // with every header action this route can show.
+    await page.evaluate(() => {
+        document.body.classList.add('frameless-platform');
+        // The parental-lock button is the one header action this route
+        // leaves out; a stand-in with its classes fills the header.
+        const sidebarToggle = document.querySelector(
+            '.header-actions--leading .header-sidebar-toggle'
+        );
+        const lock = document.createElement('button');
+        lock.className = 'header-shortcut header-parental-lock';
+        lock.textContent = 'L';
+        sidebarToggle?.before(lock);
+    });
     await page.waitForTimeout(250);
     const layout = await page.evaluate(() => {
         const header = document.querySelector('app-workspace-shell-header');
@@ -204,19 +214,34 @@ async function expectHeaderSearchFits(page: Page): Promise<void> {
             input: box('.search-field input'),
             trigger: box('.command-trigger'),
             shortcuts: box('.shortcuts-trigger'),
+            actions: box('.header-actions--trailing'),
+            headerContentRight: (() => {
+                const element =
+                    header?.querySelector<HTMLElement>('.workspace-header');
+                if (!element) return 0;
+                const rect = element.getBoundingClientRect();
+                const padding = parseFloat(
+                    getComputedStyle(element).paddingRight
+                );
+                return rect.right - padding;
+            })(),
         };
     });
     // The scope chip and the input share the field: a long scope ellipsizes,
     // but neither squeezes the other out. Before the fixes the input's
     // intrinsic width cut the chip to "L…", and then a long chip left the
     // input only its padding.
-    expect(layout.scopeLabel?.width ?? 0).toBeGreaterThanOrEqual(40);
+    expect(layout.scopeLabel?.width ?? 0).toBeGreaterThanOrEqual(28);
     expect(layout.input?.width ?? 0).toBeGreaterThanOrEqual(40);
     expect(layout.field?.right ?? 0).toBeLessThanOrEqual(
         (layout.shortcuts?.left ?? 0) + 1
     );
     expect(layout.trigger?.right ?? 0).toBeLessThanOrEqual(
         (layout.field?.right ?? 0) + 1
+    );
+    // The last action stays clear of the space kept for the window controls.
+    expect(layout.actions?.right ?? 0).toBeLessThanOrEqual(
+        layout.headerContentRight + 1
     );
 }
 
