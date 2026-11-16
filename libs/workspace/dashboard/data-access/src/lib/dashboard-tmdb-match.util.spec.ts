@@ -48,6 +48,32 @@ describe('dashboard TMDB match choice', () => {
             });
         });
 
+        it('uses an episode position’s parent and skips choices for an unknown parent', () => {
+            const episode = {
+                ...xtreamSeries,
+                xtream_id: 501,
+            };
+            const position = {
+                contentXtreamId: 501,
+                contentType: 'episode' as const,
+            };
+
+            expect(
+                dashboardTmdbMatchIdentity(episode, {
+                    ...position,
+                    seriesXtreamId: 77,
+                })
+            ).toEqual(expect.objectContaining({ itemId: '77' }));
+            expect(
+                dashboardTmdbMatchIdentity(episode, {
+                    ...position,
+                    contentXtreamId: 502,
+                    seriesXtreamId: 77,
+                })
+            ).toEqual(expect.objectContaining({ itemId: '77' }));
+            expect(dashboardTmdbMatchIdentity(episode, position)).toBeNull();
+        });
+
         it('uses the Stalker entry id, media type and catalog', () => {
             expect(dashboardTmdbMatchIdentity(stalkerSeries)).toEqual({
                 provider: 'stalker',

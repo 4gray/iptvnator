@@ -3,8 +3,10 @@ import {
     TmdbEnrichmentService,
     extractYear,
     tmdbBackdropUrl,
+    type TmdbMatchIdentity,
     type TmdbMatchService,
 } from '@iptvnator/services';
+import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import {
     DashboardTmdbMatchItem,
     buildDashboardTmdbAttempts,
@@ -84,12 +86,15 @@ export class DashboardHeroTmdbService {
      * so a language change must load them again. Reactive when read inside
      * a computed or effect (settings signal underneath).
      */
-    keyFor(item: DashboardHeroTmdbItem): string {
+    keyFor(
+        item: DashboardHeroTmdbItem,
+        position?: PlaybackPositionData | null
+    ): string {
         // The viewer's match choice too: a title re-matched in its detail
         // view must not keep the previous match's extras.
         void this.loadMatches();
         const matches = this.matches();
-        const identity = dashboardTmdbMatchIdentity(item);
+        const identity = dashboardTmdbMatchIdentity(item, position);
         // The presenter also caches by this key. A cold request can load a
         // manual choice, so it must not share the final automatic key.
         const matchKey =
@@ -100,9 +105,10 @@ export class DashboardHeroTmdbService {
     }
 
     getExtras(
-        item: DashboardHeroTmdbItem
+        item: DashboardHeroTmdbItem,
+        position?: PlaybackPositionData | null
     ): Promise<DashboardHeroTmdbExtras | null> {
-        const identity = dashboardTmdbMatchIdentity(item);
+        const identity = dashboardTmdbMatchIdentity(item, position);
         if (
             !this.enrichment.isEnabled() ||
             (!identity && buildDashboardTmdbAttempts(item).length === 0)
@@ -110,12 +116,12 @@ export class DashboardHeroTmdbService {
             return Promise.resolve(null);
         }
 
-        const key = this.keyFor(item);
+        const key = this.keyFor(item, position);
         if (identity && !this.matches()) {
             // Both the cold caller and the presenter's key-change rerun must
             // reach the same memo entry before starting the TMDB lookup.
             return this.loadMatches().then((matches) =>
-                matches ? this.getExtras(item) : null
+                matches ? this.getExtras(item, position) : null
             );
         }
         const cached = this.memo.get(key);
@@ -123,7 +129,7 @@ export class DashboardHeroTmdbService {
             return cached;
         }
 
-        const pending = this.loadExtras(item);
+        const pending = this.loadExtras(item, identity);
         this.memo.set(key, pending);
         // Only answers are kept for the session. A null may be a failed or
         // offline lookup, so the next visit asks again; a lasting miss is
@@ -138,13 +144,15 @@ export class DashboardHeroTmdbService {
 
     /** Through the shared resolver, so the viewer's match choice holds. */
     private async loadExtras(
-        item: DashboardHeroTmdbItem
+        item: DashboardHeroTmdbItem,
+        identity: TmdbMatchIdentity | null
     ): Promise<DashboardHeroTmdbExtras | null> {
         try {
             const resolved = await resolveDashboardTmdbDetails(
                 this.enrichment,
                 item,
-                this.matches()
+                this.matches(),
+                identity
             );
             return resolved?.details ? toHeroExtras(resolved.details) : null;
         } catch (error) {

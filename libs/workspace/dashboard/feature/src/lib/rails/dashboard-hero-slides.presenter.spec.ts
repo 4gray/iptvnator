@@ -503,6 +503,63 @@ describe('DashboardHeroSlidesPresenter', () => {
         expect(enrichMovie).toHaveBeenCalledTimes(2);
     });
 
+    it('loads the series choice for an episode-keyed recent in the hero', async () => {
+        const recent: PortalRecentItem = {
+            ...series,
+            id: 31,
+            xtream_id: 501,
+            title: 'Synthetic Parent Series',
+            source: 'xtream',
+            type: 'series',
+        };
+        recentItems.set([recent]);
+        favorites.set([]);
+        addedItems.set([]);
+        candidates.set([]);
+        tmdbEnabled.set(true);
+        positions.set(recent.id, {
+            contentType: 'episode',
+            contentXtreamId: 501,
+            seriesXtreamId: 77,
+            positionSeconds: 30,
+        });
+        try {
+            const presenter = create([
+                DashboardHeroTmdbService,
+                {
+                    provide: TmdbEnrichmentService,
+                    useValue: {
+                        isEnabled: tmdbEnabled,
+                        language: tmdbLanguage,
+                        getMatches: async () => ({
+                            read: ({ itemId }: { itemId: string }) =>
+                                itemId === '77'
+                                    ? {
+                                          mode: 'manual',
+                                          tmdbId: 604,
+                                          title: 'Synthetic Match',
+                                      }
+                                    : { mode: 'provider' },
+                        }),
+                        enrichTv: async () => ({
+                            overview: 'Synthetic parent plot',
+                        }),
+                    },
+                },
+            ]);
+            TestBed.tick();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            TestBed.tick();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+
+            expect(presenter.slides()[0].description).toBe(
+                'Synthetic parent plot'
+            );
+        } finally {
+            positions.delete(recent.id);
+        }
+    });
+
     it('loads the extras again when the TMDB language changes', async () => {
         tmdbEnabled.set(true);
         getExtras.mockImplementation((item: PortalActivityItem) =>

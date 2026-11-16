@@ -6,6 +6,7 @@ import type {
     TmdbTvDetails,
 } from '@iptvnator/services';
 import {
+    type PlaybackPositionData,
     PortalActivityItem,
     extractStalkerItemTmdbHints,
 } from '@iptvnator/shared/interfaces';
@@ -43,14 +44,28 @@ function firstText(...values: unknown[]): string {
  * stored entry's id, media type and catalog. M3U rows have no detail match.
  */
 export function dashboardTmdbMatchIdentity(
-    item: DashboardTmdbMatchItem
+    item: DashboardTmdbMatchItem,
+    position?: Pick<
+        PlaybackPositionData,
+        'contentType' | 'contentXtreamId' | 'seriesXtreamId'
+    > | null
 ): TmdbMatchIdentity | null {
     const playlistId = firstText(item.playlist_id);
     if (!playlistId || (item.type !== 'movie' && item.type !== 'series')) {
         return null;
     }
     if (item.source === 'xtream') {
-        const itemId = firstText(item.xtream_id);
+        let itemId = firstText(item.xtream_id);
+        if (item.type === 'series' && position?.contentType === 'episode') {
+            // A recent row can be keyed by an episode. Its position may
+            // already point to the next episode, which has the same parent.
+            const parent = position.seriesXtreamId;
+            if (parent && Number.isSafeInteger(parent) && parent > 0) {
+                itemId = String(parent);
+            } else if (Number(itemId) === position.contentXtreamId) {
+                return null;
+            }
+        }
         return itemId
             ? {
                   provider: 'xtream',
@@ -129,10 +144,10 @@ function enrich(
 export async function resolveDashboardTmdbDetails(
     enrichment: TmdbEnrichmentService,
     item: DashboardTmdbMatchItem,
-    matches?: TmdbMatchService | null
+    matches?: TmdbMatchService | null,
+    identity = dashboardTmdbMatchIdentity(item)
 ): Promise<DashboardTmdbResolution | null> {
     const attempts = buildDashboardTmdbAttempts(item);
-    const identity = dashboardTmdbMatchIdentity(item);
     if (identity) {
         const store =
             matches === undefined ? await enrichment.getMatches?.() : matches;

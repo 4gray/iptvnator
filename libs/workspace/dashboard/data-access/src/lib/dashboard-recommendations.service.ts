@@ -328,7 +328,11 @@ export class DashboardRecommendationsService {
     private selectSeeds(): RecommendationSeed[] {
         const seeds = new Map<string, RecommendationSeed>();
         for (const item of this.data.globalRecentVodItems()) {
-            const identity = dashboardTmdbMatchIdentity(item);
+            const position =
+                item.source === 'xtream' && item.type === 'series'
+                    ? this.data.getPlaybackPositionForItem(item)
+                    : null;
+            const identity = dashboardTmdbMatchIdentity(item, position);
             const matchToken = dashboardTmdbMatchToken(this.matches, identity);
             if (!matchToken && buildDashboardTmdbAttempts(item).length === 0) {
                 continue;
@@ -355,7 +359,8 @@ export class DashboardRecommendationsService {
         const resolved = await resolveDashboardTmdbDetails(
             this.enrichment,
             item,
-            this.matches
+            this.matches,
+            identities[0]
         );
         if (!resolved) {
             return {

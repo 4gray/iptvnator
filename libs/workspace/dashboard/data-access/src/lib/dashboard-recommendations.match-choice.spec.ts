@@ -3,7 +3,10 @@ import {
     CatalogTitleMatchService,
     TmdbEnrichmentService,
 } from '@iptvnator/services';
-import { CatalogTitleMatch } from '@iptvnator/shared/interfaces';
+import {
+    CatalogTitleMatch,
+    type PlaybackPositionData,
+} from '@iptvnator/shared/interfaces';
 import { DashboardDataService } from './dashboard-data.service';
 import { DashboardRecommendationsService } from './dashboard-recommendations.service';
 
@@ -34,6 +37,8 @@ describe('DashboardRecommendationsService and TMDB match choices', () => {
     let choice: unknown;
     let otherChoice: unknown;
     let enrichMovie: jest.Mock;
+    let enrichTv: jest.Mock;
+    let playbackPosition: PlaybackPositionData | null;
     let seeds: object[];
 
     function createService(): DashboardRecommendationsService {
@@ -44,7 +49,7 @@ describe('DashboardRecommendationsService and TMDB match choices', () => {
                     useValue: {
                         isEnabled: () => true,
                         enrichMovie,
-                        enrichTv: jest.fn(async () => null),
+                        enrichTv,
                         language: () => 'en-US',
                         getMatches: async () => ({
                             read: (identity: { itemId: string }) =>
@@ -76,6 +81,7 @@ describe('DashboardRecommendationsService and TMDB match choices', () => {
                         globalRecentVodItems: () => seeds,
                         globalRecentItems: () => seeds,
                         globalFavoriteItems: () => [],
+                        getPlaybackPositionForItem: () => playbackPosition,
                         playlists: () => [{ _id: 'pl-1' }],
                     },
                 },
@@ -88,6 +94,8 @@ describe('DashboardRecommendationsService and TMDB match choices', () => {
         choice = null;
         otherChoice = null;
         seeds = [seed];
+        playbackPosition = null;
+        enrichTv = jest.fn(async () => null);
         enrichMovie = jest.fn(
             async (query: { matchIdentity?: unknown; title: string }) =>
                 recommendations(
@@ -99,6 +107,29 @@ describe('DashboardRecommendationsService and TMDB match choices', () => {
                 )
         );
     });
+
+    it.each([42, undefined])(
+        'uses the parent series choice for an episode-keyed seed (%s)',
+        async (seriesXtreamId) => {
+            seeds = [{ ...seed, type: 'series', xtream_id: 43 }];
+            playbackPosition = {
+                contentType: 'episode',
+                contentXtreamId: 43,
+                seriesXtreamId,
+                positionSeconds: 30,
+            };
+            choice = { mode: 'manual', tmdbId: 604, title: 'Synthetic Parent' };
+            otherChoice = { mode: 'provider' };
+
+            await createService().load();
+
+            expect(enrichTv).toHaveBeenCalledTimes(1);
+            const [query] = enrichTv.mock.calls[0];
+            expect(query.matchIdentity?.itemId).toBe(
+                seriesXtreamId?.toString()
+            );
+        }
+    );
 
     it('recommends from the title the viewer matched by hand', async () => {
         choice = { mode: 'manual', tmdbId: 604, title: 'Synthetic Match' };

@@ -1009,7 +1009,8 @@ since shipped.)
   the recommendations rail resolve a row through
   `resolveDashboardTmdbDetails` (`dashboard-tmdb-match.util.ts`), which
   builds the row's match identity the way the detail views do (Xtream:
-  catalog type and stream/series id; Stalker: the stored entry's id,
+  catalog type and stream/series id, using the parent from playback
+  progress for episode-keyed history; Stalker: the stored entry's id,
   media type and catalog) and reads the choice first. A manual match is
   loaded by its media type and TMDB id, including for rows with no
   searchable provider title. "Use the provider's data"

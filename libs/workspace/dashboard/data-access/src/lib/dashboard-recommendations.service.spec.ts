@@ -138,6 +138,7 @@ describe('DashboardRecommendationsService', () => {
                         globalRecentVodItems: () => recentVod,
                         globalRecentItems: () => recentAll,
                         globalFavoriteItems: () => favorites,
+                        getPlaybackPositionForItem: () => null,
                         playlists: () => playlists,
                     },
                 },
