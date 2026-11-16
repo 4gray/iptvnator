@@ -21,6 +21,7 @@ export interface VjsTextTracksConfig {
     player: Pick<VideoJsPlayer, 'textTracks'>;
     showCaptions: () => boolean;
     refresh: () => void;
+    nativeFullscreen?: () => boolean;
     /**
      * Vendor-chrome hosts pass a "playback started" probe. Its presence
      * switches the caption preference from authoritative (shared controls, the
@@ -52,8 +53,19 @@ export class VjsTextTracks {
         this.resetSourceState();
         this.trackList = trackList;
         if (trackList && typeof trackList.addEventListener === 'function') {
-            const refresh: EventListener = () => {
-                this.applyCaptionState();
+            const refresh: EventListener = (event) => {
+                if (
+                    event.type === 'change' &&
+                    this.config.nativeFullscreen?.()
+                ) {
+                    const selected = this.readSubtitleTracks().find(
+                        ({ track }) => track.mode === 'showing'
+                    );
+                    this.subtitleOverride = selected?.id ?? -1;
+                    this.suppressedTrack = null;
+                } else {
+                    this.applyCaptionState();
+                }
                 this.config.refresh();
             };
             this.refreshListener = refresh;
@@ -170,6 +182,9 @@ export class VjsTextTracks {
     }
 
     private applyCaptionState(): void {
+        if (this.config.nativeFullscreen?.()) {
+            return;
+        }
         const tracks = this.readSubtitleTracks();
         if (this.subtitleOverride !== null) {
             this.applyOverride(tracks);
