@@ -1,4 +1,5 @@
 import { normalizeAgeRatingCountry } from '@iptvnator/shared/interfaces/age-rating';
+import { epgSourceReferenceIdentity } from '@iptvnator/services/playlist-backup';
 import {
     AbstractControl,
     FormArray,
@@ -194,17 +195,45 @@ export function applyEpgUrlsToFormArray(
     });
 }
 
-export function replaceEpgUrlsInFormArray(
+/** Reuses source controls so an open file picker and unfinished rows survive a rebase. */
+export function reconcileEpgFormArray(
     formArray: FormArray,
-    urls: string | readonly (string | null)[] = []
-): void {
-    formArray.clear();
-    applyEpgUrlsToFormArray(
-        formArray,
-        typeof urls === 'string'
-            ? urls
-            : urls.filter((url): url is string => typeof url === 'string')
-    );
+    urls: readonly (string | null)[] = []
+): (string | null)[] {
+    const controlsBySource = new Map<string, AbstractControl[]>();
+    const unfinished: { index: number; control: AbstractControl }[] = [];
+    formArray.controls.forEach((control, index) => {
+        const url = (control.value as string | null)?.trim();
+        if (!url) {
+            unfinished.push({ index, control });
+            return;
+        }
+        const identity = epgSourceReferenceIdentity(url);
+        const controls = controlsBySource.get(identity) ?? [];
+        controls.push(control);
+        controlsBySource.set(identity, controls);
+    });
+
+    const disabled = formArray.disabled;
+    const restored = urls
+        .filter((url): url is string => Boolean(url))
+        .map((url) => {
+            const control = controlsBySource
+                .get(epgSourceReferenceIdentity(url))
+                ?.shift();
+            if (control) {
+                control.setValue(url, { onlySelf: true, emitEvent: false });
+                return control;
+            }
+            const created = createEpgUrlControl(url);
+            if (disabled) created.disable({ emitEvent: false });
+            return created;
+        });
+    for (const { index, control } of unfinished)
+        restored.splice(index, 0, control);
+    formArray.clear({ emitEvent: false });
+    formArray.push(restored);
+    return formArray.getRawValue();
 }
 
 export function createSettingsFromFormValue(

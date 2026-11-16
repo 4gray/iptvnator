@@ -8,7 +8,7 @@ import {
     untracked,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { AbstractControl, FormArray, FormBuilder } from '@angular/forms';
+import { FormArray, FormBuilder } from '@angular/forms';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     EpgSourceReconciliationError,
@@ -41,7 +41,7 @@ import {
     createEpgUrlControl,
     createSettingsForm,
     createSettingsFromFormValue,
-    replaceEpgUrlsInFormArray,
+    reconcileEpgFormArray,
     SettingsForm,
 } from './settings-form.utils';
 import { SettingsFormWrites } from './settings-form-writes';
@@ -102,7 +102,6 @@ export class SettingsFormFacade {
      * browser PWA)
      */
     readonly epgUrl = this.form.get('epgUrl') as FormArray;
-    readonly epgFilePickers = new Set<AbstractControl>();
 
     /**
      * Dotted paths of the staged values that differ from the saved ones.
@@ -174,7 +173,8 @@ export class SettingsFormFacade {
         );
 
         if (this.supportsEpg && currentSettings.epgUrl) {
-            replaceEpgUrlsInFormArray(this.epgUrl, currentSettings.epgUrl);
+            this.epgUrl.clear();
+            this.setEpgUrls(currentSettings.epgUrl);
         }
         this.takeSavedSnapshot();
         // The app launched with the stored values; recorded once per app run,
@@ -485,13 +485,12 @@ export class SettingsFormFacade {
             this.unsettledSavePaths,
             this.writes.knownUrls(this.savedSnapshot.epgUrl),
             submitted,
-            this.writes.submittedEpgUrls,
-            this.epgFilePickers.size > 0
+            this.writes.submittedEpgUrls
         );
         for (const path of diffSettingsValues(next, current)) {
             if (staged.has(path)) continue;
             if (path === 'epgUrl')
-                replaceEpgUrlsInFormArray(this.epgUrl, next.epgUrl);
+                next.epgUrl = reconcileEpgFormArray(this.epgUrl, next.epgUrl);
             else this.form.get(path)?.setValue(readSettingsPath(next, path));
         }
         if (addedEpgUrls.length) this.setEpgUrls(addedEpgUrls);

@@ -59,18 +59,18 @@ export function pickChangedSettings(
 /**
  * What the form would show after `hydrateFromStore()` for these settings,
  * computed without touching the form: a control takes the stored value when
- * the settings carry its key (a group, each leaf it carries), EPG sources
- * are trimmed and blank rows dropped, and anything else keeps `current`.
+ * the settings carry its key (a group, each leaf it carries). EPG sources are
+ * trimmed and blank rows dropped. Missing settings keep the saved baseline.
  */
 export function settingsToFormValue(
     settings: Settings,
-    current: SettingsFormValue
+    saved: SettingsFormValue
 ): SettingsFormValue {
     const stored: Values = {
         ...settings,
         ...normalizeSavedAppearance(settings),
     };
-    const next: Values = { ...(current as unknown as Values) };
+    const next: Values = { ...(saved as unknown as Values) };
     for (const key of Object.keys(next)) {
         if (!(key in stored)) continue;
         const value = stored[key];
@@ -99,14 +99,13 @@ export function rebaseSettingsForm(
     unsettledPaths: ReadonlySet<string>,
     ownEpgUrls: unknown[],
     submitted?: SettingsFormSubmission,
-    pendingEpgUrls?: readonly (string | null)[],
-    epgPickerOpen = false
+    pendingEpgUrls?: readonly (string | null)[]
 ): {
     next: SettingsFormValue;
     staged: ReadonlySet<string>;
     addedEpgUrls: string[];
 } {
-    const next = settingsToFormValue(stored, current);
+    const next = settingsToFormValue(stored, saved);
     const staged = new Set(diffSettingsValues(current, saved));
     if (submitted) {
         const laterEdits = new Set(
@@ -133,13 +132,10 @@ export function rebaseSettingsForm(
             staged.add(path);
         }
     }
-    if (epgPickerOpen) staged.add('epgUrl');
     const addedEpgUrls = staged.has('epgUrl')
         ? epgUrlsAddedOutside(current.epgUrl, ownEpgUrls, next.epgUrl)
         : [];
-    // Keep unfinished rows and the controls targeted by an open file picker.
-    const hasUnfinishedRow = current.epgUrl?.some((url) => !url?.trim());
-    if (staged.has('epgUrl') && !epgPickerOpen && !hasUnfinishedRow) {
+    if (staged.has('epgUrl')) {
         const draft = [
             ...normalizeFormEpgUrls(current.epgUrl),
             ...addedEpgUrls,

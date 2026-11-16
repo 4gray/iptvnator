@@ -393,6 +393,24 @@ describe('SettingsComponent with settings changed outside the form', () => {
         }
     );
 
+    it('keeps a key draft when stored settings omit the key', async () => {
+        settingsStore._setSettings({ tmdb: { enabled: true } });
+        component.form.hydrateFromStore();
+        const { apiKey } = component.settingsForm.controls.tmdb.controls;
+        apiKey.setValue('synthetic-draft-key');
+        component.settingsForm.markAsDirty();
+        jest.spyOn(component.backup, 'importData').mockImplementation(
+            (imported) => imported()
+        );
+        component.importData();
+
+        expect(component.form.changedPaths()).toContain('tmdb.apiKey');
+        await component.form.save(() => component.form.applySavedSettings());
+        expect(settingsStore.getSettings().tmdb.apiKey).toBe(
+            'synthetic-draft-key'
+        );
+    });
+
     it('acknowledges a whitespace-only key edit without writing the key', async () => {
         const key = 'synthetic-existing-key';
         settingsStore._setSettings({ tmdb: { enabled: false, apiKey: key } });
@@ -621,6 +639,55 @@ describe('SettingsComponent with settings changed outside the form', () => {
             expect(settingsStore.getSettings().epgUrl).toEqual(reordered);
         }
     );
+
+    it('keeps an unfinished EPG row through Save when no picker is open', async () => {
+        component.form.addEpgSource();
+        const row = component.form.epgUrl.at(1);
+        component.settingsForm.controls.showCaptions.setValue(true);
+
+        await component.form.save(() => component.form.applySavedSettings());
+
+        expect(component.form.epgUrl.at(1) === row).toBe(true);
+        expect(component.settingsForm.pristine).toBe(true);
+    });
+
+    it('keeps the restored EPG order when the picker is canceled', async () => {
+        let acknowledge!: () => void;
+        let cancel!: () => void;
+        jest.spyOn(window.electron, 'updateSettings').mockReturnValueOnce(
+            new Promise<void>((resolve) => (acknowledge = resolve))
+        );
+        jest.spyOn(
+            TestBed.inject(EpgRuntimeBridgeService),
+            'pickEpgFile'
+        ).mockReturnValueOnce(
+            new Promise<null>((resolve) => (cancel = () => resolve(null)))
+        );
+        component.settingsForm.controls.showCaptions.setValue(true);
+        const saving = component.form.save(() =>
+            component.form.applySavedSettings()
+        );
+        await Promise.resolve();
+
+        const browsing = component.epg.browse(0);
+        jest.spyOn(component.backup, 'importData').mockImplementation(
+            (imported) => {
+                settingsStore._setSettings({
+                    epgUrl: [RESTORED_GUIDE, SAVED_GUIDE],
+                });
+                imported();
+            }
+        );
+        component.importData();
+        acknowledge();
+        await saving;
+        cancel();
+        await browsing;
+
+        expect(component.form.epgUrls).toEqual([RESTORED_GUIDE, SAVED_GUIDE]);
+        expect(component.form.changedPaths()).toEqual([]);
+        expect(component.settingsForm.pristine).toBe(true);
+    });
 
     it.each(['before', 'after', 'existing'])(
         'keeps the EPG file picker target when the row was present %s Save',
