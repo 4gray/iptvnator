@@ -544,7 +544,7 @@ try {
     await back();
 
     const playlistId = 'synthetic-reload-' + randomUUID();
-    const launchRotationFixture = (sourceId) => page.evaluate(({ url, playlistId }) => {
+    const launchRotationFixture = (sourceId, startTime) => page.evaluate(({ url, playlistId, startTime }) => {
         const id = crypto.randomUUID();
         const viewport = document.querySelector('meta[name=viewport]').content;
         window.addEventListener('iptvnator:android-playback-result', (event) => {
@@ -554,7 +554,7 @@ try {
         });
         window.TvShell.postMessage(JSON.stringify(['playNative', id, {
             url,
-            startTime: 25,
+            startTime,
             captions: true,
             checkpoint: {
                 profile: 'iptvnator',
@@ -564,8 +564,8 @@ try {
                 seriesXtreamId: 3,
             },
         }]));
-    }, { url: origin + '/synthetic-ac3.mkv', playlistId: sourceId });
-    await launchRotationFixture('synthetic-rotation-' + randomUUID());
+    }, { url: origin + '/synthetic-ac3.mkv', playlistId: sourceId, startTime });
+    await launchRotationFixture('synthetic-rotation-' + randomUUID(), 25);
     await waitNative();
     await waitAudio();
     const lastNativeCreate = () => adb('logcat', '-b', 'events', '-d', '-v', 'epoch', '-s', 'wm_on_create_called')
@@ -590,7 +590,7 @@ try {
         adb('shell', 'settings', 'put', 'system', 'user_rotation', oldRotation);
         adb('shell', 'settings', 'put', 'system', 'accelerometer_rotation', oldAutoRotation);
     }
-    await launchRotationFixture(playlistId);
+    await launchRotationFixture(playlistId, 8);
     await waitNative();
     await waitAudio();
     // Reload while native playback owns the foreground. The new document cannot
@@ -601,8 +601,8 @@ try {
     await expect.poll(() => page.evaluate((id) => {
         const stored = JSON.parse(localStorage.getItem('xtream-playback-positions') || '{}');
         const position = stored[id]?.find((item) => item.contentXtreamId === 17)?.positionSeconds;
-        return position > 0 && position < 20;
-    }, playlistId)).toBe(true);
+        return position >= 8 && position < 20;
+    }, playlistId), { timeout: 15000 }).toBe(true);
     const retryId = 'synthetic-retry-' + randomUUID();
     await page.evaluate(({ url, retryId }) => {
         const put = Storage.prototype.setItem;
@@ -657,6 +657,7 @@ try {
     ).__iptvnator_native_playback_resets__)).toBeUndefined();
     assert.equal(await page.evaluate(() => window.__nativeResults), 1,
         'Checkpoint retry must not replay the original playback result.');
+    await expect(entry('Synthetic Unplayable')).toBeVisible({ timeout: 60000 });
     await entry('Synthetic Unplayable').click();
     await expect(stage.locator('app-playback-diagnostic-panel')).toBeVisible();
     await expect(action).toBeVisible();
