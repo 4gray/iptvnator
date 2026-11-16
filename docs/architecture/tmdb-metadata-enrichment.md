@@ -999,9 +999,10 @@ since shipped.)
   dashboard); a load requested while one is in flight is queued and
   re-run afterwards; a load where no seed resolved (TMDB unreachable)
   does not latch and retries instead. Offline, changing a seed's choice
-  removes only the cards attributed to its previous match, even when
-  another seed has the same title or the changed seed now shares another
-  seed's match and is deduplicated. Same gating as trending: TMDB
+  removes the attribution to its previous match. A card recommended by
+  multiple seeds stays visible while another contributor's match is
+  unchanged, and the card takes its attribution from the first remaining
+  contributor. Same gating as trending: TMDB
   opt-in + Electron DB worker, deferred behind the dashboard's own data.
 - **The viewer's match choice** (`TmdbMatchService`, set in a detail view's
   "Match on TMDB" dialog) holds on the dashboard too. Both the hero and

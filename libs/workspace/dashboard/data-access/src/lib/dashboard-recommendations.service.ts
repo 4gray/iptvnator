@@ -250,22 +250,36 @@ export class DashboardRecommendationsService {
         const livePlaylists = new Set(
             this.data.playlists().map((playlist) => playlist._id)
         );
+        const keptCandidates: RecommendationCandidate[] = [];
+        for (const candidate of candidates) {
+            if (isExcludedCandidate(candidate, excluded)) {
+                continue;
+            }
+            // Cached contributors may be absent from the deduplicated seed list.
+            const contributors = candidate.contributors.filter(
+                ({ identity, matchToken }) =>
+                    dashboardTmdbMatchToken(this.matches, identity) ===
+                    matchToken
+            );
+            if (contributors.length > 0) {
+                keptCandidates.push(
+                    contributors.length === candidate.contributors.length
+                        ? candidate
+                        : { ...candidate, contributors }
+                );
+            }
+        }
         const kept: LoadedRecommendations = {
-            // A cached seed may be absent from the current deduplicated list.
-            candidates: candidates.filter(
-                (candidate) =>
-                    dashboardTmdbMatchToken(
-                        this.matches,
-                        candidate.seedIdentity
-                    ) === candidate.matchToken &&
-                    !isExcludedCandidate(candidate, excluded)
-            ),
+            candidates: keptCandidates,
             matches: matches.filter((match) =>
                 livePlaylists.has(match.playlistId)
             ),
         };
         if (
             kept.candidates.length === candidates.length &&
+            kept.candidates.every(
+                (candidate, i) => candidate === candidates[i]
+            ) &&
             kept.matches.length === matches.length
         ) {
             return;
@@ -380,8 +394,7 @@ export class DashboardRecommendationsService {
         lists: readonly RecommendationCandidate[][],
         excluded: ExclusionIndex
     ): RecommendationCandidate[] {
-        const seen = new Set<string>();
-        const merged: RecommendationCandidate[] = [];
+        const merged = new Map<string, RecommendationCandidate>();
         const longest = Math.max(0, ...lists.map((list) => list.length));
         for (let i = 0; i < longest; i++) {
             for (const list of lists) {
@@ -397,14 +410,25 @@ export class DashboardRecommendationsService {
                 // Two candidates that end up on the same catalog row are
                 // collapsed after matching instead.
                 const idKey = `${entry.mediaType}:${entry.tmdbId}`;
-                if (seen.has(idKey) || isExcludedCandidate(entry, excluded)) {
+                if (isExcludedCandidate(entry, excluded)) {
                     continue;
                 }
-                seen.add(idKey);
-                merged.push(entry);
+                const existing = merged.get(idKey);
+                merged.set(
+                    idKey,
+                    existing
+                        ? {
+                              ...existing,
+                              contributors: [
+                                  ...existing.contributors,
+                                  ...entry.contributors,
+                              ],
+                          }
+                        : entry
+                );
             }
         }
-        return merged;
+        return [...merged.values()];
     }
 
     /**

@@ -161,6 +161,41 @@ describe('DashboardRecommendationsService and TMDB match choices', () => {
         );
     });
 
+    it.each([
+        { mode: 'provider' },
+        { mode: 'manual', tmdbId: 605, title: 'Synthetic New Match' },
+    ])(
+        'keeps shared recommendations from an unchanged seed when the first switches to $mode offline',
+        async (newChoice) => {
+            const otherSeed = {
+                ...seed,
+                title: 'Synthetic Other',
+                xtream_id: 43,
+            };
+            seeds = [seed, otherSeed];
+            choice = { mode: 'manual', tmdbId: 604, title: 'Synthetic Match' };
+            enrichMovie.mockResolvedValue(recommendations(500));
+            const service = createService();
+
+            await service.load();
+            const sharedIds = titles.map((_, i) => 500 + i);
+            expect(enrichMovie).toHaveBeenCalledTimes(2);
+            expect(service.items().map(({ tmdbId }) => tmdbId)).toEqual(
+                sharedIds
+            );
+            expect(service.seedTitles()).toEqual([seed.title]);
+
+            choice = newChoice;
+            enrichMovie.mockResolvedValue(null);
+            await service.load();
+
+            expect(service.items().map(({ tmdbId }) => tmdbId)).toEqual(
+                sharedIds
+            );
+            expect(service.seedTitles()).toEqual([otherSeed.title]);
+        }
+    );
+
     it('loads again when the seed is re-matched', async () => {
         const service = createService();
         await Promise.resolve();
