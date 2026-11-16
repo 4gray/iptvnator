@@ -57,7 +57,13 @@ export class PlaybackProgressConfirmation {
             return;
         }
 
-        this.progressedSeconds += step;
+        this.addPlayedTime(step);
+    }
+
+    /** An engine that measures its actual play time can report it directly. */
+    addPlayedTime(seconds: number): void {
+        if (this.confirmed || !Number.isFinite(seconds) || seconds <= 0) return;
+        this.progressedSeconds += seconds;
         if (this.progressedSeconds >= PLAYBACK_CONFIRMATION_SECONDS) {
             this.confirmed = true;
             this.onConfirmed();

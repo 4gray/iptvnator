@@ -392,6 +392,7 @@
         "SEARCH_EMPTY_HINT": "Geen instellingen gevonden. Probeer een ander woord, zoals speler, thema of EPG.",
         "GENERAL": "Algemeen",
         "GENERAL_SUBTITLE": "Taal, opstarten en kanaalvoorkeuren.",
+        "OPEN_ANDROID_APP_SETTINGS": "Instellingen van de Android-app openen",
         "PLAYBACK": "Afspelen",
         "SAVE_EPG_SOURCES": "EPG-bronnen opslaan",
         "EPG_SOURCES": "EPG-bronnen",
@@ -979,6 +980,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Ingebouwde speler proberen",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Terug naar de webspeler",
         "HLS_WAIT": "Er wordt nog op streamgegevens gewacht. Je kunt blijven wachten of het opnieuw proberen.",
         "STAGE_LOADER": "Stream laden",
         "STAGE_DEMUX": "Container verwerken",

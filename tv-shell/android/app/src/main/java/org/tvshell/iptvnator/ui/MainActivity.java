@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
@@ -38,13 +39,16 @@ import androidx.webkit.WebMessageCompat;
 import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
 
+import org.json.JSONObject;
 import org.tvshell.iptvnator.Prefs;
 import org.tvshell.iptvnator.R;
 import org.tvshell.iptvnator.ShellApp;
 import org.tvshell.iptvnator.backend.DiagnosticRedactor;
+import org.tvshell.iptvnator.backend.ShellSite;
 import org.tvshell.iptvnator.server.TvShellServer;
 
 import java.util.Collections;
+import java.util.List;
 
 /**
  * Full-screen WebView showing the bundled IPTVnator PWA from the embedded
@@ -53,6 +57,7 @@ import java.util.Collections;
  */
 public class MainActivity extends Activity {
 
+    private static final int NATIVE_PLAYBACK_REQUEST = 7103;
     private static final long LONG_PRESS_MS = 650;
     /**
      * How long the web app may take to report readiness before the error panel explains the
@@ -66,11 +71,20 @@ public class MainActivity extends Activity {
     private static final long RENDERER_DEATH_WINDOW_MS = 60_000;
     private static final int RENDERER_DEATH_LIMIT = 3;
     private static final String STATE_URL = "url";
+    private static final String STATE_PLAYBACK_ID = "nativePlaybackId";
+    private static final String STATE_PLAYBACK_CONTENT = "nativePlaybackContent";
+    private static final String STATE_PLAYBACK_CHECKPOINT = "nativePlaybackCheckpoint";
     private static int rendererDeaths;
     private static long lastRendererDeathAt;
 
     private WebView webView;
     private String bridgeOrigin;
+    private String nativePlaybackId;
+    private String lastNativePlaybackRequestId;
+    private Bundle nativePlaybackContent;
+    private NativePlaybackCheckpoints nativePlaybackCheckpoints;
+    private boolean nativePlaybackDocumentCurrent;
+    private Runnable pendingNativePlaybackResult;
     private final WebFileChooser fileChooser = new WebFileChooser(this);
     private FrameLayout root;
     private View splash;
@@ -128,7 +142,19 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         prefs = new Prefs(this);
-        if (savedInstanceState != null) restoreUrl = savedInstanceState.getString(STATE_URL);
+        nativePlaybackCheckpoints = new NativePlaybackCheckpoints(this);
+        if (savedInstanceState != null) {
+            restoreUrl = savedInstanceState.getString(STATE_URL);
+            nativePlaybackId = savedInstanceState.getString(STATE_PLAYBACK_ID);
+            nativePlaybackContent = savedInstanceState.getBundle(STATE_PLAYBACK_CONTENT);
+            Bundle checkpoints = savedInstanceState.getBundle(STATE_PLAYBACK_CHECKPOINT);
+            if (checkpoints != null) {
+                for (String id : checkpoints.keySet()) {
+                    Bundle checkpoint = checkpoints.getBundle(id);
+                    if (checkpoint != null) nativePlaybackCheckpoints.save(checkpoint);
+                }
+            }
+        }
         setContentView(R.layout.activity_main);
         root = findViewById(R.id.root);
         splash = findViewById(R.id.splash);
@@ -232,6 +258,15 @@ public class MainActivity extends Activity {
             }
 
             @Override
+            public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                pendingNativePlaybackResult = null;
+                if (nativePlaybackId != null || !nativePlaybackCheckpoints.isEmpty()) {
+                    nativePlaybackDocumentCurrent = false;
+                    pageReady = false;
+                }
+            }
+
+            @Override
             public void onPageFinished(WebView view, String url) {
                 boolean first = !pageFinished;
                 pageFinished = true;
@@ -263,6 +298,7 @@ public class MainActivity extends Activity {
                 root.removeView(view);
                 view.destroy();
                 webView = null; // every remaining use is null-guarded
+                nativePlaybackDocumentCurrent = false;
                 if (resumed) {
                     toast(getString(R.string.renderer_restarted));
                     recreate(); // new Activity + WebView; ShellApp keeps the server
@@ -307,13 +343,7 @@ public class MainActivity extends Activity {
 
             @Override
             public void onHideCustomView() {
-                if (customView == null) return;
-                root.removeView(customView);
-                customView = null;
-                webView.setVisibility(View.VISIBLE);
-                webView.requestFocus(View.FOCUS_DOWN);
-                if (customViewCallback != null) customViewCallback.onCustomViewHidden();
-                customViewCallback = null;
+                hideCustomView();
             }
         });
 
@@ -347,6 +377,7 @@ public class MainActivity extends Activity {
         errorPanel.setVisibility(View.GONE);
         splash.setVisibility(View.VISIBLE);
         pageReady = false;
+        nativePlaybackDocumentCurrent = false;
         pageFinished = false;
         watchdogExtended = false;
         lastConsoleError = null;
@@ -599,6 +630,8 @@ public class MainActivity extends Activity {
     // --------------------------------------------------------- callbacks
     void onWebAppReady() {
         pageReady = true;
+        updateNativePlaybackAvailability();
+        deliverNativePlaybackCheckpoint();
         loadRetried = false;
         setKeepScreenOn(false); // from here the page says when something plays
         handler.removeCallbacks(readyWatchdog);
@@ -606,6 +639,89 @@ public class MainActivity extends Activity {
         splash.setVisibility(View.GONE);
         errorPanel.setVisibility(View.GONE);
         if (webView != null) webView.requestFocus(View.FOCUS_DOWN);
+    }
+
+    private void hideCustomView() {
+        if (customView == null) return;
+        root.removeView(customView);
+        customView = null;
+        webView.setVisibility(View.VISIBLE);
+        webView.requestFocus(View.FOCUS_DOWN);
+        if (customViewCallback != null) customViewCallback.onCustomViewHidden();
+        customViewCallback = null;
+    }
+
+    private void updateNativePlaybackAvailability() {
+        if (!pageReady) return;
+        js("window.iptvnatorAndroidPlaybackEnabled=" + prefs.nativePlayback()
+            + ";window.dispatchEvent(new Event('iptvnator:android-playback-availability'))");
+    }
+
+    void playNative(String id, Object payload) {
+        lastNativePlaybackRequestId = id;
+        Intent intent = prefs.nativePlayback() && resumed && pageReady && nativePlaybackId == null
+            ? NativePlaybackRequest.toIntent(this, payload) : null;
+        if (intent == null) {
+            replyToNativePlayback(id, null);
+            deliverNativePlaybackCheckpoint();
+            return;
+        }
+        nativePlaybackId = id;
+        nativePlaybackContent = NativePlaybackRequest.checkpointContent(payload, bridgeOrigin);
+        nativePlaybackDocumentCurrent = true;
+        if (externalDialog != null) externalDialog.dismiss();
+        hideCustomView();
+        startActivityForResult(intent.putExtra("requestId", id)
+            .putExtra("checkpointContent", nativePlaybackContent), NATIVE_PLAYBACK_REQUEST);
+    }
+
+    private void replyToNativePlayback(String id, Intent result) {
+        String data = result == null ? "null" : "{positionMs:" + result.getLongExtra("position", 0)
+            + ",durationMs:" + result.getLongExtra("duration", 0)
+            + ",playedMs:" + result.getLongExtra("played", 0)
+            + ",savedAt:" + result.getLongExtra("savedAt", 0)
+            + ",started:" + result.getBooleanExtra("started", false)
+            + ",ended:" + result.getBooleanExtra("ended", false)
+            + ",failed:" + result.getBooleanExtra("failed", false) + "}";
+        js("window.dispatchEvent(new CustomEvent('iptvnator:android-playback-result',{detail:{id:"
+            + JSONObject.quote(id) + ",result:" + data + "}}))");
+    }
+
+    private void deliverNativePlaybackResult() {
+        if (!resumed || pendingNativePlaybackResult == null) return;
+        Runnable result = pendingNativePlaybackResult;
+        pendingNativePlaybackResult = null;
+        result.run();
+    }
+
+    void stopNative(String id) {
+        if (!id.equals(nativePlaybackId)) return;
+        nativePlaybackContent = null;
+        NativePlayerActivity.revokeCheckpoint(id);
+        finishActivity(NATIVE_PLAYBACK_REQUEST);
+    }
+
+    private void deliverNativePlaybackCheckpoint() {
+        if (!pageReady || webView == null || SettingsActivity.dataCleared) return;
+        // A fallback port uses a different WebView data store.
+        List<JSONObject> checkpoints = nativePlaybackCheckpoints.forOrigin(bridgeOrigin);
+        for (JSONObject checkpoint : checkpoints) {
+            js("window.dispatchEvent(new CustomEvent('iptvnator:android-playback-checkpoint',{detail:"
+                + "JSON.parse(" + JSONObject.quote(checkpoint.toString()) + ")}))");
+        }
+        if (checkpoints.isEmpty()) publishNativePlaybackCheckpointIdle();
+    }
+
+    void acknowledgeNativePlaybackCheckpoint(String id) {
+        nativePlaybackCheckpoints.acknowledge(bridgeOrigin, id);
+        if (nativePlaybackCheckpoints.forOrigin(bridgeOrigin).isEmpty()) publishNativePlaybackCheckpointIdle();
+    }
+
+    private void publishNativePlaybackCheckpointIdle() {
+        if (nativePlaybackId != null || !pageReady || webView == null || SettingsActivity.dataCleared) return;
+        String lastRequest = lastNativePlaybackRequestId == null ? "null" : JSONObject.quote(lastNativePlaybackRequestId);
+        js("window.dispatchEvent(new CustomEvent('iptvnator:android-playback-checkpoints-idle',{detail:"
+            + lastRequest + "}))");
     }
 
     void openExternal(String url, String title) {
@@ -689,6 +805,9 @@ public class MainActivity extends Activity {
         }
         webView.onResume();
         js("window.__tvShell && typeof window.__tvShell.setForeground === 'function' && window.__tvShell.setForeground(true)");
+        updateNativePlaybackAvailability();
+        deliverNativePlaybackResult();
+        deliverNativePlaybackCheckpoint();
         if (errorPanel.getVisibility() != View.VISIBLE) webView.requestFocus(View.FOCUS_DOWN);
         // Give a foreground startup a fresh ready budget.
         if (!pageReady && errorPanel.getVisibility() != View.VISIBLE) armWatchdog();
@@ -723,6 +842,8 @@ public class MainActivity extends Activity {
         // or for the relaunch after it reclaimed the hidden renderer (webView is null by then).
         String url = webView != null ? (pageReady ? webView.getUrl() : null) : lastRoute;
         if (url != null) outState.putString(STATE_URL, url);
+        outState.putString(STATE_PLAYBACK_ID, nativePlaybackId);
+        outState.putBundle(STATE_PLAYBACK_CONTENT, nativePlaybackContent);
     }
 
     /** Display changes the manifest keeps the Activity through: the pinned page scale must follow. */
@@ -730,14 +851,40 @@ public class MainActivity extends Activity {
     public void onConfigurationChanged(android.content.res.Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         hideSystemUi();
-        if (webView != null && server != null && errorPanel.getVisibility() != View.VISIBLE && screenCssWidth(this) != loadedScreenWidth) {
-            restoreUrl = webView.getUrl(); // the same page with the new scale (load() checks the origin)
+        int width = screenCssWidth(this);
+        if (webView == null || server == null || errorPanel.getVisibility() == View.VISIBLE || width == loadedScreenWidth) return;
+        if (!pageReady) {
+            restoreUrl = webView.getUrl();
             load();
+            return;
         }
+        // Keep the playback owner and pending result in the same document.
+        loadedScreenWidth = width;
+        server.setScreenWidth(width);
+        js("(function(){var viewport=document.querySelector('meta[name=viewport]');if(viewport)viewport.content="
+            + JSONObject.quote(ShellSite.viewport(loadedLayoutWidth, width)) + ";})()");
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == NATIVE_PLAYBACK_REQUEST) {
+            String id = nativePlaybackId;
+            Bundle content = nativePlaybackContent;
+            nativePlaybackId = null;
+            nativePlaybackContent = null;
+            Intent fallback = id == null ? null : NativePlayerActivity.takeCheckpoint(id);
+            Intent result = resultCode == RESULT_OK && data != null ? data : fallback;
+            if (result == fallback) nativePlaybackCheckpoints.saveResult(content, id, result);
+            if (id != null && nativePlaybackDocumentCurrent) {
+                // Autoplay can start from the result handler as soon as it runs.
+                pendingNativePlaybackResult = () -> replyToNativePlayback(id, result);
+            }
+            if (resumed) {
+                deliverNativePlaybackResult();
+                deliverNativePlaybackCheckpoint();
+            }
+            return;
+        }
         if (!fileChooser.onActivityResult(requestCode, resultCode, data)) {
             super.onActivityResult(requestCode, resultCode, data);
         }

@@ -392,6 +392,7 @@
         "SEARCH_EMPTY_HINT": "Brak pasujących ustawień. Spróbuj innego słowa, np. odtwarzacz, motyw lub EPG.",
         "GENERAL": "Ogólne",
         "GENERAL_SUBTITLE": "Język, uruchamianie i ustawienia kanałów.",
+        "OPEN_ANDROID_APP_SETTINGS": "Otwórz ustawienia aplikacji na Androida",
         "PLAYBACK": "Odtwarzanie",
         "SAVE_EPG_SOURCES": "Zapisz źródła EPG",
         "EPG_SOURCES": "Źródła EPG",
@@ -979,6 +980,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Wypróbuj wbudowany odtwarzacz",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Wróć do odtwarzacza internetowego",
         "HLS_WAIT": "Nadal czekamy na dane strumienia. Możesz poczekać lub spróbować ponownie.",
         "STAGE_LOADER": "Ładowanie strumienia",
         "STAGE_DEMUX": "Analiza kontenera",

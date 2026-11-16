@@ -1,3 +1,4 @@
+import { AndroidTvPlayback } from './android-tv-playback';
 import { SecondStreamFloatingDirective } from '../second-stream/second-stream-floating.directive';
 import { SecondStreamComponent } from '../second-stream/second-stream.component';
 import { WebPlayerActivity } from './web-player-activity';
@@ -20,6 +21,7 @@ import {
     viewChild,
     ChangeDetectionStrategy,
 } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import {
     type PlaybackDiagnostic,
     type PlaybackDiagnosticCode,
@@ -60,7 +62,7 @@ import {
 } from './playback-recovery-session';
 import { WebPlayerApplicationHandoffCoordinator } from './web-player-application-handoff';
 import {
-    ownsPlaybackApplication,
+    createWebPlayerApplicationOwnership,
     type PlaybackApplicationOwnership as PlaybackOwnership,
 } from './web-player-application-ownership';
 import { createWebPlayerApplicationState } from './web-player-application-state';
@@ -71,7 +73,6 @@ import { WebPlayerRecoveryController } from './web-player-recovery-controller';
 import {
     isPlaybackExternallyTransferable,
     resolveRenderableWebPlayer,
-    toInlinePlaybackPlayer,
     toVideoPlayer,
 } from './web-player-recovery-policy';
 import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
@@ -80,7 +81,10 @@ import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
     selector: 'app-web-player-view',
     templateUrl: './web-player-view.component.html',
     styleUrls: ['./web-player-view.component.scss'],
-    host: { class: 'web-player-view' },
+    host: {
+        class: 'web-player-view',
+        '[attr.data-tv-playback-attempt]': 'androidPlayback.attempt()',
+    },
     imports: [
         SecondStreamComponent,
         SecondStreamFloatingDirective,
@@ -89,6 +93,7 @@ import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
         EmbeddedMpvPlayerComponent,
         FullscreenChannelPanelComponent,
         HtmlVideoPlayerComponent,
+        MatButtonModule,
         PlaybackDiagnosticPanelComponent,
         VjsPlayerComponent,
     ],
@@ -236,15 +241,38 @@ export class WebPlayerViewComponent implements OnDestroy {
     });
     readonly resolvedPlayback = this.applicationState.playback;
     readonly resolvedIsLive = this.applicationState.isLive;
+    readonly androidPlayback = new AndroidTvPlayback(
+        this.playbackSessionKey,
+        this.applicationState.token,
+        this.volume,
+        (seconds, confirm) => {
+            this.historyConfirmation.recordPlayedTime(seconds);
+            if (confirm && this.recovery.confirmAndroidStart())
+                this.emitPlaybackStarted();
+        },
+        (update, replayTime) => {
+            this.activity.record(this.playback(), update);
+            this.recoverySession.recordTimeUpdate(
+                { ...update, currentTime: replayTime },
+                this.resolvedIsLive()
+            );
+            this.timeUpdate.emit(update);
+        },
+        () => this.emitPlaybackEnded(this.resolvedIsLive()),
+        () => this.reloadToken.update((value) => value + 1),
+        (sessionId) => this.activity.waitForBegin(sessionId)
+    );
     readonly playbackSourceRevisionToken = this.applicationState.sourceRevision;
     readonly playbackApplicationToken = this.applicationState.token;
+    private readonly historyTarget = () => ({
+        sessionKey: this.playbackSessionKey(),
+        streamUrls: [this.streamUrl(), this.playback()?.streamUrl],
+    });
+
     /** Commits deferred "recently viewed" writes once this stream plays. */
     private readonly historyConfirmation = new PlaybackHistoryConfirmation({
         gate: this.historyGate,
-        target: () => ({
-            sessionKey: this.playbackSessionKey(),
-            streamUrls: [this.streamUrl(), this.playback()?.streamUrl],
-        }),
+        target: this.historyTarget,
         sourceRevision: () => this.playbackSourceRevisionToken(),
     });
     readonly playbackExternallyTransferable = computed(() =>
@@ -293,25 +321,17 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly recordingFolder = computed(
         () => this.settingsStore.recordingFolder?.() ?? ''
     );
-    readonly renderedApplications = computed<readonly PlaybackOwnership[]>(
-        () => {
-            if (this.liveAutoFormat.pending()) return [];
-            const binding = this.activeBinding();
-            const embeddedMpv =
-                this.selectedPlayer() === VideoPlayer.EmbeddedMpv && !binding;
-            if (!binding && !embeddedMpv) return [];
-
-            return [
-                Object.freeze({
-                    binding,
-                    embeddedMpv,
-                    isLive: this.resolvedIsLive(),
-                    sourceRevision: this.playbackSourceRevisionToken(),
-                    token: this.playbackApplicationToken(),
-                }),
-            ];
-        }
-    );
+    private readonly ownership = createWebPlayerApplicationOwnership({
+        sourceRevision: this.playbackSourceRevisionToken,
+        token: this.playbackApplicationToken,
+        binding: this.activeBinding,
+        selectedPlayer: this.selectedPlayer,
+        isLive: this.resolvedIsLive,
+        renderable: () => !this.liveAutoFormat.pending(),
+        suspended: this.androidPlayback.suspended,
+        handoff: this.applicationHandoff,
+    });
+    readonly renderedApplications = this.ownership.rendered;
 
     private readonly activity = new WebPlayerActivity(
         inject(PLAYBACK_ACTIVITY_EVENTS, { optional: true })
@@ -334,27 +354,14 @@ export class WebPlayerViewComponent implements OnDestroy {
                 this.recoverySession.syncSourceRevision(sourceRevision)
             );
             const token = this.playbackApplicationToken();
-            const playback = untracked(this.resolvedPlayback);
-            const isLive = untracked(this.resolvedIsLive);
-            const selectedPlayer = untracked(this.selectedPlayer);
-            const reloadToken = untracked(this.reloadToken);
-            const target = toInlinePlaybackPlayer(selectedPlayer);
             this.channel.set(undefined);
             this.vjsOptions.set(undefined);
             this.recovery.clearDiagnostic();
-            if (target === null) {
-                this.applicationHandoff.release();
-                this.recoverySession.clearPlaybackBinding();
-                return;
-            }
-            const binding = untracked(() =>
-                this.recoverySession.beginPlayback(target)
-            );
             this.applicationHandoff.apply(
-                playback,
-                isLive,
-                reloadToken,
-                binding,
+                untracked(this.resolvedPlayback),
+                untracked(this.resolvedIsLive),
+                untracked(this.reloadToken),
+                untracked(this.selectedPlayer),
                 token,
                 () => this.playbackApplicationToken(),
                 (handoff) => {
@@ -376,10 +383,12 @@ export class WebPlayerViewComponent implements OnDestroy {
         issue: PlaybackDiagnostic | null,
         binding: PlaybackBinding
     ): void {
-        this.recovery.handlePlaybackIssue(issue, binding);
+        if (!this.androidPlayback.suspended())
+            this.recovery.handlePlaybackIssue(issue, binding);
     }
 
     handlePlaybackStarted(binding: PlaybackBinding): void {
+        if (this.androidPlayback.suspended()) return;
         this.recovery.syncSession();
         if (this.ownsBinding(binding) && !this.liveAutoFormat.pending())
             this.liveAutoFormat.started();
@@ -389,48 +398,40 @@ export class WebPlayerViewComponent implements OnDestroy {
         event: PlayerTimeUpdate,
         ownership: PlaybackOwnership
     ): void {
-        if (!this.ownsApplication(ownership)) return;
-
-        if (this.recovery.recordTimeUpdate(ownership.token, event.playing))
-            this.playbackStarted.emit(
-                this.playback() ?? this.resolvedPlayback()
-            );
-        if (!ownership.isLive && !this.activity.record(this.playback(), event))
-            return;
-        this.recoverySession.recordTimeUpdate(event, ownership.isLive);
+        if (!this.ownership.owns(ownership)) return;
+        const { isLive, token } = ownership;
+        if (this.recovery.recordTimeUpdate(token, event.playing))
+            this.emitPlaybackStarted();
         this.historyConfirmation.record(event.currentTime, event.playing);
+        if (!this.recoverySession.recordTimeUpdate(event, isLive, this.startTime()))
+            return;
+        if (!isLive && !this.activity.record(this.playback(), event)) return;
         this.timeUpdate.emit(event);
     }
 
     handleActivityEnded(ownership: PlaybackOwnership, notify = true): void {
-        if (!this.ownsApplication(ownership)) return;
-        if (!ownership.isLive) this.activity.finish();
-        this.recovery.recordEnd(ownership.token);
+        if (this.ownership.owns(ownership))
+            this.emitPlaybackEnded(ownership.isLive, notify);
+    }
+
+    private emitPlaybackStarted(): void {
+        this.playbackStarted.emit(this.playback() ?? this.resolvedPlayback());
+    }
+
+    private emitPlaybackEnded(isLive: boolean, notify = true): void {
+        if (!isLive) this.activity.finish();
+        this.recovery.recordEnd(this.playbackApplicationToken());
         if (notify) this.playbackEnded.emit();
-    }
-
-    private ownsApplication(ownership: PlaybackOwnership): boolean {
-        return ownsPlaybackApplication({
-            ownership,
-            currentToken: this.playbackApplicationToken(),
-            currentSourceRevision: this.playbackSourceRevisionToken(),
-            bindingOwned: this.ownsBinding(ownership.binding, ownership.token),
-            embeddedMpvSelected:
-                this.selectedPlayer() === VideoPlayer.EmbeddedMpv,
-        });
-    }
-
-    private ownsBinding(
-        binding: PlaybackBinding | null,
-        token = this.playbackApplicationToken()
-    ): boolean {
-        return !!binding && this.applicationHandoff.owns(binding, token);
     }
 
     readonly requestRecommendedPlayer =
         this.recovery.requestRecommendedPlayer.bind(this.recovery);
 
     retryPlayback(binding?: PlaybackBinding): void {
+        if (!binding && this.androidPlayback.suspended()) {
+            this.androidPlayback.returnToWeb();
+            return;
+        }
         this.recovery.syncSession();
         if (binding && !this.ownsBinding(binding)) return;
         // A current engine can remain buffering after an earlier manual retry.
@@ -439,17 +440,15 @@ export class WebPlayerViewComponent implements OnDestroy {
         this.recovery.retryPlayback();
     }
 
-    retryFailedPlayback(): boolean {
-        const mpv = this.embeddedMpvPlayer();
-        if (!mpv && this.recovery.canRetry()) this.retryPlayback();
-        else if (
-            mpv &&
-            !mpv.isReconnecting() &&
-            (mpv.isErrored() || mpv.isLiveEnded())
-        ) {
-            this.recovery.recordEnd(this.playbackApplicationToken());
-            mpv.retry();
-        } else return false;
-        return true;
+    private ownsBinding(binding: PlaybackBinding): boolean {
+        return this.applicationHandoff.owns(
+            binding,
+            this.playbackApplicationToken()
+        );
     }
+
+    readonly retryFailedPlayback = () =>
+        this.recovery.retryFailedPlayback(this.embeddedMpvPlayer(), () =>
+            this.retryPlayback()
+        );
 }

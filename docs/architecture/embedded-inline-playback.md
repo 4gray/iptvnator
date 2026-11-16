@@ -135,6 +135,66 @@ Current limitation:
 - because of that, the setting is auto-sanitized back to the default inline player unless support detection reports that the experimental runtime is available
 - this follows the rollout gate: keep the native work in-tree, but do not leave it user-facing until playback, resize, focus, and packaging are stable
 
+## Android TV Native Playback Pilot
+
+The Android shell can opt into a separate fullscreen Media3 activity. The web
+player unmounts its engine for the handoff and accepts the native activity's
+watch time and VOD position only while the originating playback owner is current.
+Returning to the web player cancels a pending Media3 launch before remounting,
+including while the local Activity Sync write is still pending.
+If Activity Sync is recording the start of a VOD session, the Media3 handoff
+waits for that local write so a reloaded WebView can recover the position.
+A handoff keeps the saved offset while the web engine is seeking to it. On
+return from Media3, early web ticks cannot update local or shared progress.
+Time spent playing still counts toward watch history while the seek is unsettled.
+Turning the pilot off also remounts the web player with this guard.
+The final native position settles the resume guard and persists immediately,
+including when the viewer seeks and leaves before the watch-history threshold
+or Media3 cannot determine the VOD duration.
+Media3 applies a saved offset after the stream is ready and starts at the
+default position if the stream is shorter than that offset. A source that
+cannot seek keeps its previous resume point on Back or Home and still reports
+watch time. Natural VOD completion reports the terminal position, using the
+final playhead as the duration when the stream supplies none. It closes the
+native activity and reaches the same series autoplay handler as the web player
+after the WebView's foreground playback guard clears. The app translates both
+handoff actions using its selected language. Exiting releases the Android media
+session before the WebView can launch the next stream.
+Rotation updates the viewport in place so the original WebView still receives
+the result.
+When native playback ends, Android writes the position to app-private
+storage before returning to the web player. It retains the position until
+the WebView acknowledges it, including after Home or a failed web write. The checkpoint
+listener loads only with the Android bridge. If its module fails to load, startup
+continues and Android keeps the pending checkpoint for a later page load.
+The listener saves through the portal resume
+store for the original WebView origin and source profile. A page in another
+profile leaves the checkpoint pending. While Android can replay an older
+position, a reset or backup restore records its time with the position change.
+Older checkpoints cannot undo that change. Android reports when the durable
+queue and active launch are empty. The WebView then removes the reset markers
+and skips new markers until the next native launch.
+While a reset is pending, Android retains the checkpoint so
+recovery can retry if the reset fails. An older Android checkpoint cannot
+replace a newer local position staged for retry. Bulk resets record the exact
+episode IDs from the reset request, including episodes with no saved position.
+Adjacent IDs share a compact range in storage. Checkpoints for other episodes
+stay eligible for recovery even if their season changed. Retries retain the original
+playback time when comparing positions for recovery.
+Deleting a playlist or restoring all of its positions replaces its individual
+reset markers with a single playlist-wide marker in the same storage write.
+Activity Sync uses server timestamps to order acknowledged positions across
+devices. Mirroring acknowledged positions into local storage keeps the server
+timestamp for recovery after opt-out.
+While a VOD plays, Android keeps an in-memory checkpoint so a launcher relaunch
+can recover progress even if it clears the player before the pause callback.
+Autoplay and watch-history confirmation require the original screen.
+The web engine can resume explicitly from that position. The
+[Android shell guide](../../tv-shell/README.md#trying-the-built-in-player)
+documents eligible streams, the bridge's header policy and device validation.
+The pilot is unavailable when parental controls are enabled and for provider
+links that require fresh resolution before another engine can open them.
+
 ## Two-State Detail Layout (Browse ↔ Watch)
 
 Portal VOD/series detail pages are hosted by the shared

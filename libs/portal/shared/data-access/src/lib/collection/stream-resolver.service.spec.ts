@@ -96,6 +96,26 @@ describe('StreamResolverService', () => {
         service = TestBed.inject(StreamResolverService);
     });
 
+    it.each([
+        ['https://media.example.test/synthetic.mp4', false],
+        ['https://media.example.test/live.m3u8', true],
+    ])(
+        'preserves playback mode for an M3U collection entry %s',
+        async (streamUrl, isLive) => {
+            playlistsService.getPlaylistById.mockReturnValue(of(undefined));
+            const detail = await service.resolveM3uPlaybackDetail({
+                uid: 'synthetic-m3u-entry',
+                name: 'Synthetic collection entry',
+                contentType: 'live',
+                sourceType: 'm3u',
+                playlistId: 'synthetic-playlist',
+                playlistName: 'Synthetic playlist',
+                streamUrl,
+            });
+            expect(detail.playback).toMatchObject({ streamUrl, isLive });
+        }
+    );
+
     it('returns M3U live detail with the full channel and raw EPG programs', async () => {
         playlistsService.getPlaylistById.mockReturnValue(
             of({
@@ -1099,6 +1119,7 @@ describe('StreamResolverService', () => {
         expect(requestedActions).not.toContain('create_link');
         expect(playback.streamUrl).toBe('http://cdn.example.com/live/90.m3u8');
         expect(playback.isLive).toBe(true);
+        expect(playback.requiresFreshStreamUrl).toBeUndefined();
     });
 
     it('authenticates a cold full-portal session before a static stream', async () => {
@@ -1305,6 +1326,7 @@ describe('StreamResolverService', () => {
         expect(playback.streamUrl).toBe(
             'http://cdn.example.com/tmp/90.m3u8?tok=1'
         );
+        expect(playback.requiresFreshStreamUrl).toBe(true);
     });
 
     it('appends query-only Stalker create_link responses to the original cmd URL', async () => {

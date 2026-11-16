@@ -392,6 +392,7 @@
         "SEARCH_EMPTY_HINT": "일치하는 설정이 없습니다. 플레이어, 테마, EPG 같은 다른 단어로 검색해 보세요.",
         "GENERAL": "일반",
         "GENERAL_SUBTITLE": "언어, 시작 동작 및 채널 설정입니다.",
+        "OPEN_ANDROID_APP_SETTINGS": "Android 앱 설정 열기",
         "PLAYBACK": "재생",
         "SAVE_EPG_SOURCES": "EPG 소스 저장",
         "EPG_SOURCES": "EPG 소스",
@@ -979,6 +980,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "내장 플레이어 사용해 보기",
+        "ACTION_RETURN_TO_WEB_PLAYER": "웹 플레이어로 돌아가기",
         "HLS_WAIT": "스트림 데이터를 기다리고 있습니다. 계속 기다리거나 다시 시도할 수 있습니다.",
         "STAGE_LOADER": "스트림 로드",
         "STAGE_DEMUX": "컨테이너 분석",

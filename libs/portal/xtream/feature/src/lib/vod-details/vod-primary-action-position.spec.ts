@@ -303,6 +303,14 @@ describe('createPrimaryActionPosition', () => {
 });
 
 describe('isResumablePosition', () => {
+    it('can resume a verified offset without a duration unless it is watched', () => {
+        const checkpoint = { ...position(32), durationSeconds: undefined };
+        expect(isResumablePosition(checkpoint)).toBe(true);
+        expect(isResumablePosition({ ...checkpoint, watched: true })).toBe(
+            false
+        );
+    });
+
     it('is false for a copy watched through', () => {
         // The primary button reads Play at this point, so a pinned start must
         // not seek back to where the film ended.

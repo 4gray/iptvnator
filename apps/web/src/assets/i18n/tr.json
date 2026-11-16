@@ -392,6 +392,7 @@
         "SEARCH_EMPTY_HINT": "Eşleşen ayar yok. Oynatıcı, tema veya EPG gibi başka bir kelime deneyin.",
         "GENERAL": "Genel",
         "GENERAL_SUBTITLE": "Dil, başlangıç ve kanal tercihleri.",
+        "OPEN_ANDROID_APP_SETTINGS": "Android uygulama ayarlarını aç",
         "PLAYBACK": "Oynatma",
         "SAVE_EPG_SOURCES": "EPG kaynaklarını kaydet",
         "EPG_SOURCES": "EPG kaynakları",
@@ -979,6 +980,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Yerleşik oynatıcıyı dene",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Web oynatıcısına dön",
         "HLS_WAIT": "Yayın verileri hâlâ bekleniyor. Beklemeye devam edebilir veya yeniden deneyebilirsiniz.",
         "STAGE_LOADER": "Akış yükleme",
         "STAGE_DEMUX": "Kapsayıcı ayrıştırma",

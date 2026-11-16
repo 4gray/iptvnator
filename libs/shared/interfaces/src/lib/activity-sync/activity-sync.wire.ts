@@ -160,6 +160,13 @@ function parsePositionMetadata(
         (typeof value.title !== 'string' || value.title.length > 512)
     )
         throw new Error('Invalid activity title');
+    if (
+        value.playedAt !== undefined &&
+        (typeof value.playedAt !== 'string' ||
+            value.playedAt.length > 27 ||
+            !Number.isFinite(Date.parse(value.playedAt)))
+    )
+        throw new Error('Invalid playback timestamp');
     const result = {
         contentXtreamId: value.contentXtreamId,
         ...(value.seriesXtreamId === undefined
@@ -181,5 +188,8 @@ function parsePositionMetadata(
     return {
         ...result,
         ...(value.title === undefined ? {} : { title: value.title }),
+        ...(value.playedAt === undefined
+            ? {}
+            : { playedAt: new Date(value.playedAt).toISOString() }),
     };
 }

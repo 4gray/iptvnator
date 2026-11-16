@@ -38,5 +38,8 @@ export function resetPosition(
         positionSeconds: 0,
         durationSeconds: 0,
         watched: false,
+        activityPlayedAt: undefined,
+        nativeCheckpointAt: undefined,
+        nativeCheckpointSeasonGroup: undefined,
     };
 }

@@ -392,6 +392,7 @@
         "SEARCH_EMPTY_HINT": "沒有符合的設定。試試其他詞，例如「播放器」「主題」或「EPG」。",
         "GENERAL": "一般",
         "GENERAL_SUBTITLE": "語言、啟動和頻道偏好設定。",
+        "OPEN_ANDROID_APP_SETTINGS": "開啟 Android 應用程式設定",
         "PLAYBACK": "播放",
         "SAVE_EPG_SOURCES": "儲存節目指南來源",
         "EPG_SOURCES": "EPG 來源",
@@ -979,6 +980,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "試用內建播放器",
+        "ACTION_RETURN_TO_WEB_PLAYER": "返回網頁播放器",
         "HLS_WAIT": "仍在等待串流資料。您可以繼續等待或重試。",
         "STAGE_LOADER": "載入串流",
         "STAGE_DEMUX": "解析容器",

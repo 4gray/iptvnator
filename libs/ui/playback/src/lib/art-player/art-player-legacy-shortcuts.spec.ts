@@ -102,18 +102,22 @@ describe('attachArtPlayerLegacyShortcuts', () => {
         expect(art.volume).toBe(0.5);
     });
 
-    it('restores the remembered volume when unmuting after mute zeroed out', () => {
-        art.volume = 0.7;
-        dispatchKey('m');
-        expect(art.muted).toBe(true);
+    it.each([true, false])(
+        'restores the remembered volume from zero (muted: %s)',
+        (muted) => {
+            art.volume = 0.7;
+            dispatchKey('m');
+            expect(art.muted).toBe(true);
 
-        dispatchKey('ArrowDown');
-        expect(art.volume).toBe(0);
+            dispatchKey('ArrowDown');
+            expect(art.volume).toBe(0);
+            art.muted = muted;
 
-        dispatchKey('m');
-        expect(art.muted).toBe(false);
-        expect(art.volume).toBe(0.7);
-    });
+            dispatchKey('m');
+            expect(art.muted).toBe(false);
+            expect(art.volume).toBe(0.7);
+        }
+    );
 
     it('toggles the vendor fullscreen with F', () => {
         dispatchKey('f');

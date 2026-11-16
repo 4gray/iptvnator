@@ -1,6 +1,13 @@
 import { CommonModule } from '@angular/common';
-import { Component, input, ChangeDetectionStrategy } from '@angular/core';
+import {
+    ChangeDetectionStrategy,
+    Component,
+    DOCUMENT,
+    inject,
+    input,
+} from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
@@ -18,6 +25,7 @@ import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-de
     providers: [provideFormFieldDefaults()],
     imports: [
         CommonModule,
+        MatButtonModule,
         MatFormFieldModule,
         MatSelectModule,
         MatSlideToggleModule,
@@ -26,9 +34,24 @@ import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-de
     ],
     templateUrl: './settings-general-section.component.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    styles: [':host { display: contents; }'],
+    styles: [
+        ':host { display: contents; }',
+        '.android-shell-settings { margin-block-start: 12px; }',
+    ],
 })
 export class SettingsGeneralSectionComponent {
+    private readonly shell = (
+        inject(DOCUMENT).defaultView as
+            | (Window & { TvShell?: { postMessage(message: string): void } })
+            | null
+    )?.TvShell;
+    readonly canOpenAndroidSettings =
+        typeof this.shell?.postMessage === 'function';
+
+    openAndroidSettings(): void {
+        this.shell?.postMessage(JSON.stringify(['openSettings']));
+    }
+
     readonly form = input.required<FormGroup>();
 
     constructor() {

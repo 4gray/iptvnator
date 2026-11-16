@@ -65,6 +65,15 @@ describe('PlaybackHistoryConfirmation', () => {
         expect(confirm).toHaveBeenCalledTimes(1);
     });
 
+    it('adds measured native time without counting the jump back to the web clock', () => {
+        play(0, 1.5);
+        confirmation.recordPlayedTime(0.3);
+        play(3);
+        expect(confirm).not.toHaveBeenCalled();
+        play(3.3);
+        expect(confirm).toHaveBeenCalledWith(streamA);
+    });
+
     it('ignores position changes reported while not playing', () => {
         confirmation.record(0, false);
         confirmation.record(1, false);

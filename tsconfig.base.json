@@ -111,6 +111,9 @@
             "@iptvnator/portal/xtream/feature": [
                 "libs/portal/xtream/feature/src/index.ts"
             ],
+            "@iptvnator/portal/xtream/data-access/android-playback-resets": [
+                "libs/portal/xtream/data-access/src/lib/data-sources/pwa-android-playback-resets.ts"
+            ],
             "@iptvnator/portal/xtream/data-access": [
                 "libs/portal/xtream/data-access/src/index.ts"
             ],
@@ -200,6 +203,9 @@
             ],
             "@iptvnator/services/source-sync/profile-user-data": [
                 "libs/services/src/lib/source-sync/source-profile-user-data.ts"
+            ],
+            "@iptvnator/services/pwa-native-playback-resets": [
+                "libs/services/src/lib/pwa-native-playback-resets.ts"
             ],
             "@iptvnator/services/pwa-xtream-backup-storage": [
                 "libs/services/src/lib/pwa-xtream-backup-storage.ts"

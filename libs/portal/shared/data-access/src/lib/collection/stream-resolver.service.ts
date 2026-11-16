@@ -2,7 +2,7 @@ import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import { inject, Injectable, Injector } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
-import { extractDrmFromRaw } from '@iptvnator/shared/m3u-utils';
+import { extractDrmFromRaw, isLikelyM3uVod } from '@iptvnator/shared/m3u-utils';
 import {
     EpgPreferencesService,
     EpgSourceSettingsService,
@@ -409,6 +409,7 @@ export class StreamResolverService {
             streamUrl: channel.url ?? '',
             title: channel.name,
             thumbnail: channel.tvg?.logo ?? null,
+            isLive: !isLikelyM3uVod(channel),
             drm: channel.drm ?? extractDrmFromRaw(channel.raw),
             headers: Object.keys(headers).length > 0 ? headers : undefined,
             userAgent,
@@ -593,6 +594,7 @@ export class StreamResolverService {
                 rawCmd
             ),
             isLive: item.radio === 'true' ? undefined : true,
+            requiresFreshStreamUrl: true,
         });
     }
 
@@ -631,6 +633,7 @@ export class StreamResolverService {
             portalUrl: string;
             streamUrl: string;
             isLive?: boolean;
+            requiresFreshStreamUrl?: boolean;
         }
     ): Promise<ResolvedPortalPlayback> {
         // The item may carry portal/mac overrides for playlists that no
@@ -684,6 +687,9 @@ export class StreamResolverService {
             title: item.name,
             thumbnail: item.logo ?? null,
             isLive: resolved.isLive,
+            ...(resolved.requiresFreshStreamUrl && {
+                requiresFreshStreamUrl: true,
+            }),
             catalogIdentity:
                 resolved.isLive && item.stalkerId != null
                     ? {

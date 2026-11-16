@@ -1,66 +1,20 @@
 import { ActivitySyncClient } from './activity-sync-client';
+import { ActivitySupersededError } from './activity-action-fence';
+import { MemoryActivityStore } from './test-stubs/memory-activity-store';
 import {
     activityAddressKey,
     applyActivityOperation,
     emptyActivityState,
     type ActivityAddress,
     type ActivityApplyResult,
-    type ActivityLocalRecord,
     type ActivityLocalStore,
     type ActivityState,
-    type ActivityPendingOperation,
 } from '@iptvnator/shared/interfaces/activity-sync';
 import type {
     PlaybackPositionData,
     SourceServerRequest,
 } from '@iptvnator/shared/interfaces';
 
-class MemoryActivityStore implements ActivityLocalStore {
-    private rows = new Map<
-        string,
-        { address: ActivityAddress; record: ActivityLocalRecord }
-    >();
-    private tail = Promise.resolve();
-    async read(address: ActivityAddress) {
-        await this.tail;
-        return structuredClone(
-            this.rows.get(activityAddressKey(address))?.record ?? null
-        );
-    }
-    async entries(sourceId: string) {
-        await this.tail;
-        return structuredClone(
-            [...this.rows.values()].filter(
-                (row) => row.address.sourceId === sourceId
-            )
-        );
-    }
-    async pending() {
-        await this.tail;
-        return [...this.rows.values()].reduce<ActivityPendingOperation[]>(
-            (all, row) => all.concat(row.record.pending),
-            []
-        );
-    }
-    mutate(
-        address: ActivityAddress,
-        change: (current: ActivityLocalRecord | null) => ActivityLocalRecord
-    ): Promise<ActivityLocalRecord> {
-        const operation = this.tail.then(() => {
-            const key = activityAddressKey(address);
-            const next = change(
-                structuredClone(this.rows.get(key)?.record ?? null)
-            );
-            this.rows.set(key, structuredClone({ address, record: next }));
-            return structuredClone(next);
-        });
-        this.tail = operation.then(
-            () => undefined,
-            () => undefined
-        );
-        return operation;
-    }
-}
 const context = {
     sourceId: 'source',
     provider: 'xtream' as const,
@@ -491,6 +445,264 @@ describe('activity sync clients', () => {
         expect([...h.states.values()][0].resume?.positionSeconds).toBe(30);
         await a.value.flush();
     });
+    it('keeps a native checkpoint after an older web position is acknowledged late', async () => {
+        const h = harness();
+        const { value, store } = h.client('synthetic-device');
+        const position = movie('synthetic-session', 20);
+        await value.begin('source', position);
+        await value.flush();
+        const held = jest.spyOn(value, 'flush').mockResolvedValue(undefined);
+        await value.save('source', position);
+        const captured = Date.now() + 1000;
+        const nativeCheckpointAt = new Date(captured).toISOString();
+        const acknowledgedAt = new Date(captured + 1000).toISOString();
+        const send = h.request.getMockImplementation()!;
+        h.request.mockImplementation(async (input) => {
+            const response = await send(input);
+            if (input.activity?.operation?.kind === 'checkpoint') {
+                const result = response.body as ActivityApplyResult;
+                result.state.updatedAt = acknowledgedAt;
+            }
+            return response;
+        });
+        held.mockRestore();
+        await value.flush();
+
+        const [previous] = await value.positions('source');
+        expect(previous.position.updatedAt).toBe(acknowledgedAt);
+        expect(Date.parse(previous.position.activityPlayedAt!)).toBeLessThan(
+            captured
+        );
+        await value.save('source', {
+            ...position,
+            positionSeconds: 35,
+            nativeCheckpointAt,
+        });
+        await value.flush();
+
+        const [{ record }] = await store.entries('source');
+        expect(record.position).toMatchObject({
+            positionSeconds: 35,
+            updatedAt: acknowledgedAt,
+            activityPlayedAt: nativeCheckpointAt,
+        });
+    });
+
+    it.each([false, true])(
+        'keeps newer progress when an older server drops capture time (refresh: %s)',
+        async (refresh) => {
+            const h = harness();
+            const { value } = h.client('synthetic-device');
+            const send = h.request.getMockImplementation()!;
+            h.request.mockImplementation((input) => {
+                const operation = input.activity?.operation;
+                if (
+                    !input.activity ||
+                    operation?.kind !== 'checkpoint' ||
+                    !operation.positionMetadata
+                )
+                    return send(input);
+                const positionMetadata = { ...operation.positionMetadata };
+                delete positionMetadata.playedAt;
+                return send({
+                    ...input,
+                    activity: {
+                        ...input.activity,
+                        operation: { ...operation, positionMetadata },
+                    },
+                });
+            });
+            const position = movie('synthetic-session', 80);
+            await value.begin('source', position);
+            await value.flush();
+            const nativeCheckpointAt = new Date(
+                Date.now() - 1000
+            ).toISOString();
+            await value.save('source', position);
+            await value.flush();
+            if (refresh) await value.refresh('source');
+
+            await value.save('source', {
+                ...position,
+                positionSeconds: 20,
+                nativeCheckpointAt,
+            });
+            await value.flush();
+            expect([...h.states.values()][0].resume?.positionSeconds).toBe(80);
+        }
+    );
+
+    it('saves a native position captured before the server acknowledged begin', async () => {
+        const h = harness();
+        const { value } = h.client('synthetic-device');
+        const position = movie('synthetic-session', 0);
+        const nativeCheckpointAt = new Date(Date.now() - 1000).toISOString();
+        const acknowledgedAt = new Date().toISOString();
+        const send = h.request.getMockImplementation()!;
+        h.request.mockImplementation(async (input) => {
+            const response = await send(input);
+            if (input.activity?.operation?.kind === 'begin') {
+                const result = response.body as ActivityApplyResult;
+                result.state.updatedAt = acknowledgedAt;
+            }
+            return response;
+        });
+        await value.begin('source', position);
+        await value.flush();
+        expect((await value.positions('source'))[0].position.updatedAt).toBe(
+            acknowledgedAt
+        );
+
+        await value.save('source', {
+            ...position,
+            nativeCheckpointAt,
+            positionSeconds: 35,
+        });
+        await value.flush();
+
+        expect([...h.states.values()][0].resume?.positionSeconds).toBe(35);
+    });
+
+    it.each([false, true])(
+        'retries a native checkpoint displaced by a reset (reset succeeded: %s)',
+        async (resetSucceeded) => {
+            const h = harness();
+            const { value, store } = h.client('synthetic-device');
+            const position = movie('synthetic-session', 35);
+            await value.begin('source', position);
+            await value.flush();
+
+            let entered!: () => void;
+            const waiting = new Promise<void>((resolve) => {
+                entered = resolve;
+            });
+            let release!: () => void;
+            const held = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const mutate = store.mutate.bind(store);
+            const writes = jest
+                .spyOn(store, 'mutate')
+                .mockImplementationOnce(async (...args) => {
+                    entered();
+                    await held;
+                    return mutate(...args);
+                });
+            if (!resetSucceeded)
+                writes.mockRejectedValueOnce(
+                    new Error('Synthetic reset failure')
+                );
+
+            const checkpoint = {
+                ...position,
+                nativeCheckpointAt: new Date(Date.now() + 1000).toISOString(),
+            };
+            const saving = value.save('source', checkpoint);
+            await waiting;
+            try {
+                const reset = value.reset('source', position);
+                if (resetSucceeded) await reset;
+                else
+                    await expect(reset).rejects.toThrow(
+                        'Synthetic reset failure'
+                    );
+            } finally {
+                release();
+            }
+            await expect(saving).rejects.toBeInstanceOf(
+                ActivitySupersededError
+            );
+            await value.save('source', checkpoint);
+            await value.flush();
+            expect([...h.states.values()][0].resume?.positionSeconds).toBe(
+                resetSucceeded ? undefined : 35
+            );
+        }
+    );
+
+    it('keeps a native checkpoint queued if its activity address is superseded', async () => {
+        const h = harness();
+        const { value, store } = h.client('synthetic-device');
+        const position = movie('synthetic-session', 35);
+        await value.begin('source', position);
+        await value.flush();
+
+        const { value: restarted } = h.client('synthetic-device', store);
+        jest.spyOn(restarted, 'address').mockRejectedValueOnce(
+            new ActivitySupersededError('Synthetic context superseded')
+        );
+        const checkpoint = {
+            ...position,
+            nativeCheckpointAt: new Date().toISOString(),
+        };
+        await expect(
+            restarted.save('source', checkpoint)
+        ).rejects.toBeInstanceOf(ActivitySupersededError);
+        await restarted.save('source', checkpoint);
+        await restarted.flush();
+        expect([...h.states.values()][0].resume?.positionSeconds).toBe(35);
+    });
+
+    it('preserves the stored title when recovering a native checkpoint after a restart', async () => {
+        const h = harness();
+        const { value, store } = h.client('synthetic-device');
+        const position = movie('synthetic-session', 35);
+        const activityTitle = 'Synthetic movie';
+        await value.begin('source', { ...position, activityTitle });
+        await value.flush();
+
+        const { value: restarted } = h.client('synthetic-device', store);
+        await restarted.save('source', {
+            ...position,
+            nativeCheckpointAt: new Date(Date.now() + 1000).toISOString(),
+        });
+        await restarted.flush();
+
+        const [{ record }] = await store.entries('source');
+        expect(record.position).toMatchObject({
+            activityTitle,
+            positionSeconds: 35,
+        });
+        expect([...h.states.values()][0].positionMetadata?.title).toBe(
+            activityTitle
+        );
+    });
+
+    it('queues Mark watched while the inherited native checkpoint is pending', async () => {
+        const h = harness();
+        const { value, store } = h.client('synthetic-device');
+        const position = movie('synthetic-session', 35);
+        await value.begin('source', position);
+        await value.flush();
+
+        const held = jest.spyOn(value, 'flush').mockResolvedValue(undefined);
+        try {
+            await value.save('source', {
+                ...position,
+                nativeCheckpointAt: new Date(Date.now() + 1000).toISOString(),
+            });
+            const [{ position: pending }] = await value.positions('source');
+            expect(pending.watched).toBe(false);
+            await value.save('source', {
+                ...pending,
+                positionSeconds: position.durationSeconds!,
+                activitySessionId: undefined,
+                activityAction: 'mark-watched',
+            });
+            expect(
+                (await store.pending()).map(({ operation }) => operation.kind)
+            ).toEqual(['checkpoint', 'mark-watched']);
+        } finally {
+            held.mockRestore();
+        }
+
+        await value.flush();
+        expect([...h.states.values()][0]).toMatchObject({
+            watched: true,
+            watchedOrigin: 'manual',
+        });
+    });
+
     it('renews a fresh tab lease while its request is slow', async () => {
         const h = harness();
         const a = h.client('same-device');
@@ -695,6 +907,14 @@ describe('activity sync clients', () => {
         expect(entry.record.conflict).toBeDefined();
         expect([...h.states.values()][0].resume?.positionSeconds).toBe(30);
         await a.value.resolve(entry.address, true);
+        expect([...h.states.values()][0].resume?.positionSeconds).toBe(65);
+        await a.value.save('source', {
+            ...movie('a', 25),
+            nativeCheckpointAt: new Date(
+                Date.parse(entry.record.position!.activityPlayedAt!) - 1000
+            ).toISOString(),
+        });
+        await a.value.flush();
         expect([...h.states.values()][0].resume?.positionSeconds).toBe(65);
         await a.value.save('source', movie('a', 70));
         await a.value.flush();
