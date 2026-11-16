@@ -59,10 +59,11 @@ import {
 } from './font-weight-scope.mjs';
 
 /**
- * The weights `apps/web/src/styles.scss` bundles for DM Sans and its Roboto
- * fallback (JetBrains Mono stops at 500). Any other value snaps to a
- * neighbouring face (650 renders as 700), and a 600 or 700 that finds
- * nothing heavier than 500 gets Chromium's synthetic bold. The workspace is
+ * The UI weight scale for Inter Variable, the face `apps/web/src/styles.scss`
+ * bundles (JetBrains Mono stops at 500). Inter's weight axis renders any
+ * value, so an off-scale weight would quietly add a fifth weight to the
+ * type scale, and a 600 or 700 in a family without such a face gets
+ * Chromium's synthetic bold. The workspace is
  * at zero exceptions; this check keeps it there.
  *
  * Sass is not compiled, so a weight must be written, not computed: arithmetic
@@ -2335,7 +2336,7 @@ export function findIndirectWeights(scans) {
                 ? definition.value
                 : (definition.full ?? definition.value);
             // A shorthand that names its own family meets the Mono cap only
-            // when that family can render Mono (`--f: 700 16px Roboto` read
+            // when that family can render Mono (`--f: 700 16px Inter Variable` read
             // where a fallback is Mono keeps its 700).
             const own = mode === 'font' ? shorthandFamilies(value) : null;
             const capHere =
