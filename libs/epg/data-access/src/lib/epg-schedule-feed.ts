@@ -20,6 +20,7 @@ import { normalizeEpgPrograms } from './epg-program-normalization.util';
  */
 export class EpgScheduleFeed {
     private channelId: string | null = null;
+    private archiveDays = 0;
     private request = 0;
     private published = 0;
 
@@ -48,11 +49,12 @@ export class EpgScheduleFeed {
         );
     }
 
-    read(channelId: string, refill = false): void {
+    read(channelId: string, archiveDays: number, refill = false): void {
         // Recorded even while EPG is off: turning it on refills this channel,
         // not the one open before it was switched off.
-        if (this.channelId !== channelId) {
+        if (this.channelId !== channelId || this.archiveDays !== archiveDays) {
             this.channelId = channelId;
+            this.archiveDays = archiveDays;
             this.published = this.request;
         }
         const { bridge, guard, offsetMinutes, clockMs } = this.context;
@@ -68,6 +70,7 @@ export class EpgScheduleFeed {
             bridge.getChannelPrograms(channelId, {
                 nowMs: clockMs(),
                 rejectOnError: refill,
+                ...(archiveDays > 0 ? { archiveDays } : {}),
             })
         )
             .pipe(
@@ -94,7 +97,7 @@ export class EpgScheduleFeed {
 
     /** Read the open channel again (the stored EPG changed). */
     refill(): void {
-        if (this.channelId) this.read(this.channelId, true);
+        if (this.channelId) this.read(this.channelId, this.archiveDays, true);
     }
 
     /** A channel without an EPG key was opened: nothing left to refill. */

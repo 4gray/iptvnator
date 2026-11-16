@@ -861,8 +861,9 @@ crosses midnight (the list and the timeline emit `selectedDateChange`, so a
 host's controlled `selectedDate` follows too); a view the viewer put on
 another day stays there. A timeline that follows midnight centres the
 ribbon on the new day's current time, including when the on-air programme
-started the previous day. The list scrolls to the new on-air row after
-rendering. The timeline's hour ticks are placed by local
+started the previous day. After rendering, the list scrolls to the new
+on-air row and the multi-channel guide brings its now-line into view.
+The timeline's hour ticks are placed by local
 wall-clock time, so a daylight-saving day (23 or 25 hours) keeps every label
 on its hour; a wall-clock time the day skips has no tick.
 
@@ -1496,11 +1497,13 @@ The single-channel schedule (`EpgQueryService.getChannelPrograms`, main
 process) is a window around now in the provider's clock, after applying the
 saved EPG display offset, not the oldest rows: the upcoming
 programmes (the one airing included) and the nearest past ones, oldest
-first, together capped at `CHANNEL_SCHEDULE_LIMIT` (500) distinct slots. The
-past always keeps `CHANNEL_SCHEDULE_PAST_SLOTS` (250) for catch-up and takes
-whatever the upcoming rows leave, so a long history can no longer fill the
-cap and hide today. When sources disagree on a slot's end time, the latest
-valid end decides which half contains that slot. Both halves are returned in
+first, with an ordinary window of up to `CHANNEL_SCHEDULE_LIMIT` (500)
+distinct slots. The past reserves up to `CHANNEL_SCHEDULE_PAST_SLOTS` (250)
+and takes whatever the upcoming rows leave, so a long history cannot fill
+the cap and hide today. An M3U channel with advertised catch-up days also
+keeps all available slots within that window, including on background
+refills. When sources disagree on a slot's end time, the latest valid end
+decides which half contains that slot. Both halves are returned in
 chronological order regardless of the offset in the stored time.
 
 ### EPG Components

@@ -293,6 +293,25 @@ describe('EpgService schedule refill', () => {
         });
     });
 
+    it('retains the advertised catch-up window on a background refill', async () => {
+        service.getChannelPrograms('news.example', 7);
+        await flush();
+        expect(getChannelPrograms).toHaveBeenLastCalledWith('news.example', {
+            nowMs: expect.any(Number),
+            rejectOnError: false,
+            archiveDays: 7,
+        });
+
+        service.refreshEpgData();
+        await flush();
+
+        expect(getChannelPrograms).toHaveBeenLastCalledWith('news.example', {
+            nowMs: expect.any(Number),
+            rejectOnError: true,
+            archiveDays: 7,
+        });
+    });
+
     it('keeps the schedule and raises no toast when a background refill fails', async () => {
         await openChannel('news.example');
         getChannelPrograms.mockResolvedValueOnce([

@@ -44,19 +44,21 @@ describe('PlaylistEffects setActiveChannel$ programme panel', () => {
         effects.setActiveChannel$.subscribe();
     });
 
-    it('reads the schedule of a channel with an EPG key', () => {
+    it('reads the schedule with the channel’s advertised archive days', () => {
         actions$.next(
             ChannelActions.setActiveChannel({
                 channel: {
                     url: 'https://streams.example.test/a.m3u8',
                     name: 'Synthetic News',
                     tvg: { id: 'news.example' },
+                    catchup: { days: '7' },
                 } as Channel,
             })
         );
 
         expect(epgService.getChannelPrograms).toHaveBeenCalledWith(
-            'news.example'
+            'news.example',
+            7
         );
         expect(epgService.clearSchedule).not.toHaveBeenCalled();
     });

@@ -432,6 +432,8 @@ export interface ElectronBridgeEpgLookupOptions {
      * the provider's EPG clock. Absent, the main process uses its own clock.
      */
     nowMs?: number;
+    /** Retains the channel's advertised catch-up window in getChannelPrograms. */
+    archiveDays?: number;
 }
 
 export type ElectronBridgeCurrentProgramsOptions =

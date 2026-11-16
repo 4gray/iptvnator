@@ -58,7 +58,7 @@ const SQLITE_MAX_BOUND_PARAMETERS = 32_766;
  */
 const CURRENT_PROGRAM_FIXED_PARAMETERS = 3;
 
-/** Distinct programmes a single-channel schedule returns at most. */
+/** Maximum distinct programmes in the ordinary single-channel window. */
 export const CHANNEL_SCHEDULE_LIMIT = 500;
 /** Of those, the slots always left for the past (catch-up), nearest first. */
 export const CHANNEL_SCHEDULE_PAST_SLOTS = 250;
@@ -91,12 +91,14 @@ export class EpgQueryService {
             }
 
             const now = this.toAiringInstantIso(options.nowMs);
+            const archiveDays = options.archiveDays ?? 0;
             const selectSchedule = async (id: string) => {
                 const programs = await this.selectChannelScheduleWindow(
                     db,
                     id,
                     sourceUrls,
-                    now
+                    now,
+                    { archiveDays }
                 );
                 if (programs.length > 0 || sourceUrls.length === 0)
                     return programs;
@@ -105,7 +107,7 @@ export class EpgQueryService {
                     id,
                     sourceUrls,
                     now,
-                    { legacyOnly: true }
+                    { archiveDays, legacyOnly: true }
                 );
             };
 
@@ -531,24 +533,23 @@ export class EpgQueryService {
     /**
      * A channel's schedule around now, oldest first: the upcoming programmes
      * (the one airing included) and the nearest past ones, together capped
-     * at `CHANNEL_SCHEDULE_LIMIT`. Taking the oldest rows instead let a long
-     * history fill the cap and hide today. The past keeps at least
-     * `CHANNEL_SCHEDULE_PAST_SLOTS` for catch-up and gets whatever the
-     * upcoming rows leave. Identical slots collapse before either limit.
+     * at `CHANNEL_SCHEDULE_LIMIT`, with additional past slots for any
+     * larger advertised catch-up window. Identical slots collapse before
+     * applying either the time window or the row limits.
      */
     private async selectChannelScheduleWindow(
         db: EpgDatabase,
         channelId: string,
         sourceUrls: string[],
         now: string,
-        options: { legacyOnly?: boolean } = {}
+        options: { archiveDays: number; legacyOnly?: boolean }
     ): Promise<EpgProgramSelectRow[]> {
         const { channelId: channel, start, stop, title } = schema.epgPrograms;
         // SQLite's single MAX picks the source row with the latest valid
         // stop. A slot on both sides of now therefore belongs to one half.
         const ended = sql`max(julianday(${stop})) < julianday(${now})`;
         const startTime = sql`julianday(${start})`;
-        const select = (when: SQL, order: SQL, limit: number) =>
+        const select = (when: SQL, order: SQL) =>
             db
                 .select()
                 .from(schema.epgPrograms)
@@ -561,25 +562,36 @@ export class EpgQueryService {
                 )
                 .groupBy(channel, start, title)
                 .having(when)
-                .orderBy(order)
-                .limit(limit);
+                .orderBy(order);
         const upcoming = await select(
             sql`coalesce(${ended}, 0) = 0`,
-            asc(startTime),
-            CHANNEL_SCHEDULE_LIMIT
-        );
+            asc(startTime)
+        ).limit(CHANNEL_SCHEDULE_LIMIT);
         const pastLimit =
             CHANNEL_SCHEDULE_LIMIT -
             Math.min(
                 upcoming.length,
                 CHANNEL_SCHEDULE_LIMIT - CHANNEL_SCHEDULE_PAST_SLOTS
             );
-        const past = await select(ended, desc(startTime), pastLimit);
-        // An airing programme can start before one that has already ended.
-        return [
-            ...past,
-            ...upcoming.slice(0, CHANNEL_SCHEDULE_LIMIT - past.length),
-        ].sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
+        const { archiveDays } = options;
+        const archive =
+            Number.isFinite(archiveDays) && archiveDays > 0
+                ? await select(
+                      sql`${ended} AND ${startTime} >= julianday(${now}) - ${archiveDays}`,
+                      desc(startTime)
+                  )
+                : [];
+        const past =
+            archive.length >= pastLimit
+                ? archive
+                : await select(ended, desc(startTime)).limit(pastLimit);
+        // An advertised archive can add past rows, keeping the ordinary
+        // window available for the airing and upcoming programmes.
+        const upcomingSlots =
+            CHANNEL_SCHEDULE_LIMIT - Math.min(past.length, pastLimit);
+        return [...past, ...upcoming.slice(0, upcomingSlots)].sort(
+            (a, b) => Date.parse(a.start) - Date.parse(b.start)
+        );
     }
 
     private async selectCurrentProgramsForChannelIds(

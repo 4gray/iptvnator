@@ -67,6 +67,7 @@ describe('EpgQueryService single-channel schedule window', () => {
         // Two weeks of history at 30 minutes: 672 ended slots, then a day.
         seedSlots('long-history', -672, 47);
         seedSlots('long-future', -10, 1_000);
+        seedSlots('weekly-archive', -350, 350);
         seedSlots('offset-window', -420, 420, 2 * 60_000);
         seedSlots('short', -3, 3);
         // Two sources carry the airing slot; one says it already ended.
@@ -132,6 +133,21 @@ describe('EpgQueryService single-channel schedule window', () => {
         );
         expect(result.at(-1)).toBe(`Slot ${CHANNEL_SCHEDULE_LIMIT - 11}`);
         expect(CHANNEL_SCHEDULE_PAST_SLOTS).toBeGreaterThan(10);
+    });
+
+    it('keeps every advertised catch-up slot while still returning the airing programme', async () => {
+        const programmes = await service.getChannelPrograms('weekly-archive', {
+            sourceUrls: [SOURCE_URL],
+            nowMs: FIRST_SLOT_MS,
+            archiveDays: 7,
+        });
+        const result = programmes.map((programme) => programme.title);
+
+        expect(result.slice(0, 337)).toEqual(
+            Array.from({ length: 337 }, (_, i) => `Slot ${i - 336}`)
+        );
+        expect(result).toContain('Slot 1');
+        expect(result).not.toContain('Slot -337');
     });
 
     it('keeps the currently airing short programme after a 12-hour display correction', async () => {

@@ -171,7 +171,7 @@ export class EpgService {
     }
 
     /** Reads a channel's schedule into `currentEpgPrograms$`. */
-    getChannelPrograms(channelId: string): void {
+    getChannelPrograms(channelId: string, archiveDays = 0): void {
         if (!this.epgBridge.supportsProgramLookup) return;
         this.scheduleFeed ??= this.loadScheduleFeed().then(
             ({ EpgScheduleFeed }) =>
@@ -184,7 +184,7 @@ export class EpgService {
                     () => this.showErrorSnackbar()
                 )
         );
-        this.withScheduleFeed((feed) => feed.read(channelId));
+        this.withScheduleFeed((feed) => feed.read(channelId, archiveDays));
     }
 
     /**

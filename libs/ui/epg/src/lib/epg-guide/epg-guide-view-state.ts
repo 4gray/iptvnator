@@ -81,11 +81,14 @@ export class EpgGuideViewState {
         CLOCK_TICK_MS
     );
 
-    constructor(rememberCoverageFilter = true) {
+    constructor(rememberCoverageFilter = true, onRollover?: () => void) {
         followEpgTodayRollover(
             this.todayKey,
             () => this.dayKey(),
-            (dayKey) => this.dayKey.set(dayKey)
+            (dayKey) => {
+                this.dayKey.set(dayKey);
+                onRollover?.();
+            }
         );
         this.onlyWithEpg = signal(
             rememberCoverageFilter && this.preferences.onlyWithEpg
