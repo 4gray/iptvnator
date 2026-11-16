@@ -4,6 +4,7 @@ import {
     Component,
     DOCUMENT,
     inject,
+    Injector,
     input,
 } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
@@ -19,7 +20,6 @@ import {
 } from './settings.models';
 import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
 import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
-import { WorkspaceKeyboardShortcutsLauncherService } from '@iptvnator/workspace/shell/util';
 
 @Component({
     selector: 'app-settings-general-section',
@@ -54,10 +54,7 @@ export class SettingsGeneralSectionComponent {
     }
 
     readonly form = input.required<FormGroup>();
-    /** The shell's shortcuts dialog; the `?` key opens the same one. */
-    protected readonly keyboardShortcuts = inject(
-        WorkspaceKeyboardShortcutsLauncherService
-    );
+    private readonly injector = inject(Injector);
 
     constructor() {
         // Parent patches (Discard, backup import) change the form outside
@@ -72,4 +69,18 @@ export class SettingsGeneralSectionComponent {
     /** Desktop only: the window-mode select needs the main-process mirror and F11 */
     readonly supportsStartupWindowMode = input(false);
     readonly supportsPortalConnectivityGuard = input(false);
+
+    /**
+     * Opens the workspace shell's shortcuts dialog, the one `?` opens.
+     * Settings renders inside the shell, whose chunk is already loaded, so
+     * the import costs no fetch. A static import or a root service shared
+     * with the shell would land in the startup bundle instead.
+     */
+    protected async openKeyboardShortcuts(): Promise<void> {
+        const { WorkspaceKeyboardShortcutsService } =
+            await import('@iptvnator/workspace/shell/feature');
+        this.injector
+            .get(WorkspaceKeyboardShortcutsService, null)
+            ?.openShortcutsDialog();
+    }
 }

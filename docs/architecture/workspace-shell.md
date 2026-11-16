@@ -152,8 +152,11 @@ The shell is intentionally split into four persistent regions:
        contextual group and disappears when that group is empty.
 
     Keyboard shortcuts have no header button: the `?` key, the command
-    palette entry and Settings → General → Help open the dialog through
-    `WorkspaceKeyboardShortcutsLauncherService`.
+    palette entry and Settings → General → Help open the dialog of the
+    shell-provided `WorkspaceKeyboardShortcutsService`. Settings reaches it
+    with a dynamic import of the already-loaded shell chunk: a root service
+    shared by the two lazy chunks would land in the startup bundle
+    (`renderer.initialBytes`).
 
     When the header runs short of room, actions move into "More actions"
     (priority+). `workspace-shell-header-overflow.ts` holds the rules. The

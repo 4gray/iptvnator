@@ -769,10 +769,7 @@ describe('WorkspaceShellHeaderComponent', () => {
             const labels = items.map((item) =>
                 item.querySelector('span')?.textContent?.trim()
             );
-            expect(labels).toEqual([
-                'guide.aria',
-                'PARENTAL_LOCK.HEADER_LOCK',
-            ]);
+            expect(labels).toEqual(['guide.aria', 'PARENTAL_LOCK.HEADER_LOCK']);
             // The guide is a toggle: its pressed state survives as checked.
             expect(items[0].getAttribute('role')).toBe('menuitemcheckbox');
             expect(items[0].getAttribute('aria-checked')).toBe('true');
@@ -823,6 +820,81 @@ describe('WorkspaceShellHeaderComponent', () => {
                 )
             ).toBeNull();
             expect(global().classList).not.toContain('header-actions--divided');
+        });
+
+        describe('measured from the laid-out header', () => {
+            const BUTTON = 40;
+            let headerWidth = 0;
+            const measure = () => {
+                (
+                    component as unknown as { measureOverflow(): void }
+                ).measureOverflow();
+                fixture.detectChanges();
+            };
+
+            beforeEach(() => {
+                // jsdom has no layout: the header row gets a width, every
+                // button 40px, the action cluster the sum of its buttons and
+                // every other region 100px.
+                jest.spyOn(
+                    HTMLElement.prototype,
+                    'clientWidth',
+                    'get'
+                ).mockImplementation(function (this: HTMLElement) {
+                    return this.classList.contains('workspace-header')
+                        ? headerWidth
+                        : 0;
+                });
+                jest.spyOn(
+                    HTMLElement.prototype,
+                    'offsetWidth',
+                    'get'
+                ).mockImplementation(function (this: HTMLElement) {
+                    if (this.tagName === 'BUTTON') {
+                        return BUTTON;
+                    }
+                    return this.classList.contains('header-actions-cluster')
+                        ? this.querySelectorAll('button').length * BUTTON
+                        : 100;
+                });
+                jest.spyOn(
+                    Element.prototype,
+                    'getClientRects'
+                ).mockImplementation(() => [{}] as unknown as DOMRectList);
+            });
+
+            afterEach(() => jest.restoreAllMocks());
+
+            it('keeps the last plan while the header is not laid out', () => {
+                setOverflowCount(2);
+                headerWidth = 0;
+
+                measure();
+
+                expect(overflowTrigger()).not.toBeNull();
+            });
+
+            it('moves actions into the menu when the row runs short', () => {
+                headerWidth = 2000;
+                measure();
+                expect(overflowTrigger()).toBeNull();
+
+                headerWidth = 360;
+                measure();
+                expect(overflowTrigger()).not.toBeNull();
+                expect(openMenu().length).toBeGreaterThanOrEqual(2);
+            });
+
+            it('settles on the same plan when measured again', () => {
+                headerWidth = 400;
+                measure();
+                const first = overflowTrigger() !== null;
+
+                measure();
+                measure();
+
+                expect(overflowTrigger() !== null).toBe(first);
+            });
         });
     });
 });

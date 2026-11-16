@@ -25,12 +25,12 @@ import {
 } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import {
-    WorkspaceKeyboardShortcutsLauncherService,
     WorkspaceShellContextDrawerService,
     WorkspaceStartupPreferencesService,
     WORKSPACE_SHELL_ACTIONS,
 } from '@iptvnator/workspace/shell/util';
 import { RecentCommandsService } from '../../recent-commands';
+import { WorkspaceKeyboardShortcutsService } from '../../workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service';
 import { WorkspacePlayerCommandsContributor } from '../../workspace-player-commands';
 import { XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS } from './helpers/workspace-shell-constants';
 import { WorkspaceShellFacade } from './workspace-shell.facade';
@@ -269,6 +269,10 @@ describe('WorkspaceShellFacade', () => {
                 WorkspaceShellHeaderService,
                 WorkspaceShellXtreamImportService,
                 WorkspaceShellCommandPaletteService,
+                {
+                    provide: WorkspaceKeyboardShortcutsService,
+                    useValue: { openShortcutsDialog: jest.fn() },
+                },
                 {
                     provide: WorkspaceShellContextDrawerService,
                     useValue: contextDrawer,
@@ -841,9 +845,9 @@ describe('WorkspaceShellFacade', () => {
     });
 
     it('opens the keyboard shortcuts from the palette', () => {
-        const open = jest.fn();
-        TestBed.inject(WorkspaceKeyboardShortcutsLauncherService).register(
-            open
+        const open = jest.mocked(
+            TestBed.inject(WorkspaceKeyboardShortcutsService)
+                .openShortcutsDialog
         );
         facade.currentUrl.set('/workspace/dashboard');
 

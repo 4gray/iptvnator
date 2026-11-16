@@ -1,4 +1,10 @@
-import { computed, DestroyRef, inject, Injectable } from '@angular/core';
+import {
+    computed,
+    DestroyRef,
+    inject,
+    Injectable,
+    Injector,
+} from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
@@ -26,10 +32,8 @@ import { WorkspaceShellHeaderService } from './workspace-shell-header.service';
 import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.service';
 import { WorkspaceShellSearchService } from './workspace-shell-search.service';
 import { WorkspaceShellXtreamImportService } from './workspace-shell-xtream-import.service';
-import {
-    WorkspaceKeyboardShortcutsLauncherService,
-    WorkspaceShellContextDrawerService,
-} from '@iptvnator/workspace/shell/util';
+import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
+import { WorkspaceKeyboardShortcutsService } from '../../workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service';
 import { PlaylistSwitcherOpenService } from '@iptvnator/playlist/shared/ui';
 
 @Injectable()
@@ -51,9 +55,8 @@ export class WorkspaceShellFacade {
     private readonly xtreamImport = inject(WorkspaceShellXtreamImportService);
     readonly headerContext = inject(WorkspaceHeaderContextService);
     private readonly backNavigation = inject(WorkspaceBackNavigationService);
-    private readonly keyboardShortcuts = inject(
-        WorkspaceKeyboardShortcutsLauncherService
-    );
+    // Resolved on use: the shortcuts service is the shell's sibling provider.
+    private readonly injector = inject(Injector);
 
     private readonly languageTick = injectTranslationTick();
     // Root-provided; optional keeps standalone unit tests light. While the phone context drawer is modal, opening the command
@@ -326,7 +329,10 @@ export class WorkspaceShellFacade {
         unlockParentalLock: () => {
             void this.parentalLock.requestUnlock();
         },
-        openKeyboardShortcuts: () => this.keyboardShortcuts.open(),
+        openKeyboardShortcuts: () =>
+            this.injector
+                .get(WorkspaceKeyboardShortcutsService)
+                .openShortcutsDialog(),
     };
 
     private translateText(

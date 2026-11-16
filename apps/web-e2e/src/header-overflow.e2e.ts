@@ -74,9 +74,14 @@ test.describe('workspace header on a phone', () => {
     test('@header @mobile @xtream overflowed actions move into one menu of two or more', async ({
         page,
     }) => {
-        const vodUrl = page.url();
         await enableParentalLock(page);
-        await page.goto(vodUrl.replace(/\/vod.*$/, '/live'));
+        // In-app navigation: a reload right after the PIN is saved could
+        // race the settings write and come back with the lock off.
+        await page
+            .locator('app-workspace-shell-rail')
+            .getByRole('link', { name: 'Live TV', exact: true })
+            .click();
+        await page.waitForURL(/\/live/);
         await page.locator('.context-panel .category-item').first().click();
         await expect(
             page.locator('app-live-stream-layout .sidebar')

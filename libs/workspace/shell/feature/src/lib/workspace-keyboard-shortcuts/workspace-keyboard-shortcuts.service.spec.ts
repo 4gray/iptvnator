@@ -5,10 +5,7 @@ import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { WorkspaceBackGesturesService } from '../workspace-back-gestures/workspace-back-gestures.service';
 import { WorkspaceKeyboardShortcutsDialogData } from './workspace-keyboard-shortcuts-dialog.component';
 import { WorkspaceKeyboardShortcutsService } from './workspace-keyboard-shortcuts.service';
-import {
-    WorkspaceKeyboardShortcutsLauncherService,
-    WorkspaceShellContextDrawerService,
-} from '@iptvnator/workspace/shell/util';
+import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 
 describe('WorkspaceKeyboardShortcutsService', () => {
     let afterClosed$: Subject<void>;
@@ -71,17 +68,10 @@ describe('WorkspaceKeyboardShortcutsService', () => {
         expect(dialog.open).toHaveBeenCalledTimes(1);
     });
 
-    it('opens the same dialog for Settings and the palette through the launcher', () => {
-        const launcher = TestBed.inject(
-            WorkspaceKeyboardShortcutsLauncherService
-        );
-        expect(launcher.available()).toBe(true);
+    it('opens the same dialog for Settings and the palette', () => {
+        TestBed.inject(WorkspaceKeyboardShortcutsService).openShortcutsDialog();
 
-        launcher.open();
         expect(dialog.open).toHaveBeenCalledTimes(1);
-
-        TestBed.resetTestingModule();
-        expect(launcher.available()).toBe(false);
     });
 
     it('opens the shortcuts dialog for Shift+/', () => {
