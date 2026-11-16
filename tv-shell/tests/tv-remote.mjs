@@ -505,6 +505,7 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
         document.body.appendChild(diagnostic);
         const issue = (code) => diagnostic.dispatchEvent(new CustomEvent('iptvnator:playback-issue', { bubbles: true, detail: { code } }));
         issue('network-error');
+        issue('browser-access-error');
         await wait(150);
         out.engineNetworkError = recent();
         issue('unsupported-codec');
@@ -557,11 +558,16 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
         stage.appendChild(tryNative);
         failed('synthetic-enabled-later');
         out.enabledAfterWebFailure = offerCount() - fallbackStart;
-        attempt('synthetic-network-failure');
-        issue('network-error');
-        out.networkFailureAwaitedNative = offerCount() - fallbackStart;
-        failed('synthetic-network-failure');
-        out.networkAndNativeFailed = offerCount() - fallbackStart;
+        out.accessFailures = [];
+        for (const code of ['network-error', 'browser-access-error']) {
+            const id = 'synthetic-' + code;
+            attempt(id);
+            const before = offerCount();
+            issue(code);
+            const alone = offerCount() - before;
+            failed(id);
+            out.accessFailures.push({ alone, both: offerCount() - before });
+        }
         window.__tvShell.currentStreamUrl = currentStreamUrl;
         stage.remove();
         diagnostic.remove();
@@ -621,7 +627,7 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
     check(r.leavingPlaying.includes('setKeepScreenOn true') && r.leavingRemoved.includes('setKeepScreenOn false'),
         'leaving a playing page lets the screen sleep: ' + r.leavingPlaying.join(' | ') + ' then ' + r.leavingRemoved.join(' | '));
     check(!r.engineNetworkError.some((call) => call.startsWith('onPlaybackError ')),
-        'engine-level network errors do not offer the external player');
+        'engine-level network and browser access errors do not offer the external player on their own');
     check(r.engineNativeErrorAbsent && r.engineFormatError.length === 1 && r.engineFormatError[0].endsWith(' 4'),
         'an engine codec failure offers the external player without a native media error');
     check(r.engineDuplicateError.length === 1, 'the same engine failure offers the external player once');
@@ -632,8 +638,8 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
         'external fallback prompts once when the web failure arrives after Media3');
     check(r.enabledAfterWebFailure === 3,
         'external fallback remembers the current web error when Media3 is enabled later');
-    check(r.networkFailureAwaitedNative === 3 && r.networkAndNativeFailed === 4,
-        'a web network error offers the external player only after Media3 also fails');
+    check(r.accessFailures.every(({ alone, both }) => alone === 0 && both === 1),
+        'web network and browser access errors offer an external player after Media3 also fails');
     check(!r.removedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'a removed player cannot offer recovery for its replacement');
     check(!r.retriedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'a fresh attempt of the same source discards the previous delayed error');
     check(!r.changedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'changing source before loadstart also discards the old error');

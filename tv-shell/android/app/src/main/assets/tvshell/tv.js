@@ -1422,10 +1422,11 @@
         });
         document.addEventListener('iptvnator:playback-issue', function (event) {
             var code = event.detail && event.detail.code;
+            var accessFailure = code === 'network-error' || code === 'browser-access-error';
             if (code !== 'unsupported-codec' && code !== 'unsupported-container' &&
-                code !== 'media-decode-error' && code !== 'network-error') return;
-            // A web network error counts toward recovery only if Media3 also fails.
-            var url = code === 'network-error' ? null : api.currentStreamUrl();
+                code !== 'media-decode-error' && !accessFailure) return;
+            // Web access and network errors count only if Media3 also fails.
+            var url = accessFailure ? null : api.currentStreamUrl();
             var root = currentVideo && currentVideo.closest ? currentVideo.closest('.video-js') : null;
             offerAfterWebError(url, document.title || '', 4, event.target, root);
         });
