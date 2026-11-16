@@ -688,7 +688,15 @@ test('starts a tunnel TLS origin on loopback and requires Access for both pages 
         await expect(read('/api/v1/instance')).resolves.toBe(403);
         await openSettings(page);
         await openSettingsSection(page, 'server');
-        await expect(page.getByTestId('hosted-device-pair')).toHaveCount(0);
+        const pairDevice = page.getByTestId('hosted-device-pair');
+        await expect(pairDevice).toBeVisible();
+        await expect(pairDevice).toBeDisabled();
+        await expect(pairDevice).toHaveAttribute(
+            'aria-describedby',
+            'hosted-pairing-unavailable'
+        );
+        await expect(page.locator('#hosted-pairing-unavailable')).toBeVisible();
+        await expect(page.getByTestId('hosted-device-pair-qr')).toHaveCount(0);
         await page.getByTestId('hosted-server-stop').click();
         await expect(page.getByTestId('hosted-server-status')).toHaveText(
             'Server stopped'
