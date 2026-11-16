@@ -99,7 +99,8 @@ export function rebaseSettingsForm(
     unsettledPaths: ReadonlySet<string>,
     ownEpgUrls: unknown[],
     submitted?: SettingsFormSubmission,
-    pendingEpgUrls?: readonly (string | null)[]
+    pendingEpgUrls?: readonly (string | null)[],
+    epgPickerOpen = false
 ): {
     next: SettingsFormValue;
     staged: ReadonlySet<string>;
@@ -132,12 +133,13 @@ export function rebaseSettingsForm(
             staged.add(path);
         }
     }
+    if (epgPickerOpen) staged.add('epgUrl');
     const addedEpgUrls = staged.has('epgUrl')
         ? epgUrlsAddedOutside(current.epgUrl, ownEpgUrls, next.epgUrl)
         : [];
-    // A new row can still be waiting for the desktop file picker.
+    // Keep unfinished rows and the controls targeted by an open file picker.
     const hasUnfinishedRow = current.epgUrl?.some((url) => !url?.trim());
-    if (staged.has('epgUrl') && !hasUnfinishedRow) {
+    if (staged.has('epgUrl') && !epgPickerOpen && !hasUnfinishedRow) {
         const draft = [
             ...normalizeFormEpgUrls(current.epgUrl),
             ...addedEpgUrls,

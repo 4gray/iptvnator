@@ -40,14 +40,18 @@ export class SettingsEpgFacade {
         if (!control || !this.epgBridge.supportsFilePicker) {
             return;
         }
-        const filePath = await this.epgBridge.pickEpgFile();
-        if (!filePath) {
-            return;
+        this.formFacade.epgFilePickers.add(control);
+        try {
+            const filePath = await this.epgBridge.pickEpgFile();
+            if (!filePath || !this.formFacade.epgUrl.controls.includes(control))
+                return;
+            control.setValue(filePath);
+            control.markAsDirty();
+            control.markAsTouched();
+            this.formFacade.form.markAsDirty();
+        } finally {
+            this.formFacade.epgFilePickers.delete(control);
         }
-        control.setValue(filePath);
-        control.markAsDirty();
-        control.markAsTouched();
-        this.formFacade.form.markAsDirty();
     }
 
     /**

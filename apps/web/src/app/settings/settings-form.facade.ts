@@ -8,7 +8,7 @@ import {
     untracked,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormArray, FormBuilder } from '@angular/forms';
+import { AbstractControl, FormArray, FormBuilder } from '@angular/forms';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     EpgSourceReconciliationError,
@@ -41,6 +41,7 @@ import {
     createEpgUrlControl,
     createSettingsForm,
     createSettingsFromFormValue,
+    replaceEpgUrlsInFormArray,
     SettingsForm,
 } from './settings-form.utils';
 import { SettingsFormWrites } from './settings-form-writes';
@@ -101,6 +102,7 @@ export class SettingsFormFacade {
      * browser PWA)
      */
     readonly epgUrl = this.form.get('epgUrl') as FormArray;
+    readonly epgFilePickers = new Set<AbstractControl>();
 
     /**
      * Dotted paths of the staged values that differ from the saved ones.
@@ -172,8 +174,7 @@ export class SettingsFormFacade {
         );
 
         if (this.supportsEpg && currentSettings.epgUrl) {
-            this.epgUrl.clear();
-            this.setEpgUrls(currentSettings.epgUrl);
+            replaceEpgUrlsInFormArray(this.epgUrl, currentSettings.epgUrl);
         }
         this.takeSavedSnapshot();
         // The app launched with the stored values; recorded once per app run,
@@ -305,10 +306,15 @@ export class SettingsFormFacade {
             this.savedSnapshot
         ))
             this.unsettledSavePaths.add(path);
+        const submission = {
+            paths: [...this.unsettledSavePaths],
+            snapshot: submittedSnapshot,
+            savedEpgUrls: this.savedSnapshot.epgUrl,
+        };
         const stored = this.settingsStore.getSettings();
         const settings = pickChangedSettings(
             createSettingsFromFormValue(this.form, stored),
-            [...this.unsettledSavePaths],
+            submission.paths,
             stored
         );
         if (
@@ -319,11 +325,6 @@ export class SettingsFormFacade {
             delete settings.tmdb.apiKey;
             this.unsettledSavePaths.delete('tmdb.apiKey');
         }
-        const submission = {
-            paths: [...this.unsettledSavePaths],
-            snapshot: submittedSnapshot,
-            savedEpgUrls: this.savedSnapshot.epgUrl,
-        };
         const onPersisted = this.writes.prepare(
             saveRevision,
             submittedSnapshot.epgUrl,
@@ -484,20 +485,14 @@ export class SettingsFormFacade {
             this.unsettledSavePaths,
             this.writes.knownUrls(this.savedSnapshot.epgUrl),
             submitted,
-            this.writes.submittedEpgUrls
+            this.writes.submittedEpgUrls,
+            this.epgFilePickers.size > 0
         );
         for (const path of diffSettingsValues(next, current)) {
             if (staged.has(path)) continue;
-            if (path === 'epgUrl') {
-                this.epgUrl.clear();
-                this.setEpgUrls(
-                    (next.epgUrl ?? []).filter(
-                        (url): url is string => typeof url === 'string'
-                    )
-                );
-            } else {
-                this.form.get(path)?.setValue(readSettingsPath(next, path));
-            }
+            if (path === 'epgUrl')
+                replaceEpgUrlsInFormArray(this.epgUrl, next.epgUrl);
+            else this.form.get(path)?.setValue(readSettingsPath(next, path));
         }
         if (addedEpgUrls.length) this.setEpgUrls(addedEpgUrls);
         this.takeSavedSnapshot(next);

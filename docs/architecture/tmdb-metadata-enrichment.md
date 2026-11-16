@@ -62,7 +62,8 @@ copy. The receiving device needs writable IndexedDB. It compares the previous
 key and saves the replacement in one transaction. A failed local write can be
 retried in the same open dialog before expiry.
 Ordinary settings saves preserve the key already in IndexedDB unless the user
-edits that field. Other tabs reread the key after a save notification. The
+edits that field. Save accepts a whitespace-only edit and displays the stored
+key. Other tabs reread the key after a save notification. The
 notification contains no key, and a tab keeps any unsaved key edit. A key edit
 reverted after a failed storage write lets the form adopt the latest saved
 key. After storage succeeds, a newer key from another tab supersedes the

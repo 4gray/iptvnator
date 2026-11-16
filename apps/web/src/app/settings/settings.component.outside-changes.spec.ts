@@ -393,6 +393,25 @@ describe('SettingsComponent with settings changed outside the form', () => {
         }
     );
 
+    it('acknowledges a whitespace-only key edit without writing the key', async () => {
+        const key = 'synthetic-existing-key';
+        settingsStore._setSettings({ tmdb: { enabled: false, apiKey: key } });
+        component.form.hydrateFromStore();
+        const { apiKey } = component.settingsForm.controls.tmdb.controls;
+        apiKey.setValue(` ${key} `);
+        component.settingsForm.markAsDirty();
+
+        await component.form.save(() => component.form.applySavedSettings());
+
+        expect(apiKey.value).toBe(key);
+        expect(component.form.changedPaths()).toEqual([]);
+        expect(component.settingsForm.pristine).toBe(true);
+        expect(settingsStore.updateSettings).toHaveBeenCalledWith(
+            { tmdb: {} },
+            { retryEpgCleanup: false }
+        );
+    });
+
     it('keeps a newly saved key after an unrelated retry with a trimmed-out key edit', async () => {
         const originalKey = 'synthetic-key-a';
         const newKey = 'synthetic-key-b';
@@ -603,41 +622,52 @@ describe('SettingsComponent with settings changed outside the form', () => {
         }
     );
 
-    it('keeps a new EPG row while its file picker waits for Save', async () => {
-        let acknowledge!: () => void;
-        let chooseFile!: (path: string) => void;
-        jest.spyOn(window.electron, 'updateSettings').mockReturnValueOnce(
-            new Promise<void>((resolve) => (acknowledge = resolve))
-        );
-        jest.spyOn(
-            TestBed.inject(EpgRuntimeBridgeService),
-            'pickEpgFile'
-        ).mockReturnValueOnce(
-            new Promise<string>((resolve) => (chooseFile = resolve))
-        );
-        component.settingsForm.controls.showCaptions.setValue(true);
-        const saving = component.form.save(() =>
-            component.form.applySavedSettings()
-        );
-        await Promise.resolve();
+    it.each(['before', 'after', 'existing'])(
+        'keeps the EPG file picker target when the row was present %s Save',
+        async (rowTiming) => {
+            let acknowledge!: () => void;
+            let chooseFile!: (path: string) => void;
+            jest.spyOn(window.electron, 'updateSettings').mockReturnValueOnce(
+                new Promise<void>((resolve) => (acknowledge = resolve))
+            );
+            jest.spyOn(
+                TestBed.inject(EpgRuntimeBridgeService),
+                'pickEpgFile'
+            ).mockReturnValueOnce(
+                new Promise<string>((resolve) => (chooseFile = resolve))
+            );
+            if (rowTiming === 'before') component.form.addEpgSource();
+            component.settingsForm.controls.showCaptions.setValue(true);
+            const saving = component.form.save(() =>
+                component.form.applySavedSettings()
+            );
+            await Promise.resolve();
 
-        component.form.addEpgSource();
-        const browsing = component.epg.browse(1);
-        acknowledge();
-        await saving;
-        chooseFile('/example/selected.xml');
-        await browsing;
+            if (rowTiming === 'after') component.form.addEpgSource();
+            if (rowTiming === 'existing') {
+                settingsStore._setSettings({
+                    epgUrl: [SAVED_GUIDE, RESTORED_GUIDE],
+                });
+            }
+            const browsing = component.epg.browse(
+                rowTiming === 'existing' ? 0 : 1
+            );
+            acknowledge();
+            await saving;
+            chooseFile('/example/selected.xml');
+            await browsing;
 
-        expect(component.form.epgUrls).toEqual([
-            SAVED_GUIDE,
-            '/example/selected.xml',
-        ]);
-        await component.form.save(() => component.form.applySavedSettings());
-        expect(settingsStore.getSettings().epgUrl).toEqual([
-            SAVED_GUIDE,
-            '/example/selected.xml',
-        ]);
-    });
+            const expected =
+                rowTiming === 'existing'
+                    ? ['/example/selected.xml', RESTORED_GUIDE]
+                    : [SAVED_GUIDE, '/example/selected.xml'];
+            expect(component.form.epgUrls).toEqual(expected);
+            await component.form.save(() =>
+                component.form.applySavedSettings()
+            );
+            expect(settingsStore.getSettings().epgUrl).toEqual(expected);
+        }
+    );
 
     it('keeps the order of new sources rearranged during Save and then restored', async () => {
         const extraGuide = 'https://example.test/second-draft.xml';

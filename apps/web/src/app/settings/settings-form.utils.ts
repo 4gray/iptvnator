@@ -194,6 +194,19 @@ export function applyEpgUrlsToFormArray(
     });
 }
 
+export function replaceEpgUrlsInFormArray(
+    formArray: FormArray,
+    urls: string | readonly (string | null)[] = []
+): void {
+    formArray.clear();
+    applyEpgUrlsToFormArray(
+        formArray,
+        typeof urls === 'string'
+            ? urls
+            : urls.filter((url): url is string => typeof url === 'string')
+    );
+}
+
 export function createSettingsFromFormValue(
     settingsForm: SettingsForm,
     currentSettings: Settings
