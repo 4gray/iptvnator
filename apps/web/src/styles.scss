@@ -158,16 +158,7 @@ textarea {
 // iOS WebKit zooms to a focused field when its text is too small. Keep the
 // viewport scalable and override the compact sizes set by component styles.
 @supports (-webkit-touch-callout: none) {
-    input:is(
-        :not([type]),
-        [type='text'],
-        [type='search'],
-        [type='url'],
-        [type='tel'],
-        [type='email'],
-        [type='password'],
-        [type='number']
-    ),
+    input:not([type='checkbox'], [type='radio'], [type='range'], [type='file']),
     textarea {
         font-size: max(1rem, 16px) !important;
     }
