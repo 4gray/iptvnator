@@ -12,7 +12,6 @@ import {
 } from '@angular/core';
 import { getPlaybackMediaExtensionFromUrl } from '@iptvnator/playback/util';
 import { ParentalLockService } from '@iptvnator/services';
-import { noteNativePlaybackRequest } from '@iptvnator/services/pwa-native-playback-resets';
 import { sourceProfileName } from '@iptvnator/services/source-sync/connection';
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
@@ -248,8 +247,10 @@ export class AndroidTvPlayback {
         captions: boolean,
         surface: HTMLElement
     ): void {
-        const bridge = this.window?.TvShell;
-        if (!bridge || !this.canOpen(playback) || this.pending()) return;
+        const window = this.window;
+        const bridge = window?.TvShell;
+        if (!window || !bridge || !this.canOpen(playback) || this.pending())
+            return;
         const video = surface.querySelector('video');
         const previous = this.ownedSession();
         const volume = video
@@ -350,7 +351,7 @@ export class AndroidTvPlayback {
                         this.resumeWeb();
                         return;
                     }
-                    noteNativePlaybackRequest(id);
+                    window.iptvnatorAndroidCheckpointRequestId = id;
                     bridge.postMessage(message);
                 } catch {
                     if (this.ownedSession()?.id === id) this.resumeWeb();

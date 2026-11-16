@@ -3,8 +3,11 @@ import { playbackTimestamp } from '@iptvnator/shared/interfaces';
 import { inject } from '@angular/core';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util/tokens';
 import { announceActivityChange } from '@iptvnator/services/activity-changes';
-import { USER_DATA_STORAGE } from '@iptvnator/services';
-import { pruneNativePlaybackResets } from '@iptvnator/services/pwa-native-playback-resets';
+import { USER_DATA_STORAGE, XTREAM_USER_DATA_KEYS } from '@iptvnator/services';
+import {
+    nativePlaybackEpisodeResetKey,
+    nativePlaybackResetKey,
+} from '@iptvnator/services/pwa-native-playback-resets';
 import { sourceProfileName } from '@iptvnator/services/source-sync/connection';
 import type {
     PlaybackPositionData,
@@ -38,8 +41,28 @@ export function installAndroidPlaybackCheckpoint(
         'iptvnator:android-playback-checkpoints-idle',
         (event) => {
             if (!(event instanceof CustomEvent) || !ownsProfile()) return;
-            if (event.detail === null || typeof event.detail === 'string')
-                pruneNativePlaybackResets(storage, event.detail);
+            if (event.detail !== null && typeof event.detail !== 'string')
+                return;
+            const requestId = window.iptvnatorAndroidCheckpointRequestId;
+            // A queued idle notification cannot clear markers for a newer launch.
+            if (requestId && requestId !== event.detail) return;
+            window.iptvnatorAndroidCheckpointRequestId = null;
+            try {
+                const key = XTREAM_USER_DATA_KEYS.playbackPositions;
+                const raw = storage.getItem(key);
+                if (
+                    !raw ||
+                    (!raw.includes(nativePlaybackResetKey) &&
+                        !raw.includes(nativePlaybackEpisodeResetKey))
+                )
+                    return;
+                const positions = JSON.parse(raw);
+                delete positions[nativePlaybackResetKey];
+                delete positions[nativePlaybackEpisodeResetKey];
+                storage.setItem(key, JSON.stringify(positions));
+            } catch {
+                // Existing progress remains readable if cleanup cannot run.
+            }
         }
     );
     window.addEventListener(checkpointEvent, (event) => {

@@ -6,7 +6,6 @@ import { ApplicationInitStatus, DOCUMENT } from '@angular/core';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util/tokens';
 import {
     nativePlaybackMayHaveCheckpoint,
-    noteNativePlaybackRequest,
     stampNativePlaybackReset,
 } from '@iptvnator/services/pwa-native-playback-resets';
 import { TestBed } from '@angular/core/testing';
@@ -55,7 +54,8 @@ describe('restoring Android playback checkpoints', () => {
     const getPlaybackPosition = jest.fn();
     const savePlaybackPositionOrThrow = jest.fn();
     const postMessage = jest.fn();
-    let documentWindow: EventTarget;
+    let documentWindow: EventTarget &
+        Pick<Window, 'iptvnatorAndroidCheckpointRequestId'>;
 
     beforeEach(async () => {
         localStorage.clear();
@@ -130,7 +130,8 @@ describe('restoring Android playback checkpoints', () => {
             );
         const scope = Object.assign(window, { TvShell: { postMessage } });
         try {
-            noteNativePlaybackRequest('synthetic-current');
+            documentWindow.iptvnatorAndroidCheckpointRequestId =
+                'synthetic-current';
             localStorage.setItem(storageKey, JSON.stringify(stored));
             idle('synthetic-previous');
             expect(JSON.parse(localStorage.getItem(storageKey)!)).toEqual(
@@ -141,12 +142,17 @@ describe('restoring Android playback checkpoints', () => {
             expect(JSON.parse(localStorage.getItem(storageKey)!)).toEqual(
                 positions
             );
+            expect(
+                documentWindow.iptvnatorAndroidCheckpointRequestId
+            ).toBeNull();
+            scope.iptvnatorAndroidCheckpointRequestId =
+                documentWindow.iptvnatorAndroidCheckpointRequestId;
             expect(nativePlaybackMayHaveCheckpoint()).toBe(false);
             const markers: Record<string, unknown> = {};
             stampNativePlaybackReset(markers, 'synthetic-next');
             expect(markers).toEqual({});
 
-            noteNativePlaybackRequest('synthetic-next');
+            scope.iptvnatorAndroidCheckpointRequestId = 'synthetic-next';
             expect(nativePlaybackMayHaveCheckpoint()).toBe(true);
             stampNativePlaybackReset(markers, 'synthetic-next');
             expect(markers).toEqual({
@@ -156,6 +162,10 @@ describe('restoring Android playback checkpoints', () => {
             });
         } finally {
             Reflect.deleteProperty(scope, 'TvShell');
+            Reflect.deleteProperty(
+                scope,
+                'iptvnatorAndroidCheckpointRequestId'
+            );
         }
     });
 
