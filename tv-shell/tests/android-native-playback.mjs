@@ -596,7 +596,12 @@ try {
         window.__allowPositionWrite = false;
         window.__positionWriteAttempts = 0;
         window.__nativeResults = 0;
+        window.__retryCheckpointIdle = false;
+        const requestId = crypto.randomUUID();
         window.addEventListener('iptvnator:android-playback-result', () => window.__nativeResults++);
+        window.addEventListener('iptvnator:android-playback-checkpoints-idle', (event) => {
+            if (event.detail === requestId) window.__retryCheckpointIdle = true;
+        });
         Storage.prototype.setItem = function (key, value) {
             if (key === 'xtream-playback-positions' && !window.__allowPositionWrite) {
                 window.__positionWriteAttempts++;
@@ -604,7 +609,7 @@ try {
             }
             return put.call(this, key, value);
         };
-        window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), {
+        window.TvShell.postMessage(JSON.stringify(['playNative', requestId, {
             url,
             startTime: 8,
             checkpoint: {
@@ -619,14 +624,24 @@ try {
     await waitAudio();
     await back();
     await expect.poll(() => page.evaluate(() => window.__positionWriteAttempts)).toBeGreaterThan(0);
+    assert.equal(await page.evaluate(() => window.__retryCheckpointIdle), false,
+        'A failed write must retain the native checkpoint and its reset guards.');
     await page.evaluate(() => {
         window.__allowPositionWrite = true;
+        const key = 'xtream-playback-positions';
+        const positions = JSON.parse(localStorage.getItem(key) || '{}');
+        positions.__iptvnator_native_playback_resets__ = { 'synthetic-other-source': Date.now() };
+        localStorage.setItem(key, JSON.stringify(positions));
         window.TvShell.postMessage(JSON.stringify(['onReady', location.href]));
     });
     await expect.poll(() => page.evaluate((id) => {
         const stored = JSON.parse(localStorage.getItem('xtream-playback-positions') || '{}');
         return stored[id]?.find((item) => item.contentXtreamId === 18)?.positionSeconds;
     }, retryId)).toBeGreaterThanOrEqual(8);
+    await page.waitForFunction(() => window.__retryCheckpointIdle === true);
+    await expect.poll(() => page.evaluate(() => JSON.parse(
+        localStorage.getItem('xtream-playback-positions') || '{}'
+    ).__iptvnator_native_playback_resets__)).toBeUndefined();
     assert.equal(await page.evaluate(() => window.__nativeResults), 1,
         'Checkpoint retry must not replay the original playback result.');
     await entry('Synthetic Unplayable').click();

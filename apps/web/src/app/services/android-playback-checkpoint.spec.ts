@@ -4,6 +4,11 @@ import {
 } from '@iptvnator/services/source-sync/connection';
 import { ApplicationInitStatus, DOCUMENT } from '@angular/core';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util/tokens';
+import {
+    nativePlaybackMayHaveCheckpoint,
+    noteNativePlaybackRequest,
+    stampNativePlaybackReset,
+} from '@iptvnator/services/pwa-native-playback-resets';
 import { TestBed } from '@angular/core/testing';
 import { provideAndroidPlaybackCheckpoint } from './android-playback-checkpoint.providers';
 
@@ -104,6 +109,55 @@ describe('restoring Android playback checkpoints', () => {
         );
         return new Promise<void>((resolve) => setTimeout(resolve, 0));
     }
+
+    it('retains reset markers until Android confirms the latest launch has no pending checkpoint', () => {
+        const storageKey = 'xtream-playback-positions';
+        const positions = { 'synthetic-source': [{ positionSeconds: 30 }] };
+        const stored = {
+            ...positions,
+            __iptvnator_native_playback_resets__: {
+                'synthetic-source': savedAt,
+            },
+            __iptvnator_native_playback_episode_resets__: {
+                'synthetic-source': { '17,19': savedAt },
+            },
+        };
+        const idle = (detail: string) =>
+            documentWindow.dispatchEvent(
+                new CustomEvent('iptvnator:android-playback-checkpoints-idle', {
+                    detail,
+                })
+            );
+        const scope = Object.assign(window, { TvShell: { postMessage } });
+        try {
+            noteNativePlaybackRequest('synthetic-current');
+            localStorage.setItem(storageKey, JSON.stringify(stored));
+            idle('synthetic-previous');
+            expect(JSON.parse(localStorage.getItem(storageKey)!)).toEqual(
+                stored
+            );
+
+            idle('synthetic-current');
+            expect(JSON.parse(localStorage.getItem(storageKey)!)).toEqual(
+                positions
+            );
+            expect(nativePlaybackMayHaveCheckpoint()).toBe(false);
+            const markers: Record<string, unknown> = {};
+            stampNativePlaybackReset(markers, 'synthetic-next');
+            expect(markers).toEqual({});
+
+            noteNativePlaybackRequest('synthetic-next');
+            expect(nativePlaybackMayHaveCheckpoint()).toBe(true);
+            stampNativePlaybackReset(markers, 'synthetic-next');
+            expect(markers).toEqual({
+                __iptvnator_native_playback_resets__: {
+                    'synthetic-next': expect.any(Number),
+                },
+            });
+        } finally {
+            Reflect.deleteProperty(scope, 'TvShell');
+        }
+    });
 
     it('saves the original episode once before acknowledging duplicate delivery', async () => {
         const refreshed = jest.fn();

@@ -4,6 +4,7 @@ import { inject } from '@angular/core';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util/tokens';
 import { announceActivityChange } from '@iptvnator/services/activity-changes';
 import { USER_DATA_STORAGE } from '@iptvnator/services';
+import { pruneNativePlaybackResets } from '@iptvnator/services/pwa-native-playback-resets';
 import { sourceProfileName } from '@iptvnator/services/source-sync/connection';
 import type {
     PlaybackPositionData,
@@ -33,6 +34,14 @@ export function installAndroidPlaybackCheckpoint(
     const pending = new Set<string>();
     const newest = new Map<string, number>();
     let writes = Promise.resolve();
+    window.addEventListener(
+        'iptvnator:android-playback-checkpoints-idle',
+        (event) => {
+            if (!(event instanceof CustomEvent) || !ownsProfile()) return;
+            if (event.detail === null || typeof event.detail === 'string')
+                pruneNativePlaybackResets(storage, event.detail);
+        }
+    );
     window.addEventListener(checkpointEvent, (event) => {
         if (!(event instanceof CustomEvent)) return;
         const data = event.detail as Checkpoint | null;

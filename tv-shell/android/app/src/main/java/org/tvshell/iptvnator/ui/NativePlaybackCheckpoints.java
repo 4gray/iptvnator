@@ -76,7 +76,9 @@ final class NativePlaybackCheckpoints {
         for (Map.Entry<String, ?> row : storage.getAll().entrySet()) {
             JSONObject entry = read(row.getValue());
             if (entry != null && id.equals(entry.optString("id")) && origin.equals(entry.optString("origin"))) {
-                storage.edit().remove(row.getKey()).apply();
+                // The WebView may delete its reset guards when the durable queue is empty.
+                if (!storage.edit().remove(row.getKey()).commit())
+                    storage.edit().putString(row.getKey(), (String) row.getValue()).apply();
                 return;
             }
         }

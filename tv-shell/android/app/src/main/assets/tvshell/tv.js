@@ -1422,8 +1422,10 @@
         });
         document.addEventListener('iptvnator:playback-issue', function (event) {
             var code = event.detail && event.detail.code;
-            if (code !== 'unsupported-codec' && code !== 'unsupported-container' && code !== 'media-decode-error') return;
-            var url = api.currentStreamUrl();
+            if (code !== 'unsupported-codec' && code !== 'unsupported-container' &&
+                code !== 'media-decode-error' && code !== 'network-error') return;
+            // A web network error counts toward recovery only if Media3 also fails.
+            var url = code === 'network-error' ? null : api.currentStreamUrl();
             var root = currentVideo && currentVideo.closest ? currentVideo.closest('.video-js') : null;
             offerAfterWebError(url, document.title || '', 4, event.target, root);
         });

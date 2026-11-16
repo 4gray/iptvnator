@@ -557,6 +557,11 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
         stage.appendChild(tryNative);
         failed('synthetic-enabled-later');
         out.enabledAfterWebFailure = offerCount() - fallbackStart;
+        attempt('synthetic-network-failure');
+        issue('network-error');
+        out.networkFailureAwaitedNative = offerCount() - fallbackStart;
+        failed('synthetic-network-failure');
+        out.networkAndNativeFailed = offerCount() - fallbackStart;
         window.__tvShell.currentStreamUrl = currentStreamUrl;
         stage.remove();
         diagnostic.remove();
@@ -627,6 +632,8 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
         'external fallback prompts once when the web failure arrives after Media3');
     check(r.enabledAfterWebFailure === 3,
         'external fallback remembers the current web error when Media3 is enabled later');
+    check(r.networkFailureAwaitedNative === 3 && r.networkAndNativeFailed === 4,
+        'a web network error offers the external player only after Media3 also fails');
     check(!r.removedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'a removed player cannot offer recovery for its replacement');
     check(!r.retriedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'a fresh attempt of the same source discards the previous delayed error');
     check(!r.changedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'changing source before loadstart also discards the old error');

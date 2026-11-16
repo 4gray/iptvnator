@@ -3,7 +3,10 @@ import {
     writeXtreamUserDataMap,
     type UserDataStorage,
 } from '@iptvnator/services';
-import { stampNativePlaybackReset } from '@iptvnator/services/pwa-native-playback-resets';
+import {
+    nativePlaybackMayHaveCheckpoint,
+    stampNativePlaybackReset,
+} from '@iptvnator/services/pwa-native-playback-resets';
 import type {
     PlaybackPositionData,
     PlaybackPositionResetScope,
@@ -181,7 +184,7 @@ export class PwaPlaybackPositions {
 
         const allPositions = this.getPlaybackPositionsFromStorage();
         const playlistPositions = allPositions[playlistId];
-        const android = 'TvShell' in globalThis;
+        const android = nativePlaybackMayHaveCheckpoint();
         if (!playlistPositions && !android) return;
         if (playlistPositions) {
             const removedKeys = new Set(

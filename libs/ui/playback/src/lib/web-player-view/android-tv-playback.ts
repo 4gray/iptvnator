@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { getPlaybackMediaExtensionFromUrl } from '@iptvnator/playback/util';
 import { ParentalLockService } from '@iptvnator/services';
+import { noteNativePlaybackRequest } from '@iptvnator/services/pwa-native-playback-resets';
 import { sourceProfileName } from '@iptvnator/services/source-sync/connection';
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
@@ -349,6 +350,7 @@ export class AndroidTvPlayback {
                         this.resumeWeb();
                         return;
                     }
+                    noteNativePlaybackRequest(id);
                     bridge.postMessage(message);
                 } catch {
                     if (this.ownedSession()?.id === id) this.resumeWeb();

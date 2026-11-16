@@ -165,9 +165,12 @@ listener loads only with the Android bridge. If its module fails to load, startu
 continues and Android keeps the pending checkpoint for a later page load.
 The listener saves through the portal resume
 store for the original WebView origin and source profile. A page in another
-profile leaves the checkpoint pending. A reset or backup restore records its
-time in the same write as the position change. Older checkpoints cannot undo
-that change. While a reset is pending, Android retains the checkpoint so
+profile leaves the checkpoint pending. While Android can replay an older
+position, a reset or backup restore records its time with the position change.
+Older checkpoints cannot undo that change. Android reports when the durable
+queue and active launch are empty. The WebView then removes the reset markers
+and skips new markers until the next native launch.
+While a reset is pending, Android retains the checkpoint so
 recovery can retry if the reset fails. An older Android checkpoint cannot
 replace a newer local position staged for retry. Bulk resets record the exact
 episode IDs from the reset request, including episodes with no saved position.

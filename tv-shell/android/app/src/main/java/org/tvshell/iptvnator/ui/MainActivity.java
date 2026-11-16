@@ -47,6 +47,7 @@ import org.tvshell.iptvnator.backend.DiagnosticRedactor;
 import org.tvshell.iptvnator.server.TvShellServer;
 
 import java.util.Collections;
+import java.util.List;
 
 /**
  * Full-screen WebView showing the bundled IPTVnator PWA from the embedded
@@ -78,6 +79,7 @@ public class MainActivity extends Activity {
     private WebView webView;
     private String bridgeOrigin;
     private String nativePlaybackId;
+    private String lastNativePlaybackRequestId;
     private Bundle nativePlaybackContent;
     private NativePlaybackCheckpoints nativePlaybackCheckpoints;
     private boolean nativePlaybackDocumentCurrent;
@@ -655,10 +657,12 @@ public class MainActivity extends Activity {
     }
 
     void playNative(String id, Object payload) {
+        lastNativePlaybackRequestId = id;
         Intent intent = prefs.nativePlayback() && resumed && pageReady && nativePlaybackId == null
             ? NativePlaybackRequest.toIntent(this, payload) : null;
         if (intent == null) {
             replyToNativePlayback(id, null);
+            deliverNativePlaybackCheckpoint();
             return;
         }
         nativePlaybackId = id;
@@ -699,14 +703,24 @@ public class MainActivity extends Activity {
     private void deliverNativePlaybackCheckpoint() {
         if (!pageReady || webView == null || SettingsActivity.dataCleared) return;
         // A fallback port uses a different WebView data store.
-        for (JSONObject checkpoint : nativePlaybackCheckpoints.forOrigin(bridgeOrigin)) {
+        List<JSONObject> checkpoints = nativePlaybackCheckpoints.forOrigin(bridgeOrigin);
+        for (JSONObject checkpoint : checkpoints) {
             js("window.dispatchEvent(new CustomEvent('iptvnator:android-playback-checkpoint',{detail:"
                 + "JSON.parse(" + JSONObject.quote(checkpoint.toString()) + ")}))");
         }
+        if (checkpoints.isEmpty()) publishNativePlaybackCheckpointIdle();
     }
 
     void acknowledgeNativePlaybackCheckpoint(String id) {
         nativePlaybackCheckpoints.acknowledge(bridgeOrigin, id);
+        if (nativePlaybackCheckpoints.forOrigin(bridgeOrigin).isEmpty()) publishNativePlaybackCheckpointIdle();
+    }
+
+    private void publishNativePlaybackCheckpointIdle() {
+        if (nativePlaybackId != null || !pageReady || webView == null || SettingsActivity.dataCleared) return;
+        String lastRequest = lastNativePlaybackRequestId == null ? "null" : JSONObject.quote(lastNativePlaybackRequestId);
+        js("window.dispatchEvent(new CustomEvent('iptvnator:android-playback-checkpoints-idle',{detail:"
+            + lastRequest + "}))");
     }
 
     void openExternal(String url, String title) {
