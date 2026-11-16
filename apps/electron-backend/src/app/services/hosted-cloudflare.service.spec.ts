@@ -8,6 +8,7 @@ import { getIptvnatorDataRoot } from '@iptvnator/shared/database/path-utils';
 import { HOSTED_CLOUDFLARE_CONTROL } from '@iptvnator/shared/interfaces';
 import {
     registerHostedCloudflareEvents,
+    shutdownHostedCloudflare,
     stopHostedCloudflare,
 } from './hosted-cloudflare.service';
 
@@ -60,6 +61,7 @@ describe('hosted Cloudflare connector', () => {
         dir = mkdtempSync(join(tmpdir(), 'iptv-connector-'));
         jest.mocked(getIptvnatorDataRoot).mockReturnValue(dir);
         jest.mocked(ipcMain.handle).mockClear();
+        jest.mocked(spawn).mockReset();
         jest.mocked(safeStorage.isEncryptionAvailable).mockReturnValue(true);
         ingress = true;
         registerHostedCloudflareEvents(
@@ -158,5 +160,60 @@ describe('hosted Cloudflare connector', () => {
         } finally {
             packaging.restore();
         }
+    });
+
+    it('reuses encrypted credentials and waits for the connector to close on shutdown', async () => {
+        const child = Object.assign(new EventEmitter(), { kill: jest.fn() });
+        jest.mocked(spawn).mockImplementation(() => {
+            queueMicrotask(() => child.emit('spawn'));
+            return child as never;
+        });
+        await expect(invoke({ start: true })).rejects.toThrow(
+            'Saved tunnel token'
+        );
+        await expect(invoke({ start: true, token: 123 })).rejects.toThrow(
+            'Invalid tunnel token'
+        );
+        await expect(invoke({ start: true, token: 'short' })).rejects.toThrow(
+            'Invalid tunnel token'
+        );
+        await expect(invoke('unknown')).rejects.toThrow(
+            'Invalid connector command'
+        );
+        await invoke({ start: true, token });
+        await expect(invoke('forget')).rejects.toThrow(
+            'Stop the connector first'
+        );
+        await expect(invoke({ start: true })).rejects.toThrow(
+            'already running'
+        );
+        const shutdown = shutdownHostedCloudflare();
+        expect(child.kill).toHaveBeenCalledTimes(1);
+        child.emit('exit', 0);
+        child.emit('close', 0);
+        await expect(shutdown).resolves.toBeUndefined();
+
+        await invoke({ start: true });
+        expect(safeStorage.decryptString).toHaveBeenCalledWith(
+            Buffer.from(`encrypted:${token}`)
+        );
+        expect(jest.mocked(spawn).mock.lastCall?.[2]).toMatchObject({
+            env: { TUNNEL_TOKEN: token },
+        });
+        child.emit('exit', 1);
+        expect(await invoke('status')).toMatchObject({ state: 'error' });
+        await expect(shutdownHostedCloudflare()).resolves.toBeUndefined();
+    });
+
+    it('reports a synchronous spawn failure without leaving an active connector', async () => {
+        jest.mocked(spawn).mockImplementationOnce(() => {
+            throw new Error('synthetic spawn failure');
+        });
+        await expect(invoke({ start: true, token })).resolves.toMatchObject({
+            state: 'error',
+        });
+        await expect(invoke('forget')).resolves.toMatchObject({
+            savedToken: false,
+        });
     });
 });

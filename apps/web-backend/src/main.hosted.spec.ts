@@ -248,4 +248,106 @@ describe('hosted web backend worker', () => {
             expect(database?.sqlite.open).toBe(false);
         }
     );
+
+    it('serves explicit Home network mode and handles private worker requests', async () => {
+        process.env.IPTVNATOR_HOSTED_MODE = JSON.stringify({
+            mode: 'lan',
+            address: '',
+            access: 'open',
+        });
+        expect(await startWorker()).toMatchObject({ ready: true });
+        expect(servers).toHaveLength(1);
+        const result = once(parent, 'reply');
+        parent.emit('message', {
+            data: {
+                requestId: 'synthetic-list',
+                workerRequest: { method: 'GET', path: '/v1/devices' },
+            },
+        });
+        expect((await result)[0]).toMatchObject({
+            reply: 'synthetic-list',
+            response: { status: 200, body: { pending: [], devices: [] } },
+        });
+        parent.emit('message', { data: 'stop' });
+        expect(await exited).toBe(0);
+    });
+
+    it('permits requests through an explicit proxy origin and rejects different origins', async () => {
+        const origin = 'https://library.example.test';
+        process.env.IPTVNATOR_HOSTED_MODE = JSON.stringify({
+            mode: 'proxy',
+            address: '',
+            origin,
+        });
+        expect(await startWorker()).toMatchObject({ ready: true });
+        expect(servers).toHaveLength(1);
+        const server = servers[0];
+        const url = serverOrigin(server) + '/api/v1/instance';
+        expect(
+            await proxyGet(server, url, {
+                headers: { host: new URL(origin).host, origin },
+            })
+        ).toMatchObject({ status: 200 });
+        expect(
+            await proxyGet(server, url, {
+                headers: {
+                    host: new URL(origin).host,
+                    origin: 'https://other.example.test',
+                },
+            })
+        ).toMatchObject({ status: 403 });
+        parent.emit('message', { data: 'stop' });
+        expect(await exited).toBe(0);
+    });
+
+    it('denies tunnel reads before Access authentication', async () => {
+        const origin = 'https://library.example.test';
+        const audience = 'a'.repeat(64);
+        process.env.IPTVNATOR_HOSTED_MODE = JSON.stringify({
+            mode: 'cloudflare',
+            origin,
+            team: 'example-team',
+            audience,
+            managed: false,
+        });
+        process.env.IPTVNATOR_CLOUDFLARE_ACCESS_ORIGIN = origin;
+        process.env.IPTVNATOR_CLOUDFLARE_ACCESS_TEAM = 'example-team';
+        process.env.IPTVNATOR_CLOUDFLARE_ACCESS_AUDIENCE = audience;
+        expect(await startWorker()).toMatchObject({ ready: true });
+        expect(servers).toHaveLength(1);
+        const server = servers[0];
+        const headers = { host: new URL(origin).host, origin };
+        for (const path of ['/', '/api/v1/instance']) {
+            expect(
+                await proxyGet(server, serverOrigin(server) + path, { headers })
+            ).toMatchObject({ status: 403 });
+        }
+        parent.emit('message', { data: 'stop' });
+        expect(await exited).toBe(0);
+    });
+
+    it('fails closed when tunnel Access configuration is missing', async () => {
+        process.env.IPTVNATOR_HOSTED_MODE = JSON.stringify({
+            mode: 'cloudflare',
+            origin: 'https://library.example.test',
+        });
+        delete process.env.IPTVNATOR_CLOUDFLARE_ACCESS_ORIGIN;
+        expect(await startWorker()).toEqual({ error: 'startup' });
+        expect(await exited).toBe(1);
+        expect(servers).toHaveLength(0);
+    });
+
+    it('reports an invalid TLS identity without opening an HTTPS listener', async () => {
+        process.env.IPTVNATOR_HOSTED_MODE = JSON.stringify({
+            mode: 'https',
+            origin: 'https://library.example.test',
+            address: '',
+            certificatePath: join(directory, 'missing-certificate.pem'),
+            keyPath: join(directory, 'missing-key.pem'),
+        });
+        expect(await startWorker()).toEqual({ error: 'tls' });
+        expect(await exited).toBe(1);
+        expect(servers).toHaveLength(0);
+        expect(database?.sqlite.open).toBe(false);
+    });
 });

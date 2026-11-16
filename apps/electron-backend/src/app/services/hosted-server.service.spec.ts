@@ -19,6 +19,7 @@ import {
     stopHostedServerOnQuit,
 } from './hosted-server.service';
 import { getHostedServerAccessCode } from './hosted-server-session';
+import * as cloudflare from './hosted-cloudflare.service';
 import {
     HOSTED_SERVER_ENABLED,
     HOSTED_SERVER_CONFIGURATIONS,
@@ -237,6 +238,61 @@ describe('desktop hosted server lifecycle', () => {
             configuration: https,
             savedConfigurations: { lan, cloudflare: tunnel, https },
         });
+    });
+
+    it('stops a worker when its managed tunnel fails to start and can retry', async () => {
+        addAssets(
+            join(directory, 'hosted-backend/main.cjs'),
+            join(directory, 'hosted-pwa')
+        );
+        const configuration = {
+            mode: 'cloudflare',
+            origin: 'https://tunnel.example.test',
+            team: 'example-team',
+            audience: 'a'.repeat(64),
+            managed: true,
+            certificatePath: '',
+            keyPath: '',
+        };
+        const connectorToken = 'synthetic_token_example';
+        const connector = jest.spyOn(cloudflare, 'startHostedCloudflare');
+        connector.mockResolvedValueOnce({
+            state: 'error',
+            savedToken: true,
+            secureStorage: true,
+        });
+        connector.mockResolvedValueOnce({
+            state: 'running',
+            savedToken: true,
+            secureStorage: true,
+        });
+        jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+            new Response(null, { status: 403 })
+        );
+        const failedWorker = nextWorker(ready);
+        const start = { start: true, configuration, connectorToken };
+        expect(await control(start)).toMatchObject({
+            state: 'error',
+            error: 'connector',
+        });
+        expect(failedWorker.kill).toHaveBeenCalledTimes(1);
+        expect(settings.get(HOSTED_SERVER_ENABLED)).toBeUndefined();
+        expect(getHostedServerAccessCode()).toBe('');
+
+        nextWorker(ready);
+        expect(await control(start)).toMatchObject({
+            state: 'running',
+            endpoint: configuration.origin,
+        });
+        expect(connector.mock.calls).toEqual([
+            [connectorToken],
+            [connectorToken],
+        ]);
+        expect(settings.get(HOSTED_SERVER_MODE)).toEqual(configuration);
+        expect(settings.get(HOSTED_SERVER_ENABLED)).toBe(true);
+        expect(() => invoke(HOSTED_SERVER_ACCESS_CODE)).toThrow(
+            'Server access code is unavailable'
+        );
     });
 
     it('uses guarded loopback IPC for device pairing and management', async () => {
