@@ -270,9 +270,8 @@ export class PlayerControlsComponent implements OnDestroy {
             onCleanup(this.surface.attachSurface(surface));
         });
         effect(() => {
-            if (!this.showControls() && this.isFullscreen()) {
-                this.fullscreen.exitNativeVideo();
-            }
+            if (this.showControls() || !this.isFullscreen()) return;
+            this.fullscreen.exitNativeVideo();
         });
         effect(() => {
             const controller = this.controller();
