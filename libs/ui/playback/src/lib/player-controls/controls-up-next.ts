@@ -1,4 +1,5 @@
 import { Signal, computed, signal } from '@angular/core';
+import { upNextLeadSeconds } from '@iptvnator/shared/interfaces';
 import type {
     PlayerControlsCapabilities,
     PlayerControlsState,
@@ -6,60 +7,18 @@ import type {
     PlayerUpNextItem,
 } from './player-controls.model';
 
-/** Share of the episode's length the card is shown for. */
-export const UP_NEXT_THRESHOLD_RATIO = 0.04;
-/** Bounds of the adaptive lead: long enough to read, short enough not to nag. */
-export const UP_NEXT_MIN_THRESHOLD_SECONDS = 40;
-export const UP_NEXT_MAX_THRESHOLD_SECONDS = 3 * 60;
-/** A credits chapter only counts in the episode's last third. */
-const CREDITS_CHAPTER_MIN_RATIO = 2 / 3;
-/** Long credits still bring the card no further forward than this. */
-export const UP_NEXT_MAX_CREDITS_LEAD_SECONDS = 5 * 60;
-const CREDITS_CHAPTER_TITLE =
-    /\bcredits?\b|\boutro\b|\bending\b|титры|abspann|générique|genérico|créditos|crediti|napisy/i;
-/** Anime chapter lists mark the ending theme as `ED` / `ED1`. */
-const ENDING_THEME_TITLE = /^\s*ED\d*\s*$/;
-
 /**
- * Seconds before the end at which the card appears: 4% of the episode,
- * clamped to 40 s … 3 min, so a 22-minute sitcom gets under a minute and an
- * hour-long drama a little over two.
+ * The timing lives in `@iptvnator/shared/interfaces` so the TV client
+ * shows the card at the same moment; re-exported for existing callers.
  */
-export function upNextThresholdSeconds(durationSeconds: number): number {
-    return Math.min(
-        UP_NEXT_MAX_THRESHOLD_SECONDS,
-        Math.max(
-            UP_NEXT_MIN_THRESHOLD_SECONDS,
-            Math.round(durationSeconds * UP_NEXT_THRESHOLD_RATIO)
-        )
-    );
-}
-
-/**
- * Where the closing credits start, when the file's chapters name them.
- * Only chapters in the last third count, so an opening "Credits" chapter
- * never brings the card forward.
- */
-export function creditsStartSeconds(
-    segments: readonly PlayerTimelineSegment[] | null,
-    durationSeconds: number
-): number | null {
-    const earliest = durationSeconds * CREDITS_CHAPTER_MIN_RATIO;
-    let start: number | null = null;
-    for (const segment of segments ?? []) {
-        if (
-            segment.title &&
-            (CREDITS_CHAPTER_TITLE.test(segment.title) ||
-                ENDING_THEME_TITLE.test(segment.title)) &&
-            segment.startSeconds >= earliest &&
-            segment.startSeconds < durationSeconds &&
-            (start === null || segment.startSeconds < start)
-        ) {
-            start = segment.startSeconds;
-        }
-    }
-    return start;
-}
+export {
+    UP_NEXT_MAX_CREDITS_LEAD_SECONDS,
+    UP_NEXT_MAX_THRESHOLD_SECONDS,
+    UP_NEXT_MIN_THRESHOLD_SECONDS,
+    UP_NEXT_THRESHOLD_RATIO,
+    creditsStartSeconds,
+    upNextThresholdSeconds,
+} from '@iptvnator/shared/interfaces';
 
 export interface ControlsUpNextDeps {
     item: Signal<PlayerUpNextItem | null>;
@@ -70,6 +29,11 @@ export interface ControlsUpNextDeps {
     settingsOpen: Signal<boolean>;
     /** Chapters; a closing-credits chapter decides when the card appears. */
     segments: Signal<readonly PlayerTimelineSegment[] | null>;
+    /**
+     * Where the closing credits start, from a metadata source (TheIntroDB,
+     * #2239). Wins over chapters; absent until a source supplies one.
+     */
+    creditsStart?: Signal<number | null>;
 }
 
 /**
@@ -109,16 +73,13 @@ export class ControlsUpNext {
     });
 
     /** Remaining time at which the card appears for this episode. */
-    readonly thresholdSeconds = computed(() => {
-        const duration = this.duration();
-        if (duration === null) {
-            return null;
-        }
-        const credits = creditsStartSeconds(this.deps.segments(), duration);
-        return credits !== null
-            ? Math.min(duration - credits, UP_NEXT_MAX_CREDITS_LEAD_SECONDS)
-            : upNextThresholdSeconds(duration);
-    });
+    readonly thresholdSeconds = computed(() =>
+        upNextLeadSeconds({
+            durationSeconds: this.duration(),
+            chapters: this.deps.segments(),
+            creditsStartSeconds: this.deps.creditsStart?.() ?? null,
+        })
+    );
 
     readonly item = computed<PlayerUpNextItem | null>(() => {
         const item = this.deps.item();

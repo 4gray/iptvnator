@@ -579,7 +579,10 @@ episode: `upNextThresholdSeconds` is 4% of the duration clamped to
 `timelineSegments` carry a closing-credits chapter in the last third
 (`creditsStartSeconds`: "Credits", "Outro", "Ending", an anime `ED`, and a
 few localized names), the card appears when it starts instead, at most
-5 min before the end. Embedded MPV under the frame-copy engine supplies
+5 min before the end. A credits start supplied through the optional `creditsStart`
+dependency (a metadata source such as TheIntroDB, #2239) wins over chapters.
+The timing lives in `upNextLeadSeconds` (`@iptvnator/shared/interfaces`,
+`up-next-timing.util.ts`), so the TV client shows its card at the same moment. Embedded MPV under the frame-copy engine supplies
 file chapters (see the chapter producer above); every other engine, and a
 file without a credits chapter, uses the adaptive lead. The countdown shows
 whole minutes and switches to seconds in the last minute. It appears only when
