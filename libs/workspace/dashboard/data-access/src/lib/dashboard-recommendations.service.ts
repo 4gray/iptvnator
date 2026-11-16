@@ -328,19 +328,14 @@ export class DashboardRecommendationsService {
     private selectSeeds(): RecommendationSeed[] {
         const seeds = new Map<string, RecommendationSeed>();
         for (const item of this.data.globalRecentVodItems()) {
-            if (buildDashboardTmdbAttempts(item).length === 0) {
-                continue;
-            }
             const identity = dashboardTmdbMatchIdentity(item);
             const matchToken = dashboardTmdbMatchToken(this.matches, identity);
-            // A manually matched TMDB id belongs to the identity's media type.
-            const matchType = matchToken.startsWith('manual:')
-                ? identity?.mediaType
-                : '';
+            if (!matchToken && buildDashboardTmdbAttempts(item).length === 0) {
+                continue;
+            }
             const key = JSON.stringify([
                 dashboardTmdbLookupKey(item),
                 matchToken,
-                matchType,
             ]);
             const seed = seeds.get(key);
             if (seed) {

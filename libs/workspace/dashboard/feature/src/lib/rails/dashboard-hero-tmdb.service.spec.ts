@@ -117,6 +117,62 @@ describe('DashboardHeroTmdbService', () => {
             );
         });
 
+        it('keeps movie and TV manual matches with the same numeric id separate', async () => {
+            choice = { mode: 'manual', tmdbId: 604, title: 'Synthetic Match' };
+            enrichMovie.mockResolvedValue({ overview: 'Synthetic movie plot' });
+            enrichTv.mockResolvedValue({ overview: 'Synthetic series plot' });
+            const movie = {
+                title: 'Synthetic Entry',
+                type: 'movie',
+                source: 'stalker',
+                playlist_id: 'pl-2',
+                stalker_item: {
+                    id: '41',
+                    category_id: '7',
+                    info: { name: 'Synthetic Entry' },
+                },
+            } as unknown as DashboardHeroTmdbItem;
+            const series = {
+                ...movie,
+                stalker_item: {
+                    ...movie.stalker_item,
+                    id: '42',
+                    favoriteContentType: 'series',
+                },
+            } as unknown as DashboardHeroTmdbItem;
+            const service = createService();
+            service.keyFor(movie);
+            await Promise.resolve();
+
+            expect((await service.getExtras(movie))?.overview).toBe(
+                'Synthetic movie plot'
+            );
+            expect((await service.getExtras(series))?.overview).toBe(
+                'Synthetic series plot'
+            );
+        });
+
+        it('loads a hand-picked match for a row with no searchable provider title', async () => {
+            choice = { mode: 'manual', tmdbId: 604, title: 'Synthetic Match' };
+            enrichMovie.mockResolvedValue({
+                overview: 'Synthetic manual plot',
+            });
+            const row = {
+                title: 'Unknown',
+                type: 'movie',
+                source: 'stalker',
+                playlist_id: 'pl-2',
+                stalker_item: { id: '41', category_id: '7', info: {} },
+            } as unknown as DashboardHeroTmdbItem;
+
+            expect((await createService().getExtras(row))?.overview).toBe(
+                'Synthetic manual plot'
+            );
+            expect(enrichMovie).toHaveBeenCalledWith(
+                expect.objectContaining({ title: 'Synthetic Match' })
+            );
+        });
+
         it('shows no TMDB extras when the viewer chose the provider data', async () => {
             choice = { mode: 'provider' };
             const service = createService();

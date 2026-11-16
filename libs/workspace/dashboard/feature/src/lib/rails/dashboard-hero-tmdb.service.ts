@@ -91,9 +91,10 @@ export class DashboardHeroTmdbService {
     getExtras(
         item: DashboardHeroTmdbItem
     ): Promise<DashboardHeroTmdbExtras | null> {
+        const identity = dashboardTmdbMatchIdentity(item);
         if (
             !this.enrichment.isEnabled() ||
-            buildDashboardTmdbAttempts(item).length === 0
+            (!identity && buildDashboardTmdbAttempts(item).length === 0)
         ) {
             return Promise.resolve(null);
         }
@@ -101,7 +102,7 @@ export class DashboardHeroTmdbService {
         const key = this.keyFor(item);
         // The lookup waits for the store and can already return a saved
         // match. Before the store is ready the key still says "automatic".
-        if (dashboardTmdbMatchIdentity(item) && !this.matches()) {
+        if (identity && !this.matches()) {
             return this.loadExtras(item);
         }
         const cached = this.memo.get(key);

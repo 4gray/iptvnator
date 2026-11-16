@@ -92,8 +92,11 @@ export function dashboardTmdbMatchToken(
     matches: TmdbMatchService | null,
     identity: TmdbMatchIdentity | null
 ): string {
-    const choice = identity ? matches?.read(identity) : null;
-    if (choice?.mode === 'manual') return `manual:${choice.tmdbId}`;
+    if (!identity) return '';
+    const choice = matches?.read(identity);
+    if (choice?.mode === 'manual') {
+        return `manual:${identity.mediaType}:${choice.tmdbId}`;
+    }
     return choice?.mode === 'provider' ? 'provider' : '';
 }
 
@@ -129,8 +132,6 @@ export async function resolveDashboardTmdbDetails(
     matches?: TmdbMatchService | null
 ): Promise<DashboardTmdbResolution | null> {
     const attempts = buildDashboardTmdbAttempts(item);
-    if (attempts.length === 0) return null;
-
     const identity = dashboardTmdbMatchIdentity(item);
     if (identity) {
         const store =
@@ -138,12 +139,22 @@ export async function resolveDashboardTmdbDetails(
         if (!store) return null;
         const choice = store.read(identity);
         if (choice?.mode === 'provider') {
-            return { attempt: attempts[0], details: null };
+            return {
+                attempt: attempts[0] ?? {
+                    title: item.title,
+                    mediaType: identity.mediaType,
+                    year: null,
+                },
+                details: null,
+            };
         }
         if (choice?.mode === 'manual') {
             const attempt = attempts.find(
                 (candidate) => candidate.mediaType === identity.mediaType
-            ) ?? { ...attempts[0], mediaType: identity.mediaType };
+            ) ?? {
+                ...(attempts[0] ?? { title: choice.title, year: null }),
+                mediaType: identity.mediaType,
+            };
             const details = await enrich(enrichment, identity.mediaType, {
                 ...toQuery(attempt),
                 matchIdentity: identity,

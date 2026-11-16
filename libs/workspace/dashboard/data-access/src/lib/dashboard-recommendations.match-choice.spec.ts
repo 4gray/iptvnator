@@ -226,6 +226,27 @@ describe('DashboardRecommendationsService and TMDB match choices', () => {
         expect(service.items()).toEqual([]);
     });
 
+    it('uses a manual match as a seed when the provider title cannot be searched', async () => {
+        seeds = [
+            {
+                title: 'Unknown',
+                type: 'movie',
+                source: 'stalker',
+                playlist_id: 'pl-1',
+                stalker_item: { id: '42', category_id: '7', info: {} },
+            },
+        ];
+        choice = { mode: 'manual', tmdbId: 604, title: 'Synthetic Match' };
+        const service = createService();
+
+        await service.load();
+
+        expect(service.items().map(({ tmdbId }) => tmdbId)).toEqual(
+            titles.map((_, i) => 500 + i)
+        );
+        expect(service.seedTitles()).toEqual(['Synthetic Match']);
+    });
+
     it('loads again when the seed is re-matched', async () => {
         const service = createService();
         await Promise.resolve();

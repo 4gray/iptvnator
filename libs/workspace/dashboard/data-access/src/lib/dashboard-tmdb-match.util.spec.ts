@@ -163,7 +163,7 @@ describe('dashboard TMDB match choice', () => {
                 matches({ mode: 'manual', tmdbId: 9, title: 'X' }),
                 identity
             )
-        ).toBe('manual:9');
+        ).toBe('manual:tv:9');
         expect(
             dashboardTmdbMatchToken(matches({ mode: 'provider' }), identity)
         ).toBe('provider');

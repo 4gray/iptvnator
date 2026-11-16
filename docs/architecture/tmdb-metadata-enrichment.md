@@ -1011,7 +1011,8 @@ since shipped.)
   builds the row's match identity the way the detail views do (Xtream:
   catalog type and stream/series id; Stalker: the stored entry's id,
   media type and catalog) and reads the choice first. A manual match is
-  loaded by its TMDB id under that identity; "use the provider's data"
+  loaded by its media type and TMDB id, including for rows with no
+  searchable provider title. "Use the provider's data"
   resolves to no TMDB data at all, so the automatic attempts (and their
   movie→tv retry) cannot find another title; rows without a choice run
   the automatic attempts. The choice is part of the hero's memo key and
