@@ -72,6 +72,30 @@ export function findLiteralGlyphs(file, source) {
         }));
 }
 
+function unwrap(node) {
+    while (
+        ts.isParenthesizedExpression(node) ||
+        ts.isAsExpression(node) ||
+        ts.isSatisfiesExpression(node) ||
+        ts.isTypeAssertionExpression(node)
+    ) {
+        node = node.expression;
+    }
+    return node;
+}
+
+/** Text of an identifier, string or template literal without substitutions. */
+function staticText(node) {
+    if (
+        ts.isIdentifier(node) ||
+        ts.isStringLiteral(node) ||
+        ts.isNoSubstitutionTemplateLiteral(node)
+    ) {
+        return node.text;
+    }
+    return undefined;
+}
+
 /** `APP_ICONS` entries whose glyph does not match the meaning of the key. */
 export function findRegistryMismatches(source, file = REGISTRY_FILE) {
     const sourceFile = ts.createSourceFile(
@@ -87,11 +111,7 @@ export function findRegistryMismatches(source, file = REGISTRY_FILE) {
             ts.isIdentifier(node.name) &&
             node.name.text === 'APP_ICONS'
         ) {
-            let init = node.initializer;
-            while (init && ts.isAsExpression(init)) {
-                init = init.expression;
-            }
-            registry = init;
+            registry = node.initializer && unwrap(node.initializer);
         }
         ts.forEachChild(node, visit);
     };
@@ -102,18 +122,26 @@ export function findRegistryMismatches(source, file = REGISTRY_FILE) {
 
     const findings = [];
     for (const property of registry.properties) {
-        if (
-            !ts.isPropertyAssignment(property) ||
-            !ts.isStringLiteral(property.initializer)
-        ) {
-            continue;
-        }
-        const key = property.name.getText(sourceFile);
-        const glyph = property.initializer.text;
         const line =
             sourceFile.getLineAndCharacterOfPosition(
                 property.getStart(sourceFile)
             ).line + 1;
+        const key = ts.isPropertyAssignment(property)
+            ? staticText(property.name)
+            : undefined;
+        const value = ts.isPropertyAssignment(property)
+            ? unwrap(property.initializer)
+            : undefined;
+        const glyph = value && staticText(value);
+        if (key === undefined || glyph === undefined) {
+            findings.push({
+                file,
+                line,
+                name: property.getText(sourceFile).split('\n')[0],
+                reason: "registry entries must be static `key: 'ligature'` pairs",
+            });
+            continue;
+        }
         const rule = KEY_FAMILIES.find(({ pattern }) => pattern.test(key));
         if (rule && !rule.family.has(glyph)) {
             findings.push({

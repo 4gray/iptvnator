@@ -92,6 +92,42 @@ test('reports a registry that maps a favourite to a star', () => {
     );
 });
 
+test('reads quoted keys, wrapped values and template literals', () => {
+    const source = registry(
+        [
+            "    'favorite': ('star'),",
+            '    favoriteOutline: `star_border`,',
+            '    "rating": \'favorite\' as const,',
+            "    ratingOutline: 'star_outline',",
+        ].join('\n')
+    );
+
+    assert.deepEqual(
+        findRegistryMismatches(source).map(({ line, reason }) => ({
+            line,
+            reason,
+        })),
+        [
+            { line: 2, reason: 'must be a heart' },
+            { line: 3, reason: 'must be a heart' },
+            { line: 4, reason: 'must be a star' },
+        ]
+    );
+});
+
+test('rejects registry entries it cannot read statically', () => {
+    const source = registry(
+        ['    favorite: HEART,', '    ...EXTRA,', "    [KEY]: 'star',"].join(
+            '\n'
+        )
+    );
+
+    assert.deepEqual(
+        findRegistryMismatches(source).map(({ line }) => line),
+        [2, 3, 4]
+    );
+});
+
 test('reports a missing registry', () => {
     assert.deepEqual(
         findRegistryMismatches('export const OTHER = {};').map(
