@@ -16,6 +16,7 @@ export interface DashboardTmdbRailsHost {
         readonly globalFavoritesLoaded: () => boolean;
         readonly continueWatchingSettled: () => boolean;
         readonly globalRecentVodItems: () => unknown;
+        readonly playbackPositions$: () => unknown;
         readonly globalFavoriteItems: () => unknown;
         readonly playlists: () => unknown;
     };
@@ -69,6 +70,8 @@ export function connectDashboardTmdbRails(host: DashboardTmdbRailsHost): void {
             return;
         }
         host.data.globalRecentVodItems();
+        // Positions can arrive after the history and identify parent series.
+        host.data.playbackPositions$();
         host.data.globalFavoriteItems();
         host.data.playlists();
         // Language feeds the service's load key (localized payloads)
