@@ -156,7 +156,8 @@ watch time. Natural VOD completion reports the terminal position, using the
 final playhead as the duration when the stream supplies none. It closes the
 native activity and reaches the same series autoplay handler as the web player
 after the WebView's foreground playback guard clears. The app translates both
-handoff actions using its selected language.
+handoff actions using its selected language. Exiting releases the Android media
+session before the WebView can launch the next stream.
 When native playback ends, Android writes the position to app-private
 storage before returning to the web player. It retains the position until
 the WebView acknowledges it, including after Home or a failed web write. The checkpoint

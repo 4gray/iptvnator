@@ -172,43 +172,6 @@ public final class NativePlayerActivity extends Activity {
                 .setIgnoredTextSelectionFlags(~C.SELECTION_FLAG_FORCED).build();
         }
         player.setTrackSelectionParameters(trackPreferences);
-        Player sessionPlayer = new ForwardingSimpleBasePlayer(player) {
-            @Override
-            protected State getState() {
-                State state = super.getState();
-                // Media3 errors can carry provider URLs, which the system session does not need.
-                return state.buildUpon().setPlayerError(null).build();
-            }
-
-            @Override
-            protected ListenableFuture<?> handleStop() {
-                finish();
-                return Futures.immediateVoidFuture();
-            }
-        };
-        mediaSession = new MediaSession.Builder(this, sessionPlayer)
-            .setId(UUID.randomUUID().toString())
-            .setCallback(new MediaSession.Callback() {
-                @Override
-                public ListenableFuture<MediaSession.ConnectionResult> onConnectAsync(
-                    MediaSession session, MediaSession.ControllerInfo controller) {
-                    if (!controller.isTrusted()) {
-                        return Futures.immediateFuture(MediaSession.ConnectionResult.reject());
-                    }
-                    // Keep provider URLs and media-item replacement out of Android's transport controls.
-                    Player.Commands.Builder commands = new Player.Commands.Builder()
-                        .addAll(Player.COMMAND_PLAY_PAUSE, Player.COMMAND_STOP);
-                    if (!live) commands.addAll(Player.COMMAND_SEEK_BACK, Player.COMMAND_SEEK_FORWARD);
-                    return Futures.immediateFuture(MediaSession.ConnectionResult.accept(SessionCommands.EMPTY, commands.build()));
-                }
-
-                @Override
-                public boolean onMediaButtonEvent(MediaSession session, MediaSession.ControllerInfo controller, Intent intent) {
-                    KeyEvent event = intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
-                    return controller.isTrusted() && event != null
-                        && event.getKeyCode() == KeyEvent.KEYCODE_MEDIA_STOP && handleExitKey(event);
-                }
-            }).build();
         stats = new PlaybackStatsListener(false, null);
         player.addAnalyticsListener(stats);
         player.addListener(new Player.Listener() {
@@ -280,8 +243,51 @@ public final class NativePlayerActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (player != null && !failed) player.setPlayWhenReady(autoplay);
+        if (player != null && !failed && !isFinishing()) {
+            openMediaSession();
+            player.setPlayWhenReady(autoplay);
+        }
         checkpointHandler.post(cacheCheckpoint);
+    }
+
+    private void openMediaSession() {
+        Player sessionPlayer = new ForwardingSimpleBasePlayer(player) {
+            @Override
+            protected State getState() {
+                State state = super.getState();
+                // Media3 errors can carry provider URLs, which the system session does not need.
+                return state.buildUpon().setPlayerError(null).build();
+            }
+
+            @Override
+            protected ListenableFuture<?> handleStop() {
+                finish();
+                return Futures.immediateVoidFuture();
+            }
+        };
+        mediaSession = new MediaSession.Builder(this, sessionPlayer)
+            .setId(UUID.randomUUID().toString())
+            .setCallback(new MediaSession.Callback() {
+                @Override
+                public ListenableFuture<MediaSession.ConnectionResult> onConnectAsync(
+                    MediaSession session, MediaSession.ControllerInfo controller) {
+                    if (!controller.isTrusted()) {
+                        return Futures.immediateFuture(MediaSession.ConnectionResult.reject());
+                    }
+                    // Keep provider URLs and media-item replacement out of Android's transport controls.
+                    Player.Commands.Builder commands = new Player.Commands.Builder()
+                        .addAll(Player.COMMAND_PLAY_PAUSE, Player.COMMAND_STOP);
+                    if (!live) commands.addAll(Player.COMMAND_SEEK_BACK, Player.COMMAND_SEEK_FORWARD);
+                    return Futures.immediateFuture(MediaSession.ConnectionResult.accept(SessionCommands.EMPTY, commands.build()));
+                }
+
+                @Override
+                public boolean onMediaButtonEvent(MediaSession session, MediaSession.ControllerInfo controller, Intent intent) {
+                    KeyEvent event = intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
+                    return controller.isTrusted() && event != null
+                        && event.getKeyCode() == KeyEvent.KEYCODE_MEDIA_STOP && handleExitKey(event);
+                }
+            }).build();
     }
 
     @Override
@@ -369,6 +375,7 @@ public final class NativePlayerActivity extends Activity {
     @Override
     protected void onPause() {
         checkpointHandler.removeCallbacks(cacheCheckpoint);
+        releaseMediaSession();
         if (player != null) {
             autoplay = player.getPlayWhenReady();
             player.pause();
@@ -384,7 +391,6 @@ public final class NativePlayerActivity extends Activity {
             played = playedMs();
             trackPreferences = player.getTrackSelectionParameters();
             view.setPlayer(null);
-            releaseMediaSession();
             player.release();
             player = null;
         }
@@ -436,6 +442,8 @@ public final class NativePlayerActivity extends Activity {
             }
         }
         setResult(RESULT_OK, result);
+        // Android can route media buttons to this session until onStop runs.
+        releaseMediaSession();
         super.finish();
     }
 

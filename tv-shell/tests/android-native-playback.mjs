@@ -309,6 +309,8 @@ try {
     await page.waitForFunction(() => window.__nativeResult !== undefined);
     const recentsResult = await page.evaluate(() => window.__nativeResult);
     assert.ok(recentsResult?.positionMs >= 1000, 'Recents and launcher return must preserve the VOD position.');
+    assert.ok(!adb('shell', 'cmd', 'media_session', 'list-sessions').includes(app),
+        'Leaving for Recents must release native media controls.');
 
     await page.evaluate((url) => {
         delete window.__nativeResult;
@@ -360,6 +362,8 @@ try {
     assert.ok((await page.evaluate(() => window.__nativeResult))?.playedMs >= 2000,
         'Native HLS must play without browser CORS headers.');
     assert.equal(await page.evaluate(() => window.__nativeResult.ended), false, 'Back is a playback checkpoint.');
+    assert.ok(!adb('shell', 'cmd', 'media_session', 'list-sessions').includes(app),
+        'The exited player must release media controls before the next stream opens.');
     await page.evaluate(() => { delete window.__nativeResult; });
     await entry('Synthetic AC-3').click();
     await expect(action).toBeVisible();
