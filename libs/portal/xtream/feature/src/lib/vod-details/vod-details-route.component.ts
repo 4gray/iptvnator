@@ -27,6 +27,7 @@ import {
     SimilarRailComponent,
     type SimilarRailItem,
     VodMoreMenuComponent,
+    favoriteIcon,
     scrollToCastCrewRow,
 } from '@iptvnator/ui/components';
 import { createLogger } from '@iptvnator/portal/shared/util';
@@ -102,6 +103,8 @@ import { VodMultiSourceHostService } from './vod-multi-source-host.service';
     ],
 })
 export class VodDetailsRouteComponent implements OnInit, OnDestroy {
+    /** Filled heart when favourited, outline when not (UI-46). */
+    protected readonly favoriteIcon = favoriteIcon;
     private readonly settingsStore = inject(SettingsStore);
     private readonly route = inject(ActivatedRoute);
     private readonly navigation = injectXtreamDetailNavigation('movie');

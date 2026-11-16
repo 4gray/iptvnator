@@ -1663,6 +1663,19 @@ the string results of its bindings, `icon` / `*Icon` inputs, and TypeScript
 values named `icon`, `*Icon`, `*_ICON`, `*Icons` or `*_ICONS`. Name a member
 that feeds an icon that way, so the check can see its values.
 
+## Favourite And Rating Glyphs
+
+The heart means favourite and the star means rating, everywhere. Take both
+from `APP_ICONS` in `@iptvnator/ui/components/app-icons` (also exported from
+`@iptvnator/ui/components`): `favorite` / `favoriteOutline` for favourite
+toggles, rail and command entries, collection headers and empty states;
+`rating` / `ratingOutline` for TMDB and provider scores and the rating filter.
+A toggle shows the filled heart when on and the outline when off; use
+`favoriteIcon(isFavorite)` rather than repeating the ternary.
+`pnpm run ui:favorite-glyph:validate` (CI) rejects star and heart ligatures
+written anywhere else and checks that the registry keeps each meaning on its
+glyph family. It reads the same static names as the icon-name check above.
+
 ## Icon-Only Buttons
 
 A `<button>` whose only content is a `<mat-icon>` needs an accessible name:
@@ -1670,7 +1683,7 @@ the ligature text is hidden from assistive technology, and a `matTooltip`
 only adds a description that appears on hover or focus. Give it a translated
 `aria-label`, usually `[attr.aria-label]` bound to the same key as its
 tooltip, or `aria-labelledby`. A toggle keeps one label and reports its state
-with `aria-pressed` (the channel row's star is "Favorite", pressed or not),
+with `aria-pressed` (the channel row's heart is "Favorite", pressed or not),
 as the password visibility toggle does; its tooltip may still name the next
 action. `pnpm run a11y:icon-buttons:validate` (CI) checks `.html` and inline
 templates, looking through control flow, `ng-container` and spinners; content

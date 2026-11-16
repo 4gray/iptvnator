@@ -8,7 +8,9 @@
 >
     @if (enrichedChannels().length === 0) {
         <div class="empty-state">
-            <mat-icon class="empty-icon">star_border</mat-icon>
+            <mat-icon class="empty-icon">{{
+                appIcons.favoriteOutline
+            }}</mat-icon>
             @if (hasSearchTerm()) {
                 <p class="empty-title">
                     {{ 'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS' | translate }}

@@ -64,5 +64,6 @@ export * from './lib/detail-ui/hero-trailer-backdrop.component';
 export * from './lib/dialog-shell/dialog-shell.component';
 export * from './lib/dialog-shell/dialog-shell.directives';
 export * from './lib/dialog-shell/dialog-size';
+export * from './lib/app-icons/app-icons';
 
 export * from './lib/detail-ui/age-rating-chip.component';
