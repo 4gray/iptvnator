@@ -839,6 +839,68 @@ describe('SettingsComponent with settings changed outside the form', () => {
         }
     );
 
+    it('keeps an EPG removal staged after a playlist-only import and a rolled-back write', async () => {
+        let failWrite!: () => void;
+        settingsStore.updateSettings.mockImplementationOnce(async () => {
+            settingsStore._setSettings({ epgUrl: [] });
+            await new Promise<void>((resolve) => (failWrite = resolve));
+            settingsStore._setSettings({ epgUrl: [SAVED_GUIDE] });
+            throw new Error('storage unavailable');
+        });
+        component.form.removeEpgSource(0);
+        const saving = component.form.save(() => undefined);
+        jest.spyOn(component.backup, 'importData').mockImplementation((done) =>
+            done()
+        );
+        component.importData();
+        failWrite();
+        await expect(saving).rejects.toThrow('storage unavailable');
+
+        expect(component.form.changedPaths()).toContain('epgUrl');
+        await component.form.save(() => component.form.applySavedSettings());
+        expect(settingsStore.getSettings().epgUrl).toEqual([]);
+    });
+
+    it('keeps a restored source removal when the earlier EPG write commits', async () => {
+        let completeImport!: () => void;
+        jest.spyOn(component.backup, 'importData').mockImplementation(
+            (imported) => {
+                settingsStore._setSettings({
+                    epgUrl: [RESTORED_GUIDE, SAVED_GUIDE],
+                });
+                completeImport = imported;
+            }
+        );
+        component.importData();
+        let persist!: () => void;
+        settingsStore.updateSettings.mockImplementationOnce(
+            async (patch, _options, onPersisted) => {
+                settingsStore._setSettings(patch);
+                await new Promise<void>((resolve) => (persist = resolve));
+                onPersisted?.();
+            }
+        );
+        component.form.setEpgUrls(STAGED_GUIDE);
+        const saving = component.form.save(() =>
+            component.form.applySavedSettings()
+        );
+        completeImport();
+        expect(component.form.epgUrls).toContain(RESTORED_GUIDE);
+        component.form.removeEpgSource(
+            component.form.epgUrls.indexOf(RESTORED_GUIDE)
+        );
+        persist();
+        await saving;
+
+        expect(component.form.epgUrls).toEqual([SAVED_GUIDE, STAGED_GUIDE]);
+        expect(component.form.changedPaths()).toEqual(['epgUrl']);
+        await component.form.save(() => component.form.applySavedSettings());
+        expect(settingsStore.getSettings().epgUrl).toEqual([
+            SAVED_GUIDE,
+            STAGED_GUIDE,
+        ]);
+    });
+
     it('keeps a removal of a source restored while Save is pending', async () => {
         let finishUpdate!: () => void;
         const pending = new Promise<void>((resolve) => {

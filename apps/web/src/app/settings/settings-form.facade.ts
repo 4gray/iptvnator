@@ -487,6 +487,7 @@ export class SettingsFormFacade {
             {
                 submitted,
                 pendingEpgUrls: this.writes.submittedEpgUrls,
+                pendingEpgWrite: this.writes.hasPendingEpgWrite,
                 confirmedTmdbKey: this.settingsStore.savedTmdbApiKey(),
             }
         );
@@ -501,8 +502,8 @@ export class SettingsFormFacade {
     }
 
     private takeSavedSnapshot(snapshot = this.form.getRawValue()): void {
+        this.writes.rebase(this.savedSnapshot.epgUrl, snapshot.epgUrl);
         this.savedSnapshot = snapshot;
-        this.writes.adoptStoreSnapshot();
         this.refreshChangedPaths();
     }
 

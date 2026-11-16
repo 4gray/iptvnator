@@ -101,6 +101,7 @@ export function rebaseSettingsForm(
     context: {
         submitted?: SettingsFormSubmission;
         pendingEpgUrls?: readonly (string | null)[];
+        pendingEpgWrite: boolean;
         confirmedTmdbKey?: string;
     }
 ): {
@@ -133,6 +134,14 @@ export function rebaseSettingsForm(
             ...next.tmdb,
             apiKey: confirmedTmdbKey ?? saved.tmdb.apiKey,
         };
+        // Backup restore adds sources. A pending removal in the store can
+        // still roll back, so keep saved sources in the draft baseline.
+        if (context.pendingEpgWrite && next.epgUrl) {
+            next.epgUrl = [
+                ...next.epgUrl,
+                ...epgUrlsAddedOutside(next.epgUrl, [], saved.epgUrl),
+            ];
+        }
         // Backup import may race an unfinished save. Keep its draft staged
         // while adopting the restored EPG list in the baseline.
         for (const path of unsettledPaths) {

@@ -5,7 +5,7 @@ type EpgUrls = readonly (string | null)[];
 
 /** Tracks EPG and TMDB writes whose Save is still unacknowledged. */
 export class SettingsFormWrites {
-    private readonly pendingEpg = new Map<number, EpgUrls>();
+    private readonly pendingEpg = new Map<number, (string | null)[]>();
     private readonly pendingTmdb = new Map<number, string>();
     private persistedFormUrls?: EpgUrls;
     persistedTmdbKey?: string;
@@ -26,7 +26,7 @@ export class SettingsFormWrites {
                 storedUrls
             );
             patch.epgUrl = [...patch.epgUrl, ...outside];
-            if (urls) this.pendingEpg.set(revision, urls);
+            if (urls) this.pendingEpg.set(revision, [...urls]);
         }
         const apiKey = patch.tmdb?.apiKey;
         if (apiKey !== undefined) this.pendingTmdb.set(revision, apiKey);
@@ -40,8 +40,8 @@ export class SettingsFormWrites {
         if (this.pendingTmdb.delete(revision)) this.persistedTmdbKey = apiKey;
         const urls = this.pendingEpg.get(revision);
         if (!urls) return;
-        // The persisted patch can also include outside sources that the
-        // viewer has never seen. Only the form's own URLs become known.
+        // The persisted patch can include sources the viewer has never seen.
+        // Count the submitted URLs and sources shown by an intervening rebase.
         this.persistedFormUrls = urls;
         for (const pending of this.pendingEpg.keys()) {
             if (pending <= revision) this.pendingEpg.delete(pending);
@@ -58,6 +58,10 @@ export class SettingsFormWrites {
         return this.persistedTmdbKey !== undefined || this.pendingTmdb.size > 0;
     }
 
+    get hasPendingEpgWrite(): boolean {
+        return this.pendingEpg.size > 0;
+    }
+
     canAdoptTmdbKey(key: string): boolean {
         return this.pendingTmdb.size === 0 && key !== this.persistedTmdbKey;
     }
@@ -69,7 +73,10 @@ export class SettingsFormWrites {
         return urls;
     }
 
-    adoptStoreSnapshot(): void {
+    rebase(previous: EpgUrls | undefined, next: EpgUrls | undefined): void {
+        for (const known of this.pendingEpg.values()) {
+            known.push(...epgUrlsAddedOutside(previous, known, next));
+        }
         this.persistedFormUrls = undefined;
     }
 
@@ -78,6 +85,6 @@ export class SettingsFormWrites {
         this.pendingTmdb.clear();
         this.persistedTmdbKey = undefined;
         this.submittedEpgUrls = undefined;
-        this.adoptStoreSnapshot();
+        this.persistedFormUrls = undefined;
     }
 }

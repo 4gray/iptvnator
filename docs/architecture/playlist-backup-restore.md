@@ -245,7 +245,10 @@ playlist-backup entry point.
 An open settings form takes in restored EPG sources alongside the staged
 edits (`SettingsFormFacade.syncWithStore()`). A source restored after its
 removal was persisted becomes an addition even while cleanup or the
-Electron response is pending. When the restore changes the saved list and
+Electron response is pending. A restore during a pending write keeps the
+previous sources in the baseline until persistence settles. Sources shown
+by that restore remain known so a following removal stays staged.
+When the restore changes the saved list and
 its source identities match the draft, the form adopts the restored spelling
 and order unless the viewer reordered existing sources. A restore during
 Save also preserves reordering of sources in the submitted list. The form
