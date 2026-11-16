@@ -484,8 +484,11 @@ export class SettingsFormFacade {
             this.settingsStore.getSettings(),
             this.unsettledSavePaths,
             this.writes.knownUrls(this.savedSnapshot.epgUrl),
-            submitted,
-            this.writes.submittedEpgUrls
+            {
+                submitted,
+                pendingEpgUrls: this.writes.submittedEpgUrls,
+                confirmedTmdbKey: this.settingsStore.savedTmdbApiKey(),
+            }
         );
         for (const path of diffSettingsValues(next, current)) {
             if (staged.has(path)) continue;

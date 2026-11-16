@@ -47,6 +47,7 @@ import {
     StartupBehavior,
     StreamFormat,
     Theme,
+    type TmdbSettings,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import { DialogService } from '@iptvnator/ui/components';
@@ -194,8 +195,12 @@ export function setSettingsSearchQuery(query: string): void {
     );
 }
 
+type MockSettings = Omit<typeof DEFAULT_SETTINGS, 'tmdb'> & {
+    tmdb: TmdbSettings;
+};
+
 export class MockSettingsStore {
-    private _settings = signal(DEFAULT_SETTINGS);
+    private _settings = signal<MockSettings>(DEFAULT_SETTINGS);
 
     getSettings = () => this._settings();
     language = () => this._settings().language;
@@ -253,13 +258,13 @@ export class MockSettingsStore {
         this._setSettings({
             ...patch,
             ...(tmdb && { tmdb: { ...this._settings().tmdb, ...tmdb } }),
-        } as Partial<typeof DEFAULT_SETTINGS>);
+        } as Partial<MockSettings>);
     }
 
     storageFailure = signal<SettingsStorageFailure | null>(null);
 
     // Helper method for tests to modify settings
-    _setSettings(newSettings: Partial<typeof DEFAULT_SETTINGS>) {
+    _setSettings(newSettings: Partial<MockSettings>) {
         this._settings.set({
             ...this._settings(),
             ...newSettings,

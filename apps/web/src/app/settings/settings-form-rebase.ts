@@ -98,13 +98,17 @@ export function rebaseSettingsForm(
     stored: Settings,
     unsettledPaths: ReadonlySet<string>,
     ownEpgUrls: unknown[],
-    submitted?: SettingsFormSubmission,
-    pendingEpgUrls?: readonly (string | null)[]
+    context: {
+        submitted?: SettingsFormSubmission;
+        pendingEpgUrls?: readonly (string | null)[];
+        confirmedTmdbKey?: string;
+    }
 ): {
     next: SettingsFormValue;
     staged: ReadonlySet<string>;
     addedEpgUrls: string[];
 } {
+    const { submitted, pendingEpgUrls, confirmedTmdbKey } = context;
     const next = settingsToFormValue(stored, saved);
     const staged = new Set(diffSettingsValues(current, saved));
     if (submitted) {
@@ -124,6 +128,11 @@ export function rebaseSettingsForm(
             else staged.delete(path);
         }
     } else {
+        // A playlist-only import can finish after a rejected key write.
+        next.tmdb = {
+            ...next.tmdb,
+            apiKey: confirmedTmdbKey ?? saved.tmdb.apiKey,
+        };
         // Backup import may race an unfinished save. Keep its draft staged
         // while adopting the restored EPG list in the baseline.
         for (const path of unsettledPaths) {

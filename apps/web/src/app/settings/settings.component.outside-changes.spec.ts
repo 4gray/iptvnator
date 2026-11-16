@@ -393,6 +393,42 @@ describe('SettingsComponent with settings changed outside the form', () => {
         }
     );
 
+    it.each([undefined, 'synthetic-confirmed-key'])(
+        'keeps a rejected key draft through a playlist-only backup (confirmed key: %j)',
+        async (confirmedKey) => {
+            const { apiKey } = component.settingsForm.controls.tmdb.controls;
+            settingsStore.savedTmdbApiKey.set(confirmedKey);
+            fixture.detectChanges();
+            const attemptedKey = 'synthetic-draft-key';
+            apiKey.setValue(attemptedKey);
+            settingsStore.updateSettings.mockImplementationOnce(async () => {
+                settingsStore._setSettings({
+                    tmdb: { enabled: false, apiKey: attemptedKey },
+                });
+                settingsStore.storageFailure.set('save');
+                throw new Error('storage unavailable');
+            });
+            await expect(component.form.save(() => undefined)).rejects.toThrow(
+                'storage unavailable'
+            );
+
+            jest.spyOn(component.backup, 'importData').mockImplementation(
+                (imported) => imported()
+            );
+            component.importData();
+
+            expect(component.form.changedPaths()).toContain('tmdb.apiKey');
+            await component.form.save(() =>
+                component.form.applySavedSettings()
+            );
+            expect(settingsStore.updateSettings).toHaveBeenLastCalledWith(
+                { tmdb: { apiKey: attemptedKey } },
+                { retryEpgCleanup: false },
+                expect.any(Function)
+            );
+        }
+    );
+
     it('keeps a key draft when stored settings omit the key', async () => {
         settingsStore._setSettings({ tmdb: { enabled: true } });
         component.form.hydrateFromStore();

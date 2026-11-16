@@ -63,7 +63,8 @@ key and saves the replacement in one transaction. A failed local write can be
 retried in the same open dialog before expiry.
 Ordinary settings saves preserve the key already in IndexedDB unless the user
 edits that field. Save accepts a whitespace-only edit and displays the stored
-key. A backup with no key leaves the existing baseline and draft intact.
+key. Backup import retains the last confirmed key and any draft key edit,
+including an edit whose write failed.
 Other tabs reread the key after a save notification. The
 notification contains no key, and a tab keeps any unsaved key edit. A key edit
 reverted after a failed storage write lets the form adopt the latest saved
