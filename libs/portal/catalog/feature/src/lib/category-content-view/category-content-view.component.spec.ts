@@ -36,6 +36,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { CategoryContentViewComponent } from './category-content-view.component';
 import { registerHideWatchedCases } from './testing/category-hide-watched.cases';
+import { registerInfiniteScrollSnapshotCases } from '../../../testing/category-infinite-scroll-snapshot.cases';
 
 @Component({
     selector: 'app-grid-list',
@@ -1240,82 +1241,11 @@ describe('CategoryContentViewComponent', () => {
             );
         });
 
-        it('saves the grid scroll position before opening a detail', () => {
-            const infiniteFixture = createInfiniteFixture();
-            infiniteFixture.detectChanges();
-            const grid = infiniteFixture.nativeElement.querySelector(
-                'app-grid-list'
-            ) as HTMLElement;
-            Object.defineProperty(grid, 'scrollTop', {
-                configurable: true,
-                value: 333,
-            });
-
-            infiniteFixture.componentInstance.onItemClick({ xtream_id: 42 });
-
-            expect(catalog.saveScrollPosition).toHaveBeenCalledWith(333);
-        });
-
-        it('keeps the detail snapshot when the outgoing grid resets before destruction', () => {
-            const infiniteFixture = createInfiniteFixture();
-            infiniteFixture.detectChanges();
-            const grid = infiniteFixture.nativeElement.querySelector(
-                'app-grid-list'
-            ) as HTMLElement;
-            let scrollTop = 333;
-            Object.defineProperty(grid, 'scrollTop', { get: () => scrollTop });
-            catalog.selectItem.mockReturnValue(['42']);
-            router.navigate.mockReturnValueOnce(new Promise(() => undefined));
-
-            infiniteFixture.componentInstance.onItemClick({ xtream_id: 42 });
-            expect(router.navigate).toHaveBeenCalled();
-            scrollTop = 0;
-            grid.dispatchEvent(new Event('scroll'));
-            infiniteFixture.destroy();
-
-            expect(catalog.saveScrollPosition.mock.calls).toEqual([[333]]);
-        });
-
-        it('saves the offset the grid last reported when it is destroyed detached', () => {
-            const infiniteFixture = createInfiniteFixture();
-            infiniteFixture.detectChanges();
-            const grid = infiniteFixture.nativeElement.querySelector(
-                'app-grid-list'
-            ) as HTMLElement;
-            // A detached element reports scrollTop 0, as in a browser.
-            Object.defineProperty(grid, 'scrollTop', {
-                configurable: true,
-                get: () => (grid.isConnected ? 420 : 0),
-            });
-            grid.dispatchEvent(new Event('scroll'));
-
-            // The view's DOM leaves the document before ngOnDestroy runs.
-            infiniteFixture.nativeElement.remove();
-            infiniteFixture.destroy();
-
-            expect(catalog.saveScrollPosition).toHaveBeenCalledWith(420);
-        });
-
-        it('consumes a saved scroll position once the list is rendered', () => {
-            catalog.consumeSavedScrollPosition.mockReturnValue(500);
-            const infiniteFixture = createInfiniteFixture();
-
-            infiniteFixture.detectChanges();
-
-            expect(catalog.consumeSavedScrollPosition).toHaveBeenCalledTimes(1);
-
-            const grid = infiniteFixture.nativeElement.querySelector(
-                'app-grid-list'
-            ) as HTMLElement;
-            const scrollTo = jest.fn();
-            Object.defineProperty(grid, 'scrollTo', {
-                configurable: true,
-                value: scrollTo,
-            });
-
-            flushAnimationFrames();
-
-            expect(scrollTo).toHaveBeenCalledWith({ top: 500 });
+        registerInfiniteScrollSnapshotCases({
+            createFixture: createInfiniteFixture,
+            catalog,
+            navigate: () => router.navigate,
+            flushAnimationFrames,
         });
 
         it('scrolls the grid to the top when the reset key changes', () => {
