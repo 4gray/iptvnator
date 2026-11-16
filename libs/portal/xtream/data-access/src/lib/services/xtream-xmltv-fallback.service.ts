@@ -52,7 +52,8 @@ export class XtreamXmltvFallbackService {
      * is found or the bridge function is unavailable.
      */
     async getProgramsForChannel(
-        epgChannelId: string | null | undefined
+        epgChannelId: string | null | undefined,
+        archiveDays?: number
     ): Promise<EpgItem[]> {
         if (!this.preferences.enabled()) return [];
         const revision = this.sources.revision();
@@ -64,8 +65,11 @@ export class XtreamXmltvFallbackService {
 
         const programs = await fn.call(this.bridge, id, {
             ...this.clock,
+            archiveDays,
             rejectOnError: true,
         });
+        const { mapEpgProgramToEpgItem } =
+            await import('./xtream-xmltv-program.util');
         if (revision !== this.sources.revision()) return [];
         return programs.map((p) => mapEpgProgramToEpgItem(p, id));
     }
@@ -97,6 +101,8 @@ export class XtreamXmltvFallbackService {
 
         try {
             const rows = await fn.call(this.bridge, ids, this.clock);
+            const { mapEpgProgramToEpgItem } =
+                await import('./xtream-xmltv-program.util');
             if (revision !== this.sources.revision()) return {};
             const out: Record<string, EpgItem> = {};
             for (const id of ids) {
@@ -125,6 +131,7 @@ export class XtreamXmltvFallbackService {
     async resolveCurrentEpg(args: {
         epgChannelId: string | null | undefined;
         preferUploaded: boolean;
+        archiveDays?: number;
         fetchProvider: () => Promise<EpgItem[]>;
         signal?: AbortSignal;
     }): Promise<EpgItem[]> {
@@ -134,7 +141,7 @@ export class XtreamXmltvFallbackService {
         if (!id) return args.fetchProvider();
         const readXmltv = () => {
             args.signal?.throwIfAborted();
-            return this.getProgramsForChannel(id);
+            return this.getProgramsForChannel(id, args.archiveDays);
         };
 
         const primary = args.preferUploaded ? readXmltv : args.fetchProvider;
@@ -152,31 +159,4 @@ export class XtreamXmltvFallbackService {
         }
         return fallback();
     }
-}
-
-function mapEpgProgramToEpgItem(
-    program: EpgProgram,
-    channelId: string
-): EpgItem {
-    return {
-        id: `${channelId}|${program.start}`,
-        epg_id: '',
-        title: program.title ?? '',
-        lang: '',
-        start: program.start,
-        end: program.stop,
-        stop: program.stop,
-        description: program.desc ?? '',
-        channel_id: channelId,
-        start_timestamp: epgTimestamp(program.startTimestamp, program.start),
-        stop_timestamp: epgTimestamp(program.stopTimestamp, program.stop),
-    };
-}
-
-function epgTimestamp(
-    timestamp: number | null | undefined,
-    date: string
-): string {
-    const ms = timestamp ? timestamp * 1000 : Date.parse(date);
-    return Number.isFinite(ms) ? String(Math.floor(ms / 1000)) : '0';
 }

@@ -2,7 +2,11 @@ import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import { inject, Injectable, Injector } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
-import { extractDrmFromRaw, isLikelyM3uVod } from '@iptvnator/shared/m3u-utils';
+import {
+    extractDrmFromRaw,
+    getM3uArchiveDays,
+    isLikelyM3uVod,
+} from '@iptvnator/shared/m3u-utils';
 import {
     EpgPreferencesService,
     EpgSourceSettingsService,
@@ -209,11 +213,12 @@ export class StreamResolverService {
         item: UnifiedCollectionItem,
         channel?: Channel
     ): Promise<EpgProgram[]> {
-        const epgLookupKey = channel
-            ? this.getM3uEpgLookupKey(channel, item)
-            : await this.getM3uEpgLookupKeyForItem(item);
-
-        return this.fetchM3uPrograms(epgLookupKey);
+        const source = channel ?? (await this.getM3uChannelForItem(item));
+        return this.fetchM3uPrograms(
+            this.getM3uEpgLookupKey(source, item),
+            this.epgLoadClock().nowMs,
+            getM3uArchiveDays(source)
+        );
     }
 
     async loadEpgItems(item: UnifiedCollectionItem): Promise<EpgItem[]> {
@@ -787,11 +792,15 @@ export class StreamResolverService {
                 return [];
             }
 
+            const scheduleOptions = {
+                nowMs: clock.nowMs,
+                archiveDays: item.tvArchiveDuration ?? undefined,
+            };
             // 1) Check uploaded XMLTV EPG via the provider's epg_channel_id.
             const epgKey = item.epgChannelId?.trim();
             if (this.supportsProgramLookup && epgKey) {
                 const uploaded = await this.epgBridge
-                    .getChannelPrograms(epgKey, { nowMs: clock.nowMs })
+                    .getChannelPrograms(epgKey, scheduleOptions)
                     .catch(() => null);
                 if (uploaded && uploaded.length > 0) {
                     return this.mapProgramsToEpgItems(uploaded);
@@ -808,9 +817,10 @@ export class StreamResolverService {
                     .catch(() => null);
                 if (mapping?.epgChannelId) {
                     const mapped = await this.epgBridge
-                        .getChannelPrograms(mapping.epgChannelId, {
-                            nowMs: clock.nowMs,
-                        })
+                        .getChannelPrograms(
+                            mapping.epgChannelId,
+                            scheduleOptions
+                        )
                         .catch(() => null);
                     if (mapped && mapped.length > 0) {
                         return this.mapProgramsToEpgItems(mapped);
@@ -878,6 +888,7 @@ export class StreamResolverService {
                 const mapped = await this.epgBridge
                     .getChannelPrograms(mapping.epgChannelId, {
                         nowMs: clock.nowMs,
+                        archiveDays: item.tvArchiveDuration ?? undefined,
                     })
                     .catch(() => null);
                 if (mapped && mapped.length > 0) {
@@ -974,9 +985,7 @@ export class StreamResolverService {
             this.buildFallbackM3uChannel(item);
         const epgPrograms =
             includePrograms && this.supportsProgramLookup
-                ? await this.fetchM3uPrograms(
-                      this.getM3uEpgLookupKey(channel, item)
-                  )
+                ? await this.loadM3uProgramsForItem(item, channel)
                 : [];
 
         return {
@@ -994,22 +1003,22 @@ export class StreamResolverService {
         };
     }
 
-    private async getM3uEpgLookupKeyForItem(
+    private async getM3uChannelForItem(
         item: UnifiedCollectionItem
-    ): Promise<string | null> {
+    ): Promise<Channel> {
         const playlist = (await firstValueFrom(
             this.playlistsService.getPlaylistById(item.playlistId)
         )) as PlaylistWithChannels | undefined;
-        const channel =
+        return (
             this.findM3uChannel(playlist?.playlist?.items ?? [], item) ??
-            this.buildFallbackM3uChannel(item);
-
-        return this.getM3uEpgLookupKey(channel, item);
+            this.buildFallbackM3uChannel(item)
+        );
     }
 
     private async fetchM3uPrograms(
-        epgLookupKey?: string | null,
-        nowMs = this.epgLoadClock().nowMs
+        epgLookupKey: string | null,
+        nowMs: number,
+        archiveDays?: number
     ): Promise<EpgProgram[]> {
         if (!this.epgBridge.supportsProgramLookup || !epgLookupKey) {
             return [];
@@ -1017,7 +1026,7 @@ export class StreamResolverService {
 
         return this.withFallbackTimeout(
             this.epgBridge
-                .getChannelPrograms(epgLookupKey, { nowMs })
+                .getChannelPrograms(epgLookupKey, { nowMs, archiveDays })
                 .then((programs) => programs ?? []),
             this.m3uEpgTimeoutMs,
             []

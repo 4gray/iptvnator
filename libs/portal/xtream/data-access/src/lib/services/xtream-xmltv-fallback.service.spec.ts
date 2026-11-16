@@ -122,11 +122,15 @@ describe('XtreamXmltvFallbackService', () => {
         try {
             epgOffsetMinutes = 720;
             bridge.getChannelPrograms.mockResolvedValue([]);
-            await makeService().getProgramsForChannel('synthetic.channel');
+            await makeService().getProgramsForChannel('synthetic.channel', 7);
 
             expect(bridge.getChannelPrograms).toHaveBeenCalledWith(
                 'synthetic.channel',
-                { rejectOnError: true, nowMs: now - 720 * 60_000 }
+                {
+                    rejectOnError: true,
+                    nowMs: now - 720 * 60_000,
+                    archiveDays: 7,
+                }
             );
         } finally {
             clock.mockRestore();

@@ -1500,9 +1500,10 @@ programmes (the one airing included) and the nearest past ones, oldest
 first, with an ordinary window of up to `CHANNEL_SCHEDULE_LIMIT` (500)
 distinct slots. The past reserves up to `CHANNEL_SCHEDULE_PAST_SLOTS` (250)
 and takes whatever the upcoming rows leave, so a long history cannot fill
-the cap and hide today. An M3U channel with advertised catch-up days also
-keeps all available slots within that window, including on background
-refills. When sources disagree on a slot's end time, the latest valid end
+the cap and hide today. When the channel advertises catch-up days, the
+M3U player, unified collections and the Xtream XMLTV schedule keep all
+available slots within that window. The M3U player keeps the same window
+on background refills. When sources disagree on a slot's end time, the latest valid end
 decides which half contains that slot. Both halves are returned in
 chronological order regardless of the offset in the stored time.
 
