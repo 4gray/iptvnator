@@ -473,8 +473,19 @@ test.describe('Live layout at the minimum window width (UI-67)', () => {
             );
             const railWidth = async () =>
                 Math.round((await rail.boundingBox())?.width ?? 0);
-            await expect.poll(railWidth).toBeLessThan(280);
-            const initial = await railWidth();
+            // The rail animates down to its cap; measure it, and the handle,
+            // only once two reads 250ms apart agree.
+            let previous = -1;
+            await expect
+                .poll(async () => {
+                    const width = await railWidth();
+                    await app.mainWindow.waitForTimeout(250);
+                    const now = await railWidth();
+                    previous = now;
+                    return width === now && now < 280;
+                })
+                .toBe(true);
+            const initial = previous;
             const box = await rail.locator('> .resize-handle').boundingBox();
             expect(box).not.toBeNull();
             const x = (box?.x ?? 0) + 3;
