@@ -49,11 +49,12 @@
             }}</mat-label>
             <mat-icon matPrefix aria-hidden="true">search</mat-icon>
             <input
+                appImeInput
                 matInput
                 [ngModel]="query()"
                 (ngModelChange)="setQuery($event)"
                 [disabled]="saving()"
-                (keydown.enter)="search()"
+                (keydown.enter)="onSearchEnter($event)"
                 autocomplete="off"
             />
         </mat-form-field>

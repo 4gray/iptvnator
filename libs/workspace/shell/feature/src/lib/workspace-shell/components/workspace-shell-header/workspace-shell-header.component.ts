@@ -17,12 +17,14 @@ import {
     WorkspaceHeaderAction,
 } from '@iptvnator/portal/shared/util';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import { ImeInputDirective } from '@iptvnator/ui/components';
 import { WorkspaceHeaderSidebarToggle } from '../../services/helpers/workspace-shell-constants';
 import { LayoutSlideDirective } from '../../layout-slide.directive';
 
 @Component({
     selector: 'app-workspace-shell-header',
     imports: [
+        ImeInputDirective,
         LayoutSlideDirective,
         MatIcon,
         MatIconButton,
@@ -35,6 +37,7 @@ import { LayoutSlideDirective } from '../../layout-slide.directive';
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkspaceShellHeaderComponent {
+    private readonly imeInput = viewChild(ImeInputDirective);
     private readonly searchInput =
         viewChild<ElementRef<HTMLInputElement>>('searchInput');
     // read: ElementRef because mat-icon-button is a component, so a bare
@@ -176,6 +179,9 @@ export class WorkspaceShellHeaderComponent {
     }
 
     onSearchEnter(event: Event): void {
+        if (this.imeInput()?.isCompositionKey(event)) {
+            return;
+        }
         const target = event.target as HTMLInputElement | null;
         this.searchSubmitted.emit(target?.value ?? this.searchQuery());
     }
