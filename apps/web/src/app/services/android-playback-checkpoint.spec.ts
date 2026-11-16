@@ -224,10 +224,10 @@ describe('restoring Android playback checkpoints', () => {
         expect(postMessage).toHaveBeenCalledTimes(1);
     });
 
-    it('uses capture time when a previous position was acknowledged later', async () => {
+    it('uses server time when a remote device clock is ahead', async () => {
         getPlaybackPosition.mockResolvedValue({
-            activityPlayedAt: new Date(savedAt - 1000).toISOString(),
-            updatedAt: new Date(savedAt + 1000).toISOString(),
+            activityPlayedAt: new Date(savedAt + 1000).toISOString(),
+            updatedAt: new Date(savedAt - 1000).toISOString(),
         });
         await deliver();
         expect(savePlaybackPositionOrThrow).toHaveBeenCalledTimes(1);

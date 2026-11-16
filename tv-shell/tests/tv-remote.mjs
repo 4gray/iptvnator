@@ -569,6 +569,14 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
             out.accessFailures.push({ alone, both: offerCount() - before });
         }
         window.__tvShell.currentStreamUrl = currentStreamUrl;
+        attempt('synthetic-disable-media3');
+        engineVideo.dispatchEvent(new Event('loadstart'));
+        issue('unsupported-codec');
+        const beforeDisable = offerCount();
+        window.iptvnatorAndroidPlaybackEnabled = false;
+        window.dispatchEvent(new Event('iptvnator:android-playback-availability'));
+        window.dispatchEvent(new Event('iptvnator:android-playback-availability'));
+        out.disabledMedia3Fallback = offerCount() - beforeDisable;
         stage.remove();
         diagnostic.remove();
         engineVideo.removeAttribute('src');
@@ -640,6 +648,8 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
         'external fallback remembers the current web error when Media3 is enabled later');
     check(r.accessFailures.every(({ alone, both }) => alone === 0 && both === 1),
         'web network and browser access errors offer an external player after Media3 also fails');
+    check(r.disabledMedia3Fallback === 1,
+        'turning off Media3 offers the external player once for the current format failure');
     check(!r.removedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'a removed player cannot offer recovery for its replacement');
     check(!r.retriedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'a fresh attempt of the same source discards the previous delayed error');
     check(!r.changedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'changing source before loadstart also discards the old error');

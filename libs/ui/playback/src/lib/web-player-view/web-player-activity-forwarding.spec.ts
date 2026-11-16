@@ -37,6 +37,7 @@ function harness(enabled = true, startTime = 60) {
     const activity = new WebPlayerActivity(events);
     activity.begin(playback);
     const emit = jest.fn();
+    const recordHistory = jest.fn();
     const recoverySession = new PlaybackRecoverySession();
     const view = {
         ownership: { owns: () => true },
@@ -45,19 +46,20 @@ function harness(enabled = true, startTime = 60) {
         startTime: () => playback.startTime,
         recovery: { recordTimeUpdate: () => false },
         recoverySession,
-        historyConfirmation: { record: jest.fn() },
+        historyConfirmation: { record: recordHistory },
         timeUpdate: { emit },
     } as unknown as WebPlayerViewInstance;
-    const tick = (currentTime: number) =>
+    const tick = (currentTime: number, playing = false) =>
         WebPlayerViewComponent.prototype.handleTimeUpdate.call(
             view,
-            { currentTime, duration: 100, playing: false },
+            { currentTime, duration: 100, playing },
             { isLive: false } as PlaybackApplicationOwnership
         );
     return {
         tick,
         emit,
         checkpoint,
+        recordHistory,
         returnFromMedia3: (currentTime: number) => {
             const update = {
                 currentTime,
@@ -75,6 +77,12 @@ function harness(enabled = true, startTime = 60) {
     };
 }
 describe('episode time-update forwarding during resume', () => {
+    it('forwards genuine playback to history while preserving the pending resume point', () => {
+        const { tick, emit, recordHistory } = harness(false);
+        tick(3, true);
+        expect(recordHistory).toHaveBeenCalledWith(3, true);
+        expect(emit).not.toHaveBeenCalled();
+    });
     it('does not forward pre-seek ticks to legacy episode writers and still accepts rewinds', () => {
         const { tick, emit } = harness();
         tick(0);

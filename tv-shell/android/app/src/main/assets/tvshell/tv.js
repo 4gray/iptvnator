@@ -1358,20 +1358,41 @@
         var webFailures = new WeakMap(), nativeFailures = new WeakMap();
         function offerIfBothFailed(stage) {
             var failure = nativeFailures.get(stage);
-            if (!failure || failure.offered || webFailures.get(stage) !== failure.attempt) return;
+            var webFailure = webFailures.get(stage);
+            if (!failure || failure.offered || !webFailure || webFailure.attempt !== failure.attempt) return;
             failure.offered = true;
             native('onPlaybackError', failure.url, failure.title || document.title || '', '4');
         }
         function offerAfterWebError(url, title, code, root, promptRoot) {
             var stage = root instanceof Element ? root.closest('app-web-player-view') : null;
             var attempt = stage && stage.getAttribute('data-tv-playback-attempt');
-            if (attempt) webFailures.set(stage, attempt);
+            if (attempt) {
+                var previous = webFailures.get(stage);
+                if (!previous || previous.attempt !== attempt) {
+                    previous = { attempt: attempt };
+                    webFailures.set(stage, previous);
+                }
+                if (url) Object.assign(previous, { url: url, title: title, code: code, root: promptRoot });
+            }
             if (attempt && stage.querySelector('[data-tv-native-playback]')) {
                 offerIfBothFailed(stage);
                 return;
             }
             if (url && armPrompt(url, promptRoot)) native('onPlaybackError', url, title, String(code));
         }
+        window.addEventListener('iptvnator:android-playback-availability', function () {
+            if (window.iptvnatorAndroidPlaybackEnabled !== false) return;
+            var stages = document.querySelectorAll('app-web-player-view[data-tv-playback-attempt]');
+            for (var i = 0; i < stages.length; i++) {
+                var stage = stages[i], webFailure = webFailures.get(stage);
+                if (!webFailure || !webFailure.url ||
+                    webFailure.attempt !== stage.getAttribute('data-tv-playback-attempt')) continue;
+                var failure = nativeFailures.get(stage);
+                if (!(failure && failure.attempt === webFailure.attempt && failure.offered) &&
+                    armPrompt(webFailure.url, webFailure.root))
+                    native('onPlaybackError', webFailure.url, webFailure.title, String(webFailure.code));
+            }
+        });
         document.addEventListener('iptvnator:android-playback-failed', function (event) {
             var stage = event.target;
             var detail = event.detail;
@@ -1417,6 +1438,7 @@
                     });
                 }
                 if (type === 'playing' && t.tagName === 'VIDEO') dropVjsSeekBar(t);
+                if (type === 'playing') webFailures.delete(t.closest('app-web-player-view'));
                 syncKeepScreenOn(type === 'playing');
             }, true);
         });

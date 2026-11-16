@@ -43,28 +43,39 @@ describe('Android playback position resets', () => {
         expect(recent[1].updatedAt).toBe(older);
     });
 
-    it('accepts a newer Android capture after mirroring an older shared position', async () => {
-        const playlist = 'synthetic-playlist';
-        const activityPlayedAt = '2025-01-01T00:00:00.000Z';
-        const nativeCheckpointAt = '2025-01-01T00:01:00.000Z';
-        await positions.savePlaybackPositionsBatch(playlist, [
-            position({ activityPlayedAt, positionSeconds: 30 }),
-        ]);
-        expect(
-            Date.parse(
-                (await positions.getPlaybackPosition(playlist, 100, 'vod'))
-                    ?.updatedAt ?? ''
-            )
-        ).toBeGreaterThan(Date.parse(nativeCheckpointAt));
+    it.each([false, true])(
+        'compares mirrored progress with server time (batch: %s)',
+        async (batch) => {
+            const playlist = 'synthetic-playlist';
+            const updatedAt = '2025-01-01T00:00:00.000Z';
+            const nativeCheckpointAt = '2025-01-01T00:01:00.000Z';
+            const activityPlayedAt = '2025-01-01T00:02:00.000Z';
+            const mirrored = position({
+                activityPlayedAt,
+                updatedAt,
+                positionSeconds: 30,
+            });
+            if (batch)
+                await positions.savePlaybackPositionsBatch(playlist, [
+                    mirrored,
+                ]);
+            else await positions.savePlaybackPosition(playlist, mirrored);
+            expect(
+                await positions.getPlaybackPosition(playlist, 100, 'vod')
+            ).toMatchObject({ positionSeconds: 30, updatedAt });
 
-        await positions.savePlaybackPosition(
-            playlist,
-            position({ nativeCheckpointAt, positionSeconds: 90 })
-        );
-        expect(
-            await positions.getPlaybackPosition(playlist, 100, 'vod')
-        ).toMatchObject({ positionSeconds: 90, updatedAt: nativeCheckpointAt });
-    });
+            await positions.savePlaybackPosition(
+                playlist,
+                position({ nativeCheckpointAt, positionSeconds: 90 })
+            );
+            expect(
+                await positions.getPlaybackPosition(playlist, 100, 'vod')
+            ).toMatchObject({
+                positionSeconds: 90,
+                updatedAt: nativeCheckpointAt,
+            });
+        }
+    );
 
     it('rejects a delayed save against the current position or a completed reset', async () => {
         const playlist = 'synthetic-playlist';

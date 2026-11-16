@@ -58,11 +58,9 @@ export class PwaPlaybackPositions {
         if (nativeCheckpointAt) {
             const at = Date.parse(nativeCheckpointAt);
             const latest = prior.find(sameItem);
-            const latestCapture = playbackTimestamp(
-                latest?.activityPlayedAt ?? latest?.updatedAt
-            );
+            const latestUpdate = playbackTimestamp(latest?.updatedAt);
             if (
-                latestCapture >= at ||
+                latestUpdate >= at ||
                 nativePlaybackResetIn(allPositions, playlistId, data) >= at
             )
                 return;
@@ -71,7 +69,12 @@ export class PwaPlaybackPositions {
             ...prior.filter((row) => !sameItem(row)),
             {
                 ...position,
-                updatedAt: nativeCheckpointAt ?? new Date().toISOString(),
+                updatedAt:
+                    nativeCheckpointAt ??
+                    (position.activityPlayedAt
+                        ? position.updatedAt
+                        : undefined) ??
+                    new Date().toISOString(),
             },
         ];
         void nativeCheckpointSeasonGroup;
@@ -167,7 +170,12 @@ export class PwaPlaybackPositions {
                 (p) =>
                     !replacedKeys.has(`${p.contentType}_${p.contentXtreamId}`)
             ),
-            ...items.map((item) => ({ ...item, updatedAt })),
+            ...items.map((item) => ({
+                ...item,
+                updatedAt:
+                    (item.activityPlayedAt ? item.updatedAt : undefined) ??
+                    updatedAt,
+            })),
         ];
 
         this.savePlaybackPositionsToStorage(allPositions);

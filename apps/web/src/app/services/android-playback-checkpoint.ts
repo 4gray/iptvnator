@@ -106,7 +106,7 @@ export function installAndroidPlaybackCheckpoint(
                     if (!ownsProfile() || (newest.get(key) ?? 0) > data.savedAt)
                         return;
                     const previousSavedAt = playbackTimestamp(
-                        previous?.activityPlayedAt ?? previous?.updatedAt
+                        previous?.updatedAt
                     );
                     if (
                         androidPlaybackResetAt(storage, playlistId, record) <

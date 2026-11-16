@@ -145,6 +145,7 @@ If Activity Sync is recording the start of a VOD session, the Media3 handoff
 waits for that local write so a reloaded WebView can recover the position.
 A handoff keeps the saved offset while the web engine is seeking to it. On
 return from Media3, early web ticks cannot update local or shared progress.
+Time spent playing still counts toward watch history while the seek is unsettled.
 Turning the pilot off also remounts the web player with this guard.
 The final native position settles the resume guard and persists immediately,
 including when the viewer seeks and leaves before the watch-history threshold
@@ -158,6 +159,8 @@ native activity and reaches the same series autoplay handler as the web player
 after the WebView's foreground playback guard clears. The app translates both
 handoff actions using its selected language. Exiting releases the Android media
 session before the WebView can launch the next stream.
+Rotation updates the viewport in place so the original WebView still receives
+the result.
 When native playback ends, Android writes the position to app-private
 storage before returning to the web player. It retains the position until
 the WebView acknowledges it, including after Home or a failed web write. The checkpoint
@@ -180,7 +183,8 @@ playback time when comparing positions for recovery.
 Deleting a playlist or restoring all of its positions replaces its individual
 reset markers with a single playlist-wide marker in the same storage write.
 Activity Sync uses server timestamps to order acknowledged positions across
-devices.
+devices. Mirroring acknowledged positions into local storage keeps the server
+timestamp for recovery after opt-out.
 While a VOD plays, Android keeps an in-memory checkpoint so a launcher relaunch
 can recover progress even if it clears the player before the pause callback.
 Autoplay and watch-history confirmation require the original screen.

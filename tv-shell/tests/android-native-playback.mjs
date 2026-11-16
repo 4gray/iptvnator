@@ -544,8 +544,15 @@ try {
     await back();
 
     const playlistId = 'synthetic-reload-' + randomUUID();
-    await page.evaluate(({ url, playlistId }) => {
-        window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), {
+    const launchRotationFixture = (sourceId) => page.evaluate(({ url, playlistId }) => {
+        const id = crypto.randomUUID();
+        const viewport = document.querySelector('meta[name=viewport]').content;
+        window.addEventListener('iptvnator:android-playback-result', (event) => {
+            if (event.detail.id === id && event.detail.result?.started) {
+                window.__rotationResult = document.querySelector('meta[name=viewport]').content !== viewport;
+            }
+        });
+        window.TvShell.postMessage(JSON.stringify(['playNative', id, {
             url,
             startTime: 25,
             captions: true,
@@ -557,7 +564,8 @@ try {
                 seriesXtreamId: 3,
             },
         }]));
-    }, { url: origin + '/synthetic-ac3.mkv', playlistId });
+    }, { url: origin + '/synthetic-ac3.mkv', playlistId: sourceId });
+    await launchRotationFixture('synthetic-rotation-' + randomUUID());
     await waitNative();
     await waitAudio();
     const lastNativeCreate = () => adb('logcat', '-b', 'events', '-d', '-v', 'epoch', '-s', 'wm_on_create_called')
@@ -576,10 +584,15 @@ try {
         await waitNative();
         await waitAudio();
         await expect.poll(captionsState).toBe('Disable subtitles');
+        await back();
+        await page.waitForFunction(() => window.__rotationResult === true);
     } finally {
         adb('shell', 'settings', 'put', 'system', 'user_rotation', oldRotation);
         adb('shell', 'settings', 'put', 'system', 'accelerometer_rotation', oldAutoRotation);
     }
+    await launchRotationFixture(playlistId);
+    await waitNative();
+    await waitAudio();
     // Reload while native playback owns the foreground. The new document cannot
     // receive the old player's event, just like a recreated WebView.
     await page.reload({ waitUntil: 'domcontentloaded' });

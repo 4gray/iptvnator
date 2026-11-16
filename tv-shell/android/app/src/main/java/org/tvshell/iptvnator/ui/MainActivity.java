@@ -44,6 +44,7 @@ import org.tvshell.iptvnator.Prefs;
 import org.tvshell.iptvnator.R;
 import org.tvshell.iptvnator.ShellApp;
 import org.tvshell.iptvnator.backend.DiagnosticRedactor;
+import org.tvshell.iptvnator.backend.ShellSite;
 import org.tvshell.iptvnator.server.TvShellServer;
 
 import java.util.Collections;
@@ -850,10 +851,18 @@ public class MainActivity extends Activity {
     public void onConfigurationChanged(android.content.res.Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         hideSystemUi();
-        if (webView != null && server != null && errorPanel.getVisibility() != View.VISIBLE && screenCssWidth(this) != loadedScreenWidth) {
-            restoreUrl = webView.getUrl(); // the same page with the new scale (load() checks the origin)
+        int width = screenCssWidth(this);
+        if (webView == null || server == null || errorPanel.getVisibility() == View.VISIBLE || width == loadedScreenWidth) return;
+        if (!pageReady) {
+            restoreUrl = webView.getUrl();
             load();
+            return;
         }
+        // Keep the playback owner and pending result in the same document.
+        loadedScreenWidth = width;
+        server.setScreenWidth(width);
+        js("(function(){var viewport=document.querySelector('meta[name=viewport]');if(viewport)viewport.content="
+            + JSONObject.quote(ShellSite.viewport(loadedLayoutWidth, width)) + ";})()");
     }
 
     @Override
