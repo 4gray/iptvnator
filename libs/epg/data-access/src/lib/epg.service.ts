@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
 import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject, from, Observable, of } from 'rxjs';
@@ -31,6 +31,7 @@ import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
     providedIn: 'root',
 })
 export class EpgService {
+    private readonly injector = inject(Injector);
     private snackBar = inject(LazySnackBar);
     private translate = inject(TranslateService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
@@ -176,9 +177,9 @@ export class EpgService {
             .then(
                 ({ EpgScheduleFeed }) =>
                     new EpgScheduleFeed(
-                        this.epgBridge,
-                        this.sourceSettings,
+                        this.lookupContext,
                         this.epgPreferences,
+                        this.injector,
                         this.currentEpgPrograms,
                         this.epgAvailable,
                         () => this.showErrorSnackbar()

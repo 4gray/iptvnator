@@ -1,11 +1,9 @@
+import { effect, untracked, type Injector } from '@angular/core';
 import type { EpgProgram } from '@iptvnator/shared/interfaces';
-import type {
-    EpgPreferencesService,
-    EpgSourceSettingsService,
-} from '@iptvnator/services';
+import type { EpgPreferencesService } from '@iptvnator/services';
 import { from, of, type BehaviorSubject } from 'rxjs';
 import { catchError, map, timeout } from 'rxjs/operators';
-import type { EpgRuntimeBridgeService } from './epg-runtime-bridge.service';
+import type { EpgLookupContext } from './epg-lookup-context';
 import { normalizeEpgPrograms } from './epg-program-normalization.util';
 
 /**
@@ -25,19 +23,30 @@ export class EpgScheduleFeed {
     private request = 0;
     private published = 0;
 
-    /**
-     * Positional, not an options object: the call sits in `EpgService` on
-     * the startup path, where every byte counts (`renderer.initialBytes`).
-     */
     constructor(
-        private readonly bridge: EpgRuntimeBridgeService,
-        private readonly sourceSettings: EpgSourceSettingsService,
+        private readonly context: Pick<
+            EpgLookupContext,
+            'bridge' | 'guard' | 'offsetMinutes'
+        >,
         private readonly preferences: EpgPreferencesService,
+        injector: Injector,
         private readonly programs: BehaviorSubject<EpgProgram[]>,
         private readonly available: BehaviorSubject<boolean>,
-        /** The generic EPG failure toast. */
         private readonly toast: () => void
-    ) {}
+    ) {
+        const { offsetMinutes } = context;
+        let previous = untracked(offsetMinutes);
+        effect(
+            () => {
+                const offset = offsetMinutes();
+                if (offset === previous) return;
+                previous = offset;
+                this.published = this.request;
+                untracked(() => this.refill());
+            },
+            { injector }
+        );
+    }
 
     read(channelId: string, refill = false): void {
         // Recorded even while EPG is off: turning it on refills this channel,
@@ -46,11 +55,14 @@ export class EpgScheduleFeed {
             this.channelId = channelId;
             this.published = this.request;
         }
-        const { bridge, preferences, sourceSettings } = this;
-        if (!preferences.enabled()) return;
+        const { bridge, guard, offsetMinutes } = this.context;
+        if (!this.preferences.enabled()) return;
         const request = ++this.request;
+        const offset = offsetMinutes();
         const canPublish = () =>
-            channelId === this.channelId && request > this.published;
+            channelId === this.channelId &&
+            offset === offsetMinutes() &&
+            request > this.published;
 
         from(
             bridge.getChannelPrograms(
@@ -59,8 +71,7 @@ export class EpgScheduleFeed {
             )
         )
             .pipe(
-                sourceSettings.guard(),
-                preferences.guard(),
+                guard(),
                 timeout(3000),
                 map((programs) => normalizeEpgPrograms(programs ?? [])),
                 catchError((err) => {

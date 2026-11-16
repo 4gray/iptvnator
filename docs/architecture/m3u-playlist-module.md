@@ -1480,8 +1480,8 @@ class EpgService {
 channel, so the open channel's panel does not stay empty or stale until the
 next zap: after a successful `fetchEpg`, any import progress reaching
 `complete` (a refresh or retry from Settings, a startup or background
-import), an EPG source change, and a manual mapping saved or removed in the
-mapping dialog (`refreshEpgData()`). Reads are numbered: one publishes only
+import), an EPG source or display offset change, and a manual mapping saved
+or removed in the mapping dialog (`refreshEpgData()`). Reads are numbered: one publishes only
 while its channel is still open and nothing newer has published. A refill
 runs in the background — it passes `rejectOnError`, so an unreadable database
 rejects instead of answering an empty schedule, and a failed refill keeps the

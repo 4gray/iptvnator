@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
@@ -38,10 +39,12 @@ describe('EpgService schedule refill', () => {
     let sourcesChanged: Subject<void>;
     let shown: EpgProgram[][];
     let epgEnabled: boolean;
+    const offsetMinutes = signal(0);
 
     beforeEach(() => {
         getChannelPrograms = jest.fn(async () => []);
         epgEnabled = true;
+        offsetMinutes.set(0);
         sourcesChanged = new Subject<void>();
         const identity =
             () =>
@@ -84,7 +87,7 @@ describe('EpgService schedule refill', () => {
                         loadSettings: async () => undefined,
                         getSettings: () => ({ epgUrl: [] }),
                         getTrustOptions: () => ({}),
-                        resolvedEpgOffsetMinutes: () => 0,
+                        resolvedEpgOffsetMinutes: offsetMinutes,
                     },
                 },
                 { provide: LazySnackBar, useValue: { open: jest.fn() } },
@@ -147,6 +150,34 @@ describe('EpgService schedule refill', () => {
 
         expect(getChannelPrograms).toHaveBeenCalledTimes(2);
         expect(shown.at(-1)?.map(({ title }) => title)).toEqual(['Fresh']);
+    });
+
+    it('reloads the open schedule when its offset changes and discards the old reply', async () => {
+        let oldReply!: (programs: EpgProgram[]) => void;
+        let newReply!: (programs: EpgProgram[]) => void;
+        getChannelPrograms
+            .mockImplementationOnce(
+                () => new Promise((resolve) => (oldReply = resolve))
+            )
+            .mockImplementationOnce(
+                () => new Promise((resolve) => (newReply = resolve))
+            );
+
+        service.getChannelPrograms('news.example');
+        await flush();
+        offsetMinutes.set(720);
+        TestBed.tick();
+        oldReply([program('news.example', 'Uncorrected schedule')]);
+        await flush();
+
+        expect(getChannelPrograms).toHaveBeenCalledTimes(2);
+        expect(shown.flat()).toEqual([]);
+
+        newReply([program('news.example', 'Corrected schedule')]);
+        await flush();
+        expect(shown.at(-1)?.map(({ title }) => title)).toEqual([
+            'Corrected schedule',
+        ]);
     });
 
     it('reads it again after refreshEpgData (a mapping change)', async () => {
