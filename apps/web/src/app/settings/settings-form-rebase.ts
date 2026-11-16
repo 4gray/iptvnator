@@ -1,8 +1,6 @@
 import { normalizeAgeRatingCountry } from '@iptvnator/shared/interfaces/age-rating';
-import {
-    epgSourceReferenceIdentity,
-    Settings,
-} from '@iptvnator/shared/interfaces';
+import { epgSourceReferenceIdentity } from '@iptvnator/services/playlist-backup';
+import type { Settings } from '@iptvnator/shared/interfaces';
 import { epgSourceUrlsChanged } from '@iptvnator/services';
 import { diffSettingsValues } from './settings-change-tracking';
 import { SettingsForm } from './settings-form.utils';

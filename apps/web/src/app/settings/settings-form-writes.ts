@@ -17,7 +17,7 @@ export class SettingsFormWrites {
         patch: Partial<Settings>,
         savedUrls: EpgUrls | undefined,
         storedUrls: Settings['epgUrl']
-    ): { onPersisted?: () => void } {
+    ): [onPersisted?: () => void] {
         this.submittedEpgUrls = urls;
         if (patch.epgUrl) {
             const outside = epgUrlsAddedOutside(
@@ -31,8 +31,8 @@ export class SettingsFormWrites {
         const apiKey = patch.tmdb?.apiKey;
         if (apiKey !== undefined) this.pendingTmdb.set(revision, apiKey);
         return patch.epgUrl || apiKey !== undefined
-            ? { onPersisted: () => this.persist(revision) }
-            : {};
+            ? [() => this.persist(revision)]
+            : [];
     }
 
     private persist(revision: number): void {

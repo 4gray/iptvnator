@@ -225,21 +225,27 @@ export class MockSettingsStore {
      */
     updateSettings = jest.fn<
         Promise<void>,
-        [patch: Record<string, unknown>, options?: SettingsUpdateOptions]
-    >(async (patch, options) => {
+        [
+            patch: Record<string, unknown>,
+            options?: SettingsUpdateOptions,
+            onPersisted?: () => void,
+        ]
+    >(async (patch, _options, onPersisted) => {
         this.applyPatch(patch);
-        options?.onPersisted?.();
+        onPersisted?.();
     });
 
     /**
      * The next update persists its patch before awaiting runtime side effects.
      */
     applyNextUpdateThen(settle: () => Promise<void>): void {
-        this.updateSettings.mockImplementationOnce(async (patch, options) => {
-            this.applyPatch(patch);
-            options?.onPersisted?.();
-            await settle();
-        });
+        this.updateSettings.mockImplementationOnce(
+            async (patch, _options, onPersisted) => {
+                this.applyPatch(patch);
+                onPersisted?.();
+                await settle();
+            }
+        );
     }
 
     private applyPatch(patch: Record<string, unknown>): void {

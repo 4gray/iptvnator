@@ -346,7 +346,7 @@ describe('SettingsStore dashboard rail settings', () => {
         const write = new Subject<void>();
         storage.set.mockReturnValue(write);
         const onPersisted = jest.fn();
-        const saving = store.updateSettings({ epgUrl: [] }, { onPersisted });
+        const saving = store.updateSettings({ epgUrl: [] }, {}, onPersisted);
         expect(onPersisted).not.toHaveBeenCalled();
         expect(reconcile).not.toHaveBeenCalled();
         write.error(new Error('storage unavailable'));
@@ -355,7 +355,7 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(store.epgUrl()).toEqual(['https://old.example/guide.xml']);
         expect(onPersisted).not.toHaveBeenCalled();
         storage.set.mockReturnValue(of(undefined));
-        await store.updateSettings({ epgUrl: [] }, { onPersisted });
+        await store.updateSettings({ epgUrl: [] }, {}, onPersisted);
         expect(reconcile).toHaveBeenCalledWith([]);
         expect(onPersisted).toHaveBeenCalledTimes(1);
         expect(onPersisted.mock.invocationCallOrder[0]).toBeLessThan(

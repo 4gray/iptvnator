@@ -54,17 +54,6 @@ export function isLocalEpgSourceReference(
     return classifyEpgSourceReference(value) === 'local';
 }
 
-/** Backup matching keeps local path spelling, including case and separators. */
-export function epgSourceReferenceIdentity(value: string): string {
-    const reference = value.trim();
-    if (!isRemoteEpgSourceUrl(reference)) return reference;
-    try {
-        return new URL(reference).href;
-    } catch {
-        return reference;
-    }
-}
-
 /**
  * Form validator shared by the Settings EPG list and the playlist dialog.
  * Typed structurally so this contracts library stays Angular-free; an empty

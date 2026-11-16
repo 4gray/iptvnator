@@ -239,6 +239,8 @@ or updated; the next settings write persists that canonical code.
 Backup restore matches remote EPG URLs by their URL identity, preserving
 distinct request paths. Local XMLTV references keep their exact trimmed
 spelling, including path case.
+The settings form and backup service share this comparison through the lazy
+playlist-backup entry point.
 
 An open settings form takes in restored EPG sources alongside the staged
 edits (`SettingsFormFacade.syncWithStore()`). A source restored after its

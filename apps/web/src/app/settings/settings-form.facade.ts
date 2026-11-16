@@ -298,7 +298,6 @@ export class SettingsFormFacade {
         const saveRevision = ++this.saveRevision;
         this.saveNeedsConfirmation = true;
         const submittedSnapshot = this.form.getRawValue();
-        const savedEpgUrls = this.savedSnapshot.epgUrl;
         // An unsettled save may have stored another key already; a key typed
         // back to the saved one must then be written to override it.
         for (const path of diffSettingsValues(
@@ -320,20 +319,25 @@ export class SettingsFormFacade {
             delete settings.tmdb.apiKey;
             this.unsettledSavePaths.delete('tmdb.apiKey');
         }
-        const savedPaths = [...this.unsettledSavePaths];
-        const writeOptions = this.writes.prepare(
+        const submission = {
+            paths: [...this.unsettledSavePaths],
+            snapshot: submittedSnapshot,
+            savedEpgUrls: this.savedSnapshot.epgUrl,
+        };
+        const onPersisted = this.writes.prepare(
             saveRevision,
             submittedSnapshot.epgUrl,
             settings,
-            savedEpgUrls,
+            submission.savedEpgUrls,
             stored.epgUrl
         );
         let cleanupError: EpgSourceReconciliationError | undefined;
         try {
-            await this.settingsStore.updateSettings(settings, {
-                retryEpgCleanup: this.epgUrl?.dirty ?? false,
-                ...writeOptions,
-            });
+            await this.settingsStore.updateSettings(
+                settings,
+                { retryEpgCleanup: this.epgUrl?.dirty ?? false },
+                ...onPersisted
+            );
         } catch (error) {
             const cleanupFailed = error instanceof EpgSourceReconciliationError;
             if (!cleanupFailed && this.writes.reject(saveRevision)) {
@@ -365,11 +369,7 @@ export class SettingsFormFacade {
             }
         }
         if (cleanupError) throw cleanupError;
-        this.rebaseOnStore({
-            paths: savedPaths,
-            snapshot: submittedSnapshot,
-            savedEpgUrls,
-        });
+        this.rebaseOnStore(submission);
         this.saveNeedsConfirmation = false;
         this.unsettledSavePaths.clear();
         this.writes.clear();

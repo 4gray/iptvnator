@@ -286,7 +286,8 @@ describe('SettingsComponent form', () => {
         await component.form.save(() => undefined);
         expect(settingsStore.updateSettings).toHaveBeenCalledWith(
             { tmdb: { apiKey: 'synthetic-draft-key' } },
-            expect.anything()
+            { retryEpgCleanup: false },
+            expect.any(Function)
         );
     });
 
