@@ -903,6 +903,27 @@ describe('WorkspaceShellHeaderComponent', () => {
                 expect(document.activeElement).toBe(overflowTrigger());
             });
 
+            it('hands focus to the last action when the menu trigger leaves', async () => {
+                headerWidth = 360;
+                measure();
+                overflowTrigger()?.focus();
+                expect(document.activeElement).toBe(overflowTrigger());
+
+                headerWidth = 2000;
+                measure();
+                await fixture.whenStable();
+
+                expect(overflowTrigger()).toBeNull();
+                const buttons: HTMLButtonElement[] = Array.from(
+                    fixture.nativeElement.querySelectorAll(
+                        '.header-actions-cluster button'
+                    )
+                );
+                expect(document.activeElement).toBe(
+                    buttons[buttons.length - 1]
+                );
+            });
+
             it('leaves focus alone when it is outside the actions', async () => {
                 headerWidth = 2000;
                 measure();
@@ -928,5 +949,52 @@ describe('WorkspaceShellHeaderComponent', () => {
                 expect(overflowTrigger() !== null).toBe(first);
             });
         });
+    });
+
+    it('stops observing header regions that leave the row', () => {
+        // Other observers (CDK, layout slide) share the stub: track each one
+        // and check the one that watches the header row.
+        const observers: Set<Element>[] = [];
+        const original = globalThis.ResizeObserver;
+        globalThis.ResizeObserver = class {
+            private readonly observed = new Set<Element>();
+            constructor() {
+                observers.push(this.observed);
+            }
+            observe(element: Element) {
+                this.observed.add(element);
+            }
+            unobserve(element: Element) {
+                this.observed.delete(element);
+            }
+            disconnect() {
+                this.observed.clear();
+            }
+        } as unknown as typeof ResizeObserver;
+        try {
+            const observedFixture = TestBed.createComponent(
+                WorkspaceShellHeaderComponent
+            );
+            observedFixture.componentRef.setInput('canUseSearch', true);
+            observedFixture.detectChanges();
+            const root: HTMLElement = observedFixture.nativeElement;
+            const header = root.querySelector('.workspace-header') as Element;
+            const switcher = root.querySelector(
+                '.playlist-switcher'
+            ) as Element;
+            const observed = observers.find((set) => set.has(header));
+            expect(observed?.has(switcher)).toBe(true);
+
+            // Settings drops the playlist switcher from the row.
+            observedFixture.componentRef.setInput('isSettingsRoute', true);
+            observedFixture.detectChanges();
+
+            expect(switcher.isConnected).toBe(false);
+            expect(observed?.has(switcher)).toBe(false);
+            expect(observed?.has(header)).toBe(true);
+            observedFixture.destroy();
+        } finally {
+            globalThis.ResizeObserver = original;
+        }
     });
 });

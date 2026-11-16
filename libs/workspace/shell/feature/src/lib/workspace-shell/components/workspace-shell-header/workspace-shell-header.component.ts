@@ -60,6 +60,7 @@ const PHONE_VIEWPORT_QUERY = '(max-width: 640px)';
 })
 export class WorkspaceShellHeaderComponent {
     private readonly imeInput = viewChild(ImeInputDirective);
+    private readonly overflowMenuTrigger = viewChild(MatMenuTrigger);
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly injector = inject(Injector);
     private readonly searchInput =
@@ -246,6 +247,9 @@ export class WorkspaceShellHeaderComponent {
                 ? null
                 : new ResizeObserver(() => this.measureOverflow());
         destroyRef.onDestroy(() => observer?.disconnect());
+        // Regions come and go (Settings drops the switcher and search):
+        // unobserve the removed ones so their elements can be collected.
+        let observed = new Set<Element>();
         afterRenderEffect({
             read: () => {
                 this.controlsLayoutKey();
@@ -253,10 +257,21 @@ export class WorkspaceShellHeaderComponent {
                 this.overflowCandidates();
                 const header = this.headerElement();
                 if (observer && header) {
-                    observer.observe(header);
-                    Array.from(header.children).forEach((child) =>
-                        observer.observe(child)
-                    );
+                    const current = new Set<Element>([
+                        header,
+                        ...Array.from(header.children),
+                    ]);
+                    observed.forEach((element) => {
+                        if (!current.has(element)) {
+                            observer.unobserve(element);
+                        }
+                    });
+                    current.forEach((element) => {
+                        if (!observed.has(element)) {
+                            observer.observe(element);
+                        }
+                    });
+                    observed = current;
                 }
                 this.measureOverflow();
             },
@@ -420,8 +435,8 @@ export class WorkspaceShellHeaderComponent {
         });
         if (next !== this.overflowCount()) {
             if (
-                next > this.overflowCount() &&
-                actions.contains(document.activeElement)
+                actions.contains(document.activeElement) ||
+                this.overflowMenuTrigger()?.menuOpen
             ) {
                 this.keepFocusInActions(actions);
             }
@@ -431,8 +446,9 @@ export class WorkspaceShellHeaderComponent {
 
     /**
      * A focused action that moves into "More actions" is destroyed with its
-     * button; focus goes to the menu trigger so a keyboard user keeps their
-     * place.
+     * button, and so is the trigger (and its open menu) when every action
+     * returns inline. Focus then goes to the trigger, or to the last action
+     * without one, so a keyboard user keeps their place.
      */
     private keepFocusInActions(actions: HTMLElement): void {
         afterNextRender(
@@ -442,9 +458,13 @@ export class WorkspaceShellHeaderComponent {
                     if (active && active !== document.body) {
                         return;
                     }
-                    actions
-                        .querySelector<HTMLElement>('.header-overflow-trigger')
-                        ?.focus();
+                    const buttons =
+                        actions.querySelectorAll<HTMLElement>('button');
+                    (
+                        actions.querySelector<HTMLElement>(
+                            '.header-overflow-trigger'
+                        ) ?? buttons[buttons.length - 1]
+                    )?.focus();
                 },
             },
             { injector: this.injector }
