@@ -4,6 +4,7 @@
         "ADD_STREAM": "إضافة بث",
         "OPEN_GRID": "فتح شبكة 2×2",
         "GRID_LAYOUT": "شبكة 2×2",
+        "FOCUS_LAYOUT": "تركيز (3:1)",
         "PAIR_LAYOUT_HINT": "أبقِ نافذتين مفتوحتين لاستخدام هذا التخطيط",
         "ADD_TO_WINDOW": "إضافة بث إلى النافذة {{slot}}",
         "WINDOW": "النافذة {{slot}}",

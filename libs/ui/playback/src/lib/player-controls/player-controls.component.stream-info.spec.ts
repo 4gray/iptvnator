@@ -102,7 +102,7 @@ describe('PlayerControlsComponent stream info', () => {
         jest.useRealTimers();
     });
 
-    it('offers add-stream and grid actions from the Multiview button next to settings', () => {
+    it('offers add-stream, Grid and Focus actions from the Multiview button next to settings', () => {
         jest.useRealTimers();
         const queryAdd = (): HTMLButtonElement | null =>
             fixture.nativeElement.querySelector(
@@ -111,9 +111,9 @@ describe('PlayerControlsComponent stream info', () => {
         expect(queryAdd()).toBeNull();
         const requested = jest.fn();
         fixture.componentInstance.multiviewAddRequested.subscribe(requested);
-        const gridRequested = jest.fn();
-        fixture.componentInstance.multiviewGridRequested.subscribe(
-            gridRequested
+        const layoutRequested = jest.fn();
+        fixture.componentInstance.multiviewLayoutRequested.subscribe(
+            layoutRequested
         );
         fixture.componentRef.setInput('canOpenMultiview', true);
         fake.capabilities.update((value) => ({
@@ -138,12 +138,13 @@ describe('PlayerControlsComponent stream info', () => {
         queryAdd()?.click();
         fixture.detectChanges();
         expect(requested).not.toHaveBeenCalled();
-        const [add, grid] =
+        const [add, grid, focus] =
             document.querySelectorAll<HTMLElement>('[role="menuitem"]');
         expect(add?.textContent).toContain('TWO_STREAMS.ADD_STREAM');
         expect(grid?.textContent).toContain('TWO_STREAMS.OPEN_GRID');
+        expect(focus?.textContent).toContain('TWO_STREAMS.FOCUS_LAYOUT');
         grid?.click();
-        expect(gridRequested).toHaveBeenCalledTimes(1);
+        expect(layoutRequested).toHaveBeenCalledWith('grid');
         expect(requested).not.toHaveBeenCalled();
         fake.capabilities.update((value) => ({ ...value, streamStats: false }));
         fixture.detectChanges();

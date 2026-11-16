@@ -566,6 +566,7 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
                 page.evaluate(() => Boolean(document.fullscreenElement))
             )
             .toBe(true);
+        await expect(page.locator('.second-stream__strip')).toHaveCount(0);
         await expect(canvases.first()).toHaveAttribute(
             'data-session-id',
             firstId!
@@ -730,14 +731,14 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
         await expect(pair).toBeVisible();
         await expect
             .poll(() =>
-                strip.evaluate(
+                pair.evaluate(
                     (node) =>
                         document.fullscreenElement?.contains(node) ?? false
                 )
             )
             .toBe(true);
         await checkColumns();
-        await expect(beside).toBeVisible();
+        await expect(strip).toHaveCount(0);
         await pair
             .getByRole('button', { name: 'Exit fullscreen', exact: true })
             .click();
@@ -746,6 +747,7 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
                 page.evaluate(() => document.fullscreenElement === null)
             )
             .toBe(true);
+        await expect(beside).toBeVisible();
         await expect(pair.locator('[data-feedback-key]')).toHaveCount(0);
         for (const theme of ['dark', 'light'] as const) {
             await applyTheme(page, theme);

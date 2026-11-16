@@ -1,5 +1,12 @@
 import { expect, Page, test } from '@playwright/test';
-import { addSource, cardAction, chooseTv, nav, start } from './helpers';
+import {
+    addSource,
+    cardAction,
+    chooseTv,
+    moreAction,
+    nav,
+    start,
+} from './helpers';
 
 async function editSaved(
     page: Page,
@@ -181,9 +188,7 @@ test('TV VOD comfort manual marks commit before display, recover from quota and 
             throw new DOMException('Synthetic quota', 'QuotaExceededError');
         };
     });
-    await page
-        .getByRole('button', { name: 'Mark watched', exact: true })
-        .click();
+    await moreAction(page, 'Mark watched');
     await expect(
         page.getByRole('button', { name: 'Retry viewing status' })
     ).toBeVisible();
@@ -195,10 +200,9 @@ test('TV VOD comfort manual marks commit before display, recover from quota and 
     await expect(page.locator('[data-focus="detail-play"]')).toContainText(
         'Watch again'
     );
-    await page
-        .getByRole('button', { name: 'Reset progress', exact: true })
-        .click();
-    await expect(page.locator('[data-focus="detail-play"]')).toBeFocused();
+    await moreAction(page, 'Reset progress');
+    // The ⋯ menu returns focus to its opener.
+    await expect(page.locator('[data-focus="detail-more"]')).toBeFocused();
     await expect(page.locator('[data-focus="detail-play"]')).toContainText(
         'Watch now'
     );
@@ -541,7 +545,7 @@ test('TV VOD comfort Next resolution failure preserves the current episode and r
     await expect(page.locator('video')).toHaveCount(1);
 });
 
-test('TV VOD comfort remote arrows reach early-row episode watch actions and return focus after marking', async ({
+test('TV VOD comfort remote arrows move along the episode rail, reach its options and return focus after marking', async ({
     page,
 }) => {
     await start(page);
@@ -572,36 +576,61 @@ test('TV VOD comfort remote arrows reach early-row episode watch actions and ret
     });
     await nav(page, 'Series');
     await page.locator('.poster-card').first().click();
+    // Details focus their primary action first; start from there.
+    await expect(page.locator('[data-focus="detail-play"]')).toBeFocused();
     await page.locator('.episode').first().focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(page.locator('.episode').nth(1)).toBeFocused();
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.locator('.episode').first()).toBeFocused();
     await page.keyboard.press('ArrowDown');
-    await expect(
-        page.locator('.episode-entry .tv-select').first()
-    ).toBeFocused();
+    const options = page.locator('[data-focus="episode-options"]');
+    await expect(options).toBeFocused();
+    await expect(options).toHaveAttribute(
+        'aria-label',
+        'Episode options · S1 · E1 · Synthetic chapter 1'
+    );
     await page.keyboard.press('Enter');
     await expect(page.getByRole('dialog')).toBeVisible();
     await expect(
-        page.getByRole('option', { name: 'Mark watched', exact: true })
+        page.getByRole('button', { name: 'Mark watched', exact: true })
     ).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(page.getByRole('dialog')).toBeHidden();
     await expect(page.locator('.episode').first()).toContainText('Watched');
-    await expect(
-        page.locator('.episode-entry .tv-select').first()
-    ).toBeFocused();
-    await page.keyboard.press('ArrowDown');
-    await expect(page.locator('.episode').nth(3)).toBeFocused();
+    await expect(options).toBeFocused();
     await page.keyboard.press('ArrowUp');
     await expect(page.locator('.episode').first()).toBeFocused();
     await expect(page.locator('video[src],video source')).toHaveCount(0);
     await page.screenshot({
         path: test.info().outputPath('synthetic-episode-actions.png'),
     });
-    await page.keyboard.press('ArrowDown');
+    // Start over is offered for an episode in progress and returns to it.
+    await page.keyboard.press('ArrowRight');
     await page.keyboard.press('Enter');
-    await page.getByRole('option', { name: 'Start over', exact: true }).click();
+    const video = page.locator('video');
+    await expect
+        .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime))
+        .toBeGreaterThan(0.1);
+    await page.getByLabel('Playback position').fill('8');
+    await expect
+        .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime))
+        .toBeGreaterThanOrEqual(8);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.episode').nth(1)).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(options).toHaveAttribute(
+        'aria-label',
+        'Episode options · S1 · E2 · Synthetic chapter 2'
+    );
+    await page.keyboard.press('Enter');
+    await page
+        .getByRole('dialog')
+        .getByRole('button', { name: 'Start over', exact: true })
+        .click();
     await expect(page.locator('[data-focus="player-toggle"]')).toBeFocused();
     await page.keyboard.press('Escape');
-    await expect(page.locator('.episode').first()).toBeFocused();
+    await expect(page.locator('.episode').nth(1)).toBeFocused();
 });
 
 for (const replay of [
@@ -676,5 +705,6 @@ for (const replay of [
             .toBe(true);
         await page.keyboard.press('Escape');
         await expect(origin).toBeFocused();
-        await expect(origin).toContainText('Resume');
+        // The replayed episode is in progress again.
+        await expect(origin).toContainText(/ min (left|watched)/);
     });

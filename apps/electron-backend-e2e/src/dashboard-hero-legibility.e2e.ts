@@ -342,22 +342,37 @@ test.describe('Dashboard hero legibility', () => {
                     .locator('h2.hero__title')
             ).toHaveCount(1);
 
-            const stage = page
-                .getByTestId('dashboard-hero')
-                .locator('.hero__stage');
+            // Phone: the slides start 60% of the way down an art area as
+            // tall as the hero is wide (capped at 52% of the viewport), so it
+            // covers the art's lower part, and the art runs on under the
+            // slide to the hero's bottom edge, where the first rail tucks in.
+            const hero = page.getByTestId('dashboard-hero');
             for (const height of [844, 480]) {
                 await page.setViewportSize({ width: widths.phone, height });
                 await expect
                     .poll(() =>
-                        stage.evaluate((element) => {
-                            const { width, height } =
-                                element.getBoundingClientRect();
-                            return Math.abs(
-                                height -
-                                    Math.min(
-                                        (width * 9) / 16,
-                                        innerHeight * 0.33
-                                    )
+                        hero.evaluate((element) => {
+                            const box = element.getBoundingClientRect();
+                            const stage = element
+                                .querySelector('.hero__stage')
+                                ?.getBoundingClientRect();
+                            // Slides share one bottom-aligned grid cell: the
+                            // tallest starts where the overlap begins.
+                            const top = Math.min(
+                                ...[
+                                    ...element.querySelectorAll(
+                                        '.hero__content'
+                                    ),
+                                ].map(
+                                    (slide) => slide.getBoundingClientRect().top
+                                )
+                            );
+                            if (!stage) return Infinity;
+                            const art = Math.min(box.width, innerHeight * 0.52);
+                            return Math.max(
+                                Math.abs(top - box.top - art * 0.6),
+                                Math.abs(stage.bottom - box.bottom),
+                                Math.abs(stage.top - box.top)
                             );
                         })
                     )

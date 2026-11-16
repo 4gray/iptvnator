@@ -134,12 +134,11 @@ test('@tmdb credits and season stills/descriptions preserve episode playback and
         page.getByRole('button', { name: 'Retry episode metadata' })
     ).toBeVisible();
     await expect(page.locator('.episode').first()).toBeVisible();
-    expect(
-        await page
-            .locator('.episode')
-            .first()
-            .evaluate((el) => el.getBoundingClientRect().height)
-    ).toBe(300);
+    // Episode cards keep one size whether or not a still arrives.
+    const cardHeight = await page
+        .locator('.episode')
+        .first()
+        .evaluate((el) => el.getBoundingClientRect().height);
     failSeason = false;
     await page.getByRole('button', { name: 'Retry episode metadata' }).click();
     await expect(page.locator('.episode-description').first()).toHaveText(
@@ -155,13 +154,13 @@ test('@tmdb credits and season stills/descriptions preserve episode playback and
             .locator('.episode')
             .first()
             .evaluate((el) => el.getBoundingClientRect().height)
-    ).toBe(500);
+    ).toBe(cardHeight);
     expect(
         await page
             .locator('.episode')
             .nth(1)
             .evaluate((el) => el.getBoundingClientRect().height)
-    ).toBe(300);
+    ).toBe(cardHeight);
     expect(
         await page
             .locator('.episode-still')

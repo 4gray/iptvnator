@@ -42,6 +42,7 @@ import type {
     PlayerTimelineSegment,
     PlayerUpNextItem,
 } from './player-controls.model';
+import type { MultiviewLayout } from '../second-stream/second-stream-open-stream';
 import { PlayerSettingsPanelComponent } from './player-settings-panel.component';
 import { PlayerTimelineComponent } from './player-timeline.component';
 import { PlayerUpNextCardComponent } from './player-up-next-card.component';
@@ -85,7 +86,7 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly showControls = input(true);
     readonly canOpenMultiview = input(false);
     readonly multiviewAddRequested = output<void>();
-    readonly multiviewGridRequested = output<void>();
+    readonly multiviewLayoutRequested = output<MultiviewLayout>();
     readonly multiviewMenuOpen = signal(false);
     readonly shortcutsEnabled = input(true);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
