@@ -183,12 +183,15 @@ describe('EpgService schedule refill', () => {
 
     it('discards the old read after zapping away and back', async () => {
         let finishOld!: (programs: EpgProgram[]) => void;
+        let finishOther!: (programs: EpgProgram[]) => void;
         let finishNew!: (programs: EpgProgram[]) => void;
         getChannelPrograms
             .mockImplementationOnce(
                 () => new Promise((resolve) => (finishOld = resolve))
             )
-            .mockImplementationOnce(() => new Promise(() => undefined))
+            .mockImplementationOnce(
+                () => new Promise((resolve) => (finishOther = resolve))
+            )
             .mockImplementationOnce(
                 () => new Promise((resolve) => (finishNew = resolve))
             );
@@ -206,6 +209,7 @@ describe('EpgService schedule refill', () => {
             'Old schedule'
         );
 
+        finishOther([program('other.example', 'Other schedule')]);
         finishNew([program('news.example', 'Fresh schedule')]);
         await flush();
         expect(shown.at(-1)?.map(({ title }) => title)).toEqual([
@@ -274,6 +278,49 @@ describe('EpgService schedule refill', () => {
 
         expect(getChannelPrograms).toHaveBeenCalledTimes(1);
         expect(shown.at(-1)).toEqual([]);
+    });
+
+    it('clears a reply that settles just as a keyless channel opens', async () => {
+        let finish!: (programs: EpgProgram[]) => void;
+        getChannelPrograms.mockImplementationOnce(
+            () => new Promise((resolve) => (finish = resolve))
+        );
+        service.getChannelPrograms('news.example');
+        await flush();
+
+        finish([program('news.example', 'Stale')]);
+        service.clearSchedule();
+        await flush();
+
+        expect(shown.at(-1)).toEqual([]);
+    });
+
+    it('retries loading the schedule module on the next zap', async () => {
+        const load = service.loadScheduleFeed;
+        service.loadScheduleFeed = jest
+            .fn(load)
+            .mockRejectedValueOnce(
+                new Error('Synthetic missing schedule chunk')
+            );
+        const log = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        try {
+            service.getChannelPrograms('news.example');
+            await flush();
+            expect(getChannelPrograms).not.toHaveBeenCalled();
+
+            getChannelPrograms.mockResolvedValueOnce([
+                program('news.example', 'Recovered'),
+            ]);
+            service.getChannelPrograms('news.example');
+            await flush();
+            expect(shown.at(-1)?.map(({ title }) => title)).toEqual([
+                'Recovered',
+            ]);
+        } finally {
+            log.mockRestore();
+        }
     });
 
     it('lets an opening read publish when the refill that overtook it fails', async () => {

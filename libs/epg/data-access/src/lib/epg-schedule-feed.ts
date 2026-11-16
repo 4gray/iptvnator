@@ -47,7 +47,7 @@ export class EpgScheduleFeed {
             this.published = this.request;
         }
         const { bridge, preferences, sourceSettings } = this;
-        if (!preferences.enabled() || !bridge.supportsProgramLookup) return;
+        if (!preferences.enabled()) return;
         const request = ++this.request;
         const canPublish = () =>
             channelId === this.channelId && request > this.published;
@@ -90,5 +90,6 @@ export class EpgScheduleFeed {
     clear(): void {
         this.channelId = null;
         this.published = ++this.request;
+        this.programs.next([]);
     }
 }

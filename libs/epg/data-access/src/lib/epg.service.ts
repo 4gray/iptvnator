@@ -49,7 +49,9 @@ export class EpgService {
             const enabled = this.epgPreferences.enabled();
             this.epgAvailable.next(enabled);
             if (enabled && !wasEnabled) {
-                void this.fetchEpg(this.sourceSettings.getFetchableSourceUrls());
+                void this.fetchEpg(
+                    this.sourceSettings.getFetchableSourceUrls()
+                );
             }
             wasEnabled = enabled;
             // The remaining sources may still carry the channel's schedule.
@@ -173,17 +175,23 @@ export class EpgService {
     /** Reads a channel's schedule into `currentEpgPrograms$`. */
     getChannelPrograms(channelId: string): void {
         debugEpgService('Fetching EPG for channel ID:', channelId);
-        this.scheduleFeed ??= this.loadScheduleFeed().then(
-            ({ EpgScheduleFeed }) =>
-                new EpgScheduleFeed(
-                    this.epgBridge,
-                    this.sourceSettings,
-                    this.epgPreferences,
-                    this.currentEpgPrograms,
-                    this.epgAvailable,
-                    () => this.showErrorSnackbar()
-                )
-        );
+        if (!this.epgBridge.supportsProgramLookup) return;
+        this.scheduleFeed ??= this.loadScheduleFeed()
+            .then(
+                ({ EpgScheduleFeed }) =>
+                    new EpgScheduleFeed(
+                        this.epgBridge,
+                        this.sourceSettings,
+                        this.epgPreferences,
+                        this.currentEpgPrograms,
+                        this.epgAvailable,
+                        () => this.showErrorSnackbar()
+                    )
+            )
+            .catch((error) => {
+                this.scheduleFeed = null;
+                throw error;
+            });
         this.withScheduleFeed((feed) => feed.read(channelId));
     }
 
@@ -192,7 +200,6 @@ export class EpgService {
      * later refill must not bring back the previous channel's schedule.
      */
     clearSchedule(): void {
-        this.currentEpgPrograms.next([]);
         this.withScheduleFeed((feed) => feed.clear());
     }
 
