@@ -322,6 +322,76 @@ describe('SettingsComponent with settings changed outside the form', () => {
         expect(tmdb.apiKey.value).toBe(savedKey);
     });
 
+    it.each(['before', 'after'])(
+        'keeps a newer key after a storage failure (other tab saves %s rejection)',
+        async (otherTabTiming) => {
+            const newKey = 'synthetic-key-from-other-tab';
+            const { apiKey } = component.settingsForm.controls.tmdb.controls;
+            const originalKey = apiKey.value;
+            let rejectWrite!: (error: Error) => void;
+            settingsStore.updateSettings.mockReturnValueOnce(
+                new Promise<void>((_, reject) => (rejectWrite = reject))
+            );
+            apiKey.setValue('synthetic-draft-key');
+            const saving = component.form.save(() => undefined);
+            apiKey.setValue(originalKey);
+
+            function saveFromOtherTab(): void {
+                settingsStore._setSettings({
+                    tmdb: { enabled: false, apiKey: newKey },
+                });
+                settingsStore.savedTmdbApiKey.set(newKey);
+                fixture.detectChanges();
+            }
+
+            if (otherTabTiming === 'before') saveFromOtherTab();
+            rejectWrite(new Error('storage unavailable'));
+            await expect(saving).rejects.toThrow('storage unavailable');
+            if (otherTabTiming === 'after') saveFromOtherTab();
+
+            expect(apiKey.value).toBe(newKey);
+            component.settingsForm.controls.showCaptions.setValue(true);
+            await component.form.save(() =>
+                component.form.applySavedSettings()
+            );
+            expect(settingsStore.getSettings().tmdb.apiKey).toBe(newKey);
+        }
+    );
+
+    it.each([false, true])(
+        'rebases a newer key after a desktop failure (key edited since Save: %s)',
+        async (editedAgain) => {
+            const { apiKey } = component.settingsForm.controls.tmdb.controls;
+            const originalKey = apiKey.value;
+            const submittedKey = 'synthetic-submitted-key';
+            const newKey = 'synthetic-key-from-other-tab';
+            apiKey.setValue(submittedKey);
+            jest.spyOn(window.electron, 'updateSettings').mockRejectedValueOnce(
+                new Error('runtime unavailable')
+            );
+            await expect(
+                component.form.save(() => undefined)
+            ).rejects.toThrow();
+            settingsStore.savedTmdbApiKey.set(submittedKey);
+            fixture.detectChanges();
+
+            if (editedAgain) apiKey.setValue(originalKey);
+            settingsStore._setSettings({
+                tmdb: { enabled: false, apiKey: newKey },
+            });
+            settingsStore.savedTmdbApiKey.set(newKey);
+            fixture.detectChanges();
+
+            const expectedKey = editedAgain ? originalKey : newKey;
+            expect(apiKey.value).toBe(expectedKey);
+            component.settingsForm.controls.showCaptions.setValue(true);
+            await component.form.save(() =>
+                component.form.applySavedSettings()
+            );
+            expect(settingsStore.getSettings().tmdb.apiKey).toBe(expectedKey);
+        }
+    );
+
     it('keeps a newly saved key after an unrelated retry with a trimmed-out key edit', async () => {
         const originalKey = 'synthetic-key-a';
         const newKey = 'synthetic-key-b';
@@ -493,9 +563,9 @@ describe('SettingsComponent with settings changed outside the form', () => {
         expect(component.settingsForm.pristine).toBe(true);
     });
 
-    it.each([false, true])(
-        'keeps EPG order edits made before Save is acknowledged (backup during Save: %s)',
-        async (restoreWhileSaving) => {
+    it.each(['before', 'after', 'no backup'])(
+        'keeps EPG order edits pending Save (restore %s the reorder)',
+        async (restoreTiming) => {
             importBackupAddingGuide(STAGED_GUIDE);
             let finishUpdate!: () => void;
             const pending = new Promise<void>((resolve) => {
@@ -510,21 +580,56 @@ describe('SettingsComponent with settings changed outside the form', () => {
             );
             await Promise.resolve();
 
-            if (restoreWhileSaving) importBackupAddingGuide(RESTORED_GUIDE);
+            if (restoreTiming === 'before')
+                importBackupAddingGuide(RESTORED_GUIDE);
             component.form.removeEpgSource(0);
             component.form.setEpgUrls(SAVED_GUIDE);
-            const reordered = restoreWhileSaving
-                ? [STAGED_GUIDE, RESTORED_GUIDE, SAVED_GUIDE]
-                : [STAGED_GUIDE, SAVED_GUIDE];
+            if (restoreTiming === 'after')
+                importBackupAddingGuide(RESTORED_GUIDE);
+            const reordered = [STAGED_GUIDE, SAVED_GUIDE];
+            if (restoreTiming === 'before')
+                reordered.splice(1, 0, RESTORED_GUIDE);
+            if (restoreTiming === 'after') reordered.push(RESTORED_GUIDE);
             finishUpdate();
             await saving;
 
             expect(component.form.epgUrls).toEqual(reordered);
             expect(component.form.changedPaths()).toEqual(['epgUrl']);
-            await component.form.save(() => component.form.applySavedSettings());
+            await component.form.save(() =>
+                component.form.applySavedSettings()
+            );
             expect(settingsStore.getSettings().epgUrl).toEqual(reordered);
         }
     );
+
+    it('keeps the order of new sources rearranged during Save and then restored', async () => {
+        const extraGuide = 'https://example.test/second-draft.xml';
+        component.form.setEpgUrls([STAGED_GUIDE, extraGuide]);
+        let finishUpdate!: () => void;
+        jest.spyOn(window.electron, 'updateSettings').mockReturnValueOnce(
+            new Promise<void>((resolve) => (finishUpdate = resolve))
+        );
+        const saving = component.form.save(() =>
+            component.form.applySavedSettings()
+        );
+        await Promise.resolve();
+
+        component.form.removeEpgSource(1);
+        component.form.setEpgUrls(STAGED_GUIDE);
+        importBackupAddingGuide(RESTORED_GUIDE);
+        const reordered = [
+            SAVED_GUIDE,
+            extraGuide,
+            STAGED_GUIDE,
+            RESTORED_GUIDE,
+        ];
+        expect(component.form.epgUrls).toEqual(reordered);
+        finishUpdate();
+        await saving;
+        expect(component.form.changedPaths()).toEqual(['epgUrl']);
+        await component.form.save(() => component.form.applySavedSettings());
+        expect(settingsStore.getSettings().epgUrl).toEqual(reordered);
+    });
 
     it.each(['EPG cleanup', 'Electron acknowledgement'])(
         'preserves a source restored after its removal was persisted during %s',

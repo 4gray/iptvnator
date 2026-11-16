@@ -100,7 +100,8 @@ export function rebaseSettingsForm(
     stored: Settings,
     unsettledPaths: ReadonlySet<string>,
     ownEpgUrls: unknown[],
-    submitted?: SettingsFormSubmission
+    submitted?: SettingsFormSubmission,
+    pendingEpgUrls?: readonly (string | null)[]
 ): {
     next: SettingsFormValue;
     staged: ReadonlySet<string>;
@@ -149,7 +150,11 @@ export function rebaseSettingsForm(
         // An imported list keeps its saved spelling and order when its
         // sources already satisfy the draft. Save acknowledgements preserve
         // a later edit to the order or spelling of that list.
-        const matchesSaved = restoredListChanged
+        const adoptRestoredOrder =
+            restoredListChanged &&
+            !epgSourceOrderChanged(current.epgUrl, saved.epgUrl) &&
+            !epgSourceOrderChanged(current.epgUrl, pendingEpgUrls);
+        const matchesSaved = adoptRestoredOrder
             ? !epgSourceUrlsChanged(
                   draft.map(epgSourceReferenceIdentity),
                   storedUrls.map(epgSourceReferenceIdentity)
@@ -221,6 +226,22 @@ function normalizeFormEpgUrls(value: unknown): string[] {
         .filter((url): url is string => typeof url === 'string')
         .map((url) => url.trim())
         .filter((url) => url !== '');
+}
+
+/** Compares the relative order of sources present in both lists. */
+function epgSourceOrderChanged(current: unknown, previous: unknown): boolean {
+    const currentIds = new Set(
+        normalizeFormEpgUrls(current).map(epgSourceReferenceIdentity)
+    );
+    const previousIds = new Set(
+        normalizeFormEpgUrls(previous).map(epgSourceReferenceIdentity)
+    );
+    return (
+        diffSettingsValues(
+            [...currentIds].filter((id) => previousIds.has(id)),
+            [...previousIds].filter((id) => currentIds.has(id))
+        ).length > 0
+    );
 }
 
 function mergeLeaves(shape: Values, value: Values): Values {
