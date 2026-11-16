@@ -15,7 +15,7 @@
             <div class="hosted-status">
                 <app-settings-sync-status
                     [state]="status().state"
-                    [stateKey]="'HOSTED_SERVER.STATE_' + status().state"
+                    [stateKey]="statusLabel()"
                     testId="hosted-server-status"
                 />
                 @if (status().state === 'running') {
@@ -40,12 +40,9 @@
                     </button>
                 }
             </div>
-            @if (status().error || error()) {
+            @if (errorLabel(); as message) {
                 <p class="server-message server-message--error" role="alert">
-                    {{
-                        error() || 'HOSTED_SERVER.ERROR_' + status().error
-                            | translate
-                    }}
+                    {{ message | translate }}
                 </p>
             }
             @if (status().state === 'running') {
@@ -129,8 +126,7 @@
                         @if (connector(); as current) {
                             <p class="server-message">
                                 {{
-                                    'HOSTED_SERVER.CONNECTOR_' + current.state
-                                        | translate
+                                    connectorStatusLabels[current.state] | translate
                                 }}
                             </p>
                         }

@@ -166,7 +166,7 @@ for (const failure of ['invalid-json', 'storage-denied']) {
         );
         await expect(recovery).toBeVisible();
         await recovery
-            .getByRole('link', { name: 'Server', exact: true })
+            .getByRole('link', { name: 'Connectivity', exact: true })
             .click();
         await expect(page).toHaveURL(/\/workspace\/settings\/server/);
         await expect(

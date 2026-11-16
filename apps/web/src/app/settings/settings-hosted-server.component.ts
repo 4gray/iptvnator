@@ -37,6 +37,22 @@ const ACCESS_MODE_LABELS = {
     cloudflare: 'HOSTED_SERVER.TUNNEL',
 } satisfies Record<Mode, string>;
 
+const SERVER_STATUS_LABELS = {
+    unavailable: '',
+    stopped: 'HOSTED_SERVER.STATE_stopped',
+    starting: 'HOSTED_SERVER.STATE_starting',
+    running: 'HOSTED_SERVER.STATE_running',
+    stopping: 'HOSTED_SERVER.STATE_stopping',
+    error: 'HOSTED_SERVER.STATE_error',
+} satisfies Record<HostedServerStatus['state'], string>;
+
+const SERVER_ERROR_LABELS = {
+    port: 'HOSTED_SERVER.ERROR_port',
+    startup: 'HOSTED_SERVER.ERROR_startup',
+    tls: 'HOSTED_SERVER.ERROR_tls',
+    connector: 'HOSTED_SERVER.ERROR_connector',
+} satisfies Record<NonNullable<HostedServerStatus['error']>, string>;
+
 type ServerDraft = {
     address: string;
     openLan: boolean;
@@ -80,8 +96,25 @@ export class SettingsHostedServerComponent {
     readonly guides = SERVER_GUIDES;
     readonly status = signal<HostedServerStatus>({ state: 'unavailable' });
     readonly connector = signal<HostedCloudflareStatus | undefined>(undefined);
+    readonly connectorStatusLabels = {
+        unavailable: 'HOSTED_SERVER.CONNECTOR_unavailable',
+        stopped: 'HOSTED_SERVER.CONNECTOR_stopped',
+        starting: 'HOSTED_SERVER.CONNECTOR_starting',
+        running: 'HOSTED_SERVER.CONNECTOR_running',
+        stopping: 'HOSTED_SERVER.CONNECTOR_stopping',
+        error: 'HOSTED_SERVER.CONNECTOR_error',
+    } satisfies Record<HostedCloudflareStatus['state'], string>;
+    readonly statusLabel = computed(
+        () => SERVER_STATUS_LABELS[this.status().state]
+    );
     readonly busy = signal(false);
     readonly error = signal('');
+    readonly errorLabel = computed(() => {
+        const statusError = this.status().error;
+        return (
+            this.error() || (statusError ? SERVER_ERROR_LABELS[statusError] : '')
+        );
+    });
     readonly feedback = signal('');
     readonly mode = signal<Mode>('lan');
     readonly address = signal('');
