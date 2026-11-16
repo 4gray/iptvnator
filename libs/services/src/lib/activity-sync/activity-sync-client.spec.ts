@@ -496,7 +496,11 @@ describe('activity sync clients', () => {
             const send = h.request.getMockImplementation()!;
             h.request.mockImplementation((input) => {
                 const operation = input.activity?.operation;
-                if (!input.activity || operation?.kind !== 'checkpoint')
+                if (
+                    !input.activity ||
+                    operation?.kind !== 'checkpoint' ||
+                    !operation.positionMetadata
+                )
                     return send(input);
                 const positionMetadata = { ...operation.positionMetadata };
                 delete positionMetadata.playedAt;
