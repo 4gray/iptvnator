@@ -1057,7 +1057,14 @@ Layout integration:
    also reach cdk-overlay content rendered outside `app-root`.
 2. `apps/web/src/styles.scss` reserves `padding-right: 196px` in
    the top-aligned drag region (`.workspace-header`) for the 4 × 46px
-   menu and window-control button strip.
+   menu and window-control button strip. At ≤640px the rail is the top band
+   (a zoomed-in window reaches it: 900px at 144% is 625 CSS px), so the
+   rail's host reserves the 196px instead (`workspace-shell-rail.component.scss`,
+   outside the rail's sideways scroller, so no link scrolls under the
+   controls) and the header drops it. Component styles, not `styles.scss`,
+   keep this out of the initial bytes. `window-controls.e2e.ts` ("controls
+   never cover rail or header buttons in the phone layout") sizes the
+   viewport, not the window, so a window manager cannot skip it.
 3. Button colors follow the theme via CSS variables (`--app-on-surface`,
    `--app-hover-overlay`); the close button uses the Windows-style red
    hover (`#e81123`). No theme IPC is involved.
