@@ -45,6 +45,7 @@ import {
     EpgTimelineEmptyReason,
     EpgTimelineEmptyStateComponent,
 } from './epg-timeline-empty-state.component';
+import { EPG_TIMELINE_TOOLBAR_IMPORTS } from './epg-schedule-notice.component';
 import { TimelineScrollController } from './epg-timeline-scroll.controller';
 import { TimelineWindowController } from './epg-timeline-window.controller';
 import {
@@ -83,6 +84,7 @@ export type { EpgTimelineSummary } from './epg-summary.util';
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         DatePipe,
+        ...EPG_TIMELINE_TOOLBAR_IMPORTS,
         EpgTimelineEmptyStateComponent,
         EpgTimelineTrackComponent,
         MatIcon,
@@ -94,7 +96,8 @@ export class EpgTimelineComponent {
     readonly programs = input<EpgProgram[]>([]);
     readonly channelName = input('');
     readonly channelLogo = input('');
-    readonly sourceLabel = input('Timeline');
+    /** Defaults to the translated "Programme guide". */
+    readonly sourceLabel = input('');
     readonly archivePlaybackAvailable = input(false);
     /** Source/channel identity captured by programme details, independent of playback. */
     readonly archiveDownloadAvailable = input(false);
