@@ -58,8 +58,12 @@ export class SettingsFormWrites {
         return this.persistedTmdbKey !== undefined || this.pendingTmdb.size > 0;
     }
 
-    get hasPendingEpgWrite(): boolean {
-        return this.pendingEpg.size > 0;
+    get pendingEpgSources(): EpgUrls | undefined {
+        if (!this.pendingEpg.size) return undefined;
+        const urls: (string | null)[] = [];
+        for (const submitted of this.pendingEpg.values())
+            urls.push(...submitted);
+        return urls;
     }
 
     canAdoptTmdbKey(key: string): boolean {
@@ -67,10 +71,10 @@ export class SettingsFormWrites {
     }
 
     knownUrls(saved: readonly (string | null)[] | undefined): unknown[] {
-        const urls = [...(this.persistedFormUrls ?? saved ?? [])];
-        for (const submitted of this.pendingEpg.values())
-            urls.push(...submitted);
-        return urls;
+        return [
+            ...(this.persistedFormUrls ?? saved ?? []),
+            ...(this.pendingEpgSources ?? []),
+        ];
     }
 
     rebase(previous: EpgUrls | undefined, next: EpgUrls | undefined): void {

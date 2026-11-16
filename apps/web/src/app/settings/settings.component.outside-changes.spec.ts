@@ -494,6 +494,40 @@ describe('SettingsComponent with settings changed outside the form', () => {
         expect(component.settingsForm.pristine).toBe(true);
     });
 
+    it('keeps a key re-entered after another tab saved a replacement', async () => {
+        const original = 'synthetic-original-key';
+        const replacement = 'synthetic-replacement-key';
+        const { apiKey } = component.settingsForm.controls.tmdb.controls;
+        settingsStore._setSettings({
+            tmdb: { enabled: false, apiKey: original },
+        });
+        component.form.hydrateFromStore();
+        const submitted = ` ${original} `;
+        apiKey.setValue(submitted);
+        let finish!: () => void;
+        settingsStore.applyNextUpdateThen(
+            () => new Promise<void>((resolve) => (finish = resolve))
+        );
+        const saving = component.form.save(() =>
+            component.form.applySavedSettings()
+        );
+
+        settingsStore._setSettings({
+            tmdb: { enabled: false, apiKey: replacement },
+        });
+        settingsStore.savedTmdbApiKey.set(replacement);
+        fixture.detectChanges();
+        expect(apiKey.value).toBe(replacement);
+        apiKey.setValue(submitted);
+        finish();
+        await saving;
+
+        expect(apiKey.value).toBe(submitted);
+        expect(component.form.changedPaths()).toContain('tmdb.apiKey');
+        await component.form.save(() => component.form.applySavedSettings());
+        expect(settingsStore.getSettings().tmdb.apiKey).toBe(original);
+    });
+
     it('keeps a key typed back while the desktop is acknowledging a save', async () => {
         const { apiKey } = component.settingsForm.controls.tmdb.controls;
         const savedKey = apiKey.value;
@@ -838,6 +872,32 @@ describe('SettingsComponent with settings changed outside the form', () => {
             expect(settingsStore.getSettings().epgUrl).toEqual([SAVED_GUIDE]);
         }
     );
+
+    it('keeps an EPG addition staged after a playlist-only import and a rolled-back write', async () => {
+        let failWrite!: () => void;
+        settingsStore.updateSettings.mockImplementationOnce(async (patch) => {
+            settingsStore._setSettings({ epgUrl: patch['epgUrl'] as string[] });
+            await new Promise<void>((resolve) => (failWrite = resolve));
+            settingsStore._setSettings({ epgUrl: [SAVED_GUIDE] });
+            throw new Error('storage unavailable');
+        });
+        component.form.setEpgUrls(STAGED_GUIDE);
+        const saving = component.form.save(() => undefined);
+        jest.spyOn(component.backup, 'importData').mockImplementation((done) =>
+            done()
+        );
+        component.importData();
+        failWrite();
+        await expect(saving).rejects.toThrow('storage unavailable');
+
+        expect(component.form.epgUrls).toEqual([SAVED_GUIDE, STAGED_GUIDE]);
+        expect(component.form.changedPaths()).toContain('epgUrl');
+        await component.form.save(() => component.form.applySavedSettings());
+        expect(settingsStore.getSettings().epgUrl).toEqual([
+            SAVED_GUIDE,
+            STAGED_GUIDE,
+        ]);
+    });
 
     it('keeps an EPG removal staged after a playlist-only import and a rolled-back write', async () => {
         let failWrite!: () => void;

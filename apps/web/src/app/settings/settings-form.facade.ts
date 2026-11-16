@@ -309,7 +309,7 @@ export class SettingsFormFacade {
         const submission = {
             paths: [...this.unsettledSavePaths],
             snapshot: submittedSnapshot,
-            savedEpgUrls: this.savedSnapshot.epgUrl,
+            baseline: this.savedSnapshot,
         };
         const stored = this.settingsStore.getSettings();
         const settings = pickChangedSettings(
@@ -329,7 +329,7 @@ export class SettingsFormFacade {
             saveRevision,
             submittedSnapshot.epgUrl,
             settings,
-            submission.savedEpgUrls,
+            submission.baseline.epgUrl,
             stored.epgUrl
         );
         let cleanupError: EpgSourceReconciliationError | undefined;
@@ -487,7 +487,7 @@ export class SettingsFormFacade {
             {
                 submitted,
                 pendingEpgUrls: this.writes.submittedEpgUrls,
-                pendingEpgWrite: this.writes.hasPendingEpgWrite,
+                pendingEpgSources: this.writes.pendingEpgSources,
                 confirmedTmdbKey: this.settingsStore.savedTmdbApiKey(),
             }
         );

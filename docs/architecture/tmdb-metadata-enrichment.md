@@ -69,8 +69,8 @@ Other tabs reread the key after a save notification. The
 notification contains no key, and a tab keeps any unsaved key edit. A key edit
 reverted after a failed storage write lets the form adopt the latest saved
 key. After storage succeeds, a newer key from another tab supersedes the
-submitted key. A key edited again while the desktop runtime acknowledges
-Save stays staged.
+submitted key. A key edited again before Save acknowledges the earlier
+submission stays staged.
 If the claim response is lost, start a new transfer. The sender reads the local
 saved key directly, so a draft or embedded build key is never sent. Neither the
 session nor the key is saved in the server library or shared user state.

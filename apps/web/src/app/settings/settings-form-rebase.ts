@@ -11,7 +11,7 @@ export type SettingsFormValue = ReturnType<SettingsForm['getRawValue']>;
 export interface SettingsFormSubmission {
     paths: readonly string[];
     snapshot: SettingsFormValue;
-    savedEpgUrls: SettingsFormValue['epgUrl'];
+    baseline: SettingsFormValue;
 }
 
 type Values = Record<string, unknown>;
@@ -101,7 +101,7 @@ export function rebaseSettingsForm(
     context: {
         submitted?: SettingsFormSubmission;
         pendingEpgUrls?: readonly (string | null)[];
-        pendingEpgWrite: boolean;
+        pendingEpgSources?: readonly (string | null)[];
         confirmedTmdbKey?: string;
     }
 ): {
@@ -109,7 +109,8 @@ export function rebaseSettingsForm(
     staged: ReadonlySet<string>;
     addedEpgUrls: string[];
 } {
-    const { submitted, pendingEpgUrls, confirmedTmdbKey } = context;
+    const { submitted, pendingEpgUrls, pendingEpgSources, confirmedTmdbKey } =
+        context;
     const next = settingsToFormValue(stored, saved);
     const staged = new Set(diffSettingsValues(current, saved));
     if (submitted) {
@@ -117,14 +118,14 @@ export function rebaseSettingsForm(
             diffSettingsValues(current, submitted.snapshot)
         );
         for (const path of submitted.paths) {
-            // A backup may have added sources to the form and its baseline
-            // during Save. Removing one can return the draft to its submitted
-            // value, while it still differs from the rebased baseline.
-            const epgChangedAfterRestore =
-                path === 'epgUrl' &&
-                saved.epgUrl !== submitted.savedEpgUrls &&
-                staged.has(path);
-            if (laterEdits.has(path) || epgChangedAfterRestore)
+            // An intervening rebase can change what the viewer sees as saved.
+            // An edit can then look identical to the original submission.
+            const baselineChanged =
+                (path === 'epgUrl' &&
+                    saved.epgUrl !== submitted.baseline.epgUrl) ||
+                (path === 'tmdb.apiKey' &&
+                    saved.tmdb.apiKey !== submitted.baseline.tmdb.apiKey);
+            if (laterEdits.has(path) || (baselineChanged && staged.has(path)))
                 staged.add(path);
             else staged.delete(path);
         }
@@ -134,11 +135,20 @@ export function rebaseSettingsForm(
             ...next.tmdb,
             apiKey: confirmedTmdbKey ?? saved.tmdb.apiKey,
         };
-        // Backup restore adds sources. A pending removal in the store can
-        // still roll back, so keep saved sources in the draft baseline.
-        if (context.pendingEpgWrite && next.epgUrl) {
+        // The store can reflect a form write before persistence. Use the
+        // previous baseline and sources added outside this pending write.
+        if (pendingEpgSources && next.epgUrl) {
+            const unpersisted = new Set(
+                epgUrlsAddedOutside([], saved.epgUrl, pendingEpgSources).map(
+                    epgSourceReferenceIdentity
+                )
+            );
             next.epgUrl = [
-                ...next.epgUrl,
+                ...next.epgUrl.filter(
+                    (url) =>
+                        url !== null &&
+                        !unpersisted.has(epgSourceReferenceIdentity(url))
+                ),
                 ...epgUrlsAddedOutside(next.epgUrl, [], saved.epgUrl),
             ];
         }
