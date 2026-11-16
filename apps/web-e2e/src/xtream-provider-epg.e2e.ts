@@ -464,7 +464,7 @@ test('@xtream @epg @collections PWA starts favorite playback while the provider 
     await expect(channel).toBeVisible();
     await channel.locator('.favorite-button').click();
     await expect(channel.locator('.favorite-button mat-icon')).toHaveText(
-        'star'
+        'favorite'
     );
     await page.goto('/workspace/global-favorites');
     const row = page

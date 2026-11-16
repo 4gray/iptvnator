@@ -204,11 +204,13 @@ describe('ChannelListItemComponent', () => {
         const toggle = fixture.nativeElement.querySelector('.favorite-button');
         expect(toggle.getAttribute('aria-label')).toBe('CHANNELS.FAVORITE');
         expect(toggle.getAttribute('aria-pressed')).toBe('false');
+        expect(toggle.textContent.trim()).toBe('favorite_border');
 
         fixture.componentRef.setInput('isFavorite', true);
         fixture.detectChanges();
         expect(toggle.getAttribute('aria-label')).toBe('CHANNELS.FAVORITE');
         expect(toggle.getAttribute('aria-pressed')).toBe('true');
+        expect(toggle.textContent.trim()).toBe('favorite');
     });
 
     it('names the icon-only row actions after their tooltips', () => {

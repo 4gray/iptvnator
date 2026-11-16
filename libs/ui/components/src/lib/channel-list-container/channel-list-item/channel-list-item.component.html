@@ -116,9 +116,7 @@
                     [attr.aria-pressed]="isFavorite()"
                     (click)="onFavoriteClick($event)"
                 >
-                    <mat-icon>{{
-                        isFavorite() ? 'star' : 'star_outline'
-                    }}</mat-icon>
+                    <mat-icon>{{ favoriteToggleIcon() }}</mat-icon>
                 </button>
             }
             @if (showAuxActionButton()) {
