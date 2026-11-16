@@ -1503,7 +1503,8 @@ and takes whatever the upcoming rows leave, so a long history cannot fill
 the cap and hide today. When the channel advertises catch-up days, the
 M3U player, unified collections and the Xtream XMLTV schedule keep all
 available slots within that window. The M3U player keeps the same window
-on background refills. When sources disagree on a slot's end time, the latest valid end
+on background refills. The query filters unsupported timestamps before
+applying the limits. When sources disagree on a slot's end time, the latest valid end
 decides which half contains that slot. Both halves are returned in
 chronological order regardless of the offset in the stored time.
 

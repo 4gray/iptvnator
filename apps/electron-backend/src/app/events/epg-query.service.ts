@@ -547,15 +547,18 @@ export class EpgQueryService {
         const { channelId: channel, start, stop, title } = schema.epgPrograms;
         // SQLite's single MAX picks the source row with the latest valid
         // stop. A slot on both sides of now therefore belongs to one half.
-        const ended = sql`max(julianday(${stop})) < julianday(${now})`;
         const startTime = sql`julianday(${start})`;
+        const stopTime = sql`julianday(${stop})`;
+        const ended = sql`max(${stopTime}) < julianday(${now})`;
         const select = (when: SQL, order: SQL) =>
             db
                 .select()
                 .from(schema.epgPrograms)
                 .where(
                     this.withProgramSourceScope(
-                        eq(channel, channelId),
+                        sql`${eq(channel, channelId)}
+                            AND ${startTime} IS NOT NULL
+                            AND ${stopTime} IS NOT NULL`,
                         sourceUrls,
                         options
                     )
@@ -564,7 +567,7 @@ export class EpgQueryService {
                 .having(when)
                 .orderBy(order);
         const upcoming = await select(
-            sql`coalesce(${ended}, 0) = 0`,
+            sql`NOT (${ended})`,
             asc(startTime)
         ).limit(CHANNEL_SCHEDULE_LIMIT);
         const pastLimit =

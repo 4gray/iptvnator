@@ -69,6 +69,30 @@ describe('EpgQueryService single-channel schedule window', () => {
         seedSlots('long-future', -10, 1_000);
         seedSlots('weekly-archive', -350, 350);
         seedSlots('offset-window', -420, 420, 2 * 60_000);
+        for (const boundary of ['start', 'stop']) {
+            seedSlots(`malformed-${boundary}`, 0, 19);
+            const malformed = new Database(shared.getDatabasePath());
+            const insert = malformed.prepare(
+                'INSERT INTO epg_programs (channel_id, start, stop, title, source_url) VALUES (?, ?, ?, ?, ?)'
+            );
+            malformed.transaction(() => {
+                for (let i = 0; i < CHANNEL_SCHEDULE_LIMIT; i++) {
+                    const unknown = String(209901010000 + i);
+                    insert.run(
+                        `malformed-${boundary}`,
+                        boundary === 'start'
+                            ? unknown
+                            : new Date(
+                                  FIRST_SLOT_MS - (i + 1) * SLOT_MS
+                              ).toISOString(),
+                        boundary === 'stop' ? unknown : '2099-01-01T22:00:00Z',
+                        `Malformed ${i}`,
+                        SOURCE_URL
+                    );
+                }
+            })();
+            malformed.close();
+        }
         seedSlots('short', -3, 3);
         // Two sources carry the airing slot; one says it already ended.
         const seed = new Database(shared.getDatabasePath());
@@ -134,6 +158,15 @@ describe('EpgQueryService single-channel schedule window', () => {
         expect(result.at(-1)).toBe(`Slot ${CHANNEL_SCHEDULE_LIMIT - 11}`);
         expect(CHANNEL_SCHEDULE_PAST_SLOTS).toBeGreaterThan(10);
     });
+
+    it.each(['start', 'stop'])(
+        'retains usable programmes when unsupported %s times would fill the cap',
+        async (boundary) => {
+            expect(await titles(`malformed-${boundary}`)).toEqual(
+                Array.from({ length: 20 }, (_, i) => `Slot ${i}`)
+            );
+        }
+    );
 
     it('keeps every advertised catch-up slot while still returning the airing programme', async () => {
         const programmes = await service.getChannelPrograms('weekly-archive', {
