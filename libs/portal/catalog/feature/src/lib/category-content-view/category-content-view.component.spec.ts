@@ -197,7 +197,7 @@ describe('CategoryContentViewComponent', () => {
         catalog.selectItem.mockReturnValue(null);
         catalog.refreshSnapshotSelection.mockClear();
         router = {
-            navigate: jest.fn(),
+            navigate: jest.fn().mockResolvedValue(true),
         };
         paramMap$.next(convertToParamMap({}));
         queryParamMap$.next(convertToParamMap({}));
@@ -1254,6 +1254,26 @@ describe('CategoryContentViewComponent', () => {
             infiniteFixture.componentInstance.onItemClick({ xtream_id: 42 });
 
             expect(catalog.saveScrollPosition).toHaveBeenCalledWith(333);
+        });
+
+        it('keeps the detail snapshot when the outgoing grid resets before destruction', () => {
+            const infiniteFixture = createInfiniteFixture();
+            infiniteFixture.detectChanges();
+            const grid = infiniteFixture.nativeElement.querySelector(
+                'app-grid-list'
+            ) as HTMLElement;
+            let scrollTop = 333;
+            Object.defineProperty(grid, 'scrollTop', { get: () => scrollTop });
+            catalog.selectItem.mockReturnValue(['42']);
+            router.navigate.mockReturnValueOnce(new Promise(() => undefined));
+
+            infiniteFixture.componentInstance.onItemClick({ xtream_id: 42 });
+            expect(router.navigate).toHaveBeenCalled();
+            scrollTop = 0;
+            grid.dispatchEvent(new Event('scroll'));
+            infiniteFixture.destroy();
+
+            expect(catalog.saveScrollPosition.mock.calls).toEqual([[333]]);
         });
 
         it('saves the offset the grid last reported when it is destroyed detached', () => {

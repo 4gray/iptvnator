@@ -204,6 +204,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     });
     private previousGridResetKey: string | null = null;
     private hasAttemptedScrollRestore = false;
+    private detailNavigation: Promise<boolean> | null = null;
     /**
      * The grid's last reported offset. On destroy the view is already
      * detached from the document, where `scrollTop` reads 0, so the hook
@@ -358,7 +359,8 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         // before ever restoring it. Angular detaches the view's DOM before
         // this hook runs, and a detached grid reports a scrollTop of 0, so
         // the tracked offset stands in for it.
-        if (!this.selectedItem()) {
+        // Routed details already saved the position while the grid was visible.
+        if (!this.detailNavigation && !this.selectedItem()) {
             const grid = this.gridElement();
             if (grid) {
                 this.catalog.saveScrollPosition?.(
@@ -387,9 +389,14 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         this.stalkerHandoff.reset();
         const navigation = this.catalog.selectItem(item);
         if (navigation?.length) {
-            this.router.navigate(navigation, {
+            const pending = this.router.navigate(navigation, {
                 relativeTo: this.activatedRoute,
                 queryParamsHandling: 'preserve',
+            });
+            this.detailNavigation = pending;
+            void pending.finally(() => {
+                if (this.detailNavigation === pending)
+                    this.detailNavigation = null;
             });
         }
     }
