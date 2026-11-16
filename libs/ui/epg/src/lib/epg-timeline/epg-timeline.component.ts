@@ -235,7 +235,10 @@ export class EpgTimelineComponent {
     readonly viewDate = computed(() => parseEpgDateKey(this.viewDayKey()));
     private readonly todayKey = runEpgViewClock(this.nowMs, 30_000, {
         viewDayKey: () => this.viewDayKey(),
-        commit: (dayKey) => this.commitDay(dayKey),
+        commit: (dayKey) => {
+            this.commitDay(dayKey);
+            this.scroll.focusCurrentTime();
+        },
     });
     readonly isViewToday = computed(
         () => this.viewDayKey() === this.todayKey()

@@ -5,7 +5,7 @@ import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject, of, Subject } from 'rxjs';
 import { EpgTimelineComponent } from './epg-timeline.component';
-import { TimelineBlock } from './epg-timeline.utils';
+import { TIMELINE_MINUTE_MS, TimelineBlock } from './epg-timeline.utils';
 
 function programAt(
     startOffsetMin: number,
@@ -466,11 +466,9 @@ describe('EpgTimelineComponent across midnight', () => {
         jest.useRealTimers();
     });
 
-    it('moves from yesterday to today when the clock crosses midnight', () => {
-        // jsdom has no scrolling; the ribbon scrolls to the on-air block.
-        Element.prototype.scrollTo ??= () => undefined;
+    it('moves and recentres the ribbon when the clock crosses midnight', () => {
         jest.useFakeTimers({
-            now: new Date(2026, 5, 28, 23, 59, 30).getTime(),
+            now: new Date(2026, 5, 28, 23, 59, 45).getTime(),
         });
         TestBed.configureTestingModule({
             imports: [EpgTimelineComponent],
@@ -499,13 +497,35 @@ describe('EpgTimelineComponent across midnight', () => {
             emitted.push(key)
         );
         fixture.detectChanges();
-        expect(fixture.componentInstance.isViewToday()).toBe(true);
+        const timeline = fixture.componentInstance;
+        expect(timeline.isViewToday()).toBe(true);
+        const ribbon = fixture.nativeElement.querySelector(
+            '.epg-timeline__ribbon'
+        ) as HTMLElement;
+        const scrollTo = jest.fn(({ left }: ScrollToOptions) => {
+            ribbon.scrollLeft = left ?? 0;
+            ribbon.dispatchEvent(new Event('scroll'));
+        });
+        Object.defineProperty(ribbon, 'clientWidth', { value: 500 });
+        Object.defineProperty(ribbon, 'scrollTo', { value: scrollTo });
+        jest.advanceTimersByTime(40);
+        scrollTo.mockClear();
 
-        jest.advanceTimersByTime(60_000);
+        jest.advanceTimersByTime(30_000);
         fixture.detectChanges();
 
+        jest.advanceTimersByTime(40);
+
+        expect(scrollTo).toHaveBeenCalledWith({
+            left:
+                ((timeline.nowMs() - timeline.axis().startMs) /
+                    TIMELINE_MINUTE_MS) *
+                    timeline.scale() -
+                ribbon.clientWidth / 2,
+            behavior: 'auto',
+        });
         expect(emitted).toEqual(['2026-06-29']);
-        expect(fixture.componentInstance.viewDayKey()).toBe('2026-06-29');
-        expect(fixture.componentInstance.isViewToday()).toBe(true);
+        expect(timeline.viewDayKey()).toBe('2026-06-29');
+        expect(timeline.isViewToday()).toBe(true);
     });
 });
