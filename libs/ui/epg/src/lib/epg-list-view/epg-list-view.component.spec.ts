@@ -380,11 +380,9 @@ describe('EpgListViewComponent across midnight', () => {
         jest.useRealTimers();
     });
 
-    it('moves from yesterday to today when the clock crosses midnight', () => {
-        // jsdom has no scrolling; the list scrolls to the on-air row.
-        Element.prototype.scrollTo ??= () => undefined;
+    it('focuses the new on-air row when the clock crosses midnight', () => {
         jest.useFakeTimers({
-            now: new Date(2026, 5, 28, 23, 59, 30).getTime(),
+            now: new Date(2026, 5, 28, 23, 59, 45).getTime(),
         });
         TestBed.configureTestingModule({
             imports: [EpgListViewComponent],
@@ -405,8 +403,8 @@ describe('EpgListViewComponent across midnight', () => {
         });
         const fixture = TestBed.createComponent(EpgListViewComponent);
         fixture.componentRef.setInput('programs', [
-            programAt(-60, 90, 'Before midnight'),
-            programAt(30, 60, 'After midnight'),
+            programAt(-60, 60.25, 'Before midnight'),
+            programAt(0.25, 60, 'After midnight'),
         ]);
         const emitted: string[] = [];
         fixture.componentInstance.selectedDateChange.subscribe((key) =>
@@ -415,9 +413,20 @@ describe('EpgListViewComponent across midnight', () => {
         fixture.detectChanges();
         expect(fixture.componentInstance.isViewToday()).toBe(true);
 
-        jest.advanceTimersByTime(60_000);
-        fixture.detectChanges();
+        const list = fixture.nativeElement.querySelector(
+            '.g-list'
+        ) as HTMLElement;
+        const scrollTo = jest.fn();
+        Object.defineProperty(list, 'scrollTo', { value: scrollTo });
+        jest.advanceTimersByTime(40);
+        scrollTo.mockClear();
+        list.scrollTop = 500;
 
+        jest.advanceTimersByTime(30_000);
+        fixture.detectChanges();
+        jest.advanceTimersByTime(40);
+
+        expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
         expect(emitted).toEqual(['2026-06-29']);
         expect(fixture.componentInstance.isViewToday()).toBe(true);
         expect(

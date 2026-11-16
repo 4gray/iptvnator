@@ -228,7 +228,11 @@ export class EpgListViewComponent {
         followEpgTodayRollover(
             this.todayKey,
             () => this.viewDayKey(),
-            (dayKey) => this.commitDay(dayKey)
+            (dayKey) => {
+                this.commitDay(dayKey);
+                this.scroll.resetListScroll();
+                this.scroll.focusNowAfterRender();
+            }
         );
         registerEpgListViewEffects({
             nowMs: this.nowMs,

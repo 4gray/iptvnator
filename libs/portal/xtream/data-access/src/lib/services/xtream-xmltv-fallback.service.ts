@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import {
+    type ElectronBridgeEpgLookupOptions,
     EpgItem,
     EpgProgram,
     epgProviderClockMs,
@@ -14,7 +15,7 @@ import {
 type ElectronEpgBridge = {
     getChannelPrograms?: (
         channelId: string,
-        options: { rejectOnError: boolean }
+        options: ElectronBridgeEpgLookupOptions
     ) => Promise<EpgProgram[]>;
     getCurrentProgramsBatch?: (
         channelIds: string[],
@@ -62,10 +63,21 @@ export class XtreamXmltvFallbackService {
         if (typeof fn !== 'function') return [];
 
         const programs = await fn.call(this.bridge, id, {
+            ...this.clock,
             rejectOnError: true,
         });
         if (revision !== this.sources.revision()) return [];
         return programs.map((p) => mapEpgProgramToEpgItem(p, id));
+    }
+
+    /** Query options for the provider's EPG clock. */
+    private get clock(): { nowMs: number } {
+        return {
+            nowMs: epgProviderClockMs(
+                Date.now(),
+                this.settingsStore.resolvedEpgOffsetMinutes()
+            ),
+        };
     }
 
     async getCurrentProgramsBatch(
@@ -76,24 +88,15 @@ export class XtreamXmltvFallbackService {
         const fn = this.bridge?.getCurrentProgramsBatch;
         if (typeof fn !== 'function') return {};
 
-        const ids = Array.from(
-            new Set(
-                epgChannelIds
-                    .map((id) => (id ?? '').trim())
-                    .filter((id): id is string => id.length > 0)
-            )
-        );
+        const ids = [
+            ...new Set(
+                epgChannelIds.map((id) => (id ?? '').trim()).filter(Boolean)
+            ),
+        ];
         if (ids.length === 0) return {};
 
         try {
-            // "Now" in the provider's EPG clock (`epg-display-offset.util.ts`,
-            // clock form), like every other current-programme lookup.
-            const rows = await fn.call(this.bridge, ids, {
-                nowMs: epgProviderClockMs(
-                    Date.now(),
-                    this.settingsStore.resolvedEpgOffsetMinutes()
-                ),
-            });
+            const rows = await fn.call(this.bridge, ids, this.clock);
             if (revision !== this.sources.revision()) return {};
             const out: Record<string, EpgItem> = {};
             for (const id of ids) {
@@ -155,19 +158,6 @@ function mapEpgProgramToEpgItem(
     program: EpgProgram,
     channelId: string
 ): EpgItem {
-    const startMs = program.startTimestamp
-        ? program.startTimestamp * 1000
-        : Date.parse(program.start);
-    const stopMs = program.stopTimestamp
-        ? program.stopTimestamp * 1000
-        : Date.parse(program.stop);
-    const startTimestamp = Number.isFinite(startMs)
-        ? Math.floor(startMs / 1000)
-        : 0;
-    const stopTimestamp = Number.isFinite(stopMs)
-        ? Math.floor(stopMs / 1000)
-        : 0;
-
     return {
         id: `${channelId}|${program.start}`,
         epg_id: '',
@@ -178,7 +168,15 @@ function mapEpgProgramToEpgItem(
         stop: program.stop,
         description: program.desc ?? '',
         channel_id: channelId,
-        start_timestamp: String(startTimestamp),
-        stop_timestamp: String(stopTimestamp),
+        start_timestamp: epgTimestamp(program.startTimestamp, program.start),
+        stop_timestamp: epgTimestamp(program.stopTimestamp, program.stop),
     };
+}
+
+function epgTimestamp(
+    timestamp: number | null | undefined,
+    date: string
+): string {
+    const ms = timestamp ? timestamp * 1000 : Date.parse(date);
+    return Number.isFinite(ms) ? String(Math.floor(ms / 1000)) : '0';
 }

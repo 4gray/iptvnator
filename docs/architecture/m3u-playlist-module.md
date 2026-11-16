@@ -861,7 +861,8 @@ crosses midnight (the list and the timeline emit `selectedDateChange`, so a
 host's controlled `selectedDate` follows too); a view the viewer put on
 another day stays there. A timeline that follows midnight centres the
 ribbon on the new day's current time, including when the on-air programme
-started the previous day. Its hour ticks are placed by local
+started the previous day. The list scrolls to the new on-air row after
+rendering. The timeline's hour ticks are placed by local
 wall-clock time, so a daylight-saving day (23 or 25 hours) keeps every label
 on its hour; a wall-clock time the day skips has no tick.
 
