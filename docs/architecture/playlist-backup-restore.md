@@ -243,9 +243,10 @@ spelling, including path case.
 An open settings form takes in restored EPG sources alongside the staged
 edits (`SettingsFormFacade.syncWithStore()`). A source restored after its
 removal was persisted becomes an addition even while cleanup or the
-Electron response is pending. When the restore saves the
-same sources as the source draft, the form adopts the saved list order.
-It becomes pristine once all edits are saved and any outstanding Save has
+Electron response is pending. When the restore changes the saved list and
+its source identities match the draft, the form adopts the restored spelling
+and order. It keeps later edits, including changes to the order. The form
+becomes pristine once all edits are saved and any outstanding Save has
 been acknowledged. The next Save writes the staged paths. Coverage lives
 in `settings.component.outside-changes.spec.ts` and `backup-restore.e2e.ts`.
 

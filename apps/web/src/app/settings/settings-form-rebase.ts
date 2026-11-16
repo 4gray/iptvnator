@@ -136,12 +136,26 @@ export function rebaseSettingsForm(
     const addedEpgUrls = staged.has('epgUrl')
         ? epgUrlsAddedOutside(current.epgUrl, ownEpgUrls, next.epgUrl)
         : [];
-    if (staged.has('epgUrl') && (submitted || !unsettledPaths.has('epgUrl'))) {
+    if (staged.has('epgUrl')) {
         const draft = [
             ...normalizeFormEpgUrls(current.epgUrl),
             ...addedEpgUrls,
         ];
-        if (!epgSourceUrlsChanged(draft, normalizeFormEpgUrls(next.epgUrl))) {
+        const storedUrls = normalizeFormEpgUrls(next.epgUrl);
+        const restoredListChanged =
+            !submitted &&
+            diffSettingsValues(storedUrls, normalizeFormEpgUrls(saved.epgUrl))
+                .length > 0;
+        // An imported list keeps its saved spelling and order when its
+        // sources already satisfy the draft. Save acknowledgements preserve
+        // a later edit to the order or spelling of that list.
+        const matchesSaved = restoredListChanged
+            ? !epgSourceUrlsChanged(
+                  draft.map(epgSourceReferenceIdentity),
+                  storedUrls.map(epgSourceReferenceIdentity)
+              )
+            : diffSettingsValues(draft, storedUrls).length === 0;
+        if (matchesSaved) {
             staged.delete('epgUrl');
             return { next, staged, addedEpgUrls: [] };
         }

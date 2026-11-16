@@ -420,24 +420,27 @@ describe('SettingsComponent with settings changed outside the form', () => {
         );
     });
 
-    it('clears the EPG draft when a backup saves the same sources in a different order', () => {
-        component.form.setEpgUrls(STAGED_GUIDE);
-        component.settingsForm.markAsDirty();
-        jest.spyOn(component.backup, 'importData').mockImplementation(
-            (onImported) => {
-                settingsStore._setSettings({
-                    epgUrl: [STAGED_GUIDE, SAVED_GUIDE],
-                });
-                onImported();
-            }
-        );
+    it.each([SAVED_GUIDE, 'https://EXAMPLE.test/saved.xml'])(
+        'clears the EPG draft when a backup saves the same sources with %s',
+        (savedGuide) => {
+            component.form.setEpgUrls(STAGED_GUIDE);
+            component.settingsForm.markAsDirty();
+            jest.spyOn(component.backup, 'importData').mockImplementation(
+                (onImported) => {
+                    settingsStore._setSettings({
+                        epgUrl: [STAGED_GUIDE, savedGuide],
+                    });
+                    onImported();
+                }
+            );
 
-        component.importData();
+            component.importData();
 
-        expect(component.form.epgUrls).toEqual([STAGED_GUIDE, SAVED_GUIDE]);
-        expect(component.form.changedPaths()).toEqual([]);
-        expect(component.settingsForm.pristine).toBe(true);
-    });
+            expect(component.form.epgUrls).toEqual([STAGED_GUIDE, savedGuide]);
+            expect(component.form.changedPaths()).toEqual([]);
+            expect(component.settingsForm.pristine).toBe(true);
+        }
+    );
 
     it('keeps a staged edit to the literal EPG URL path during backup import', async () => {
         const distinctPath = `${SAVED_GUIDE}/`;
@@ -489,6 +492,39 @@ describe('SettingsComponent with settings changed outside the form', () => {
         ]);
         expect(component.settingsForm.pristine).toBe(true);
     });
+
+    it.each([false, true])(
+        'keeps EPG order edits made before Save is acknowledged (backup during Save: %s)',
+        async (restoreWhileSaving) => {
+            importBackupAddingGuide(STAGED_GUIDE);
+            let finishUpdate!: () => void;
+            const pending = new Promise<void>((resolve) => {
+                finishUpdate = resolve;
+            });
+            jest.spyOn(window.electron, 'updateSettings').mockReturnValueOnce(
+                pending
+            );
+            component.settingsForm.controls.showCaptions.setValue(true);
+            const saving = component.form.save(() =>
+                component.form.applySavedSettings()
+            );
+            await Promise.resolve();
+
+            if (restoreWhileSaving) importBackupAddingGuide(RESTORED_GUIDE);
+            component.form.removeEpgSource(0);
+            component.form.setEpgUrls(SAVED_GUIDE);
+            const reordered = restoreWhileSaving
+                ? [STAGED_GUIDE, RESTORED_GUIDE, SAVED_GUIDE]
+                : [STAGED_GUIDE, SAVED_GUIDE];
+            finishUpdate();
+            await saving;
+
+            expect(component.form.epgUrls).toEqual(reordered);
+            expect(component.form.changedPaths()).toEqual(['epgUrl']);
+            await component.form.save(() => component.form.applySavedSettings());
+            expect(settingsStore.getSettings().epgUrl).toEqual(reordered);
+        }
+    );
 
     it.each(['EPG cleanup', 'Electron acknowledgement'])(
         'preserves a source restored after its removal was persisted during %s',
