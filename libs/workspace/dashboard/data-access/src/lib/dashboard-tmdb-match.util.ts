@@ -126,15 +126,18 @@ function enrich(
  */
 export async function resolveDashboardTmdbDetails(
     enrichment: TmdbEnrichmentService,
-    item: DashboardTmdbMatchItem
+    item: DashboardTmdbMatchItem,
+    matches?: TmdbMatchService | null
 ): Promise<DashboardTmdbResolution | null> {
     const attempts = buildDashboardTmdbAttempts(item);
     if (attempts.length === 0) return null;
 
     const identity = dashboardTmdbMatchIdentity(item);
     if (identity) {
-        const matches = await enrichment.getMatches?.();
-        const choice = matches?.read(identity);
+        const store =
+            matches === undefined ? await enrichment.getMatches?.() : matches;
+        if (!store) return null;
+        const choice = store.read(identity);
         if (choice?.mode === 'provider') {
             return { attempt: attempts[0], details: null };
         }

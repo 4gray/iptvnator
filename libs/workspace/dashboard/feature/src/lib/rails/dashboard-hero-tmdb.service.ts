@@ -9,6 +9,7 @@ import {
     DashboardTmdbMatchItem,
     buildDashboardTmdbAttempts,
     dashboardTmdbLookupKey,
+    dashboardTmdbMatchIdentity,
     dashboardTmdbMatchToken,
     resolveDashboardTmdbDetails,
 } from '@iptvnator/workspace/dashboard/data-access';
@@ -60,9 +61,10 @@ export class DashboardHeroTmdbService {
     private loadMatches(): void {
         if (this.matchesRequested || !this.enrichment.isEnabled()) return;
         this.matchesRequested = true;
-        void this.enrichment
-            .getMatches?.()
-            .then((matches) => this.matches.set(matches));
+        void this.enrichment.getMatches?.().then((matches) => {
+            this.matchesRequested = matches !== null;
+            this.matches.set(matches);
+        });
     }
 
     /** Reactive when read inside a computed (settings signal underneath) */
@@ -97,6 +99,11 @@ export class DashboardHeroTmdbService {
         }
 
         const key = this.keyFor(item);
+        // The lookup waits for the store and can already return a saved
+        // match. Before the store is ready the key still says "automatic".
+        if (dashboardTmdbMatchIdentity(item) && !this.matches()) {
+            return this.loadExtras(item);
+        }
         const cached = this.memo.get(key);
         if (cached) {
             return cached;

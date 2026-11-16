@@ -120,9 +120,17 @@ describe('dashboard TMDB match choice', () => {
                 stalkerEmbeddedSeries
             );
 
-            expect(result).toEqual(
-                expect.objectContaining({ details: null })
-            );
+            expect(result).toEqual(expect.objectContaining({ details: null }));
+            expect(enrichMovie).not.toHaveBeenCalled();
+            expect(enrichTv).not.toHaveBeenCalled();
+        });
+
+        it('does not guess when a saved catalog choice cannot be read', async () => {
+            jest.spyOn(enrichment, 'getMatches').mockResolvedValue(null);
+
+            await expect(
+                resolveDashboardTmdbDetails(enrichment, xtreamSeries)
+            ).resolves.toBeNull();
             expect(enrichMovie).not.toHaveBeenCalled();
             expect(enrichTv).not.toHaveBeenCalled();
         });
@@ -135,7 +143,9 @@ describe('dashboard TMDB match choice', () => {
 
             expect(result?.details).toEqual({ id: 5 });
             expect(enrichTv).toHaveBeenCalledWith(
-                expect.not.objectContaining({ matchIdentity: expect.anything() })
+                expect.not.objectContaining({
+                    matchIdentity: expect.anything(),
+                })
             );
         });
     });

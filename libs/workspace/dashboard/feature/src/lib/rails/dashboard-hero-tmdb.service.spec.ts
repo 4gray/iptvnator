@@ -90,7 +90,7 @@ describe('DashboardHeroTmdbService', () => {
 
     describe("the viewer's TMDB match choice", () => {
         const xtreamMovie = {
-            title: 'The Matrix',
+            title: 'Synthetic Film',
             type: 'movie',
             source: 'xtream',
             playlist_id: 'pl-1',
@@ -130,6 +130,26 @@ describe('DashboardHeroTmdbService', () => {
             // The automatic TV retry would otherwise find a show.
             expect(enrichTv).not.toHaveBeenCalled();
             expect(enrichMovie).not.toHaveBeenCalled();
+        });
+
+        it('does not retain a cold manual result when the viewer switches back to automatic', async () => {
+            choice = { mode: 'manual', tmdbId: 604, title: 'Synthetic Match' };
+            enrichMovie.mockImplementation(async ({ matchIdentity }) => ({
+                ...tvDetails,
+                overview: matchIdentity
+                    ? 'Synthetic manual plot'
+                    : 'Synthetic automatic plot',
+            }));
+            const service = createService();
+
+            expect((await service.getExtras(xtreamMovie))?.overview).toBe(
+                'Synthetic manual plot'
+            );
+
+            choice = null;
+            expect((await service.getExtras(xtreamMovie))?.overview).toBe(
+                'Synthetic automatic plot'
+            );
         });
 
         it('keys the lookup by the choice, so a re-match loads again', async () => {

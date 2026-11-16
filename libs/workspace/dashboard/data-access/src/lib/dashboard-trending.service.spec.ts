@@ -189,12 +189,12 @@ describe('DashboardTrendingService', () => {
 
         language = 'de';
         getTrendingWeek.mockResolvedValueOnce([
-            entry({ title: 'Matrix (synthetic de)' }),
+            entry({ title: 'Synthetic Localized Title' }),
         ]);
         await service.load();
 
         expect(getTrendingWeek).toHaveBeenCalledTimes(2);
-        expect(service.items()[0].title).toBe('Matrix (synthetic de)');
+        expect(service.items()[0].title).toBe('Synthetic Localized Title');
     });
 
     it('matches again when a playlist is imported or deleted', async () => {

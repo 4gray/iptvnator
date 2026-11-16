@@ -111,23 +111,8 @@ export class DashboardRecommendationsService {
 
     private loadedKey: string | null = null;
     private rerunQueued = false;
-    /**
-     * The viewer's TMDB match choices, loaded on the first `load()` (TMDB
-     * on), off startup. A load that ran before they arrived keyed its seeds
-     * without them, so their arrival loads again — a no-op unless a seed
-     * has a choice.
-     */
+    /** Loaded on the first TMDB request, before keying or deduplicating seeds. */
     private matches: TmdbMatchService | null = null;
-    private matchesRequested = false;
-
-    private loadMatches(): void {
-        if (this.matchesRequested) return;
-        this.matchesRequested = true;
-        void this.enrichment.getMatches?.().then((matches) => {
-            this.matches = matches;
-            if (matches) void this.load();
-        });
-    }
 
     get isAvailable(): boolean {
         return this.enrichment.isEnabled() && this.titleMatch.isAvailable;
@@ -137,7 +122,7 @@ export class DashboardRecommendationsService {
         if (!this.isAvailable) {
             return;
         }
-        this.loadMatches();
+        this.matches ??= (await this.enrichment.getMatches?.()) ?? null;
         if (this.loading()) {
             // Re-run after the active load settles — its result may be for
             // a seed/exclusion set that just went stale.
@@ -363,7 +348,8 @@ export class DashboardRecommendationsService {
         const matchToken = dashboardTmdbMatchToken(this.matches, seed);
         const resolved = await resolveDashboardTmdbDetails(
             this.enrichment,
-            seed
+            seed,
+            this.matches
         );
         if (!resolved) {
             return {

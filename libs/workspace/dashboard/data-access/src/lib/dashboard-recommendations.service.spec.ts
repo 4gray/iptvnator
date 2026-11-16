@@ -115,6 +115,7 @@ describe('DashboardRecommendationsService', () => {
                 {
                     provide: TmdbEnrichmentService,
                     useValue: {
+                        getMatches: async () => ({ read: () => null }),
                         isEnabled,
                         enrichMovie,
                         enrichTv,
@@ -575,13 +576,22 @@ describe('DashboardRecommendationsService', () => {
 
     it('runs a load queued while another was in flight', async () => {
         let resolveFirst!: (value: unknown) => void;
+        let requestStarted!: () => void;
+        const started = new Promise<void>(
+            (resolve) => (requestStarted = resolve)
+        );
         enrichMovie.mockImplementationOnce(
-            () => new Promise((resolve) => (resolveFirst = resolve))
+            () =>
+                new Promise((resolve) => {
+                    resolveFirst = resolve;
+                    requestStarted();
+                })
         );
         const service = createService();
 
         const first = service.load();
-        recentVod = [{ title: 'Heat', type: 'movie' }];
+        await started;
+        recentVod = [{ title: 'Synthetic Queued Film', type: 'movie' }];
         recentAll = [...recentVod];
         await service.load(); // dropped by the loading guard — must queue
 
@@ -594,7 +604,7 @@ describe('DashboardRecommendationsService', () => {
 
         expect(enrichMovie).toHaveBeenCalledTimes(2);
         expect(enrichMovie.mock.calls[1][0]).toEqual(
-            expect.objectContaining({ title: 'Heat' })
+            expect.objectContaining({ title: 'Synthetic Queued Film' })
         );
     });
 
