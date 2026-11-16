@@ -57,7 +57,7 @@ export class PwaXtreamBackupStorage {
                 : undefined;
         const map = this.readMap('playbackPositions');
         map[playlistId] = positions;
-        android?.stampNativePlaybackReset(map, playlistId);
+        android?.stampNativePlaybackPlaylistReset(map, playlistId);
         this.writeMap('playbackPositions', map);
     }
 
@@ -315,7 +315,7 @@ export class PwaXtreamBackupStorage {
                 playlistId,
                 updatedAt: item.updatedAt ?? now,
             })),
-            android?.stampNativePlaybackReset
+            android?.stampNativePlaybackPlaylistReset
         );
     }
 

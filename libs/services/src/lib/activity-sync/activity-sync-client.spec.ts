@@ -535,6 +535,46 @@ describe('activity sync clients', () => {
         });
     });
 
+    it.each([false, true])(
+        'keeps newer progress when an older server drops capture time (refresh: %s)',
+        async (refresh) => {
+            const h = harness();
+            const { value } = h.client('synthetic-device');
+            const send = h.request.getMockImplementation()!;
+            h.request.mockImplementation((input) => {
+                const operation = input.activity?.operation;
+                if (!input.activity || operation?.kind !== 'checkpoint')
+                    return send(input);
+                const positionMetadata = { ...operation.positionMetadata };
+                delete positionMetadata.playedAt;
+                return send({
+                    ...input,
+                    activity: {
+                        ...input.activity,
+                        operation: { ...operation, positionMetadata },
+                    },
+                });
+            });
+            const position = movie('synthetic-session', 80);
+            await value.begin('source', position);
+            await value.flush();
+            const nativeCheckpointAt = new Date(
+                Date.now() - 1000
+            ).toISOString();
+            await value.save('source', position);
+            await value.flush();
+            if (refresh) await value.refresh('source');
+
+            await value.save('source', {
+                ...position,
+                positionSeconds: 20,
+                nativeCheckpointAt,
+            });
+            await value.flush();
+            expect([...h.states.values()][0].resume?.positionSeconds).toBe(80);
+        }
+    );
+
     it('saves a native position captured before the server acknowledged begin', async () => {
         const h = harness();
         const { value } = h.client('synthetic-device');

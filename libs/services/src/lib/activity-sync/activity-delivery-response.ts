@@ -94,16 +94,31 @@ export async function commitActivityDelivery(
             return { ...current, conflict: result.state };
         }
         const pending = current.pending.slice(1);
+        const playedAt =
+            head.operation.kind === 'checkpoint'
+                ? head.operation.positionMetadata?.playedAt
+                : undefined;
+        // A compatible server can acknowledge a checkpoint without storing its capture time.
+        const state =
+            playedAt && !result.state.positionMetadata?.playedAt
+                ? {
+                      ...result.state,
+                      positionMetadata: {
+                          ...result.state.positionMetadata,
+                          playedAt,
+                      },
+                  }
+                : result.state;
         return {
             ...current,
             pending,
             ...(pending.length
                 ? {}
                 : {
-                      state: result.state,
+                      state,
                       position: projectActivity(
                           address,
-                          result.state,
+                          state,
                           client.alias(address)
                       ),
                   }),

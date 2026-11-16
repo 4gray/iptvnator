@@ -102,8 +102,8 @@ public final class NativePlayerActivity extends Activity {
         view = findViewById(R.id.native_player);
         muteButton = findViewById(R.id.native_mute);
         nativeVolume = getIntent().getFloatExtra("volume", 1f);
-        audibleVolume = nativeVolume > 0f ? nativeVolume : getIntent().getFloatExtra("audibleVolume", 1f);
-        if (audibleVolume == 0f) audibleVolume = 1f;
+        audibleVolume = nativeVolume > 0f ? nativeVolume : getIntent().getFloatExtra("audibleVolume", 0.5f);
+        if (audibleVolume == 0f) audibleVolume = 0.5f;
         live = getIntent().getBooleanExtra("live", false);
         hls = getIntent().getBooleanExtra("hls", false);
         seedCaptions = getIntent().getBooleanExtra("captions", false);

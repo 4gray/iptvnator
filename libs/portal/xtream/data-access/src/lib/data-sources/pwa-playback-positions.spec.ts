@@ -1,6 +1,7 @@
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { androidPlaybackResetAt } from './pwa-android-playback-resets';
 import { PwaPlaybackPositions } from './pwa-playback-positions';
+import { clearPlaylistPlaybackPositions } from './pwa-playback-position-storage';
 
 describe('Android playback position resets', () => {
     const storageKey = 'xtream-playback-positions';
@@ -134,6 +135,51 @@ describe('Android playback position resets', () => {
             }
         }
     );
+
+    it('keeps only the playlist-wide barrier when deleting its positions', async () => {
+        const playlist = 'synthetic-playlist';
+        const other = 'synthetic-playlist-other';
+        const episode = position({
+            contentType: 'episode',
+            seriesXtreamId: 3,
+            seasonNumber: 2,
+        });
+        const now = jest.spyOn(Date, 'now').mockReturnValue(1000);
+        Object.assign(window, { TvShell: { postMessage: jest.fn() } });
+        try {
+            for (const source of [playlist, other]) {
+                await positions.clearPlaybackPosition(
+                    source,
+                    episode.contentXtreamId,
+                    'episode'
+                );
+                await positions.clearPlaybackPositionsBatch(source, [episode], {
+                    seriesXtreamId: 3,
+                    seasonNumber: 2,
+                });
+            }
+            now.mockReturnValue(2000);
+            clearPlaylistPlaybackPositions(localStorage, playlist);
+            const stored = JSON.parse(localStorage.getItem(storageKey)!);
+            expect(stored.__iptvnator_native_playback_resets__).toEqual({
+                [playlist]: 2000,
+                [JSON.stringify([other, 'episode', episode.contentXtreamId])]:
+                    1000,
+            });
+            expect(
+                Object.keys(stored.__iptvnator_native_playback_episode_resets__)
+            ).toEqual([other]);
+            expect(
+                androidPlaybackResetAt(localStorage, playlist, episode)
+            ).toBe(2000);
+            expect(androidPlaybackResetAt(localStorage, other, episode)).toBe(
+                1000
+            );
+        } finally {
+            now.mockRestore();
+            Reflect.deleteProperty(window, 'TvShell');
+        }
+    });
 
     it.each([undefined, 2])(
         'clears a series or season at quota (%s)',

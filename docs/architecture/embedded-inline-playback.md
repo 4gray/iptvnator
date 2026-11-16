@@ -171,6 +171,8 @@ episode IDs from the reset request, including episodes with no saved position.
 Adjacent IDs share a compact range in storage. Checkpoints for other episodes
 stay eligible for recovery even if their season changed. Retries retain the original
 playback time when comparing positions for recovery.
+Deleting a playlist or restoring all of its positions replaces its individual
+reset markers with a single playlist-wide marker in the same storage write.
 Activity Sync uses server timestamps to order acknowledged positions across
 devices.
 While a VOD plays, Android keeps an in-memory checkpoint so a launcher relaunch

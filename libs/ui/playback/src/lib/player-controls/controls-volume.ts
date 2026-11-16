@@ -46,6 +46,10 @@ export class ControlsVolume {
         const clamped = Math.max(0, Math.min(1, value));
         this.value.set(clamped);
         persistVolume(clamped);
+        if (clamped > 0 && clamped !== this.mutedVolume) {
+            this.mutedVolume = clamped;
+            rememberAudibleVolume(clamped);
+        }
         this.deps.apply(clamped);
     }
 

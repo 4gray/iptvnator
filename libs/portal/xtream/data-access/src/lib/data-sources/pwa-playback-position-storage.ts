@@ -3,7 +3,7 @@ import {
     type UserDataStorage,
     XTREAM_USER_DATA_KEYS,
 } from '@iptvnator/services';
-import { stampNativePlaybackReset } from '@iptvnator/services/pwa-native-playback-resets';
+import { stampNativePlaybackPlaylistReset } from '@iptvnator/services/pwa-native-playback-resets';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 
 export const playbackPositionsStorageKey =
@@ -25,7 +25,7 @@ export function clearPlaylistPlaybackPositions(
 ): void {
     const positions = readPlaybackPositions(storage);
     delete positions[playlistId];
-    stampNativePlaybackReset(positions, playlistId);
+    stampNativePlaybackPlaylistReset(positions, playlistId);
     forgetXtreamRestoreReceipt(positions, playlistId);
     storage.setItem(playbackPositionsStorageKey, JSON.stringify(positions));
 }

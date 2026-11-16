@@ -1242,6 +1242,8 @@ steps by ±5% and syncs muted state the way `applyVideoVolume` does (raising
 out of mute unmutes, reaching zero mutes); M mirrors `ControlsVolume`'s mute
 memory through `LegacyMuteMemory` — muting remembers the audible volume, and
 unmuting while the volume sits at zero restores it (same 0.5 fallback).
+A positive shared-control slider setting is remembered across a later change
+to zero. The Android handoff uses that level for Unmute and falls back to 50%.
 A remounted player at zero volume is considered muted even if its engine
 initializes the mute flag to false. `isAvailable` is the host's
 `interactionEnabled`, so a visible playback diagnostic disables the keys; and

@@ -203,6 +203,20 @@ it('reports only an owned natural end after recording the final position', () =>
     }
 });
 
+it('uses half volume for Android unmute when no audible volume is known', () => {
+    const { clear, open, postMessage, surface } = setup();
+    try {
+        localStorage.removeItem('volume.lastAudible');
+        surface.querySelector('video')!.volume = 0;
+        open();
+        expect(JSON.parse(postMessage.mock.lastCall![0])[2].audibleVolume).toBe(
+            0.5
+        );
+    } finally {
+        clear();
+    }
+});
+
 it('carries the previous audible volume through the native launch and the web remount', () => {
     const { clear, open, playback, postMessage, reply, surface } = setup();
     try {

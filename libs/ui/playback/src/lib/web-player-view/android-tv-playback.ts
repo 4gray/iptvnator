@@ -251,7 +251,10 @@ export class AndroidTvPlayback {
             ? readVideoVolume(video)
             : (previous?.volume ?? readStoredVolume());
         const audibleVolume =
-            video?.volume || previous?.audibleVolume || readLastAudibleVolume();
+            video?.volume ||
+            previous?.audibleVolume ||
+            readLastAudibleVolume() ||
+            0.5;
         const id = crypto.randomUUID();
         const profile = sourceProfileName();
         const attempt = this.attempt();

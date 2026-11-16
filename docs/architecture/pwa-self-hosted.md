@@ -1243,6 +1243,8 @@ sync is disabled preserves capture ordering. A begin acknowledgement establishes
 ownership without recording a playback capture. If a write is displaced before it commits,
 Android keeps its checkpoint for retry. The recovery payload omits the title.
 The client carries the title forward from the persisted activity record.
+If an older server omits the capture time from a checkpoint acknowledgement,
+the client keeps the time from its queued checkpoint through same-revision refreshes.
 Checkpoints, local conflict choices and explicit imports share whole-second
 normalization of player snapshots; unknown or sub-second durations stay omitted.
 Completion retains the portal's rounded 90% threshold when duration is

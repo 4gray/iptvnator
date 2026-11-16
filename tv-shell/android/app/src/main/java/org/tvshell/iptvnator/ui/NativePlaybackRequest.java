@@ -71,8 +71,8 @@ final class NativePlaybackRequest {
             .putExtra("live", Boolean.TRUE.equals(request.get("live")))
             .putExtra("captions", Boolean.TRUE.equals(request.get("captions")))
             .putExtra("position", positionMs(request.get("startTime")))
-            .putExtra("volume", volume(request.get("volume")))
-            .putExtra("audibleVolume", volume(request.get("audibleVolume")))
+            .putExtra("volume", volume(request.get("volume"), 1f))
+            .putExtra("audibleVolume", volume(request.get("audibleVolume"), 0.5f))
             .putExtra("headers", headers);
     }
 
@@ -163,10 +163,10 @@ final class NativePlaybackRequest {
         return saved;
     }
 
-    private static float volume(Object raw) {
-        if (!(raw instanceof Number)) return 1f;
+    private static float volume(Object raw, float fallback) {
+        if (!(raw instanceof Number)) return fallback;
         double value = ((Number) raw).doubleValue();
-        return Double.isFinite(value) ? (float) Math.max(0, Math.min(1, value)) : 1f;
+        return Double.isFinite(value) ? (float) Math.max(0, Math.min(1, value)) : fallback;
     }
 
     private static long positionMs(Object seconds) {

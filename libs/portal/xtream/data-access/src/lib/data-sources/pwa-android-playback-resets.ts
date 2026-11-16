@@ -1,5 +1,8 @@
 import type { UserDataStorage } from '@iptvnator/services';
-import { nativePlaybackResetAt } from '@iptvnator/services/pwa-native-playback-resets';
+import {
+    nativePlaybackEpisodeResetKey,
+    nativePlaybackResetAt,
+} from '@iptvnator/services/pwa-native-playback-resets';
 import type {
     PlaybackPositionData,
     PlaybackPositionResetScope,
@@ -10,7 +13,6 @@ import {
 } from './pwa-playback-position-storage';
 
 type PositionId = Pick<PlaybackPositionData, 'contentType' | 'contentXtreamId'>;
-const episodeResetKey = '__iptvnator_native_playback_episode_resets__';
 type EpisodeResets = Record<string, Record<string, number>>;
 
 export const nativePlaybackResetId = (playlistId: string, item: PositionId) =>
@@ -78,7 +80,8 @@ function nativePlaybackEpisodeResetAt(
     playlistId: string,
     episodeId: number
 ): number {
-    const resets = positions[episodeResetKey] as EpisodeResets | undefined;
+    const resets = positions[nativePlaybackEpisodeResetKey] as
+        EpisodeResets | undefined;
     const batches = resets?.[playlistId];
     if (!batches) return 0;
     let latest = 0;
@@ -108,8 +111,9 @@ export function stampNativePlaybackEpisodeResets(
             ranges[ranges.length - 1] = id;
         else ranges.push(id, id);
     }
-    const resets = positions[episodeResetKey] as EpisodeResets | undefined;
-    positions[episodeResetKey] = {
+    const resets = positions[nativePlaybackEpisodeResetKey] as
+        EpisodeResets | undefined;
+    positions[nativePlaybackEpisodeResetKey] = {
         ...resets,
         [playlistId]: {
             ...resets?.[playlistId],

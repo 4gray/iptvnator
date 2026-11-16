@@ -245,7 +245,7 @@ export class ActivitySyncClient {
                         if (
                             current?.pending.length ||
                             (current &&
-                                current.state.revision > entry.state.revision)
+                                current.state.revision >= entry.state.revision)
                         )
                             return current;
                         return {
