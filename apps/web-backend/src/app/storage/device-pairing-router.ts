@@ -139,8 +139,7 @@ export function createDevicePairingRouter(
                 res.sendStatus(401);
                 return;
             }
-            // The cookie is a random, short-lived lookup token. The server
-            // holds only its digest in memory. The password stays server-side.
+            // The cookie carries an encrypted, short-lived session ID.
             res.cookie('iptvnator_pairing', token, {
                 httpOnly: true,
                 secure: true,

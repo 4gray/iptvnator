@@ -374,6 +374,19 @@ describe('device pairing', () => {
                     ...browser,
                     cookie: session.cookie.split(';')[0],
                 };
+                const [cookieName, cookieValue] = authenticated.cookie.split('=');
+                const tampered = Buffer.from(cookieValue, 'base64url');
+                tampered[tampered.length - 1] ^= 1;
+                expect(
+                    (
+                        await call(
+                            remote,
+                            'browser-request',
+                            { claimId: claim.claimId },
+                            { ...browser, cookie: `${cookieName}=${tampered.toString('base64url')}` }
+                        )
+                    ).status
+                ).toBe(401);
                 expect(
                     (
                         await call(

@@ -1,4 +1,6 @@
 import {
+    createCipheriv,
+    createDecipheriv,
     createHash,
     randomBytes,
     randomInt,
@@ -10,6 +12,10 @@ import type { Database } from 'better-sqlite3';
 
 const LIFETIME = 5 * 60_000;
 const MAX_PENDING = 100;
+const SESSION_ID_BYTES = 32;
+const SESSION_IV_BYTES = 12;
+const SESSION_TAG_BYTES = 16;
+const SESSION_COOKIE_BYTES = SESSION_IV_BYTES + SESSION_TAG_BYTES + SESSION_ID_BYTES;
 type Claim = {
     inviteId: string | null;
     secret: string;
@@ -32,6 +38,7 @@ export class DevicePairingStore {
     }>();
     private readonly claims = new Map<string, Claim>();
     private readonly sessions = new Map<string, number>();
+    private readonly sessionCookieKey = randomBytes(32);
     constructor(
         private readonly db: Database,
         private readonly now = Date.now
@@ -152,12 +159,36 @@ export class DevicePairingStore {
         for (const [id, expires] of this.sessions)
             if (expires <= now) this.sessions.delete(id);
         if (this.sessions.size >= 100) return null;
-        const token = secret();
-        this.sessions.set(digest(token), now + LIFETIME);
-        return token;
+        const sessionId = randomBytes(SESSION_ID_BYTES);
+        const iv = randomBytes(SESSION_IV_BYTES);
+        const cipher = createCipheriv('aes-256-gcm', this.sessionCookieKey, iv);
+        const ciphertext = Buffer.concat([cipher.update(sessionId), cipher.final()]);
+        const cookie = Buffer.concat([iv, cipher.getAuthTag(), ciphertext]);
+        this.sessions.set(digest(sessionId.toString('base64url')), now + LIFETIME);
+        return cookie.toString('base64url');
     }
     acceptsSession(token: string): boolean {
-        const key = digest(token);
+        const cookie = Buffer.from(token, 'base64url');
+        if (cookie.length !== SESSION_COOKIE_BYTES || cookie.toString('base64url') !== token) {
+            return false;
+        }
+        const tagEnd = SESSION_IV_BYTES + SESSION_TAG_BYTES;
+        const decipher = createDecipheriv(
+            'aes-256-gcm',
+            this.sessionCookieKey,
+            cookie.subarray(0, SESSION_IV_BYTES)
+        );
+        decipher.setAuthTag(cookie.subarray(SESSION_IV_BYTES, tagEnd));
+        let sessionId: Buffer;
+        try {
+            sessionId = Buffer.concat([
+                decipher.update(cookie.subarray(tagEnd)),
+                decipher.final(),
+            ]);
+        } catch {
+            return false;
+        }
+        const key = digest(sessionId.toString('base64url'));
         const expires = this.sessions.get(key) ?? 0;
         if (expires <= this.now()) {
             this.sessions.delete(key);
