@@ -160,8 +160,11 @@ try {
         await page.evaluate(() => window.TvShell.postMessage('["openSettings"]'));
         settingsOpen = true;
         await expect.poll(topActivity).toContain('.ui.SettingsActivity');
-        const checkbox = dumpLayout().match(/<node [^>]*resource-id="org\.tvshell\.iptvnator:id\/native_playback"[^>]*>/)?.[0];
-        assert.ok(checkbox, 'The native playback setting must be visible.');
+        let checkbox;
+        await expect.poll(() => {
+            checkbox = dumpLayout().match(/<node [^>]*resource-id="org\.tvshell\.iptvnator:id\/native_playback"[^>]*>/)?.[0];
+            return checkbox;
+        }, { timeout: 30000, message: 'The native playback setting must be visible.' }).toBeDefined();
         if (checkbox.includes('checked="true"') !== enabled) {
             const bounds = checkbox.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/).slice(1).map(Number);
             const [left, top, right, bottom] = bounds;
@@ -205,6 +208,7 @@ try {
         dialog.getByRole('button', { name: 'Add playlist', exact: true }).click(),
     ]);
     const entry = (name) => page.locator('[data-test-id="channel-item"]').filter({ hasText: name });
+    await expect(entry('Synthetic Feature')).toBeVisible({ timeout: 60000 });
     await entry('Synthetic Feature').click();
     const stage = page.locator('app-web-player-view');
     const action = stage.getByRole('button', { name: 'Try built-in player' });
@@ -349,6 +353,7 @@ try {
     await action.click();
     await waitNative();
     await expect.poll(() => seen.segments).toBeGreaterThan(segmentsBeforeLive);
+    await waitAudio();
     await delay(3200);
     await back();
     await page.waitForFunction(() => window.__nativeResult !== undefined);
