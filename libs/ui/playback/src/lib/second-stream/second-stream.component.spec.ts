@@ -279,6 +279,46 @@ describe('SecondStreamComponent', () => {
         expect(document.activeElement).toBe(stage);
     });
 
+    it('keeps Focus active while adding windows and when the large window closes', async () => {
+        component.setLayout('focus');
+        expect(component.layout()).toBe('focus');
+        const second = await choose(2);
+        const fourth = await choose(4);
+        component.selectControls(4);
+        expect(component.layout()).toBe('focus');
+        expect(component.controlsSlot()).toBe(4);
+        expect(component.audioSlot()).toBe(1);
+        expect(first.controller.sessionId()).toBe('session-1');
+        expect(second.controller.sessionId()).toBe('session-2');
+        expect(fourth.controller.sessionId()).toBe('session-4');
+
+        await component.close(4);
+        await component.close(2);
+        expect(component.layout()).toBe('focus');
+        expect(component.controlsSlot()).toBe(1);
+    });
+
+    it('keeps the fullscreen strip in Grid and Focus only', async () => {
+        const stage = { left: 0, top: 0, width: 800, height: 600 };
+        component.placement.measure(stage, stage, true);
+        expect(component.stripVisible()).toBe(false);
+
+        for (const layout of ['grid', 'focus'] as const) {
+            component.setLayout(layout);
+            expect(component.stripVisible()).toBe(true);
+        }
+        await choose(2);
+        for (const layout of ['pip', 'side-by-side'] as const) {
+            component.setLayout(layout);
+            expect(component.multiviewOpen()).toBe(true);
+            expect(component.stripVisible()).toBe(false);
+        }
+
+        component.placement.measure(stage, stage, false);
+        expect(component.stripVisible()).toBe(true);
+        expect(component.layout()).toBe('side-by-side');
+    });
+
     it('keeps stable slot numbers and playback through layout changes and reuses the first empty slot', async () => {
         expect(component.layout()).toBe('single');
         expect(component.stripVisible()).toBe(false);

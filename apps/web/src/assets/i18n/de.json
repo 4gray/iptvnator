@@ -4,6 +4,7 @@
         "ADD_STREAM": "Stream hinzufügen",
         "OPEN_GRID": "2×2-Raster öffnen",
         "GRID_LAYOUT": "2×2-Raster",
+        "FOCUS_LAYOUT": "Fokus (3:1)",
         "PAIR_LAYOUT_HINT": "Lass zwei Fenster geöffnet, um dieses Layout zu verwenden",
         "ADD_TO_WINDOW": "Stream zu Fenster {{slot}} hinzufügen",
         "WINDOW": "Fenster {{slot}}",

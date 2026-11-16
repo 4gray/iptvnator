@@ -15,13 +15,14 @@
                     layout() === 'side-by-side'
                 "
                 [class.second-stream__grid-cell]="layout() === 'grid'"
+                [class.second-stream__focus-cell]="layout() === 'focus'"
+                [style.grid-area]="focusGridArea(slot)"
             >
                 <app-embedded-mpv-player
                     #companionPlayer
                     [multiviewSlot]="slot"
                     [class.embedded-mpv-player-host--selected]="
-                        (layout() === 'side-by-side' || layout() === 'grid') &&
-                        controlsSlot() === slot
+                        tiled() && controlsSlot() === slot
                     "
                     [playback]="current.playback"
                     [initialVolumeOverride]="
@@ -46,11 +47,14 @@
                     (recordingStopped)="recordingStopped.emit($event)"
                 />
             </section>
-        } @else if (layout() === 'grid') {
+        } @else if (fourWindowLayout()) {
             <button
                 #emptySlot
                 type="button"
-                class="second-stream__grid-cell second-stream__empty"
+                class="second-stream__empty"
+                [class.second-stream__grid-cell]="layout() === 'grid'"
+                [class.second-stream__focus-cell]="layout() === 'focus'"
+                [style.grid-area]="focusGridArea(slot)"
                 [attr.data-multiview-slot]="slot"
                 [attr.data-multiview-add]="slot"
                 aria-haspopup="dialog"
@@ -263,6 +267,16 @@
                     [attr.aria-label]="'TWO_STREAMS.GRID_LAYOUT' | translate"
                 >
                     <mat-icon>grid_view</mat-icon>
+                </button>
+                <button
+                    type="button"
+                    (click)="setLayout('focus')"
+                    [attr.aria-pressed]="layout() === 'focus'"
+                    [attr.aria-disabled]="busy()"
+                    [matTooltip]="'TWO_STREAMS.FOCUS_LAYOUT' | translate"
+                    [attr.aria-label]="'TWO_STREAMS.FOCUS_LAYOUT' | translate"
+                >
+                    <mat-icon>view_sidebar</mat-icon>
                 </button>
             </div>
             <button
