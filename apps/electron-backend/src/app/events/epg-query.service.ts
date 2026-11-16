@@ -62,9 +62,6 @@ const CURRENT_PROGRAM_FIXED_PARAMETERS = 3;
 export const CHANNEL_SCHEDULE_LIMIT = 500;
 /** Of those, the slots always left for the past (catch-up), nearest first. */
 export const CHANNEL_SCHEDULE_PAST_SLOTS = 250;
-/** Past rows read beyond the limit to replace slots split across now. */
-const SCHEDULE_SPLIT_SLACK = 8;
-
 export class EpgQueryService {
     constructor(
         private readonly loggerLabel = '[EPG Events]',
@@ -572,9 +569,7 @@ export class EpgQueryService {
      * at `CHANNEL_SCHEDULE_LIMIT`. Taking the oldest rows instead let a long
      * history fill the cap and hide today. The past keeps at least
      * `CHANNEL_SCHEDULE_PAST_SLOTS` for catch-up and gets whatever the
-     * upcoming rows leave. A stop SQLite cannot parse counts as upcoming, as
-     * every row was returned before. Identical slots from several sources
-     * collapse in SQL, so the cap counts distinct programmes.
+     * upcoming rows leave. Identical slots collapse before either limit.
      */
     private async selectChannelScheduleWindow(
         db: EpgDatabase,
@@ -582,32 +577,30 @@ export class EpgQueryService {
         sourceUrls: string[],
         options: { legacyOnly?: boolean } = {}
     ): Promise<EpgProgramSelectRow[]> {
+        const { channelId: channel, start, stop, title } = schema.epgPrograms;
         const now = new Date(this.nowMs()).toISOString();
-        const ended = sql`datetime(${schema.epgPrograms.stop}) < datetime(${now})`;
+        // SQLite's single MAX picks the source row with the latest valid
+        // stop. A slot on both sides of now therefore belongs to one half.
+        const ended = sql`max(julianday(${stop})) < julianday(${now})`;
+        const startTime = sql`julianday(${start})`;
         const select = (when: SQL, order: SQL, limit: number) =>
             db
                 .select()
                 .from(schema.epgPrograms)
                 .where(
                     this.withProgramSourceScope(
-                        and(
-                            eq(schema.epgPrograms.channelId, channelId),
-                            when
-                        ) as SQL,
+                        eq(channel, channelId),
                         sourceUrls,
                         options
                     )
                 )
-                .groupBy(
-                    schema.epgPrograms.channelId,
-                    schema.epgPrograms.start,
-                    schema.epgPrograms.title
-                )
+                .groupBy(channel, start, title)
+                .having(when)
                 .orderBy(order)
                 .limit(limit);
         const upcoming = await select(
             sql`coalesce(${ended}, 0) = 0`,
-            asc(schema.epgPrograms.start),
+            asc(startTime),
             CHANNEL_SCHEDULE_LIMIT
         );
         const pastLimit =
@@ -616,25 +609,12 @@ export class EpgQueryService {
                 upcoming.length,
                 CHANNEL_SCHEDULE_LIMIT - CHANNEL_SCHEDULE_PAST_SLOTS
             );
-        // Sources can disagree on a slot's stop around now, putting the same
-        // slot in both halves; the airing (upcoming) copy is kept. A few
-        // extra past rows stand in for the dropped copies.
-        const slotKey = (row: EpgProgramSelectRow) =>
-            `${row.start}|${row.title}`;
-        const upcomingSlots = new Set(upcoming.map(slotKey));
-        const earlier = (
-            await select(
-                ended,
-                desc(schema.epgPrograms.start),
-                pastLimit + SCHEDULE_SPLIT_SLACK
-            )
-        )
-            .filter((row) => !upcomingSlots.has(slotKey(row)))
-            .slice(0, pastLimit);
+        const past = await select(ended, desc(startTime), pastLimit);
+        // An airing programme can start before one that has already ended.
         return [
-            ...earlier.reverse(),
-            ...upcoming.slice(0, CHANNEL_SCHEDULE_LIMIT - earlier.length),
-        ];
+            ...past,
+            ...upcoming.slice(0, CHANNEL_SCHEDULE_LIMIT - past.length),
+        ].sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
     }
 
     private async selectCurrentProgramsForChannelIds(

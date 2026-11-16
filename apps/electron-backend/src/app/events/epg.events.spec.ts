@@ -133,7 +133,9 @@ describe('EpgEvents', () => {
             });
             const clear = jest.spyOn(service, 'clearEpgData');
             const clearSource = jest.spyOn(service, 'clearEpgDataForSource');
-            expect(await handleFetchEpg([url])).toMatchObject({ skipped: [url] });
+            expect(await handleFetchEpg([url])).toMatchObject({
+                skipped: [url],
+            });
             expect(service.hasFetchedUrl(url)).toBe(true);
             await service.setEnabled(false);
             if (state === 'stale') updatedAt = '2000-01-01T00:00:00Z';
@@ -143,7 +145,9 @@ describe('EpgEvents', () => {
             await flushPromises();
             expect(mockWorkerInstances).toHaveLength(state === 'stale' ? 1 : 0);
             if (state === 'stale')
-                mockWorkerInstances[0].emit('message', { type: 'EPG_COMPLETE' });
+                mockWorkerInstances[0].emit('message', {
+                    type: 'EPG_COMPLETE',
+                });
             await expect(resumed).resolves.toMatchObject({ success: true });
             expect(clear).not.toHaveBeenCalled();
             expect(clearSource).not.toHaveBeenCalled();
@@ -853,6 +857,7 @@ describe('EpgEvents', () => {
             chain.where = jest.fn().mockReturnValue(chain);
             chain.innerJoin = jest.fn().mockReturnValue(chain);
             chain.groupBy = jest.fn().mockReturnValue(chain);
+            chain.having = jest.fn().mockReturnValue(chain);
             chain.orderBy = jest.fn().mockReturnValue(chain);
             chain.limit = jest.fn().mockResolvedValue(data);
             return chain;
@@ -954,7 +959,7 @@ describe('EpgEvents', () => {
         select.mockImplementation(() => ({ from }));
         from.mockReturnValue({ where });
         where.mockReturnValue({ groupBy });
-        groupBy.mockReturnValue({ orderBy });
+        groupBy.mockReturnValue({ having: () => ({ orderBy }) });
         orderBy.mockReturnValue({ limit });
         limit.mockResolvedValue([
             {

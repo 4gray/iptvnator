@@ -78,6 +78,7 @@ function createLimitedSelectChain(
     // returns the chain so where().groupBy().orderBy().limit() (and any
     // subset) resolves to the same data.
     chain.groupBy = jest.fn(() => chain);
+    chain.having = jest.fn(() => chain);
     chain.orderBy = jest.fn(() => chain);
     const where = jest.fn((condition: unknown) => {
         whereCalls.push(condition);
@@ -94,6 +95,7 @@ function createProgramChain(rows: unknown): { from: jest.Mock } {
         limit: jest.fn().mockResolvedValue(rows),
     };
     chain.groupBy = jest.fn(() => chain);
+    chain.having = jest.fn(() => chain);
     chain.orderBy = jest.fn(() => chain);
     return {
         from: jest.fn(() => ({ where: jest.fn(() => chain) })),
@@ -192,7 +194,7 @@ describe('EpgQueryService', () => {
                     (condition) =>
                         condition.includes('source_url') &&
                         condition.includes('is null')
-            )
+                )
         ).toBe(true);
     });
 
@@ -301,9 +303,9 @@ describe('EpgQueryService', () => {
         // Stored timestamps carry an offset (+03:00) while `now` is UTC (…Z);
         // a raw string compare would be off by the offset, so both sides must be
         // normalized with datetime().
-        expect(flattened.some((condition) => condition.includes('datetime'))).toBe(
-            true
-        );
+        expect(
+            flattened.some((condition) => condition.includes('datetime'))
+        ).toBe(true);
     });
 
     it('evaluates "currently airing" at the caller-supplied instant', async () => {
@@ -471,9 +473,9 @@ describe('EpgQueryService', () => {
         // The candidate lookup must include the RAW (non-lowercased) key so the
         // exact match works — a LOWER()-only query would never match 'Киноман'.
         const flattened = whereCalls.map((condition) => flattenSql(condition));
-        expect(flattened.some((condition) => condition.includes('Киноман'))).toBe(
-            true
-        );
+        expect(
+            flattened.some((condition) => condition.includes('Киноман'))
+        ).toBe(true);
     });
 
     it('chunks the candidate lookup to bound SQL parameters for large batches', async () => {

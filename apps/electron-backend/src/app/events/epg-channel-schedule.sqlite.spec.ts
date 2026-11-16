@@ -77,17 +77,27 @@ describe('EpgQueryService single-channel schedule window', () => {
         seed.close();
         seedSlots('split-history', -600, 47);
         const split = new Database(shared.getDatabasePath());
-        split
-            .prepare(
-                'INSERT INTO epg_programs (channel_id, start, stop, title, source_url) VALUES (?, ?, ?, ?, ?)'
-            )
-            .run(
+        const insert = split.prepare(
+            'INSERT INTO epg_programs (channel_id, start, stop, title, source_url) VALUES (?, ?, ?, ?, ?)'
+        );
+        // Several late-ending copies split the most recent slots across now.
+        for (let slot = -12; slot < 0; slot++) {
+            insert.run(
                 'split-history',
-                new Date(FIRST_SLOT_MS).toISOString(),
-                new Date(NOW_MS - 60_000).toISOString(),
-                'Slot 0',
+                new Date(FIRST_SLOT_MS + slot * SLOT_MS).toISOString(),
+                new Date(NOW_MS + 60_000).toISOString(),
+                `Slot ${slot}`,
                 'https://guide.example.com/other.xml'
             );
+        }
+        // An airing event starts before the most recent past slots.
+        insert.run(
+            'short',
+            '2026-06-21T12:15:00+02:00',
+            '2026-06-21T15:00:00+02:00',
+            'Synthetic Live Event',
+            SOURCE_URL
+        );
         split.close();
     });
 
@@ -127,8 +137,9 @@ describe('EpgQueryService single-channel schedule window', () => {
     });
 
     it('returns a short schedule whole and in order, a slot the sources split once', async () => {
-        expect(await titles('short')).toEqual(
-            Array.from({ length: 7 }, (_, i) => `Slot ${i - 3}`)
-        );
+        expect(await titles('short')).toEqual([
+            'Synthetic Live Event',
+            ...Array.from({ length: 7 }, (_, i) => `Slot ${i - 3}`),
+        ]);
     });
 });

@@ -42,7 +42,10 @@ export class EpgScheduleFeed {
     read(channelId: string, refill = false): void {
         // Recorded even while EPG is off: turning it on refills this channel,
         // not the one open before it was switched off.
-        this.channelId = channelId;
+        if (this.channelId !== channelId) {
+            this.channelId = channelId;
+            this.published = this.request;
+        }
         const { bridge, preferences, sourceSettings } = this;
         if (!preferences.enabled() || !bridge.supportsProgramLookup) return;
         const request = ++this.request;

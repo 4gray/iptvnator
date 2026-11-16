@@ -181,6 +181,38 @@ describe('EpgService schedule refill', () => {
         ]);
     });
 
+    it('discards the old read after zapping away and back', async () => {
+        let finishOld!: (programs: EpgProgram[]) => void;
+        let finishNew!: (programs: EpgProgram[]) => void;
+        getChannelPrograms
+            .mockImplementationOnce(
+                () => new Promise((resolve) => (finishOld = resolve))
+            )
+            .mockImplementationOnce(() => new Promise(() => undefined))
+            .mockImplementationOnce(
+                () => new Promise((resolve) => (finishNew = resolve))
+            );
+
+        service.getChannelPrograms('news.example');
+        await flush();
+        service.getChannelPrograms('other.example');
+        await flush();
+        service.getChannelPrograms('news.example');
+        await flush();
+
+        finishOld([program('news.example', 'Old schedule')]);
+        await flush();
+        expect(shown.flat().map(({ title }) => title)).not.toContain(
+            'Old schedule'
+        );
+
+        finishNew([program('news.example', 'Fresh schedule')]);
+        await flush();
+        expect(shown.at(-1)?.map(({ title }) => title)).toEqual([
+            'Fresh schedule',
+        ]);
+    });
+
     it('does not let a read from before a refill replace the refilled schedule', async () => {
         let resolveOld: (programs: EpgProgram[]) => void = () => undefined;
         getChannelPrograms.mockImplementationOnce(
@@ -246,8 +278,7 @@ describe('EpgService schedule refill', () => {
 
     it('lets an opening read publish when the refill that overtook it fails', async () => {
         jest.spyOn(console, 'error').mockImplementation(() => undefined);
-        let resolveOpening: (programs: EpgProgram[]) => void = () =>
-            undefined;
+        let resolveOpening: (programs: EpgProgram[]) => void = () => undefined;
         getChannelPrograms.mockImplementationOnce(
             () => new Promise((resolve) => (resolveOpening = resolve))
         );

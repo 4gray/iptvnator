@@ -1495,7 +1495,9 @@ programmes (the one airing included) and the nearest past ones, oldest
 first, together capped at `CHANNEL_SCHEDULE_LIMIT` (500) distinct slots. The
 past always keeps `CHANNEL_SCHEDULE_PAST_SLOTS` (250) for catch-up and takes
 whatever the upcoming rows leave, so a long history can no longer fill the
-cap and hide today.
+cap and hide today. When sources disagree on a slot's end time, the latest
+valid end decides which half contains that slot. Both halves are returned in
+chronological order regardless of the offset in the stored time.
 
 ### EPG Components
 
