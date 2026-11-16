@@ -90,18 +90,26 @@ export class EpgQueryService {
                 trimmedChannelId = mapped;
             }
 
-            let results = await this.selectChannelPrograms(
-                db,
-                trimmedChannelId,
-                sourceUrls
-            );
-            if (results.length === 0) {
-                results = await this.selectLegacyChannelPrograms(
+            const now = this.toAiringInstantIso(options.nowMs);
+            const selectSchedule = async (id: string) => {
+                const programs = await this.selectChannelScheduleWindow(
                     db,
-                    trimmedChannelId,
-                    sourceUrls
+                    id,
+                    sourceUrls,
+                    now
                 );
-            }
+                if (programs.length > 0 || sourceUrls.length === 0)
+                    return programs;
+                return this.selectChannelScheduleWindow(
+                    db,
+                    id,
+                    sourceUrls,
+                    now,
+                    { legacyOnly: true }
+                );
+            };
+
+            let results = await selectSchedule(trimmedChannelId);
 
             if (results.length > 0) {
                 return this.toEpgPrograms(results);
@@ -121,18 +129,7 @@ export class EpgQueryService {
             }
 
             if (channel.length > 0) {
-                results = await this.selectChannelPrograms(
-                    db,
-                    channel[0].id,
-                    sourceUrls
-                );
-                if (results.length === 0) {
-                    results = await this.selectLegacyChannelPrograms(
-                        db,
-                        channel[0].id,
-                        sourceUrls
-                    );
-                }
+                results = await selectSchedule(channel[0].id);
 
                 if (results.length > 0) {
                     return this.toEpgPrograms(results);
@@ -172,18 +169,7 @@ export class EpgQueryService {
             }
 
             if (channel.length > 0) {
-                results = await this.selectChannelPrograms(
-                    db,
-                    channel[0].id,
-                    sourceUrls
-                );
-                if (results.length === 0) {
-                    results = await this.selectLegacyChannelPrograms(
-                        db,
-                        channel[0].id,
-                        sourceUrls
-                    );
-                }
+                results = await selectSchedule(channel[0].id);
 
                 return this.toEpgPrograms(results);
             }
@@ -542,27 +528,6 @@ export class EpgQueryService {
         return matchedCandidateIds;
     }
 
-    private selectChannelPrograms(
-        db: EpgDatabase,
-        channelId: string,
-        sourceUrls: string[]
-    ): Promise<EpgProgramSelectRow[]> {
-        return this.selectChannelScheduleWindow(db, channelId, sourceUrls);
-    }
-
-    private async selectLegacyChannelPrograms(
-        db: EpgDatabase,
-        channelId: string,
-        sourceUrls: string[]
-    ): Promise<EpgProgramSelectRow[]> {
-        if (sourceUrls.length === 0) {
-            return [];
-        }
-        return this.selectChannelScheduleWindow(db, channelId, sourceUrls, {
-            legacyOnly: true,
-        });
-    }
-
     /**
      * A channel's schedule around now, oldest first: the upcoming programmes
      * (the one airing included) and the nearest past ones, together capped
@@ -575,10 +540,10 @@ export class EpgQueryService {
         db: EpgDatabase,
         channelId: string,
         sourceUrls: string[],
+        now: string,
         options: { legacyOnly?: boolean } = {}
     ): Promise<EpgProgramSelectRow[]> {
         const { channelId: channel, start, stop, title } = schema.epgPrograms;
-        const now = new Date(this.nowMs()).toISOString();
         // SQLite's single MAX picks the source row with the latest valid
         // stop. A slot on both sides of now therefore belongs to one half.
         const ended = sql`max(julianday(${stop})) < julianday(${now})`;
@@ -680,7 +645,7 @@ export class EpgQueryService {
             typeof nowMs === 'number' &&
             Number.isFinite(nowMs) &&
             Math.abs(nowMs) <= 8.64e15;
-        return new Date(usable ? nowMs : Date.now()).toISOString();
+        return new Date(usable ? nowMs : this.nowMs()).toISOString();
     }
 
     /**

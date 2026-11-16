@@ -17,10 +17,12 @@ import {
     ElectronBridgeTrustOptions,
     EpgChannelMetadata,
     EpgProgram,
+    epgProviderClockMs,
 } from '@iptvnator/shared/interfaces';
 import {
     EpgPreferencesService,
     RuntimeCapabilitiesService,
+    SettingsStore,
 } from '@iptvnator/services';
 
 export const EPG_IMPORT_STATUS = ELECTRON_BRIDGE_EPG_PROGRESS_STATUSES;
@@ -70,6 +72,7 @@ type EpgElectronBridge = Pick<
 export class EpgRuntimeBridgeService {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly preferences = inject(EpgPreferencesService);
+    private readonly settings = inject(SettingsStore);
 
     get supportsImport(): boolean {
         return this.runtime.supportsEpgImport;
@@ -195,9 +198,13 @@ export class EpgRuntimeBridgeService {
 
         return this.preferences.run(
             () =>
-                options
-                    ? lookup.call(bridge, channelId, options)
-                    : lookup.call(bridge, channelId),
+                lookup.call(bridge, channelId, {
+                    ...options,
+                    nowMs: epgProviderClockMs(
+                        Date.now(),
+                        this.settings.resolvedEpgOffsetMinutes()
+                    ),
+                }),
             null
         );
     }

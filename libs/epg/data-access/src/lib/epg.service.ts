@@ -4,7 +4,6 @@ import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject, from, Observable, of } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
 import {
-    createDevLogger,
     EpgChannelMetadata,
     EpgProgram,
     epgProviderClockMs,
@@ -27,8 +26,6 @@ import {
     normalizeLookupSourceUrls,
 } from './epg-lookup-normalization.util';
 import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
-
-const debugEpgService = createDevLogger('EpgService');
 
 @Injectable({
     providedIn: 'root',
@@ -174,7 +171,6 @@ export class EpgService {
 
     /** Reads a channel's schedule into `currentEpgPrograms$`. */
     getChannelPrograms(channelId: string): void {
-        debugEpgService('Fetching EPG for channel ID:', channelId);
         if (!this.epgBridge.supportsProgramLookup) return;
         this.scheduleFeed ??= this.loadScheduleFeed()
             .then(

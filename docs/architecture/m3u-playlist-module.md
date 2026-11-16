@@ -1490,7 +1490,8 @@ schedule on screen without a toast. A channel without an EPG key calls
 first channel opened, so it stays off the startup path (`renderer.initialBytes`).
 
 The single-channel schedule (`EpgQueryService.getChannelPrograms`, main
-process) is a window around now, not the oldest rows: the upcoming
+process) is a window around now in the provider's clock, after applying the
+saved EPG display offset, not the oldest rows: the upcoming
 programmes (the one airing included) and the nearest past ones, oldest
 first, together capped at `CHANNEL_SCHEDULE_LIMIT` (500) distinct slots. The
 past always keeps `CHANNEL_SCHEDULE_PAST_SLOTS` (250) for catch-up and takes

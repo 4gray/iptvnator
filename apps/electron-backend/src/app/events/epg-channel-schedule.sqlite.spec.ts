@@ -24,7 +24,12 @@ describe('EpgQueryService single-channel schedule window', () => {
     let dataDirectory: string;
 
     /** Slots relative to the airing one: -1 ended at 12:00, 0 airs now. */
-    function seedSlots(channelId: string, from: number, to: number): void {
+    function seedSlots(
+        channelId: string,
+        from: number,
+        to: number,
+        slotMs = SLOT_MS
+    ): void {
         const seed = new Database(shared.getDatabasePath());
         const insertChannel = seed.prepare(
             'INSERT INTO epg_channels (id, display_name, source_url) VALUES (?, ?, ?)'
@@ -35,11 +40,11 @@ describe('EpgQueryService single-channel schedule window', () => {
         seed.transaction(() => {
             insertChannel.run(channelId, `Channel ${channelId}`, SOURCE_URL);
             for (let slot = from; slot <= to; slot++) {
-                const start = FIRST_SLOT_MS + slot * SLOT_MS;
+                const start = FIRST_SLOT_MS + slot * slotMs;
                 insertProgram.run(
                     channelId,
                     new Date(start).toISOString(),
-                    new Date(start + SLOT_MS).toISOString(),
+                    new Date(start + slotMs).toISOString(),
                     `Slot ${slot}`,
                     SOURCE_URL
                 );
@@ -62,6 +67,7 @@ describe('EpgQueryService single-channel schedule window', () => {
         // Two weeks of history at 30 minutes: 672 ended slots, then a day.
         seedSlots('long-history', -672, 47);
         seedSlots('long-future', -10, 1_000);
+        seedSlots('offset-window', -420, 420, 2 * 60_000);
         seedSlots('short', -3, 3);
         // Two sources carry the airing slot; one says it already ended.
         const seed = new Database(shared.getDatabasePath());
@@ -126,6 +132,22 @@ describe('EpgQueryService single-channel schedule window', () => {
         );
         expect(result.at(-1)).toBe(`Slot ${CHANNEL_SCHEDULE_LIMIT - 11}`);
         expect(CHANNEL_SCHEDULE_PAST_SLOTS).toBeGreaterThan(10);
+    });
+
+    it('keeps the currently airing short programme after a 12-hour display correction', async () => {
+        const providerNow = NOW_MS - 12 * 60 * 60_000 + 60_000;
+        const programmes = await service.getChannelPrograms('offset-window', {
+            sourceUrls: [SOURCE_URL],
+            nowMs: providerNow,
+        });
+        expect(programmes).toHaveLength(CHANNEL_SCHEDULE_LIMIT);
+        expect(
+            programmes.find(
+                ({ start, stop }) =>
+                    Date.parse(start) <= providerNow &&
+                    providerNow < Date.parse(stop)
+            )?.title
+        ).toBe('Slot -355');
     });
 
     it('keeps the cap full when sources split a slot across now', async () => {

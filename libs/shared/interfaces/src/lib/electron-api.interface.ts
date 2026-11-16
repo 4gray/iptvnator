@@ -427,19 +427,15 @@ export interface ElectronBridgeEpgLookupOptions {
     sourceUrls?: string[];
     /** For getChannelPrograms: distinguish an unavailable database from an empty schedule. */
     rejectOnError?: boolean;
-}
-
-/**
- * Options for the batched "currently airing" lookup. `nowMs` is the instant
- * the lookup is evaluated at: the renderer passes its wall clock shifted into
- * the provider's EPG clock (`epgProviderClockMs`, see
- * `epg-display-offset.util.ts`) so the row the backend picks is the one the
- * renderer will also present as "now". Absent, the main process uses its own
- * clock.
- */
-export interface ElectronBridgeCurrentProgramsOptions extends ElectronBridgeEpgLookupOptions {
+    /**
+     * For schedule and currently airing queries, the wall clock shifted into
+     * the provider's EPG clock. Absent, the main process uses its own clock.
+     */
     nowMs?: number;
 }
+
+export type ElectronBridgeCurrentProgramsOptions =
+    ElectronBridgeEpgLookupOptions;
 
 export interface ElectronBridgeEpgGuideWindow extends ElectronBridgeEpgLookupOptions {
     /**
