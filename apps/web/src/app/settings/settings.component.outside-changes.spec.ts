@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { EpgSourceReconciliationError } from '@iptvnator/services';
 import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '../services/settings-store.service';
@@ -601,6 +602,42 @@ describe('SettingsComponent with settings changed outside the form', () => {
             expect(settingsStore.getSettings().epgUrl).toEqual(reordered);
         }
     );
+
+    it('keeps a new EPG row while its file picker waits for Save', async () => {
+        let acknowledge!: () => void;
+        let chooseFile!: (path: string) => void;
+        jest.spyOn(window.electron, 'updateSettings').mockReturnValueOnce(
+            new Promise<void>((resolve) => (acknowledge = resolve))
+        );
+        jest.spyOn(
+            TestBed.inject(EpgRuntimeBridgeService),
+            'pickEpgFile'
+        ).mockReturnValueOnce(
+            new Promise<string>((resolve) => (chooseFile = resolve))
+        );
+        component.settingsForm.controls.showCaptions.setValue(true);
+        const saving = component.form.save(() =>
+            component.form.applySavedSettings()
+        );
+        await Promise.resolve();
+
+        component.form.addEpgSource();
+        const browsing = component.epg.browse(1);
+        acknowledge();
+        await saving;
+        chooseFile('/example/selected.xml');
+        await browsing;
+
+        expect(component.form.epgUrls).toEqual([
+            SAVED_GUIDE,
+            '/example/selected.xml',
+        ]);
+        await component.form.save(() => component.form.applySavedSettings());
+        expect(settingsStore.getSettings().epgUrl).toEqual([
+            SAVED_GUIDE,
+            '/example/selected.xml',
+        ]);
+    });
 
     it('keeps the order of new sources rearranged during Save and then restored', async () => {
         const extraGuide = 'https://example.test/second-draft.xml';

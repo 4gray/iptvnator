@@ -135,7 +135,9 @@ export function rebaseSettingsForm(
     const addedEpgUrls = staged.has('epgUrl')
         ? epgUrlsAddedOutside(current.epgUrl, ownEpgUrls, next.epgUrl)
         : [];
-    if (staged.has('epgUrl')) {
+    // A new row can still be waiting for the desktop file picker.
+    const hasUnfinishedRow = current.epgUrl?.some((url) => !url?.trim());
+    if (staged.has('epgUrl') && !hasUnfinishedRow) {
         const draft = [
             ...normalizeFormEpgUrls(current.epgUrl),
             ...addedEpgUrls,

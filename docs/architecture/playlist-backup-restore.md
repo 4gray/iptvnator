@@ -248,8 +248,9 @@ removal was persisted becomes an addition even while cleanup or the
 Electron response is pending. When the restore changes the saved list and
 its source identities match the draft, the form adopts the restored spelling
 and order unless the viewer reordered existing sources. A restore during
-Save also preserves reordering of sources in the submitted list. The form
-becomes pristine once all edits are saved and any outstanding Save has
+Save also preserves reordering of sources in the submitted list. New rows
+stay editable during Save, including while the native file picker is open.
+The form becomes pristine once all edits are saved and any outstanding Save has
 been acknowledged. The next Save writes the staged paths. Coverage lives
 in `settings.component.outside-changes.spec.ts` and `backup-restore.e2e.ts`.
 
