@@ -184,7 +184,9 @@ describe('StreamResolverService', () => {
             }),
         });
         expect(detail.epgPrograms).toHaveLength(1);
-        expect(epgBridge.getChannelPrograms).toHaveBeenCalledWith('news-id');
+        expect(epgBridge.getChannelPrograms).toHaveBeenCalledWith('news-id', {
+            nowMs: expect.any(Number),
+        });
     });
 
     it('resolves M3U playback detail without blocking on channel-program lookup', async () => {

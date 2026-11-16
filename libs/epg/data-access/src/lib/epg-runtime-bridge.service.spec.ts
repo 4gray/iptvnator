@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from './epg-runtime-bridge.service';
 
 /** Spec-only double: capability flags are read-only getters on the real class. */
@@ -132,31 +132,6 @@ describe('EpgRuntimeBridgeService', () => {
         );
     });
 
-    it('centers the channel schedule on the provider clock when a display offset is saved', async () => {
-        const now = Date.parse('2026-06-21T12:10:00Z');
-        jest.spyOn(Date, 'now').mockReturnValue(now);
-        jest.spyOn(
-            TestBed.inject(SettingsStore),
-            'resolvedEpgOffsetMinutes'
-        ).mockReturnValue(720);
-        runtimeCapabilities.supportsEpgProgramLookup = true;
-        const getChannelPrograms = jest.fn().mockResolvedValue([]);
-        window.electron = {
-            getChannelPrograms,
-        } as unknown as typeof window.electron;
-
-        const options = {
-            sourceUrls: ['https://guide.example/epg.xml'],
-            rejectOnError: true,
-        };
-        await service.getChannelPrograms('synthetic.channel', options);
-
-        expect(getChannelPrograms).toHaveBeenCalledWith('synthetic.channel', {
-            ...options,
-            nowMs: now - 12 * 60 * 60_000,
-        });
-    });
-
     it('delegates read-side EPG calls through the typed Electron bridge', async () => {
         const getChannelPrograms = jest.fn().mockResolvedValue([]);
         const getCurrentProgramsBatch = jest.fn().mockResolvedValue({
@@ -194,9 +169,7 @@ describe('EpgRuntimeBridgeService', () => {
         await service.checkFreshness(['https://example.com/epg.xml'], 12);
         await service.searchPrograms('news', 20);
 
-        expect(getChannelPrograms).toHaveBeenCalledWith('channel-1', {
-            nowMs: expect.any(Number),
-        });
+        expect(getChannelPrograms).toHaveBeenCalledWith('channel-1');
         expect(getCurrentProgramsBatch).toHaveBeenCalledWith(['channel-1'], {
             sourceUrls: ['https://playlist.example.com/guide.xml'],
         });

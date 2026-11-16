@@ -774,7 +774,8 @@ export class StreamResolverService {
     }
 
     private async loadXtreamEpgItems(
-        item: UnifiedCollectionItem
+        item: UnifiedCollectionItem,
+        clock = this.epgLoadClock()
     ): Promise<EpgItem[]> {
         try {
             if (item.xtreamId == null) {
@@ -790,7 +791,7 @@ export class StreamResolverService {
             const epgKey = item.epgChannelId?.trim();
             if (this.supportsProgramLookup && epgKey) {
                 const uploaded = await this.epgBridge
-                    .getChannelPrograms(epgKey)
+                    .getChannelPrograms(epgKey, { nowMs: clock.nowMs })
                     .catch(() => null);
                 if (uploaded && uploaded.length > 0) {
                     return this.mapProgramsToEpgItems(uploaded);
@@ -807,7 +808,9 @@ export class StreamResolverService {
                     .catch(() => null);
                 if (mapping?.epgChannelId) {
                     const mapped = await this.epgBridge
-                        .getChannelPrograms(mapping.epgChannelId)
+                        .getChannelPrograms(mapping.epgChannelId, {
+                            nowMs: clock.nowMs,
+                        })
                         .catch(() => null);
                     if (mapped && mapped.length > 0) {
                         return this.mapProgramsToEpgItems(mapped);
@@ -873,7 +876,9 @@ export class StreamResolverService {
                 .catch(() => null);
             if (mapping?.epgChannelId) {
                 const mapped = await this.epgBridge
-                    .getChannelPrograms(mapping.epgChannelId)
+                    .getChannelPrograms(mapping.epgChannelId, {
+                        nowMs: clock.nowMs,
+                    })
                     .catch(() => null);
                 if (mapped && mapped.length > 0) {
                     return this.mapProgramsToEpgItems(mapped);
@@ -953,7 +958,7 @@ export class StreamResolverService {
             return;
         }
 
-        const programs = await this.fetchM3uPrograms(epgLookupKey);
+        const programs = await this.fetchM3uPrograms(epgLookupKey, now);
         epgMap.set(epgLookupKey, this.findCurrentProgram(programs, now));
     }
 
@@ -1003,7 +1008,8 @@ export class StreamResolverService {
     }
 
     private async fetchM3uPrograms(
-        epgLookupKey?: string | null
+        epgLookupKey?: string | null,
+        nowMs = this.epgLoadClock().nowMs
     ): Promise<EpgProgram[]> {
         if (!this.epgBridge.supportsProgramLookup || !epgLookupKey) {
             return [];
@@ -1011,7 +1017,7 @@ export class StreamResolverService {
 
         return this.withFallbackTimeout(
             this.epgBridge
-                .getChannelPrograms(epgLookupKey)
+                .getChannelPrograms(epgLookupKey, { nowMs })
                 .then((programs) => programs ?? []),
             this.m3uEpgTimeoutMs,
             []
@@ -1590,7 +1596,7 @@ export class StreamResolverService {
     ): Promise<EpgItem | null> {
         if (!this.supportsProgramLookup || !epgChannelId) return null;
         const programs = await this.epgBridge
-            .getChannelPrograms(epgChannelId)
+            .getChannelPrograms(epgChannelId, { nowMs: nowSeconds * 1000 })
             .catch(() => null);
         if (!programs || programs.length === 0) return null;
         const items = this.mapProgramsToEpgItems(programs);

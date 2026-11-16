@@ -173,22 +173,17 @@ export class EpgService {
     /** Reads a channel's schedule into `currentEpgPrograms$`. */
     getChannelPrograms(channelId: string): void {
         if (!this.epgBridge.supportsProgramLookup) return;
-        this.scheduleFeed ??= this.loadScheduleFeed()
-            .then(
-                ({ EpgScheduleFeed }) =>
-                    new EpgScheduleFeed(
-                        this.lookupContext,
-                        this.epgPreferences,
-                        this.injector,
-                        this.currentEpgPrograms,
-                        this.epgAvailable,
-                        () => this.showErrorSnackbar()
-                    )
-            )
-            .catch((error) => {
-                this.scheduleFeed = null;
-                throw error;
-            });
+        this.scheduleFeed ??= this.loadScheduleFeed().then(
+            ({ EpgScheduleFeed }) =>
+                new EpgScheduleFeed(
+                    this.lookupContext,
+                    this.epgPreferences,
+                    this.injector,
+                    this.currentEpgPrograms,
+                    this.epgAvailable,
+                    () => this.showErrorSnackbar()
+                )
+        );
         this.withScheduleFeed((feed) => feed.read(channelId));
     }
 
@@ -212,8 +207,9 @@ export class EpgService {
 
     /** In call order, once the feed is loaded; nothing before a first zap. */
     private withScheduleFeed(run: (feed: EpgScheduleFeed) => void): void {
-        void this.scheduleFeed?.then(run).catch((error) => {
-            console.error('EPG schedule feed failed to load:', error);
+        const pending = this.scheduleFeed;
+        void pending?.then(run, () => {
+            if (this.scheduleFeed === pending) this.scheduleFeed = null;
         });
     }
 

@@ -26,7 +26,7 @@ export class EpgScheduleFeed {
     constructor(
         private readonly context: Pick<
             EpgLookupContext,
-            'bridge' | 'guard' | 'offsetMinutes'
+            'bridge' | 'guard' | 'offsetMinutes' | 'clockMs'
         >,
         private readonly preferences: EpgPreferencesService,
         injector: Injector,
@@ -55,7 +55,7 @@ export class EpgScheduleFeed {
             this.channelId = channelId;
             this.published = this.request;
         }
-        const { bridge, guard, offsetMinutes } = this.context;
+        const { bridge, guard, offsetMinutes, clockMs } = this.context;
         if (!this.preferences.enabled()) return;
         const request = ++this.request;
         const offset = offsetMinutes();
@@ -65,10 +65,10 @@ export class EpgScheduleFeed {
             request > this.published;
 
         from(
-            bridge.getChannelPrograms(
-                channelId,
-                refill ? { rejectOnError: true } : undefined
-            )
+            bridge.getChannelPrograms(channelId, {
+                nowMs: clockMs(),
+                rejectOnError: refill,
+            })
         )
             .pipe(
                 guard(),

@@ -104,6 +104,8 @@ describe('EpgService schedule refill', () => {
         );
     });
 
+    afterEach(() => jest.restoreAllMocks());
+
     /** Opens a channel whose schedule is empty until the EPG arrives. */
     async function openChannel(channelId: string): Promise<void> {
         service.getChannelPrograms(channelId);
@@ -118,6 +120,7 @@ describe('EpgService schedule refill', () => {
         await flush();
 
         expect(getChannelPrograms).toHaveBeenLastCalledWith('news.example', {
+            nowMs: expect.any(Number),
             rejectOnError: true,
         });
         expect(shown.at(-1)?.map(({ title }) => title)).toEqual(['Fresh']);
@@ -165,12 +168,18 @@ describe('EpgService schedule refill', () => {
 
         service.getChannelPrograms('news.example');
         await flush();
+        const now = Date.parse('2026-06-21T12:10:00Z');
+        jest.spyOn(Date, 'now').mockReturnValue(now);
         offsetMinutes.set(720);
         TestBed.tick();
         oldReply([program('news.example', 'Uncorrected schedule')]);
         await flush();
 
         expect(getChannelPrograms).toHaveBeenCalledTimes(2);
+        expect(getChannelPrograms).toHaveBeenLastCalledWith('news.example', {
+            nowMs: now - 12 * 60 * 60_000,
+            rejectOnError: true,
+        });
         expect(shown.flat()).toEqual([]);
 
         newReply([program('news.example', 'Corrected schedule')]);
@@ -187,6 +196,7 @@ describe('EpgService schedule refill', () => {
         await flush();
 
         expect(getChannelPrograms).toHaveBeenLastCalledWith('news.example', {
+            nowMs: expect.any(Number),
             rejectOnError: true,
         });
         expect(shown.at(-1)?.map(({ title }) => title)).toEqual(['Fresh']);
@@ -269,15 +279,16 @@ describe('EpgService schedule refill', () => {
     it('asks the backend to reject, not to answer [], on a refill', async () => {
         await openChannel('news.example');
         // A zap keeps the plain read: an unreadable database shows empty.
-        expect(getChannelPrograms).toHaveBeenLastCalledWith(
-            'news.example',
-            undefined
-        );
+        expect(getChannelPrograms).toHaveBeenLastCalledWith('news.example', {
+            nowMs: expect.any(Number),
+            rejectOnError: false,
+        });
 
         service.refreshEpgData();
         await flush();
 
         expect(getChannelPrograms).toHaveBeenLastCalledWith('news.example', {
+            nowMs: expect.any(Number),
             rejectOnError: true,
         });
     });
@@ -386,6 +397,7 @@ describe('EpgService schedule refill', () => {
         await flush();
 
         expect(getChannelPrograms).toHaveBeenLastCalledWith('b.example', {
+            nowMs: expect.any(Number),
             rejectOnError: true,
         });
     });
