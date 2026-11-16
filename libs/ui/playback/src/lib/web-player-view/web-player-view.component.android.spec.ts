@@ -179,7 +179,16 @@ describe('returning from the Android live player', () => {
             expect(postMessage).not.toHaveBeenCalled();
 
             const native = fixture.componentInstance.androidPlayback;
-            if (outcome === 'cancelled') native.returnToWeb();
+            if (outcome === 'cancelled') {
+                const actions = (
+                    fixture.nativeElement as HTMLElement
+                ).querySelector('.web-player-android-actions');
+                const returnToWeb = actions?.querySelector<HTMLButtonElement>(
+                    'button:not([data-tv-native-playback])'
+                );
+                expect(returnToWeb).toBeTruthy();
+                returnToWeb?.click();
+            }
             if (outcome === 'destroyed') fixture.destroy();
             if (outcome === 'failed') failBegin(new Error('Synthetic failure'));
             else finishBegin();

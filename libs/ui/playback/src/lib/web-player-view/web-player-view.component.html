@@ -230,7 +230,7 @@
         >
             {{ 'PLAYBACK_DIAGNOSTICS.ACTION_TRY_BUILT_IN_PLAYER' | translate }}
         </button>
-        @if (androidPlayback.suspended() && !androidPlayback.pending()) {
+        @if (androidPlayback.suspended()) {
             <button
                 mat-stroked-button
                 type="button"
