@@ -806,6 +806,50 @@ describe('SettingsComponent with settings changed outside the form', () => {
         }
     );
 
+    it.each([false, true])(
+        'uses the persisted EPG order when a backup prepends a source (edited again: %s)',
+        async (editedAgain) => {
+            importBackupAddingGuide(STAGED_GUIDE);
+            component.form.removeEpgSource(0);
+            component.form.setEpgUrls(SAVED_GUIDE);
+            let acknowledge!: () => void;
+            jest.spyOn(window.electron, 'updateSettings').mockReturnValueOnce(
+                new Promise<void>((resolve) => (acknowledge = resolve))
+            );
+            const saving = component.form.save(() =>
+                component.form.applySavedSettings()
+            );
+            await Promise.resolve();
+            expect(settingsStore.getSettings().epgUrl).toEqual([
+                STAGED_GUIDE,
+                SAVED_GUIDE,
+            ]);
+            if (editedAgain) {
+                component.form.removeEpgSource(0);
+                component.form.setEpgUrls(STAGED_GUIDE);
+            }
+            const restored = [RESTORED_GUIDE, STAGED_GUIDE, SAVED_GUIDE];
+            jest.spyOn(component.backup, 'importData').mockImplementation(
+                (imported) => {
+                    settingsStore._setSettings({ epgUrl: restored });
+                    imported();
+                }
+            );
+            component.importData();
+            acknowledge();
+            await saving;
+
+            expect(component.form.changedPaths()).toEqual(
+                editedAgain ? ['epgUrl'] : []
+            );
+            expect(component.form.epgUrls).toEqual(
+                editedAgain
+                    ? [SAVED_GUIDE, STAGED_GUIDE, RESTORED_GUIDE]
+                    : restored
+            );
+        }
+    );
+
     it('keeps the order of new sources rearranged during Save and then restored', async () => {
         const extraGuide = 'https://example.test/second-draft.xml';
         component.form.setEpgUrls([STAGED_GUIDE, extraGuide]);

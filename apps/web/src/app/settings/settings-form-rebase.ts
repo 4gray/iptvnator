@@ -102,6 +102,7 @@ export function rebaseSettingsForm(
         submitted?: SettingsFormSubmission;
         pendingEpgUrls?: readonly (string | null)[];
         pendingEpgSources?: readonly (string | null)[];
+        persistedEpgSources?: readonly (string | null)[];
         confirmedTmdbKey?: string;
     }
 ): {
@@ -178,7 +179,10 @@ export function rebaseSettingsForm(
         // a later edit to the order or spelling of that list.
         const adoptRestoredOrder =
             restoredListChanged &&
-            !epgSourceOrderChanged(current.epgUrl, saved.epgUrl) &&
+            !epgSourceOrderChanged(
+                current.epgUrl,
+                context.persistedEpgSources ?? saved.epgUrl
+            ) &&
             !epgSourceOrderChanged(current.epgUrl, pendingEpgUrls);
         const matchesSaved = adoptRestoredOrder
             ? !epgSourceUrlsChanged(

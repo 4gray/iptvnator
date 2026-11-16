@@ -66,6 +66,10 @@ export class SettingsFormWrites {
         return urls;
     }
 
+    get persistedEpgSources(): EpgUrls | undefined {
+        return this.persistedFormUrls;
+    }
+
     canAdoptTmdbKey(key: string): boolean {
         return this.pendingTmdb.size === 0 && key !== this.persistedTmdbKey;
     }

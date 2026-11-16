@@ -252,7 +252,8 @@ across Save retries so a following removal stays staged.
 When the restore changes the saved list and
 its source identities match the draft, the form adopts the restored spelling
 and order unless the viewer reordered existing sources. A restore during
-Save also preserves reordering of sources in the submitted list. The form
+Save also preserves reordering of sources in the submitted list. Once the
+write succeeds, this comparison uses its persisted order. The form
 reuses fields for matching sources and keeps unfinished rows editable while
 adopting the restored list. An open file picker still targets the same field.
 The form becomes pristine once all edits are saved and any outstanding Save has
