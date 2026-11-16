@@ -1020,8 +1020,10 @@ since shipped.)
   match store loads on first use with TMDB on, off the startup path: the
   hero keeps it in a signal so keys computed before it arrived are
   computed again. The recommendations rail waits for the store before
-  deduplicating and keying seeds. A row with a match identity skips TMDB
-  when the store cannot be read. A seed taken off TMDB is no TMDB verdict —
+  deduplicating and keying seeds. Rows with the same lookup and match
+  choice share one request and keep their separate match identities for
+  offline pruning. A row with a match identity skips TMDB when the store
+  cannot be read. A seed taken off TMDB is no TMDB verdict —
   it neither keeps an offline rail alive nor stays on one.
 - **Hero extras**: `DashboardHeroTmdbService`
   (`libs/workspace/dashboard/feature`) patches each movie/series hero slide

@@ -2,6 +2,7 @@ import { computed, Injectable, inject, signal } from '@angular/core';
 import {
     CatalogTitleMatchService,
     TmdbEnrichmentService,
+    type TmdbMatchIdentity,
     type TmdbMatchService,
 } from '@iptvnator/services';
 import {
@@ -36,6 +37,12 @@ interface LoadedRecommendations {
 }
 
 const EMPTY_LOAD: LoadedRecommendations = { candidates: [], matches: [] };
+
+interface RecommendationSeed {
+    item: DashboardTmdbMatchItem;
+    identities: (TmdbMatchIdentity | null)[];
+    matchToken: string;
+}
 
 interface SeedRecommendations {
     resolved: boolean;
@@ -144,17 +151,13 @@ export class DashboardRecommendationsService {
         // So is each seed's TMDB match choice: re-matching a title in its
         // detail view must change what it recommends.
         const loadKey = `${this.enrichment.language()}//${buildLoadKey(
-            seeds,
+            seeds.map(({ item }) => item),
             excluded,
             this.catalogKey()
         )}//${seeds
-            .map((seed) => {
-                const identity = dashboardTmdbMatchIdentity(seed);
-                return JSON.stringify([
-                    identity,
-                    dashboardTmdbMatchToken(this.matches, identity),
-                ]);
-            })
+            .map(({ identities, matchToken }) =>
+                JSON.stringify([identities, matchToken])
+            )
             .join(',')}`;
         if (loadKey === this.loadedKey) {
             return;
@@ -321,45 +324,48 @@ export class DashboardRecommendationsService {
             .join(',');
     }
 
-    /** Most recent distinct watched VOD/series usable as TMDB lookups */
-    private selectSeeds(): DashboardTmdbMatchItem[] {
-        const seeds: DashboardTmdbMatchItem[] = [];
-        const seen = new Set<string>();
+    /** Most recent distinct TMDB lookups and all activity rows behind them. */
+    private selectSeeds(): RecommendationSeed[] {
+        const seeds = new Map<string, RecommendationSeed>();
         for (const item of this.data.globalRecentVodItems()) {
             if (buildDashboardTmdbAttempts(item).length === 0) {
                 continue;
             }
-            // Two rows can look alike yet carry different match choices.
-            const key = `${dashboardTmdbLookupKey(item)}//${dashboardTmdbMatchToken(
-                this.matches,
-                dashboardTmdbMatchIdentity(item)
-            )}`;
-            if (seen.has(key)) {
-                continue;
-            }
-            seen.add(key);
-            seeds.push(item);
-            if (seeds.length === MAX_SEEDS) {
-                break;
+            const identity = dashboardTmdbMatchIdentity(item);
+            const matchToken = dashboardTmdbMatchToken(this.matches, identity);
+            // A manually matched TMDB id belongs to the identity's media type.
+            const matchType = matchToken.startsWith('manual:')
+                ? identity?.mediaType
+                : '';
+            const key = JSON.stringify([
+                dashboardTmdbLookupKey(item),
+                matchToken,
+                matchType,
+            ]);
+            const seed = seeds.get(key);
+            if (seed) {
+                seed.identities.push(identity);
+            } else if (seeds.size < MAX_SEEDS) {
+                seeds.set(key, { item, identities: [identity], matchToken });
             }
         }
-        return seeds;
+        return [...seeds.values()];
     }
 
-    private async recommendationsForSeed(
-        seed: DashboardTmdbMatchItem
-    ): Promise<SeedRecommendations> {
-        const identity = dashboardTmdbMatchIdentity(seed);
-        const matchToken = dashboardTmdbMatchToken(this.matches, identity);
+    private async recommendationsForSeed({
+        item,
+        identities,
+        matchToken,
+    }: RecommendationSeed): Promise<SeedRecommendations> {
         const resolved = await resolveDashboardTmdbDetails(
             this.enrichment,
-            seed,
+            item,
             this.matches
         );
         if (!resolved) {
             return {
                 resolved: false,
-                seedTitle: seed.title,
+                seedTitle: item.title,
                 entries: [],
             };
         }
@@ -379,7 +385,7 @@ export class DashboardRecommendationsService {
                 details.recommendations?.results ?? [],
                 attempt.mediaType,
                 attempt.title,
-                identity,
+                identities,
                 matchToken
             ),
         };

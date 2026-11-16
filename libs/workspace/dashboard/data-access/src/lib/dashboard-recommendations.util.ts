@@ -220,12 +220,14 @@ export function toCandidates(
     results: readonly TmdbSearchResult[],
     mediaType: 'movie' | 'tv',
     seedTitle: string,
-    seedIdentity: TmdbMatchIdentity | null,
+    seedIdentities: readonly (TmdbMatchIdentity | null)[],
     matchToken: string
 ): RecommendationCandidate[] {
-    const contributors = [
-        { title: seedTitle, identity: seedIdentity, matchToken },
-    ];
+    const contributors = seedIdentities.map((identity) => ({
+        title: seedTitle,
+        identity,
+        matchToken,
+    }));
     return results
         .map((result) => {
             const title = result.title ?? result.name ?? '';

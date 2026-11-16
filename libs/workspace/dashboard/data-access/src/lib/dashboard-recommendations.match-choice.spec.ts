@@ -196,6 +196,36 @@ describe('DashboardRecommendationsService and TMDB match choices', () => {
         }
     );
 
+    it('keeps a second contributor when equivalent seeds share one TMDB request', async () => {
+        const otherSeed = { ...seed, xtream_id: 43 };
+        seeds = [
+            seed,
+            { ...seed, title: 'Synthetic Second', xtream_id: 44 },
+            { ...seed, title: 'Synthetic Third', xtream_id: 45 },
+            otherSeed,
+        ];
+        enrichMovie.mockImplementation(async ({ title }: { title: string }) =>
+            title === seed.title ? recommendations(500) : null
+        );
+        const service = createService();
+
+        await service.load();
+        const sharedIds = titles.map((_, i) => 500 + i);
+        expect(enrichMovie).toHaveBeenCalledTimes(3);
+        expect(service.items().map(({ tmdbId }) => tmdbId)).toEqual(sharedIds);
+
+        choice = { mode: 'provider' };
+        enrichMovie.mockResolvedValue(null);
+        await service.load();
+
+        expect(service.items().map(({ tmdbId }) => tmdbId)).toEqual(sharedIds);
+
+        otherChoice = choice;
+        await service.load();
+
+        expect(service.items()).toEqual([]);
+    });
+
     it('loads again when the seed is re-matched', async () => {
         const service = createService();
         await Promise.resolve();
