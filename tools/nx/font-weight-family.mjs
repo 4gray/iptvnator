@@ -86,13 +86,14 @@ export function parsesAsFont(value) {
 }
 
 /**
- * Families that render every glyph the UI shows: Roboto (bundled with
- * Latin, Cyrillic and Greek) and the text generics. DM Sans is Latin-only,
- * and `emoji`, `math` or `fangsong` cover special scripts, so ordinary
- * Russian or Greek text falls through them to the next family. A generic
- * is a keyword: quoted (`'monospace'`), it names a family nobody has.
+ * Families that render every glyph the UI shows: Inter Variable (bundled
+ * with Latin, Cyrillic and Greek) and the text generics. A family the app
+ * does not bundle (DM Sans, Roboto, plain `Inter`) may be missing, and
+ * `emoji`, `math` or `fangsong` cover special scripts, so ordinary text
+ * falls through them to the next family. A generic is a keyword: quoted
+ * (`'monospace'`), it names a family nobody has.
  */
-const BUNDLED = /^roboto$/i;
+const BUNDLED = /^inter variable$/i;
 const GENERIC = /^(?:serif|sans-serif|monospace|cursive|fantasy|system-ui)$/i;
 
 /**
@@ -270,7 +271,7 @@ export function shorthandFamilies(value) {
 
 /**
  * Whether JetBrains Mono can render a family list: it is named before any
- * family that always resolves (a bundled face such as Roboto, or an
+ * family that always resolves (a bundled face such as Inter Variable, or an
  * unquoted generic such as `monospace`). A face only some systems have (`ui-monospace`,
  * `'SF Mono'`) leaves it in play. In a `font` shorthand the list follows
  * the size and its `/line-height`.

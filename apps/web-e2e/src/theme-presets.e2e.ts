@@ -8,6 +8,7 @@ const presets = [
     'mocha',
     'night-owl',
     'black-oled',
+    'high-contrast',
 ] as const;
 type Preset = (typeof presets)[number];
 
@@ -175,7 +176,7 @@ test.describe('PWA theme presets', () => {
         await expect(page.locator('[data-setting-id="theme"]')).toBeFocused();
     });
 
-    test('@theme @settings @pwa @web previews all six presets and discards to saved Mocha', async ({
+    test('@theme @settings @pwa @web previews every preset and discards to saved Mocha', async ({
         page,
     }) => {
         await themeOption(page, 'mocha').click();
@@ -203,6 +204,7 @@ test.describe('PWA theme presets', () => {
         'mocha',
         'night-owl',
         'black-oled',
+        'high-contrast',
     ] as const) {
         test(`@theme @settings @persistence @pwa @web saves ${preset} across reload`, async ({
             page,
@@ -263,14 +265,14 @@ test.describe('PWA theme presets', () => {
         }
     });
 
-    test('@theme @settings @accessibility @pwa @web supports radio arrows and Home/End with six decorative previews', async ({
+    test('@theme @settings @accessibility @pwa @web supports radio arrows and Home/End with a decorative preview per preset', async ({
         page,
     }) => {
         const group = page.locator('[data-test-id="select-theme"]');
         await expect(group).toHaveAttribute('role', 'radiogroup');
-        await expect(group.getByRole('radio')).toHaveCount(7);
+        await expect(group.getByRole('radio')).toHaveCount(presets.length + 1);
         const previews = group.locator('[data-theme-preview]');
-        await expect(previews).toHaveCount(6);
+        await expect(previews).toHaveCount(presets.length);
         expect(
             await previews.evaluateAll((elements) =>
                 elements.map((el) => ({
@@ -290,6 +292,7 @@ test.describe('PWA theme presets', () => {
             ['ArrowRight', 'mocha'],
             ['ArrowRight', 'night-owl'],
             ['ArrowDown', 'black-oled'],
+            ['ArrowRight', 'high-contrast'],
             ['End', 'system'],
             ['ArrowRight', 'light'],
             ['ArrowLeft', 'system'],

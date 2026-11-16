@@ -8,10 +8,12 @@ import {
     inject,
     input,
     output,
+    signal,
     untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ControlsChromeInteractions } from './controls-chrome-interactions';
@@ -26,6 +28,7 @@ import { ControlsStreamStats } from './controls-stream-stats';
 import { ControlsSurface } from './controls-surface';
 import { ControlsTimeline } from './controls-timeline';
 import { ControlsTimelineLabel } from './controls-timeline-label';
+import { ControlsTransport } from './controls-transport';
 import { ControlsUpNext } from './controls-up-next';
 import { ControlsVisibility } from './controls-visibility';
 import { createControlsViewModel } from './controls-view-model';
@@ -39,6 +42,7 @@ import type {
     PlayerTimelineSegment,
     PlayerUpNextItem,
 } from './player-controls.model';
+import type { MultiviewLayout } from '../second-stream/second-stream-open-stream';
 import { PlayerSettingsPanelComponent } from './player-settings-panel.component';
 import { PlayerTimelineComponent } from './player-timeline.component';
 import { PlayerUpNextCardComponent } from './player-up-next-card.component';
@@ -50,6 +54,7 @@ import { PlayerUpNextCardComponent } from './player-up-next-card.component';
     imports: [
         MatButtonModule,
         MatIconModule,
+        MatMenuModule,
         MatTooltipModule,
         TranslatePipe,
         PlayerSettingsPanelComponent,
@@ -76,9 +81,13 @@ export class PlayerControlsComponent implements OnDestroy {
      * episode, channel, or alternative-source switch.
      */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
+    /** Opt-in surface containing the video for WebKit native fullscreen. */
+    readonly nativeFullscreenSurface = input<HTMLElement | null>(null);
     readonly showControls = input(true);
-    readonly canAddSecondStream = input(false);
-    readonly secondStreamRequested = output<void>();
+    readonly canOpenMultiview = input(false);
+    readonly multiviewAddRequested = output<void>();
+    readonly multiviewLayoutRequested = output<MultiviewLayout>();
+    readonly multiviewMenuOpen = signal(false);
     readonly shortcutsEnabled = input(true);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
     /** Chapters / programmes drawn as track segments; null draws one. */
@@ -91,16 +100,23 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly nextEpisodeRequested = output<void>();
     readonly menus = new ControlsMenuState();
     readonly feedback = new ControlsFeedback();
-    readonly anyMenuOpen = this.menus.anyOpen;
+    readonly anyMenuOpen = computed(
+        () => this.menus.anyOpen() || this.multiviewMenuOpen()
+    );
     private readonly shortcuts = new ControlsShortcuts();
+    readonly transport = new ControlsTransport({
+        controller: () => this.controller(),
+        feedback: this.feedback,
+        reveal: () => this.reveal(),
+    });
     readonly layout = new ControlsLayout();
     /** Compact dock: narrow inline players and phone-sized viewports. */
     readonly isCompact = computed(() => this.layout.mode() === 'compact');
     private readonly visibility = new ControlsVisibility(
         (): boolean =>
-            this.isPlaying() &&
+            this.vm.isPlaying() &&
             !this.chrome.engaged &&
-            !this.menus.anyOpen() &&
+            !this.anyMenuOpen() &&
             !this.state().statusMessage
     );
     private readonly fullscreen = new ControlsFullscreen(
@@ -120,7 +136,7 @@ export class PlayerControlsComponent implements OnDestroy {
             toggleFullscreen: () => void this.toggleFullscreen(),
             closePopovers: () => this.closePopovers(),
             togglePlay: () => this.togglePlay(),
-            canTogglePlay: () => this.canTogglePlay(),
+            canTogglePlay: () => this.vm.canTogglePlay(),
             isMenuOpen: () => this.menus.anyOpen(),
             controlsVisible: () => this.controlsAreVisible(),
             hideControls: () => this.visibility.hide(),
@@ -172,7 +188,6 @@ export class PlayerControlsComponent implements OnDestroy {
     });
     private readonly controllerVolume = computed(() => this.state().volume);
     readonly timeline = new ControlsTimeline(this.state, this.timelineSegments);
-    readonly scrubPosition = this.timeline.scrubPosition;
     readonly timelineLabel = new ControlsTimelineLabel({
         duration: this.timeline.duration,
         interactive: computed(
@@ -180,7 +195,7 @@ export class PlayerControlsComponent implements OnDestroy {
         ),
         segments: this.timeline.segments,
         value: this.timeline.value,
-        scrubbing: computed(() => this.scrubPosition() !== null),
+        scrubbing: computed(() => this.timeline.scrubPosition() !== null),
     });
     /** `−7:03` while a finite duration is known; the dock prefers it to the total. */
     readonly remainingTimeText = computed(() =>
@@ -212,7 +227,7 @@ export class PlayerControlsComponent implements OnDestroy {
                 this.fullscreenMediaTitle() !== null)
     );
 
-    private readonly vm = createControlsViewModel({
+    protected readonly vm = createControlsViewModel({
         state: this.state,
         capabilities: this.capabilities,
         volume: this.volume.value,
@@ -220,18 +235,10 @@ export class PlayerControlsComponent implements OnDestroy {
         canFullscreenNative: () => this.fullscreen.canFullscreen(),
         showControls: this.showControls,
         autoHideVisible: this.visibility.visible,
-        anyMenuOpen: this.menus.anyOpen,
+        anyMenuOpen: this.anyMenuOpen,
     });
 
-    readonly isLoading = this.vm.isLoading;
-    readonly isPaused = this.vm.isPaused;
-    readonly isPlaying = this.vm.isPlaying;
-    readonly canTogglePlay = this.vm.canTogglePlay;
-    readonly canRecord = this.vm.canRecord;
-    readonly isRecording = this.vm.isRecording;
-    readonly recordingStatusText = this.vm.recordingStatusText;
     readonly volumeIcon = this.vm.volumeIcon;
-    readonly canFullscreen = this.vm.canFullscreen;
     readonly volumePercent = computed(() =>
         Math.round(this.displayVolume() * 100)
     );
@@ -242,24 +249,29 @@ export class PlayerControlsComponent implements OnDestroy {
         this.shortcuts.attach({
             isAvailable: () => this.shortcutsEnabled() && this.showControls(),
             hostElement: () => this.host,
-            canTogglePaused: () => this.canTogglePlay(),
+            canTogglePaused: () => this.vm.canTogglePlay(),
             canSeek: () => this.capabilities().seek && this.state().canSeek,
             canAdjustVolume: () => this.capabilities().volume,
-            canToggleFullscreen: () => this.canFullscreen(),
+            canToggleFullscreen: () => this.vm.canFullscreen(),
             onEscape: () => this.closePopovers(),
             togglePaused: () => this.togglePlay(),
             toggleFullscreen: () => void this.toggleFullscreen(),
-            seekBy: (delta) => this.seekBy(delta),
+            seekBy: (delta) => this.transport.seekBy(delta),
             adjustVolume: (delta) => this.volumeInteractions.adjust(delta),
             toggleMute: () => this.volumeInteractions.toggleMute(),
         });
+        effect(() => {
+            if (this.canOpenMultiview()) untracked(() => this.settings.close());
+        });
         effect((onCleanup) => {
-            const playerSurface = this.playerSurface();
-            const surface = this.showControls() ? playerSurface : null;
-            // A replaced fullscreen owner re-syncs the state as well.
-            void this.fullscreenTarget();
-            this.fullscreen.sync();
+            const nativeSurface = this.nativeFullscreenSurface();
+            const surface = this.showControls() ? this.playerSurface() : null;
+            onCleanup(this.fullscreen.observeVideo(nativeSurface));
             onCleanup(this.surface.attachSurface(surface));
+        });
+        effect(() => {
+            if (this.showControls() || !this.isFullscreen()) return;
+            this.fullscreen.exitNativeVideo();
         });
         effect(() => {
             const controller = this.controller();
@@ -312,7 +324,7 @@ export class PlayerControlsComponent implements OnDestroy {
             const capabilities = this.capabilities();
             untracked(() => {
                 if (!capabilities.seek || !state.canSeek) {
-                    this.scrubPosition.set(null);
+                    this.timeline.scrubPosition.set(null);
                 }
                 this.menus.reconcileControllerAvailability(
                     showControls,
@@ -343,30 +355,19 @@ export class PlayerControlsComponent implements OnDestroy {
     }
     togglePlay(): void {
         this.reveal();
-        if (!this.canTogglePlay()) {
+        if (!this.vm.canTogglePlay()) {
             return;
         }
         this.controller().commands.togglePlay();
     }
-    seekBy(deltaSeconds: number): void {
-        this.reveal();
-        if (!this.capabilities().seek || !this.state().canSeek) {
-            return;
-        }
-        this.controller().commands.seekBy(deltaSeconds);
-        this.feedback.flash(
-            deltaSeconds >= 0 ? 'forward_10' : 'replay_10',
-            `${deltaSeconds >= 0 ? '+' : ''}${Math.round(deltaSeconds)}s`
-        );
-    }
     onTimelineInput(event: Event): void {
         this.reveal();
-        this.scrubPosition.set(this.timeline.readEventValue(event));
+        this.timeline.scrubPosition.set(this.timeline.readEventValue(event));
     }
     onTimelineCommit(event: Event): void {
         this.reveal();
         const target = this.timeline.readEventValue(event);
-        this.scrubPosition.set(null);
+        this.timeline.scrubPosition.set(null);
         if (
             target === null ||
             !this.capabilities().seek ||
@@ -396,7 +397,7 @@ export class PlayerControlsComponent implements OnDestroy {
     }
 
     toggleRecording(): void {
-        if (!this.canRecord()) {
+        if (!this.vm.canRecord()) {
             return;
         }
         this.reveal({ scheduleHide: false });
@@ -412,7 +413,7 @@ export class PlayerControlsComponent implements OnDestroy {
     }
     async toggleFullscreen(): Promise<void> {
         this.reveal();
-        if (!this.canFullscreen()) {
+        if (!this.vm.canFullscreen()) {
             return;
         }
         await this.fullscreen.toggle();

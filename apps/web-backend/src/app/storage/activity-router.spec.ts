@@ -116,9 +116,51 @@ describe('activity HTTP API', () => {
                     generation: 1,
                     sequence: 1,
                     resume: { positionSeconds: 95, durationSeconds: 100 },
-                    positionMetadata: { contentXtreamId: 42, title: 'A movie' },
+                    positionMetadata: {
+                        contentXtreamId: 42,
+                        title: 'Synthetic movie',
+                        playedAt: '2026-09-02T09:00:00.000Z',
+                    },
                 };
-                expect((await send(tick)).body.state.watched).toBe(true);
+                const saved = await send(tick);
+                expect(saved.body.state.watched).toBe(true);
+                expect(
+                    await send({
+                        ...tick,
+                        positionMetadata: {
+                            ...tick.positionMetadata,
+                            playedAt: '2026-09-02T10:00:00+01:00',
+                        },
+                    })
+                ).toEqual(saved);
+                expect(
+                    (
+                        await send({
+                            ...tick,
+                            positionMetadata: {
+                                ...tick.positionMetadata,
+                                playedAt: '2026-09-02T09:00:01.000Z',
+                            },
+                        })
+                    ).status
+                ).toBe(409);
+                const legacyTick = {
+                    ...tick,
+                    operationId: 'legacy-tick',
+                    sequence: 2,
+                    positionMetadata: {
+                        contentXtreamId: 42,
+                        title: 'Synthetic movie',
+                    },
+                };
+                const legacyReceipt = await send(legacyTick);
+                expect(legacyReceipt.body.status).toBe('applied');
+                expect(
+                    await send({
+                        ...legacyTick,
+                        positionMetadata: tick.positionMetadata,
+                    })
+                ).toEqual(legacyReceipt);
                 expect(await send(begin)).toEqual(first);
                 expect(
                     (
@@ -126,7 +168,7 @@ describe('activity HTTP API', () => {
                             kind: 'reset',
                             operationId: 'reset',
                             deviceId: 'phone',
-                            expectedRevision: 2,
+                            expectedRevision: 3,
                         })
                     ).body.state.resume
                 ).toBeNull();
@@ -140,7 +182,7 @@ describe('activity HTTP API', () => {
                     })
                 ).json()) as ActivityListResponse;
                 expect(entries.entries[0].state).toMatchObject({
-                    revision: 3,
+                    revision: 4,
                     watched: false,
                     resume: null,
                 });

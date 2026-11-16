@@ -1,3 +1,4 @@
+import { playbackTimestamp } from '@iptvnator/shared/interfaces';
 import type {
     PlaybackPositionData,
     XtreamSerieEpisode,
@@ -55,9 +56,6 @@ const naturalCollator = new Intl.Collator(undefined, {
     numeric: true,
     sensitivity: 'base',
 });
-
-/** SQLite's CURRENT_TIMESTAMP: UTC, written without a zone. */
-const SQLITE_UTC_TIMESTAMP = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d+)?$/;
 
 export function getSeriesNextUp(
     request: SeriesProgressRequest
@@ -214,21 +212,7 @@ function compareEntryRecency(
     entryB: SeriesEpisodeEntry
 ): number {
     const delta =
-        getTimestamp(entryA.position?.updatedAt) -
-        getTimestamp(entryB.position?.updatedAt);
+        playbackTimestamp(entryA.position?.updatedAt) -
+        playbackTimestamp(entryB.position?.updatedAt);
     return delta !== 0 ? delta : entryA.order - entryB.order;
-}
-
-/**
- * SQLite rows are UTC without a zone, which `Date.parse` alone would read as
- * local time and misorder against the ISO times the renderer writes.
- */
-function getTimestamp(value: string | undefined): number {
-    if (!value) {
-        return 0;
-    }
-    const timestamp = Date.parse(
-        SQLITE_UTC_TIMESTAMP.test(value) ? `${value.replace(' ', 'T')}Z` : value
-    );
-    return Number.isFinite(timestamp) ? timestamp : 0;
 }

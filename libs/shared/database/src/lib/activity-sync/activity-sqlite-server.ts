@@ -53,7 +53,18 @@ export class SqliteActivityServerStore {
                 .get(receiptKey) as
                 { command: string; result: string } | undefined;
             if (receipt) {
-                if (receipt.command !== command) {
+                // Older servers recorded the same command without its capture time.
+                const legacyCommand =
+                    operation.positionMetadata?.playedAt === undefined
+                        ? command
+                        : JSON.stringify([
+                              key,
+                              canonicalOperation(operation, false),
+                          ]);
+                if (
+                    receipt.command !== command &&
+                    receipt.command !== legacyCommand
+                ) {
                     throw new Error('Activity operation ID reused');
                 }
                 return JSON.parse(receipt.result) as ActivityApplyResult;
@@ -131,7 +142,10 @@ export class SqliteActivityServerStore {
 }
 
 /** Property order and irrelevant snapshot fields never change the identity of a retry. */
-function canonicalOperation(operation: ActivityOperation): unknown[] {
+function canonicalOperation(
+    operation: ActivityOperation,
+    includePlayedAt = true
+): unknown[] {
     const meta = operation.positionMetadata;
     const base = [
         operation.kind,
@@ -142,6 +156,9 @@ function canonicalOperation(operation: ActivityOperation): unknown[] {
         meta?.seriesXtreamId ?? null,
         meta?.seasonNumber ?? null,
         meta?.episodeNumber ?? null,
+        ...(includePlayedAt && meta?.playedAt !== undefined
+            ? [meta.playedAt]
+            : []),
     ];
     if (operation.kind === 'import')
         return [

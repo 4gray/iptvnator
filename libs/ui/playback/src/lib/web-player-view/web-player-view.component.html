@@ -9,7 +9,7 @@
                         [mediaTitle]="resolvedMediaTitle()"
                         [upNext]="upNext()"
                         [timelineSegments]="timelineSegments()"
-                        [volume]="volume()"
+                        [volume]="androidPlayback.webVolume()"
                         [showCaptions]="showCaptions()"
                         [interactionEnabled]="playbackInteractionEnabled()"
                         [startTime]="effectiveStartTime()"
@@ -40,7 +40,7 @@
                         [mediaTitle]="resolvedMediaTitle()"
                         [upNext]="upNext()"
                         [timelineSegments]="timelineSegments()"
-                        [volume]="volume()"
+                        [volume]="androidPlayback.webVolume()"
                         [showCaptions]="showCaptions()"
                         [isLive]="resolvedIsLive()"
                         [interactionEnabled]="playbackInteractionEnabled()"
@@ -71,7 +71,7 @@
                         [mediaTitle]="resolvedMediaTitle()"
                         [upNext]="upNext()"
                         [timelineSegments]="timelineSegments()"
-                        [volume]="volume()"
+                        [volume]="androidPlayback.webVolume()"
                         [showCaptions]="showCaptions()"
                         [isLive]="resolvedIsLive()"
                         [interactionEnabled]="playbackInteractionEnabled()"
@@ -98,9 +98,28 @@
         <div
             class="embedded-mpv-pair"
             [class.embedded-mpv-pair--swapped]="companion.swapped()"
-            [class.embedded-mpv-pair--with-strip]="
-                embeddedMpvPlayer.support()?.engine === 'frame-copy'
+            [class.embedded-mpv-pair--side-by-side]="
+                companion.layout() === 'side-by-side'
             "
+            [class.embedded-mpv-pair--grid]="companion.layout() === 'grid'"
+            [class.embedded-mpv-pair--focus]="companion.layout() === 'focus'"
+            [class.embedded-mpv-pair--multiview]="companion.multiviewOpen()"
+            [class.embedded-mpv-pair--with-strip]="companion.stripVisible()"
+            [attr.data-multiview-stage]="companion.multiviewOpen() ? '' : null"
+            [attr.role]="companion.multiviewOpen() ? 'group' : null"
+            [attr.tabindex]="
+                companion.fourWindowLayout()
+                    ? 0
+                    : companion.multiviewOpen()
+                      ? -1
+                      : null
+            "
+            [attr.aria-label]="
+                companion.multiviewOpen()
+                    ? ('TWO_STREAMS.MULTIVIEW' | translate)
+                    : null
+            "
+            (keydown)="companion.selectControlsFromKey($event)"
             [style.--pip-left.px]="companion.placement.geometry().left"
             [style.--pip-top.px]="companion.placement.geometry().top"
             [style.--pip-width.px]="companion.placement.geometry().width"
@@ -108,27 +127,47 @@
         >
             <app-embedded-mpv-player
                 #embeddedMpvPlayer
-                [canAddSecondStream]="
-                    embeddedMpvPlayer.support()?.engine === 'frame-copy' &&
-                    !companion.active()
+                data-multiview-slot="1"
+                [canOpenMultiview]="
+                    companion.available() && !companion.multiviewOpen()
                 "
-                (secondStreamRequested)="companion.openPicker()"
+                (multiviewAddRequested)="
+                    companion.focus.pick(companion.openPicker(2))
+                "
+                (multiviewLayoutRequested)="
+                    companion.setLayout($event);
+                    companion.focus.enterMultiview()
+                "
                 [appSecondStreamFloating]="companion.swapped()"
-                [showControls]="!companion.busy() && !companion.swapped()"
-                [initialVolumeOverride]="companion.swapped() ? 0 : null"
+                [style.grid-area]="companion.focusGridArea(1)"
+                [class.embedded-mpv-player-host--selected]="
+                    companion.tiled() && companion.controlsSlot() === 1
+                "
+                [showControls]="
+                    !companion.busy() && companion.controlsSlot() === 1
+                "
+                [sharedVolumeController]="companion.audioController()"
+                (inactiveSurfaceClicked)="companion.selectControls(1)"
+                [initialVolumeOverride]="
+                    companion.audioSlot() !== 1
+                        ? 0
+                        : companion.multiviewOpen() || companion.error()
+                          ? companion.audibleVolume()
+                          : null
+                "
                 [retryEnabled]="!companion.busy()"
                 [(liveSubtitlesOff)]="embeddedMpvLiveSubtitlesOff"
                 [playback]="resolvedPlayback()"
                 [fullscreenTarget]="fullscreenSurface"
                 [mediaTitle]="resolvedMediaTitle()"
-                [upNext]="upNext()"
+                [upNext]="companion.active() ? null : upNext()"
                 [timelineSegments]="timelineSegments()"
                 [recordingFolder]="recordingFolder()"
                 [recordingMetadata]="recordingMetadata()"
                 [seriesNavigation]="seriesNavigation()"
                 (timeUpdate)="handleTimeUpdate($event, application)"
                 (playbackEnded)="
-                    companion.active() ? null : handleActivityEnded(application)
+                    handleActivityEnded(application, !companion.active())
                 "
                 (previousEpisodeRequested)="previousEpisodeRequested.emit()"
                 (nextEpisodeRequested)="nextEpisodeRequested.emit()"
@@ -136,6 +175,7 @@
             />
             <app-second-stream
                 #companion
+                [class.second-stream--tiled]="companion.tiled()"
                 [primary]="embeddedMpvPlayer"
                 [fullscreenTarget]="fullscreenSurface"
                 (recordingStopped)="recordingStopped.emit($event)"
@@ -157,7 +197,9 @@
         [diagnostic]="issue"
         [recommendations]="recommendations()"
         [playback]="resolvedPlayback()"
-        [supportsManagedExternalPlayers]="supportsManagedExternalPlayers"
+        [supportsManagedExternalPlayers]="
+            runtime.supportsManagedExternalPlayers
+        "
         [playbackExternallyTransferable]="playbackExternallyTransferable()"
         [alternativeSources]="alternativeSources()"
         [externalStates]="externalRecoveryState()"
@@ -167,4 +209,38 @@
         (alternativeSourceRequested)="alternativeSourceRequested.emit($event)"
         (sourceCheckRequested)="sourceCheckRequested.emit($event)"
     />
+}
+
+@if (androidPlayback.canOpen(resolvedPlayback())) {
+    <div class="web-player-android-actions dark-theme">
+        <button
+            mat-stroked-button
+            type="button"
+            [attr.data-tv-native-playback]="androidPlayback.attempt()"
+            [attr.aria-disabled]="androidPlayback.pending() || null"
+            (click)="
+                androidPlayback.open(
+                    resolvedPlayback(),
+                    resolvedIsLive(),
+                    effectiveStartTime(),
+                    showCaptions(),
+                    fullscreenSurface
+                )
+            "
+        >
+            {{ 'PLAYBACK_DIAGNOSTICS.ACTION_TRY_BUILT_IN_PLAYER' | translate }}
+        </button>
+        @if (androidPlayback.suspended()) {
+            <button
+                mat-stroked-button
+                type="button"
+                (click)="androidPlayback.returnToWeb()"
+            >
+                {{
+                    'PLAYBACK_DIAGNOSTICS.ACTION_RETURN_TO_WEB_PLAYER'
+                        | translate
+                }}
+            </button>
+        }
+    </div>
 }

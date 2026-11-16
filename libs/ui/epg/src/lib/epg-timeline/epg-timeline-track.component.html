@@ -63,9 +63,22 @@
             }
 
             <div class="epg-timeline__block-top">
-                <div class="epg-timeline__block-time">
-                    {{ item.block.startMs | date: 'HH:mm' }} –
-                    {{ item.block.stopMs | date: 'HH:mm' }}
+                <!-- time and state tag share a row that wraps, so a long
+                     translated tag takes a line of its own, never the title's -->
+                <div class="epg-timeline__block-meta">
+                    <span class="epg-timeline__block-time">
+                        {{ item.block.startMs | date: 'HH:mm' }} –
+                        {{ item.block.stopMs | date: 'HH:mm' }}
+                    </span>
+                    @if (item.block.when === 'now') {
+                        <span class="epg-timeline__tag is-now">{{
+                            'EPG.TIMELINE.ON_NOW' | translate
+                        }}</span>
+                    } @else if (isPlaying(item)) {
+                        <span class="epg-timeline__tag is-arch">{{
+                            'EPG.TIMELINE.FROM_ARCHIVE' | translate
+                        }}</span>
+                    }
                 </div>
                 <div
                     class="epg-timeline__block-title"
@@ -84,9 +97,6 @@
 
             <div class="epg-timeline__block-foot">
                 @if (item.block.when === 'now') {
-                    <span class="epg-timeline__tag is-now">{{
-                        'EPG.TIMELINE.ON_NOW' | translate
-                    }}</span>
                     @if (item.canCatchUp) {
                         <button
                             type="button"
@@ -99,11 +109,7 @@
                             <mat-icon>replay</mat-icon>
                         </button>
                     }
-                } @else if (isPlaying(item)) {
-                    <span class="epg-timeline__tag is-arch">{{
-                        'EPG.TIMELINE.FROM_ARCHIVE' | translate
-                    }}</span>
-                } @else if (item.canCatchUp) {
+                } @else if (!isPlaying(item) && item.canCatchUp) {
                     <button
                         type="button"
                         class="epg-timeline__watch"

@@ -21,6 +21,9 @@ html {
     [data-theme-preview='black-oled'] {
         @include palettes.black-oled($preview: true);
     }
+    [data-theme-preview='high-contrast'] {
+        @include palettes.high-contrast($preview: true);
+    }
 }
 
 .theme-picker {

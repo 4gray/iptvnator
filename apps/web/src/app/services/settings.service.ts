@@ -113,9 +113,7 @@ export class SettingsService {
 
     /**
      * Overrides the selection and Material primary roles on `body`, where
-     * every theme declares the tokens derived from them. The
-     * `data-theme-accent` attribute makes `m3-theme.scss` re-declare the
-     * Material component tokens there too, so they read these values.
+     * `m3-theme.scss` declares the app and Material tokens that read them.
      */
     private async applyThemeAccent(): Promise<void> {
         if (this.accent && !this.accentTokens) {

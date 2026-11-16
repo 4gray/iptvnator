@@ -138,7 +138,10 @@ export function compareBaselineDirection({
     return result;
 }
 
-export function formatDirectionResult(result) {
+export function formatDirectionResult(
+    result,
+    allowance = `with the ${BASELINE_INCREASE_LABEL} label`
+) {
     const lines = [];
     for (const line of result.lowered) lines.push(`lowered  ${line}`);
     for (const label of result.added) lines.push(`added    ${label}`);
@@ -146,7 +149,7 @@ export function formatDirectionResult(result) {
     for (const line of result.failures) lines.push(`FAIL     ${line}`);
     const allowed =
         result.allowed.length > 0
-            ? `, ${result.allowed.length} weakened with the ${BASELINE_INCREASE_LABEL} label`
+            ? `, ${result.allowed.length} weakened ${allowance}`
             : '';
     lines.push(
         result.failures.length > 0

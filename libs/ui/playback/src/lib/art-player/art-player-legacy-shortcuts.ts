@@ -75,7 +75,7 @@ export function attachArtPlayerLegacyShortcuts(
             if (!player) {
                 return;
             }
-            if (player.muted) {
+            if (player.muted || player.volume === 0) {
                 player.volume = muteMemory.unmuteVolume(player.volume);
                 player.muted = false;
             } else {

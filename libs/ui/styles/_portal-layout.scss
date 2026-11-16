@@ -26,7 +26,12 @@
         box-sizing: border-box;
         padding-inline-end: 8px;
         min-width: 250px;
-        max-width: 600px;
+        // The cap follows the viewport so a stored or default width cannot
+        // starve the player on a narrow window: 36vw is 324px at the 900px
+        // desktop minimum and stops binding the 400px default above ~1110px.
+        // Below 641px the phone rules release it. (UI-67; the breakpoint map
+        // of UI-36 is meant to take this over.)
+        max-width: clamp(250px, 36vw, 600px);
         border-right: 1px solid var(--app-separator);
         display: flex;
         flex-direction: column;
@@ -138,12 +143,13 @@
             flex-basis 0.18s ease,
             min-height 0.18s ease;
 
-        // Inline (player visible): the guide is a compact panel below the
-        // player, not half the screen. The responsive clamp keeps the player
-        // dominant on tall screens and shrinks the panel on short ones.
+        // Inline (player visible): the guide is a compact strip below the
+        // player, not half the screen: a 44px toolbar over a ribbon that
+        // still fits each block's time and a title line at the 150px floor.
+        // The clamp keeps the player dominant on tall screens.
         // External player: no .epg--inline → keeps flex:1 above and fills.
         &.epg--inline {
-            flex: 0 0 var(--epg-inline-height, clamp(180px, 36vh, 264px));
+            flex: 0 0 var(--epg-inline-height, clamp(150px, 28vh, 216px));
         }
 
         // Vertical list view (epgViewMode = 'list'): rows need more height to
@@ -151,11 +157,14 @@
         // the later `.epg-collapsed` flex rule still wins when collapsed.
         &.epg--list {
             --epg-inline-height: clamp(280px, 46vh, 430px);
+            --epg-collapsed-height: 56px;
         }
 
+        // Collapsed, only the toolbar remains: the timeline's is 44px, the
+        // list view's header 56px.
         &.epg-collapsed {
-            flex: 0 0 56px;
-            min-height: 56px;
+            flex: 0 0 var(--epg-collapsed-height, 44px);
+            min-height: var(--epg-collapsed-height, 44px);
         }
 
         > app-epg-timeline,

@@ -76,6 +76,8 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
             'mocha',
             'night owl',
             'black oled',
+            'high contrast',
+            'accessibility',
             'appearance',
             'color',
             'system',

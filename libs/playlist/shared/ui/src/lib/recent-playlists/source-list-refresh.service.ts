@@ -226,10 +226,7 @@ export class SourceListRefreshService {
         }
     }
 
-    /**
-     * The browser build refreshes through the backend; the row stays busy,
-     * and held in the shared registry, until the backend answers.
-     */
+    /** Keep the row busy in the shared registry through browser refresh. */
     private async refreshViaBackend(
         item: PlaylistMeta,
         url: string

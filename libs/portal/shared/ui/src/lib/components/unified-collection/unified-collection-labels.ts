@@ -1,5 +1,6 @@
 import { computed, Signal } from '@angular/core';
 import { CollectionMode } from '@iptvnator/portal/shared/data-access';
+import { APP_ICONS } from '@iptvnator/ui/components/app-icons';
 
 export interface CollectionModeLabels {
     readonly title: Signal<string>;
@@ -25,7 +26,10 @@ export function createCollectionModeLabels(
             'WORKSPACE.SHELL.CLEAR_FAVORITES_TYPE',
             'WORKSPACE.SHELL.CLEAR_RECENTLY_VIEWED_TYPE'
         ),
-        emptyStateIcon: byMode('favorite_border', 'history_toggle_off'),
+        emptyStateIcon: byMode<string>(
+            APP_ICONS.favoriteOutline,
+            'history_toggle_off'
+        ),
         emptyStateTitleKey: byMode(
             'WORKSPACE.GLOBAL_FAVORITES.NO_ITEMS_TITLE',
             'WORKSPACE.GLOBAL_RECENT.NO_ITEMS_TITLE'

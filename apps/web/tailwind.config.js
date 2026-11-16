@@ -10,7 +10,7 @@ module.exports = {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Inter', 'Roboto', 'Helvetica Neue', 'sans-serif'],
+                sans: ['Inter Variable', 'Inter', 'system-ui', 'sans-serif'],
             },
             colors: {
                 // Surface colors wired to Material sys vars so Tailwind

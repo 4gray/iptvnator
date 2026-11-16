@@ -3,4 +3,4 @@ type: fix
 area: i18n
 ---
 
-Hungarian labels, alerts, and accessibility descriptions for two-stream playback now use consistent formal address and accurate video, audio, and keyboard-control terminology. Accent color labels and explanatory settings text are also clarified.
+Hungarian localization for two-stream and multiview playback now uses consistent formal address, accurate video and audio terminology, clear 2x2 and focus layouts, accessible numbered window controls, and concise error recovery. Reviewed accent colors, keyboard instructions, Android app settings and playback diagnostics remain consistent with the interface.

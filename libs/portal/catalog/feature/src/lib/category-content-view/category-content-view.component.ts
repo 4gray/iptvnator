@@ -27,6 +27,7 @@ import {
     PlaylistErrorViewComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
+    APP_ICONS,
     MenuItemRadioCheckDirective,
     MenuItemRadioDirective,
 } from '@iptvnator/ui/components';
@@ -79,6 +80,7 @@ interface CategoryContentItem {
     ],
 })
 export class CategoryContentViewComponent implements OnInit, OnDestroy {
+    protected readonly appIcons = APP_ICONS;
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly destroyRef = inject(DestroyRef);
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);

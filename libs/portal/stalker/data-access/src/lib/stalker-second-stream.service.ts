@@ -366,6 +366,14 @@ export class StalkerSecondStreamService {
             title: episode?.title || item.name,
             thumbnail: item.posterUrl,
             isLive: false,
+            catalogIdentity:
+                !episode && id === null && item.stalkerId != null
+                    ? {
+                          playlistId: playlist._id,
+                          type: 'vod',
+                          id: item.stalkerId,
+                      }
+                    : undefined,
             contentInfo,
             headers,
         };

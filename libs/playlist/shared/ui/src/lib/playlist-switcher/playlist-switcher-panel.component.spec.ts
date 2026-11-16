@@ -211,6 +211,43 @@ describe('PlaylistSwitcherPanelComponent', () => {
         expect(closed).toHaveBeenCalled();
     });
 
+    it.each([
+        ['isComposing', { isComposing: true }],
+        ['keyCode 229 after compositionend', { keyCode: 229 }],
+    ])(
+        'leaves keys of an IME composition to the input method (%s)',
+        (_label, init) => {
+            const closed = jest.fn();
+            component.closeRequested.subscribe(closed);
+            press('ArrowDown');
+            const highlighted = input().getAttribute('aria-activedescendant');
+            // The switcher overlay closes on an Escape that reaches it.
+            const bubbled = jest.fn();
+            document.addEventListener('keydown', bubbled);
+            // Safari: commit keys follow compositionend with keyCode 229.
+            if (!('isComposing' in init)) {
+                input().dispatchEvent(
+                    new Event('compositionend', { bubbles: true })
+                );
+            }
+
+            press('ArrowDown', init);
+            press('Escape', init);
+            press('Enter', init);
+            document.removeEventListener('keydown', bubbled);
+            input().dispatchEvent(
+                new KeyboardEvent('keyup', { bubbles: true })
+            );
+
+            expect(input().getAttribute('aria-activedescendant')).toBe(
+                highlighted
+            );
+            expect(selectPlaylist).not.toHaveBeenCalled();
+            expect(closed).not.toHaveBeenCalled();
+            expect(bubbled).not.toHaveBeenCalled();
+        }
+    );
+
     it('scrolls a new search back to its first match at the top', () => {
         const list = (fixture.nativeElement as HTMLElement).querySelector(
             '.switcher__list'

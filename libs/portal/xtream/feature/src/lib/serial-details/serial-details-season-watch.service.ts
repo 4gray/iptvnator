@@ -49,10 +49,15 @@ export class SerialDetailsSeasonWatchService {
         // its contextless snackbar as feedback about the newly opened page.
         // The DB write itself is safe — it carries its own playlistId.
         stillCurrent: () => boolean,
-        scope: SerialDetailsWatchScope = 'season'
+        scope: SerialDetailsWatchScope = 'season',
+        seriesXtreamId?: number
     ): Promise<boolean> {
         const feedback = WATCH_TOGGLE_FEEDBACK[scope];
-        if (!playlistId || request.requests.length === 0 || this.batchRunning()) {
+        if (
+            !playlistId ||
+            request.requests.length === 0 ||
+            this.batchRunning()
+        ) {
             return false;
         }
 
@@ -77,12 +82,21 @@ export class SerialDetailsSeasonWatchService {
                     count: positions.length,
                 });
             } else {
+                const seasonNumber =
+                    scope === 'season' && 'seasonKey' in request
+                        ? Number(request.seasonKey)
+                        : undefined;
                 await this.playbackPositions.clearPlaybackPositionsBatch(
                     playlistId,
                     request.requests.map((item) => ({
                         contentXtreamId: item.contentXtreamId,
                         contentType: 'episode' as const,
-                    }))
+                    })),
+                    seriesXtreamId &&
+                        (scope === 'series' ||
+                            Number.isSafeInteger(seasonNumber))
+                        ? { seriesXtreamId, seasonNumber }
+                        : undefined
                 );
                 if (!stillCurrent()) {
                     return true;

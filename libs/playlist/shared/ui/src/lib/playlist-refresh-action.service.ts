@@ -109,10 +109,7 @@ export class PlaylistRefreshActionService {
         }
     }
 
-    /**
-     * The browser build refreshes through the backend, which reports its own
-     * success or failure; the source stays busy until it has answered.
-     */
+    /** Keep the source busy until the browser refresh reports its result. */
     private async refreshViaBackend(
         item: PlaylistMeta,
         url: string

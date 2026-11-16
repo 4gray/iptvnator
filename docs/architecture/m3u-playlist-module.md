@@ -281,6 +281,10 @@ User-Agent header itself, and this does not add custom browser playback-header
 support. Electron playback retains existing per-header precedence: channel
 headers override playlist defaults. File, text, and portal imports are unchanged.
 
+In the PWA, the source stays busy through the catalog write. A committed
+write publishes the updated channels and confirms the refresh. An aborted
+write reports a refresh error and keeps the previous catalog available.
+
 Regression coverage uses synthetic UA-gated HTTP endpoints in
 `playlist-auto-refresh.e2e.ts` (Electron) and `self-hosted.e2e.ts` (PWA), plus
 form, renderer, download, proxy, and refresh-action unit tests.
@@ -378,6 +382,13 @@ rollback before it escapes to the benchmark lifecycle.
 Diagnostic artifacts require separate renderer, main, and database-worker CPU
 profiles plus renderer/main/database-worker heap snapshots and a Chromium
 trace; raw profiles remain ignored.
+
+## Playlist refresh (PWA)
+
+The explicit refresh loads `pwa-playlist-refresh.ts` on demand. It publishes
+the saved catalog and reports success after persistence resolves. Standalone
+storage waits for the IndexedDB transaction to commit. A write failure
+reports an error and leaves the saved catalog in place.
 
 ## Playlist Refresh And Startup Auto-Update (Electron)
 
@@ -1778,6 +1789,8 @@ Episodes receive VOD controls even when movie metadata recognition excludes
 their names. A group label or episode name alone is not playback evidence.
 Radio and DASH retain their existing paths; ordinary HLS/TS and unknown URLs
 without a VOD path retain live mode. No network probing is performed.
+M3U entries opened from the unified collection use the same classifier when
+setting playback mode.
 
 `VideoPlayerComponent.embeddedPlayback()` is the mode owner for both the
 ordinary M3U player and the movie detail host: a catch-up URL or positive VOD
@@ -2199,6 +2212,8 @@ deletes with follow-up cleanup warnings. The UI does not resurrect a deleted
 row after a cleanup failure. Downloaded files are not removed. The dialog's
 confirmation covers deletion of the source and associated favorites, history
 and playback positions; no deletion happens on merely opening the dialog.
+The standalone Xtream PWA clears the source's playback positions and pending
+position restore receipt in the same local write, including while offline.
 
 ## Opening playlists from the operating system
 

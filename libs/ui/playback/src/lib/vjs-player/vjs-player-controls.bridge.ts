@@ -1,5 +1,6 @@
 import type { WebVideoControlsOptions } from '../player-controls/web-video-controls.adapter';
 import type { WebVideoControlsAdapter } from '../player-controls/web-video-controls.adapter';
+import { isNativeVideoFullscreen } from '../web-video-support/webkit-video-fullscreen';
 import { VjsAudioTracks } from './vjs-audio-tracks';
 import type { VideoJsPlayer } from './vjs-player.types';
 import { VjsQualityLevels } from './vjs-quality-levels';
@@ -42,6 +43,7 @@ export class VjsPlayerControlsBridge {
         this.textTracks = new VjsTextTracks({
             player: config.player,
             showCaptions: config.showCaptions,
+            nativeFullscreen: () => isNativeVideoFullscreen(this.video),
             refresh,
         });
         this.qualityLevels = new VjsQualityLevels({

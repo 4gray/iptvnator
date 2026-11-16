@@ -31,6 +31,7 @@ import {
     SeasonContainerSeriesPlaybackToggleRequest,
     SimilarRailComponent,
     VodMoreMenuComponent,
+    favoriteIcon,
     readSavedEpisodeViewMode,
     scrollToCastCrewRow,
 } from '@iptvnator/ui/components';
@@ -113,6 +114,8 @@ import { SerialDetailsDownloadAdapterService } from './serial-details-download-a
     ],
 })
 export class SerialDetailsComponent implements OnDestroy {
+    /** Filled heart when favourited, outline when not (UI-46). */
+    protected readonly favoriteIcon = favoriteIcon;
     private readonly route = inject(ActivatedRoute);
     private readonly navigation = injectXtreamDetailNavigation('tv');
 
