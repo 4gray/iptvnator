@@ -908,6 +908,14 @@ describe('activity sync clients', () => {
         expect([...h.states.values()][0].resume?.positionSeconds).toBe(30);
         await a.value.resolve(entry.address, true);
         expect([...h.states.values()][0].resume?.positionSeconds).toBe(65);
+        await a.value.save('source', {
+            ...movie('a', 25),
+            nativeCheckpointAt: new Date(
+                Date.parse(entry.record.position!.activityPlayedAt!) - 1000
+            ).toISOString(),
+        });
+        await a.value.flush();
+        expect([...h.states.values()][0].resume?.positionSeconds).toBe(65);
         await a.value.save('source', movie('a', 70));
         await a.value.flush();
         expect([...h.states.values()][0].resume?.positionSeconds).toBe(70);
