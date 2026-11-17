@@ -105,9 +105,26 @@ export function useUpNext(
         advancedFrom.current = playing?.id;
         const controller = new AbortController();
         automatic.current = controller;
-        void sequence.playNext(controller.signal).finally(() => {
-            if (automatic.current === controller) automatic.current = undefined;
+        let claimed = true;
+        const releaseClaim = () => {
+            if (!claimed) return;
+            claimed = false;
+            tvAutoplayStreak.cancelAutoplay();
+        };
+        controller.signal.addEventListener('abort', releaseClaim, {
+            once: true,
         });
+        void sequence
+            .playNext(controller.signal)
+            .then((started) => {
+                if (!started) releaseClaim();
+                else claimed = false;
+            }, releaseClaim)
+            .finally(() => {
+                controller.signal.removeEventListener('abort', releaseClaim);
+                if (automatic.current === controller)
+                    automatic.current = undefined;
+            });
     };
 
     // The next episode can finish loading after this one ended (resuming

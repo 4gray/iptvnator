@@ -36,6 +36,18 @@ describe('AutoplayStreak', () => {
         expect(streak.canContinue()).toBe(true);
     });
 
+    it('releases a cancelled or failed start without losing completed episodes', () => {
+        const streak = new AutoplayStreak();
+        streak.beginAutoplay();
+        streak.playbackStarted();
+        streak.beginAutoplay();
+        streak.cancelAutoplay();
+        streak.cancelAutoplay();
+        expect(streak.length).toBe(1);
+        streak.playbackStarted();
+        expect(streak.length).toBe(0);
+    });
+
     it('reads the limit each time, so a setting change applies at once', () => {
         let limit: number | null = 1;
         const streak = new AutoplayStreak(() => limit);

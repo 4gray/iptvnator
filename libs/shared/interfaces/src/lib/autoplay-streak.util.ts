@@ -38,6 +38,13 @@ export class AutoplayStreak {
         return true;
     }
 
+    /** Releases an autoplay that failed or was cancelled before playback. */
+    cancelAutoplay(): void {
+        if (!this.pending) return;
+        this.pending = false;
+        this.count -= 1;
+    }
+
     /** A new episode started playing, by autoplay or by the viewer. */
     playbackStarted(): void {
         if (this.pending) {

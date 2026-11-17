@@ -215,7 +215,7 @@ export function useVodSequence(tv: TvModel) {
             signal?.addEventListener('abort', cancel, { once: true });
             try {
                 // Preserve the original page/episode focus through explicit Next actions.
-                await latest.current.play(
+                return await latest.current.play(
                     next,
                     '',
                     latest.current.playbackOrigin,
