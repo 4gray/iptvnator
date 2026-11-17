@@ -64,6 +64,9 @@ export class StalkerVodPlaybackController {
                     position
                 ),
             onSaved: (position) => config.selectedVodPosition.set(position),
+            // A held position flushed after the page moved on must not
+            // become the next movie's resume point.
+            ownerKey: () => config.playbackOwnerKey?.() ?? null,
         });
     }
 

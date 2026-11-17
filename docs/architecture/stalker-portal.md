@@ -527,7 +527,8 @@ Every inline Stalker player saves through the shared
 catalog detail, `StalkerVodPlaybackController` (search, Favorites, Recent and
 dashboard collections) and the series view. Its one-shot resume latch skips
 the ~0 s updates an engine reports before reaching `startTime`, which would
-otherwise overwrite the position being resumed from.
+otherwise overwrite the position being resumed from. Closing the player or
+starting another title persists the position the writer's throttle still held.
 
 `StalkerCatalogFacadeService` derives the visible list from retained raw pages;
 provider totals, deduplication and exhaustion remain store-owned. Counts say how

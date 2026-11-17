@@ -1472,8 +1472,19 @@ player dialog.
 The new contract is:
 
 - inline detail hosts listen to `timeUpdate`
-- each host throttles saves
-- each host persists via existing playback-position infrastructure
+- every inline host (Xtream VOD and series, the Stalker catalog detail,
+  `StalkerVodPlaybackController` and series view, second-stream slots) saves
+  through the shared `createInlinePlaybackPositionWriter`
+  (`@iptvnator/portal/shared/util`), which persists via existing
+  playback-position infrastructure
+- the writer throttles timeupdate writes to one per 15 s but never drops the
+  newest position: it writes at once on a `playing: false` report (pause,
+  seek), on `reset()` (the player closes or a new playback supersedes it) and
+  on `pagehide`. A held position is written under its own media key; its
+  `onSaved` local resume state is skipped once the host's `ownerKey` shows
+  another item. Nothing is written before the resume latch reaches
+  `startTime`. On app quit the `pagehide` write is best effort: nothing in
+  the main process waits for it
 
 This avoids coupling inline UI state to a global dialog.
 
