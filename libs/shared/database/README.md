@@ -31,7 +31,8 @@ import { content, categories, playlists, type Content } from '@iptvnator/shared/
   `src/lib/connection-retry.spec.ts` covers a failed open and a half-open
   handle on real SQLite. The Electron main process retries a failed startup
   open a few times, then shows an error dialog; it runs its download and
-  recording recovery passes only after a startup attempt succeeds
+  recording recovery passes only after a startup attempt succeeds, and they
+  skip work this process already owns
   (`apps/electron-backend/src/app/startup/database-startup.ts`).
 - `closeDatabase()` - Close connection
 - `getDatabasePath()` - Get database file path

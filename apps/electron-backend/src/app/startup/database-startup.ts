@@ -1,14 +1,14 @@
 /**
- * Opens the database at startup and runs the recovery passes that must
- * precede any download or recording of this process.
+ * Opens the database at startup and runs the recovery passes for downloads
+ * and recordings a previous session left behind.
  *
  * `initDatabase()` forgets a failed attempt, so a transient failure (the
  * file briefly locked by a closing older version, antivirus, a full disk)
  * is retried here a few times before the user is told. The recovery passes
- * run after whichever attempt succeeds. If every attempt fails they are left
- * to the next launch: IPC handlers keep retrying `getDatabase()` lazily, and
- * once one of them succeeds the user can start downloads and recordings,
- * which a late pass would mistake for leftovers of a crashed session.
+ * run after whichever attempt succeeds. IPC handlers can open the database
+ * lazily during a retry delay and start work first, so both passes skip
+ * the downloads and recordings this process owns. If every attempt fails
+ * the passes are left to the next launch.
  */
 export const DATABASE_STARTUP_RETRY_DELAYS_MS: readonly number[] = [
     1_000, 3_000, 10_000,
