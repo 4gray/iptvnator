@@ -376,3 +376,38 @@ test('browser and LG bridges retain root Back behavior without requiring Tizen A
     platformBack();
     assert.deepEqual([lgBacks, palmBacks], [1, 1]);
 });
+
+test('Space toggles fullscreen playback and never presses the focused control', (t) => {
+    const dom = browser(t);
+    let fullscreen = true;
+    const actions: TvMediaAction[] = [];
+    const remove = installRemote(
+        () => undefined,
+        () => fullscreen,
+        (action) => actions.push(action)
+    );
+    const space = (target: Element, type = 'keydown', repeat = false) => {
+        const event = new dom.window.KeyboardEvent(type, {
+            key: ' ',
+            keyCode: 32,
+            repeat,
+            bubbles: true,
+            cancelable: true,
+        });
+        target.dispatchEvent(event);
+        return event;
+    };
+    const button = dom.window.document.querySelector('button')!;
+    const input = dom.window.document.querySelector('input')!;
+    assert.equal(space(button).defaultPrevented, true);
+    assert.equal(space(button, 'keyup').defaultPrevented, true);
+    assert.deepEqual(actions, ['toggle']);
+    space(button, 'keydown', true);
+    assert.deepEqual(actions, ['toggle'], 'auto-repeat does not flip it back');
+    assert.equal(space(input).defaultPrevented, false, 'typing keeps Space');
+    fullscreen = false;
+    assert.equal(space(button).defaultPrevented, false, 'outside the player');
+    assert.equal(space(button, 'keyup').defaultPrevented, false);
+    assert.deepEqual(actions, ['toggle']);
+    remove();
+});

@@ -45,10 +45,29 @@ export function NativePlayerView({
         Number.isFinite(seconds)
             ? `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`
             : 'LIVE';
+    // Same action as the Play/Pause button: an ended title starts over.
+    const togglePlayback = () =>
+        element?.ended && current && current.kind !== 'live'
+            ? tv.startOver(current)
+            : tv.player.current?.toggle();
+    // A click on the picture (not on a control or panel) pauses and resumes,
+    // like the desktop and web player.
+    const clickPicture = (event: MouseEvent) => {
+        if (
+            !tv.fullscreen ||
+            overlay.panel ||
+            (event.target as Element).closest(
+                'button, a, input, select, textarea, label, [data-focus], [role="dialog"]'
+            )
+        )
+            return;
+        togglePlayback();
+    };
     return (
         <div
             class={`native-player ${tv.fullscreen ? 'fullscreen' : 'preview'}`}
             hidden={!current}
+            onClick={clickPicture}
         >
             <video ref={video} playsInline preload="metadata" />
             {tv.fullscreen ? (
@@ -140,13 +159,7 @@ export function NativePlayerView({
                             <button
                                 data-focus="player-toggle"
                                 class="primary"
-                                onClick={() =>
-                                    element?.ended &&
-                                    current &&
-                                    current.kind !== 'live'
-                                        ? tv.startOver(current)
-                                        : tv.player.current?.toggle()
-                                }
+                                onClick={togglePlayback}
                             >
                                 {element?.ended && current?.kind !== 'live'
                                     ? 'Watch again ▶'

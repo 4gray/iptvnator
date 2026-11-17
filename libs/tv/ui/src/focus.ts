@@ -94,6 +94,13 @@ export function installRemote(
             playerKey(action);
             return;
         }
+        // A keyboard (browser or hosted use) pauses and resumes with Space,
+        // like the desktop and web player, unless a text field takes it.
+        if (spaceTogglesPlayback(event, fullscreen())) {
+            event.preventDefault();
+            if (!event.repeat) playerKey('toggle');
+            return;
+        }
         if (!direction.startsWith('Arrow')) return;
         const from = document.activeElement as HTMLElement;
         const horizontal = /Left|Right/.test(direction);
@@ -158,6 +165,28 @@ export function installRemote(
         target?.focus();
         target?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     };
+    // A focused button activates on Space keyup; while Space toggles
+    // playback, that keyup must not also press the focused control.
+    const keyup = (event: KeyboardEvent) => {
+        if (spaceTogglesPlayback(event, fullscreen())) event.preventDefault();
+    };
     document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
+    document.addEventListener('keyup', keyup);
+    return () => {
+        document.removeEventListener('keydown', handler);
+        document.removeEventListener('keyup', keyup);
+    };
+}
+
+/** Space toggles playback in the fullscreen player, never inside text entry. */
+function spaceTogglesPlayback(event: KeyboardEvent, fullscreen: boolean) {
+    return (
+        fullscreen &&
+        event.key === ' ' &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.metaKey &&
+        !editingText(event.target as Element | null) &&
+        !editingTextarea(event.target as Element | null)
+    );
 }
