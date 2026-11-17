@@ -392,6 +392,7 @@
         "SEARCH_EMPTY_HINT": "Aucun paramètre ne correspond. Essayez un autre mot, par exemple lecteur, thème ou EPG.",
         "GENERAL": "Général",
         "GENERAL_SUBTITLE": "Langue, démarrage et préférences des chaînes.",
+        "OPEN_ANDROID_APP_SETTINGS": "Ouvrir les réglages de l’application Android",
         "PLAYBACK": "Lecture",
         "SAVE_EPG_SOURCES": "Enregistrer les sources EPG",
         "EPG_SOURCES": "Sources EPG",
@@ -823,7 +824,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Pays de classification par âge",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Choisissez le pays de classification. Sans donnée locale, les données américaines ou du fournisseur peuvent être utilisées.",
-        "AGE_RATING_COUNTRY_AUTO": "Automatique — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automatique — {{country}}",
+        "CARD_HELP": "Aide",
+        "KEYBOARD_SHORTCUTS": "Raccourcis clavier",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Raccourcis pour la navigation, la lecture et les boîtes de dialogue. Appuyez sur ? hors d’un champ de texte pour les afficher.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Afficher les raccourcis"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Impossible d’enregistrer sur le serveur. Vérifiez la connexion et réessayez.",
@@ -979,6 +984,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Essayer le lecteur intégré",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Revenir au lecteur web",
         "HLS_WAIT": "En attente des données du flux. Vous pouvez patienter ou réessayer.",
         "STAGE_LOADER": "Chargement du flux",
         "STAGE_DEMUX": "Analyse du conteneur",
@@ -2177,7 +2184,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "Suppression des catégories en cache...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "Les favoris, l’historique de lecture, les catégories masquées et la progression sont préparés pour être restaurés après la synchronisation.",
             "XTREAM_REFRESH_PROGRESS": "Enregistrements locaux traités : {{current}} / {{total}}",
-            "RAIL_RADIO": "Radios en direct"
+            "RAIL_RADIO": "Radios en direct",
+            "MORE_ACTIONS": "Plus d’actions"
         },
         "SOURCES": {
             "TITLE": "Sources",
@@ -2248,8 +2256,6 @@
         "SHORTCUTS": {
             "TITLE": "Raccourcis clavier",
             "SUBTITLE": "Raccourcis disponibles dans IPTVnator pour l’espace de travail, la navigation, la lecture et les boîtes de dialogue.",
-            "OPEN_TOOLTIP": "Raccourcis clavier (?)",
-            "OPEN_ARIA": "Ouvrir les raccourcis clavier",
             "PLATFORM": {
                 "MAC": "Disposition macOS",
                 "OTHER": "Disposition Windows/Linux"

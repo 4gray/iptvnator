@@ -137,7 +137,8 @@
                         class="rating"
                         [matTooltip]="ratingLabelKey(i) | translate"
                     >
-                        <mat-icon>star</mat-icon>{{ rating }}
+                        <mat-icon>{{ appIcons.rating }}</mat-icon
+                        >{{ rating }}
                     </div>
                 }
                 @if (!postersOnly()) {

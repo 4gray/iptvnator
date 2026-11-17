@@ -1237,7 +1237,17 @@ local SQL row IDs and content snapshots are not identity inputs.
 `begin` and explicit manual actions require the current revision. A successful
 begin advances the ownership generation. Checkpoints require that generation,
 the owning device/session and an increasing sequence; a deliberate rewind is
-valid. Checkpoints, local conflict choices and explicit imports share whole-second
+valid. Android checkpoint recovery compares capture times against both saved
+positions and in-flight writes. Copying shared progress to local storage when
+sync is disabled preserves capture ordering. A begin acknowledgement establishes
+ownership without recording a playback capture. If a write is displaced before it commits,
+Android keeps its checkpoint for retry. The recovery payload omits the title.
+The client carries the title forward from the persisted activity record.
+If an older server omits the capture time from a checkpoint acknowledgement,
+the client keeps the time from its queued checkpoint through same-revision refreshes.
+Choosing Keep local for an Activity Sync conflict also carries the selected
+position's capture time into the replacement checkpoint.
+Checkpoints, local conflict choices and explicit imports share whole-second
 normalization of player snapshots; unknown or sub-second durations stay omitted.
 Completion retains the portal's rounded 90% threshold when duration is
 known. Manual watched state does not manufacture a duration. A checkpoint does
@@ -1253,8 +1263,10 @@ The server SQLite store receives a synchronous authorization callback that must
 verify instance and current source incarnation in the mutation transaction.
 State and the immutable operation receipt commit together. Reusing an operation
 ID for another address/body is rejected; an exact retry returns its original
-result without applying the mutation again. Conflict receipts also remain
-immutable: a user-approved retry on a new base needs a new operation ID. Reset
+result without applying the mutation again. Retries of receipts created before
+the server recorded capture times match the original command fields and return
+the original result. Conflict receipts also remain immutable: a user-approved
+retry on a new base needs a new operation ID. Reset
 rows and receipts have no automatic TTL. The HTTP boundary additionally checks
 authentication, source existence and bounded request shapes; the store does not
 replace that access-control boundary.

@@ -322,7 +322,9 @@ describe('EpgService', () => {
             firstValueFrom(service.getCurrentProgramForChannel('channel-1'))
         ).resolves.toMatchObject({ title: 'Morning News' });
 
-        expect(epgBridge.getChannelPrograms).toHaveBeenCalledWith('channel-1');
+        expect(epgBridge.getChannelPrograms).toHaveBeenCalledWith('channel-1', {
+            nowMs: expect.any(Number),
+        });
         jest.useRealTimers();
     });
 
@@ -520,12 +522,18 @@ describe('EpgService', () => {
             expect(epgBridge.getChannelPrograms).toHaveBeenNthCalledWith(
                 1,
                 'guide-news',
-                { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+                {
+                    sourceUrls: ['https://playlist.example.com/guide.xml'],
+                    nowMs: expect.any(Number),
+                }
             );
             expect(epgBridge.getChannelPrograms).toHaveBeenNthCalledWith(
                 2,
                 'guide-news',
-                { sourceUrls: ['https://global.example.com/guide.xml'] }
+                {
+                    sourceUrls: ['https://global.example.com/guide.xml'],
+                    nowMs: expect.any(Number),
+                }
             );
         } finally {
             jest.useRealTimers();

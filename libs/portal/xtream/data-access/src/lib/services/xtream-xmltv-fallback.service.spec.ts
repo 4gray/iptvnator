@@ -106,7 +106,7 @@ describe('XtreamXmltvFallbackService', () => {
             await expect(service.resolveCurrentEpg(args)).rejects.toBe(error);
             expect(bridge.getChannelPrograms).toHaveBeenCalledWith(
                 'synthetic.channel',
-                { rejectOnError: true }
+                { rejectOnError: true, nowMs: expect.any(Number) }
             );
             const items = [{ title: 'Synthetic Programme' }];
             fetchProvider.mockResolvedValue(items);
@@ -115,6 +115,27 @@ describe('XtreamXmltvFallbackService', () => {
             );
         }
     );
+
+    it('queries the XMLTV schedule in the provider clock with a display offset', async () => {
+        const now = Date.parse('2026-05-07T20:00:00Z');
+        const clock = jest.spyOn(Date, 'now').mockReturnValue(now);
+        try {
+            epgOffsetMinutes = 720;
+            bridge.getChannelPrograms.mockResolvedValue([]);
+            await makeService().getProgramsForChannel('synthetic.channel', 7);
+
+            expect(bridge.getChannelPrograms).toHaveBeenCalledWith(
+                'synthetic.channel',
+                {
+                    rejectOnError: true,
+                    nowMs: now - 720 * 60_000,
+                    archiveDays: 7,
+                }
+            );
+        } finally {
+            clock.mockRestore();
+        }
+    });
 
     it('returns [] when window.electron bridge is unavailable', async () => {
         delete (window as { electron?: unknown }).electron;

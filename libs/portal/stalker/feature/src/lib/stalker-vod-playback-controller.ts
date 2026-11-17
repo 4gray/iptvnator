@@ -12,6 +12,7 @@ import {
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
 import {
     PlaybackPositionData,
+    PlaybackPositionUpdate,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import type { PendingExternalLaunch } from './stalker-vod-detail-actions';
@@ -63,6 +64,9 @@ export class StalkerVodPlaybackController {
                     position
                 ),
             onSaved: (position) => config.selectedVodPosition.set(position),
+            // A held position flushed after the page moved on must not
+            // become the next movie's resume point.
+            ownerKey: () => config.playbackOwnerKey?.() ?? null,
         });
     }
 
@@ -167,10 +171,7 @@ export class StalkerVodPlaybackController {
         this.positionLoaded.set(true);
     }
 
-    handleInlineTimeUpdate(event: {
-        currentTime: number;
-        duration: number;
-    }): void {
+    handleInlineTimeUpdate(event: PlaybackPositionUpdate): void {
         this.positionWriter.handleTimeUpdate(event);
     }
 

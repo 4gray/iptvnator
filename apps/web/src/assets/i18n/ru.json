@@ -392,6 +392,7 @@
         "SEARCH_EMPTY_HINT": "Ничего не найдено. Попробуйте другое слово, например «плеер», «тема» или «EPG».",
         "GENERAL": "Общие",
         "GENERAL_SUBTITLE": "Язык, запуск и настройки каналов.",
+        "OPEN_ANDROID_APP_SETTINGS": "Открыть настройки приложения Android",
         "PLAYBACK": "Воспроизведение",
         "SAVE_EPG_SOURCES": "Сохранить источники EPG",
         "EPG_SOURCES": "Источники EPG",
@@ -823,7 +824,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Страна возрастного рейтинга",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Выберите страну классификации. Если местного рейтинга нет, используются данные США или провайдера.",
-        "AGE_RATING_COUNTRY_AUTO": "Автоматически — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Автоматически — {{country}}",
+        "CARD_HELP": "Справка",
+        "KEYBOARD_SHORTCUTS": "Сочетания клавиш",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Сочетания клавиш для навигации, воспроизведения и диалогов. Нажмите ? вне текстового поля, чтобы открыть их.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Показать сочетания"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Не удалось сохранить на сервер. Проверьте подключение и попробуйте снова.",
@@ -979,6 +984,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Попробовать встроенный плеер",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Вернуться в веб-плеер",
         "HLS_WAIT": "Данные потока не поступают. Можно подождать или повторить подключение.",
         "STAGE_LOADER": "Загрузка потока",
         "STAGE_DEMUX": "Разбор контейнера",
@@ -2177,7 +2184,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "Удаляем кэшированные категории...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "Избранное, история просмотра, скрытые категории и прогресс воспроизведения будут подготовлены для восстановления после синхронизации.",
             "XTREAM_REFRESH_PROGRESS": "Обработано локальных записей: {{current}} / {{total}}",
-            "RAIL_RADIO": "Радио"
+            "RAIL_RADIO": "Радио",
+            "MORE_ACTIONS": "Ещё действия"
         },
         "SOURCES": {
             "TITLE": "Источники",
@@ -2248,8 +2256,6 @@
         "SHORTCUTS": {
             "TITLE": "Сочетания клавиш",
             "SUBTITLE": "Сочетания клавиш IPTVnator для рабочей области, навигации, воспроизведения и диалогов.",
-            "OPEN_TOOLTIP": "Сочетания клавиш (?)",
-            "OPEN_ARIA": "Открыть сочетания клавиш",
             "PLATFORM": {
                 "MAC": "Раскладка macOS",
                 "OTHER": "Раскладка Windows/Linux"

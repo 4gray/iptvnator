@@ -190,7 +190,7 @@ test('@epg @xtream @electron renders catch-up start times in the panel timezone 
         await row.locator('.favorite-button').first().click();
         await expect(
             row.locator('.favorite-button mat-icon').first()
-        ).toHaveText(/star/);
+        ).toHaveText('favorite');
         await openPlaylistFavorites(app.mainWindow);
         const favoriteRow = channelItemByTitle(app.mainWindow, CHANNEL).first();
         await expect(favoriteRow).toBeVisible({ timeout: 20000 });

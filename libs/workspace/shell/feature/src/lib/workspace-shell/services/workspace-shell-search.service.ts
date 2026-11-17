@@ -23,6 +23,7 @@ import {
     resolveSearchScopeLabel,
 } from './helpers/workspace-shell-search-labels';
 import { isWorkspaceGlobalSearchablePlaylist } from './helpers/workspace-shell-searchable-playlists';
+import { resolveDashboardSearchCapability } from './helpers/workspace-shell-dashboard-search';
 import { clearCategoryScope } from '../../workspace-context-panel/workspace-context-panel-route.utils';
 import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.service';
 import { WorkspaceShellSearchSyncService } from './workspace-shell-search-sync.service';
@@ -39,6 +40,13 @@ export class WorkspaceShellSearchService {
     private readonly settingsSearch = inject(SettingsSearchService);
 
     private readonly languageTick = injectTranslationTick();
+
+    /** The global search route's guard and a source it can query. */
+    private readonly canLaunchGlobalSearch = computed(
+        () =>
+            this.runtime.isElectron &&
+            this.routeState.playlists().some(isWorkspaceGlobalSearchablePlaylist)
+    );
 
     readonly searchQuery = this.searchSync.searchQuery;
     readonly appliedSearchQuery = this.searchSync.appliedSearchQuery;
@@ -68,37 +76,19 @@ export class WorkspaceShellSearchService {
         }
 
         if (route.kind === 'dashboard') {
-            const dashboardContext = this.routeState.dashboardXtreamContext();
-
-            return {
-                enabled: Boolean(dashboardContext),
-                behavior: dashboardContext ? 'advanced-only' : 'disabled',
-                context: dashboardContext,
-                section: section,
-                searchMode: dashboardContext ? 'advanced-only' : 'none',
-                placeholderKey: SEARCH_PLAYLIST_PLACEHOLDER,
-                scopeLabel: dashboardContext
+            const xtreamContext = this.routeState.dashboardXtreamContext();
+            return resolveDashboardSearchCapability({
+                xtreamContext,
+                section,
+                canLaunchGlobalSearch: this.canLaunchGlobalSearch(),
+                xtreamScopeLabel: xtreamContext
                     ? this.translateText('WORKSPACE.SHELL.RAIL_SEARCH')
                     : '',
-                statusLabel: '',
-                minLength: dashboardContext ? 1 : 0,
-                advancedRouteTarget: dashboardContext
-                    ? [
-                          '/workspace',
-                          'xtreams',
-                          dashboardContext.playlistId,
-                          'search',
-                      ]
-                    : null,
-            };
+            });
         }
 
         if (route.kind === 'global-search') {
-            const hasSearchablePlaylists =
-                this.runtime.isElectron &&
-                this.routeState
-                    .playlists()
-                    .some(isWorkspaceGlobalSearchablePlaylist);
+            const hasSearchablePlaylists = this.canLaunchGlobalSearch();
 
             return {
                 enabled: hasSearchablePlaylists,
@@ -276,6 +266,16 @@ export class WorkspaceShellSearchService {
                 this.settingsSearch.reveal(bestMatch.entry);
             } else {
                 this.searchSync.applySearchQuery(trimmedValue);
+            }
+            return;
+        }
+
+        if (this.searchCapability().behavior === 'global-launcher') {
+            const target = this.searchCapability().advancedRouteTarget;
+            if (target && trimmedValue) {
+                void this.router.navigate(target, {
+                    queryParams: { q: trimmedValue },
+                });
             }
             return;
         }

@@ -392,6 +392,7 @@
         "SEARCH_EMPTY_HINT": "Ningún ajuste coincide. Prueba con otra palabra, como reproductor, tema o EPG.",
         "GENERAL": "General",
         "GENERAL_SUBTITLE": "Idioma, inicio y preferencias de canales.",
+        "OPEN_ANDROID_APP_SETTINGS": "Abrir ajustes de la aplicación Android",
         "PLAYBACK": "Reproducción",
         "SAVE_EPG_SOURCES": "Guardar fuentes de EPG",
         "EPG_SOURCES": "Fuentes EPG",
@@ -823,7 +824,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "País de clasificación por edad",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Elige el país de clasificación. Si faltan datos locales, se pueden usar los de EE. UU. o del proveedor.",
-        "AGE_RATING_COUNTRY_AUTO": "Automático — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automático — {{country}}",
+        "CARD_HELP": "Ayuda",
+        "KEYBOARD_SHORTCUTS": "Atajos de teclado",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Atajos para navegación, reproducción y diálogos. Pulsa ? fuera de un campo de texto para abrirlos.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Mostrar atajos"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "No se pudo guardar en el servidor. Compruebe la conexión e inténtelo de nuevo.",
@@ -979,6 +984,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Probar el reproductor integrado",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Volver al reproductor web",
         "HLS_WAIT": "Seguimos esperando datos de la transmisión. Puedes esperar o reintentar.",
         "STAGE_LOADER": "Carga del flujo",
         "STAGE_DEMUX": "Análisis del contenedor",
@@ -2177,7 +2184,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "Eliminando categorías en caché...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "Guardamos favoritos, historial de reproducción, categorías ocultas y progreso para restaurarlos después de la sincronización.",
             "XTREAM_REFRESH_PROGRESS": "Registros locales procesados: {{current}} / {{total}}",
-            "RAIL_RADIO": "Radio en directo"
+            "RAIL_RADIO": "Radio en directo",
+            "MORE_ACTIONS": "Más acciones"
         },
         "SOURCES": {
             "TITLE": "Fuentes",
@@ -2248,8 +2256,6 @@
         "SHORTCUTS": {
             "TITLE": "Atajos de teclado",
             "SUBTITLE": "Atajos disponibles en IPTVnator para el espacio de trabajo, navegación, reproducción y diálogos.",
-            "OPEN_TOOLTIP": "Atajos de teclado (?)",
-            "OPEN_ARIA": "Abrir atajos de teclado",
             "PLATFORM": {
                 "MAC": "Distribución de macOS",
                 "OTHER": "Distribución Windows/Linux"

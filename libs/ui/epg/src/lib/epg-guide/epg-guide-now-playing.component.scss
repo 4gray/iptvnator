@@ -1,4 +1,5 @@
 @use '../epg-theme' as *;
+@use '../../../../styles/app-controls' as controls;
 
 :host {
     display: block;
@@ -100,6 +101,16 @@
     align-items: flex-end;
     gap: 6px;
 }
+
+// Kit roles: Close guide is the strip's ordinary action (small secondary),
+// Collapse/Expand a ghost text action beside it.
+.now-playing__close {
+    @include controls.secondary-button(sm);
+}
+
+.now-playing__collapse {
+    @include controls.ghost-button(sm);
+}
 .now-playing--collapsed {
     gap: 12px;
 
@@ -136,7 +147,7 @@
     }
 }
 kbd {
-    font: 10px $font-mono;
+    font: 500 10px $font-mono;
     border: 1px solid $line-strong;
     border-radius: 4px;
     padding: 0 4px;

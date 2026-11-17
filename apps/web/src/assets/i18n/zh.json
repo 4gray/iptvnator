@@ -392,6 +392,7 @@
         "SEARCH_EMPTY_HINT": "没有匹配的设置。试试其他词，例如“播放器”“主题”或“EPG”。",
         "GENERAL": "通用",
         "GENERAL_SUBTITLE": "语言、启动和频道偏好设置。",
+        "OPEN_ANDROID_APP_SETTINGS": "打开 Android 应用设置",
         "PLAYBACK": "播放",
         "SAVE_EPG_SOURCES": "保存节目指南来源",
         "EPG_SOURCES": "EPG 源",
@@ -823,7 +824,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "年龄分级国家",
         "AGE_RATING_COUNTRY_DESCRIPTION": "选择年龄分级使用的国家。缺少本地分级时，可能使用美国或提供商的数据。",
-        "AGE_RATING_COUNTRY_AUTO": "自动 — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "自动 — {{country}}",
+        "CARD_HELP": "帮助",
+        "KEYBOARD_SHORTCUTS": "键盘快捷键",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "导航、播放和对话框的快捷键。在文本框外按 ? 即可打开。",
+        "KEYBOARD_SHORTCUTS_OPEN": "显示快捷键"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "无法保存到服务器。请检查连接后重试。",
@@ -979,6 +984,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "试用内置播放器",
+        "ACTION_RETURN_TO_WEB_PLAYER": "返回网页播放器",
         "HLS_WAIT": "仍在等待流数据。您可以继续等待或重试。",
         "STAGE_LOADER": "加载流",
         "STAGE_DEMUX": "解析容器",
@@ -2177,7 +2184,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "正在移除缓存的分类...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "收藏、观看历史、隐藏分类和播放进度会保留，以便同步后恢复。",
             "XTREAM_REFRESH_PROGRESS": "已处理本地记录：{{current}} / {{total}}",
-            "RAIL_RADIO": "电台"
+            "RAIL_RADIO": "电台",
+            "MORE_ACTIONS": "更多操作"
         },
         "SOURCES": {
             "TITLE": "源",
@@ -2248,8 +2256,6 @@
         "SHORTCUTS": {
             "TITLE": "键盘快捷键",
             "SUBTITLE": "IPTVnator 中可用的工作区、导航、播放和对话框快捷键。",
-            "OPEN_TOOLTIP": "键盘快捷键 (?)",
-            "OPEN_ARIA": "打开键盘快捷键",
             "PLATFORM": {
                 "MAC": "macOS 布局",
                 "OTHER": "Windows/Linux 布局"

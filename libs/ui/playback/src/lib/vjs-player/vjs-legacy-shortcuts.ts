@@ -78,11 +78,12 @@ export function attachVjsLegacyShortcuts(
             if (!player) {
                 return;
             }
-            if (player.muted()) {
-                player.volume(muteMemory.unmuteVolume(player.volume() ?? 0));
+            const volume = player.volume() ?? 0;
+            if (player.muted() || volume === 0) {
+                player.volume(muteMemory.unmuteVolume(volume));
                 player.muted(false);
             } else {
-                muteMemory.rememberIfAudible(player.volume() ?? 0);
+                muteMemory.rememberIfAudible(volume);
                 player.muted(true);
             }
         },

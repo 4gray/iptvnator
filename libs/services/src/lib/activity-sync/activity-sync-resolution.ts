@@ -147,7 +147,10 @@ export async function resolveActivity(
                     sessionId,
                     sequence: 1,
                     resume: activityResume(position),
-                    positionMetadata: metadata(position),
+                    positionMetadata: {
+                        ...metadata(position),
+                        playedAt: position.activityPlayedAt,
+                    },
                 });
                 if (
                     localWatched &&

@@ -18,6 +18,7 @@ import { EpgProgrammeDialogService, getProgramTimeMs } from '@iptvnator/ui/epg';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
+import { favoriteIcon } from '../../app-icons/app-icons';
 
 @Component({
     selector: 'app-channel-list-item',
@@ -57,6 +58,9 @@ export class ChannelListItemComponent {
     readonly showProgramInfoButton = input(true);
     readonly showDetailsContextMenu = input(false);
     readonly isFavorite = input(false);
+    readonly favoriteToggleIcon = computed(() =>
+        favoriteIcon(this.isFavorite())
+    );
     readonly selected = input(false);
     readonly showEpg = input(true);
     readonly isRadio = input(false);

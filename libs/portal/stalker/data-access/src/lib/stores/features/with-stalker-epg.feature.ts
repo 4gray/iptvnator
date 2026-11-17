@@ -14,11 +14,13 @@ import {
     DataService,
     EpgSourceSettingsService,
     RuntimeCapabilitiesService,
+    SettingsStore,
 } from '@iptvnator/services';
 import {
     buildStalkerEpgMappingKey,
     EpgItem,
     EpgProgram,
+    epgProviderClockMs,
     StalkerPortalActions,
 } from '@iptvnator/shared/interfaces';
 import { normalizeStalkerEntityId } from '../../stalker-vod.utils';
@@ -113,7 +115,8 @@ export function withStalkerEpg() {
                 runtime = inject(RuntimeCapabilitiesService),
                 epgBridge = inject(EpgRuntimeBridgeService),
                 sources = inject(EpgSourceSettingsService),
-                preferences = inject(EpgPreferencesService)
+                preferences = inject(EpgPreferencesService),
+                settings = inject(SettingsStore)
             ) => {
                 const storeContext = store as typeof store &
                     StalkerEpgFeatureStoreContract;
@@ -390,6 +393,10 @@ export function withStalkerEpg() {
                             return;
                         }
 
+                        const nowMs = epgProviderClockMs(
+                            Date.now(),
+                            settings.resolvedEpgOffsetMinutes()
+                        );
                         let changed = false;
                         let ownershipChanged = false;
                         for (const [channelId, key] of keyById) {
@@ -414,7 +421,8 @@ export function withStalkerEpg() {
                             try {
                                 const programs =
                                     (await epgBridge.getChannelPrograms(
-                                        mappedEpgId
+                                        mappedEpgId,
+                                        { nowMs }
                                     )) ?? [];
                                 if (isStale()) {
                                     return;

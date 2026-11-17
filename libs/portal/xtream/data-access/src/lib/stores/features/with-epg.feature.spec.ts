@@ -47,7 +47,11 @@ interface TestStoreSetup {
     appEnvironment?: 'electron' | 'pwa';
     /** Portal transport present (default true, as in both runtimes). */
     providerEpg?: boolean;
-    selectedItem: { xtream_id: number; epg_channel_id?: string | null };
+    selectedItem: {
+        xtream_id: number;
+        epg_channel_id?: string | null;
+        tv_archive_duration?: number | string;
+    };
     preferUploaded?: boolean;
     epgOffsetMinutes?: number;
 }
@@ -231,7 +235,11 @@ describe('withEpg', () => {
 
     it('falls back to XMLTV when Xtream returns empty and epg_channel_id is set', async () => {
         const { store, xtreamApiService, fallbackService } = configureStore({
-            selectedItem: { xtream_id: 101, epg_channel_id: 'rtl.de' },
+            selectedItem: {
+                xtream_id: 101,
+                epg_channel_id: 'rtl.de',
+                tv_archive_duration: '7',
+            },
         });
         xtreamApiService.getFullEpg.mockResolvedValue([]);
         const now = Math.floor(Date.now() / 1000);
@@ -243,7 +251,8 @@ describe('withEpg', () => {
         const result = await store.loadEpg();
 
         expect(fallbackService.getProgramsForChannel).toHaveBeenCalledWith(
-            'rtl.de'
+            'rtl.de',
+            7
         );
         expect(result).toEqual(xmltvPrograms);
         expect(store.epgItems()).toEqual(xmltvPrograms);
@@ -337,7 +346,8 @@ describe('withEpg', () => {
         const result = await store.loadEpg();
 
         expect(fallbackService.getProgramsForChannel).toHaveBeenCalledWith(
-            'rtl.de'
+            'rtl.de',
+            0
         );
         expect(xtreamApiService.getFullEpg).not.toHaveBeenCalled();
         expect(result).toEqual(xmltvPrograms);
@@ -358,7 +368,8 @@ describe('withEpg', () => {
         const result = await store.loadEpg();
 
         expect(fallbackService.getProgramsForChannel).toHaveBeenCalledWith(
-            'rtl.de'
+            'rtl.de',
+            0
         );
         expect(xtreamApiService.getFullEpg).toHaveBeenCalled();
         expect(result).toEqual(apiPrograms);

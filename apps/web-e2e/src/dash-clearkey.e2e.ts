@@ -210,7 +210,7 @@ test('@web @m3u @dash ClearKey reopens from recent and favorites collections', a
     });
     await channel.locator('.favorite-button').click();
     await expect(channel.locator('.favorite-button mat-icon')).toHaveText(
-        'star'
+        'favorite'
     );
 
     for (const route of [
@@ -277,10 +277,7 @@ test('@web @m3u @dash manifest DRM and codecs survive a startup failure', async 
 }) => {
     await serveDashFixtures(page);
     let manifestRequests = 0;
-    const body = readFileSync(
-        join(FIXTURE_DIR, 'clear.mpd'),
-        'utf8'
-    ).replace(
+    const body = readFileSync(join(FIXTURE_DIR, 'clear.mpd'), 'utf8').replace(
         /<Representation /g,
         '<ContentProtection schemeIdUri="urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed"/>' +
             '<ContentProtection schemeIdUri="urn:uuid:9a04f079-9840-4286-ab92-e65be0885f95"/>' +

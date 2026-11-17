@@ -1682,6 +1682,19 @@ the string results of its bindings, `icon` / `*Icon` inputs, and TypeScript
 values named `icon`, `*Icon`, `*_ICON`, `*Icons` or `*_ICONS`. Name a member
 that feeds an icon that way, so the check can see its values.
 
+## Favourite And Rating Glyphs
+
+The heart means favourite and the star means rating, everywhere. Take both
+from `APP_ICONS` in `@iptvnator/ui/components/app-icons` (also exported from
+`@iptvnator/ui/components`): `favorite` / `favoriteOutline` for favourite
+toggles, rail and command entries, collection headers and empty states;
+`rating` / `ratingOutline` for TMDB and provider scores and the rating filter.
+A toggle shows the filled heart when on and the outline when off; use
+`favoriteIcon(isFavorite)` rather than repeating the ternary.
+`pnpm run ui:favorite-glyph:validate` (CI) rejects star and heart ligatures
+written anywhere else and checks that the registry keeps each meaning on its
+glyph family. It reads the same static names as the icon-name check above.
+
 ## Icon-Only Buttons
 
 A `<button>` whose only content is a `<mat-icon>` needs an accessible name:
@@ -1689,7 +1702,7 @@ the ligature text is hidden from assistive technology, and a `matTooltip`
 only adds a description that appears on hover or focus. Give it a translated
 `aria-label`, usually `[attr.aria-label]` bound to the same key as its
 tooltip, or `aria-labelledby`. A toggle keeps one label and reports its state
-with `aria-pressed` (the channel row's star is "Favorite", pressed or not),
+with `aria-pressed` (the channel row's heart is "Favorite", pressed or not),
 as the password visibility toggle does; its tooltip may still name the next
 action. `pnpm run a11y:icon-buttons:validate` (CI) checks `.html` and inline
 templates, looking through control flow, `ng-container` and spinners; content
@@ -1798,16 +1811,21 @@ whose list shows the toggle again, takes the toggle's slot.
 
 ## Typography
 
-The app stack is DM Sans with Roboto behind it (`$app-font-stack` in
-`apps/web/src/m3-theme.scss`). DM Sans covers Latin only, so Cyrillic and Greek
-UI text (ru, by, el) renders in Roboto. `apps/web/src/styles.scss` bundles both
-families in 400, 500, 600 and 700, and JetBrains Mono in 400 and 500 (its
-heavier faces would exceed the initial-bytes ratchet).
+The app stack is `'Inter Variable', Inter, system-ui, sans-serif`
+(`$app-font-stack` in `apps/web/src/m3-theme.scss`, read everywhere through
+`--app-font-family`). Inter Variable covers Latin, Cyrillic and Greek, so a
+channel name that mixes scripts renders in one face. `apps/web/src/styles.scss`
+bundles it from `@fontsource-variable/inter` (one weight axis, 100–900), and
+JetBrains Mono in 400 and 500 (its heavier faces would exceed the
+initial-bytes ratchet). Font files never count toward initial bytes: the
+browser fetches only the subsets the text on screen needs.
 
-- Use only those four weights: in `font-weight`, in the `font` shorthand, and in
-  any custom property, Sass variable or token map that feeds one. A weight
-  between faces snaps to a neighbour (650 renders as 700), and 600 or more with
-  no face of at least 600 gets Chromium's synthetic bold. CI runs
+- Use only the weights 400, 500, 600 and 700: in `font-weight`, in the `font`
+  shorthand, and in any custom property, Sass variable or token map that feeds
+  one. Inter Variable can render any weight on its axis; the limit keeps the
+  type scale to four steps. In a family with static faces (JetBrains Mono, or
+  a local fallback) a weight between faces snaps to a neighbour, and 600 or
+  more with no face of at least 600 gets Chromium's synthetic bold. CI runs
   `pnpm run styles:font-weights:validate`, which rejects any other value.
 - JetBrains Mono text stays at 500 or lighter, also where it is a fallback
   behind `ui-monospace` (only macOS resolves that). The check enforces this in
@@ -1816,10 +1834,12 @@ heavier faces would exceed the initial-bytes ratchet).
   included, from its own stylesheet module or another one. It cannot see what
   a mono modifier class inherits from its base rule; set `font-weight: 500`
   there.
-- Import whole `@fontsource/<family>/<weight>.css` files. The single-script
-  files such as `cyrillic-600.css` have no `unicode-range`, so a Cyrillic-only
-  face wins the weight match for Latin text in `Roboto, …` stacks and sends it
-  to the next family.
+- Import a package's index or whole-weight CSS (`@fontsource-variable/inter/index.css`,
+  `@fontsource/<family>/<weight>.css`). The single-script files such as
+  `cyrillic-600.css` have no `unicode-range`, so a Cyrillic-only face would
+  claim Latin glyphs too and send them to the next family.
+- Set `font-family: var(--app-font-family)` rather than naming a face, so the
+  stack changes in one place.
 - `<html lang>` follows the UI language (`syncDocumentLanguage()` maps `by` to
   `be` and `zhtw` to `zh-TW`), so `hyphens`, `text-transform` (Turkish İ) and
   Han glyph fallback use the right locale.

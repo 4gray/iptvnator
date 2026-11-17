@@ -26,12 +26,9 @@ import type {
     SourceServerResponse,
 } from '@iptvnator/shared/interfaces';
 import {
-    activityAddressKey,
     applyActivityOperation,
     emptyActivityState,
-    type ActivityState,
     type ActivityAddress,
-    type ActivityApplyResult,
     type ActivityContentIdentity,
     type ActivityLocalStore,
     type ActivityOperation,
@@ -205,9 +202,13 @@ export class ActivitySyncClient {
         sourceId: string,
         position: PlaybackPositionData
     ): Promise<'local-only' | void> {
-        return this.mutations.track(
-            saveActivity.call(this, sourceId, position)
+        const write = this.actions.savePosition(
+            sourceId,
+            position,
+            (playedAt, current) =>
+                saveActivity.call(this, sourceId, position, playedAt, current)
         );
+        return this.mutations.track(write);
     }
 
     async reset(
@@ -241,10 +242,11 @@ export class ActivitySyncClient {
                     )
                         throw new Error('Activity scope mismatch');
                     await this.store.mutate(entry.address, (current) => {
+                        // An equal revision may omit a locally acknowledged capture time.
                         if (
                             current?.pending.length ||
                             (current &&
-                                current.state.revision > entry.state.revision)
+                                current.state.revision >= entry.state.revision)
                         )
                             return current;
                         return {

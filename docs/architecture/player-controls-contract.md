@@ -112,11 +112,20 @@ ownership when the session, playback, engine, or component changes.
 
 ## Diagnostics And Recovery Ownership Boundary
 
+The Video.js component loads its aspect-ratio plugin stylesheet with the
+engine, so opening the workspace does not fetch those styles.
+
 The diagnostic panel publishes a bubbling `iptvnator:playback-issue` DOM event
 after rendering each issue, with only its bounded `code` in the detail. It contains
 no stream URL or provider credentials; the TV
-shell uses format/decode codes for its external-player offer without treating
-network failures as unsupported media.
+shell uses format/decode codes for its standalone external-player offer. With
+the Media3 pilot enabled, the shell waits for both engines to fail in the same
+playback attempt before offering an external player. It records a web failure
+by attempt, including network and browser access errors reported by the engine,
+and failures where the media element has only a blob URL. It uses the URL from
+Media3 for the offer.
+Turning Media3 off rechecks the current attempt for a deferred format or decode
+error and uses the web player's URL for the standalone offer.
 Delayed native media errors retain the media element, source and load-attempt
 identity. Removal, replacement, a changed source or another `loadstart` discards
 that error before it can offer recovery for a newer playback attempt.
@@ -1078,7 +1087,11 @@ keyboard. `EmbeddedMpvShortcutHandlers` (the native-view legacy dock) and
 the radio audio player's document-level volume/mute keys apply the same
 rule. Shared and native-view player controls also yield every shortcut while
 an ancestor carries `data-player-shortcuts-suspended`, used by the programme
-guide while the player is docked.
+guide while the player is docked. Gaining that attribute also closes the
+shared controls' open popovers, as Escape would (`watchPlayerSuspension` in
+`controls-suspension.ts`, started by `ControlsShortcuts.attach`): the docked
+mini player shows only play/pause, and a settings sheet left open would keep
+the controls bar `inert` behind hidden chrome.
 
 Action-specific keys are prevented only when the active controller can handle
 them: seek requires both capability and current seekability, volume/mute
@@ -1245,8 +1258,11 @@ setter clamps against, so an unknown duration never jumps to zero); volume
 steps by ±5% and syncs muted state the way `applyVideoVolume` does (raising
 out of mute unmutes, reaching zero mutes); M mirrors `ControlsVolume`'s mute
 memory through `LegacyMuteMemory` — muting remembers the audible volume, and
-unmuting while the volume sits at zero restores it (same 0.5 fallback), so M
-can never leave the player silently "unmuted"; `isAvailable` is the host's
+unmuting while the volume sits at zero restores it (same 0.5 fallback).
+A positive shared-control slider setting is remembered across a later change
+to zero. The Android handoff uses that level for Unmute and falls back to 50%.
+A remounted player at zero volume is considered muted even if its engine
+initializes the mute flag to false. `isAvailable` is the host's
 `interactionEnabled`, so a visible playback diagnostic disables the keys; and
 Escape defaults to a no-op without consuming the key, because the vendor
 chrome owns its own overlays. Instances attach in the component's legacy

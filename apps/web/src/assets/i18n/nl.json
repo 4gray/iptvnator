@@ -392,6 +392,7 @@
         "SEARCH_EMPTY_HINT": "Geen instellingen gevonden. Probeer een ander woord, zoals speler, thema of EPG.",
         "GENERAL": "Algemeen",
         "GENERAL_SUBTITLE": "Taal, opstarten en kanaalvoorkeuren.",
+        "OPEN_ANDROID_APP_SETTINGS": "Instellingen van de Android-app openen",
         "PLAYBACK": "Afspelen",
         "SAVE_EPG_SOURCES": "EPG-bronnen opslaan",
         "EPG_SOURCES": "EPG-bronnen",
@@ -823,7 +824,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Land voor leeftijdsclassificatie",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Kies het land voor de leeftijdsclassificatie. Ontbrekende lokale gegevens kunnen worden aangevuld met Amerikaanse of aanbiedergegevens.",
-        "AGE_RATING_COUNTRY_AUTO": "Automatisch — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automatisch — {{country}}",
+        "CARD_HELP": "Hulp",
+        "KEYBOARD_SHORTCUTS": "Sneltoetsen",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Sneltoetsen voor navigatie, afspelen en dialogen. Druk buiten een tekstveld op ? om ze te openen.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Sneltoetsen tonen"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Opslaan op de server is mislukt. Controleer de verbinding en probeer het opnieuw.",
@@ -979,6 +984,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Ingebouwde speler proberen",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Terug naar de webspeler",
         "HLS_WAIT": "Er wordt nog op streamgegevens gewacht. Je kunt blijven wachten of het opnieuw proberen.",
         "STAGE_LOADER": "Stream laden",
         "STAGE_DEMUX": "Container verwerken",
@@ -2177,7 +2184,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "Gecachte categorieën worden verwijderd...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "Favorieten, kijkgeschiedenis, verborgen categorieën en afspeelvoortgang worden klaargezet voor herstel na de synchronisatie.",
             "XTREAM_REFRESH_PROGRESS": "Lokale records verwerkt: {{current}} / {{total}}",
-            "RAIL_RADIO": "Radiozenders"
+            "RAIL_RADIO": "Radiozenders",
+            "MORE_ACTIONS": "Meer acties"
         },
         "SOURCES": {
             "TITLE": "Bronnen",
@@ -2248,8 +2256,6 @@
         "SHORTCUTS": {
             "TITLE": "Sneltoetsen",
             "SUBTITLE": "Sneltoetsen voor werkruimte, navigatie, afspelen en dialoogvensters die beschikbaar zijn in IPTVnator.",
-            "OPEN_TOOLTIP": "Sneltoetsen (?)",
-            "OPEN_ARIA": "Sneltoetsen openen",
             "PLATFORM": {
                 "MAC": "macOS-indeling",
                 "OTHER": "Windows/Linux-indeling"

@@ -4,7 +4,11 @@ import {
     pickTitleMatch,
     tmdbPosterUrl,
 } from '@iptvnator/services';
-import type { CatalogTitleLookup, TmdbSearchResult } from '@iptvnator/services';
+import type {
+    CatalogTitleLookup,
+    TmdbMatchIdentity,
+    TmdbSearchResult,
+} from '@iptvnator/services';
 import {
     CatalogTitleMatch,
     normalizeTitleKeys,
@@ -40,8 +44,14 @@ export interface DashboardRecommendationItem {
 
 export type RecommendationCandidate = Omit<
     DashboardRecommendationItem,
-    'match'
->;
+    'match' | 'seedTitle'
+> & {
+    contributors: readonly {
+        title: string;
+        identity: TmdbMatchIdentity | null;
+        matchToken: string;
+    }[];
+};
 
 /**
  * The release year an activity row STATES in a metadata field, never one
@@ -209,8 +219,15 @@ export function buildLoadKey(
 export function toCandidates(
     results: readonly TmdbSearchResult[],
     mediaType: 'movie' | 'tv',
-    seedTitle: string
+    seedTitle: string,
+    seedIdentities: readonly (TmdbMatchIdentity | null)[],
+    matchToken: string
 ): RecommendationCandidate[] {
+    const contributors = seedIdentities.map((identity) => ({
+        title: seedTitle,
+        identity,
+        matchToken,
+    }));
     return results
         .map((result) => {
             const title = result.title ?? result.name ?? '';
@@ -229,7 +246,7 @@ export function toCandidates(
                 year: extractYear(result.release_date ?? result.first_air_date),
                 posterUrl: tmdbPosterUrl(result.poster_path),
                 rating,
-                seedTitle,
+                contributors,
             };
         })
         .filter((entry) => entry.tmdbId > 0 && entry.title !== '');
@@ -262,7 +279,8 @@ export function buildRecommendationItems(
             continue;
         }
         claimedRows.add(rowKey);
-        items.push({ ...candidate, match });
+        const { contributors, ...card } = candidate;
+        items.push({ ...card, match, seedTitle: contributors[0].title });
         if (items.length === limit) {
             break;
         }

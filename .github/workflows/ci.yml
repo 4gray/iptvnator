@@ -546,6 +546,11 @@ jobs:
             - name: Validate icon-only button names
               run: pnpm run a11y:icon-buttons:validate
 
+            # The heart means favourite and the star means rating: both come
+            # from APP_ICONS (tools/nx/check-favorite-glyph.mjs).
+            - name: Validate favourite and rating glyphs
+              run: pnpm run ui:favorite-glyph:validate
+
             # Form-field defaults are provided per lazy component: the root
             # token import would load Material form-field and @angular/forms
             # on startup (tools/nx/check-form-field-defaults.mjs).

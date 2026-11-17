@@ -38,6 +38,7 @@ import {
     PlaylistsService,
 } from '@iptvnator/services';
 import {
+    PlaybackPositionUpdate,
     ResolvedPortalPlayback,
     StalkerVodDetails,
     VodDetailsItem,
@@ -334,12 +335,11 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
             this.vodPosition.position.set(position);
             this.catalog.applyPlaybackPosition(position);
         },
+        // The owner effect closes the player once the page shows another movie.
+        ownerKey: () => this.playbackOwnerKey(),
     });
 
-    handleInlineTimeUpdate(event: {
-        currentTime: number;
-        duration: number;
-    }): void {
+    handleInlineTimeUpdate(event: PlaybackPositionUpdate): void {
         this.positionWriter.handleTimeUpdate(event);
     }
 

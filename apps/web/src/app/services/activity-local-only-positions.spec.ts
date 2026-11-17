@@ -1,5 +1,5 @@
 import { ActivityLocalOnlyPositions } from './activity-local-only-positions';
-import { localActivityPosition } from './activity-local-position';
+import { localActivityPosition, resetPosition } from './activity-local-position';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 const position = { contentType: 'vod' as const, contentXtreamId: 42 };
 describe('durable local-only position ownership', () => {
@@ -146,6 +146,28 @@ describe('durable local-only position ownership', () => {
         expect(reopened.latest('source-a', input)?.token).toBe(pending.token);
         expect(reopened.has('source-a', input)).toBe(true);
     });
+    it('keeps a newer staged position when an older native checkpoint retries', () => {
+        const store = new ActivityLocalOnlyPositions('synthetic-nas', localStorage);
+        const pending = store.stage(
+            'source-a',
+            { ...position, positionSeconds: 65 },
+            'synthetic-session'
+        );
+        const older = {
+            ...position,
+            positionSeconds: 35,
+            nativeCheckpointAt: new Date(Date.now() - 1000).toISOString(),
+        };
+        expect(store.stage('source-a', older, 'synthetic-session')).toEqual(
+            pending
+        );
+        expect(store.snapshots('source-a')).toEqual([pending]);
+
+        const reset = store.stage('source-a', resetPosition(older));
+        expect(reset.position.positionSeconds).toBe(0);
+        expect(store.snapshots('source-a')).toEqual([reset]);
+    });
+
     it('retains an unfinished raw snapshot while transferring fallback ownership to a new launch', () => {
         const store = new ActivityLocalOnlyPositions(
             'synthetic-nas',

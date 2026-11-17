@@ -1,10 +1,9 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
 import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject, from, Observable, of } from 'rxjs';
-import { catchError, map, tap, timeout } from 'rxjs/operators';
+import { catchError, tap } from 'rxjs/operators';
 import {
-    createDevLogger,
     EpgChannelMetadata,
     EpgProgram,
     epgProviderClockMs,
@@ -18,7 +17,7 @@ import {
     EpgLookupOptions,
     EpgRuntimeBridgeService,
 } from './epg-runtime-bridge.service';
-import { normalizeEpgPrograms } from './epg-program-normalization.util';
+import type { EpgScheduleFeed } from './epg-schedule-feed';
 import { EpgProgramCache } from './epg-program-cache';
 import { EpgLookupLoader } from './epg-lookup-loader';
 import type { EpgLookupContext } from './epg-lookup-context';
@@ -28,12 +27,11 @@ import {
 } from './epg-lookup-normalization.util';
 import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
 
-const debugEpgService = createDevLogger('EpgService');
-
 @Injectable({
     providedIn: 'root',
 })
 export class EpgService {
+    private readonly injector = inject(Injector);
     private snackBar = inject(LazySnackBar);
     private translate = inject(TranslateService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
@@ -49,11 +47,27 @@ export class EpgService {
             const enabled = this.epgPreferences.enabled();
             this.epgAvailable.next(enabled);
             if (enabled && !wasEnabled) {
-                void this.fetchEpg(this.sourceSettings.getFetchableSourceUrls());
+                void this.fetchEpg(
+                    this.sourceSettings.getFetchableSourceUrls()
+                );
             }
             wasEnabled = enabled;
+            // The remaining sources may still carry the channel's schedule.
+            if (enabled) this.withScheduleFeed((feed) => feed.refill());
+        });
+        // An import finished anywhere — a refresh or retry from Settings,
+        // a startup or background import — replaces the stored programmes,
+        // also before any channel was opened (the airing cache).
+        this.epgBridge.onProgress?.((progress) => {
+            if (progress.status === 'complete') this.refreshEpgData();
         });
     }
+
+    /** Loaded with the first channel opened (`epg-schedule-feed.ts`). */
+    private scheduleFeed: Promise<EpgScheduleFeed> | null = null;
+
+    /** The dynamic import; a field so specs can substitute it. */
+    loadScheduleFeed = () => import('./epg-schedule-feed');
 
     private epgAvailable = new BehaviorSubject<boolean>(false);
     private currentEpgPrograms = new BehaviorSubject<EpgProgram[]>([]);
@@ -131,7 +145,7 @@ export class EpgService {
                     if (result === null) return;
 
                     if (result.success) {
-                        this.clearCache();
+                        this.refreshEpgData();
                         this.epgAvailable.next(true);
                     } else {
                         this.epgAvailable.next(false);
@@ -156,35 +170,47 @@ export class EpgService {
             .subscribe();
     }
 
-    /**
-     * Gets EPG programs for a specific channel
-     */
-    getChannelPrograms(channelId: string): void {
-        if (
-            !this.epgPreferences.enabled() ||
-            !this.epgBridge.supportsProgramLookup
-        )
-            return;
-        debugEpgService('Fetching EPG for channel ID:', channelId);
+    /** Reads a channel's schedule into `currentEpgPrograms$`. */
+    getChannelPrograms(channelId: string, archiveDays = 0): void {
+        if (!this.epgBridge.supportsProgramLookup) return;
+        this.scheduleFeed ??= this.loadScheduleFeed().then(
+            ({ EpgScheduleFeed }) =>
+                new EpgScheduleFeed(
+                    this.lookupContext,
+                    this.epgPreferences,
+                    this.injector,
+                    this.currentEpgPrograms,
+                    this.epgAvailable,
+                    () => this.showErrorSnackbar()
+                )
+        );
+        this.withScheduleFeed((feed) => feed.read(channelId, archiveDays));
+    }
 
-        from(this.epgBridge.getChannelPrograms(channelId))
-            .pipe(
-                this.sourceSettings.guard(),
-                this.epgPreferences.guard(),
-                timeout(3000),
-                map((programs) => normalizeEpgPrograms(programs ?? [])),
-                catchError((err) => {
-                    console.error('EPG get programs error:', err);
-                    this.showErrorSnackbar();
-                    this.currentEpgPrograms.next([]);
-                    this.epgAvailable.next(false);
-                    return of([]);
-                })
-            )
-            .subscribe((programs) => {
-                this.epgAvailable.next(programs.length > 0);
-                this.currentEpgPrograms.next(programs);
-            });
+    /**
+     * A channel without an EPG key was opened: its panel is empty, and a
+     * later refill must not bring back the previous channel's schedule.
+     */
+    clearSchedule(): void {
+        this.withScheduleFeed((feed) => feed.clear());
+    }
+
+    /**
+     * The stored EPG changed (an import, a mapping): drop the "currently
+     * airing" cache and read the open channel's schedule again, so its
+     * programme panel does not stay empty or stale until the next zap.
+     */
+    refreshEpgData(): void {
+        this.clearCache();
+        this.withScheduleFeed((feed) => feed.refill());
+    }
+
+    /** In call order, once the feed is loaded; nothing before a first zap. */
+    private withScheduleFeed(run: (feed: EpgScheduleFeed) => void): void {
+        const pending = this.scheduleFeed;
+        void pending?.then(run, () => {
+            if (this.scheduleFeed === pending) this.scheduleFeed = null;
+        });
     }
 
     /**

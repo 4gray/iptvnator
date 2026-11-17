@@ -88,6 +88,7 @@ describe('activity wire boundary', () => {
         {
             contentXtreamId: 42,
             title: 'Synthetic saved item',
+            playedAt: '2025-01-01T00:00:00.000Z',
             seriesXtreamId: 7,
             seasonNumber: 1,
             episodeNumber: 2,

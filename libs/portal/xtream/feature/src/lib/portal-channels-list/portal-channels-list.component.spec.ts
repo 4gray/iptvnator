@@ -745,6 +745,69 @@ describe('PortalChannelsListComponent', () => {
         );
     });
 
+    it('loads the first viewport of a list that opened while its content was loading', async () => {
+        jest.useFakeTimers();
+        // First render shows the loading skeleton: there is no viewport yet.
+        fixture.detectChanges();
+        expect(fixture.componentInstance.viewport()).toBeUndefined();
+
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set([
+            { title: 'Sample One', xtream_id: 61 },
+            { title: 'Sample Two', xtream_id: 62 },
+        ]);
+        currentPlaylist.set({
+            id: 'playlist-1',
+            password: 'secret',
+            serverUrl: 'http://demo.example',
+            username: 'demo',
+        });
+        fixture.detectChanges();
+        await renderViewport(fixture);
+
+        // Well before the one-minute refresh tick.
+        expect(epgQueueService.enqueue).toHaveBeenCalledWith(
+            [
+                expect.objectContaining({ streamId: 61 }),
+                expect.objectContaining({ streamId: 62 }),
+            ],
+            new Set([61, 62]),
+            expect.objectContaining({ serverUrl: 'http://demo.example' })
+        );
+    });
+
+    it('loads a new category whose rows keep the same index range at once', async () => {
+        await renderSingleChannel(fixture, '2026-04-05T06:03:00.000Z');
+
+        selectedChannels.set([{ title: 'Sample Other', xtream_id: 78 }]);
+        fixture.detectChanges();
+        jest.advanceTimersByTime(300);
+
+        expect(epgQueueService.enqueue).toHaveBeenCalledWith(
+            [expect.objectContaining({ streamId: 78 })],
+            new Set([78]),
+            expect.objectContaining({ serverUrl: 'http://demo.example' })
+        );
+    });
+
+    it('keeps loading after the viewport is recreated', async () => {
+        await renderSingleChannel(fixture, '2026-04-05T06:03:00.000Z');
+
+        // Back to the skeleton and out again: a new viewport instance.
+        selectedTypeContentLoading.set(true);
+        fixture.detectChanges();
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set([{ title: 'Sample Again', xtream_id: 79 }]);
+        fixture.detectChanges();
+        await renderViewport(fixture);
+
+        expect(epgQueueService.enqueue).toHaveBeenCalledWith(
+            [expect.objectContaining({ streamId: 79 })],
+            new Set([79]),
+            expect.objectContaining({ serverUrl: 'http://demo.example' })
+        );
+    });
+
     it('refreshes nothing while a search shows no results', async () => {
         // A search with no matches destroys the viewport, so there is no
         // rendered range at all; naming the rows it used to hold would keep

@@ -392,6 +392,7 @@
         "SEARCH_EMPTY_HINT": "일치하는 설정이 없습니다. 플레이어, 테마, EPG 같은 다른 단어로 검색해 보세요.",
         "GENERAL": "일반",
         "GENERAL_SUBTITLE": "언어, 시작 동작 및 채널 설정입니다.",
+        "OPEN_ANDROID_APP_SETTINGS": "Android 앱 설정 열기",
         "PLAYBACK": "재생",
         "SAVE_EPG_SOURCES": "EPG 소스 저장",
         "EPG_SOURCES": "EPG 소스",
@@ -823,7 +824,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "연령 등급 국가",
         "AGE_RATING_COUNTRY_DESCRIPTION": "연령 등급에 사용할 국가를 선택하세요. 현지 정보가 없으면 미국 또는 제공업체 정보를 사용할 수 있습니다.",
-        "AGE_RATING_COUNTRY_AUTO": "자동 — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "자동 — {{country}}",
+        "CARD_HELP": "도움말",
+        "KEYBOARD_SHORTCUTS": "키보드 단축키",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "탐색, 재생, 대화상자 단축키입니다. 텍스트 입력란 밖에서 ?를 누르면 열립니다.",
+        "KEYBOARD_SHORTCUTS_OPEN": "단축키 보기"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "서버에 저장하지 못했습니다. 연결을 확인하고 다시 시도하세요.",
@@ -979,6 +984,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "내장 플레이어 사용해 보기",
+        "ACTION_RETURN_TO_WEB_PLAYER": "웹 플레이어로 돌아가기",
         "HLS_WAIT": "스트림 데이터를 기다리고 있습니다. 계속 기다리거나 다시 시도할 수 있습니다.",
         "STAGE_LOADER": "스트림 로드",
         "STAGE_DEMUX": "컨테이너 분석",
@@ -2177,7 +2184,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "캐시된 카테고리를 제거하는 중...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "즐겨찾기, 시청 기록, 숨긴 카테고리, 재생 진행률을 동기화 후 복원할 수 있도록 준비합니다.",
             "XTREAM_REFRESH_PROGRESS": "처리된 로컬 레코드: {{current}} / {{total}}",
-            "RAIL_RADIO": "라디오"
+            "RAIL_RADIO": "라디오",
+            "MORE_ACTIONS": "추가 작업"
         },
         "SOURCES": {
             "TITLE": "소스",
@@ -2248,8 +2256,6 @@
         "SHORTCUTS": {
             "TITLE": "키보드 단축키",
             "SUBTITLE": "IPTVnator에서 사용할 수 있는 워크스페이스, 탐색, 재생, 대화상자 단축키입니다.",
-            "OPEN_TOOLTIP": "키보드 단축키(?)",
-            "OPEN_ARIA": "키보드 단축키 열기",
             "PLATFORM": {
                 "MAC": "macOS 배열",
                 "OTHER": "Windows/Linux 배열"

@@ -392,6 +392,7 @@
         "SEARCH_EMPTY_HINT": "Eşleşen ayar yok. Oynatıcı, tema veya EPG gibi başka bir kelime deneyin.",
         "GENERAL": "Genel",
         "GENERAL_SUBTITLE": "Dil, başlangıç ve kanal tercihleri.",
+        "OPEN_ANDROID_APP_SETTINGS": "Android uygulama ayarlarını aç",
         "PLAYBACK": "Oynatma",
         "SAVE_EPG_SOURCES": "EPG kaynaklarını kaydet",
         "EPG_SOURCES": "EPG kaynakları",
@@ -823,7 +824,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Yaş sınıflandırması ülkesi",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Sınıflandırma ülkesini seçin. Yerel veri yoksa ABD veya sağlayıcı verileri kullanılabilir.",
-        "AGE_RATING_COUNTRY_AUTO": "Otomatik — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Otomatik — {{country}}",
+        "CARD_HELP": "Yardım",
+        "KEYBOARD_SHORTCUTS": "Klavye kısayolları",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Gezinme, oynatma ve iletişim kutuları için kısayollar. Açmak için bir metin alanı dışında ? tuşuna basın.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Kısayolları göster"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Sunucuya kaydedilemedi. Bağlantıyı kontrol edip tekrar deneyin.",
@@ -979,6 +984,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Yerleşik oynatıcıyı dene",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Web oynatıcısına dön",
         "HLS_WAIT": "Yayın verileri hâlâ bekleniyor. Beklemeye devam edebilir veya yeniden deneyebilirsiniz.",
         "STAGE_LOADER": "Akış yükleme",
         "STAGE_DEMUX": "Kapsayıcı ayrıştırma",
@@ -2177,7 +2184,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "Önbelleğe alınmış kategoriler kaldırılıyor...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "Favoriler, izleme geçmişi, gizli kategoriler ve oynatma ilerlemesi eşitlemeden sonra geri yüklenmek üzere hazırlanıyor.",
             "XTREAM_REFRESH_PROGRESS": "İşlenen yerel kayıtlar: {{current}} / {{total}}",
-            "RAIL_RADIO": "Canlı radyo"
+            "RAIL_RADIO": "Canlı radyo",
+            "MORE_ACTIONS": "Diğer işlemler"
         },
         "SOURCES": {
             "TITLE": "Kaynaklar",
@@ -2248,8 +2256,6 @@
         "SHORTCUTS": {
             "TITLE": "Klavye kısayolları",
             "SUBTITLE": "IPTVnator’da çalışma alanı, gezinme, oynatma ve iletişim kutuları için kullanılabilir kısayollar.",
-            "OPEN_TOOLTIP": "Klavye kısayolları (?)",
-            "OPEN_ARIA": "Klavye kısayollarını aç",
             "PLATFORM": {
                 "MAC": "macOS düzeni",
                 "OTHER": "Windows/Linux düzeni"
