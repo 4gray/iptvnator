@@ -38,6 +38,14 @@ export interface PlaybackPositionUpdate {
     /** A verified final position from a playback handoff, saved immediately. */
     readonly checkpoint?: true;
     readonly nativeCheckpointAt?: string;
+    /**
+     * Whether the media was actually playing — not paused and not seeking.
+     * Seeks of paused media also move the position; only playing reports
+     * count towards the "really played" history confirmation. A `false`
+     * report (pause, seek) also persists the position at once. Left
+     * undefined by an engine that cannot tell.
+     */
+    readonly playing?: boolean;
 }
 
 /** A short cut can start below a requested offset it can never reach. */

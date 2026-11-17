@@ -153,6 +153,90 @@ describe('StalkerVodPlaybackController', () => {
         );
     });
 
+    describe('closing the inline player', () => {
+        const movie = (contentXtreamId: number): ResolvedPortalPlayback => ({
+            title: 'Synthetic movie',
+            streamUrl: 'https://media.example.test/synthetic.mp4',
+            contentInfo: {
+                playlistId: 'synthetic-playlist',
+                contentType: 'vod',
+                contentXtreamId,
+            },
+        });
+
+        function playUntil(
+            controller: StalkerVodPlaybackController,
+            from: number,
+            to: number
+        ): void {
+            for (let second = from; second <= to; second++) {
+                controller.handleInlineTimeUpdate({
+                    currentTime: second,
+                    duration: 5400,
+                });
+            }
+        }
+
+        it('saves the latest position the throttle held back', () => {
+            const {
+                controller,
+                inlinePlayback,
+                playbackPositions,
+                selectedVodPosition,
+            } = createController();
+            inlinePlayback.set(movie(17));
+            playUntil(controller, 600, 614);
+
+            controller.closeInlinePlayer();
+
+            expect(
+                playbackPositions.savePlaybackPosition
+            ).toHaveBeenLastCalledWith(
+                'synthetic-playlist',
+                expect.objectContaining({
+                    contentXtreamId: 17,
+                    positionSeconds: 614,
+                })
+            );
+            // Resume on the still-open detail starts from there too.
+            expect(selectedVodPosition()?.positionSeconds).toBe(614);
+        });
+
+        it('saves the superseded movie under its own key when another starts', async () => {
+            const { controller, inlinePlayback, playbackPositions } =
+                createController();
+            inlinePlayback.set(movie(17));
+            playUntil(controller, 600, 614);
+
+            await controller.startVodPlayback(async () => movie(18));
+
+            expect(
+                playbackPositions.savePlaybackPosition
+            ).toHaveBeenLastCalledWith(
+                'synthetic-playlist',
+                expect.objectContaining({
+                    contentXtreamId: 17,
+                    positionSeconds: 614,
+                })
+            );
+            expect(inlinePlayback()?.contentInfo?.contentXtreamId).toBe(18);
+        });
+
+        it('keeps the old row out of the next movie shown on the page', () => {
+            let owner = 'movie-17';
+            const { controller, inlinePlayback, selectedVodPosition } =
+                createController(() => owner);
+            inlinePlayback.set(movie(17));
+            playUntil(controller, 600, 614);
+            owner = 'movie-18';
+            selectedVodPosition.set(createPosition(18, 30));
+
+            controller.closeInlinePlayer();
+
+            expect(selectedVodPosition()?.contentXtreamId).toBe(18);
+        });
+    });
+
     it('ignores stale VOD position loads that resolve after a newer selection', async () => {
         const { controller, playbackPositions, selectedVodPosition } =
             createController();

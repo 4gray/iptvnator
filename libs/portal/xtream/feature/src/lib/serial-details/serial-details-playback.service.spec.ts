@@ -336,3 +336,66 @@ describe('SerialDetailsPlaybackService launch position', () => {
         expect(page.episodePlaybackPositions().has(1002)).toBe(false);
     });
 });
+
+describe('SerialDetailsPlaybackService inline position', () => {
+    /** One timeupdate per second, as the inline engine reports them. */
+    function playUntil(
+        service: SerialDetailsPlaybackService,
+        from: number,
+        to: number
+    ): void {
+        for (let second = from; second <= to; second++) {
+            service.handleInlineTimeUpdate({
+                currentTime: second,
+                duration: 2700,
+            });
+        }
+    }
+
+    function savedSeconds(episodeId: number): number[] {
+        return savePlaybackPosition.mock.calls
+            .filter(([, position]) => position.contentXtreamId === episodeId)
+            .map(([, position]) => position.positionSeconds);
+    }
+
+    it('saves the latest position when the inline player closes', async () => {
+        const service = createPage();
+        isEmbeddedPlayer.mockReturnValue(true);
+        await service.playEpisode(episode(1001));
+        playUntil(service, 600, 614);
+
+        service.closeInlinePlayer();
+
+        expect(savedSeconds(1001)).toEqual([600, 614]);
+        expect(service.episodePlaybackPositions().get(1001)).toEqual(
+            expect.objectContaining({ positionSeconds: 614 })
+        );
+    });
+
+    it('saves the superseded episode under its own key before the next one starts', async () => {
+        const service = createPage();
+        isEmbeddedPlayer.mockReturnValue(true);
+        await service.playEpisode(episode(1001));
+        playUntil(service, 600, 614);
+
+        service.playNextEpisode();
+        playUntil(service, 0, 3);
+
+        expect(savedSeconds(1001)).toEqual([600, 614]);
+        // The next episode writes its own first tick at once.
+        expect(savedSeconds(1002)).toEqual([0]);
+    });
+
+    it('keeps the previous series out of the next one when the page moves on', async () => {
+        const service = createPage();
+        isEmbeddedPlayer.mockReturnValue(true);
+        await service.playEpisode(episode(1001));
+        playUntil(service, 600, 614);
+
+        selectedItem.set(seriesView(104));
+        service.resetForNewSeries();
+
+        expect(savedSeconds(1001)).toEqual([600, 614]);
+        expect(service.episodePlaybackPositions().size).toBe(0);
+    });
+});
