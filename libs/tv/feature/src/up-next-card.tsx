@@ -177,7 +177,14 @@ export function useUpNext(
     // Re-render as playback moves so the card appears and counts down.
     useEffect(() => {
         if (!element) return;
-        const tick = () => setTick((n) => n + 1);
+        const tick = () => {
+            if (
+                !element.ended &&
+                latest.current.current?.id !== advancedTo.current
+            )
+                automatic.current?.abort();
+            setTick((n) => n + 1);
+        };
         const ended = () => {
             tick();
             advance();
@@ -193,11 +200,13 @@ export function useUpNext(
         };
         document.addEventListener('visibilitychange', visibility);
         element.addEventListener('timeupdate', tick);
+        element.addEventListener('seeking', tick);
         element.addEventListener('ended', ended);
         return () => {
             automatic.current?.abort();
             document.removeEventListener('visibilitychange', visibility);
             element.removeEventListener('timeupdate', tick);
+            element.removeEventListener('seeking', tick);
             element.removeEventListener('ended', ended);
         };
     }, [element]);
