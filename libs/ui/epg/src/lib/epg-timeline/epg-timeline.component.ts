@@ -161,12 +161,8 @@ export class EpgTimelineComponent {
         nowMs: () => this.nowMs(),
         viewDayKey: () => this.viewDayKey(),
         commitDay: (dayKey) => this.commitDay(dayKey),
-        hasProgramsForDay: (dayKey) =>
-            hasProgramsForDateKey(
-                this.programs(),
-                dayKey,
-                this.offsetMinutes()
-            ),
+        hasProgramsForDay: (key) =>
+            hasProgramsForDateKey(this.programs(), key, this.offsetMinutes()),
     });
 
     private readonly languageTick = injectTranslationTick();
@@ -321,12 +317,8 @@ export class EpgTimelineComponent {
             const scroller = this.ribbon()?.nativeElement;
             const programs = this.programs();
             untracked(() => {
-                // The 30-second display tick may still belong to yesterday.
-                // Refresh the shared clock before resolving the live day and
-                // the on-air programme's geometry on a new channel load.
-                if (scroller && programs.length > 0) {
-                    this.nowMs.set(Date.now());
-                }
+                // Refresh the EPG clock on focus, not just every 30 seconds.
+                if (scroller && programs.length) this.nowMs.set(Date.now());
                 this.scroll.maybeAutoFocus(scroller, programs);
             });
         });
