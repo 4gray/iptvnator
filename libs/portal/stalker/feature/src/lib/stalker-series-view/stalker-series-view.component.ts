@@ -522,6 +522,24 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             this.positions.applyReconciledSeriesPositions();
         });
 
+        effect(() => {
+            const ownerKey = this.seriesPlaybackOwnerKey();
+            const playlistId = this.stalkerStore.currentPlaylist()?._id ?? '';
+            const seriesId = this.toSeriesId(this.displayItem()?.id ?? 0);
+            const canHydrate =
+                this.seasonContainerRef() &&
+                this.isVodSeries() &&
+                this.positions.seriesPositionsLoadedKey() ===
+                    this.positions.seriesPositionsKey(playlistId, seriesId) &&
+                this.positions.rawSeriesPositions().length > 0;
+            this.vodSeriesSeasons();
+            untracked(() =>
+                this.vodSeasonLoader.hydrateForSavedProgress(
+                    canHydrate ? ownerKey : null
+                )
+            );
+        });
+
         // Dashboard "Continue watching" handoff: once the persisted
         // positions for THIS series are in (so the episode resumes at its
         // saved offset, not from zero) and the target episode is on the
@@ -927,8 +945,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private readonly vodSeasonLoader = new StalkerVodSeasonEpisodeLoader({
         seasons: this.vodSeriesSeasons,
         ownerKey: () => this.seriesPlaybackOwnerKey(),
-        fetchEpisodes: (videoId, seasonId) =>
-            this.stalkerStore.fetchVodSeriesEpisodes(videoId, seasonId),
+        fetchEpisodes: (videoId, seasonId, isCurrent) =>
+            this.stalkerStore.fetchVodSeriesEpisodes(
+                videoId,
+                seasonId,
+                isCurrent
+            ),
         logError: (message, error) => this.logger.error(message, error),
     });
 
@@ -1405,6 +1427,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.vodSeasonLoader.destroy();
         this.unsubscribePositionUpdates?.();
         this.closeInlinePlayer();
     }
