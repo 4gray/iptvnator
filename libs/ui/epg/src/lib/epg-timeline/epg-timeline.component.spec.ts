@@ -466,6 +466,48 @@ describe('EpgTimelineComponent across midnight', () => {
         jest.useRealTimers();
     });
 
+    it('synchronizes the cached clock before focusing a new channel after midnight', () => {
+        jest.useFakeTimers({
+            now: new Date(2026, 5, 28, 23, 59, 50).getTime(),
+        });
+        TestBed.configureTestingModule({
+            imports: [EpgTimelineComponent],
+            providers: [
+                { provide: MatDialog, useValue: { open: jest.fn() } },
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
+                        onDefaultLangChange: new Subject(),
+                        get: (key: string) => of(key),
+                    },
+                },
+            ],
+        });
+        const fixture = TestBed.createComponent(EpgTimelineComponent);
+        fixture.componentRef.setInput('programs', [
+            programAt(-20, 60, 'Channel before midnight'),
+        ]);
+        fixture.detectChanges();
+        const timeline = fixture.componentInstance;
+        const staleClock = timeline.nowMs();
+
+        // setSystemTime changes the wall clock without running the 30-second
+        // timer: selecting another channel must not use yesterday's cache.
+        jest.setSystemTime(new Date(2026, 5, 29, 0, 0, 5).getTime());
+        expect(timeline.nowMs()).toBe(staleClock);
+        fixture.componentRef.setInput('programs', [
+            programAt(-20, 60, 'Another live channel'),
+        ]);
+        fixture.detectChanges();
+
+        expect(timeline.nowMs()).toBe(Date.now());
+        expect(timeline.viewDayKey()).toBe('2026-06-29');
+        expect(timeline.isViewToday()).toBe(true);
+    });
     it('moves and recentres the ribbon when the clock crosses midnight', () => {
         jest.useFakeTimers({
             now: new Date(2026, 5, 28, 23, 59, 45).getTime(),

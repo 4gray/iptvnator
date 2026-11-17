@@ -320,7 +320,15 @@ export class EpgTimelineComponent {
         effect(() => {
             const scroller = this.ribbon()?.nativeElement;
             const programs = this.programs();
-            untracked(() => this.scroll.maybeAutoFocus(scroller, programs));
+            untracked(() => {
+                // The 30-second display tick may still belong to yesterday.
+                // Refresh the shared clock before resolving the live day and
+                // the on-air programme's geometry on a new channel load.
+                if (scroller && programs.length > 0) {
+                    this.nowMs.set(Date.now());
+                }
+                this.scroll.maybeAutoFocus(scroller, programs);
+            });
         });
     }
 
