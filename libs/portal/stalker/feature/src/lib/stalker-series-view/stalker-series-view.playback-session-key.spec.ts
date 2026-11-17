@@ -17,6 +17,7 @@ import {
 } from '@iptvnator/portal/stalker/data-access';
 import { TmdbEnrichmentService } from '@iptvnator/services';
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
+import { AutoplayStreakService } from '@iptvnator/ui/playback';
 import { StalkerSeriesViewComponent } from './stalker-series-view.component';
 import { STALKER_SERIES_DOWNLOAD_MODES } from './stalker-series-download.adapter';
 import { createStalkerEpisodePlaybackSessionKey } from './stalker-episode-playback-session-key';
@@ -225,6 +226,35 @@ describe('StalkerSeriesViewComponent playback session key', () => {
         await fixture.whenStable();
         return episode;
     }
+
+    it.each(['failed', 'closed', 'superseded'] as const)(
+        'releases the autoplay claim when a start is %s',
+        async (outcome) => {
+            const episode = await playFirstEpisode();
+            const streak = TestBed.inject(AutoplayStreakService);
+            streak.reset();
+            streak.beginAutoplay();
+            streak.playbackStarted();
+            if (outcome === 'failed')
+                resolveVodPlayback.mockRejectedValueOnce(
+                    new Error('Synthetic playback failure')
+                );
+            else
+                resolveVodPlayback.mockReturnValueOnce(
+                    deferred<ResolvedPortalPlayback>().promise
+                );
+
+            fixture.componentInstance.handleInlinePlaybackEnded();
+            if (outcome === 'closed')
+                fixture.componentInstance.closeInlinePlayer();
+            if (outcome === 'superseded')
+                fixture.componentInstance.onEpisodeClicked(episode);
+            await fixture.whenStable();
+            expect(streak.length).toBe(1);
+            streak.playbackStarted();
+            expect(streak.length).toBe(0);
+        }
+    );
 
     function setLazySeries(parentId: string, episodeId: string): void {
         selectedContentType.set('vod');

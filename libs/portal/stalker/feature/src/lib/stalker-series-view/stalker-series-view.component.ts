@@ -972,6 +972,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         forcePlayer?: ExternalPlayerName,
         fromStart = false
     ) {
+        if (this.startPending()) this.autoplayStreak.cancelAutoplay();
         if (this.seasonWatchBatchRunning()) {
             // The batch rewrites the very rows a start resumes from: the
             // choice waits for it, like the Reset and watched rows do.
@@ -1142,6 +1143,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     closeInlinePlayer(): void {
+        this.autoplayStreak.cancelAutoplay();
         this.seriesPlaybackRequestGeneration += 1;
         this.inlinePlayback.set(null);
         this.inlinePlaybackEpisodeIdentity.set(null);
@@ -1195,6 +1197,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     handleInlinePlaybackEnded(): void {
         const navigation = this.inlineSeriesNavigation();
         if (
+            this.startPending() ||
             !navigation?.autoplayEnabled ||
             !navigation.canNext ||
             !this.autoplayStreak.beginAutoplay()
@@ -1374,6 +1377,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             }
         } catch (error) {
             if (!this.isPlaybackRequestCurrent(request)) return;
+            this.autoplayStreak.cancelAutoplay();
             this.logger.error('Failed to start inline series playback', error);
             const errorMessage =
                 error instanceof Error && error.message === 'nothing_to_play'
