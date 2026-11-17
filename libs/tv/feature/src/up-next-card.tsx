@@ -196,6 +196,8 @@ export function UpNextCard({
 }) {
     const share = upNextRingShare(card);
     const code = episodeCode(card.next);
+    const still = card.next.episodeStill;
+    const [failedStill, setFailedStill] = useState<string>();
     return (
         <button
             class={`tv-up-next${collapsed ? ' tv-up-next--collapsed' : ''}`}
@@ -205,8 +207,13 @@ export function UpNextCard({
         >
             {collapsed ? null : (
                 <span class="tv-up-next__thumb" aria-hidden="true">
-                    {card.next.episodeStill ? (
-                        <img src={card.next.episodeStill} alt="" />
+                    {still && still !== failedStill ? (
+                        <img
+                            key={still}
+                            src={still}
+                            alt=""
+                            onError={() => setFailedStill(still)}
+                        />
                     ) : (
                         <span class="tv-up-next__placeholder">{code}</span>
                     )}

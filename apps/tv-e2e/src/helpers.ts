@@ -11,6 +11,13 @@ export async function fillTvField(field: Locator, value: string) {
     await field.fill(value);
 }
 
+export async function backFromPlayback(page: Page) {
+    const player = page.locator('.native-player.fullscreen');
+    await page.keyboard.press('Escape');
+    if (await player.isVisible()) await page.keyboard.press('Escape');
+    await expect(player).toHaveCount(0);
+}
+
 export async function cardAction(
     page: Page,
     card: Locator,

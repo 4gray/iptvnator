@@ -85,7 +85,7 @@ test('TV VOD comfort completed movie never says Resume after historical schema-1
     );
 });
 
-async function syntheticSeries(page: Page) {
+async function syntheticSeries(page: Page, nextStill?: string) {
     await page.route('**/xtream?**', async (route) => {
         const action = new URL(route.request().url()).searchParams.get(
             'action'
@@ -120,6 +120,7 @@ async function syntheticSeries(page: Page) {
                                     season: 1,
                                     episode_num: 4,
                                     title: 'The crossing',
+                                    info: { movie_image: nextStill },
                                     container_extension: 'mp4',
                                 },
                             ],
@@ -258,7 +259,7 @@ test('TV Up next can be reached again by remote and Back dismisses it first', as
     page,
 }) => {
     await start(page);
-    await syntheticSeries(page);
+    await syntheticSeries(page, 'https://artwork.invalid/episode.jpg');
     await addSource(page, 'xtream');
     await nav(page, 'Series');
     await page.locator('.poster-card').first().click();
@@ -267,6 +268,9 @@ test('TV Up next can be reached again by remote and Back dismisses it first', as
     const card = page.locator('[data-focus="player-up-next"]');
     const player = page.locator('.native-player.fullscreen');
     await expect(card).toBeFocused();
+    await expect(card.locator('.tv-up-next__placeholder')).toHaveText(
+        'S1 · E4'
+    );
     await page.keyboard.press('ArrowDown');
     await expect(card).not.toBeFocused();
     await page.keyboard.press('ArrowUp');
