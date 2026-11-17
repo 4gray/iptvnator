@@ -28,6 +28,7 @@ import {
     parseEpgDateKey,
     shiftEpgDateKey,
 } from '../epg-date';
+import { runEpgViewClock } from '../epg-today';
 import { EpgItemDialogAction } from '../epg-item-description/epg-item-description.component';
 import type { EpgProgramActivationEvent } from '../epg-program-activation-event';
 import { EpgProgrammeDialogService } from '../epg-programme-dialog.service';
@@ -232,8 +233,15 @@ export class EpgTimelineComponent {
     readonly nowLabel = computed(() => formatClockTime(this.nowMs()));
 
     readonly viewDate = computed(() => parseEpgDateKey(this.viewDayKey()));
+    private readonly todayKey = runEpgViewClock(this.nowMs, 30_000, {
+        viewDayKey: () => this.viewDayKey(),
+        commit: (dayKey) => {
+            this.commitDay(dayKey);
+            this.scroll.focusCurrentTime();
+        },
+    });
     readonly isViewToday = computed(
-        () => this.viewDayKey() === getTodayEpgDateKey()
+        () => this.viewDayKey() === this.todayKey()
     );
 
     readonly renderState = computed<RenderState>(() => {
@@ -304,14 +312,6 @@ export class EpgTimelineComponent {
     );
 
     constructor() {
-        effect((onCleanup) => {
-            const intervalId = window.setInterval(
-                () => this.nowMs.set(Date.now()),
-                30_000
-            );
-            onCleanup(() => clearInterval(intervalId));
-        });
-
         // Auto-focus the current programme whenever a channel's EPG (re)loads
         // or the ribbon (re)mounts — this is what makes selecting a channel land
         // on "now" without the user pressing the Now button. Tracked deps are

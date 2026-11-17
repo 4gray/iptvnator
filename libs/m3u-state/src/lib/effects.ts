@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { EpgService } from '@iptvnator/epg/data-access';
 import {
     applyPlaylistEpgImportPreference,
+    getM3uArchiveDays,
     isDashChannel,
     isDashStreamUrl,
     normalizeEpgUrls,
@@ -216,7 +217,12 @@ export class PlaylistEffects {
                 // Use modern EPG service to get channel programs
                 const channelId = resolveChannelEpgLookupKey(channel);
                 if (channelId) {
-                    this.epgService.getChannelPrograms(channelId);
+                    this.epgService.getChannelPrograms(
+                        channelId,
+                        getM3uArchiveDays(channel)
+                    );
+                } else {
+                    this.epgService.clearSchedule();
                 }
 
                 void window.electron

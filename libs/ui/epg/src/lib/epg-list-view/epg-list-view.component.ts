@@ -26,6 +26,7 @@ import {
     parseEpgDateKey,
     shiftEpgDateKey,
 } from '../epg-date';
+import { epgTodayKey, followEpgTodayRollover } from '../epg-today';
 import { EpgItemDialogAction } from '../epg-item-description/epg-item-description.component';
 import type { EpgProgramActivationEvent } from '../epg-program-activation-event';
 import { EpgProgrammeDialogService } from '../epg-programme-dialog.service';
@@ -149,8 +150,9 @@ export class EpgListViewComponent {
     });
 
     readonly viewDate = computed(() => parseEpgDateKey(this.viewDayKey()));
+    private readonly todayKey = epgTodayKey(this.nowMs);
     readonly isViewToday = computed(
-        () => this.viewDayKey() === getTodayEpgDateKey()
+        () => this.viewDayKey() === this.todayKey()
     );
 
     readonly renderState = computed<RenderState>(() => {
@@ -223,6 +225,15 @@ export class EpgListViewComponent {
     });
 
     constructor() {
+        followEpgTodayRollover(
+            this.todayKey,
+            () => this.viewDayKey(),
+            (dayKey) => {
+                this.commitDay(dayKey);
+                this.scroll.resetListScroll();
+                this.scroll.focusNowAfterRender();
+            }
+        );
         registerEpgListViewEffects({
             nowMs: this.nowMs,
             list: () => this.list()?.nativeElement,

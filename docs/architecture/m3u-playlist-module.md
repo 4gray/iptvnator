@@ -855,6 +855,18 @@ exists (`SettingsFormFacade.supportsEpgDisplay`, XMLTV or a portal's own),
 including the browser PWA, while the page's XMLTV rows (sources, Xtream
 preference, clear data) need the import and data-management bridges.
 
+Both views, and the programme guide, read "today" from their own clock tick
+(`epg-today.ts`): a view that shows today follows the new day when the clock
+crosses midnight (the list and the timeline emit `selectedDateChange`, so a
+host's controlled `selectedDate` follows too); a view the viewer put on
+another day stays there. A timeline that follows midnight centres the
+ribbon on the new day's current time, including when the on-air programme
+started the previous day. After rendering, the list scrolls to the new
+on-air row and the multi-channel guide brings its now-line into view.
+The timeline's hour ticks are placed by local
+wall-clock time, so a daylight-saving day (23 or 25 hours) keeps every label
+on its hour; a wall-clock time the day skips has no tick.
+
 ### EPG display offset
 
 EPG display times also support a global **`Settings.epgOffsetMinutes`**
@@ -1443,8 +1455,11 @@ class EpgService {
     // Fetch EPG for multiple URLs
     fetchEpg(urls: string[]): void;
 
-    // Get programs for a channel
+    // Get programs for a channel (fills currentEpgPrograms$)
     getChannelPrograms(channelId: string): void;
+
+    // The stored EPG changed: drop the airing cache, re-read the open channel
+    refreshEpgData(): void;
 
     // Batch fetch current programs
     getCurrentProgramsForChannels(
@@ -1463,6 +1478,35 @@ class EpgService {
     currentEpgPrograms$: Observable<EpgProgram[]>;
 }
 ```
+
+`currentEpgPrograms$` holds the schedule of the last channel passed to
+`getChannelPrograms`. When the stored EPG changes it is read again for that
+channel, so the open channel's panel does not stay empty or stale until the
+next zap: after a successful `fetchEpg`, any import progress reaching
+`complete` (a refresh or retry from Settings, a startup or background
+import), an EPG source or display offset change, and a manual mapping saved
+or removed in the mapping dialog (`refreshEpgData()`). Reads are numbered: one publishes only
+while its channel is still open and nothing newer has published. A refill
+runs in the background — it passes `rejectOnError`, so an unreadable database
+rejects instead of answering an empty schedule, and a failed refill keeps the
+schedule on screen without a toast. A channel without an EPG key calls
+`clearSchedule()`. This logic lives in `epg-schedule-feed.ts`, loaded with the
+first channel opened, so it stays off the startup path (`renderer.initialBytes`).
+
+The single-channel schedule (`EpgQueryService.getChannelPrograms`, main
+process) is a window around now in the provider's clock, after applying the
+saved EPG display offset, not the oldest rows: the upcoming
+programmes (the one airing included) and the nearest past ones, oldest
+first, with an ordinary window of up to `CHANNEL_SCHEDULE_LIMIT` (500)
+distinct slots. The past reserves up to `CHANNEL_SCHEDULE_PAST_SLOTS` (250)
+and takes whatever the upcoming rows leave, so a long history cannot fill
+the cap and hide today. When the channel advertises catch-up days, the
+M3U player, unified collections and the Xtream XMLTV schedule keep all
+available slots within that window. The M3U player keeps the same window
+on background refills. The query filters unsupported timestamps before
+applying the limits. When sources disagree on a slot's end time, the latest valid end
+decides which half contains that slot. Both halves are returned in
+chronological order regardless of the offset in the stored time.
 
 ### EPG Components
 
