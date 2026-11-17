@@ -1,4 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import {
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'preact/hooks';
 import type { RefObject } from 'preact';
 import { AutoplayStreak } from '@iptvnator/shared/interfaces';
 import { restoreFocus } from '@iptvnator/tv/ui';
@@ -9,6 +15,7 @@ import {
     upNextCountdownLabel,
     upNextDismissKey,
     upNextRingShare,
+    UpNextCollapseBudget,
     type UpNextCard as Card,
 } from '@iptvnator/tv/util';
 import type { TvModel } from './use-tv';
@@ -25,17 +32,20 @@ export const tvAutoplayStreak = new AutoplayStreak();
 /**
  * Up next for the fullscreen TV player, matching the desktop and web card:
  * it appears at the shared lead, OK plays the next episode now, Back hides
- * it for the rest of this episode, and with `seriesAutoplay` on the next
- * episode plays when this one ends (dismissed or not).
+ * it for the rest of this episode, after a while it shrinks to a pill, and
+ * with `seriesAutoplay` on the next episode plays when this one ends
+ * (dismissed, collapsed, or with `playerUpNextCard` off).
  */
 export function useUpNext(
     tv: TvModel,
     video: RefObject<HTMLVideoElement>,
     vod: VodSequence,
     hidden: boolean
-): { card: Card | undefined; play: () => void } {
+): { card: Card | undefined; collapsed: boolean; play: () => void } {
     const [, setTick] = useState(0);
     const [dismissed, setDismissed] = useState<string>();
+    const [collapsedKey, setCollapsedKey] = useState<string>();
+    const budget = useMemo(() => new UpNextCollapseBudget(), []);
     const element = video.current;
     const current = tv.fullscreen ? tv.playing : undefined;
     const next = vod.next;
@@ -50,8 +60,10 @@ export function useUpNext(
         dismissed: !!key && key === dismissed,
         hidden: hidden || !!tv.error || vod.activating,
         autoplay,
+        enabled: tv.data.playerUpNextCard !== false,
         nextProgress: next ? tv.data.positions[next.id] : undefined,
     });
+    const collapsed = !!key && key === collapsedKey;
     const latest = useRef({ card, vod, key, autoplay });
     latest.current = { card, vod, key, autoplay };
 
@@ -95,6 +107,19 @@ export function useUpNext(
         };
     }, [visible, key]);
 
+    // Shrink to a pill once seen, so the card does not cover the credits.
+    useEffect(() => {
+        if (!visible || !key || collapsed) return;
+        const timer = setTimeout(
+            () => setCollapsedKey(key),
+            budget.start(key, Date.now())
+        );
+        return () => {
+            clearTimeout(timer);
+            budget.stop(Date.now());
+        };
+    }, [visible, key, collapsed]);
+
     // Window capture runs before the document listeners that reveal dormant
     // controls (and swallow that first OK) or leave the player on Back.
     useEffect(() => {
@@ -116,31 +141,43 @@ export function useUpNext(
         return () => window.removeEventListener('keydown', keydown, true);
     }, []);
 
-    return { card, play: () => void vod.playNext() };
+    return { card, collapsed, play: () => void vod.playNext() };
 }
 
-export function UpNextCard({ card, play }: { card: Card; play: () => void }) {
+export function UpNextCard({
+    card,
+    collapsed,
+    play,
+}: {
+    card: Card;
+    collapsed: boolean;
+    play: () => void;
+}) {
     const share = upNextRingShare(card);
     const code = episodeCode(card.next);
     return (
         <button
-            class="tv-up-next"
+            class={`tv-up-next${collapsed ? ' tv-up-next--collapsed' : ''}`}
             data-focus={FOCUS_KEY}
             onClick={play}
             aria-label={`Up next: ${code}${card.next.title ? ` – ${card.next.title}` : ''}`}
         >
-            <span class="tv-up-next__thumb" aria-hidden="true">
-                {card.next.episodeStill ? (
-                    <img src={card.next.episodeStill} alt="" />
-                ) : (
-                    <span class="tv-up-next__placeholder">{code}</span>
-                )}
-                {card.progressPercent !== null ? (
-                    <span class="tv-up-next__progress">
-                        <span style={{ width: `${card.progressPercent}%` }} />
-                    </span>
-                ) : null}
-            </span>
+            {collapsed ? null : (
+                <span class="tv-up-next__thumb" aria-hidden="true">
+                    {card.next.episodeStill ? (
+                        <img src={card.next.episodeStill} alt="" />
+                    ) : (
+                        <span class="tv-up-next__placeholder">{code}</span>
+                    )}
+                    {card.progressPercent !== null ? (
+                        <span class="tv-up-next__progress">
+                            <span
+                                style={{ width: `${card.progressPercent}%` }}
+                            />
+                        </span>
+                    ) : null}
+                </span>
+            )}
             <span class="tv-up-next__meta">
                 <span class="tv-up-next__eyebrow">
                     Up next · {code}
@@ -176,8 +213,14 @@ export function UpNextCard({ card, play }: { card: Card; play: () => void }) {
                         </>
                     ) : null}
                 </span>
-                <span class="tv-up-next__title">{card.next.title}</span>
-                <span class="tv-up-next__hint">OK to play · Back to hide</span>
+                {collapsed ? null : (
+                    <>
+                        <span class="tv-up-next__title">{card.next.title}</span>
+                        <span class="tv-up-next__hint">
+                            OK to play · Back to hide
+                        </span>
+                    </>
+                )}
             </span>
         </button>
     );

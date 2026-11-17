@@ -107,6 +107,16 @@
     font-size: var(--tv-type-eyebrow);
 }
 
+/*
+ * Collapsed: after a while the card shrinks to a single-line pill with the
+ * episode code and countdown, like desktop, so it no longer covers the
+ * credits. It keeps focus: OK still plays, Back still hides.
+ */
+.tv-up-next--collapsed {
+    padding: var(--tv-space-1) var(--tv-space-3);
+    border-radius: 999px;
+}
+
 /* Countdown ring: empties from the moment the card appears to the end. */
 .tv-up-next__ring {
     display: inline-block;

@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { UP_NEXT_COLLAPSE_DELAY_MS } from '@iptvnator/shared/interfaces';
 import * as tv from '@iptvnator/tv/util';
 
 const episode = (id: string, season: number, number: number): tv.Media => ({
@@ -110,4 +111,27 @@ test('a dismissal is keyed to this episode and its next one', () => {
         tv.upNextDismissKey(current, next),
         tv.upNextDismissKey(next, episode('e3', 1, 3))
     );
+});
+
+test('playerUpNextCard off hides the card but keeps the default on', () => {
+    assert.equal(tv.upNextCard({ ...base, enabled: false }), undefined);
+    assert.ok(tv.upNextCard({ ...base, enabled: true }));
+    assert.ok(tv.upNextCard(base));
+    assert.equal(tv.initialData().playerUpNextCard, true);
+    assert.equal(tv.hydrateUserData({}).playerUpNextCard, true);
+    assert.equal(
+        tv.hydrateUserData({ playerUpNextCard: false }).playerUpNextCard,
+        false
+    );
+});
+
+test('the pill delay only runs while the card shows, like desktop', () => {
+    const budget = new tv.UpNextCollapseBudget();
+    assert.equal(budget.start('a', 0), UP_NEXT_COLLAPSE_DELAY_MS);
+    budget.stop(4_000);
+    assert.equal(budget.start('a', 60_000), UP_NEXT_COLLAPSE_DELAY_MS - 4_000);
+    budget.stop(70_000);
+    assert.equal(budget.start('a', 80_000), 0);
+    budget.stop(80_000);
+    assert.equal(budget.start('b', 90_000), UP_NEXT_COLLAPSE_DELAY_MS);
 });

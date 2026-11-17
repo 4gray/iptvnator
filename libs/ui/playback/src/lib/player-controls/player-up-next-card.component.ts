@@ -9,10 +9,11 @@ import {
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
+import { UP_NEXT_COLLAPSE_DELAY_MS } from '@iptvnator/shared/interfaces';
 import type { PlayerUpNextItem } from './player-controls.model';
 
-/** How long the full card shows before it shrinks to a pill. */
-export const UP_NEXT_COLLAPSE_DELAY_MS = 10_000;
+/** How long the full card shows before it shrinks to a pill (all clients). */
+export { UP_NEXT_COLLAPSE_DELAY_MS };
 
 /**
  * The "Up next" card in the player's bottom-right corner: thumbnail, the

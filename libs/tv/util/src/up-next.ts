@@ -1,4 +1,7 @@
-import { upNextLeadSeconds } from '@iptvnator/shared/interfaces';
+import {
+    UP_NEXT_COLLAPSE_DELAY_MS,
+    upNextLeadSeconds,
+} from '@iptvnator/shared/interfaces';
 import type { Media, Progress } from './index';
 
 /**
@@ -19,6 +22,11 @@ export interface UpNextInput {
     hidden: boolean;
     /** `seriesAutoplay`: the countdown only shows when the end plays on. */
     autoplay: boolean;
+    /**
+     * `playerUpNextCard`, same name and default as desktop: false hides the
+     * card only; autoplay at the end still follows `seriesAutoplay`.
+     */
+    enabled?: boolean;
     /** Credits start from a metadata source (TheIntroDB, #2239). */
     creditsStartSeconds?: number | null;
     /** Saved progress of the next episode, for the partly-watched bar. */
@@ -39,6 +47,7 @@ export function upNextCard(input: UpNextInput): UpNextCard | undefined {
     if (
         current?.kind !== 'episode' ||
         !next ||
+        input.enabled === false ||
         input.ended ||
         input.dismissed ||
         input.hidden
@@ -76,6 +85,37 @@ export function upNextRingShare(card: UpNextCard): number {
     return card.leadSeconds > 0
         ? Math.min(1, Math.max(0, card.remainingSeconds / card.leadSeconds))
         : 0;
+}
+
+/**
+ * Time the full card has left before it shrinks to a pill, like desktop:
+ * the delay only runs while the card is on screen (a panel covering it
+ * pauses the count rather than resetting it), and a new card starts afresh.
+ */
+export class UpNextCollapseBudget {
+    private key: string | undefined;
+    private remainingMs = UP_NEXT_COLLAPSE_DELAY_MS;
+    private startedAt: number | null = null;
+
+    /** The card is on screen; returns the milliseconds until it collapses. */
+    start(key: string, now: number): number {
+        if (key !== this.key) {
+            this.key = key;
+            this.remainingMs = UP_NEXT_COLLAPSE_DELAY_MS;
+        }
+        this.startedAt = now;
+        return this.remainingMs;
+    }
+
+    /** The card left the screen; keep the time still owed. */
+    stop(now: number): void {
+        if (this.startedAt === null) return;
+        this.remainingMs = Math.max(
+            0,
+            this.remainingMs - (now - this.startedAt)
+        );
+        this.startedAt = null;
+    }
 }
 
 /** A dismissal lasts for this episode and the next one it pointed to. */

@@ -153,6 +153,8 @@ export interface UserData {
     tmdb: { enabled: boolean; apiKey: string; language: string };
     /** Play the next episode when one ends; same name and default as desktop. */
     seriesAutoplay: boolean;
+    /** Show the "Up next" card near an episode's end; same as desktop. */
+    playerUpNextCard: boolean;
 }
 export const initialData = (): UserData => ({
     sources: [],
@@ -168,6 +170,7 @@ export const initialData = (): UserData => ({
     epg: true,
     tmdb: { enabled: false, apiKey: '', language: 'en' },
     seriesAutoplay: true,
+    playerUpNextCard: true,
 });
 export const identity = (source: Source, kind: Kind, id: unknown) =>
     JSON.stringify([source.id, source.provider, kind, String(id)]);
@@ -247,6 +250,7 @@ export function hydrateUserData(saved: Partial<UserData>): UserData {
     };
     data.tmdb = { ...initialData().tmdb, ...saved.tmdb };
     data.seriesAutoplay = saved.seriesAutoplay !== false;
+    data.playerUpNextCard = saved.playerUpNextCard !== false;
     if (!saved.positions) {
         data.positions = {};
         data.history.forEach((progress) => {

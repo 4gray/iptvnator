@@ -16,6 +16,11 @@ export const UP_NEXT_MIN_THRESHOLD_SECONDS = 40;
 export const UP_NEXT_MAX_THRESHOLD_SECONDS = 3 * 60;
 /** Long credits still bring the card no further forward than this. */
 export const UP_NEXT_MAX_CREDITS_LEAD_SECONDS = 5 * 60;
+/**
+ * How long the full card shows before it shrinks to a pill, on every client,
+ * so it does not cover the credits for minutes.
+ */
+export const UP_NEXT_COLLAPSE_DELAY_MS = 10_000;
 /** A credits chapter only counts in the episode's last third. */
 const CREDITS_CHAPTER_MIN_RATIO = 2 / 3;
 const CREDITS_CHAPTER_TITLE =

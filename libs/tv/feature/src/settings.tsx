@@ -93,19 +93,19 @@ export function Settings({
                             <SettingsPreferences
                                 key={`layout:${phoneRevision}`}
                                 tv={tv}
-                                field="layout"
+                                category="layout"
                             />
                         ) : id === 'epg' ? (
                             <SettingsPreferences
                                 key={`epg:${phoneRevision}`}
                                 tv={tv}
-                                field="epg"
+                                category="epg"
                             />
                         ) : id === 'playback' ? (
                             <SettingsPreferences
                                 key={`playback:${phoneRevision}`}
                                 tv={tv}
-                                field="seriesAutoplay"
+                                category="playback"
                             />
                         ) : id === 'metadata' ? (
                             <TmdbSettings

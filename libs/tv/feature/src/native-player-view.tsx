@@ -54,7 +54,11 @@ export function NativePlayerView({
         >
             <video ref={video} playsInline preload="metadata" />
             {tv.fullscreen && upNext.card ? (
-                <UpNextCard card={upNext.card} play={upNext.play} />
+                <UpNextCard
+                    card={upNext.card}
+                    collapsed={upNext.collapsed}
+                    play={upNext.play}
+                />
             ) : null}
             {tv.fullscreen ? (
                 <div
