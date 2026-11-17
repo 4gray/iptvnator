@@ -109,6 +109,30 @@ describe('ControlsShortcuts', () => {
         }
     });
 
+    it('closes popovers once when a surface suspends the player', async () => {
+        const surface = document.createElement('div');
+        const host = document.createElement('div');
+        surface.appendChild(host);
+        document.body.appendChild(surface);
+        // The watch starts on attach, where the host is known.
+        shortcuts.detach();
+        shortcuts.attach({ ...handlers, hostElement: () => host });
+
+        try {
+            surface.setAttribute('data-player-shortcuts-suspended', '');
+            await Promise.resolve();
+            expect(handlers.onEscape).toHaveBeenCalledTimes(1);
+
+            shortcuts.detach();
+            surface.removeAttribute('data-player-shortcuts-suspended');
+            surface.setAttribute('data-player-shortcuts-suspended', '');
+            await Promise.resolve();
+            expect(handlers.onEscape).toHaveBeenCalledTimes(1);
+        } finally {
+            surface.remove();
+        }
+    });
+
     it('handles shortcuts when the host is not inside an inert region', () => {
         const host = document.createElement('div');
         document.body.appendChild(host);

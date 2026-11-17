@@ -1608,7 +1608,9 @@ changing the saved dock preference. Nothing remounts, so playback and native-vie
 MPV bounds survive. While the guide is open the docked `.video-player` carries
 `data-player-shortcuts-suspended`, which makes `ControlsShortcuts` (shared and
 legacy player shortcuts alike) yield ↑/↓, Space, F and M to the guide's own
-keyboard controller. Entry points: the workspace header action
+keyboard controller and close any open controls popover. The strip is a
+compact mini player: `_epg-guide-dock.scss` hides every shared control except
+a small play/pause; the full dock returns when the guide closes. Entry points: the workspace header action
 (`m3u-epg-guide`), the command palette, the Guide button in the EPG panel's
 toolbar (`openGuide` on both `EpgTimelineComponent` and `EpgListViewComponent`,
 so the action survives the list-view setting) and the `G` key on the player
