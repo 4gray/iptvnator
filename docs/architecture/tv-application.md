@@ -475,7 +475,8 @@ provider's successor, including when the episode list arrives after playback
 ends. Autoplay waits while the app is hidden and cancels a pending stream
 resolution on app hide. Returning to the app retries the ended episode's
 successor. A replay intent owns playback while its saved-position reset is
-pending. Committing the autoplay successor preserves its consecutive-episode
+pending. An in-flight Series details lookup also holds autoplay until its
+navigation settles. Committing the autoplay successor preserves its consecutive-episode
 count. With autoplay off, the Next episode button receives focus at the end.
 Manual Next and autoplay both resolve a fresh link, retain the mounted video
 and originating page focus, and cancel pending resolution on Back or a source

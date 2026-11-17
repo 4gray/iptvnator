@@ -80,61 +80,69 @@ test('a committed TV successor retains its autoplay claim while video play is pe
     }
 });
 
-test('a pending TV replay owns a late successor', async () => {
-    const dom = new JSDOM('<div id="root"></div><video></video>', {
-        pretendToBeVisual: true,
-    });
-    const previous = {
-        document: globalThis.document,
-        window: globalThis.window,
-    };
-    Object.assign(globalThis, {
-        document: dom.window.document,
-        window: dom.window,
-    });
-    const root = document.getElementById('root')!;
-    const video = { current: document.querySelector('video')! };
-    let ended = false;
-    Object.defineProperty(video.current, 'ended', { get: () => ended });
-    const tv = {
-        fullscreen: true,
-        playing: { id: 'episode-1', kind: 'episode' },
-        replayPending: false,
-        data: { seriesAutoplay: true, playerUpNextCard: false, positions: {} },
-    } as unknown as TvModel;
-    let starts = 0;
-    const vod = {
-        next: undefined,
-        activating: false,
-        playNext: async () => {
-            starts++;
-            return true;
-        },
-    } as unknown as VodSequence;
-    function Player() {
-        useUpNext(tv, video, vod, false, () => undefined);
-        return null;
-    }
-    tvAutoplayStreak.reset();
-    try {
-        await act(() => render(h(Player, {}), root));
-        await act(() => {
-            ended = true;
-            video.current.dispatchEvent(new dom.window.Event('ended'));
+for (const action of ['replay', 'series details'] as const) {
+    test(`a pending TV ${action} owns a late successor`, async () => {
+        const dom = new JSDOM('<div id="root"></div><video></video>', {
+            pretendToBeVisual: true,
         });
-        await act(() => {
-            tv.replayPending = true;
-            render(h(Player, {}), root);
+        const previous = {
+            document: globalThis.document,
+            window: globalThis.window,
+        };
+        Object.assign(globalThis, {
+            document: dom.window.document,
+            window: dom.window,
         });
-        await act(() => {
-            vod.next = { id: 'episode-2', kind: 'episode' } as Media;
-            render(h(Player, {}), root);
-        });
-        assert.equal(starts, 0);
-    } finally {
-        await act(() => render(null, root));
+        const root = document.getElementById('root')!;
+        const video = { current: document.querySelector('video')! };
+        let ended = false;
+        Object.defineProperty(video.current, 'ended', { get: () => ended });
+        const tv = {
+            fullscreen: true,
+            playing: { id: 'episode-1', kind: 'episode' },
+            replayPending: false,
+            data: {
+                seriesAutoplay: true,
+                playerUpNextCard: false,
+                positions: {},
+            },
+        } as unknown as TvModel;
+        let detailsPending = false;
+        let starts = 0;
+        const vod = {
+            next: undefined,
+            activating: false,
+            playNext: async () => {
+                starts++;
+                return true;
+            },
+        } as unknown as VodSequence;
+        function Player() {
+            useUpNext(tv, video, vod, false, () => undefined, detailsPending);
+            return null;
+        }
         tvAutoplayStreak.reset();
-        Object.assign(globalThis, previous);
-        dom.window.close();
-    }
-});
+        try {
+            await act(() => render(h(Player, {}), root));
+            await act(() => {
+                ended = true;
+                video.current.dispatchEvent(new dom.window.Event('ended'));
+            });
+            await act(() => {
+                tv.replayPending = action === 'replay';
+                detailsPending = action === 'series details';
+                render(h(Player, {}), root);
+            });
+            await act(() => {
+                vod.next = { id: 'episode-2', kind: 'episode' } as Media;
+                render(h(Player, {}), root);
+            });
+            assert.equal(starts, 0);
+        } finally {
+            await act(() => render(null, root));
+            tvAutoplayStreak.reset();
+            Object.assign(globalThis, previous);
+            dom.window.close();
+        }
+    });
+}

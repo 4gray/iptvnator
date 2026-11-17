@@ -42,7 +42,8 @@ export function useUpNext(
     video: RefObject<HTMLVideoElement>,
     vod: VodSequence,
     hidden: boolean,
-    revealControls: () => void
+    revealControls: () => void,
+    navigationPending = false
 ): { card: Card | undefined; collapsed: boolean; play: () => void } {
     const [, setTick] = useState(0);
     const [dismissed, setDismissed] = useState<string>();
@@ -74,6 +75,7 @@ export function useUpNext(
     const replayPending = tv.replayPending;
     const latest = useRef({
         replayPending,
+        navigationPending,
         card,
         vod,
         key,
@@ -83,6 +85,7 @@ export function useUpNext(
     });
     latest.current = {
         replayPending,
+        navigationPending,
         card,
         vod,
         key,
@@ -95,7 +98,12 @@ export function useUpNext(
     const automatic = useRef<AbortController>();
     const advancedTo = useRef<string>();
     const advance = () => {
-        if (document.hidden || latest.current.replayPending) return;
+        if (
+            document.hidden ||
+            latest.current.replayPending ||
+            latest.current.navigationPending
+        )
+            return;
         const {
             vod: sequence,
             autoplay: on,
@@ -148,13 +156,23 @@ export function useUpNext(
         if (replayPending) {
             automatic.current?.abort();
             advancedFrom.current = current?.id;
+        } else if (navigationPending) {
+            automatic.current?.abort();
+            advancedFrom.current = undefined;
         } else if (isEnded) {
             advance();
         } else {
             if (current?.id !== advancedTo.current) automatic.current?.abort();
             advancedFrom.current = undefined;
         }
-    }, [isEnded, next?.id, vod.activating, replayPending, current?.id]);
+    }, [
+        isEnded,
+        next?.id,
+        vod.activating,
+        replayPending,
+        navigationPending,
+        current?.id,
+    ]);
 
     // Re-render as playback moves so the card appears and counts down.
     useEffect(() => {

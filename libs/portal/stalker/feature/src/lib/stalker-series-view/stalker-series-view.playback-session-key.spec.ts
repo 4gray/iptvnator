@@ -256,6 +256,28 @@ describe('StalkerSeriesViewComponent playback session key', () => {
         }
     );
 
+    it('autoplays the committed episode while a superseded same-series start remains unresolved', async () => {
+        await playFirstEpisode();
+        const oldRequest = deferred<ResolvedPortalPlayback>();
+        resolveVodPlayback.mockReturnValueOnce(oldRequest.promise);
+        const episodes = Object.values(
+            fixture.componentInstance.mappedSeasons()
+        )[0] as StalkerMappedEpisode[];
+        fixture.componentInstance.onEpisodeClicked(episodes[1]);
+        fixture.componentInstance.onEpisodeClicked(episodes[0]);
+        await fixture.whenStable();
+        expect(resolveVodPlayback).toHaveBeenCalledTimes(3);
+
+        fixture.componentInstance.handleInlinePlaybackEnded();
+        await fixture.whenStable();
+        expect(resolveVodPlayback).toHaveBeenCalledTimes(4);
+        oldRequest.resolve({
+            streamUrl: 'https://media.example.test/obsolete.mpg',
+            contentInfo: { contentType: 'episode' },
+        } as ResolvedPortalPlayback);
+        await fixture.whenStable();
+    });
+
     function setLazySeries(parentId: string, episodeId: string): void {
         selectedContentType.set('vod');
         selectedItem.set({

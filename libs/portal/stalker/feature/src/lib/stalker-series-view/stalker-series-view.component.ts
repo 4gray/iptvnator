@@ -223,12 +223,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private unsubscribePositionUpdates: (() => void) | null = null;
     readonly openingEpisodeId = signal<number | null>(null);
     readonly activeEpisodeId = signal<number | null>(null);
-    /**
-     * `playlist:series` keys of starts still resolving their stream
-     * (`create_link` round trips): only the series on screen counts as
-     * starting. Provider series ids are playlist-scoped.
-     */
-    private readonly pendingStartSeriesIds = signal<readonly string[]>([]);
+    /** The latest start owns playback while superseded stream lookups settle. */
+    private readonly pendingStart = signal<{
+        seriesKey: string;
+        generation: number;
+    } | null>(null);
     /** Episode choices made while a forced MPV/VLC launch is mid-flight. */
     private readonly launchQueue = new StalkerSeriesLaunchQueue();
     /** `playlist:series` of the series on screen; provider ids collide across playlists. */
@@ -238,7 +237,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     );
     /** A start of the series on screen that has not settled. */
     readonly startPending = computed(() =>
-        this.pendingStartSeriesIds().includes(this.currentSeriesKey())
+        this.pendingStart()?.seriesKey === this.currentSeriesKey()
     );
     readonly seasonWatchBatchRunning = this.watchToggle.seasonWatchBatchRunning;
 
@@ -1288,6 +1287,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         forcePlayer?: ExternalPlayerName
     ): Promise<void> {
         const generation = ++this.seriesPlaybackRequestGeneration;
+        this.pendingStart.set(null);
         const episodeNum = episodeState.episodeNumber;
         const episodeId = Number(episodeState.episode.id);
         const request: StalkerSeriesPlaybackRequestContext = {
@@ -1304,7 +1304,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         if (request.usesEmbeddedPlayer && !request.identity) return;
 
         const pendingSeriesId = this.currentSeriesKey();
-        this.pendingStartSeriesIds.update((ids) => [...ids, pendingSeriesId]);
+        this.pendingStart.set({ seriesKey: pendingSeriesId, generation });
         try {
             const episode = episodeState.episode as StalkerMappedEpisode;
             if (episode.custom_sid === 'vod-series') {
@@ -1389,12 +1389,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 duration: 3000,
             });
         } finally {
-            this.pendingStartSeriesIds.update((ids) => {
-                const index = ids.indexOf(pendingSeriesId);
-                return index < 0
-                    ? ids
-                    : [...ids.slice(0, index), ...ids.slice(index + 1)];
-            });
+            if (this.pendingStart()?.generation === generation)
+                this.pendingStart.set(null);
         }
     }
 

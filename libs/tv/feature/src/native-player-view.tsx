@@ -32,7 +32,14 @@ export function NativePlayerView({
 }) {
     const current = tv.playing;
     const element = video.current;
-    const upNext = useUpNext(tv, video, vod, !!overlay.panel, controls.reveal);
+    const upNext = useUpNext(
+        tv,
+        video,
+        vod,
+        !!overlay.panel,
+        controls.reveal,
+        seriesDetails.busy
+    );
     useLayoutEffect(() => {
         if (!element?.ended || !vod.next || !tv.fullscreen) return;
         let owns = true;
