@@ -193,6 +193,23 @@ describe('createInlinePlaybackPositionWriter', () => {
         });
     });
 
+    it('flushes a writer without onSaved, as second-stream slots use it', () => {
+        const save = jest.fn();
+        const writer = createInlinePlaybackPositionWriter({
+            playback: signal(playbackWithInfo()),
+            save,
+        });
+        writer.handleTimeUpdate({ currentTime: 10, duration: 100 });
+        writer.handleTimeUpdate({ currentTime: 11, duration: 100 });
+
+        writer.reset();
+
+        expect(save).toHaveBeenLastCalledWith(
+            'playlist-1',
+            expect.objectContaining({ positionSeconds: 11 })
+        );
+    });
+
     describe('pause and page hide', () => {
         it('persists a paused position at once, and only once', () => {
             jest.useFakeTimers();
