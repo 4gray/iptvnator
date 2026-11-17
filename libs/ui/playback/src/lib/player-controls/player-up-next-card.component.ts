@@ -115,6 +115,7 @@ export class PlayerUpNextCardComponent {
 
     /** Escape on the card closes it rather than reaching the player. */
     onEscape(event: Event): void {
+        if (event.defaultPrevented) return;
         event.preventDefault();
         event.stopPropagation();
         this.dismissed.emit();

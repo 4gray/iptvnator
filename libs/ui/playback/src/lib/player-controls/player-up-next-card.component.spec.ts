@@ -156,6 +156,21 @@ describe('PlayerUpNextCardComponent', () => {
         ).toBeNull();
     });
 
+    it('keeps the card when a popover already handled Escape', () => {
+        const dismissed = jest.fn();
+        fixture.componentInstance.dismissed.subscribe(dismissed);
+        const escape = new KeyboardEvent('keydown', {
+            key: 'Escape',
+            bubbles: true,
+            cancelable: true,
+        });
+        escape.preventDefault();
+        query('[data-test-id="player-controls-up-next"]')?.dispatchEvent(
+            escape
+        );
+        expect(dismissed).not.toHaveBeenCalled();
+    });
+
     it('dismisses from the close button and from Escape without reaching the player', () => {
         const dismissed = jest.fn();
         const selected = jest.fn();
