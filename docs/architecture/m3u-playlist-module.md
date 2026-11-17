@@ -1316,6 +1316,14 @@ when the display offset changed. Nothing re-evaluated it as wall-clock time
 passed, so once a programme ended the row stayed on it until the category was
 left and re-entered (#767).
 
+The rows on screen are requested whenever the list's current viewport renders
+a new range or the list itself changes (another category, search or sort).
+The list follows `toObservable(viewport)` and `filteredChannels`, not the
+first viewport's `renderedRangeStream`: the viewport is recreated each time the
+list leaves the DOM (loading skeleton, a search without results), and a new
+category can render the same index range, which the range stream does not
+re-emit. Either way the rows used to wait for the one-minute tick below.
+
 `PortalChannelsListComponent` re-checks the rows on screen once a minute. The
 rules, each of which exists to avoid a specific failure:
 
