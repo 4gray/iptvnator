@@ -282,72 +282,146 @@ test('TV Up next can be reached again by remote and Back dismisses it first', as
     await expect(page.locator('.player-bottom')).toContainText('The crossing');
 });
 
-test('TV Up next autoplays across seasons when the episode list arrives after ended', async ({
-    page,
-}) => {
-    await start(page);
-    await syntheticSeries(page);
-    await addSource(page, 'xtream');
-    await nav(page, 'Series');
-    await page.locator('.poster-card').first().click();
-    await chooseTv(page, 'Season', '1');
-    await page.locator('.episode').last().click();
-    const video = page.locator('video');
-    await expect
-        .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime))
-        .toBeGreaterThan(0.1);
+for (const replay of [false, true])
+    test(`TV Up next handles a late episode list with ${replay ? 'Watch again pending' : 'app hide'}`, async ({
+        page,
+    }) => {
+        await start(page);
+        await syntheticSeries(page);
+        await addSource(page, 'xtream');
+        await nav(page, 'Series');
+        await page.locator('.poster-card').first().click();
+        await chooseTv(page, 'Season', '1');
+        await page.locator('.episode').last().click();
+        const video = page.locator('video');
+        await expect
+            .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime))
+            .toBeGreaterThan(0.1);
 
-    // Resume with an empty sequence cache and hold the lookup until playback ends.
-    await expect(page.locator('[data-focus="player-up-next"]')).toBeVisible();
-    await page.keyboard.press('Escape');
-    await page.keyboard.press('Escape');
-    await expect(page.locator('.native-player.fullscreen')).toHaveCount(0);
-    let release!: () => void;
-    const gate = new Promise<void>((resolve) => (release = resolve));
-    await page.route('**/xtream?**', async (route) => {
-        if (
-            new URL(route.request().url()).searchParams.get('action') ===
-            'get_series_info'
-        )
-            await gate;
-        await route.fallback();
+        // Resume with an empty sequence cache and hold the lookup until playback ends.
+        await expect(
+            page.locator('[data-focus="player-up-next"]')
+        ).toBeVisible();
+        await page.keyboard.press('Escape');
+        await page.keyboard.press('Escape');
+        await expect(page.locator('.native-player.fullscreen')).toHaveCount(0);
+        let release!: () => void;
+        const gate = new Promise<void>((resolve) => (release = resolve));
+        await page.route('**/xtream?**', async (route) => {
+            if (
+                new URL(route.request().url()).searchParams.get('action') ===
+                'get_series_info'
+            )
+                await gate;
+            await route.fallback();
+        });
+        try {
+            await page.reload();
+            await cardAction(page, page.locator('.resume-card'));
+            await expect
+                .poll(() =>
+                    video.evaluate((v: HTMLVideoElement) => v.currentTime)
+                )
+                .toBeGreaterThan(0.1);
+            await endedUnknown(page);
+            await expect(page.locator('.player-bottom')).toContainText(
+                'Finding the next episode'
+            );
+            if (replay) {
+                await page.evaluate(() => {
+                    const state = window as unknown as {
+                        replaySaveHeld?: boolean;
+                        releaseReplaySave?: () => void;
+                    };
+                    const put = IDBObjectStore.prototype.put;
+                    const assign = Object.getOwnPropertyDescriptor(
+                        IDBTransaction.prototype,
+                        'oncomplete'
+                    )!.set!;
+                    IDBObjectStore.prototype.put = function (value, key) {
+                        if (
+                            key === 'user' &&
+                            Object.values(value.data.positions).some(
+                                (position) =>
+                                    (position as { reset?: boolean }).reset
+                            )
+                        ) {
+                            IDBObjectStore.prototype.put = put;
+                            Object.defineProperty(
+                                this.transaction,
+                                'oncomplete',
+                                {
+                                    configurable: true,
+                                    set(callback: (event: Event) => void) {
+                                        assign.call(this, (event: Event) => {
+                                            state.replaySaveHeld = true;
+                                            state.releaseReplaySave = () =>
+                                                callback.call(this, event);
+                                        });
+                                    },
+                                }
+                            );
+                        }
+                        return put.call(this, value, key);
+                    };
+                });
+                await page.locator('[data-focus="player-toggle"]').click();
+                await expect
+                    .poll(() =>
+                        page.evaluate(
+                            () =>
+                                !!(
+                                    window as unknown as {
+                                        replaySaveHeld?: boolean;
+                                    }
+                                ).replaySaveHeld
+                        )
+                    )
+                    .toBe(true);
+            } else {
+                await page.evaluate(() => {
+                    Object.defineProperty(document, 'hidden', {
+                        configurable: true,
+                        value: true,
+                    });
+                    document.dispatchEvent(new Event('visibilitychange'));
+                });
+            }
+            release();
+            await expect(
+                page.locator('[data-focus="player-next"]')
+            ).toContainText('S2 · E1');
+            await expect(page.locator('.player-bottom')).toContainText(
+                'The crossing'
+            );
+            if (replay) {
+                await page.evaluate(() =>
+                    (
+                        window as unknown as { releaseReplaySave?: () => void }
+                    ).releaseReplaySave?.()
+                );
+                await expect(video).toHaveJSProperty('ended', false);
+                await expect(page.locator('.player-bottom')).toContainText(
+                    'The crossing'
+                );
+            } else {
+                await page.evaluate(() => {
+                    Reflect.deleteProperty(document, 'hidden');
+                    document.dispatchEvent(new Event('visibilitychange'));
+                });
+                await expect(page.locator('.player-bottom')).toContainText(
+                    'Arrival'
+                );
+            }
+            await expect
+                .poll(() =>
+                    video.evaluate((v: HTMLVideoElement) => v.currentTime)
+                )
+                .toBeGreaterThan(0.1);
+        } finally {
+            release();
+        }
     });
-    try {
-        await page.reload();
-        await cardAction(page, page.locator('.resume-card'));
-        await expect
-            .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime))
-            .toBeGreaterThan(0.1);
-        await endedUnknown(page);
-        await expect(page.locator('.player-bottom')).toContainText(
-            'Finding the next episode'
-        );
-        await page.evaluate(() => {
-            Object.defineProperty(document, 'hidden', {
-                configurable: true,
-                value: true,
-            });
-            document.dispatchEvent(new Event('visibilitychange'));
-        });
-        release();
-        await expect(page.locator('[data-focus="player-next"]')).toContainText(
-            'S2 · E1'
-        );
-        await expect(page.locator('.player-bottom')).toContainText(
-            'The crossing'
-        );
-        await page.evaluate(() => {
-            Reflect.deleteProperty(document, 'hidden');
-            document.dispatchEvent(new Event('visibilitychange'));
-        });
-        await expect(page.locator('.player-bottom')).toContainText('Arrival');
-        await expect
-            .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime))
-            .toBeGreaterThan(0.1);
-    } finally {
-        release();
-    }
-});
 
 test('TV VOD comfort series Start, ended, explicit Next and Home advance across actual supplied seasons', async ({
     page,

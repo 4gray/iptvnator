@@ -71,7 +71,9 @@ export function useUpNext(
         nextProgress: next ? tv.data.positions[next.id] : undefined,
     });
     const collapsed = !!key && key === collapsedKey;
+    const replayPending = tv.replayPending;
     const latest = useRef({
+        replayPending,
         card,
         vod,
         key,
@@ -79,12 +81,21 @@ export function useUpNext(
         current,
         revealControls,
     });
-    latest.current = { card, vod, key, autoplay, current, revealControls };
+    latest.current = {
+        replayPending,
+        card,
+        vod,
+        key,
+        autoplay,
+        current,
+        revealControls,
+    };
     // The episode autoplay last advanced from, so it starts the next one once.
     const advancedFrom = useRef<string>();
     const automatic = useRef<AbortController>();
+    const advancedTo = useRef<string>();
     const advance = () => {
-        if (document.hidden) return;
+        if (document.hidden || latest.current.replayPending) return;
         const {
             vod: sequence,
             autoplay: on,
@@ -103,13 +114,16 @@ export function useUpNext(
         )
             return;
         advancedFrom.current = playing?.id;
+        const nextId = sequence.next?.id;
+        advancedTo.current = nextId;
         const controller = new AbortController();
         automatic.current = controller;
         let claimed = true;
         const releaseClaim = () => {
             if (!claimed) return;
             claimed = false;
-            tvAutoplayStreak.cancelAutoplay();
+            if (latest.current.current?.id !== nextId)
+                tvAutoplayStreak.cancelAutoplay();
         };
         controller.signal.addEventListener('abort', releaseClaim, {
             once: true,
@@ -131,12 +145,16 @@ export function useUpNext(
     // near the end, a slow portal); autoplay then, not only on `ended`.
     const isEnded = !!element?.ended;
     useEffect(() => {
-        if (isEnded) advance();
-        else {
+        if (replayPending) {
             automatic.current?.abort();
+            advancedFrom.current = current?.id;
+        } else if (isEnded) {
+            advance();
+        } else {
+            if (current?.id !== advancedTo.current) automatic.current?.abort();
             advancedFrom.current = undefined;
         }
-    }, [isEnded, next?.id, vod.activating]);
+    }, [isEnded, next?.id, vod.activating, replayPending, current?.id]);
 
     // Re-render as playback moves so the card appears and counts down.
     useEffect(() => {
