@@ -72,6 +72,7 @@ export function installRemote(
 ) {
     registerTvKeys();
     let lastMove = 0;
+    let spaceHandled = false;
     const handler = (event: KeyboardEvent) => {
         const code = event.keyCode;
         const direction =
@@ -94,11 +95,13 @@ export function installRemote(
             playerKey(action);
             return;
         }
-        // A keyboard (browser or hosted use) pauses and resumes with Space,
-        // like the desktop and web player, unless a text field takes it.
-        if (spaceTogglesPlayback(event, fullscreen())) {
-            event.preventDefault();
-            if (!event.repeat) playerKey('toggle');
+        if (event.key === ' ') {
+            if (!event.repeat)
+                spaceHandled = spaceTogglesPlayback(event, fullscreen());
+            if (spaceHandled) {
+                event.preventDefault();
+                if (!event.repeat) playerKey('toggle');
+            }
             return;
         }
         if (!direction.startsWith('Arrow')) return;
@@ -165,10 +168,11 @@ export function installRemote(
         target?.focus();
         target?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     };
-    // A focused button activates on Space keyup; while Space toggles
-    // playback, that keyup must not also press the focused control.
+    // Match the handled keydown even if focus or fullscreen changed meanwhile.
     const keyup = (event: KeyboardEvent) => {
-        if (spaceTogglesPlayback(event, fullscreen())) event.preventDefault();
+        if (event.key !== ' ') return;
+        if (spaceHandled) event.preventDefault();
+        spaceHandled = false;
     };
     document.addEventListener('keydown', handler);
     document.addEventListener('keyup', keyup);
@@ -191,6 +195,7 @@ function spaceTogglesPlayback(event: KeyboardEvent, fullscreen: boolean) {
         !event.ctrlKey &&
         !event.altKey &&
         !event.metaKey &&
-        (slider || (!editingText(target) && !editingTextarea(target)))
+        (slider || !editingText(target)) &&
+        !document.querySelector('[data-tv-modal]')
     );
 }

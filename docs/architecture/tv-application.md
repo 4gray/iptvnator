@@ -298,7 +298,9 @@ One `HTMLVideoElement` exists for preview and fullscreen. Focus movement never
 switches streams. First OK starts live preview; repeated OK opens fullscreen.
 Fullscreen Back restores the opening control, and detail Back restores item
 identity and catalog page. Controls appear on demand; remote media keys and
-native VOD seeking use the same adapter.
+native VOD seeking use the same adapter. In fullscreen, Space and clicking
+the picture toggle playback or restart an ended title. The seek slider keeps
+its arrow keys, and an open dialog keeps its own Space activation.
 Failed fullscreen stream re-resolution retains the player surface and recovery
 controls. Source changes clear source-owned route filters and Back history;
 stale details return Home. Detail and playback requests reject another source's

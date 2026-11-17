@@ -50,14 +50,13 @@ export function NativePlayerView({
         element?.ended && current && current.kind !== 'live'
             ? tv.startOver(current)
             : tv.player.current?.toggle();
-    // A click on the picture (not on a control or panel) pauses and resumes,
-    // like the desktop and web player.
+    // The visible controls layer sits over the video and receives bare picture clicks.
     const clickPicture = (event: MouseEvent) => {
         if (
             !tv.fullscreen ||
             overlay.panel ||
-            (event.target as Element).closest(
-                'button, a, input, select, textarea, label, [data-focus], [role="dialog"]'
+            !(event.target as Element | null)?.matches?.(
+                'video, .player-controls'
             )
         )
             return;

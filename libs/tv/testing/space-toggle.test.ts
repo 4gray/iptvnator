@@ -34,28 +34,44 @@ test('Space toggles fullscreen playback and never presses the focused control', 
         () => fullscreen,
         (action) => actions.push(action)
     );
-    const space = (target: Element, type = 'keydown', repeat = false) => {
+    const space = (
+        target: Element,
+        type = 'keydown',
+        options: KeyboardEventInit = {}
+    ) => {
         const event = new dom.window.KeyboardEvent(type, {
             key: ' ',
             keyCode: 32,
-            repeat,
             bubbles: true,
             cancelable: true,
+            ...options,
         });
         target.dispatchEvent(event);
         return event;
     };
     const button = dom.window.document.querySelector('button')!;
     const input = dom.window.document.querySelector('input')!;
+    button.focus();
     assert.equal(space(button).defaultPrevented, true);
-    assert.equal(space(button, 'keyup').defaultPrevented, true);
-    assert.deepEqual(actions, ['toggle']);
-    space(button, 'keydown', true);
+    assert.equal(
+        space(button, 'keydown', { repeat: true }).defaultPrevented,
+        true
+    );
     assert.deepEqual(actions, ['toggle'], 'auto-repeat does not flip it back');
-    assert.equal(space(input).defaultPrevented, false, 'typing keeps Space');
+
     fullscreen = false;
+    assert.equal(space(button, 'keyup').defaultPrevented, true);
     assert.equal(space(button).defaultPrevented, false, 'outside the player');
+    fullscreen = true;
     assert.equal(space(button, 'keyup').defaultPrevented, false);
+
+    assert.equal(
+        space(button, 'keydown', { ctrlKey: true }).defaultPrevented,
+        false
+    );
+    assert.equal(space(button, 'keyup').defaultPrevented, false);
+    input.focus();
+    assert.equal(space(input).defaultPrevented, false, 'typing keeps Space');
     assert.deepEqual(actions, ['toggle']);
     remove();
 });
@@ -68,7 +84,10 @@ test('Space still toggles playback while the seek slider has focus', (t) => {
         () => true,
         (action) => actions.push(action)
     );
-    const slider = dom.window.document.querySelector('input[type="range"]')!;
+    const slider = dom.window.document.querySelector<HTMLInputElement>(
+        'input[type="range"]'
+    )!;
+    slider.focus();
     const event = new dom.window.KeyboardEvent('keydown', {
         key: ' ',
         keyCode: 32,
