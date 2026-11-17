@@ -24,6 +24,7 @@ export interface ControlsShortcutHandlers {
      * (a popover, the Up next card) so the key goes no further.
      */
     onEscape: () => boolean | void;
+    captureInlineEscape?: boolean;
     togglePaused: () => void;
     toggleFullscreen: () => void;
     seekBy: (deltaSeconds: number) => void;
@@ -83,6 +84,52 @@ export class ControlsShortcuts {
     private stopSuspensionWatch: (() => void) | null = null;
     private readonly listener = (event: KeyboardEvent) => this.handle(event);
 
+    // The inline detail shell sees a bubbling Escape before document listeners.
+    private readonly inlineEscapeListener = (event: KeyboardEvent) => {
+        if (
+            event.key !== 'Escape' ||
+            event.defaultPrevented ||
+            event.repeat ||
+            event.altKey ||
+            event.ctrlKey ||
+            event.metaKey ||
+            event.shiftKey ||
+            document.fullscreenElement ||
+            !this.handlers?.captureInlineEscape
+        )
+            return;
+        const host = this.handlers.hostElement?.();
+        if (
+            !host?.closest('app-portal-detail-shell') ||
+            ControlsShortcuts.resolvePlaybackOwner() !== this
+        )
+            return;
+        const target = event.target;
+        if (
+            target instanceof HTMLElement &&
+            (target.isContentEditable ||
+                target.closest('input, textarea, select'))
+        )
+            return;
+
+        const overlays = document.querySelectorAll<HTMLElement>(
+            '.cdk-overlay-backdrop, [role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]'
+        );
+        if (
+            Array.from(overlays).some(
+                (overlay) =>
+                    !host.contains(overlay) &&
+                    !overlay.closest(
+                        '[hidden], [inert], [aria-hidden="true"]'
+                    ) &&
+                    overlay.checkVisibility?.({ checkVisibilityCSS: true }) !==
+                        false
+            )
+        )
+            return;
+        this.handle(event);
+    };
+
     attach(handlers: ControlsShortcutHandlers): void {
         this.handlers = handlers;
         // Being suspended acts like Escape for the popovers: the surface
@@ -96,6 +143,11 @@ export class ControlsShortcuts {
         ControlsShortcuts.instances.add(this);
         ControlsShortcuts.active ??= this;
         if (typeof document !== 'undefined') {
+            document.addEventListener(
+                'keydown',
+                this.inlineEscapeListener,
+                true
+            );
             document.addEventListener('keydown', this.listener);
         }
     }
@@ -110,6 +162,11 @@ export class ControlsShortcuts {
         this.stopSuspensionWatch?.();
         this.stopSuspensionWatch = null;
         if (typeof document !== 'undefined') {
+            document.removeEventListener(
+                'keydown',
+                this.inlineEscapeListener,
+                true
+            );
             document.removeEventListener('keydown', this.listener);
         }
         this.handlers = null;

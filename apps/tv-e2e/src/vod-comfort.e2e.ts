@@ -3,6 +3,7 @@ import {
     addSource,
     cardAction,
     chooseTv,
+    disableUpNextAndAutoplay,
     moreAction,
     nav,
     start,
@@ -246,15 +247,6 @@ test('TV VOD comfort manual marks commit before display, recover from quota and 
     expect(retained).toBe(true);
 });
 
-async function disableUpNextAndAutoplay(page: Page) {
-    await nav(page, 'Settings');
-    await page.getByRole('tab', { name: 'Playback' }).click();
-    await page.getByLabel('Autoplay next episode').uncheck();
-    await page.getByLabel('"Up next" card').uncheck();
-    await page.getByRole('button', { name: 'Save settings' }).click();
-    await expect(page.getByText('Settings saved')).toBeVisible();
-}
-
 test('TV Up next can be reached again by remote and Back dismisses it first', async ({
     page,
 }) => {
@@ -271,6 +263,8 @@ test('TV Up next can be reached again by remote and Back dismisses it first', as
     await expect(card.locator('.tv-up-next__placeholder')).toHaveText(
         'S1 · E4'
     );
+    const thumb = card.locator('.tv-up-next__thumb');
+    await expect(thumb).toHaveCSS('height', '144px');
     await page.keyboard.press('ArrowDown');
     await expect(card).not.toBeFocused();
     await page.keyboard.press('ArrowUp');

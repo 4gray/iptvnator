@@ -253,7 +253,8 @@ export class PlayerControlsComponent implements OnDestroy {
             canSeek: () => this.capabilities().seek && this.state().canSeek,
             canAdjustVolume: () => this.capabilities().volume,
             canToggleFullscreen: () => this.vm.canFullscreen(),
-            // Open menus first, then a visible Up next card, wherever focus is.
+            captureInlineEscape: true,
+            // Open menus before the Up next card.
             onEscape: () =>
                 this.closePopovers() || this.upNextCard.dismissIfVisible(),
             togglePaused: () => this.togglePlay(),
@@ -415,9 +416,7 @@ export class PlayerControlsComponent implements OnDestroy {
     }
     async toggleFullscreen(): Promise<void> {
         this.reveal();
-        if (!this.vm.canFullscreen()) {
-            return;
-        }
+        if (!this.vm.canFullscreen()) return;
         await this.fullscreen.toggle();
     }
     private closePopovers(): boolean {

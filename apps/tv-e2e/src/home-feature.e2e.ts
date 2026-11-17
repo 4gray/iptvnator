@@ -413,7 +413,7 @@ for (const action of ['exit', 'play'] as const) {
                 )
                 .toBe(true);
             await expect(page.locator('.hero h1')).toHaveText(title);
-            if (action === 'play') await page.keyboard.press('Escape');
+            if (action === 'play') await backFromPlayback(page);
             await expect(page.locator('.hero h1')).toHaveText(title);
             await expect(page.locator('.detail-hero')).toHaveCount(0);
             await expect(page.locator('video[src], video source')).toHaveCount(

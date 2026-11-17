@@ -594,8 +594,10 @@ the next season: `PortalInlinePlayerComponent.onPlaybackEnded` emits
 The Stalker rail stops at the first season waiting for episode data. If an
 in-flight list arrives after playback ends, autoplay resumes the sequence while
 the same session is still at the end.
-Escape dismisses a visible card for the episode wherever focus is, after any
-open menu closes (`ControlsUpNext.dismissIfVisible`).
+Escape dismisses a visible card for the episode after any open menu closes
+(`ControlsUpNext.dismissIfVisible`). With the inline controls active, the card
+dismisses before Escape reaches the detail shell. Another Escape closes the
+inline player.
 A still that fails to load falls back to the label tile. A click emits
 `nextEpisodeRequested` directly — not through the
 transport's `canNextEpisode` guard, which is season-local — so the card

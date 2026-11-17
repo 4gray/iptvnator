@@ -18,6 +18,15 @@ export async function backFromPlayback(page: Page) {
     await expect(player).toHaveCount(0);
 }
 
+export async function disableUpNextAndAutoplay(page: Page) {
+    await nav(page, 'Settings');
+    await page.getByRole('tab', { name: 'Playback' }).click();
+    await page.getByLabel('Autoplay next episode').uncheck();
+    await page.getByLabel('"Up next" card').uncheck();
+    await page.getByRole('button', { name: 'Save settings' }).click();
+    await expect(page.getByText('Settings saved')).toBeVisible();
+}
+
 export async function cardAction(
     page: Page,
     card: Locator,
