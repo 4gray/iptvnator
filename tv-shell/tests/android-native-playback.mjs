@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { _android, expect } from '@playwright/test';
+import { checkNativeControls, createNativeControlFixtures } from './native-controls-checks.mjs';
 
 const serial = process.argv[2];
 assert.ok(serial?.startsWith('emulator-') && process.env.ANDROID_HOME,
@@ -44,6 +45,7 @@ try {
     execFileSync('ffmpeg', ['-nostdin', '-loglevel', 'error', '-i', mp4, '-i', subtitles,
         '-c:v', 'copy', '-c:a', 'ac3', '-ac', '6', '-metadata:s:s:0', 'language=eng',
         '-disposition:s:0', '0', mkv]);
+    createNativeControlFixtures(fixtures, mp4, subtitles);
     const unsupported = join(fixtures, 'synthetic-unsupported-video.mkv');
     // Theora has no Android video decoder. Leave an ordinary AAC track to
     // distinguish unsupported video from a source that is meant to be audio-only.
@@ -127,6 +129,10 @@ try {
             respond(req, res, Buffer.from('Synthetic unsupported media'), 'video/mp4');
         } else if (req.url === '/synthetic-ac3.mkv') {
             respond(req, res, ac3Clip, 'video/x-matroska');
+        } else if (/^\/synthetic-controls(?:-high\d*|-low\d*)?\.(m3u8|ts|mkv)$/.test(req.url)) {
+            const mime = req.url.endsWith('.m3u8') ? 'application/vnd.apple.mpegurl'
+                : req.url.endsWith('.ts') ? 'video/mp2t' : 'video/x-matroska';
+            respond(req, res, readFileSync(join(fixtures, req.url.slice(1))), mime);
         } else if (/^\/synthetic\d+\.ts$/.test(req.url)) {
             seen.segments++;
             const segment = readFileSync(join(fixtures, req.url.slice(1)));
@@ -372,14 +378,14 @@ try {
     await waitNative();
     await expect(video).toHaveCount(0);
     await waitAudio();
-    const subtitleButton = /<node [^>]*resource-id="org\.tvshell\.iptvnator:id\/exo_subtitle"[^>]*>/;
+    const subtitleButton = /<node [^>]*resource-id="org\.tvshell\.iptvnator:id\/native_subtitles"[^>]*>/;
     const captionsState = () => {
         const button = dumpLayout().match(subtitleButton)?.[0];
         // Direct bridge launches have no focused control for a remote click.
-        if (!button) adb('shell', 'input', 'tap', '120', '120');
+        if (!button) adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_UP');
         return button?.match(/content-desc="([^"]*)"/)?.[1] ?? '';
     };
-    await expect.poll(captionsState, { timeout: 8000 }).toBe('Disable subtitles');
+    await expect.poll(captionsState, { timeout: 8000 }).toBe('Subtitles: on');
     adb('shell', 'input', 'keyevent', 'KEYCODE_MEDIA_PAUSE');
     await expect.poll(audioTrack).toBe('');
     function tapNode(node) {
@@ -395,10 +401,13 @@ try {
         }
         const button = layout.match(subtitleButton)?.[0];
         if (button) tapNode(button);
-        else adb('shell', 'input', 'tap', '120', '120');
+        else adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_UP');
         return false;
     }, { message: 'The Android subtitle menu opens while paused', timeout: 15000 }).toBe(true);
-    await expect.poll(captionsState).toBe('Enable subtitles');
+    const subtitleOk = dumpLayout().match(/<node [^>]*text="OK"[^>]*>/)?.[0];
+    assert.ok(subtitleOk);
+    tapNode(subtitleOk);
+    await expect.poll(captionsState).toBe('Subtitles: off');
     adb('shell', 'input', 'keyevent', 'KEYCODE_MEDIA_PLAY');
     await waitAudio();
     await page.waitForFunction(() => window.__nativeResult?.ended === true, undefined, { timeout: 30000 });
@@ -420,7 +429,7 @@ try {
         }, origin + '/synthetic-ac3.mkv');
         await waitNative();
         await waitAudio();
-        await expect.poll(captionsState, { timeout: 8000 }).toBe('Enable subtitles');
+        await expect.poll(captionsState, { timeout: 8000 }).toBe('Subtitles: off');
         await back();
     } finally {
         for (const [index, key] of systemCaptionSettings.entries()) {
@@ -520,10 +529,14 @@ try {
         await waitNative();
         if (failed) {
             await expect.poll(() => dumpLayout().includes('The built-in player could not play this stream')).toBe(true);
+            const errorBack = dumpLayout().match(/<node [^>]*resource-id="org\.tvshell\.iptvnator:id\/native_back"[^>]*>/)?.[0];
+            assert.ok(errorBack, 'Touch Back stays visible after a playback error.');
+            tapNode(errorBack);
+            await expect.poll(topActivity).toContain('.ui.MainActivity');
         } else {
             await waitAudio();
+            await back();
         }
-        await back();
         await page.waitForFunction(() => window.__nativeResult !== undefined);
         assert.equal(await page.evaluate(() => window.__nativeResult.failed), failed);
     }
@@ -538,7 +551,7 @@ try {
     const timeBar = /<node [^>]*resource-id="org\.tvshell\.iptvnator:id\/exo_progress"[^>]*>/;
     await expect.poll(() => {
         const bar = dumpLayout().match(timeBar)?.[0];
-        if (!bar) adb('shell', 'input', 'tap', '120', '120');
+        if (!bar) adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_UP');
         return Boolean(bar && bar.includes('enabled="false"'));
     }).toBe(true);
     await back();
@@ -583,7 +596,7 @@ try {
         }).toBe(true);
         await waitNative();
         await waitAudio();
-        await expect.poll(captionsState).toBe('Disable subtitles');
+        await expect.poll(captionsState).toBe('Subtitles: on');
         await back();
         await page.waitForFunction(() => window.__rotationResult === true);
     } finally {
@@ -702,6 +715,7 @@ try {
     }, persistedId), { timeout: 15000 }).toBeGreaterThanOrEqual(8);
     page = restoredPage;
     page.setDefaultTimeout(20000);
+    await checkNativeControls({ adb, dumpLayout, page, origin, topActivity });
     await setExperiment(false);
     console.log('PASS Android Media3 opt-in, mute handoff, VOD resume after Home, WebView reload and failed writes, redirect header scope, extensionless HLS Back, AC-3 audio, captions natural VOD completion and external fallback');
 } finally {

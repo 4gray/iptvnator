@@ -45,4 +45,20 @@
     <string name="native_playback_failed">The built-in player could not play this stream. Press Back to return.</string>
     <string name="native_playback_mute">Mute</string>
     <string name="native_playback_unmute">Unmute</string>
+    <string name="native_playback_back">Back to previous screen</string>
+    <string name="native_playback_audio">Audio</string>
+    <string name="native_playback_subtitles">Subtitles</string>
+    <string name="native_playback_quality">Quality</string>
+    <string name="native_playback_picture">Picture</string>
+    <string name="native_playback_original">Original</string>
+    <string name="native_playback_subtitles_on">Subtitles: on</string>
+    <string name="native_playback_subtitles_off">Subtitles: off</string>
+    <string name="native_playback_picture_description">Picture: %1$s</string>
+    <string-array name="native_picture_modes">
+        <item>Fit</item>
+        <item>Zoom (crop)</item>
+        <item>Stretch</item>
+        <item>16:9</item>
+        <item>4:3</item>
+    </string-array>
 </resources>

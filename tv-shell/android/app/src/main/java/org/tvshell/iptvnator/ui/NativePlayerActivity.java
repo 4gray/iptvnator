@@ -35,7 +35,6 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.exoplayer.source.UnrecognizedInputFormatException;
 import androidx.media3.session.MediaSession;
 import androidx.media3.session.SessionCommands;
-import androidx.media3.ui.PlayerView;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -53,7 +52,8 @@ public final class NativePlayerActivity extends Activity {
     private static Intent pausedCheckpoint;
     private ExoPlayer player;
     private MediaSession mediaSession;
-    private PlayerView view;
+    private NativePlayerView view;
+    private NativePlayerControls controls;
     private ImageButton muteButton;
     private float nativeVolume;
     private float audibleVolume;
@@ -100,6 +100,8 @@ public final class NativePlayerActivity extends Activity {
         }
         setContentView(R.layout.activity_native_player);
         view = findViewById(R.id.native_player);
+        if (savedState != null) view.setPictureMode(savedState.getInt("pictureMode"));
+        controls = new NativePlayerControls(this, view);
         muteButton = findViewById(R.id.native_mute);
         nativeVolume = getIntent().getFloatExtra("volume", 1f);
         audibleVolume = nativeVolume > 0f ? nativeVolume : getIntent().getFloatExtra("audibleVolume", 0.5f);
@@ -130,8 +132,6 @@ public final class NativePlayerActivity extends Activity {
             view.showController();
         });
         updateMuteButton();
-        view.setControllerVisibilityListener(
-            (PlayerView.ControllerVisibilityListener) muteButton::setVisibility);
         view.setShowRewindButton(!live);
         view.setShowFastForwardButton(!live);
         view.requestFocus();
@@ -184,6 +184,7 @@ public final class NativePlayerActivity extends Activity {
 
             @Override
             public void onTracksChanged(Tracks tracks) {
+                controls.updateTracks(tracks);
                 if (hasUnsupportedTrack(tracks, C.TRACK_TYPE_VIDEO)
                     || hasUnsupportedTrack(tracks, C.TRACK_TYPE_AUDIO)) {
                     failed = true;
@@ -356,6 +357,7 @@ public final class NativePlayerActivity extends Activity {
     private void showError() {
         view.setCustomErrorMessage(getString(R.string.native_playback_failed));
         view.setUseController(false);
+        controls.showError();
         releaseMediaSession();
     }
 
@@ -386,6 +388,7 @@ public final class NativePlayerActivity extends Activity {
 
     @Override
     protected void onStop() {
+        if (controls != null) controls.dismiss();
         if (player != null) {
             snapshot();
             played = playedMs();
@@ -402,6 +405,7 @@ public final class NativePlayerActivity extends Activity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         snapshot();
+        if (view != null) outState.putInt("pictureMode", view.getPictureMode());
         outState.putFloat("volume", nativeVolume);
         outState.putLong("position", position);
         outState.putLong("duration", duration);
@@ -419,6 +423,8 @@ public final class NativePlayerActivity extends Activity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (view != null && findViewById(R.id.native_controls).hasFocus()) view.showController();
+        if (controls != null && controls.handleKeyEvent(event)) return true;
         return handleExitKey(event) || super.dispatchKeyEvent(event);
     }
 
