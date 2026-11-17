@@ -94,6 +94,7 @@ import type { UpNextRailItem } from './up-next-rail.util';
 export class PortalInlinePlayerComponent {
     readonly playbackSessionKey = input.required<string>();
     readonly playback = input<ResolvedPortalPlayback | null>(null);
+    readonly playbackPending = input(false);
     readonly episodeMetadata = input<SeriesEpisodeMetadata | null>(null);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     /** Series name for the fullscreen title overlay. Xtream episode playback
@@ -331,6 +332,7 @@ export class PortalInlinePlayerComponent {
             if (
                 session === this.playbackSessionKey() &&
                 this.hasPlayback() &&
+                !this.playbackPending() &&
                 this.seriesNavigation()?.autoplayEnabled &&
                 this.seriesNavigation()?.canNext === false
             ) {

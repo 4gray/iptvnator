@@ -114,7 +114,8 @@ export class ControlsUpNext {
 
     /** Hides the card until the next episode it would point to changes. */
     dismiss(): void {
-        this.dismissedLabel.set(this.item()?.label ?? null);
+        const item = this.item();
+        if (item) this.dismissedLabel.set(item.label);
     }
 
     /** Escape: dismisses a visible card; true when there was one. */

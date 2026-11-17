@@ -242,7 +242,13 @@ describe('PortalInlinePlayerComponent up next rail', () => {
         expect(component.playerUpNext()?.showCountdown).toBe(false);
     });
 
-    it.each(['ended', 'new session', 'seek', 'replay'] as const)(
+    it.each([
+        'ended',
+        'new session',
+        'seek',
+        'replay',
+        'pending choice',
+    ] as const)(
         'handles a late season only while playback remains ended (%s)',
         async (state) => {
             await setup(true);
@@ -267,6 +273,8 @@ describe('PortalInlinePlayerComponent up next rail', () => {
             component.onPlaybackEnded();
             expect(selected).not.toHaveBeenCalled();
 
+            if (state === 'pending choice')
+                fixture.componentRef.setInput('playbackPending', true);
             if (state === 'new session')
                 fixture.componentRef.setInput(
                     'playbackSessionKey',
