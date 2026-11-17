@@ -390,7 +390,11 @@ export class PortalInlinePlayerComponent {
         // next season's first plays through the rail selection path, the
         // same way the TV client continues a series.
         const navigation = this.seriesNavigation();
-        if (navigation?.autoplayEnabled === true && !navigation.canNext) {
+        if (
+            navigation?.autoplayEnabled === true &&
+            !navigation.canNext &&
+            !this.playbackPending()
+        ) {
             const next = this.upNextRailNext();
             if (next && this.playAutoplaySuccessor(next)) return;
             if (!next && this.seasonLoading())

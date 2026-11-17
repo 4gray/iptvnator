@@ -322,7 +322,24 @@ test('TV Up next autoplays across seasons when the episode list arrives after en
         await expect(page.locator('.player-bottom')).toContainText(
             'Finding the next episode'
         );
+        await page.evaluate(() => {
+            Object.defineProperty(document, 'hidden', {
+                configurable: true,
+                value: true,
+            });
+            document.dispatchEvent(new Event('visibilitychange'));
+        });
         release();
+        await expect(page.locator('[data-focus="player-next"]')).toContainText(
+            'S2 · E1'
+        );
+        await expect(page.locator('.player-bottom')).toContainText(
+            'The crossing'
+        );
+        await page.evaluate(() => {
+            Reflect.deleteProperty(document, 'hidden');
+            document.dispatchEvent(new Event('visibilitychange'));
+        });
         await expect(page.locator('.player-bottom')).toContainText('Arrival');
         await expect
             .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime))
@@ -535,6 +552,61 @@ test('TV VOD comfort lazy Ministra Next crosses seasons, resolves on demand and 
                 .info()
                 .outputPath('synthetic-ministra-watch-actions.png'),
         });
+    } finally {
+        release();
+    }
+});
+
+test('TV autoplay cancels a held resolution on app hide and resumes on return', async ({
+    page,
+}) => {
+    await start(page);
+    await addSource(page, 'stalker', { mac: '00:1a:79:00:00:0b' });
+    await nav(page, 'Movies');
+    await page.locator('.poster-card').first().click();
+    await page.locator('[data-focus="detail-play"]').click();
+    await expect(page.locator('[data-focus="player-next"]')).toContainText(
+        'S1 · E2'
+    );
+    await expect
+        .poll(() =>
+            page
+                .locator('video')
+                .evaluate((v: HTMLVideoElement) => v.currentTime)
+        )
+        .toBeGreaterThan(0.1);
+    let requests = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    await page.route('**/stalker?**', async (route) => {
+        if (
+            new URL(route.request().url()).searchParams.get('action') !==
+            'create_link'
+        )
+            return route.fallback();
+        requests++;
+        if (requests === 1) await gate;
+        await route.fallback();
+    });
+    try {
+        await endedUnknown(page);
+        await expect.poll(() => requests).toBe(1);
+        await page.evaluate(() => {
+            Object.defineProperty(document, 'hidden', {
+                configurable: true,
+                value: true,
+            });
+            document.dispatchEvent(new Event('visibilitychange'));
+        });
+        release();
+        await expect(page.locator('[data-focus="player-next"]')).toBeEnabled();
+        await expect(page.locator('.player-bottom')).toContainText('Episode 1');
+        await page.evaluate(() => {
+            Reflect.deleteProperty(document, 'hidden');
+            document.dispatchEvent(new Event('visibilitychange'));
+        });
+        await expect(page.locator('.player-bottom')).toContainText('Episode 2');
+        expect(requests).toBe(2);
     } finally {
         release();
     }

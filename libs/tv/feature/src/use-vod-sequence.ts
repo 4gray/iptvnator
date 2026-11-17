@@ -205,21 +205,28 @@ export function useVodSequence(tv: TvModel) {
         failed,
         activating,
         retry: () => setRetry((n) => n + 1),
-        playNext: async () => {
-            if (!current || !next || activation.current) return;
+        playNext: async (signal?: AbortSignal) => {
+            if (!current || !next || activation.current || signal?.aborted)
+                return;
             const controller = new AbortController();
             activation.current = controller;
             setActivating(true);
-            // Preserve the original page/episode focus through a run of explicit Next actions.
-            await latest.current.play(
-                next,
-                '',
-                latest.current.playbackOrigin,
-                controller.signal
-            );
-            if (activation.current === controller) {
-                activation.current = undefined;
-                setActivating(false);
+            const cancel = () => controller.abort();
+            signal?.addEventListener('abort', cancel, { once: true });
+            try {
+                // Preserve the original page/episode focus through explicit Next actions.
+                await latest.current.play(
+                    next,
+                    '',
+                    latest.current.playbackOrigin,
+                    controller.signal
+                );
+            } finally {
+                signal?.removeEventListener('abort', cancel);
+                if (activation.current === controller) {
+                    activation.current = undefined;
+                    setActivating(false);
+                }
             }
         },
     };

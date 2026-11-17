@@ -82,7 +82,9 @@ export function useUpNext(
     latest.current = { card, vod, key, autoplay, current, revealControls };
     // The episode autoplay last advanced from, so it starts the next one once.
     const advancedFrom = useRef<string>();
+    const automatic = useRef<AbortController>();
     const advance = () => {
+        if (document.hidden) return;
         const {
             vod: sequence,
             autoplay: on,
@@ -101,7 +103,11 @@ export function useUpNext(
         )
             return;
         advancedFrom.current = playing?.id;
-        void sequence.playNext();
+        const controller = new AbortController();
+        automatic.current = controller;
+        void sequence.playNext(controller.signal).finally(() => {
+            if (automatic.current === controller) automatic.current = undefined;
+        });
     };
 
     // The next episode can finish loading after this one ended (resuming
@@ -120,9 +126,21 @@ export function useUpNext(
             tick();
             advance();
         };
+        const visibility = () => {
+            if (document.hidden) {
+                automatic.current?.abort();
+                advancedFrom.current = undefined;
+            } else {
+                tick();
+                advance();
+            }
+        };
+        document.addEventListener('visibilitychange', visibility);
         element.addEventListener('timeupdate', tick);
         element.addEventListener('ended', ended);
         return () => {
+            automatic.current?.abort();
+            document.removeEventListener('visibilitychange', visibility);
             element.removeEventListener('timeupdate', tick);
             element.removeEventListener('ended', ended);
         };

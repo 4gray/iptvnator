@@ -242,6 +242,23 @@ describe('PortalInlinePlayerComponent up next rail', () => {
         expect(component.playerUpNext()?.showCountdown).toBe(false);
     });
 
+    it('preserves a pending episode choice when the current season ends', async () => {
+        await setup(true);
+        fixture.componentRef.setInput('playback', seriesPlayback);
+        fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+        fixture.componentRef.setInput('seriesNavigation', {
+            canPrevious: true,
+            canNext: false,
+            autoplayEnabled: true,
+        });
+        fixture.componentRef.setInput('playbackPending', true);
+        const selected = jest.fn();
+        component.upNextEpisodeSelected.subscribe(selected);
+        fixture.detectChanges();
+        component.onPlaybackEnded();
+        expect(selected).not.toHaveBeenCalled();
+    });
+
     it.each([
         'ended',
         'new session',

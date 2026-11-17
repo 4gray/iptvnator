@@ -144,7 +144,7 @@ export function NativePlayerView({
                                     class={element?.ended ? 'primary' : ''}
                                     data-focus="player-next"
                                     disabled={vod.activating}
-                                    onClick={vod.playNext}
+                                    onClick={() => void vod.playNext()}
                                 >
                                     Next episode · {episodeCode(vod.next)} →
                                 </button>

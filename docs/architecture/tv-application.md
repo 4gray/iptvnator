@@ -472,7 +472,9 @@ dismisses the card first and returns its focus to the Play/Pause control. The
 next Back leaves the player. Settings → Playback controls autoplay and card
 visibility independently. Autoplay waits for both the end of playback and the
 provider's successor, including when the episode list arrives after playback
-ends. With autoplay off, the Next episode button receives focus at the end.
+ends. Autoplay waits while the app is hidden and cancels a pending stream
+resolution on app hide. Returning to the app retries the ended episode's
+successor. With autoplay off, the Next episode button receives focus at the end.
 Manual Next and autoplay both resolve a fresh link, retain the mounted video
 and originating page focus, and cancel pending resolution on Back or a source
 change. No IDs or media files are inferred from episode numbers. Missing
