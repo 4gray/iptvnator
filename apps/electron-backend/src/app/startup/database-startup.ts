@@ -1,0 +1,79 @@
+/**
+ * Opens the database at startup and runs the recovery passes that must
+ * precede any download or recording of this process.
+ *
+ * `initDatabase()` forgets a failed attempt, so a transient failure (the
+ * file briefly locked by a closing older version, antivirus, a full disk)
+ * is retried here a few times before the user is told. The recovery passes
+ * run after whichever attempt succeeds. If every attempt fails they are left
+ * to the next launch: IPC handlers keep retrying `getDatabase()` lazily, and
+ * once one of them succeeds the user can start downloads and recordings,
+ * which a late pass would mistake for leftovers of a crashed session.
+ */
+export const DATABASE_STARTUP_RETRY_DELAYS_MS: readonly number[] = [
+    1_000, 3_000, 10_000,
+];
+
+export interface DatabaseStartupDeps {
+    readonly initDatabase: () => Promise<unknown>;
+    readonly recoveryPasses: readonly (() => Promise<void>)[];
+    readonly reportFailure: (error: unknown) => void;
+    readonly trace: (phase: string) => void;
+    readonly retryDelaysMs?: readonly number[];
+    readonly wait?: (ms: number) => Promise<void>;
+}
+
+const defaultWait = (ms: number) =>
+    new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** Never rejects: a failure is reported and the app keeps running. */
+export async function openDatabaseAtStartup(
+    deps: DatabaseStartupDeps
+): Promise<boolean> {
+    const delays = deps.retryDelaysMs ?? DATABASE_STARTUP_RETRY_DELAYS_MS;
+    const wait = deps.wait ?? defaultWait;
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= delays.length; attempt++) {
+        if (attempt > 0) {
+            deps.trace('init-database:retry');
+            await wait(delays[attempt - 1]);
+        }
+        try {
+            await deps.initDatabase();
+        } catch (error) {
+            lastError = error;
+            continue;
+        }
+        return runRecoveryPasses(deps);
+    }
+    deps.trace('init-database:failed');
+    deps.reportFailure(lastError);
+    return false;
+}
+
+async function runRecoveryPasses(deps: DatabaseStartupDeps): Promise<true> {
+    deps.trace('init-database:done');
+    for (const pass of deps.recoveryPasses) {
+        try {
+            await pass();
+        } catch (error) {
+            console.error(
+                'Startup recovery pass failed:',
+                describeStartupError(error)
+            );
+        }
+    }
+    return true;
+}
+
+/**
+ * The SQLite error code and message only: better-sqlite3 messages name no
+ * path or statement, but a stack or wrapped cause could carry either.
+ */
+export function describeStartupError(error: unknown): string {
+    if (!(error instanceof Error)) return 'unknown error';
+    const code = (error as { code?: unknown }).code;
+    return typeof code === 'string'
+        ? `${code}: ${error.message}`
+        : error.message;
+}

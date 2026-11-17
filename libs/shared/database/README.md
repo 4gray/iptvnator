@@ -25,6 +25,14 @@ import { content, categories, playlists, type Content } from '@iptvnator/shared/
 - `getDatabase(options?)` - Full read-write access
 - `getReadOnlyDatabase()` - Read-only access for agent queries
 - `initDatabase(options?)` - Initialize with custom options
+- A failed initialization does not stick: the attempt closes any handle it
+  opened and is forgotten, so every caller of that attempt sees its rejection
+  and the next `getDatabase()`/`initDatabase()` call opens the file again.
+  `src/lib/connection-retry.spec.ts` covers a failed open and a half-open
+  handle on real SQLite. The Electron main process retries a failed startup
+  open a few times, then shows an error dialog; it runs its download and
+  recording recovery passes only after a startup attempt succeeds
+  (`apps/electron-backend/src/app/startup/database-startup.ts`).
 - `closeDatabase()` - Close connection
 - `getDatabasePath()` - Get database file path
 

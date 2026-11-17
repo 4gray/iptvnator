@@ -12,7 +12,7 @@
  * Keep `bootstrapDeferredEvents()` synchronous: the guarantee that no
  * renderer `invoke` finds a missing handler depends on it.
  */
-import { app } from 'electron';
+import { app, dialog } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import { registerM3uSourceProbe } from '../events/m3u-source-probe';
 import { registerSourceProbeCancellation } from '../events/source-probe-control';
@@ -52,6 +52,10 @@ import {
 } from '../services/app-update-channel';
 import { databaseWorkerClient } from '../services/database-worker-client';
 import type { bootstrapWindowCloseGuard } from '../services/window-close-guard.service';
+import {
+    describeStartupError,
+    openDatabaseAtStartup,
+} from './database-startup';
 import { scheduleDeferredFixPath } from './login-shell-path';
 import { stopHostedServerForRestart } from '../services/hosted-server.service';
 import { registerSourceSyncEvents } from '../events/source-sync.events';
@@ -120,20 +124,41 @@ export function bootstrapDeferredEvents(
  * Database initialization and recovery, after the first renderer load is
  * underway so Linux Electron E2E can observe a BrowserWindow even when
  * SQLite startup or download recovery is slow. IPC handlers call
- * getDatabase() lazily and share the same initialization promise.
+ * getDatabase() lazily and share the same initialization promise. Never
+ * rejects: a database that cannot be opened is retried, then reported to
+ * the user (see database-startup.ts for when the recovery passes run).
  */
 export async function finishStartupAfterFirstLoad(): Promise<void> {
-    await initDatabase();
+    await openDatabaseAtStartup({
+        initDatabase,
+        recoveryPasses: [
+            async () => {
+                await resetStaleDownloads();
+                traceStartupPhase('reset-stale-downloads:done');
+            },
+            async () => {
+                await reconcileStaleRecordings();
+                traceStartupPhase('reconcile-stale-recordings:done');
+            },
+        ],
+        reportFailure: reportDatabaseStartupFailure,
+        trace: (phase) => traceStartupPhase(phase),
+    });
+}
 
-    traceStartupPhase('init-database:done');
-
-    await resetStaleDownloads();
-
-    traceStartupPhase('reset-stale-downloads:done');
-
-    await reconcileStaleRecordings();
-
-    traceStartupPhase('reconcile-stale-recordings:done');
+function reportDatabaseStartupFailure(error: unknown): void {
+    console.error(
+        'Database could not be opened at startup:',
+        describeStartupError(error)
+    );
+    void dialog
+        .showMessageBox({
+            type: 'error',
+            title: 'Library could not be opened',
+            message: 'IPTVnator could not open its library database.',
+            detail: 'Sources, favorites and downloads are unavailable for now. Close any other IPTVnator window, check that the disk has free space, then restart IPTVnator.',
+        })
+        .catch(() => undefined);
 }
 
 /** Tears down sessions and the DB worker; safe when nothing was started. */
