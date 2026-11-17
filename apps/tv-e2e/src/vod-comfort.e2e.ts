@@ -557,60 +557,90 @@ test('TV VOD comfort lazy Ministra Next crosses seasons, resolves on demand and 
     }
 });
 
-test('TV autoplay cancels a held resolution on app hide and resumes on return', async ({
-    page,
-}) => {
-    await start(page);
-    await addSource(page, 'stalker', { mac: '00:1a:79:00:00:0b' });
-    await nav(page, 'Movies');
-    await page.locator('.poster-card').first().click();
-    await page.locator('[data-focus="detail-play"]').click();
-    await expect(page.locator('[data-focus="player-next"]')).toContainText(
-        'S1 · E2'
-    );
-    await expect
-        .poll(() =>
-            page
+for (const action of ['app hide', 'seek back'] as const)
+    test(`TV autoplay cancels a held resolution on ${action}`, async ({
+        page,
+    }) => {
+        await start(page);
+        await addSource(page, 'stalker', { mac: '00:1a:79:00:00:0b' });
+        await nav(page, 'Movies');
+        await page.locator('.poster-card').first().click();
+        await page.locator('[data-focus="detail-play"]').click();
+        await expect(page.locator('[data-focus="player-next"]')).toContainText(
+            'S1 · E2'
+        );
+        await expect
+            .poll(() =>
+                page
+                    .locator('video')
+                    .evaluate((v: HTMLVideoElement) => v.currentTime)
+            )
+            .toBeGreaterThan(0.1);
+        let requests = 0;
+        let release!: () => void;
+        const gate = new Promise<void>((resolve) => (release = resolve));
+        await page.route('**/stalker?**', async (route) => {
+            if (
+                new URL(route.request().url()).searchParams.get('action') !==
+                'create_link'
+            )
+                return route.fallback();
+            requests++;
+            if (requests === 1) await gate;
+            await route.fallback();
+        });
+        try {
+            await page
                 .locator('video')
-                .evaluate((v: HTMLVideoElement) => v.currentTime)
-        )
-        .toBeGreaterThan(0.1);
-    let requests = 0;
-    let release!: () => void;
-    const gate = new Promise<void>((resolve) => (release = resolve));
-    await page.route('**/stalker?**', async (route) => {
-        if (
-            new URL(route.request().url()).searchParams.get('action') !==
-            'create_link'
-        )
-            return route.fallback();
-        requests++;
-        if (requests === 1) await gate;
-        await route.fallback();
+                .evaluate(async (v: HTMLVideoElement) => {
+                    v.currentTime = v.duration - 0.1;
+                    await v.play();
+                });
+            await expect.poll(() => requests).toBe(1);
+            if (action === 'app hide') {
+                await page.evaluate(() => {
+                    Object.defineProperty(document, 'hidden', {
+                        configurable: true,
+                        value: true,
+                    });
+                    document.dispatchEvent(new Event('visibilitychange'));
+                });
+            } else {
+                await page.locator('video').evaluate((v: HTMLVideoElement) => {
+                    v.currentTime = 1;
+                });
+                await expect(page.locator('video')).toHaveJSProperty(
+                    'ended',
+                    false
+                );
+            }
+            release();
+            await expect(
+                page.locator('[data-focus="player-next"]')
+            ).toBeEnabled();
+            await expect(page.locator('.player-bottom')).toContainText(
+                'Episode 1'
+            );
+            if (action === 'app hide') {
+                await page.evaluate(() => {
+                    Reflect.deleteProperty(document, 'hidden');
+                    document.dispatchEvent(new Event('visibilitychange'));
+                });
+                await expect(page.locator('.player-bottom')).toContainText(
+                    'Episode 2'
+                );
+                expect(requests).toBe(2);
+            } else {
+                expect(requests).toBe(1);
+                await expect(page.locator('video')).toHaveJSProperty(
+                    'ended',
+                    false
+                );
+            }
+        } finally {
+            release();
+        }
     });
-    try {
-        await endedUnknown(page);
-        await expect.poll(() => requests).toBe(1);
-        await page.evaluate(() => {
-            Object.defineProperty(document, 'hidden', {
-                configurable: true,
-                value: true,
-            });
-            document.dispatchEvent(new Event('visibilitychange'));
-        });
-        release();
-        await expect(page.locator('[data-focus="player-next"]')).toBeEnabled();
-        await expect(page.locator('.player-bottom')).toContainText('Episode 1');
-        await page.evaluate(() => {
-            Reflect.deleteProperty(document, 'hidden');
-            document.dispatchEvent(new Event('visibilitychange'));
-        });
-        await expect(page.locator('.player-bottom')).toContainText('Episode 2');
-        expect(requests).toBe(2);
-    } finally {
-        release();
-    }
-});
 
 test('TV VOD comfort failed sequence lookup keeps playback and Retry finds the actual successor', async ({
     page,

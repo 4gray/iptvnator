@@ -115,7 +115,10 @@ export function useUpNext(
     const isEnded = !!element?.ended;
     useEffect(() => {
         if (isEnded) advance();
-        else advancedFrom.current = undefined;
+        else {
+            automatic.current?.abort();
+            advancedFrom.current = undefined;
+        }
     }, [isEnded, next?.id, vod.activating]);
 
     // Re-render as playback moves so the card appears and counts down.
