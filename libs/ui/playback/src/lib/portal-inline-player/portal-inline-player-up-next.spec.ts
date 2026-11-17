@@ -242,7 +242,7 @@ describe('PortalInlinePlayerComponent up next rail', () => {
         expect(component.playerUpNext()?.showCountdown).toBe(false);
     });
 
-    it.each(['ended', 'new session', 'seek'] as const)(
+    it.each(['ended', 'new session', 'seek', 'replay'] as const)(
         'handles a late season only while playback remains ended (%s)',
         async (state) => {
             await setup(true);
@@ -259,6 +259,11 @@ describe('PortalInlinePlayerComponent up next rail', () => {
             const selected = jest.fn();
             component.upNextEpisodeSelected.subscribe(selected);
             fixture.detectChanges();
+            component.onTimeUpdate({
+                currentTime: 119,
+                duration: 120,
+                playing: false,
+            });
             component.onPlaybackEnded();
             expect(selected).not.toHaveBeenCalled();
 
@@ -267,8 +272,29 @@ describe('PortalInlinePlayerComponent up next rail', () => {
                     'playbackSessionKey',
                     'another-episode'
                 );
+            if (state === 'ended') {
+                component.onTimeUpdate({
+                    currentTime: 119,
+                    duration: 120,
+                    playing: false,
+                });
+                fixture.componentRef.setInput('seasonLoadStates', {
+                    '3': 'unloaded',
+                });
+                fixture.detectChanges();
+            }
             if (state === 'seek')
-                component.onTimeUpdate({ currentTime: 10, duration: 120 });
+                component.onTimeUpdate({
+                    currentTime: 10,
+                    duration: 120,
+                    playing: false,
+                });
+            if (state === 'replay')
+                component.onTimeUpdate({
+                    currentTime: 119,
+                    duration: 120,
+                    playing: true,
+                });
             fixture.componentRef.setInput('upNextEpisodes', upNextItems);
             fixture.componentRef.setInput('seasonLoadStates', {});
             fixture.detectChanges();

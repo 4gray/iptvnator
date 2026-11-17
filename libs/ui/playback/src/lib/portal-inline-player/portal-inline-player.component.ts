@@ -32,6 +32,7 @@ import { SettingsStore } from '@iptvnator/services';
 import { AutoplayStreakService } from './autoplay-streak.service';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 import type { PlayerMediaTitle, PlayerUpNextItem } from '../player-controls';
+import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 import {
     FULLSCREEN_CHANNEL_PANEL,
     type FullscreenChannelPanelContext,
@@ -309,6 +310,7 @@ export class PortalInlinePlayerComponent {
     readonly upNextEpisodeSelected = output<UpNextRailItem>();
     private readonly autoplayStreak = inject(AutoplayStreakService);
     private readonly pendingSeasonAdvance = signal<string | null>(null);
+    private lastReportedPosition: number | undefined;
     private readonly seasonLoading = computed(() =>
         Object.values(this.seasonLoadStates() ?? {}).includes('loading')
     );
@@ -320,6 +322,7 @@ export class PortalInlinePlayerComponent {
         // viewer started, rather than autoplay, resets it.
         effect(() => {
             this.playbackSessionKey();
+            this.lastReportedPosition = undefined;
             untracked(() => this.autoplayStreak.playbackStarted());
         });
         effect(() => {
@@ -332,7 +335,8 @@ export class PortalInlinePlayerComponent {
                 this.seriesNavigation()?.canNext === false
             ) {
                 const next = this.upNextRailNext();
-                if (!next && this.seasonLoading()) return;
+                if (!next && Object.keys(this.seasonLoadStates() ?? {}).length)
+                    return;
                 this.pendingSeasonAdvance.set(null);
                 if (next) untracked(() => this.playAutoplaySuccessor(next));
             } else {
@@ -357,9 +361,16 @@ export class PortalInlinePlayerComponent {
         this.closed.emit();
     }
 
-    onTimeUpdate(event: PlaybackPositionUpdate): void {
-        if (event.currentTime < event.duration)
+    onTimeUpdate(event: PlayerTimeUpdate): void {
+        // MPV can report the same final position again after playback ends.
+        if (
+            event.playing ||
+            (this.lastReportedPosition !== undefined &&
+                event.currentTime < this.lastReportedPosition)
+        ) {
             this.pendingSeasonAdvance.set(null);
+        }
+        this.lastReportedPosition = event.currentTime;
         this.timeUpdate.emit(event);
     }
 

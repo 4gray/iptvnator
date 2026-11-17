@@ -868,8 +868,13 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         const currentIndex = seasons.findIndex(
             (season) => getVodSeriesSeasonKey(season) === seasonKey
         );
-        const nextSeason =
-            currentIndex >= 0 ? seasons[currentIndex + 1] : undefined;
+        if (currentIndex < 0) return;
+        const nextSeason = seasons
+            .slice(currentIndex + 1)
+            .find(
+                (season) =>
+                    season.episodes.length || this.isSeasonHydrationPending(season)
+            );
         if (!nextSeason || nextSeason.isLoading || nextSeason.episodes.length) {
             return;
         }
