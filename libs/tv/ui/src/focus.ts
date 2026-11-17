@@ -178,15 +178,19 @@ export function installRemote(
     };
 }
 
-/** Space toggles playback in the fullscreen player, never inside text entry. */
+/**
+ * Space toggles playback in the fullscreen player, never inside text entry.
+ * The seek slider is an input too, but Space means nothing to it.
+ */
 function spaceTogglesPlayback(event: KeyboardEvent, fullscreen: boolean) {
+    const target = event.target as Element | null;
+    const slider = !!target?.matches?.('input[type="range"]');
     return (
         fullscreen &&
         event.key === ' ' &&
         !event.ctrlKey &&
         !event.altKey &&
         !event.metaKey &&
-        !editingText(event.target as Element | null) &&
-        !editingTextarea(event.target as Element | null)
+        (slider || (!editingText(target) && !editingTextarea(target)))
     );
 }
