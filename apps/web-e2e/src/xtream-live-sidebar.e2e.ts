@@ -47,6 +47,7 @@ test('@ui @xtream All Items title clears the floating panel handles', async ({
 }) => {
     test.setTimeout(90_000);
     await page.route('https://**', (route) => route.abort());
+    await configureMockProviderBackend(page);
     await interceptXtreamRequests(page);
     await page.goto('/');
     await addXtreamPortal(page, { name: 'Live Handles Portal' });
@@ -73,18 +74,15 @@ test('@ui @xtream All Items title clears the floating panel handles', async ({
             .click();
         // Back to the landing grid with the level kept (it is persisted).
         await page.goto(live);
-        await expect(title).toBeVisible();
-        await expect(level.handle).toBeVisible();
-        await page.mouse.move(700, 600);
-        for (const width of [860, 1100, 1400]) {
+        const icon = level.handle.locator('mat-icon');
+        for (const width of [390, 860, 1100, 1400]) {
             await page.setViewportSize({ width, height: 900 });
             const label = `${level.name} at ${width}px`;
+            await expect(title, label).toBeVisible();
             await expect(level.handle, label).toBeVisible();
+            await expect(icon, label).toBeVisible();
             await expectNoOverlap([title, level.handle], label);
-            await expectNoOverlap(
-                [title, level.handle.locator('mat-icon')],
-                `${label} (icon)`
-            );
+            await expectNoOverlap([title, icon], `${label} (icon)`);
         }
         await page.screenshot({
             path: test.info().outputPath(`${level.name}.png`),
