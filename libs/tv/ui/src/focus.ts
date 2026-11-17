@@ -123,7 +123,7 @@ export function installRemote(
         const root =
             document.querySelector('[data-tv-modal]') ??
             (fullscreen()
-                ? document.querySelector('.player-controls')
+                ? document.querySelector('.native-player.fullscreen')
                 : document);
         const candidates = Array.from(
             root?.querySelectorAll<HTMLElement>(selectors) ?? []

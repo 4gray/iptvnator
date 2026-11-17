@@ -242,6 +242,42 @@ describe('PortalInlinePlayerComponent up next rail', () => {
         expect(component.playerUpNext()?.showCountdown).toBe(false);
     });
 
+    it.each(['ended', 'new session', 'seek'] as const)(
+        'handles a late season only while playback remains ended (%s)',
+        async (state) => {
+            await setup(true);
+            fixture.componentRef.setInput('playback', seriesPlayback);
+            fixture.componentRef.setInput('upNextEpisodes', [upNextItems[0]]);
+            fixture.componentRef.setInput('seasonLoadStates', {
+                '2': 'loading',
+            });
+            fixture.componentRef.setInput('seriesNavigation', {
+                canPrevious: true,
+                canNext: false,
+                autoplayEnabled: true,
+            });
+            const selected = jest.fn();
+            component.upNextEpisodeSelected.subscribe(selected);
+            fixture.detectChanges();
+            component.onPlaybackEnded();
+            expect(selected).not.toHaveBeenCalled();
+
+            if (state === 'new session')
+                fixture.componentRef.setInput(
+                    'playbackSessionKey',
+                    'another-episode'
+                );
+            if (state === 'seek')
+                component.onTimeUpdate({ currentTime: 10, duration: 120 });
+            fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+            fixture.componentRef.setInput('seasonLoadStates', {});
+            fixture.detectChanges();
+            expect(selected).toHaveBeenCalledTimes(state === 'ended' ? 1 : 0);
+            if (state === 'ended')
+                expect(selected).toHaveBeenCalledWith(upNextItems[1]);
+        }
+    );
+
     it('stops season-crossing autoplay once the autoplay run is at its limit', async () => {
         await setup(true);
         fixture.componentRef.setInput('playback', seriesPlayback);

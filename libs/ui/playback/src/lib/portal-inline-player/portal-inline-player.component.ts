@@ -308,6 +308,10 @@ export class PortalInlinePlayerComponent {
     /** An episode picked in the Up Next rail or the fullscreen episode panel. */
     readonly upNextEpisodeSelected = output<UpNextRailItem>();
     private readonly autoplayStreak = inject(AutoplayStreakService);
+    private readonly pendingSeasonAdvance = signal<string | null>(null);
+    private readonly seasonLoading = computed(() =>
+        Object.values(this.seasonLoadStates() ?? {}).includes('loading')
+    );
     /** A season tab picked in the fullscreen episode panel (lazy load hook). */
     readonly episodePanelSeasonSelected = output<string>();
 
@@ -317,6 +321,23 @@ export class PortalInlinePlayerComponent {
         effect(() => {
             this.playbackSessionKey();
             untracked(() => this.autoplayStreak.playbackStarted());
+        });
+        effect(() => {
+            const session = this.pendingSeasonAdvance();
+            if (session === null) return;
+            if (
+                session === this.playbackSessionKey() &&
+                this.hasPlayback() &&
+                this.seriesNavigation()?.autoplayEnabled &&
+                this.seriesNavigation()?.canNext === false
+            ) {
+                const next = this.upNextRailNext();
+                if (!next && this.seasonLoading()) return;
+                this.pendingSeasonAdvance.set(null);
+                if (next) untracked(() => this.playAutoplaySuccessor(next));
+            } else {
+                this.pendingSeasonAdvance.set(null);
+            }
         });
         effect((onCleanup) => {
             const element = this.stageViewport()?.nativeElement;
@@ -332,10 +353,13 @@ export class PortalInlinePlayerComponent {
     }
 
     onClose(): void {
+        this.pendingSeasonAdvance.set(null);
         this.closed.emit();
     }
 
     onTimeUpdate(event: PlaybackPositionUpdate): void {
+        if (event.currentTime < event.duration)
+            this.pendingSeasonAdvance.set(null);
         this.timeUpdate.emit(event);
     }
 
@@ -348,28 +372,33 @@ export class PortalInlinePlayerComponent {
     }
 
     onPlaybackEnded(): void {
+        this.pendingSeasonAdvance.set(null);
         // Hosts autoplay within a season; at a season's last episode the
         // next season's first plays through the rail selection path, the
         // same way the TV client continues a series.
         const navigation = this.seriesNavigation();
-        const next = this.upNextRailNext();
-        if (
-            navigation?.autoplayEnabled === true &&
-            navigation.canNext === false &&
-            next &&
-            this.autoplayStreak.beginAutoplay()
-        ) {
-            this.upNextEpisodeSelected.emit(next);
-            return;
+        if (navigation?.autoplayEnabled === true && !navigation.canNext) {
+            const next = this.upNextRailNext();
+            if (next && this.playAutoplaySuccessor(next)) return;
+            if (!next && this.seasonLoading())
+                this.pendingSeasonAdvance.set(this.playbackSessionKey());
         }
         this.playbackEnded.emit();
     }
 
+    private playAutoplaySuccessor(next: UpNextRailItem): boolean {
+        if (!this.autoplayStreak.beginAutoplay()) return false;
+        this.upNextEpisodeSelected.emit(next);
+        return true;
+    }
+
     onPreviousEpisodeRequested(): void {
+        this.pendingSeasonAdvance.set(null);
         this.previousEpisodeRequested.emit();
     }
 
     onNextEpisodeRequested(): void {
+        this.pendingSeasonAdvance.set(null);
         // Season-local navigation ends at a season's last episode; the Up
         // next card can still offer the next season's first, which only
         // the rail selection path knows how to play.
@@ -382,12 +411,13 @@ export class PortalInlinePlayerComponent {
     }
 
     onUpNextEpisodeSelected(item: UpNextRailItem): void {
+        this.pendingSeasonAdvance.set(null);
         this.upNextEpisodeSelected.emit(item);
     }
 
     /** Panel pick: same host path as the rail, then the panel slides away. */
     onPanelEpisodeSelected(item: UpNextRailItem, close: () => void): void {
-        this.upNextEpisodeSelected.emit(item);
+        this.onUpNextEpisodeSelected(item);
         close();
     }
 }

@@ -86,6 +86,24 @@ describe('buildUpNextRailItems', () => {
         expect(items.slice(1).every((item) => !item.isPlaying)).toBe(true);
     });
 
+    it('waits for an intervening season before offering a later episode', () => {
+        const episodesBySeason = {
+            '1': [episode(11, 1, 1)],
+            '2': [],
+            '3': [episode(31, 3, 1)],
+        };
+        const options = { episodesBySeason, currentEpisodeId: 11 };
+        expect(
+            buildUpNextRailItems({
+                ...options,
+                pendingSeasons: { '2': 'loading' },
+            }).map((item) => item.id)
+        ).toEqual([11]);
+        expect(buildUpNextRailItems(options).map((item) => item.id)).toEqual([
+            11, 31,
+        ]);
+    });
+
     it('orders numeric season keys numerically, not lexicographically', () => {
         const items = buildUpNextRailItems({
             episodesBySeason: {

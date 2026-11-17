@@ -245,10 +245,100 @@ test('TV VOD comfort manual marks commit before display, recover from quota and 
     expect(retained).toBe(true);
 });
 
+async function disableUpNextAndAutoplay(page: Page) {
+    await nav(page, 'Settings');
+    await page.getByRole('tab', { name: 'Playback' }).click();
+    await page.getByLabel('Autoplay next episode').uncheck();
+    await page.getByLabel('"Up next" card').uncheck();
+    await page.getByRole('button', { name: 'Save settings' }).click();
+    await expect(page.getByText('Settings saved')).toBeVisible();
+}
+
+test('TV Up next can be reached again by remote and Back dismisses it first', async ({
+    page,
+}) => {
+    await start(page);
+    await syntheticSeries(page);
+    await addSource(page, 'xtream');
+    await nav(page, 'Series');
+    await page.locator('.poster-card').first().click();
+    await page.locator('[data-focus="detail-play"]').click();
+
+    const card = page.locator('[data-focus="player-up-next"]');
+    const player = page.locator('.native-player.fullscreen');
+    await expect(card).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(card).not.toBeFocused();
+    await page.keyboard.press('ArrowUp');
+    await expect(card).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(card).toBeHidden();
+    await expect(player).toBeVisible();
+    await expect(page.locator('[data-focus="player-toggle"]')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(player).toHaveCount(0);
+
+    await page.locator('[data-focus="detail-play"]').click();
+    await expect(card).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.player-bottom')).toContainText('The crossing');
+});
+
+test('TV Up next autoplays across seasons when the episode list arrives after ended', async ({
+    page,
+}) => {
+    await start(page);
+    await syntheticSeries(page);
+    await addSource(page, 'xtream');
+    await nav(page, 'Series');
+    await page.locator('.poster-card').first().click();
+    await chooseTv(page, 'Season', '1');
+    await page.locator('.episode').last().click();
+    const video = page.locator('video');
+    await expect
+        .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime))
+        .toBeGreaterThan(0.1);
+
+    // Resume with an empty sequence cache and hold the lookup until playback ends.
+    await expect(page.locator('[data-focus="player-up-next"]')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.native-player.fullscreen')).toHaveCount(0);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    await page.route('**/xtream?**', async (route) => {
+        if (
+            new URL(route.request().url()).searchParams.get('action') ===
+            'get_series_info'
+        )
+            await gate;
+        await route.fallback();
+    });
+    try {
+        await page.reload();
+        await cardAction(page, page.locator('.resume-card'));
+        await expect
+            .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime))
+            .toBeGreaterThan(0.1);
+        await endedUnknown(page);
+        await expect(page.locator('.player-bottom')).toContainText(
+            'Finding the next episode'
+        );
+        release();
+        await expect(page.locator('.player-bottom')).toContainText('Arrival');
+        await expect
+            .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime))
+            .toBeGreaterThan(0.1);
+    } finally {
+        release();
+    }
+});
+
 test('TV VOD comfort series Start, ended, explicit Next and Home advance across actual supplied seasons', async ({
     page,
 }) => {
     await start(page);
+    await disableUpNextAndAutoplay(page);
     await syntheticSeries(page);
     await addSource(page, 'xtream');
     await nav(page, 'Series');
@@ -404,6 +494,7 @@ test('TV VOD comfort lazy Ministra Next crosses seasons, resolves on demand and 
     page,
 }) => {
     await start(page);
+    await disableUpNextAndAutoplay(page);
     await addSource(page, 'stalker', { mac: '00:1a:79:00:00:0b' });
     await nav(page, 'Movies');
     await page.locator('.poster-card').first().click();
@@ -549,6 +640,7 @@ test('TV VOD comfort remote arrows move along the episode rail, reach its option
     page,
 }) => {
     await start(page);
+    await disableUpNextAndAutoplay(page);
     await syntheticSeries(page);
     await addSource(page, 'xtream');
     await page.route('**/xtream?**', (route) => {
@@ -643,6 +735,7 @@ for (const replay of [
         page,
     }) => {
         await start(page);
+        await disableUpNextAndAutoplay(page);
         await syntheticSeries(page);
         await addSource(page, 'xtream');
         await nav(page, 'Series');

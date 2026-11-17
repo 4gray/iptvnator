@@ -827,6 +827,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         buildUpNextRailItems({
             episodesBySeason: this.mappedSeasons(),
             currentEpisodeId: this.inlineEpisodeState()?.episode.id,
+            pendingSeasons: this.vodSeasonLoadStates(),
             playbackPositions: this.episodePlaybackPositions(),
         })
     );

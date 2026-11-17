@@ -7,7 +7,7 @@ import {
 } from 'preact/hooks';
 import type { RefObject } from 'preact';
 import { AutoplayStreak } from '@iptvnator/shared/interfaces';
-import { restoreFocus } from '@iptvnator/tv/ui';
+import { focusKey, restoreFocus } from '@iptvnator/tv/ui';
 import {
     episodeCode,
     isBackKey,
@@ -41,14 +41,20 @@ export function useUpNext(
     tv: TvModel,
     video: RefObject<HTMLVideoElement>,
     vod: VodSequence,
-    hidden: boolean
+    hidden: boolean,
+    revealControls: () => void
 ): { card: Card | undefined; collapsed: boolean; play: () => void } {
     const [, setTick] = useState(0);
     const [dismissed, setDismissed] = useState<string>();
     const [collapsedKey, setCollapsedKey] = useState<string>();
-    const budget = useMemo(() => new UpNextCollapseBudget(), []);
     const element = video.current;
     const current = tv.fullscreen ? tv.playing : undefined;
+    const currentId = current?.id;
+    const budget = useMemo(() => new UpNextCollapseBudget(), [currentId]);
+    useLayoutEffect(() => {
+        setDismissed(undefined);
+        setCollapsedKey(undefined);
+    }, [currentId]);
     const next = vod.next;
     const key = current && next ? upNextDismissKey(current, next) : undefined;
     const autoplay = tv.data.seriesAutoplay !== false;
@@ -65,8 +71,15 @@ export function useUpNext(
         nextProgress: next ? tv.data.positions[next.id] : undefined,
     });
     const collapsed = !!key && key === collapsedKey;
-    const latest = useRef({ card, vod, key, autoplay, current });
-    latest.current = { card, vod, key, autoplay, current };
+    const latest = useRef({
+        card,
+        vod,
+        key,
+        autoplay,
+        current,
+        revealControls,
+    });
+    latest.current = { card, vod, key, autoplay, current, revealControls };
     // The episode autoplay last advanced from, so it starts the next one once.
     const advancedFrom = useRef<string>();
     const advance = () => {
@@ -152,15 +165,18 @@ export function useUpNext(
             const state = latest.current;
             if (!state.card) return;
             const back = isBackKey(event);
-            const ok =
-                event.key === 'Enter' &&
-                document.activeElement?.getAttribute('data-focus') ===
-                    FOCUS_KEY;
+            const focused = focusKey() === FOCUS_KEY;
+            const ok = event.key === 'Enter' && focused;
             if (!back && !ok) return;
             event.preventDefault();
             event.stopImmediatePropagation();
-            if (back) setDismissed(state.key);
-            else void state.vod.playNext();
+            if (back) {
+                setDismissed(state.key);
+                if (focused) {
+                    state.revealControls();
+                    restoreFocus('player-toggle');
+                }
+            } else void state.vod.playNext();
         };
         window.addEventListener('keydown', keydown, true);
         return () => window.removeEventListener('keydown', keydown, true);
