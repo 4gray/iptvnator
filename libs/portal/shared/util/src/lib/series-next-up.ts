@@ -66,6 +66,7 @@ const naturalCollator = new Intl.Collator(undefined, {
 export function compareSeriesSeasonKeys(a: string, b: string): number {
     return naturalCollator.compare(a, b);
 }
+
 export function getSeriesNextUp(
     request: SeriesProgressRequest
 ): SeriesNextUp | null {

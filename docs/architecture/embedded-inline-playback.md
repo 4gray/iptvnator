@@ -341,9 +341,11 @@ drawn in the player's `--pc-progress` like the dock's Up next card.
 Season navigation inside `SeasonContainerComponent` uses season tabs
 (`SeasonTabsComponent`; a dropdown beyond 6 seasons) instead of the old
 seasons-grid + "Back to seasons" level. The picker opens the inline-playing
-episode's season, then tries the most recent in-progress episode's season,
-then the first season with an unwatched episode or pending list after the last
-watched episode. The picker and quick start both use natural season order,
+episode's season first. If the latest activity is an unfinished episode, the
+picker opens its season, including after a short launch. It then tries the most
+recent in-progress episode's season, followed by the first season with an
+unwatched episode or pending list after the last watched episode. The picker
+and quick start both use natural season order,
 including named seasons such as Season 2 and Season 10. The picker falls back
 to the earliest unwatched season or the latest non-empty season when the
 series is watched. With pending regular seasons and

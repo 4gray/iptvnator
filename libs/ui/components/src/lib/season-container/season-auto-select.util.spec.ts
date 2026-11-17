@@ -70,7 +70,9 @@ function context(
         keys,
         playingSeasonKey: null,
         seasons: episodes,
-        positionOf: (item) => positions[item.id],
+        playbackPositions: new Map(
+            Object.entries(positions).map(([id, saved]) => [Number(id), saved])
+        ),
         hasUnloadedSeasons: false,
         episodeCounts,
         watchedCounts,
@@ -134,20 +136,45 @@ describe('resolveAutoSelectedSeason', () => {
         expect(resolveAutoSelectedSeason(ctx)).toBe('2');
     });
 
-    it('ignores watched and barely-started positions when looking for progress', () => {
+    it.each([
+        { positionSeconds: 0, durationSeconds: undefined, expected: '1' },
+        { positionSeconds: 10, durationSeconds: 2700, expected: '1' },
+        { positionSeconds: 0, durationSeconds: 0, expected: '5' },
+    ])(
+        'selects season $expected after a recent position of $positionSeconds s with duration $durationSeconds',
+        ({ positionSeconds, durationSeconds, expected }) => {
+            const ctx = context(
+                { '1': ['101'], '4': ['401'], '5': ['501'] },
+                {
+                    '101': position(101, {
+                        positionSeconds,
+                        durationSeconds,
+                        updatedAt: '2026-07-09T00:00:00.000Z',
+                    }),
+                    '401': watched(401),
+                }
+            );
+
+            expect(resolveAutoSelectedSeason(ctx)).toBe(expected);
+        }
+    );
+
+    it('continues after the last watched episode when a short launch is older', () => {
         const ctx = context(
-            { '1': ['101'], '2': ['201'], '3': ['301'] },
+            { '1': ['101'], '4': ['401'], '5': ['501'] },
             {
-                '101': watched(101),
-                '301': position(301, {
+                '101': position(101, {
                     positionSeconds: 5,
+                    updatedAt: '2026-07-01T00:00:00.000Z',
+                }),
+                '401': position(401, {
+                    positionSeconds: 2700,
                     updatedAt: '2026-07-09T00:00:00.000Z',
                 }),
             }
         );
-        // Season one is watched, season three's 5 s is below the in-progress
-        // threshold, so the default rule runs: earliest unwatched season.
-        expect(resolveAutoSelectedSeason(ctx)).toBe('2');
+
+        expect(resolveAutoSelectedSeason(ctx)).toBe('5');
     });
 
     it('falls back to the earliest season with unwatched episodes', () => {

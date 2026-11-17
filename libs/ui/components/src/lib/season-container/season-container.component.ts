@@ -344,7 +344,6 @@ export class SeasonContainerComponent implements OnInit {
             sortedSeasonKeys: this.sortedSeasonKeys,
             playingSeasonKey: this.playingSeasonKey,
             playbackPositions: this.playbackPositions,
-            positionOf: (episode) => this.getEpisodePosition(episode),
             hasUnloadedSeasons: this.hasUnloadedSeasons,
             unloadedSeasonKeys: this.unloadedSeasonKeys,
             episodeCounts: this.episodeCounts,

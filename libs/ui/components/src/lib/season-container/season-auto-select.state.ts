@@ -27,9 +27,6 @@ export interface SeasonAutoSelectSources {
     readonly playbackPositions: Signal<
         ReadonlyMap<number, PlaybackPositionData>
     >;
-    readonly positionOf: (
-        episode: XtreamSerieEpisode
-    ) => PlaybackPositionData | undefined;
     /** Stalker lazy-VOD: some seasons' episode lists are not loaded yet. */
     readonly hasUnloadedSeasons: Signal<boolean>;
     /** Stalker lazy-VOD: the seasons whose lists are not loaded yet. */
@@ -84,16 +81,17 @@ export function createSeasonAutoSelectState(
     );
     const autoSelectKey = computed(() => {
         const keys = sources.sortedSeasonKeys();
+        const playbackPositions = sources.playbackPositions();
         const seasonsWithPositions = keys
             .filter((key) =>
-                (sources.seasons()[key] ?? []).some(
-                    (episode) => sources.positionOf(episode) !== undefined
+                (sources.seasons()[key] ?? []).some((episode) =>
+                    playbackPositions.has(Number(episode.id))
                 )
             )
             .join('|');
         return JSON.stringify([
             seasonSetKey(),
-            sources.playbackPositions().size > 0,
+            playbackPositions.size > 0,
             seasonsWithPositions,
             sources.hasUnloadedSeasons(),
             sources.unloadedSeasonKeys(),
@@ -117,7 +115,7 @@ export function createSeasonAutoSelectState(
             keys: sources.sortedSeasonKeys(),
             playingSeasonKey: sources.playingSeasonKey(),
             seasons: sources.seasons(),
-            positionOf: sources.positionOf,
+            playbackPositions: sources.playbackPositions(),
             hasUnloadedSeasons:
                 sources.hasUnloadedSeasons() ||
                 sources.unloadedSeasonKeys().length > 0,
