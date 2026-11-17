@@ -824,7 +824,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Краіна ўзроставага рэйтынгу",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Выберыце краіну класіфікацыі. Калі мясцовых звестак няма, выкарыстоўваюцца даныя ЗША або правайдара.",
-        "AGE_RATING_COUNTRY_AUTO": "Аўтаматычна — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Аўтаматычна — {{country}}",
+        "CARD_HELP": "Даведка",
+        "KEYBOARD_SHORTCUTS": "Спалучэнні клавіш",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Спалучэнні клавіш для навігацыі, прайгравання і дыялогаў. Націсніце ? па-за тэкставым полем, каб адкрыць іх.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Паказаць спалучэнні"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Не ўдалося захаваць на сервер. Праверце злучэнне і паспрабуйце зноў.",
@@ -2180,7 +2184,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "Выдаленне кэшаваных катэгорый...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "Выбранае, гісторыя прагляду, схаваныя катэгорыі і прагрэс прайгравання будуць падрыхтаваны для аднаўлення пасля сінхранізацыі.",
             "XTREAM_REFRESH_PROGRESS": "Апрацавана лакальных запісаў: {{current}} / {{total}}",
-            "RAIL_RADIO": "Радыё"
+            "RAIL_RADIO": "Радыё",
+            "MORE_ACTIONS": "Яшчэ дзеянні"
         },
         "SOURCES": {
             "TITLE": "Крыніцы",
@@ -2251,8 +2256,6 @@
         "SHORTCUTS": {
             "TITLE": "Спалучэнні клавіш",
             "SUBTITLE": "Спалучэнні клавіш для працоўнай вобласці, навігацыі, прайгравання і дыялогаў у IPTVnator.",
-            "OPEN_TOOLTIP": "Спалучэнні клавіш (?)",
-            "OPEN_ARIA": "Адкрыць спалучэнні клавіш",
             "PLATFORM": {
                 "MAC": "Раскладка macOS",
                 "OTHER": "Раскладка Windows/Linux"

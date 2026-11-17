@@ -180,25 +180,18 @@ async function expectUsablePlayer(page: Page): Promise<void> {
 }
 
 /**
- * The header search keeps its scope chip readable, and the command trigger
- * (the shortcut hint) stays clear of the keyboard-shortcuts button.
+ * The header search keeps its scope chip readable, the command trigger (the
+ * shortcut hint) stays inside the field, and the field stays clear of the
+ * header's actions.
  */
 async function expectHeaderSearchFits(page: Page): Promise<void> {
     // Windows and Linux give the window controls 196px of the header; apply
-    // that padding on every platform so macOS runs check the tightest case,
-    // with every header action this route can show.
-    await page.evaluate(() => {
-        document.body.classList.add('frameless-platform');
-        // The parental-lock button is the one header action this route
-        // leaves out; a stand-in with its classes fills the header.
-        const sidebarToggle = document.querySelector(
-            '.header-actions--leading .header-sidebar-toggle'
-        );
-        const lock = document.createElement('button');
-        lock.className = 'header-shortcut header-parental-lock';
-        lock.textContent = 'L';
-        sidebarToggle?.before(lock);
-    });
+    // that padding on every platform so macOS runs check the tightest case.
+    // Actions that no longer fit move into "More actions", so whatever stays
+    // inline must fit beside the search.
+    await page.evaluate(() =>
+        document.body.classList.add('frameless-platform')
+    );
     await page.waitForTimeout(250);
     const layout = await page.evaluate(() => {
         const header = document.querySelector('app-workspace-shell-header');
@@ -208,13 +201,19 @@ async function expectHeaderSearchFits(page: Page): Promise<void> {
             const rect = element.getBoundingClientRect();
             return { left: rect.left, right: rect.right, width: rect.width };
         };
+        const cluster = header?.querySelector('.header-actions-cluster');
         return {
             scopeLabel: box('.search-chip--scope .search-chip__label'),
             field: box('.search-field'),
             input: box('.search-field input'),
             trigger: box('.command-trigger'),
-            shortcuts: box('.shortcuts-trigger'),
-            actions: box('.header-actions--trailing'),
+            actions: box('.header-actions-cluster'),
+            actionButtons: Array.from(
+                cluster?.querySelectorAll<HTMLElement>('button') ?? []
+            ).map((button) => {
+                const rect = button.getBoundingClientRect();
+                return { left: rect.left, right: rect.right };
+            }),
             headerContentRight: (() => {
                 const element =
                     header?.querySelector<HTMLElement>('.workspace-header');
@@ -233,16 +232,22 @@ async function expectHeaderSearchFits(page: Page): Promise<void> {
     // input only its padding.
     expect(layout.scopeLabel?.width ?? 0).toBeGreaterThanOrEqual(28);
     expect(layout.input?.width ?? 0).toBeGreaterThanOrEqual(40);
-    expect(layout.field?.right ?? 0).toBeLessThanOrEqual(
-        (layout.shortcuts?.left ?? 0) + 1
+    expect(layout.actions).not.toBeNull();
+    expect(layout.actionButtons.length).toBeGreaterThan(0);
+    expect(layout.field?.right ?? Infinity).toBeLessThanOrEqual(
+        (layout.actions?.left ?? 0) + 1
     );
-    expect(layout.trigger?.right ?? 0).toBeLessThanOrEqual(
+    expect(layout.trigger?.right ?? Infinity).toBeLessThanOrEqual(
         (layout.field?.right ?? 0) + 1
     );
-    // The last action stays clear of the space kept for the window controls.
-    expect(layout.actions?.right ?? 0).toBeLessThanOrEqual(
-        layout.headerContentRight + 1
-    );
+    // Every inline action stays clear of the space kept for the window
+    // controls.
+    for (const button of layout.actionButtons) {
+        expect(button.left).toBeGreaterThanOrEqual(
+            (layout.actions?.left ?? 0) - 1
+        );
+        expect(button.right).toBeLessThanOrEqual(layout.headerContentRight + 1);
+    }
 }
 
 /** The categories rail folded away; the channel header offers it back. */

@@ -824,7 +824,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Kraj klasyfikacji wiekowej",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Wybierz kraj klasyfikacji. Jeśli brakuje danych lokalnych, mogą zostać użyte dane z USA lub od dostawcy.",
-        "AGE_RATING_COUNTRY_AUTO": "Automatycznie — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automatycznie — {{country}}",
+        "CARD_HELP": "Pomoc",
+        "KEYBOARD_SHORTCUTS": "Skróty klawiaturowe",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Skróty do nawigacji, odtwarzania i okien dialogowych. Naciśnij ? poza polem tekstowym, aby je otworzyć.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Pokaż skróty"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Nie udało się zapisać na serwerze. Sprawdź połączenie i spróbuj ponownie.",
@@ -2180,7 +2184,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "Usuwanie kategorii z pamięci podręcznej...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "Ulubione, historia oglądania, ukryte kategorie i postęp odtwarzania są przygotowywane do przywrócenia po synchronizacji.",
             "XTREAM_REFRESH_PROGRESS": "Przetworzone rekordy lokalne: {{current}} / {{total}}",
-            "RAIL_RADIO": "Radio internetowe"
+            "RAIL_RADIO": "Radio internetowe",
+            "MORE_ACTIONS": "Więcej działań"
         },
         "SOURCES": {
             "TITLE": "Źródła",
@@ -2251,8 +2256,6 @@
         "SHORTCUTS": {
             "TITLE": "Skróty klawiaturowe",
             "SUBTITLE": "Skróty obszaru roboczego, nawigacji, odtwarzania i okien dialogowych dostępne w IPTVnator.",
-            "OPEN_TOOLTIP": "Skróty klawiaturowe (?)",
-            "OPEN_ARIA": "Otwórz skróty klawiaturowe",
             "PLATFORM": {
                 "MAC": "Układ macOS",
                 "OTHER": "Układ Windows/Linux"

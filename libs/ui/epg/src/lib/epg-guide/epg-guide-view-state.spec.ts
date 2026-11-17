@@ -117,6 +117,34 @@ describe('EpgGuideViewState', () => {
         expect(blocks[0].leftPx).toBeCloseTo(2400, 0);
     });
 
+    it.each([
+        { viewing: 'today', moves: true },
+        { viewing: 'tomorrow', moves: false },
+    ])(
+        'follows midnight while it shows today ($viewing)',
+        ({ viewing, moves }) => {
+            jest.useFakeTimers({
+                now: new Date(2026, 5, 28, 23, 59, 30).getTime(),
+            });
+            try {
+                state = create();
+                if (viewing === 'tomorrow') state.stepDay('next');
+                TestBed.flushEffects();
+                const before = state.dayKey();
+
+                jest.advanceTimersByTime(60_000);
+                TestBed.flushEffects();
+
+                expect(state.dayKey()).toBe(
+                    moves ? '2026-06-29' : before
+                );
+                expect(state.isToday()).toBe(true);
+            } finally {
+                jest.useRealTimers();
+            }
+        }
+    );
+
     it('stops its clock when destroyed', () => {
         jest.useFakeTimers();
         try {

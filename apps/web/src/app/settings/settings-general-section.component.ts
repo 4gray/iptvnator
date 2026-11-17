@@ -4,6 +4,7 @@ import {
     Component,
     DOCUMENT,
     inject,
+    Injector,
     input,
 } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
@@ -53,6 +54,7 @@ export class SettingsGeneralSectionComponent {
     }
 
     readonly form = input.required<FormGroup>();
+    private readonly injector = inject(Injector);
 
     constructor() {
         // Parent patches (Discard, backup import) change the form outside
@@ -67,4 +69,20 @@ export class SettingsGeneralSectionComponent {
     /** Desktop only: the window-mode select needs the main-process mirror and F11 */
     readonly supportsStartupWindowMode = input(false);
     readonly supportsPortalConnectivityGuard = input(false);
+
+    /**
+     * Opens the workspace shell's shortcuts dialog, the one `?` opens.
+     * Settings renders inside the shell, whose chunk is already loaded, so
+     * the import costs no fetch. A static import or a root service shared
+     * with the shell would land in the startup bundle instead.
+     */
+    protected async openKeyboardShortcuts(): Promise<void> {
+        const service = await this.loadShortcutsService();
+        this.injector.get(service, null)?.openShortcutsDialog();
+    }
+
+    /** Replaced in specs: ESM Jest cannot mock a dynamic import. */
+    protected loadShortcutsService = async () =>
+        (await import('@iptvnator/workspace/shell/feature'))
+            .WorkspaceKeyboardShortcutsService;
 }

@@ -1,5 +1,5 @@
 import { EpgProgram } from '@iptvnator/shared/interfaces';
-import { addDays, addMinutes, startOfDay } from 'date-fns';
+import { addDays, startOfDay } from 'date-fns';
 import { parseEpgDateKey } from '../epg-date';
 import { getProgramDateKey, getProgramTimeMs } from '../epg-program.utils';
 import type { TimelineAxis } from '@iptvnator/shared/epg';
@@ -25,23 +25,6 @@ export interface TimelineBlock {
     readonly durationMin: number;
 }
 
-/**
- * Keep the on-air programme centred unless its midpoint would switch the
- * ribbon to another calendar day (for example, a 23:40–00:40 programme).
- * In that case focus the actual playhead so "today" remains selected.
- */
-export function currentProgrammeFocusMs(
-    current: Pick<TimelineBlock, 'startMs' | 'stopMs'> | undefined,
-    nowMs: number
-): number {
-    if (!current) return nowMs;
-    const midpoint = (current.startMs + current.stopMs) / 2;
-    const todayStart = startOfDay(nowMs);
-    const tomorrowStart = addDays(todayStart, 1).getTime();
-    return midpoint >= todayStart.getTime() && midpoint < tomorrowStart
-        ? midpoint
-        : nowMs;
-}
 export interface TimelineTick {
     readonly ms: number;
     readonly offsetMin: number;
@@ -149,7 +132,13 @@ export function buildTimelineBlocks(
     return blocks.sort((left, right) => left.startMs - right.startMs);
 }
 
-/** Time ticks at `stepMin` spacing, excluding local midnights (those are dividers). */
+/**
+ * Time ticks at `stepMin` spacing of local wall-clock time, excluding local
+ * midnights (those are dividers). Ticks are placed by wall-clock time, not
+ * by minutes elapsed since midnight: on a daylight-saving day (23 or 25
+ * hours) elapsed minutes put every later tick an hour off its label. A
+ * wall-clock time the day skips (spring forward) has no tick.
+ */
 export function buildTimelineTicks(
     axis: TimelineAxis,
     stepMin: number = TIMELINE_TICK_STEP_MIN
@@ -161,9 +150,19 @@ export function buildTimelineTicks(
     while (cursor.getTime() < axis.endMs) {
         const dayStart = startOfDay(cursor);
         for (let minute = step; minute < 1440; minute += step) {
-            const tickMs = addMinutes(dayStart, minute).getTime();
+            const tick = new Date(dayStart);
+            tick.setHours(0, minute, 0, 0);
+            if (tick.getHours() * 60 + tick.getMinutes() !== minute) {
+                continue;
+            }
+            const tickMs = tick.getTime();
             if (tickMs >= axis.endMs) {
                 break;
+            }
+            // A zone that skips midnight starts the day at 01:00: a tick
+            // there would sit on the day divider.
+            if (tickMs <= dayStart.getTime()) {
+                continue;
             }
             ticks.push({
                 ms: tickMs,

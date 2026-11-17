@@ -824,7 +824,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Land der Altersfreigabe",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Wählen Sie das Land der Altersfreigabe. Fehlende lokale Angaben werden durch US- oder Anbieterdaten ergänzt.",
-        "AGE_RATING_COUNTRY_AUTO": "Automatisch — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automatisch — {{country}}",
+        "CARD_HELP": "Hilfe",
+        "KEYBOARD_SHORTCUTS": "Tastenkürzel",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Tastenkürzel für Navigation, Wiedergabe und Dialoge. Drücke außerhalb eines Textfelds ?, um sie zu öffnen.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Kürzel anzeigen"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Speichern auf dem Server fehlgeschlagen. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
@@ -2180,7 +2184,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "Zwischengespeicherte Kategorien werden entfernt...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "Favoriten, Wiedergabeverlauf, ausgeblendete Kategorien und Wiedergabefortschritt werden für die Wiederherstellung nach der Synchronisierung vorbereitet.",
             "XTREAM_REFRESH_PROGRESS": "Lokale Einträge verarbeitet: {{current}} / {{total}}",
-            "RAIL_RADIO": "Live-Radio"
+            "RAIL_RADIO": "Live-Radio",
+            "MORE_ACTIONS": "Weitere Aktionen"
         },
         "SOURCES": {
             "TITLE": "Quellen",
@@ -2251,8 +2256,6 @@
         "SHORTCUTS": {
             "TITLE": "Tastenkürzel",
             "SUBTITLE": "In IPTVnator verfügbare Tastenkürzel für Arbeitsbereich, Steuerung, Wiedergabe und Dialoge.",
-            "OPEN_TOOLTIP": "Tastenkürzel (?)",
-            "OPEN_ARIA": "Tastenkürzel öffnen",
             "PLATFORM": {
                 "MAC": "macOS-Layout",
                 "OTHER": "Windows-/Linux-Layout"

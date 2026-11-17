@@ -824,7 +824,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Korhatár-besorolás országa",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Válassza ki, melyik ország korhatár-besorolását szeretné látni. Ha ehhez az országhoz nincs adat, az amerikai vagy a szolgáltató által megadott besorolás jelenhet meg.",
-        "AGE_RATING_COUNTRY_AUTO": "Automatikus — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automatikus — {{country}}",
+        "CARD_HELP": "Súgó",
+        "KEYBOARD_SHORTCUTS": "Billentyűparancsok",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Billentyűparancsok a navigációhoz, lejátszáshoz és párbeszédablakokhoz. Szövegmezőn kívül nyomd meg a ? billentyűt a megnyitásukhoz.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Billentyűparancsok megjelenítése"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Nem sikerült menteni a kiszolgálóra. Ellenőrizze a kapcsolatot, majd próbálja újra.",
@@ -2180,7 +2184,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "Gyorsítótárazott kategóriák eltávolítása…",
             "XTREAM_REFRESH_DETAIL_LOCAL": "A kedvencek, a megtekintési előzmények, a rejtett kategóriák és a lejátszási előrehaladás megőrzése, hogy a szinkronizálás után visszaállíthatók legyenek.",
             "XTREAM_REFRESH_PROGRESS": "Feldolgozott helyi bejegyzések: {{current}} / {{total}}",
-            "RAIL_RADIO": "Rádió"
+            "RAIL_RADIO": "Rádió",
+            "MORE_ACTIONS": "További műveletek"
         },
         "SOURCES": {
             "TITLE": "Források",
@@ -2251,8 +2256,6 @@
         "SHORTCUTS": {
             "TITLE": "Billentyűparancsok",
             "SUBTITLE": "Az IPTVnator munkaterületének, navigációjának, lejátszójának, párbeszédpaneljeinek és listáinak billentyűparancsai.",
-            "OPEN_TOOLTIP": "Billentyűparancsok (?)",
-            "OPEN_ARIA": "Billentyűparancsok megnyitása",
             "PLATFORM": {
                 "MAC": "macOS billentyűkiosztás",
                 "OTHER": "Windows/Linux billentyűkiosztás"

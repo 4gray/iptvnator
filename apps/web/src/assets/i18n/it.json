@@ -824,7 +824,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Paese della classificazione per età",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Scegli il paese della classificazione. In assenza di dati locali, possono essere usati quelli statunitensi o del fornitore.",
-        "AGE_RATING_COUNTRY_AUTO": "Automatico — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automatico — {{country}}",
+        "CARD_HELP": "Aiuto",
+        "KEYBOARD_SHORTCUTS": "Scorciatoie da tastiera",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Scorciatoie per navigazione, riproduzione e finestre di dialogo. Premi ? fuori da un campo di testo per aprirle.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Mostra scorciatoie"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Impossibile salvare sul server. Controlla la connessione e riprova.",
@@ -2180,7 +2184,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "Rimozione delle categorie in cache...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "Preferiti, cronologia di visione, categorie nascoste e avanzamento di riproduzione vengono preparati per il ripristino dopo la sincronizzazione.",
             "XTREAM_REFRESH_PROGRESS": "Record locali elaborati: {{current}} / {{total}}",
-            "RAIL_RADIO": "Radio live"
+            "RAIL_RADIO": "Radio live",
+            "MORE_ACTIONS": "Altre azioni"
         },
         "SOURCES": {
             "TITLE": "Sorgenti",
@@ -2251,8 +2256,6 @@
         "SHORTCUTS": {
             "TITLE": "Scorciatoie da tastiera",
             "SUBTITLE": "Scorciatoie disponibili in IPTVnator per area di lavoro, navigazione, riproduzione e dialoghi.",
-            "OPEN_TOOLTIP": "Scorciatoie da tastiera (?)",
-            "OPEN_ARIA": "Apri scorciatoie da tastiera",
             "PLATFORM": {
                 "MAC": "Layout macOS",
                 "OTHER": "Layout Windows/Linux"

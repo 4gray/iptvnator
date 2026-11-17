@@ -1,14 +1,21 @@
 import {
+    afterNextRender,
+    afterRenderEffect,
     ChangeDetectionStrategy,
     Component,
     computed,
+    DestroyRef,
     ElementRef,
+    inject,
+    Injector,
     input,
     output,
+    signal,
     viewChild,
 } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
+import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
@@ -20,6 +27,18 @@ import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { ImeInputDirective } from '@iptvnator/ui/components';
 import { WorkspaceHeaderSidebarToggle } from '../../services/helpers/workspace-shell-constants';
 import { LayoutSlideDirective } from '../../layout-slide.directive';
+import {
+    clampOverflowCount,
+    HEADER_OVERFLOW_ORDER,
+    HeaderOverflowItemId,
+    measureHeaderActionSlot,
+    measureHeaderGroupSlack,
+    measureHeaderSpare,
+    resolveHeaderOverflowCount,
+} from './workspace-shell-header-overflow';
+
+/** Mirrors the stylesheet's phone breakpoint, where the rail toggle hides. */
+const PHONE_VIEWPORT_QUERY = '(max-width: 640px)';
 
 @Component({
     selector: 'app-workspace-shell-header',
@@ -28,6 +47,9 @@ import { LayoutSlideDirective } from '../../layout-slide.directive';
         LayoutSlideDirective,
         MatIcon,
         MatIconButton,
+        MatMenu,
+        MatMenuItem,
+        MatMenuTrigger,
         MatTooltip,
         PlaylistSwitcherComponent,
         TranslatePipe,
@@ -38,6 +60,9 @@ import { LayoutSlideDirective } from '../../layout-slide.directive';
 })
 export class WorkspaceShellHeaderComponent {
     private readonly imeInput = viewChild(ImeInputDirective);
+    private readonly overflowMenuTrigger = viewChild(MatMenuTrigger);
+    private readonly hostElement = inject(ElementRef<HTMLElement>);
+    private readonly injector = inject(Injector);
     private readonly searchInput =
         viewChild<ElementRef<HTMLInputElement>>('searchInput');
     // read: ElementRef because mat-icon-button is a component, so a bare
@@ -132,14 +157,68 @@ export class WorkspaceShellHeaderComponent {
     /** Everything else that moves the controls; recorded, not slid. */
     readonly controlsLayoutKey = computed(
         () =>
-            `${this.isSettingsRoute()}|${this.hasNoPlaylists()}|${this.isElectron()}|${this.parentalLockState()}|${this.headerSidebarToggle() !== null}|${this.headerShortcut() !== null}`
+            `${this.isSettingsRoute()}|${this.hasNoPlaylists()}|${this.isElectron()}|${this.parentalLockState()}|${this.headerSidebarToggle() !== null}|${this.headerShortcut() !== null}|${this.overflowedActions().size}|${this.showSearchField()}`
+    );
+
+    /**
+     * Never a disabled field: where search cannot run (the PWA dashboard,
+     * which has no global search) the field leaves its room to the actions.
+     * Settings search works without any playlist, so a fresh user can find
+     * settings before importing a first source.
+     */
+    readonly showSearchField = computed(
+        () =>
+            this.canUseSearch() &&
+            (!this.hasNoPlaylists() || this.isSettingsRoute())
+    );
+
+    /** Where the field would show but search cannot run. */
+    readonly showStandaloneCommandTrigger = computed(
+        () =>
+            !this.canUseSearch() &&
+            (!this.hasNoPlaylists() || this.isSettingsRoute())
+    );
+
+    private readonly phoneViewport = signal(matchesPhoneViewport());
+    /** How many actions the last measurement moved into the menu. */
+    protected readonly overflowCount = signal(0);
+    /**
+     * Gap and divider that leave with the contextual group, kept from the
+     * last time the group rendered (8px gap, 8px padding, 1px border).
+     */
+    private groupSlack = 17;
+    /** Actions present now that may move into the menu, in hide order. */
+    readonly overflowCandidates = computed<HeaderOverflowItemId[]>(() =>
+        HEADER_OVERFLOW_ORDER.filter((id) => this.isActionPresent(id))
+    );
+    readonly overflowedActions = computed(() => {
+        const candidates = this.overflowCandidates();
+        const count = clampOverflowCount(
+            this.overflowCount(),
+            candidates.length
+        );
+        return new Set(candidates.slice(0, count));
+    });
+    /** Menu rows in header order: the contextual actions, then Add. */
+    readonly overflowMenuItems = computed(() =>
+        [...HEADER_OVERFLOW_ORDER].filter((id) =>
+            this.overflowedActions().has(id)
+        )
+    );
+    /**
+     * The divider separates the page's own actions from the global ones,
+     * so it shows only while a contextual action is still inline.
+     */
+    readonly hasInlineContextualActions = computed(() =>
+        this.overflowCandidates().some(
+            (id) => id !== 'add-source' && !this.overflowedActions().has(id)
+        )
     );
 
     readonly backRequested = output<void>();
     readonly searchChanged = output<string>();
     readonly searchSubmitted = output<string>();
     readonly commandPaletteRequested = output<void>();
-    readonly shortcutsRequested = output<void>();
     readonly addPlaylistRequested = output<void>();
     readonly headerShortcutRequested = output<void>();
     readonly headerSidebarToggleRequested = output<void>();
@@ -148,6 +227,60 @@ export class WorkspaceShellHeaderComponent {
     readonly contextDrawerToggleRequested = output<void>();
     readonly accountInfoForPlaylistRequested = output<PlaylistMeta>();
     readonly clearCategoryScopeRequested = output<void>();
+
+    constructor() {
+        const destroyRef = inject(DestroyRef);
+        if (typeof window !== 'undefined' && window.matchMedia) {
+            const query = window.matchMedia(PHONE_VIEWPORT_QUERY);
+            const onChange = () => this.phoneViewport.set(query.matches);
+            query.addEventListener?.('change', onChange);
+            destroyRef.onDestroy(() =>
+                query.removeEventListener?.('change', onChange)
+            );
+        }
+
+        // The header's own box and each region in it: a region that grows
+        // (a longer source title, Back appearing) changes the room as much
+        // as a window resize does.
+        const observer =
+            typeof ResizeObserver === 'undefined'
+                ? null
+                : new ResizeObserver(() => this.measureOverflow());
+        destroyRef.onDestroy(() => observer?.disconnect());
+        // Regions come and go (Settings drops the switcher and search):
+        // unobserve the removed ones so their elements can be collected.
+        let observed = new Set<Element>();
+        afterRenderEffect({
+            read: () => {
+                this.controlsLayoutKey();
+                this.leadingNavigationKey();
+                this.overflowCandidates();
+                const header = this.headerElement();
+                if (observer && header) {
+                    const current = new Set<Element>([
+                        header,
+                        ...Array.from(header.children),
+                    ]);
+                    observed.forEach((element) => {
+                        if (!current.has(element)) {
+                            observer.unobserve(element);
+                        }
+                    });
+                    current.forEach((element) => {
+                        if (!observed.has(element)) {
+                            observer.observe(element);
+                        }
+                    });
+                    observed = current;
+                }
+                this.measureOverflow();
+            },
+        });
+    }
+
+    isActionInline(id: HeaderOverflowItemId): boolean {
+        return !this.overflowedActions().has(id);
+    }
 
     onClearCategoryScope(event: MouseEvent): void {
         event.preventDefault();
@@ -219,10 +352,6 @@ export class WorkspaceShellHeaderComponent {
         this.commandPaletteRequested.emit();
     }
 
-    onShortcutsRequested(): void {
-        this.shortcutsRequested.emit();
-    }
-
     onHeaderShortcutRequested(): void {
         this.headerShortcutRequested.emit();
     }
@@ -255,4 +384,97 @@ export class WorkspaceShellHeaderComponent {
         toggle.focus();
         return document.activeElement === toggle;
     }
+
+    private isActionPresent(id: HeaderOverflowItemId): boolean {
+        switch (id) {
+            case 'layout':
+                return (
+                    !this.isSettingsRoute() && this.headerShortcut() !== null
+                );
+            case 'sidebar':
+                return (
+                    !this.isSettingsRoute() &&
+                    this.headerSidebarToggle() !== null &&
+                    !this.phoneViewport()
+                );
+            case 'parental-lock':
+                return this.parentalLockState() !== 'off';
+            case 'add-source':
+                return true;
+        }
+    }
+
+    private headerElement(): HTMLElement | null {
+        return (this.hostElement.nativeElement as HTMLElement).querySelector(
+            '.workspace-header'
+        );
+    }
+
+    private measureOverflow(): void {
+        const header = this.headerElement();
+        const actions = header?.querySelector<HTMLElement>(
+            '.header-actions-cluster'
+        );
+        // Not laid out (a hidden window, a test DOM): keep the last plan.
+        if (!header || !actions || header.clientWidth === 0) {
+            return;
+        }
+
+        this.groupSlack = measureHeaderGroupSlack(actions) ?? this.groupSlack;
+        const candidates = this.overflowCandidates();
+        const next = resolveHeaderOverflowCount({
+            candidates: candidates.length,
+            contextual: candidates.filter((id) => id !== 'add-source').length,
+            groupSlack: this.groupSlack,
+            spare: measureHeaderSpare(
+                header,
+                header.querySelector<HTMLElement>('.search-field')
+            ),
+            slot: measureHeaderActionSlot(actions),
+            current: this.overflowedActions().size,
+        });
+        if (next !== this.overflowCount()) {
+            if (
+                actions.contains(document.activeElement) ||
+                this.overflowMenuTrigger()?.menuOpen
+            ) {
+                this.keepFocusInActions(actions);
+            }
+            this.overflowCount.set(next);
+        }
+    }
+
+    /**
+     * A focused action that moves into "More actions" is destroyed with its
+     * button, and so is the trigger (and its open menu) when every action
+     * returns inline. Focus then goes to the trigger, or to the last action
+     * without one, so a keyboard user keeps their place.
+     */
+    private keepFocusInActions(actions: HTMLElement): void {
+        afterNextRender(
+            {
+                write: () => {
+                    const active = document.activeElement;
+                    if (active && active !== document.body) {
+                        return;
+                    }
+                    const buttons =
+                        actions.querySelectorAll<HTMLElement>('button');
+                    (
+                        actions.querySelector<HTMLElement>(
+                            '.header-overflow-trigger'
+                        ) ?? buttons[buttons.length - 1]
+                    )?.focus();
+                },
+            },
+            { injector: this.injector }
+        );
+    }
+}
+
+function matchesPhoneViewport(): boolean {
+    return (
+        typeof window !== 'undefined' &&
+        !!window.matchMedia?.(PHONE_VIEWPORT_QUERY).matches
+    );
 }

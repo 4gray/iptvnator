@@ -5,6 +5,7 @@ import {
     EpgPreferencesService,
     EpgSourceSettingsService,
     RuntimeCapabilitiesService,
+    SettingsStore,
 } from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { EpgItem, Playlist } from '@iptvnator/shared/interfaces';
@@ -77,6 +78,10 @@ describe('withStalkerEpg', () => {
                 TestStalkerEpgStore,
                 { provide: DataService, useValue: dataService },
                 {
+                    provide: SettingsStore,
+                    useValue: { resolvedEpgOffsetMinutes: () => 0 },
+                },
+                {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
                         get supportsEpg() {
@@ -127,7 +132,9 @@ describe('withStalkerEpg', () => {
         await store.ensureBulkItvEpg();
         expect(await store.fetchChannelEpg('10001', 3)).toEqual([]);
         expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
-        expect(stalkerSessionService.makeAuthenticatedRequest).not.toHaveBeenCalled();
+        expect(
+            stalkerSessionService.makeAuthenticatedRequest
+        ).not.toHaveBeenCalled();
         expect(store.bulkItvEpgByChannel()).toEqual({});
     });
 
