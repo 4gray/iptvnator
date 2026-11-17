@@ -24,6 +24,7 @@ export interface CommandBuilderActions {
     openAddPlaylistDialog: (kind?: 'url' | 'xtream' | 'stalker') => void;
     lockParentalLock: () => void;
     unlockParentalLock: () => void;
+    openKeyboardShortcuts: () => void;
 }
 
 export interface CommandBuilderContext {
@@ -264,6 +265,16 @@ export function getGlobalCommandDefinitions(
             run: () => {
                 void ctx.router.navigate(['/workspace', 'dashboard']);
             },
+        },
+        {
+            id: 'keyboard-shortcuts',
+            group: 'global',
+            icon: 'keyboard',
+            labelKey: 'WORKSPACE.SHORTCUTS.TITLE',
+            descriptionKey: 'WORKSPACE.SHORTCUTS.SUBTITLE',
+            priority: 55,
+            keywords: ['keyboard', 'shortcuts', 'hotkeys', 'keys', 'help'],
+            run: () => actions.openKeyboardShortcuts(),
         },
         {
             id: 'add-playlist',

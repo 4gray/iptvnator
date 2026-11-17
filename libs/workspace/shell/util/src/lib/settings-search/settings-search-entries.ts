@@ -64,6 +64,13 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         requires: ['portal-connectivity-guard'],
     },
     {
+        id: 'keyboard-shortcuts',
+        section: 'general',
+        labelKey: 'SETTINGS.KEYBOARD_SHORTCUTS',
+        descriptionKey: 'SETTINGS.KEYBOARD_SHORTCUTS_DESCRIPTION',
+        keywords: ['keyboard', 'shortcuts', 'hotkeys', 'keys', 'help'],
+    },
+    {
         id: 'theme',
         section: 'appearance',
         labelKey: 'SETTINGS.THEME',

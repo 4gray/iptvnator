@@ -289,7 +289,10 @@ test('@web keyboard shortcuts help opens from question mark', async ({
 }) => {
     await page.goto('/');
 
-    await page.getByRole('button', { name: 'Open keyboard shortcuts' }).focus();
+    // The shell registers its keys once its lazy chunk has rendered.
+    await expect(
+        page.locator('[data-test-id="header-add-source"]')
+    ).toBeVisible();
     await page.keyboard.press('?');
 
     const dialog = page.getByRole('dialog');
@@ -308,10 +311,19 @@ test('@web keyboard shortcuts header fits a phone width', async ({ page }) => {
     // The shell's header-end slot (the platform chip) wraps under the
     // heading on narrow windows; neither may run into the close button or
     // past the panel.
-    // The phone layout folds the header's shortcuts button away, so the
-    // dialog opens at desktop width and the window shrinks around it.
+    // The dialog opens at desktop width and the window shrinks around it.
+    // The header has no shortcuts button: the palette and Settings open it.
     await page.goto('/');
-    await page.getByRole('button', { name: 'Open keyboard shortcuts' }).click();
+    await expect(
+        page.locator('[data-test-id="header-add-source"]')
+    ).toBeVisible();
+    await page.keyboard.press('Control+k');
+    const palette = page.locator('.workspace-command-palette-overlay');
+    await palette.locator('input[type="search"]').fill('keyboard');
+    await palette
+        .locator('.palette-command', { hasText: 'Keyboard shortcuts' })
+        .first()
+        .click();
     const dialog = page.getByRole('dialog');
     const heading = dialog.getByRole('heading', { name: 'Keyboard shortcuts' });
     await expect(heading).toBeVisible();

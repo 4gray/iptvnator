@@ -824,7 +824,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "بلد التصنيف العمري",
         "AGE_RATING_COUNTRY_DESCRIPTION": "اختر بلد التصنيف. عند غياب البيانات المحلية، يمكن استخدام بيانات الولايات المتحدة أو المزوّد.",
-        "AGE_RATING_COUNTRY_AUTO": "تلقائي — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "تلقائي — {{country}}",
+        "CARD_HELP": "مساعدة",
+        "KEYBOARD_SHORTCUTS": "اختصارات لوحة المفاتيح",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "اختصارات للتنقل والتشغيل ومربعات الحوار. اضغط ? خارج أي حقل نص لفتحها.",
+        "KEYBOARD_SHORTCUTS_OPEN": "عرض الاختصارات"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "تعذّر الحفظ على الخادم. تحقق من الاتصال وحاول مرة أخرى.",
@@ -2180,7 +2184,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "جارٍ إزالة الفئات المخزّنة مؤقتًا...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "نحتفظ بالمفضلة وسجل المشاهدة والفئات المخفية وتقدم التشغيل لاستعادتها بعد المزامنة.",
             "XTREAM_REFRESH_PROGRESS": "السجلات المحلية المعالجة: {{current}} / {{total}}",
-            "RAIL_RADIO": "راديو"
+            "RAIL_RADIO": "راديو",
+            "MORE_ACTIONS": "إجراءات إضافية"
         },
         "SOURCES": {
             "TITLE": "المصادر",
@@ -2251,8 +2256,6 @@
         "SHORTCUTS": {
             "TITLE": "اختصارات لوحة المفاتيح",
             "SUBTITLE": "اختصارات مساحة العمل والتنقل والتشغيل ومربعات الحوار المتاحة في IPTVnator.",
-            "OPEN_TOOLTIP": "اختصارات لوحة المفاتيح (?)",
-            "OPEN_ARIA": "فتح اختصارات لوحة المفاتيح",
             "PLATFORM": {
                 "MAC": "تخطيط macOS",
                 "OTHER": "تخطيط Windows/Linux"
