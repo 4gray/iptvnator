@@ -1,4 +1,5 @@
 import type { Settings } from '@iptvnator/shared/interfaces';
+import type { SettingsUpdateOptions } from '@iptvnator/services';
 import { epgUrlsAddedOutside } from './settings-form-rebase';
 
 type EpgUrls = readonly (string | null)[];
@@ -16,23 +17,31 @@ export class SettingsFormWrites {
         urls: EpgUrls | undefined,
         patch: Partial<Settings>,
         savedUrls: EpgUrls | undefined,
-        storedUrls: Settings['epgUrl']
-    ): [onPersisted?: () => void] {
+        storedUrls: Settings['epgUrl'],
+        retryEpgCleanup: boolean
+    ): [options: SettingsUpdateOptions, onPersisted?: () => void] {
         this.submittedEpgUrls = urls;
+        let mergeEpgUrls:
+            ((saved: Settings['epgUrl'] | undefined) => string[]) | undefined;
         if (patch.epgUrl) {
-            const outside = epgUrlsAddedOutside(
-                patch.epgUrl,
-                this.knownUrls(savedUrls),
-                storedUrls
-            );
-            patch.epgUrl = [...patch.epgUrl, ...outside];
+            const staged = [...patch.epgUrl];
+            const known = this.knownUrls(savedUrls);
+            mergeEpgUrls = (saved) => [
+                ...staged,
+                ...epgUrlsAddedOutside(staged, known, saved),
+            ];
+            patch.epgUrl = mergeEpgUrls(storedUrls);
             if (urls) this.pendingEpg.set(revision, [...urls]);
         }
         const apiKey = patch.tmdb?.apiKey;
         if (apiKey !== undefined) this.pendingTmdb.set(revision, apiKey);
+        const options = {
+            retryEpgCleanup,
+            ...(mergeEpgUrls && { mergeEpgUrls }),
+        };
         return patch.epgUrl || apiKey !== undefined
-            ? [() => this.persist(revision)]
-            : [];
+            ? [options, () => this.persist(revision)]
+            : [options];
     }
 
     private persist(revision: number): void {

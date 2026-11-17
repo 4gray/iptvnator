@@ -257,6 +257,48 @@ describe('SettingsStore dashboard rail settings', () => {
     });
 
     it.each([false, true])(
+        'merges a form guide after a concurrent fallback write settles (backup succeeds: %s)',
+        async (backupSucceeds) => {
+            const original = 'https://example.test/saved.xml';
+            const imported = 'https://example.test/imported.xml';
+            const staged = 'https://example.test/staged.xml';
+            storedSettings = { epgUrl: [original] };
+            const store = injector.get(SettingsStore);
+            await store.loadSettings();
+            const backupWrite = new Subject<void>();
+            storage.set.mockReturnValueOnce(backupWrite);
+            const backup = store.updateSettings({
+                epgUrl: [original, imported],
+            });
+            const saving = store.updateSettings(
+                { epgUrl: [original, staged, imported] },
+                {
+                    mergeEpgUrls: (committed) => [
+                        original,
+                        staged,
+                        ...(committed?.includes(imported) ? [imported] : []),
+                    ],
+                }
+            );
+            if (backupSucceeds) {
+                backupWrite.next();
+                await backup;
+            } else {
+                backupWrite.error(new Error('Synthetic backup failure'));
+                await expect(backup).rejects.toThrow(
+                    'Synthetic backup failure'
+                );
+            }
+            await saving;
+            expect(store.epgUrl()).toEqual(
+                backupSucceeds
+                    ? [original, staged, imported]
+                    : [original, staged]
+            );
+        }
+    );
+
+    it.each([false, true])(
         'keeps the latest committed EPG sources after an overlapping write fails (latest fails: %s)',
         async (latestFails) => {
             const initial = 'https://example.test/initial.xml';

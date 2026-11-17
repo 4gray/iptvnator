@@ -63,6 +63,62 @@ describe('SettingsComponent with settings changed outside the form', () => {
         component.importData();
     }
 
+    it('keeps a persisted removal when a playlist-only import finishes during the next write', async () => {
+        let acknowledgeFirst!: () => void;
+        jest.spyOn(window.electron, 'updateSettings').mockReturnValueOnce(
+            new Promise<void>((resolve) => (acknowledgeFirst = resolve))
+        );
+        component.form.removeEpgSource(0);
+        const first = component.form.save(() =>
+            component.form.applySavedSettings()
+        );
+        await Promise.resolve();
+        let persistSecond!: () => void;
+        settingsStore.updateSettings.mockImplementationOnce(
+            async (patch, _options, onPersisted) => {
+                settingsStore._setSettings(patch);
+                await new Promise<void>((resolve) => (persistSecond = resolve));
+                onPersisted?.();
+            }
+        );
+        component.form.setEpgUrls(STAGED_GUIDE);
+        const second = component.form.save(() =>
+            component.form.applySavedSettings()
+        );
+        jest.spyOn(component.backup, 'importData').mockImplementation((done) =>
+            done()
+        );
+        component.importData();
+        persistSecond();
+        await second;
+        acknowledgeFirst();
+        await first;
+        expect(component.form.epgUrls).toEqual([STAGED_GUIDE]);
+        expect(component.form.changedPaths()).toEqual([]);
+    });
+
+    it('leaves the parental lock mirror to the dedicated settings writer', async () => {
+        let finishCleanup!: () => void;
+        settingsStore.applyNextUpdateThen(
+            () => new Promise<void>((resolve) => (finishCleanup = resolve))
+        );
+        component.settingsForm.controls.showCaptions.setValue(true);
+        const saving = component.form.save(() => undefined);
+        const applied = settingsStore.getSettings();
+        jest.spyOn(settingsStore, 'getSettings').mockImplementation(() => ({
+            ...applied,
+            parentalLockEnabled: false,
+        }));
+        finishCleanup();
+        await saving;
+        expect(window.electron.updateSettings).toHaveBeenCalledWith(
+            expect.objectContaining({ showCaptions: true })
+        );
+        expect(window.electron.updateSettings).not.toHaveBeenCalledWith(
+            expect.objectContaining({ parentalLockEnabled: expect.anything() })
+        );
+    });
+
     it('keeps settings changed elsewhere when saving an unrelated edit', async () => {
         const form = component.settingsForm;
         form.controls.showCaptions.setValue(true);

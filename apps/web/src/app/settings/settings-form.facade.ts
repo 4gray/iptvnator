@@ -21,6 +21,7 @@ import {
     Theme,
     ThemeAccent,
     ThemeMode,
+    type Settings,
 } from '@iptvnator/shared/interfaces';
 import { SettingsSnackbarService } from './settings-snackbar.service';
 import { SettingsStore } from '../services/settings-store.service';
@@ -325,20 +326,17 @@ export class SettingsFormFacade {
             delete settings.tmdb.apiKey;
             this.unsettledSavePaths.delete('tmdb.apiKey');
         }
-        const onPersisted = this.writes.prepare(
+        const write = this.writes.prepare(
             saveRevision,
             submittedSnapshot.epgUrl,
             settings,
             submission.baseline.epgUrl,
-            stored.epgUrl
+            stored.epgUrl,
+            this.epgUrl?.dirty ?? false
         );
         let cleanupError: EpgSourceReconciliationError | undefined;
         try {
-            await this.settingsStore.updateSettings(
-                settings,
-                { retryEpgCleanup: this.epgUrl?.dirty ?? false },
-                ...onPersisted
-            );
+            await this.settingsStore.updateSettings(settings, ...write);
         } catch (error) {
             const cleanupFailed = error instanceof EpgSourceReconciliationError;
             if (!cleanupFailed && this.writes.reject(saveRevision)) {
@@ -355,7 +353,10 @@ export class SettingsFormFacade {
         if (saveRevision !== this.saveRevision) return;
         if (window.electron) {
             // The backend mirrors the merged settings, never the bare patch.
-            const applied = this.settingsStore.getSettings();
+            const applied: Partial<Settings> = {
+                ...this.settingsStore.getSettings(),
+            };
+            delete applied.parentalLockEnabled;
             try {
                 await window.electron.updateSettings(applied);
             } catch (error) {

@@ -34,7 +34,7 @@ describe('Settings storage', () => {
         onupgradeneeded?: Callback;
     };
     let transaction: { onabort?: Callback; oncomplete?: Callback };
-    let read: { result: typeof saved | undefined; onsuccess?: Callback };
+    let read: { result: Partial<Settings> | undefined; onsuccess?: Callback };
     let put: jest.Mock;
     let begin: jest.Mock;
     let abortUpgrade: jest.Mock;
@@ -170,6 +170,45 @@ describe('Settings storage', () => {
         await writing;
         expect(store.tmdb?.()?.apiKey).toBe(apiKey);
     });
+
+    it.each([false, true])(
+        'merges a guide draft with the committed backup sources (backup succeeds: %s)',
+        async (backupSucceeds) => {
+            const original = 'https://example.test/saved.xml';
+            const imported = 'https://example.test/imported.xml';
+            const staged = 'https://example.test/staged.xml';
+            storedSettings = { ...saved, epgUrl: [original] };
+            const store = await loadStore();
+            read.result = {
+                ...saved,
+                epgUrl: backupSucceeds ? [original, imported] : [original],
+            };
+            const mergeEpgUrls = jest.fn(
+                (committed: Settings['epgUrl'] | undefined) => [
+                    ...[original, staged],
+                    ...(Array.isArray(committed) && committed.includes(imported)
+                        ? [imported]
+                        : []),
+                ]
+            );
+            const opened = waitForOpen();
+            const writing = store.updateSettings(
+                { epgUrl: [original, staged, imported] },
+                { mergeEpgUrls }
+            );
+            await opened;
+            open.onsuccess?.();
+            read.onsuccess?.();
+            expect(mergeEpgUrls).toHaveBeenCalledWith(read.result.epgUrl);
+            transaction.oncomplete?.();
+            await writing;
+            expect(store.epgUrl()).toEqual(
+                backupSucceeds
+                    ? [original, staged, imported]
+                    : [original, staged]
+            );
+        }
+    );
 
     it.each([true, false])(
         'reflects the latest persisted key when a transfer commits=%s',

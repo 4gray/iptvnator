@@ -139,8 +139,9 @@ export function rebaseSettingsForm(
         // The store can reflect a form write before persistence. Use the
         // previous baseline and sources added outside this pending write.
         if (pendingEpgSources && next.epgUrl) {
+            const confirmed = context.persistedEpgSources ?? saved.epgUrl;
             const unpersisted = new Set(
-                epgUrlsAddedOutside([], saved.epgUrl, pendingEpgSources).map(
+                epgUrlsAddedOutside([], confirmed, pendingEpgSources).map(
                     epgSourceReferenceIdentity
                 )
             );
@@ -150,7 +151,7 @@ export function rebaseSettingsForm(
                         url !== null &&
                         !unpersisted.has(epgSourceReferenceIdentity(url))
                 ),
-                ...epgUrlsAddedOutside(next.epgUrl, [], saved.epgUrl),
+                ...epgUrlsAddedOutside(next.epgUrl, [], confirmed),
             ];
         }
         // Backup import may race an unfinished save. Keep its draft staged

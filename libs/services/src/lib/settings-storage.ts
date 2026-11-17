@@ -40,9 +40,11 @@ export async function saveTransferredTmdbKey(
 export async function writeSettings(
     storage: StorageMap,
     settings: Settings,
-    preserveTmdbKey: boolean
+    preserveTmdbKey: boolean,
+    mergeEpgUrls?: (saved: Settings['epgUrl'] | undefined) => string[]
 ): Promise<string> {
     const saved = await updateSettingsRecord(storage, (current) => {
+        if (mergeEpgUrls) settings.epgUrl = mergeEpgUrls(current?.epgUrl);
         if (!preserveTmdbKey) return settings;
         const key = current?.tmdb?.apiKey;
         return {

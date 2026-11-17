@@ -247,8 +247,9 @@ edits (`SettingsFormFacade.syncWithStore()`). A source restored after its
 removal was persisted becomes an addition even while cleanup or the
 Electron response is pending. A restore during a pending write keeps the
 previous sources in the baseline and leaves unconfirmed additions staged
-until persistence settles. A source shown by that restore remains known
-across Save retries so a following removal stays staged.
+until persistence settles. This uses the last committed form list when an
+earlier Save has persisted a removal and still awaits Electron. A source shown
+by that restore remains known across Save retries so a following removal stays staged.
 When the restore changes the saved list and
 its source identities match the draft, the form adopts the restored spelling
 and order unless the viewer reordered existing sources. A restore during

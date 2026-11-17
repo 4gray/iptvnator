@@ -44,6 +44,8 @@ export type { SettingsStorageFailure } from './settings-store.defaults';
 
 export interface SettingsUpdateOptions {
     retryEpgCleanup?: boolean;
+    /** Merge the form draft with sources that actually reached storage. */
+    mergeEpgUrls?: (saved: Settings['epgUrl'] | undefined) => string[];
 }
 
 const pickEpg = ({ epgUrl, epgEnabled }: Settings) => ({ epgUrl, epgEnabled });
@@ -76,6 +78,7 @@ export const SettingsStore = signalStore(
         let tmdbKeyRevision = 0;
         let epgSaveRevision = 0;
         let pendingSettingsWrites = 0;
+        let pendingStorageWrite: Promise<void> | undefined;
         let committedEpg = pickEpg(DEFAULT_SETTINGS);
 
         return {
@@ -116,6 +119,7 @@ export const SettingsStore = signalStore(
                                     storedSettings.parentalLockRelockMinutes
                                 ),
                         });
+                        committedEpg = pickEpg(this.getSettings());
                         void this.sanitizeEmbeddedMpvSelection().catch(
                             (error) => {
                                 console.warn(
@@ -178,12 +182,27 @@ export const SettingsStore = signalStore(
                         apiKey = await writeSettings(
                             storage,
                             completeSettings,
-                            preserveTmdbKey
+                            preserveTmdbKey,
+                            options.mergeEpgUrls
                         );
                     } else {
-                        await firstValueFrom(
-                            storage.set(STORE_KEY.Settings, completeSettings)
-                        );
+                        const previousWrite = pendingStorageWrite;
+                        const write = async () => {
+                            if (previousWrite)
+                                await previousWrite.catch(() => undefined);
+                            if (options.mergeEpgUrls)
+                                completeSettings.epgUrl = options.mergeEpgUrls(
+                                    committedEpg.epgUrl
+                                );
+                            await firstValueFrom(
+                                storage.set(
+                                    STORE_KEY.Settings,
+                                    completeSettings
+                                )
+                            );
+                        };
+                        pendingStorageWrite = write();
+                        await pendingStorageWrite;
                     }
                     this.applySavedTmdbKey(apiKey);
                     if (!preserveTmdbKey) notifyTmdbKeyChange();
