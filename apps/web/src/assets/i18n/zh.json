@@ -1372,6 +1372,7 @@
         "TWITTER_TOOLTIP": "分享到 Twitter"
     },
     "UPDATE_AVAILABLE": "可用更新",
+    "PWA_UPDATE_NONE": "此服务器上未找到更新的构建版本。",
     "PWA_UPDATE_READY": "更新已就绪。重新加载将停止播放。",
     "PWA_UPDATE_FAILED": "无法下载应用更新。您可以继续使用当前版本。",
     "PWA_RELOAD_REQUIRED": "应用文件不可用。请在网络恢复后重新加载以恢复应用。播放将停止。",

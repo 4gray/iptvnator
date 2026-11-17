@@ -1372,6 +1372,7 @@
         "TWITTER_TOOLTIP": "Delen op Twitter"
     },
     "UPDATE_AVAILABLE": "Update beschikbaar",
+    "PWA_UPDATE_NONE": "Op deze server is geen nieuwere build gevonden.",
     "PWA_UPDATE_READY": "Er staat een update klaar. Opnieuw laden stopt het afspelen.",
     "PWA_UPDATE_FAILED": "De app-update kon niet worden gedownload. Je kunt deze versie blijven gebruiken.",
     "PWA_RELOAD_REQUIRED": "App-bestanden zijn niet beschikbaar. Laad opnieuw zodra de verbinding terug is. Het afspelen stopt.",

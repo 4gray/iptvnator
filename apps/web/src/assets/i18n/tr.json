@@ -1372,6 +1372,7 @@
         "TWITTER_TOOLTIP": "Twitter’da paylaş"
     },
     "UPDATE_AVAILABLE": "Güncelleme mevcut",
+    "PWA_UPDATE_NONE": "Bu sunucuda daha yeni bir derleme bulunamadı.",
     "PWA_UPDATE_READY": "Bir güncelleme hazır. Yeniden yüklemek oynatmayı durdurur.",
     "PWA_UPDATE_FAILED": "Uygulama güncellemesi indirilemedi. Bu sürümü kullanmaya devam edebilirsiniz.",
     "PWA_RELOAD_REQUIRED": "Uygulama dosyalarına erişilemiyor. Bağlantı geldiğinde yeniden yükleyin. Oynatma duracaktır.",

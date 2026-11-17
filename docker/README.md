@@ -85,6 +85,11 @@ Use `latest` for the simplest self-hosted setup. Pin `sha-<sha>` or
 when you want the Docker image to track a tagged IPTVnator release rather than
 every merge to `master`.
 
+After pulling an updated image, recreate the container with that image. In
+the installed PWA or browser, open **Settings → About → Check for updates**
+to check the app's server. Select **Refresh** when the new build is ready.
+An HTTPS deployment supports this on another device, such as an iPhone.
+
 ## Runtime Configuration
 
 The container writes `/usr/share/nginx/html/assets/app-config.js` on startup.
