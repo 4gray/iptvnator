@@ -37,11 +37,20 @@ const copy: Record<
     },
 };
 
+/** The category's switches, read through `value` (no Object.fromEntries on TV). */
+function toggleValues(
+    category: Category,
+    value: (field: Toggle) => boolean
+): Values {
+    const values: Values = {};
+    for (const { field } of copy[category].toggles)
+        values[field] = value(field);
+    return values;
+}
+
 function persistedValues(data: UserData, category: Category): Values {
     if (category === 'layout') return { layout: data.layout };
-    return Object.fromEntries(
-        copy[category].toggles.map(({ field }) => [field, data[field]])
-    );
+    return toggleValues(category, (field) => data[field]);
 }
 
 // Each form owns its category's persisted fields. Saving one category must
@@ -81,11 +90,9 @@ export function SettingsPreferences({
                           }
                         : {
                               ...data,
-                              ...Object.fromEntries(
-                                  copy[category].toggles.map(({ field }) => [
-                                      field,
-                                      draft[field] === true,
-                                  ])
+                              ...toggleValues(
+                                  category,
+                                  (field) => draft[field] === true
                               ),
                           }
                 );

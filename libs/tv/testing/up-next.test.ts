@@ -135,3 +135,37 @@ test('the pill delay only runs while the card shows, like desktop', () => {
     budget.stop(80_000);
     assert.equal(budget.start('b', 90_000), UP_NEXT_COLLAPSE_DELAY_MS);
 });
+
+test('autoplay starts the next episode once, also when it loads after the end', () => {
+    const state = {
+        ended: true,
+        autoplay: true,
+        currentId: 'e1',
+        hasNext: false,
+        activating: false,
+        advancedFrom: undefined as string | undefined,
+    };
+    assert.equal(tv.autoplayNextReady(state), false, 'next still loading');
+    assert.equal(
+        tv.autoplayNextReady({ ...state, hasNext: true }),
+        true,
+        'the late next episode still autoplays'
+    );
+    assert.equal(
+        tv.autoplayNextReady({ ...state, hasNext: true, advancedFrom: 'e1' }),
+        false,
+        'never twice from the same episode'
+    );
+    assert.equal(
+        tv.autoplayNextReady({ ...state, hasNext: true, activating: true }),
+        false
+    );
+    assert.equal(
+        tv.autoplayNextReady({ ...state, hasNext: true, autoplay: false }),
+        false
+    );
+    assert.equal(
+        tv.autoplayNextReady({ ...state, hasNext: true, ended: false }),
+        false
+    );
+});

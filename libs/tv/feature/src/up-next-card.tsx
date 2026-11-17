@@ -16,6 +16,7 @@ import {
     upNextDismissKey,
     upNextRingShare,
     UpNextCollapseBudget,
+    autoplayNextReady,
     type UpNextCard as Card,
 } from '@iptvnator/tv/util';
 import type { TvModel } from './use-tv';
@@ -64,8 +65,39 @@ export function useUpNext(
         nextProgress: next ? tv.data.positions[next.id] : undefined,
     });
     const collapsed = !!key && key === collapsedKey;
-    const latest = useRef({ card, vod, key, autoplay });
-    latest.current = { card, vod, key, autoplay };
+    const latest = useRef({ card, vod, key, autoplay, current });
+    latest.current = { card, vod, key, autoplay, current };
+    // The episode autoplay last advanced from, so it starts the next one once.
+    const advancedFrom = useRef<string>();
+    const advance = () => {
+        const {
+            vod: sequence,
+            autoplay: on,
+            current: playing,
+        } = latest.current;
+        if (
+            !autoplayNextReady({
+                ended: !!video.current?.ended,
+                autoplay: on,
+                currentId: playing?.id,
+                hasNext: !!sequence.next,
+                activating: sequence.activating,
+                advancedFrom: advancedFrom.current,
+            }) ||
+            !tvAutoplayStreak.beginAutoplay()
+        )
+            return;
+        advancedFrom.current = playing?.id;
+        void sequence.playNext();
+    };
+
+    // The next episode can finish loading after this one ended (resuming
+    // near the end, a slow portal); autoplay then, not only on `ended`.
+    const isEnded = !!element?.ended;
+    useEffect(() => {
+        if (isEnded) advance();
+        else advancedFrom.current = undefined;
+    }, [isEnded, next?.id, vod.activating]);
 
     // Re-render as playback moves so the card appears and counts down.
     useEffect(() => {
@@ -73,14 +105,7 @@ export function useUpNext(
         const tick = () => setTick((n) => n + 1);
         const ended = () => {
             tick();
-            const { vod: sequence, autoplay: on } = latest.current;
-            if (
-                on &&
-                sequence.next &&
-                !sequence.activating &&
-                tvAutoplayStreak.beginAutoplay()
-            )
-                void sequence.playNext();
+            advance();
         };
         element.addEventListener('timeupdate', tick);
         element.addEventListener('ended', ended);

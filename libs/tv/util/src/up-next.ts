@@ -118,6 +118,29 @@ export class UpNextCollapseBudget {
     }
 }
 
+/**
+ * Whether `seriesAutoplay` should start the next episode now: this one has
+ * ended, the next one is known (it may arrive after the end), nothing is
+ * already starting, and autoplay has not advanced from this episode yet.
+ */
+export function autoplayNextReady(state: {
+    ended: boolean;
+    autoplay: boolean;
+    currentId: string | undefined;
+    hasNext: boolean;
+    activating: boolean;
+    advancedFrom: string | undefined;
+}): boolean {
+    return (
+        state.ended &&
+        state.autoplay &&
+        !!state.currentId &&
+        state.hasNext &&
+        !state.activating &&
+        state.advancedFrom !== state.currentId
+    );
+}
+
 /** A dismissal lasts for this episode and the next one it pointed to. */
 export function upNextDismissKey(current: Media, next: Media): string {
     return JSON.stringify([current.id, next.id]);

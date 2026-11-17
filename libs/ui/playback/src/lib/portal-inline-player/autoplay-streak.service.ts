@@ -7,4 +7,10 @@ import { AutoplayStreak } from '@iptvnator/shared/interfaces';
  * episode it starts. No limit yet, so autoplay is unchanged.
  */
 @Injectable({ providedIn: 'root' })
-export class AutoplayStreakService extends AutoplayStreak {}
+export class AutoplayStreakService extends AutoplayStreak {
+    // Angular's compiler cannot create an injectable through an undecorated
+    // base class's constructor (NG2006), so this one is declared here.
+    constructor() {
+        super();
+    }
+}
