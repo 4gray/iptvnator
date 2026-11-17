@@ -1,4 +1,8 @@
-import { openDatabaseAtStartup } from './database-startup';
+import {
+    describeStartupError,
+    openDatabaseAtStartup,
+    reportDatabaseStartupFailure,
+} from './database-startup';
 
 function setup(outcomes: readonly ('fail' | 'ok')[]) {
     const order: string[] = [];
@@ -98,5 +102,71 @@ describe('openDatabaseAtStartup', () => {
             'synthetic pass failure'
         );
         consoleError.mockRestore();
+    });
+});
+
+describe('database startup failure reporting', () => {
+    it('describes SQLite errors by code and message only', () => {
+        const sqliteError = Object.assign(new Error('disk I/O error'), {
+            code: 'SQLITE_IOERR',
+        });
+
+        expect(describeStartupError(sqliteError)).toBe(
+            'SQLITE_IOERR: disk I/O error'
+        );
+        expect(describeStartupError(new Error('plain failure'))).toBe(
+            'plain failure'
+        );
+        expect(describeStartupError('not an error')).toBe('unknown error');
+    });
+
+    it('logs the description and shows an error dialog without awaiting it', async () => {
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        const showMessageBox = jest.fn(() =>
+            Promise.reject(new Error('dialog unavailable'))
+        );
+
+        reportDatabaseStartupFailure(
+            Object.assign(new Error('database is locked'), {
+                code: 'SQLITE_BUSY',
+            }),
+            showMessageBox
+        );
+        await Promise.resolve();
+
+        expect(consoleError).toHaveBeenCalledWith(
+            'Database could not be opened at startup:',
+            'SQLITE_BUSY: database is locked'
+        );
+        expect(showMessageBox).toHaveBeenCalledWith(
+            expect.objectContaining({ type: 'error' })
+        );
+        consoleError.mockRestore();
+    });
+
+    it('waits the real delay between attempts by default', async () => {
+        jest.useFakeTimers();
+        try {
+            const initDatabase = jest
+                .fn()
+                .mockRejectedValueOnce(new Error('busy'))
+                .mockResolvedValueOnce(undefined);
+            const opening = openDatabaseAtStartup({
+                initDatabase,
+                recoveryPasses: [],
+                reportFailure: jest.fn(),
+                trace: jest.fn(),
+            });
+
+            await jest.advanceTimersByTimeAsync(999);
+            expect(initDatabase).toHaveBeenCalledTimes(1);
+            await jest.advanceTimersByTimeAsync(1);
+            await expect(opening).resolves.toBe(true);
+            expect(initDatabase).toHaveBeenCalledTimes(2);
+        } finally {
+            jest.useRealTimers();
+        }
     });
 });

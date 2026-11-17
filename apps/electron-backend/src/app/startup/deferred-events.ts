@@ -53,8 +53,8 @@ import {
 import { databaseWorkerClient } from '../services/database-worker-client';
 import type { bootstrapWindowCloseGuard } from '../services/window-close-guard.service';
 import {
-    describeStartupError,
     openDatabaseAtStartup,
+    reportDatabaseStartupFailure,
 } from './database-startup';
 import { scheduleDeferredFixPath } from './login-shell-path';
 import { stopHostedServerForRestart } from '../services/hosted-server.service';
@@ -141,24 +141,12 @@ export async function finishStartupAfterFirstLoad(): Promise<void> {
                 traceStartupPhase('reconcile-stale-recordings:done');
             },
         ],
-        reportFailure: reportDatabaseStartupFailure,
+        reportFailure: (error) =>
+            reportDatabaseStartupFailure(error, (options) =>
+                dialog.showMessageBox(options)
+            ),
         trace: (phase) => traceStartupPhase(phase),
     });
-}
-
-function reportDatabaseStartupFailure(error: unknown): void {
-    console.error(
-        'Database could not be opened at startup:',
-        describeStartupError(error)
-    );
-    void dialog
-        .showMessageBox({
-            type: 'error',
-            title: 'Library could not be opened',
-            message: 'IPTVnator could not open its library database.',
-            detail: 'Sources, favorites and downloads are unavailable for now. Close any other IPTVnator window, check that the disk has free space, then restart IPTVnator.',
-        })
-        .catch(() => undefined);
 }
 
 /** Tears down sessions and the DB worker; safe when nothing was started. */

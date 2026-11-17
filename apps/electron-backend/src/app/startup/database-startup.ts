@@ -77,3 +77,27 @@ export function describeStartupError(error: unknown): string {
         ? `${code}: ${error.message}`
         : error.message;
 }
+
+export interface StartupFailureDialog {
+    readonly type: 'error';
+    readonly title: string;
+    readonly message: string;
+    readonly detail: string;
+}
+
+/** Logs the failure without paths or SQL and tells the user, unawaited. */
+export function reportDatabaseStartupFailure(
+    error: unknown,
+    showMessageBox: (options: StartupFailureDialog) => Promise<unknown>
+): void {
+    console.error(
+        'Database could not be opened at startup:',
+        describeStartupError(error)
+    );
+    void showMessageBox({
+        type: 'error',
+        title: 'Library could not be opened',
+        message: 'IPTVnator could not open its library database.',
+        detail: 'Sources, favorites and downloads are unavailable for now. Close any other IPTVnator window, check that the disk has free space, then restart IPTVnator.',
+    }).catch(() => undefined);
+}
