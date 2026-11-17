@@ -12,19 +12,14 @@
  * Keep `bootstrapDeferredEvents()` synchronous: the guarantee that no
  * renderer `invoke` finds a missing handler depends on it.
  */
-import { app, dialog } from 'electron';
+import { app } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import { registerM3uSourceProbe } from '../events/m3u-source-probe';
 import { registerSourceProbeCancellation } from '../events/source-probe-control';
 import App from '../app';
-import { initDatabase } from '../database/connection';
 import DatabaseEvents from '../events/database.events';
-import {
-    resetStaleDownloads,
-    setMainWindow as setDownloadsMainWindow,
-} from '../events/database/downloads.events';
+import { setMainWindow as setDownloadsMainWindow } from '../events/database/downloads.events';
 import { setRecordingsMainWindow } from '../events/database/recording-broadcast';
-import { reconcileStaleRecordings } from '../events/database/recording-recovery';
 import ElectronEvents from '../events/electron.events';
 import EmbeddedMpvEvents, {
     shutdownEmbeddedMpv,
@@ -44,7 +39,6 @@ import StalkerEvents from '../events/stalker.events';
 import XtreamEvents from '../events/xtream.events';
 import { registerStreamProbeHandlers } from '../events/stream-probe';
 import { registerConnectivityGuardHandlers } from '../events/connectivity-guard.events';
-import { traceStartupPhase } from '../services/debug-trace';
 import { AppUpdateService } from '../services/app-update.service';
 import {
     onAppUpdateChannelChange,
@@ -52,10 +46,7 @@ import {
 } from '../services/app-update-channel';
 import { databaseWorkerClient } from '../services/database-worker-client';
 import type { bootstrapWindowCloseGuard } from '../services/window-close-guard.service';
-import {
-    openDatabaseAtStartup,
-    reportDatabaseStartupFailure,
-} from './database-startup';
+import { finishStartupAfterFirstLoad } from './finish-startup';
 import { scheduleDeferredFixPath } from './login-shell-path';
 import { stopHostedServerForRestart } from '../services/hosted-server.service';
 import { registerSourceSyncEvents } from '../events/source-sync.events';
@@ -120,34 +111,7 @@ export function bootstrapDeferredEvents(
     return { appUpdateService };
 }
 
-/**
- * Database initialization and recovery, after the first renderer load is
- * underway so Linux Electron E2E can observe a BrowserWindow even when
- * SQLite startup or download recovery is slow. IPC handlers call
- * getDatabase() lazily and share the same initialization promise. Never
- * rejects: a database that cannot be opened is retried, then reported to
- * the user (see database-startup.ts for when the recovery passes run).
- */
-export async function finishStartupAfterFirstLoad(): Promise<void> {
-    await openDatabaseAtStartup({
-        initDatabase,
-        recoveryPasses: [
-            async () => {
-                await resetStaleDownloads();
-                traceStartupPhase('reset-stale-downloads:done');
-            },
-            async () => {
-                await reconcileStaleRecordings();
-                traceStartupPhase('reconcile-stale-recordings:done');
-            },
-        ],
-        reportFailure: (error) =>
-            reportDatabaseStartupFailure(error, (options) =>
-                dialog.showMessageBox(options)
-            ),
-        trace: (phase) => traceStartupPhase(phase),
-    });
-}
+export { finishStartupAfterFirstLoad };
 
 /** Tears down sessions and the DB worker; safe when nothing was started. */
 export function shutdownDeferredServices(): void {
