@@ -25,6 +25,23 @@ export interface TimelineBlock {
     readonly durationMin: number;
 }
 
+/**
+ * Keep the on-air programme centred unless its midpoint would switch the
+ * ribbon to another calendar day (for example, a 23:40–00:40 programme).
+ * In that case focus the actual playhead so "today" remains selected.
+ */
+export function currentProgrammeFocusMs(
+    current: Pick<TimelineBlock, 'startMs' | 'stopMs'> | undefined,
+    nowMs: number
+): number {
+    if (!current) return nowMs;
+    const midpoint = (current.startMs + current.stopMs) / 2;
+    const todayStart = startOfDay(nowMs);
+    const tomorrowStart = addDays(todayStart, 1).getTime();
+    return midpoint >= todayStart.getTime() && midpoint < tomorrowStart
+        ? midpoint
+        : nowMs;
+}
 export interface TimelineTick {
     readonly ms: number;
     readonly offsetMin: number;

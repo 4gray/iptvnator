@@ -96,6 +96,35 @@ describe('TimelineScrollController', () => {
             expect(scrollSpy).toHaveBeenCalledWith(2, 0.5, false);
         });
 
+        it('keeps a cross-midnight live programme focused on today', () => {
+            const todayStart = new Date(2026, 10, 16).getTime();
+            const now = todayStart + (23 * 60 + 40) * TIMELINE_MINUTE_MS;
+            const live: TimelineBlock = {
+                ...currentBlock,
+                startMs: now - 2 * TIMELINE_MINUTE_MS,
+                stopMs: now + 58 * TIMELINE_MINUTE_MS,
+            };
+            const controller = new TimelineScrollController({
+                ribbon: () => undefined,
+                scale: () => 1,
+                axis: () => ({
+                    startMs: todayStart,
+                    endMs: todayStart + 2 * 24 * 60 * TIMELINE_MINUTE_MS,
+                }),
+                blocks: () => [live],
+                nowMs: () => now,
+                viewDayKey: () => '2026-11-16',
+                commitDay: () => undefined,
+                hasProgramsForDay: () => true,
+            });
+            const scrollSpy = jest
+                .spyOn(controller, 'scrollToOffset')
+                .mockImplementation(() => undefined);
+
+            controller.focusCurrentProgram(false);
+
+            expect(scrollSpy).toHaveBeenCalledWith(23 * 60 + 40, 0.5, false);
+        });
         it('centres now when no programme is currently airing', () => {
             const controller = controllerWith([
                 { ...currentBlock, when: 'future' },
