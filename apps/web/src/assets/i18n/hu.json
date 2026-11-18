@@ -1372,6 +1372,7 @@
         "TWITTER_TOOLTIP": "Megosztás a Twitteren"
     },
     "UPDATE_AVAILABLE": "Frissítés érhető el",
+    "PWA_UPDATE_NONE": "Ezen a szerveren nem található újabb build.",
     "PWA_UPDATE_READY": "A frissítés telepítésre kész. Az alkalmazás újratöltése megszakítja a lejátszást.",
     "PWA_UPDATE_FAILED": "Az alkalmazás frissítését nem sikerült letölteni. Ez a verzió továbbra is használható.",
     "PWA_RELOAD_REQUIRED": "Az alkalmazás fájljai nem érhetők el. Internetkapcsolat mellett töltse újra az alkalmazást a helyreállításhoz. Az újratöltés megszakítja a lejátszást.",

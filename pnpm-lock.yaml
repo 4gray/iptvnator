@@ -61,7 +61,7 @@ packageExtensionsChecksum: sha256-xE4BM53+f1sfyPYy41cNryeznVp6K/qlpeuDAUIwAjg=
 
 patchedDependencies:
   '@angular/service-worker@22.2.2':
-    hash: b06b1a237018488b6c7fbe4320bbb548e98a5cfcff87484236c2dc4681badf67
+    hash: 603d5e692b2f397d3b8d6c1d067c42c26d175206eedafea40a99fdea5d587b4b
     path: patches/@angular__service-worker@22.2.2.patch
   app-builder-lib@26.15.7:
     hash: b5fb510f277479b070b12e60c172777da115785a35907b8379576a96fec2fb3c
@@ -245,7 +245,7 @@ importers:
         version: 22.6.0(eslint@9.39.2(jiti@1.21.7))(typescript@6.0.3)
       '@angular/build':
         specifier: 22.2.5
-        version: 22.2.5(@angular/compiler-cli@22.2.2(@angular/compiler@22.2.2)(typescript@6.0.3))(@angular/compiler@22.2.2)(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(@angular/platform-browser@22.2.2(@angular/animations@22.2.2(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3)))(@angular/common@22.2.2(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2))(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3)))(@angular/service-worker@22.2.2(patch_hash=b06b1a237018488b6c7fbe4320bbb548e98a5cfcff87484236c2dc4681badf67)(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2))(@types/node@20.19.9)(istanbul-lib-instrument@6.0.3)(jiti@1.21.7)(less@4.5.1)(postcss@8.5.26)(rollup@4.59.0)(tailwindcss@3.4.19(tsx@4.23.15)(yaml@2.9.1))(terser@5.49.2)(tslib@2.8.1)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.1)
+        version: 22.2.5(@angular/compiler-cli@22.2.2(@angular/compiler@22.2.2)(typescript@6.0.3))(@angular/compiler@22.2.2)(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(@angular/platform-browser@22.2.2(@angular/animations@22.2.2(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3)))(@angular/common@22.2.2(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2))(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3)))(@angular/service-worker@22.2.2(patch_hash=603d5e692b2f397d3b8d6c1d067c42c26d175206eedafea40a99fdea5d587b4b)(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2))(@types/node@20.19.9)(istanbul-lib-instrument@6.0.3)(jiti@1.21.7)(less@4.5.1)(postcss@8.5.26)(rollup@4.59.0)(tailwindcss@3.4.19(tsx@4.23.15)(yaml@2.9.1))(terser@5.49.2)(tslib@2.8.1)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.1)
       '@angular/cli':
         specifier: 22.2.5
         version: 22.2.5(@types/node@20.19.9)(chokidar@5.0.0)
@@ -257,7 +257,7 @@ importers:
         version: 22.2.2
       '@angular/service-worker':
         specifier: 22.2.2
-        version: 22.2.2(patch_hash=b06b1a237018488b6c7fbe4320bbb548e98a5cfcff87484236c2dc4681badf67)(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2)
+        version: 22.2.2(patch_hash=603d5e692b2f397d3b8d6c1d067c42c26d175206eedafea40a99fdea5d587b4b)(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2)
       '@astrojs/mdx':
         specifier: 7.0.7
         version: 7.0.7(@astrojs/markdown-satteri@0.3.7)(astro@7.3.3(@emnapi/core@2.0.0-alpha.3)(@emnapi/runtime@2.0.0-alpha.3)(@types/node@20.19.9)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.104.1)(sass@1.104.1)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1))
@@ -305,7 +305,7 @@ importers:
         version: 16.0.1(@angular/common@22.2.2(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2))(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))
       '@nx/angular':
         specifier: 24.0.6
-        version: 24.0.6(8269273dbd7712b67450d1dd8e5e24e5)
+        version: 24.0.6(34ac76e158d3c7696cc893ed89a43783)
       '@nx/devkit':
         specifier: 24.0.6
         version: 24.0.6(nx@24.0.6(@swc-node/register@1.12.1(@emnapi/core@2.0.0-alpha.3)(@emnapi/runtime@2.0.0-alpha.3)(@swc/core@1.16.13(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.13(@swc/helpers@0.5.23)))
@@ -10442,7 +10442,7 @@ snapshots:
       '@angular/core': 22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3)
       tslib: 2.8.1
 
-  '@angular/build@22.2.5(@angular/compiler-cli@22.2.2(@angular/compiler@22.2.2)(typescript@6.0.3))(@angular/compiler@22.2.2)(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(@angular/platform-browser@22.2.2(@angular/animations@22.2.2(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3)))(@angular/common@22.2.2(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2))(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3)))(@angular/service-worker@22.2.2(patch_hash=b06b1a237018488b6c7fbe4320bbb548e98a5cfcff87484236c2dc4681badf67)(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2))(@types/node@20.19.9)(istanbul-lib-instrument@6.0.3)(jiti@1.21.7)(less@4.5.1)(postcss@8.5.26)(rollup@4.59.0)(tailwindcss@3.4.19(tsx@4.23.15)(yaml@2.9.1))(terser@5.49.2)(tslib@2.8.1)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.1)':
+  '@angular/build@22.2.5(@angular/compiler-cli@22.2.2(@angular/compiler@22.2.2)(typescript@6.0.3))(@angular/compiler@22.2.2)(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(@angular/platform-browser@22.2.2(@angular/animations@22.2.2(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3)))(@angular/common@22.2.2(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2))(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3)))(@angular/service-worker@22.2.2(patch_hash=603d5e692b2f397d3b8d6c1d067c42c26d175206eedafea40a99fdea5d587b4b)(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2))(@types/node@20.19.9)(istanbul-lib-instrument@6.0.3)(jiti@1.21.7)(less@4.5.1)(postcss@8.5.26)(rollup@4.59.0)(tailwindcss@3.4.19(tsx@4.23.15)(yaml@2.9.1))(terser@5.49.2)(tslib@2.8.1)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.1)':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@angular-devkit/architect': 0.2202.5(chokidar@5.0.0)
@@ -10478,7 +10478,7 @@ snapshots:
     optionalDependencies:
       '@angular/core': 22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3)
       '@angular/platform-browser': 22.2.2(@angular/animations@22.2.2(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3)))(@angular/common@22.2.2(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2))(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))
-      '@angular/service-worker': 22.2.2(patch_hash=b06b1a237018488b6c7fbe4320bbb548e98a5cfcff87484236c2dc4681badf67)(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2)
+      '@angular/service-worker': 22.2.2(patch_hash=603d5e692b2f397d3b8d6c1d067c42c26d175206eedafea40a99fdea5d587b4b)(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2)
       '@oxc-parser/binding-wasm32-wasi': 0.150.0
       istanbul-lib-instrument: 6.0.3
       less: 4.5.1
@@ -10606,7 +10606,7 @@ snapshots:
       rxjs: 7.8.2
       tslib: 2.8.1
 
-  '@angular/service-worker@22.2.2(patch_hash=b06b1a237018488b6c7fbe4320bbb548e98a5cfcff87484236c2dc4681badf67)(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2)':
+  '@angular/service-worker@22.2.2(patch_hash=603d5e692b2f397d3b8d6c1d067c42c26d175206eedafea40a99fdea5d587b4b)(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2)':
     dependencies:
       '@angular/core': 22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3)
       rxjs: 7.8.2
@@ -13099,7 +13099,7 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.1
 
-  '@nx/angular@24.0.6(8269273dbd7712b67450d1dd8e5e24e5)':
+  '@nx/angular@24.0.6(34ac76e158d3c7696cc893ed89a43783)':
     dependencies:
       '@angular-devkit/core': 22.2.5(chokidar@5.0.0)
       '@angular-devkit/schematics': 22.2.5(chokidar@5.0.0)
@@ -13117,7 +13117,7 @@ snapshots:
       semver: 7.8.6
       tslib: 2.9.1
     optionalDependencies:
-      '@angular/build': 22.2.5(@angular/compiler-cli@22.2.2(@angular/compiler@22.2.2)(typescript@6.0.3))(@angular/compiler@22.2.2)(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(@angular/platform-browser@22.2.2(@angular/animations@22.2.2(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3)))(@angular/common@22.2.2(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2))(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3)))(@angular/service-worker@22.2.2(patch_hash=b06b1a237018488b6c7fbe4320bbb548e98a5cfcff87484236c2dc4681badf67)(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2))(@types/node@20.19.9)(istanbul-lib-instrument@6.0.3)(jiti@1.21.7)(less@4.5.1)(postcss@8.5.26)(rollup@4.59.0)(tailwindcss@3.4.19(tsx@4.23.15)(yaml@2.9.1))(terser@5.49.2)(tslib@2.8.1)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.1)
+      '@angular/build': 22.2.5(@angular/compiler-cli@22.2.2(@angular/compiler@22.2.2)(typescript@6.0.3))(@angular/compiler@22.2.2)(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(@angular/platform-browser@22.2.2(@angular/animations@22.2.2(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3)))(@angular/common@22.2.2(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2))(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3)))(@angular/service-worker@22.2.2(patch_hash=603d5e692b2f397d3b8d6c1d067c42c26d175206eedafea40a99fdea5d587b4b)(@angular/core@22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)(zone.js@0.16.3))(rxjs@7.8.2))(@types/node@20.19.9)(istanbul-lib-instrument@6.0.3)(jiti@1.21.7)(less@4.5.1)(postcss@8.5.26)(rollup@4.59.0)(tailwindcss@3.4.19(tsx@4.23.15)(yaml@2.9.1))(terser@5.49.2)(tslib@2.8.1)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.1)
       '@nx/playwright': 24.0.6(@babel/traverse@7.29.14)(@nx/jest@24.0.6(00cf34b9dca2f714ef22ab46cccc3e6a))(@playwright/test@1.64.0)(@swc-node/register@1.12.1(@emnapi/core@2.0.0-alpha.3)(@emnapi/runtime@2.0.0-alpha.3)(@swc/core@1.16.13(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.13(@swc/helpers@0.5.23))(@zkochan/js-yaml@0.0.7)(eslint@9.39.2(jiti@1.21.7))(nx@24.0.6(@swc-node/register@1.12.1(@emnapi/core@2.0.0-alpha.3)(@emnapi/runtime@2.0.0-alpha.3)(@swc/core@1.16.13(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.13(@swc/helpers@0.5.23)))
       webpack-merge: 5.10.0
     transitivePeerDependencies:

@@ -157,6 +157,12 @@ describe('ControlsUpNext', () => {
         expect(upNext.visible()).toBe(false);
     });
 
+    it('keeps repeated dismissal idempotent during one Escape event', () => {
+        upNext.dismiss();
+        upNext.dismiss();
+        expect(upNext.visible()).toBe(false);
+    });
+
     it('stays dismissed for this next episode and returns for the following one', () => {
         upNext.dismiss();
         expect(upNext.visible()).toBe(false);

@@ -1372,6 +1372,7 @@
         "TWITTER_TOOLTIP": "Twitter でシェア"
     },
     "UPDATE_AVAILABLE": "アップデートが利用可能",
+    "PWA_UPDATE_NONE": "このサーバーに新しいビルドはありません。",
     "PWA_UPDATE_READY": "更新の準備ができました。再読み込みすると再生が停止します。",
     "PWA_UPDATE_FAILED": "アプリの更新をダウンロードできませんでした。このバージョンを引き続き使用できます。",
     "PWA_RELOAD_REQUIRED": "アプリのファイルを利用できません。オンラインに戻ってから再読み込みしてください。再生は停止します。",

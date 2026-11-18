@@ -1372,6 +1372,7 @@
         "TWITTER_TOOLTIP": "Udostępnij na Twitterze"
     },
     "UPDATE_AVAILABLE": "Dostępna aktualizacja",
+    "PWA_UPDATE_NONE": "Na tym serwerze nie znaleziono nowszej kompilacji.",
     "PWA_UPDATE_READY": "Aktualizacja jest gotowa. Ponowne wczytanie zatrzyma odtwarzanie.",
     "PWA_UPDATE_FAILED": "Nie udało się pobrać aktualizacji. Możesz nadal korzystać z tej wersji.",
     "PWA_RELOAD_REQUIRED": "Pliki aplikacji są niedostępne. Wczytaj ponownie po przywróceniu połączenia. Odtwarzanie zostanie zatrzymane.",

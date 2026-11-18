@@ -14,19 +14,27 @@ export function PhoneReview({
     confirm: () => void;
     decline: () => void;
 }) {
-    const isSettings = !!state.settings;
+    const settings = state.settings;
+    const autoplay =
+        settings?.seriesAutoplay === undefined
+            ? ''
+            : ` · Autoplay ${settings.seriesAutoplay ? 'on' : 'off'}`;
+    const upNext =
+        settings?.playerUpNextCard === undefined
+            ? ''
+            : ` · Up next card ${settings.playerUpNextCard ? 'on' : 'off'}`;
     return (
         <div class="phone-review">
             <p class="eyebrow">RECEIVED FROM YOUR PHONE</p>
-            <h3>{isSettings ? 'TV settings' : state.source!.name}</h3>
+            <h3>{settings ? 'TV settings' : state.source!.name}</h3>
             <p>
-                {isSettings
-                    ? `TMDB ${state.settings!.tmdb.enabled ? 'on' : 'off'} · ${state.settings!.tmdb.language.toUpperCase()} · ${state.settings!.layout === 'cinema' ? 'Cinema' : 'Showcase'} · EPG ${state.settings!.epg ? 'on' : 'off'}`
+                {settings
+                    ? `TMDB ${settings.tmdb.enabled ? 'on' : 'off'} · ${settings.tmdb.language.toUpperCase()} · ${settings.layout === 'cinema' ? 'Cinema' : 'Showcase'} · EPG ${settings.epg ? 'on' : 'off'}${autoplay}${upNext}`
                     : `${state.source!.provider.toUpperCase()} · ${new URL(state.source!.url).hostname}`}
             </p>
             <p class="muted">
-                {isSettings
-                    ? `Apply these settings? TMDB key: ${state.settings!.tmdb.apiKey ? 'replace with the key from your phone' : 'keep existing'}.`
+                {settings
+                    ? `Apply these settings? TMDB key: ${settings.tmdb.apiKey ? 'replace with the key from your phone' : 'keep existing'}.`
                     : 'Add this source to your TV?'}
             </p>
             <div class="actions">
@@ -41,7 +49,7 @@ export function PhoneReview({
                         ? 'Saving…'
                         : saved
                           ? 'Retry confirmation'
-                          : isSettings
+                          : settings
                             ? 'Apply settings'
                             : 'Add source'}
                 </button>

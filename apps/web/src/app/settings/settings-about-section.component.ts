@@ -1,6 +1,7 @@
 import {
     Component,
     computed,
+    inject,
     input,
     output,
     ViewEncapsulation,
@@ -22,6 +23,7 @@ import { UpdateChannelOption } from './settings.models';
 import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
 import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 import { APP_ICONS } from '@iptvnator/ui/components/app-icons';
+import { PwaUpdateService } from '../services/pwa-update.service';
 
 interface SettingsUpdateStatusChip {
     readonly labelKey: string;
@@ -50,6 +52,15 @@ export class SettingsAboutSectionComponent {
     readonly version = input<string | undefined>();
     readonly buildCommit = input<string | undefined>();
     readonly updateMessage = input<string | undefined>();
+    protected readonly pwaUpdates = inject(PwaUpdateService);
+    protected readonly pwaUpdateStatus = computed(() => {
+        if (this.pwaUpdates.checking() && !this.pwaUpdates.canReload())
+            return 'SETTINGS.APP_UPDATE_CHECKING';
+        return (
+            this.pwaUpdates.noticeMessage() ||
+            (this.pwaUpdates.noUpdate() ? 'PWA_UPDATE_NONE' : '')
+        );
+    });
     readonly appUpdateStatus = input<ElectronBridgeAppUpdateStatus | null>(
         null
     );

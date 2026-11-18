@@ -1372,6 +1372,7 @@
         "TWITTER_TOOLTIP": "Auf Twitter teilen"
     },
     "UPDATE_AVAILABLE": "Update verfügbar",
+    "PWA_UPDATE_NONE": "Auf diesem Server wurde kein neuerer Build gefunden.",
     "PWA_UPDATE_READY": "Ein Update ist bereit. Beim Neuladen wird die Wiedergabe beendet.",
     "PWA_UPDATE_FAILED": "Das App-Update konnte nicht geladen werden. Diese Version bleibt verfügbar.",
     "PWA_RELOAD_REQUIRED": "App-Dateien sind nicht verfügbar. Laden Sie die App wieder online neu. Die Wiedergabe wird beendet.",

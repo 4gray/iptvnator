@@ -4,6 +4,7 @@ import {
     addSource,
     backend,
     chooseTv,
+    disableUpNextAndAutoplay,
     moreAction,
     nav,
     start,
@@ -158,6 +159,7 @@ test('TV daily comfort VOD resume ended Next and Live Previous share one player 
     page,
 }) => {
     await start(page);
+    await disableUpNextAndAutoplay(page);
     await page.route('**/xtream?**', async (route) => {
         if (
             new URL(route.request().url()).searchParams.get('action') !==

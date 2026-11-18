@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { fillTvField, addSource, nav, start } from './helpers';
+import {
+    fillTvField,
+    addSource,
+    nav,
+    start,
+    backFromPlayback,
+} from './helpers';
 
 const svg =
     '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="170"><rect width="300" height="170" fill="#275947"/></svg>';
@@ -196,7 +202,7 @@ test('@tmdb credits and season stills/descriptions preserve episode playback and
         )
         .toBe(true);
     await page.getByRole('button', { name: 'Pause', exact: false }).click();
-    await page.keyboard.press('Escape');
+    await backFromPlayback(page);
     await nav(page, 'Home');
     await expect(page.locator('.hero h1')).toHaveText(seriesTitle);
     await expect(page.locator('.hero-position')).toContainText(title);

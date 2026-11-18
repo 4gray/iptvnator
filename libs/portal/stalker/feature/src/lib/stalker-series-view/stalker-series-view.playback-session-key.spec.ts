@@ -17,6 +17,7 @@ import {
 } from '@iptvnator/portal/stalker/data-access';
 import { TmdbEnrichmentService } from '@iptvnator/services';
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
+import { AutoplayStreakService } from '@iptvnator/ui/playback';
 import { StalkerSeriesViewComponent } from './stalker-series-view.component';
 import { STALKER_SERIES_DOWNLOAD_MODES } from './stalker-series-download.adapter';
 import { createStalkerEpisodePlaybackSessionKey } from './stalker-episode-playback-session-key';
@@ -225,6 +226,80 @@ describe('StalkerSeriesViewComponent playback session key', () => {
         await fixture.whenStable();
         return episode;
     }
+
+    it.each(['failed', 'closed', 'superseded'] as const)(
+        'releases the autoplay claim when a start is %s',
+        async (outcome) => {
+            const episode = await playFirstEpisode();
+            const streak = TestBed.inject(AutoplayStreakService);
+            streak.reset();
+            streak.beginAutoplay();
+            streak.playbackStarted();
+            if (outcome === 'failed')
+                resolveVodPlayback.mockRejectedValueOnce(
+                    new Error('Synthetic playback failure')
+                );
+            else
+                resolveVodPlayback.mockReturnValueOnce(
+                    deferred<ResolvedPortalPlayback>().promise
+                );
+
+            fixture.componentInstance.handleInlinePlaybackEnded();
+            if (outcome === 'closed')
+                fixture.componentInstance.closeInlinePlayer();
+            if (outcome === 'superseded')
+                fixture.componentInstance.onEpisodeClicked(episode);
+            await fixture.whenStable();
+            expect(streak.length).toBe(1);
+            streak.playbackStarted();
+            expect(streak.length).toBe(0);
+        }
+    );
+
+    it('autoplays the committed episode while a superseded same-series start remains unresolved', async () => {
+        await playFirstEpisode();
+        const oldRequest = deferred<ResolvedPortalPlayback>();
+        resolveVodPlayback.mockReturnValueOnce(oldRequest.promise);
+        const episodes = Object.values(
+            fixture.componentInstance.mappedSeasons()
+        )[0] as StalkerMappedEpisode[];
+        fixture.componentInstance.onEpisodeClicked(episodes[1]);
+        fixture.componentInstance.onEpisodeClicked(episodes[0]);
+        await fixture.whenStable();
+        expect(resolveVodPlayback).toHaveBeenCalledTimes(3);
+
+        fixture.componentInstance.handleInlinePlaybackEnded();
+        await fixture.whenStable();
+        expect(resolveVodPlayback).toHaveBeenCalledTimes(4);
+        oldRequest.resolve({
+            streamUrl: 'https://media.example.test/obsolete.mpg',
+            contentInfo: { contentType: 'episode' },
+        } as ResolvedPortalPlayback);
+        await fixture.whenStable();
+    });
+
+    it('cancels an issued rail autoplay without replacing the replayed episode', async () => {
+        await playFirstEpisode();
+        const playback = fixture.componentInstance.inlinePlayback();
+        const pending = deferred<ResolvedPortalPlayback>();
+        resolveVodPlayback.mockReturnValueOnce(pending.promise);
+        const episode = Object.values(
+            fixture.componentInstance.mappedSeasons()
+        )[0][1];
+        const automatic = new AbortController();
+        fixture.componentInstance.playUpNextEpisode({
+            episode,
+            autoplaySignal: automatic.signal,
+        } as Parameters<StalkerSeriesViewComponent['playUpNextEpisode']>[0]);
+        automatic.abort();
+        pending.resolve({
+            streamUrl: 'https://media.example.test/obsolete-next.mpg',
+            contentInfo: { contentType: 'episode' },
+        } as ResolvedPortalPlayback);
+        await fixture.whenStable();
+        expect(fixture.componentInstance.inlinePlayback()).toBe(playback);
+        expect(fixture.componentInstance.startPending()).toBe(false);
+    });
 
     function setLazySeries(parentId: string, episodeId: string): void {
         selectedContentType.set('vod');
