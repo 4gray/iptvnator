@@ -45,6 +45,13 @@ function buildEpgItem(params: {
     };
 }
 
+const demoPlaylist = {
+    id: 'playlist-1',
+    password: 'secret',
+    serverUrl: 'http://demo.example',
+    username: 'demo',
+};
+
 describe('PortalChannelsListComponent', () => {
     const testWindow = window as unknown as { electron?: unknown };
     const originalElectron = testWindow.electron;
@@ -286,12 +293,7 @@ describe('PortalChannelsListComponent', () => {
                 xtream_id: 50,
             },
         ]);
-        currentPlaylist.set({
-            id: 'playlist-1',
-            password: 'secret',
-            serverUrl: 'http://demo.example',
-            username: 'demo',
-        });
+        currentPlaylist.set(demoPlaylist);
 
         fixture.detectChanges();
 
@@ -376,12 +378,7 @@ describe('PortalChannelsListComponent', () => {
                 xtream_id: 50,
             },
         ]);
-        currentPlaylist.set({
-            id: 'playlist-1',
-            password: 'secret',
-            serverUrl: 'http://demo.example',
-            username: 'demo',
-        });
+        currentPlaylist.set(demoPlaylist);
 
         fixture.detectChanges();
         await renderViewport(fixture);
@@ -439,12 +436,7 @@ describe('PortalChannelsListComponent', () => {
         jest.setSystemTime(new Date('2026-04-05T05:45:00.000Z'));
         selectedTypeContentLoading.set(false);
         selectedChannels.set([{ title: 'Synthetic Fifty', xtream_id: 50 }]);
-        currentPlaylist.set({
-            id: 'playlist-1',
-            password: 'secret',
-            serverUrl: 'http://demo.example',
-            username: 'demo',
-        });
+        currentPlaylist.set(demoPlaylist);
         fixture.detectChanges();
         await renderViewport(fixture);
         epgResults$.next({
@@ -455,6 +447,10 @@ describe('PortalChannelsListComponent', () => {
                     title: 'Other Playlist Show',
                     start: '2026-04-05T05:30:00.000Z',
                     stop: '2026-04-05T06:30:00.000Z',
+                    startTimestamp:
+                        Date.parse('2026-04-05T05:30:00.000Z') / 1000,
+                    stopTimestamp:
+                        Date.parse('2026-04-05T06:30:00.000Z') / 1000,
                 }),
             ],
         });
@@ -464,10 +460,9 @@ describe('PortalChannelsListComponent', () => {
         );
 
         const other = {
+            ...demoPlaylist,
             id: 'playlist-2',
-            password: 'secret',
             serverUrl: 'http://other.example',
-            username: 'demo',
         };
         currentPlaylist.set(other);
         epgQueueService.enqueue.mockClear();
@@ -503,12 +498,7 @@ describe('PortalChannelsListComponent', () => {
                 xtream_id: 50,
             },
         ]);
-        currentPlaylist.set({
-            id: 'playlist-1',
-            password: 'secret',
-            serverUrl: 'http://demo.example',
-            username: 'demo',
-        });
+        currentPlaylist.set(demoPlaylist);
 
         fixture.detectChanges();
         await renderViewport(fixture);
@@ -582,12 +572,7 @@ describe('PortalChannelsListComponent', () => {
                 xtream_id: index + 1,
             }))
         );
-        currentPlaylist.set({
-            id: 'playlist-1',
-            password: 'secret',
-            serverUrl: 'http://demo.example',
-            username: 'demo',
-        });
+        currentPlaylist.set(demoPlaylist);
 
         fixture.detectChanges();
         epgQueueService.enqueue.mockClear();
@@ -615,12 +600,7 @@ describe('PortalChannelsListComponent', () => {
         jest.setSystemTime(new Date(nowIso));
         selectedTypeContentLoading.set(false);
         selectedChannels.set([{ title: 'Cartoon Network', xtream_id: 50 }]);
-        currentPlaylist.set({
-            id: 'playlist-1',
-            password: 'secret',
-            serverUrl: 'http://demo.example',
-            username: 'demo',
-        });
+        currentPlaylist.set(demoPlaylist);
 
         fixture.detectChanges();
         await renderViewport(fixture);
@@ -812,12 +792,7 @@ describe('PortalChannelsListComponent', () => {
             { title: 'Sample One', xtream_id: 61 },
             { title: 'Sample Two', xtream_id: 62 },
         ]);
-        currentPlaylist.set({
-            id: 'playlist-1',
-            password: 'secret',
-            serverUrl: 'http://demo.example',
-            username: 'demo',
-        });
+        currentPlaylist.set(demoPlaylist);
         fixture.detectChanges();
         await renderViewport(fixture);
 
@@ -1127,12 +1102,7 @@ describe('PortalChannelsListComponent', () => {
                 xtream_id: 290,
             },
         ]);
-        currentPlaylist.set({
-            id: 'playlist-1',
-            password: 'secret',
-            serverUrl: 'http://demo.example',
-            username: 'demo',
-        });
+        currentPlaylist.set(demoPlaylist);
 
         fixture.detectChanges();
 
@@ -1155,12 +1125,7 @@ describe('PortalChannelsListComponent', () => {
         favoritesService.getFavorites.mockReturnValue(favorites$);
         selectedTypeContentLoading.set(false);
         selectedChannels.set([{ title: 'Cartoon Network', xtream_id: 50 }]);
-        currentPlaylist.set({
-            id: 'playlist-1',
-            password: 'secret',
-            serverUrl: 'http://demo.example',
-            username: 'demo',
-        });
+        currentPlaylist.set(demoPlaylist);
         fixture.detectChanges();
         await fixture.whenStable();
         fixture.detectChanges();
@@ -1337,12 +1302,7 @@ describe('PortalChannelsListComponent', () => {
 
     it('passes the live content type when toggling a channel favorite', async () => {
         selectedTypeContentLoading.set(false);
-        currentPlaylist.set({
-            id: 'playlist-1',
-            password: 'secret',
-            serverUrl: 'http://demo.example',
-            username: 'demo',
-        });
+        currentPlaylist.set(demoPlaylist);
 
         fixture.detectChanges();
 
@@ -1364,12 +1324,7 @@ describe('PortalChannelsListComponent', () => {
         // The sidebar and the fullscreen channel panel each mount their own
         // instance; a heart toggled in one must flip in the other too.
         selectedTypeContentLoading.set(false);
-        currentPlaylist.set({
-            id: 'playlist-1',
-            password: 'secret',
-            serverUrl: 'http://demo.example',
-            username: 'demo',
-        });
+        currentPlaylist.set(demoPlaylist);
         fixture.detectChanges();
 
         const marks = TestBed.inject(XtreamFavoriteMarksService);
