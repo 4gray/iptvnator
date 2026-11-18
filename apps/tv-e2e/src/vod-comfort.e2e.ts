@@ -265,6 +265,12 @@ test('TV Up next can be reached again by remote and Back dismisses it first', as
     );
     const thumb = card.locator('.tv-up-next__thumb');
     await expect(thumb).toHaveCSS('height', '144px');
+    await expect(card.locator('.tv-up-next__ring-fill')).not.toHaveCSS(
+        'stroke',
+        await card.evaluate(
+            (element) => getComputedStyle(element).backgroundColor
+        )
+    );
     await page.keyboard.press('ArrowDown');
     await expect(card).not.toBeFocused();
     await page.keyboard.press('ArrowUp');

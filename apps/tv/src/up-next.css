@@ -34,6 +34,10 @@
     }
 }
 
+.tv-up-next:focus .tv-up-next__ring-fill {
+    stroke: currentColor;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .tv-up-next {
         animation: none;
@@ -142,6 +146,10 @@
     stroke-dasharray: 100;
     stroke-linecap: round;
     transition: stroke-dashoffset 1s linear;
+}
+
+.tv-up-next:focus .tv-up-next__ring-fill {
+    stroke: currentColor;
 }
 
 @media (prefers-reduced-motion: reduce) {
