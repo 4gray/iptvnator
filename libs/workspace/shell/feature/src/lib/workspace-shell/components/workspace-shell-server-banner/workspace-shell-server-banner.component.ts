@@ -24,7 +24,7 @@ import { ServerStorageStatusService } from '@iptvnator/services';
                     'SERVER_STORAGE.OFFLINE_BANNER' | translate
                 }}</span>
                 <button
-                    mat-stroked-button
+                    mat-flat-button
                     type="button"
                     (click)="status.retry()"
                     data-test-id="server-offline-retry"

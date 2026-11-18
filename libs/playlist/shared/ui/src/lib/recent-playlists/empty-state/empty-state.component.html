@@ -20,7 +20,7 @@
                 <p class="welcome-dashboard__description">{{ 'HOME.PLAYLISTS.DASHBOARD_WELCOME_DESCRIPTION' | translate }}</p>
 
                 <button
-                    mat-raised-button
+                    mat-flat-button
                     type="button"
                     class="welcome-dashboard__cta"
                     (click)="onAddPlaylist()"
@@ -69,7 +69,7 @@
                             }
                         </ul>
                         <button
-                            mat-raised-button
+                            mat-flat-button
                             type="button"
                             class="source-card__cta"
                             (click)="onAddPlaylist(card.type)"
@@ -100,7 +100,7 @@
                     <div class="actions">
                         @if (primaryActionLabelKey(); as primaryLabel) {
                             <button
-                                mat-raised-button
+                                mat-flat-button
                                 type="button"
                                 class="primary-button"
                                 (click)="onPrimaryAction()"
@@ -111,7 +111,7 @@
                         }
                         @if (secondaryActionLabelKey(); as secondaryLabel) {
                             <button
-                                mat-button
+                                mat-flat-button
                                 type="button"
                                 class="secondary-button"
                                 (click)="onSecondaryAction()"

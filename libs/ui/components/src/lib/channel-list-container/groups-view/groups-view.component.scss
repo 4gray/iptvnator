@@ -4,6 +4,7 @@
 @use '../../../../../styles/nav-list';
 @use '../../../../../styles/focus-ring';
 @use '../../styles/channel-list-layout' as layout;
+@use '../../../../../styles/app-controls' as controls;
 
 :host {
     display: flex;
@@ -85,17 +86,7 @@
 }
 
 .groups-nav-action {
-    width: 28px;
-    height: 28px;
-    min-width: 28px;
-    padding: 0;
-    line-height: 28px;
-
-    mat-icon {
-        width: 18px;
-        height: 18px;
-        font-size: 18px;
-    }
+    @include controls.ghost-icon-button(28px, 18px);
 }
 
 .groups-nav-search {
@@ -149,18 +140,8 @@
 }
 
 .groups-nav-search__close {
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
-    line-height: 24px;
     flex-shrink: 0;
-    padding: 0;
-
-    mat-icon {
-        width: 16px;
-        height: 16px;
-        font-size: 16px;
-    }
+    @include controls.ghost-icon-button(24px, 16px);
 }
 
 .groups-content-header button {

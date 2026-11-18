@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 @use '../../../../../../../../ui/styles/focus-ring';
 
 :host {
@@ -27,8 +28,14 @@
 }
 
 // Pulled toward the edge so the arrow glyph, not the button's padding, sits
-// on the header's inset.
+// on the header's inset. A 40px square with an 8px radius, like the header
+// actions after it, not Material's circle.
 .header-back {
+    @include mat.icon-button-overrides(
+        (
+            container-shape: 8px,
+        )
+    );
     flex-shrink: 0;
     margin-inline-start: -8px;
     app-region: no-drag;
@@ -269,6 +276,11 @@
 
     button,
     a {
+        @include mat.icon-button-overrides(
+            (
+                container-shape: 8px,
+            )
+        );
         color: var(--mat-sys-on-surface-variant);
         border-radius: 8px;
         transition:

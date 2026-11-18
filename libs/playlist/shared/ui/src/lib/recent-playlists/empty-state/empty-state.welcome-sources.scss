@@ -1,3 +1,4 @@
+@use '../../../../../../../ui/styles/app-controls' as controls;
 .welcome-sources {
     display: flex;
     flex-direction: column;
@@ -166,34 +167,12 @@
         letter-spacing: 0.04em;
     }
 
+    // Three equal choices, so none takes the accent: each card's action is
+    // the kit's secondary button.
     .source-card__cta {
         margin-top: auto;
         align-self: stretch;
-        background: var(--empty-state-accent-fill);
-        color: var(--app-selection-on-color);
-        font-weight: 500;
-        font-size: 0.875rem;
-        padding: 8px 18px;
-        border-radius: 10px;
-        box-shadow: 0 4px 12px
-            color-mix(in srgb, var(--app-selection-color) 25%, transparent);
-        transition:
-            transform 0.2s ease,
-            box-shadow 0.2s ease;
-        text-transform: none;
-
-        mat-icon {
-            margin-right: 6px;
-            font-size: 18px;
-            width: 18px;
-            height: 18px;
-        }
-
-        &:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 18px
-                color-mix(in srgb, var(--app-selection-color) 35%, transparent);
-        }
+        @include controls.secondary-button(md);
     }
 }
 
@@ -223,8 +202,7 @@
             animation: none;
         }
 
-        .source-card:hover,
-        .source-card__cta:hover {
+        .source-card:hover {
             transform: none;
         }
     }
