@@ -18,13 +18,20 @@ describe('DeferredExternalSessions', () => {
     let load: jest.Mock;
     let injector: Injector;
 
+    let revision: number;
+    let routeUrl: string;
+    let emitSession: ((session: { id: string }) => void) | undefined;
+    let stopWatching: jest.Mock;
+
     const create = () =>
         new DeferredExternalSessions(
-            injector,
-            () => locked,
-            () => clock,
-            (run) => (scheduled = run),
-            load
+            {
+                injector,
+                isLocked: () => locked,
+                lockRevision: () => revision,
+                routeUrl: () => routeUrl,
+            },
+            { now: () => clock, schedule: (run) => (scheduled = run), load }
         );
 
     beforeEach(() => {
@@ -39,8 +46,17 @@ describe('DeferredExternalSessions', () => {
         class ParentalLockExternalSessions {}
         injector = { get: jest.fn(() => tracker) } as unknown as Injector;
         load = jest.fn(async () => ({ ParentalLockExternalSessions }));
+        revision = 0;
+        routeUrl = '/workspace/playlists/m3u-1/all';
+        emitSession = undefined;
+        stopWatching = jest.fn();
         (window as { electron?: unknown }).electron = {
-            onExternalPlayerSessionUpdate: jest.fn(),
+            onExternalPlayerSessionUpdate: (
+                callback: (session: { id: string }) => void
+            ) => {
+                emitSession = callback;
+                return stopWatching;
+            },
         };
     });
 
@@ -71,7 +87,9 @@ describe('DeferredExternalSessions', () => {
         expect(tracker.start).toHaveBeenCalledWith({
             pageStartedAt: 10_000,
             lockedAt: 10_000,
+            launchSources: new Map(),
         });
+        expect(stopWatching).toHaveBeenCalled();
         expect(deferred.isBusy()).toBe(true);
         deferred.onLockChange();
         expect(tracker.onLockChange).toHaveBeenCalledTimes(1);
@@ -89,11 +107,50 @@ describe('DeferredExternalSessions', () => {
         await flush();
 
         // An unlock moves nothing: only the last relock counts.
-        expect(tracker.start).toHaveBeenCalledWith({
-            pageStartedAt: 10_000,
-            lockedAt: 14_000,
-        });
+        expect(tracker.start).toHaveBeenCalledWith(
+            expect.objectContaining({ pageStartedAt: 10_000, lockedAt: 14_000 })
+        );
         expect(tracker.onLockChange).not.toHaveBeenCalled();
+    });
+
+    it('hands over a lock-set change made while unlocked', async () => {
+        locked = false;
+        const deferred = create();
+        clock = 13_000;
+        deferred.onLockChange();
+        clock = 14_000;
+        revision = 1;
+        deferred.onLockChange();
+
+        scheduled?.();
+        await flush();
+
+        expect(tracker.start).toHaveBeenCalledWith(
+            expect.objectContaining({ lockedAt: 14_000 })
+        );
+    });
+
+    it('hands over the route each session was first reported on', async () => {
+        create();
+        emitSession?.({ id: 'session-1' });
+        routeUrl = '/workspace/xtreams/xtream-2/live';
+        emitSession?.({ id: 'session-1' });
+        emitSession?.({ id: 'session-2' });
+        routeUrl = '/workspace/dashboard';
+        emitSession?.({ id: 'session-3' });
+
+        scheduled?.();
+        await flush();
+
+        expect(tracker.start).toHaveBeenCalledWith(
+            expect.objectContaining({
+                launchSources: new Map([
+                    ['session-1', 'm3u-1'],
+                    ['session-2', 'xtream-2'],
+                    ['session-3', null],
+                ]),
+            })
+        );
     });
 
     it('stays idle and reports a failed load', async () => {

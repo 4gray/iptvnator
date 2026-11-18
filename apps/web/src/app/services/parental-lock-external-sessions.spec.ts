@@ -41,6 +41,7 @@ describe('ParentalLockExternalSessions', () => {
     let clock: number;
     let active: ReturnType<typeof signal<boolean>>;
     let hasLocks: jest.Mock;
+    let lockRevision: ReturnType<typeof signal<number>>;
     let withholdsEverything: ReturnType<typeof signal<boolean>>;
     let activeSession: ReturnType<typeof signal<ExternalPlayerSession | null>>;
     let dismissActiveSession: jest.Mock;
@@ -63,6 +64,7 @@ describe('ParentalLockExternalSessions', () => {
         clock = 10_000;
         active = signal(false);
         hasLocks = jest.fn(() => true);
+        lockRevision = signal(0);
         withholdsEverything = signal(false);
         activeSession = signal<ExternalPlayerSession | null>(null);
         dismissActiveSession = jest.fn();
@@ -92,7 +94,10 @@ describe('ParentalLockExternalSessions', () => {
                     provide: ParentalLockService,
                     useValue: { active, withholdsEverything },
                 },
-                { provide: ParentalLockLockStore, useValue: { hasLocks } },
+                {
+                    provide: ParentalLockLockStore,
+                    useValue: { hasLocks, revision: lockRevision },
+                },
                 {
                     provide: ExternalPlaybackService,
                     useValue: {
@@ -106,7 +111,11 @@ describe('ParentalLockExternalSessions', () => {
         });
         service = TestBed.inject(ParentalLockExternalSessions);
         service.now = () => clock;
-        service.start({ pageStartedAt: clock, lockedAt: clock });
+        service.start({
+            pageStartedAt: clock,
+            lockedAt: clock,
+            launchSources: new Map(),
+        });
     });
 
     afterEach(() => {
@@ -347,7 +356,11 @@ describe('ParentalLockExternalSessions', () => {
                     () => new ParentalLockExternalSessions()
                 );
                 page.now = () => clock;
-                page.start({ pageStartedAt: clock, lockedAt: clock });
+                page.start({
+                    pageStartedAt: clock,
+                    lockedAt: clock,
+                    launchSources: new Map(),
+                });
                 return page;
             };
 
@@ -384,13 +397,18 @@ describe('ParentalLockExternalSessions', () => {
         describe('sessions opened while the tracker was loading', () => {
             // It loads after the first screen; the listing reports what
             // opened before, judged by the eager half's clock readings.
-            const loadedPage = (lockedAt: number) => {
+            const loadedPage = (
+                lockedAt: number,
+                launchSources = new Map<string, string | null>([
+                    ['session-1', 'm3u-1'],
+                ])
+            ) => {
                 active.set(true);
                 const page = TestBed.runInInjectionContext(
                     () => new ParentalLockExternalSessions()
                 );
                 page.now = () => clock;
-                page.start({ pageStartedAt: 10_000, lockedAt });
+                page.start({ pageStartedAt: 10_000, lockedAt, launchSources });
                 return page;
             };
             const openedAt = (ms: number) =>
@@ -409,6 +427,26 @@ describe('ParentalLockExternalSessions', () => {
                 );
             });
 
+            it('judges one by the route it was first reported on', async () => {
+                clock = 15_000;
+                router.url = '/workspace/xtreams/xtream-2/live';
+                listed = [openedAt(12_000)];
+                loadedPage(14_000);
+                await flush();
+
+                expect(hasLocks).toHaveBeenCalledWith('m3u-1');
+                expect(hasLocks).not.toHaveBeenCalledWith('xtream-2');
+            });
+
+            it('judges one it never saw reported as any source', async () => {
+                clock = 15_000;
+                listed = [openedAt(12_000)];
+                loadedPage(14_000, new Map());
+                await flush();
+
+                expect(hasLocks).toHaveBeenCalledWith(null);
+            });
+
             it('keeps one opened while locked', async () => {
                 clock = 15_000;
                 listed = [openedAt(12_000)];
@@ -417,6 +455,23 @@ describe('ParentalLockExternalSessions', () => {
 
                 expect(closeExternalPlayerSession).not.toHaveBeenCalled();
             });
+        });
+
+        it('closes a locked-time session once the lock set changed', () => {
+            active.set(true);
+            emitSession(session());
+            active.set(false);
+            service.onLockChange();
+            // The parent locks another category while unlocked.
+            lockRevision.set(1);
+            service.onLockChange();
+
+            relock();
+
+            expect(closeExternalPlayerSession).toHaveBeenCalledWith(
+                'session-1',
+                true
+            );
         });
 
         it('forgets a closed session', () => {

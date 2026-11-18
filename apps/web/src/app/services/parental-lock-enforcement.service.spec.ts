@@ -7,7 +7,10 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
-import { ParentalLockService } from '@iptvnator/services';
+import {
+    ParentalLockLockStore,
+    ParentalLockService,
+} from '@iptvnator/services';
 import { ParentalLockEnforcementService } from './parental-lock-enforcement.service';
 import { DeferredExternalSessions } from './parental-lock-external-sessions.deferred';
 import { PlaybackKeepAwakeService } from './playback-keep-awake.service';
@@ -93,6 +96,10 @@ describe('ParentalLockEnforcementService', () => {
         TestBed.configureTestingModule({
             providers: [
                 { provide: ParentalLockService, useValue: parentalLock },
+                {
+                    provide: ParentalLockLockStore,
+                    useValue: { revision: signal(0) },
+                },
                 { provide: XtreamStore, useValue: xtreamStore },
                 { provide: XTREAM_DATA_SOURCE, useValue: xtreamDataSource },
                 { provide: StalkerStore, useValue: stalkerStore },
@@ -483,6 +490,10 @@ describe('ParentalLockEnforcementService apply serialization', () => {
                         isM3uGroupLocked: jest.fn(() => false),
                     },
                 },
+                {
+                    provide: ParentalLockLockStore,
+                    useValue: { revision: signal(0) },
+                },
                 { provide: XtreamStore, useValue: xtreamStore },
                 {
                     // No rows: the selected category cannot be placed and
@@ -585,6 +596,10 @@ describe('ParentalLockEnforcementService busy probe', () => {
                         isM3uGroupLocked: () => false,
                         registerBusyProbe: (fn: () => boolean) => (probe = fn),
                     },
+                },
+                {
+                    provide: ParentalLockLockStore,
+                    useValue: { revision: signal(0) },
                 },
                 { provide: XtreamStore, useValue: {} },
                 { provide: XTREAM_DATA_SOURCE, useValue: {} },

@@ -11,9 +11,10 @@ import type {
     PlaybackPositionData,
 } from '@iptvnator/shared/interfaces';
 import { ExternalPlaybackService } from './external-playback.service';
-
-/** A source route; a launch from it plays that source's content. */
-const SOURCE_ROUTE = /^\/workspace\/(?:playlists|xtreams|stalker)\/([^/?#]+)/;
+import {
+    type ExternalSessionsHandoff,
+    sourceIdOfRoute,
+} from './parental-lock-external-sessions.deferred';
 
 /**
  * MPV/VLC report a film's position every 5 s. A position that moved within
@@ -69,26 +70,33 @@ export class ParentalLockExternalSessions {
     private readonly embeddedPlaying = new Set<string>();
     private lockedAt = Number.NEGATIVE_INFINITY;
     private pageStartedAt = Number.NEGATIVE_INFINITY;
+    private trackerStartedAt = Number.NEGATIVE_INFINITY;
+    private lockRevision = 0;
+    private launchSources: ReadonlyMap<string, string | null> = new Map();
     private started = false;
 
     /** The clock; a field so specs can substitute it. */
     now = (): number => Date.now();
 
     /**
-     * `clock` carries the readings the eager half took before this loaded:
-     * when the page started (locked, or with the feature off) and when it
-     * last locked. A session the page did not see open — still running
-     * across a reload or a crashed renderer — has an unknown history and is
-     * treated as opened unlocked; one opened while this was loading is
-     * judged by the relocks it missed.
+     * `handoff` carries what the eager half saw before this loaded: when the
+     * page started (locked, or with the feature off), when it last locked or
+     * its lock set changed, and the route each session was first reported
+     * on. A session the page did not see open — still running across a
+     * reload or a crashed renderer — has an unknown history and is treated
+     * as opened unlocked; one opened while this was loading is judged by the
+     * relocks and lock edits it missed.
      */
-    start(clock: { pageStartedAt: number; lockedAt: number }): void {
+    start(handoff: ExternalSessionsHandoff): void {
         if (this.started) {
             return;
         }
         this.started = true;
-        this.pageStartedAt = clock.pageStartedAt;
-        this.lockedAt = clock.lockedAt;
+        this.pageStartedAt = handoff.pageStartedAt;
+        this.lockedAt = handoff.lockedAt;
+        this.launchSources = handoff.launchSources;
+        this.trackerStartedAt = this.now();
+        this.lockRevision = this.locks.revision();
         const bridge = window.electron;
         bridge?.onExternalPlayerSessionUpdate?.((session) =>
             this.observe(session)
@@ -111,6 +119,14 @@ export class ParentalLockExternalSessions {
 
     /** Called on every lock version change: closes on relock, shows on unlock. */
     onLockChange(): void {
+        // A session carries no category, so a lock-set change may withhold
+        // what any open one plays, however it was opened.
+        const revision = this.locks.revision();
+        if (revision !== this.lockRevision) {
+            this.lockRevision = revision;
+            this.lockedAt = this.now();
+            this.sessions.forEach((entry) => (entry.tainted = true));
+        }
         if (this.lock.active()) {
             this.lockedAt = this.now();
         }
@@ -143,16 +159,12 @@ export class ParentalLockExternalSessions {
         const entry: Tracked = current ?? {
             session,
             tainted: false,
-            // The route at a reload is not the one the launch was made from.
-            sourceId:
-                Date.parse(session.startedAt) < this.pageStartedAt
-                    ? null
-                    : this.routeSourceId(),
+            sourceId: this.launchSourceOf(session),
             closing: false,
         };
         // New media while unlocked: a launch, or an in-place switch of a
         // reused player (status reports alone do not count). A session first
-        // seen after a relock it started before raced that relock.
+        // seen after a relock or lock edit it started before raced it.
         const unlockedMedia =
             !this.lock.active() &&
             (!current || current.session.streamUrl !== session.streamUrl);
@@ -266,8 +278,16 @@ export class ParentalLockExternalSessions {
         );
     }
 
-    private routeSourceId(): string | null {
-        const match = SOURCE_ROUTE.exec(this.router.url ?? '');
-        return match ? decodeURIComponent(match[1]) : null;
+    /** The source route a new session was launched from, when known. */
+    private launchSourceOf(session: ExternalPlayerSession): string | null {
+        const startedAt = Date.parse(session.startedAt);
+        // The route at a reload is not the one the launch was made from.
+        if (startedAt < this.pageStartedAt) return null;
+        // Opened while this was loading: the eager half saw its first report.
+        const seen = this.launchSources.get(session.id);
+        if (seen !== undefined) return seen;
+        return startedAt < this.trackerStartedAt
+            ? null
+            : sourceIdOfRoute(this.router.url);
     }
 }

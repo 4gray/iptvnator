@@ -12,7 +12,10 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
-import { ParentalLockService } from '@iptvnator/services';
+import {
+    ParentalLockLockStore,
+    ParentalLockService,
+} from '@iptvnator/services';
 import { toParentalLockXtreamCategoryType } from '@iptvnator/shared/interfaces';
 import { DeferredExternalSessions } from './parental-lock-external-sessions.deferred';
 import { PlaybackKeepAwakeService } from './playback-keep-awake.service';
@@ -32,6 +35,7 @@ export const STALKER_ROUTE =
 @Injectable({ providedIn: 'root' })
 export class ParentalLockEnforcementService {
     private readonly parentalLock = inject(ParentalLockService);
+    private readonly lockStore = inject(ParentalLockLockStore);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
     private readonly injector = inject(EnvironmentInjector);
@@ -55,10 +59,12 @@ export class ParentalLockEnforcementService {
         // tracker, audio (the radio player) read directly, since the
         // keep-awake service deliberately ignores <audio>, and the players
         // that render outside the page (Embedded MPV, MPV/VLC films).
-        const externalSessions = new DeferredExternalSessions(
-            this.injector,
-            () => this.parentalLock.active()
-        );
+        const externalSessions = new DeferredExternalSessions({
+            injector: this.injector,
+            isLocked: () => this.parentalLock.active(),
+            lockRevision: () => this.lockStore.revision(),
+            routeUrl: () => this.router.url,
+        });
         this.externalSessions = externalSessions;
         this.parentalLock.registerBusyProbe(
             () =>

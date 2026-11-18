@@ -601,7 +601,9 @@ every session from `onExternalPlayerSessionUpdate`:
   favorites, search) has none. A session first reported after a relock it
   started before raced that relock and counts as opened while unlocked. A
   session opened while locked came from the filtered catalog and keeps
-  playing. Closing uses `closeExternalPlayerSession(id, true)` and hides
+  playing, until the lock set changes: a session carries no category, so a
+  lock edit counts every open session (and one first reported after the
+  edit that started before it) as opened while unlocked. Closing uses `closeExternalPlayerSession(id, true)` and hides
   the session from the dock first; a launch without a closer yet is closed
   on its next update, a rejected close is retried every second, and a
   session that cannot be closed (`canClose: false`) is only hidden — shown
@@ -620,9 +622,13 @@ every session from `onExternalPlayerSessionUpdate`:
   once the first screen has rendered and the page is idle (one second,
   then an idle callback of at most five), and only where the bridge
   reports MPV/VLC or Embedded MPV. Until then it records when the page
-  started and when it last locked, and the tracker judges every listed
-  session by those readings: one opened while unlocked before a relock it
-  missed is closed when it loads, and the busy probe counts nothing yet.
+  started, when it last locked or its lock set changed, and the route each
+  session was first reported on (listener registrations are not bridge
+  calls). The tracker judges every listed session by those readings: one
+  opened while unlocked before a relock it missed is closed when it loads,
+  its source is the route of its launch rather than the route at the load
+  (any source when no report was seen), and the busy probe counts nothing
+  yet.
 - **Owners.** A feature that knows the category of its sessions claims them
   through `ParentalLockSessionOwners` (`libs/services`) and closes only
   those in a withheld category. Xtream Live does:
