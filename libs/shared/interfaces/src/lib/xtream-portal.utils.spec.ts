@@ -126,7 +126,9 @@ describe('xtream portal utilities', () => {
                     user_info: { exp_date: '' },
                 })
             ).toBeNull();
-            expect(resolveXtreamPortalExpiration({ user_info: {} })).toBeNull();
+            expect(
+                resolveXtreamPortalExpiration({ user_info: {} })
+            ).toBeNull();
             expect(resolveXtreamPortalExpiration(null)).toBeNull();
         });
 

@@ -119,9 +119,9 @@ describe('transport marker', () => {
     });
 
     it('does not accept arbitrary objects as markers', () => {
-        expect(
-            isStalkerAuthFailureResponse({ stalkerAuthFailure: 'nope' })
-        ).toBe(false);
+        expect(isStalkerAuthFailureResponse({ stalkerAuthFailure: 'nope' })).toBe(
+            false
+        );
         expect(extractStalkerAuthFailureBody({})).toBeNull();
     });
 });

@@ -140,7 +140,9 @@ export function detectProviderImportCandidates(
         new Set(
             portalPool.map((url) => portalInstallationKey(url, labeled.port))
         ).size > 1;
-    const portal = portalAmbiguous ? null : pickStalkerPortalUrl(urls, labeled);
+    const portal = portalAmbiguous
+        ? null
+        : pickStalkerPortalUrl(urls, labeled);
     const identity: LabeledFields = macs.length === 1 ? labeled : {};
     for (const macAddress of macs) {
         candidates.push(

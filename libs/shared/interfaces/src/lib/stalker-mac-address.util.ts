@@ -99,9 +99,10 @@ export function validateStalkerMacAddressControl(control: {
  */
 export function createStalkerMacAddressValidator(
     grandfatheredValue: string | null | undefined
-): (control: {
-    value: unknown;
-}) => Record<typeof STALKER_MAC_ADDRESS_ERROR, true> | null {
+): (control: { value: unknown }) => Record<
+    typeof STALKER_MAC_ADDRESS_ERROR,
+    true
+> | null {
     return (control) =>
         grandfatheredValue !== undefined &&
         grandfatheredValue !== null &&

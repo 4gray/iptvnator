@@ -19,7 +19,11 @@
 // is already swapped to --app-selection-color by the parent `.nav-item.selected
 // *` rule in nav-list.scss, so we only need to override the background here.
 .category-item--selected .item-count.app-count-badge {
-    background: color-mix(in srgb, var(--app-selection-color) 18%, transparent);
+    background: color-mix(
+        in srgb,
+        var(--app-selection-color) 18%,
+        transparent
+    );
 }
 
 mat-card-content {

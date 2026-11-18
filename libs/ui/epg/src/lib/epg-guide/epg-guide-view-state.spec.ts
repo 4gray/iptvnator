@@ -135,7 +135,9 @@ describe('EpgGuideViewState', () => {
                 jest.advanceTimersByTime(60_000);
                 TestBed.flushEffects();
 
-                expect(state.dayKey()).toBe(moves ? '2026-06-29' : before);
+                expect(state.dayKey()).toBe(
+                    moves ? '2026-06-29' : before
+                );
                 expect(state.isToday()).toBe(true);
             } finally {
                 jest.useRealTimers();

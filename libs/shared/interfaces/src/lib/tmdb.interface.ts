@@ -40,7 +40,12 @@ export const DEFAULT_TMDB_SETTINGS: TmdbSettings = {
  * through translated labels.
  */
 export type TmdbSeriesStatus =
-    'returning' | 'planned' | 'in-production' | 'ended' | 'canceled' | 'pilot';
+    | 'returning'
+    | 'planned'
+    | 'in-production'
+    | 'ended'
+    | 'canceled'
+    | 'pilot';
 
 const SERIES_STATUS_TOKENS: Record<string, TmdbSeriesStatus> = {
     'returning series': 'returning',

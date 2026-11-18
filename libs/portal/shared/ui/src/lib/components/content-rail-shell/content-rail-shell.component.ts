@@ -45,8 +45,7 @@ export class ContentRailShellComponent implements AfterViewInit, OnDestroy {
     /** Optional active-accent decoration (e.g. the currently-scoped section). */
     readonly active = input<boolean>(false);
 
-    private readonly track =
-        viewChild.required<ElementRef<HTMLDivElement>>('track');
+    private readonly track = viewChild.required<ElementRef<HTMLDivElement>>('track');
 
     readonly canScrollLeft = signal(false);
     readonly canScrollRight = signal(false);
@@ -66,9 +65,7 @@ export class ContentRailShellComponent implements AfterViewInit, OnDestroy {
     ngAfterViewInit(): void {
         this.viewReady.set(true);
         this.updateScrollState();
-        this.resizeObserver = new ResizeObserver(() =>
-            this.updateScrollState()
-        );
+        this.resizeObserver = new ResizeObserver(() => this.updateScrollState());
         this.resizeObserver.observe(this.track().nativeElement);
     }
 

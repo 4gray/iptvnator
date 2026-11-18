@@ -10,7 +10,10 @@ import {
     StreamResolverService,
     UnifiedRecentDataService,
 } from '@iptvnator/portal/shared/data-access';
-import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import { UnifiedLiveTabComponent } from './unified-live-tab.component';
 
@@ -29,7 +32,9 @@ describe('UnifiedLiveTabComponent channelsForList', () => {
                     provide: StreamResolverService,
                     useValue: {
                         resolveLiveDetail: jest.fn(),
-                        loadEpgForItems: jest.fn().mockResolvedValue(new Map()),
+                        loadEpgForItems: jest
+                            .fn()
+                            .mockResolvedValue(new Map()),
                     },
                 },
                 {

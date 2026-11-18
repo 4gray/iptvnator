@@ -42,9 +42,9 @@ describe('normalizeContentMetadataPatch', () => {
     });
 
     it('accepts a numeric string id, since providers stringify them', () => {
-        expect(
-            normalizeContentMetadataPatch({ tmdbId: '603' as never })
-        ).toEqual({ tmdbId: 603 });
+        expect(normalizeContentMetadataPatch({ tmdbId: '603' as never })).toEqual(
+            { tmdbId: 603 }
+        );
     });
 
     it.each([

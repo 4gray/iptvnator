@@ -83,9 +83,7 @@
                 <div
                     class="epg-timeline__block-title"
                     [attr.data-upright]="
-                        hasVerticalTitleScript(item.block.program.title)
-                            ? ''
-                            : null
+                        hasVerticalTitleScript(item.block.program.title) ? '' : null
                     "
                 >
                     {{ item.block.program.title }}
@@ -106,10 +104,7 @@
                             [attr.aria-label]="
                                 'EPG.TIMELINE.WATCH_FROM_START' | translate
                             "
-                            (click)="
-                                watchClick.emit(item.block);
-                                $event.stopPropagation()
-                            "
+                            (click)="watchClick.emit(item.block); $event.stopPropagation()"
                         >
                             <mat-icon>replay</mat-icon>
                         </button>
@@ -118,10 +113,7 @@
                     <button
                         type="button"
                         class="epg-timeline__watch"
-                        (click)="
-                            watchClick.emit(item.block);
-                            $event.stopPropagation()
-                        "
+                        (click)="watchClick.emit(item.block); $event.stopPropagation()"
                     >
                         <mat-icon>replay</mat-icon>
                         {{ 'EPG.TIMELINE.WATCH' | translate }}
@@ -156,9 +148,8 @@
         role="tooltip"
     >
         <div class="epg-timeline__pop-time">
-            {{ pop.startMs | date: 'HH:mm' }} –
-            {{ pop.stopMs | date: 'HH:mm' }} · {{ pop.durationMin }}
-            {{ 'EPG.TIMELINE.MINUTES_SHORT' | translate }}
+            {{ pop.startMs | date: 'HH:mm' }} – {{ pop.stopMs | date: 'HH:mm' }} ·
+            {{ pop.durationMin }} {{ 'EPG.TIMELINE.MINUTES_SHORT' | translate }}
         </div>
         <div class="epg-timeline__pop-title">{{ pop.title }}</div>
         @if (pop.desc) {
