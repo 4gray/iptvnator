@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 @use '../../../../styles/app-controls' as controls;
 @use '../../../../styles/focus-ring';
 
@@ -145,8 +146,20 @@
     color: var(--embedded-mpv-text-muted);
 }
 
+// The kit's secondary button, in the scrim's fixed white pair: the overlay
+// is black in both themes.
 .embedded-mpv-player__retry {
+    $fill: rgba(255, 255, 255, 0.14);
     @include controls.secondary-button(md);
+    @include mat.button-overrides(
+        (
+            filled-container-color: $fill,
+            filled-disabled-container-color: $fill,
+            filled-label-text-color: #fff,
+            filled-disabled-label-text-color: #fff,
+            filled-state-layer-color: #fff,
+        )
+    );
 }
 
 .embedded-mpv-player__feedback {
@@ -499,11 +512,6 @@
     --embedded-mpv-text: #fff;
     --embedded-mpv-text-muted: rgba(255, 255, 255, 0.85);
     background: rgba(0, 0, 0, 0.82);
-}
-
-.embedded-mpv-player__stalled button {
-    --mat-button-outlined-label-text-color: #fff;
-    --mat-button-outlined-outline-color: rgba(255, 255, 255, 0.6);
 }
 
 .embedded-mpv-player__feedback {
