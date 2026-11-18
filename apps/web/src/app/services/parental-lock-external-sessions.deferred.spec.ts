@@ -20,7 +20,8 @@ describe('DeferredExternalSessions', () => {
 
     let revision: number;
     let routeUrl: string;
-    let emitSession: ((session: { id: string }) => void) | undefined;
+    let emitSession:
+        ((session: { id: string; streamUrl: string }) => void) | undefined;
     let stopWatching: jest.Mock;
 
     const create = () =>
@@ -31,7 +32,12 @@ describe('DeferredExternalSessions', () => {
                 lockRevision: () => revision,
                 routeUrl: () => routeUrl,
             },
-            { now: () => clock, schedule: (run) => (scheduled = run), load }
+            {
+                now: () => clock,
+                schedule: (run) => (scheduled = run),
+                load,
+                retryMs: 0,
+            }
         );
 
     beforeEach(() => {
@@ -52,7 +58,7 @@ describe('DeferredExternalSessions', () => {
         stopWatching = jest.fn();
         (window as { electron?: unknown }).electron = {
             onExternalPlayerSessionUpdate: (
-                callback: (session: { id: string }) => void
+                callback: (session: { id: string; streamUrl: string }) => void
             ) => {
                 emitSession = callback;
                 return stopWatching;
@@ -87,6 +93,7 @@ describe('DeferredExternalSessions', () => {
         expect(tracker.start).toHaveBeenCalledWith({
             pageStartedAt: 10_000,
             lockedAt: 10_000,
+            lockRevision: 0,
             launchSources: new Map(),
         });
         expect(stopWatching).toHaveBeenCalled();
@@ -96,8 +103,10 @@ describe('DeferredExternalSessions', () => {
     });
 
     it('hands over a relock that came before the load', async () => {
+        locked = false;
         const deferred = create();
         clock = 14_000;
+        locked = true;
         deferred.onLockChange();
         clock = 15_000;
         locked = false;
@@ -113,6 +122,19 @@ describe('DeferredExternalSessions', () => {
         expect(tracker.onLockChange).not.toHaveBeenCalled();
     });
 
+    it('moves nothing on a version bump that was no relock', async () => {
+        const deferred = create();
+        clock = 14_000;
+        deferred.onLockChange();
+
+        scheduled?.();
+        await flush();
+
+        expect(tracker.start).toHaveBeenCalledWith(
+            expect.objectContaining({ lockedAt: 10_000 })
+        );
+    });
+
     it('hands over a lock-set change made while unlocked', async () => {
         locked = false;
         const deferred = create();
@@ -126,18 +148,25 @@ describe('DeferredExternalSessions', () => {
         await flush();
 
         expect(tracker.start).toHaveBeenCalledWith(
-            expect.objectContaining({ lockedAt: 14_000 })
+            expect.objectContaining({ lockedAt: 14_000, lockRevision: 1 })
         );
     });
 
-    it('hands over the route each session was first reported on', async () => {
+    it("hands over the route of each session's media", async () => {
+        const film = 'http://stream.example/film.mkv';
         create();
-        emitSession?.({ id: 'session-1' });
+        emitSession?.({ id: 'session-1', streamUrl: film });
         routeUrl = '/workspace/xtreams/xtream-2/live';
-        emitSession?.({ id: 'session-1' });
-        emitSession?.({ id: 'session-2' });
+        // A status report keeps the launch route; a switch takes the new one.
+        emitSession?.({ id: 'session-1', streamUrl: film });
+        emitSession?.({ id: 'session-2', streamUrl: film });
         routeUrl = '/workspace/dashboard';
-        emitSession?.({ id: 'session-3' });
+        emitSession?.({ id: 'session-3', streamUrl: film });
+        routeUrl = '/workspace/stalker/stalker-4/itv';
+        emitSession?.({
+            id: 'session-2',
+            streamUrl: 'http://stream.example/b',
+        });
 
         scheduled?.();
         await flush();
@@ -146,19 +175,32 @@ describe('DeferredExternalSessions', () => {
             expect.objectContaining({
                 launchSources: new Map([
                     ['session-1', 'm3u-1'],
-                    ['session-2', 'xtream-2'],
+                    ['session-2', 'stalker-4'],
                     ['session-3', null],
                 ]),
             })
         );
     });
 
-    it('stays idle and reports a failed load', async () => {
+    it('retries a failed load', async () => {
+        load.mockRejectedValueOnce(new Error('chunk failed'));
+        create();
+        scheduled?.();
+        await flush();
+        await flush();
+
+        expect(load).toHaveBeenCalledTimes(2);
+        expect(tracker.start).toHaveBeenCalled();
+    });
+
+    it('stays idle and reports a load that keeps failing', async () => {
         const error = jest.spyOn(console, 'error').mockImplementation();
         load.mockRejectedValue(new Error('chunk failed'));
         const deferred = create();
         scheduled?.();
-        await flush();
+        for (let i = 0; i < 4; i++) await flush();
+
+        expect(load).toHaveBeenCalledTimes(3);
 
         expect(deferred.isBusy()).toBe(false);
         expect(error).toHaveBeenCalled();

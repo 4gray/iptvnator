@@ -17,7 +17,12 @@ export interface ExternalSessionsHandoff {
     pageStartedAt: number;
     /** The last relock or lock-set change. */
     lockedAt: number;
-    /** The route source of each session at its first report. */
+    /** The lock-set revision `lockedAt` accounts for. */
+    lockRevision: number;
+    /**
+     * The route source of each session's media: at its first report, or at
+     * the report that switched a reused player to other media.
+     */
     launchSources: ReadonlyMap<string, string | null>;
 }
 
@@ -33,10 +38,14 @@ export interface DeferredExternalSessionsHooks {
     now?: () => number;
     schedule?: (run: () => void) => void;
     load?: () => Promise<typeof import('./parental-lock-external-sessions')>;
+    retryMs?: number;
 }
 
 /** At most this many launch routes are kept until the tracker loads. */
 const MAX_LAUNCH_SOURCES = 64;
+/** A failed chunk load (an update replaced it, a slow disk) is retried. */
+const LOAD_RETRIES = 2;
+const LOAD_RETRY_MS = 5000;
 
 /** Waits for the first screen, then for an idle moment (5 s at most). */
 export function afterFirstScreen(run: () => void): void {
@@ -60,7 +69,11 @@ export class DeferredExternalSessions {
     private readonly pageStartedAt: number;
     private lockedAt: number;
     private lockRevision: number;
-    private readonly launchSources = new Map<string, string | null>();
+    private wasLocked: boolean;
+    private readonly launchSources = new Map<
+        string,
+        { streamUrl: string; sourceId: string | null }
+    >();
     private readonly now: () => number;
 
     constructor(
@@ -71,6 +84,7 @@ export class DeferredExternalSessions {
         // A page starts locked (or with the feature off).
         this.pageStartedAt = this.lockedAt = this.now();
         this.lockRevision = deps.lockRevision();
+        this.wasLocked = deps.isLocked();
         const bridge =
             typeof window === 'undefined' ? undefined : window.electron;
         if (
@@ -80,21 +94,22 @@ export class DeferredExternalSessions {
             return;
         }
         const stopWatching = bridge.onExternalPlayerSessionUpdate?.(
-            ({ id }) => {
-                if (
-                    !this.launchSources.has(id) &&
-                    this.launchSources.size < MAX_LAUNCH_SOURCES
-                ) {
-                    this.launchSources.set(
-                        id,
-                        sourceIdOfRoute(this.deps.routeUrl())
-                    );
+            ({ id, streamUrl }) => {
+                const seen = this.launchSources.get(id);
+                if (seen?.streamUrl === streamUrl) return;
+                if (!seen && this.launchSources.size >= MAX_LAUNCH_SOURCES) {
+                    return;
                 }
+                this.launchSources.set(id, {
+                    streamUrl,
+                    sourceId: sourceIdOfRoute(this.deps.routeUrl()),
+                });
             }
         );
         const load =
             hooks.load ?? (() => import('./parental-lock-external-sessions'));
-        (hooks.schedule ?? afterFirstScreen)(() => {
+        const retryMs = hooks.retryMs ?? LOAD_RETRY_MS;
+        const attempt = (retries: number): void => {
             load()
                 .then(({ ParentalLockExternalSessions }) => {
                     const tracker = this.deps.injector.get(
@@ -104,17 +119,28 @@ export class DeferredExternalSessions {
                     tracker.start({
                         pageStartedAt: this.pageStartedAt,
                         lockedAt: this.lockedAt,
-                        launchSources: new Map(this.launchSources),
+                        lockRevision: this.lockRevision,
+                        launchSources: new Map(
+                            [...this.launchSources].map(([id, seen]) => [
+                                id,
+                                seen.sourceId,
+                            ])
+                        ),
                     });
                     this.tracker = tracker;
                 })
-                .catch((error) =>
+                .catch((error) => {
+                    if (retries > 0) {
+                        setTimeout(() => attempt(retries - 1), retryMs);
+                        return;
+                    }
                     console.error(
                         'Failed to load the external player parental lock.',
                         error
-                    )
-                );
-        });
+                    );
+                });
+        };
+        (hooks.schedule ?? afterFirstScreen)(() => attempt(LOAD_RETRIES));
     }
 
     /** False until the tracker has loaded: nothing it counts is seen yet. */
@@ -127,10 +153,15 @@ export class DeferredExternalSessions {
             this.tracker.onLockChange();
             return;
         }
+        // A relock or a lock-set change; other version bumps while locked
+        // would count a session launched from the filtered catalog as
+        // having raced a relock.
         const revision = this.deps.lockRevision();
-        if (this.deps.isLocked() || revision !== this.lockRevision) {
+        const locked = this.deps.isLocked();
+        if ((locked && !this.wasLocked) || revision !== this.lockRevision) {
             this.lockedAt = this.now();
         }
         this.lockRevision = revision;
+        this.wasLocked = locked;
     }
 }

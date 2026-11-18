@@ -72,6 +72,7 @@ export class ParentalLockExternalSessions {
     private pageStartedAt = Number.NEGATIVE_INFINITY;
     private trackerStartedAt = Number.NEGATIVE_INFINITY;
     private lockRevision = 0;
+    private wasLocked = true;
     private launchSources: ReadonlyMap<string, string | null> = new Map();
     private started = false;
 
@@ -96,7 +97,8 @@ export class ParentalLockExternalSessions {
         this.lockedAt = handoff.lockedAt;
         this.launchSources = handoff.launchSources;
         this.trackerStartedAt = this.now();
-        this.lockRevision = this.locks.revision();
+        this.lockRevision = handoff.lockRevision;
+        this.wasLocked = this.lock.active();
         const bridge = window.electron;
         bridge?.onExternalPlayerSessionUpdate?.((session) =>
             this.observe(session)
@@ -127,9 +129,13 @@ export class ParentalLockExternalSessions {
             this.lockedAt = this.now();
             this.sessions.forEach((entry) => (entry.tainted = true));
         }
-        if (this.lock.active()) {
+        // Only a relock: other version bumps while locked would count a
+        // session launched from the filtered catalog as having raced one.
+        const locked = this.lock.active();
+        if (locked && !this.wasLocked) {
             this.lockedAt = this.now();
         }
+        this.wasLocked = locked;
         for (const entry of [...this.sessions.values()]) {
             this.enforce(entry);
         }
@@ -165,14 +171,18 @@ export class ParentalLockExternalSessions {
         // New media while unlocked: a launch, or an in-place switch of a
         // reused player (status reports alone do not count). A session first
         // seen after a relock or lock edit it started before raced it.
-        const unlockedMedia =
-            !this.lock.active() &&
-            (!current || current.session.streamUrl !== session.streamUrl);
+        const switched =
+            !!current && current.session.streamUrl !== session.streamUrl;
+        const unlockedMedia = !this.lock.active() && (!current || switched);
         if (
             unlockedMedia ||
             (!current && Date.parse(session.startedAt) <= this.lockedAt)
         ) {
             entry.tainted = true;
+        }
+        if (switched) {
+            // New media plays the source it was switched from.
+            entry.sourceId = sourceIdOfRoute(this.router.url);
         }
         entry.session = session;
         entry.sourceId = session.contentInfo?.playlistId ?? entry.sourceId;

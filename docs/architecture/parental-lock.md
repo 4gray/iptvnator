@@ -597,9 +597,10 @@ every session from `onExternalPlayerSessionUpdate`:
   withheld content: the lock store is unreadable, or the source has a
   locked category (any source has, when the source cannot be told). The
   source is the session's `contentInfo.playlistId`, otherwise the source
-  route the launch was made from; a launch from a global page (dashboard,
-  favorites, search) has none. A session first reported after a relock it
-  started before raced that relock and counts as opened while unlocked. A
+  route the launch (or the in-place switch to its current media) was made
+  from; a launch from a global page (dashboard, favorites, search) has
+  none. A session first reported after a relock it started before raced
+  that relock and counts as opened while unlocked. A
   session opened while locked came from the filtered catalog and keeps
   playing, until the lock set changes: a session carries no category, so a
   lock edit counts every open session (and one first reported after the
@@ -622,9 +623,10 @@ every session from `onExternalPlayerSessionUpdate`:
   once the first screen has rendered and the page is idle (one second,
   then an idle callback of at most five), and only where the bridge
   reports MPV/VLC or Embedded MPV. Until then it records when the page
-  started, when it last locked or its lock set changed, and the route each
-  session was first reported on (listener registrations are not bridge
-  calls). The tracker judges every listed session by those readings: one
+  started, when it last relocked or its lock set changed (other version
+  bumps while locked do not count), and the route of each session's media
+  (listener registrations are not bridge calls); a failed chunk load is
+  retried twice, five seconds apart. The tracker judges every listed session by those readings: one
   opened while unlocked before a relock it missed is closed when it loads,
   its source is the route of its launch rather than the route at the load
   (any source when no report was seen), and the busy probe counts nothing
@@ -641,8 +643,8 @@ every session from `onExternalPlayerSessionUpdate`:
   lets the timer run. A session that reports no position does not count,
   like live MPV/VLC: those players cannot report a pause, and an open,
   paused window must not keep the app unlocked indefinitely. Positions
-  need `contentInfo` and, for MPV, the IPC socket, so this also covers M3U
-  films (no `contentInfo`) and Flatpak MPV (no socket bridge).
+  need `contentInfo` and, for MPV, the IPC socket, so M3U films (no
+  `contentInfo`) and Flatpak MPV (no socket bridge) do not count either.
 
 ## Not yet covered (phase 2)
 

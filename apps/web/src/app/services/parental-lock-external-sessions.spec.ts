@@ -115,6 +115,7 @@ describe('ParentalLockExternalSessions', () => {
             pageStartedAt: clock,
             lockedAt: clock,
             launchSources: new Map(),
+            lockRevision: 0,
         });
     });
 
@@ -225,6 +226,33 @@ describe('ParentalLockExternalSessions', () => {
             relock();
 
             expect(closeExternalPlayerSession).toHaveBeenCalledTimes(1);
+        });
+
+        it('judges a reused player by the source it switched from', () => {
+            hasLocks.mockImplementation((source) => source === 'xtream-2');
+            emitSession(session());
+            router.url = '/workspace/xtreams/xtream-2/live';
+            emitSession(
+                session({ streamUrl: 'http://stream.example/other.mkv' })
+            );
+
+            relock();
+
+            expect(hasLocks).toHaveBeenCalledWith('xtream-2');
+            expect(closeExternalPlayerSession).toHaveBeenCalledWith(
+                'session-1',
+                true
+            );
+        });
+
+        it('keeps a locked-time session first reported after a version bump that was no relock', () => {
+            relock();
+            clock = 13_000;
+            // Still locked: a catalog sync or index re-stamp bumped the version.
+            service.onLockChange();
+            emitSession(session({ startedAt: new Date(11_000).toISOString() }));
+
+            expect(closeExternalPlayerSession).not.toHaveBeenCalled();
         });
 
         it('keeps a locked-time session that only reports status while unlocked', () => {
@@ -360,6 +388,7 @@ describe('ParentalLockExternalSessions', () => {
                     pageStartedAt: clock,
                     lockedAt: clock,
                     launchSources: new Map(),
+                    lockRevision: 0,
                 });
                 return page;
             };
@@ -408,7 +437,12 @@ describe('ParentalLockExternalSessions', () => {
                     () => new ParentalLockExternalSessions()
                 );
                 page.now = () => clock;
-                page.start({ pageStartedAt: 10_000, lockedAt, launchSources });
+                page.start({
+                    pageStartedAt: 10_000,
+                    lockedAt,
+                    lockRevision: 0,
+                    launchSources,
+                });
                 return page;
             };
             const openedAt = (ms: number) =>
