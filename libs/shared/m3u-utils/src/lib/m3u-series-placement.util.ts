@@ -61,14 +61,22 @@ function park<T extends M3uArtworkBearing>(
     held: M3uSeriesEpisode<T>,
     episode: M3uSeriesEpisode<T>
 ): void {
-    season.set(key, {
+    season.set(key, folded(held, episode));
+}
+
+/** `held` with `episode`'s rows listed among its alternatives. */
+function folded<T extends M3uArtworkBearing>(
+    held: M3uSeriesEpisode<T>,
+    episode: M3uSeriesEpisode<T>
+): M3uSeriesEpisode<T> {
+    return {
         ...held,
         alternatives: [
             ...held.alternatives,
             episode.channel,
             ...episode.alternatives,
         ],
-    });
+    };
 }
 
 /**
@@ -92,16 +100,47 @@ export function placeNumberedEpisode<T extends M3uArtworkBearing>(
     const number = episode.episodeNumber;
     const occupant = season.get(number);
     if (!occupant) {
-        season.set(number, episode);
+        season.set(number, asHolder(episode));
         return;
     }
     if (occupant.unnumbered) {
-        season.set(number, episode);
+        season.set(number, asHolder(episode));
         placeUnnumberedEpisode(season, occupant);
         return;
     }
+    // The same stream again folds into the entry already listed for it,
+    // which keeps two things true on every insert, whatever the row order:
+    // an entry shows the best-ranked row of its stream, and the holder is
+    // the entry with the best-ranked row of all.
+    for (let extra = 0; ; extra += 1) {
+        const key = number + extra / 1000;
+        const held = season.get(key);
+        if (!held) break;
+        if (m3uPlaybackKey(held.channel) !== m3uPlaybackKey(episode.channel)) {
+            continue;
+        }
+        const ranksFirst = holdsCoordinateBefore(episode.channel, held.channel);
+        // The entry shows the stream's best-ranked row.
+        const entry = ranksFirst
+            ? folded({ ...episode, rowKey: held.rowKey }, held)
+            : folded(held, episode);
+        if (extra === 0) {
+            season.set(key, asHolder(entry));
+        } else if (holdsCoordinateBefore(entry.channel, occupant.channel)) {
+            // The stream now has the best row of all: it takes the
+            // coordinate, and the holder its slot, keyed on its own row.
+            season.set(number, asHolder(entry));
+            season.set(key, {
+                ...occupant,
+                rowKey: occupant.rowKey ?? fileNameOf(occupant.channel.url),
+            });
+        } else {
+            season.set(key, entry);
+        }
+        return;
+    }
     if (holdsCoordinateBefore(episode.channel, occupant.channel)) {
-        season.set(number, episode);
+        season.set(number, asHolder(episode));
         placeExtraEpisode(season, number, occupant, 1);
         return;
     }
@@ -109,21 +148,38 @@ export function placeNumberedEpisode<T extends M3uArtworkBearing>(
 }
 
 /**
+ * The row as the coordinate's holder: its id comes from the coordinate, so
+ * a `rowKey` it carried as another group's extra row (`mergeParts`) goes.
+ */
+function asHolder<T extends M3uArtworkBearing>(
+    episode: M3uSeriesEpisode<T>
+): M3uSeriesEpisode<T> {
+    return episode.rowKey === undefined
+        ? episode
+        : { ...episode, rowKey: undefined };
+}
+
+/**
  * Which of two rows at one coordinate holds it, independent of row order.
  * The shorter name first: a variant added later ("… FHD", "… Part 2")
  * usually extends the episode's own name, so the episode keeps its id. The
  * playback key breaks a tie, so equal lengths ("Part 1"/"Part 2") still
- * rank the same way on every refresh.
+ * rank the same way on every refresh; the name itself, for one stream.
  */
 function holdsCoordinateBefore(
     candidate: M3uArtworkBearing & M3uPlaybackFields,
     holder: M3uArtworkBearing & M3uPlaybackFields
 ): boolean {
-    const length = (row: M3uArtworkBearing) => (row.name ?? '').trim().length;
-    if (length(candidate) !== length(holder)) {
-        return length(candidate) < length(holder);
+    const name = (row: M3uArtworkBearing) => (row.name ?? '').trim();
+    if (name(candidate).length !== name(holder).length) {
+        return name(candidate).length < name(holder).length;
     }
-    return m3uPlaybackKey(candidate) < m3uPlaybackKey(holder);
+    const candidateKey = m3uPlaybackKey(candidate);
+    const holderKey = m3uPlaybackKey(holder);
+    if (candidateKey !== holderKey) return candidateKey < holderKey;
+    // The same stream under two names of one length: which row an entry
+    // shows must not depend on order either.
+    return name(candidate) < name(holder);
 }
 
 /** Lists a further row of `number`, from the `from`th slot on. */

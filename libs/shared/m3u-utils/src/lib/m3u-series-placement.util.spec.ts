@@ -107,6 +107,90 @@ describe('placeNumberedEpisode', () => {
         expect(season.get(1.001)?.alternatives).toHaveLength(1);
     });
 
+    it('gives the coordinate to an extra stream that gains the best row', () => {
+        // "part-22" is listed as an extra of "part-1". The same file again
+        // under a shorter name ranks before "part-1": the stream folds it in
+        // and takes the coordinate, and "part-1" is keyed on its own row.
+        const season = new Map<number, M3uSeriesEpisode<Row>>();
+        placeNumberedEpisode(season, episode(row('part-1.mp4'), 1));
+        placeNumberedEpisode(season, episode(row('part-22.mp4'), 1));
+        placeNumberedEpisode(
+            season,
+            episode({ ...row('part-22.mp4'), name: 'p2' }, 1)
+        );
+
+        expect([...season.keys()].sort()).toEqual([1, 1.001]);
+        expect(season.get(1)?.channel.name).toBe('p2');
+        expect(season.get(1)?.rowKey).toBeUndefined();
+        expect(season.get(1)?.alternatives).toHaveLength(1);
+        expect(season.get(1.001)?.channel.name).toBe('part-1.mp4');
+        expect(season.get(1.001)?.rowKey).toBe('part-1.mp4');
+    });
+
+    it('lists the same entries in every order of rows sharing streams', () => {
+        // Q is the same stream as P and the best-ranked row of all; it holds
+        // the coordinate even when P was already listed as an extra.
+        const permutations = <V>(items: V[]): V[][] =>
+            items.length <= 1
+                ? [items]
+                : items.flatMap((item, index) =>
+                      permutations(items.filter((_, i) => i !== index)).map(
+                          (rest) => [item, ...rest]
+                      )
+                  );
+        const named = (name: string, file: string): Row => ({
+            ...row(file),
+            name,
+        });
+        const listing = (rows: Row[]) => {
+            const season = new Map<number, M3uSeriesEpisode<Row>>();
+            for (const channel of rows) {
+                placeNumberedEpisode(season, episode(channel, 1));
+            }
+            return [...season.values()]
+                .map((held) => [
+                    held.channel.name,
+                    held.rowKey ?? null,
+                    held.alternatives.map((alt) => alt.name).sort(),
+                ])
+                .sort();
+        };
+
+        for (const rows of [
+            [named('HHHHH', 'u1'), named('PPPPPPP', 'u2'), named('QQQ', 'u2')],
+            [named('AAAA', 'u1'), named('BBBBBB', 'u1'), named('CCC', 'u2')],
+            [named('XX', 'u1'), named('YY', 'u1'), named('ZZZ', 'u2')],
+        ]) {
+            const listings = permutations(rows).map(listing);
+            for (const each of listings) expect(each).toEqual(listings[0]);
+        }
+        expect(
+            listing([
+                named('HHHHH', 'u1'),
+                named('PPPPPPP', 'u2'),
+                named('QQQ', 'u2'),
+            ])
+        ).toEqual([
+            ['HHHHH', 'u1', []],
+            ['QQQ', null, ['PPPPPPP']],
+        ]);
+    });
+
+    it('drops the row key of an extra that takes the coordinate', () => {
+        // An extra of another year group (`mergeParts`) that ranks first
+        // holds the coordinate and its id; the displaced row is keyed.
+        const season = new Map<number, M3uSeriesEpisode<Row>>();
+        placeNumberedEpisode(season, episode(row('part-22.mp4'), 1));
+        placeNumberedEpisode(
+            season,
+            episode(row('p1.mp4'), 1, { rowKey: 'p1.mp4' })
+        );
+
+        expect(season.get(1)?.channel.name).toBe('p1.mp4');
+        expect(season.get(1)?.rowKey).toBeUndefined();
+        expect(season.get(1.001)?.rowKey).toBe('part-22.mp4');
+    });
+
     it('takes the coordinate from an unnumbered row sitting in it', () => {
         // The unnumbered row's number was only its place in the list; a row
         // that states the coordinate holds it, and the other is listed next.

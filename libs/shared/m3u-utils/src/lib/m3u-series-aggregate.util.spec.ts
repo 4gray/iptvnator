@@ -210,6 +210,29 @@ describe('buildM3uSeriesCatalog', () => {
         expect(ids([...parts].reverse())).toEqual(ids(parts));
     });
 
+    it('lists one stream once when a yeared and a bare title merge', () => {
+        // The same file under both spellings: whichever is read first, the
+        // shorter name takes the coordinate and the other folds into it.
+        const sameStream = (name: string) => ({
+            ...row(name),
+            url: 'http://h.example/series/u/p/show-s1e1.mp4',
+        });
+        const episodes = (names: string[]) =>
+            buildM3uSeriesCatalog(names.map(sameStream), 'pl-1')[0].seasons.get(
+                1
+            ) ?? [];
+        const names = ['SHOW 2025 S1 E1', 'SHOW S1 E1'];
+
+        for (const order of [names, [...names].reverse()]) {
+            const listed = episodes(order);
+            expect(listed).toHaveLength(1);
+            expect(listed[0].alternatives).toHaveLength(1);
+        }
+        expect(episodes(names)[0].id).toBe(
+            episodes([...names].reverse())[0].id
+        );
+    });
+
     it('keeps the id of the first row when a second one joins its coordinate', () => {
         const alone = buildM3uSeriesCatalog([row('SHOW S1 E1')], 'pl-1');
         const joined = buildM3uSeriesCatalog(

@@ -2203,7 +2203,11 @@ coordinate holds dozens of rows.
   (a second quality, a "Part 2", a trailer, a show whose title merely
   normalizes the same) are listed beside it under the same number with a
   `rowKey` id. `alternatives` holds only the same stream listed again
-  (same URL, request headers and DRM; `m3uPlaybackKey`).
+  (same URL, request headers and DRM; `m3uPlaybackKey`); such a row folds
+  into its stream's entry, which shows the stream's best-ranked row, and an
+  entry that gains the best row of all takes the coordinate. A yeared and a
+  bare spelling of one file therefore merge into one episode, and the holder
+  and ids are the same in every row order.
   A year written in brackets ("Harbor Lights (2018)") counts as the stated year,
   so remakes spelled that way reach the remake split.
 - `/series/` means an episode unless the row is a streaming container that
