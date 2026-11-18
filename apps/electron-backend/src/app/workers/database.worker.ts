@@ -1372,6 +1372,11 @@ parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
         return;
     }
 
+    if (message.type === 'close') {
+        // The 'exit' hook below closes SQLite.
+        process.exit(0);
+    }
+
     if (message.type === 'cancel') {
         const activeOperation = activeOperations.get(message.operationId);
         if (activeOperation) {
