@@ -1,5 +1,20 @@
 {
     "TWO_STREAMS": {
+        "MULTIVIEW": "Vista multipla",
+        "ADD_STREAM": "Aggiungi flusso",
+        "OPEN_GRID": "Apri griglia 2×2",
+        "GRID_LAYOUT": "Griglia 2×2",
+        "FOCUS_LAYOUT": "Vista in evidenza (3:1)",
+        "PAIR_LAYOUT_HINT": "Lascia aperte due finestre per usare questa disposizione",
+        "ADD_TO_WINDOW": "Aggiungi un flusso alla finestra {{slot}}",
+        "WINDOW": "Finestra {{slot}}",
+        "EXIT_MULTIVIEW": "Esci dalla vista multipla",
+        "EXIT_MULTIVIEW_LABEL": "Esci dalla vista multipla mantenendo la finestra 1",
+        "REPLACE_STREAM": "Sostituisci il flusso nella finestra {{slot}}",
+        "CLOSE_WINDOW": "Chiudi la finestra {{slot}}",
+        "PICK_FOR_WINDOW": "Scegli un flusso per la finestra {{slot}}",
+        "PICK_MUTED_HINT": "Il video attuale continua. Il nuovo flusso inizia senza audio.",
+        "DUPLICATE_WINDOW": "Questo video è già aperto nella finestra {{slot}}.",
         "PICK_SOURCE": "Scegli un secondo flusso",
         "CONTENT_TYPE": "Tipo di contenuto",
         "LOADING_TITLES": "Caricamento dei titoli…",
@@ -18,7 +33,12 @@
         "PAUSE": "Metti in pausa la vista piccola",
         "RESUME": "Riprendi la vista piccola",
         "CLOSE": "Chiudi il secondo flusso e torna indietro",
-        "AUDIO_ERROR": "Impossibile trasferire l’audio. Prova a scambiare di nuovo le viste.",
+        "LAYOUT": "Disposizione",
+        "FLOATING_LAYOUT": "Finestra mobile",
+        "SIDE_BY_SIDE_LAYOUT": "Affiancati",
+        "CONTROL_VIEW": "Controlla {{title}}",
+        "SOUND_FROM": "Audio da {{title}}",
+        "AUDIO_ERROR": "Impossibile cambiare l’audio. Riprova.",
         "PICK_HINT": "Il video in corso continua. Il secondo flusso si avvia senza audio.",
         "UNGROUPED": "Altri canali",
         "LOADING": "Caricamento dei canali…",
@@ -372,6 +392,7 @@
         "SEARCH_EMPTY_HINT": "Nessuna impostazione corrisponde. Prova un'altra parola, ad esempio riproduttore, tema o EPG.",
         "GENERAL": "Generale",
         "GENERAL_SUBTITLE": "Lingua, avvio e preferenze dei canali.",
+        "OPEN_ANDROID_APP_SETTINGS": "Apri le impostazioni dell’app Android",
         "PLAYBACK": "Riproduzione",
         "SAVE_EPG_SOURCES": "Salva fonti EPG",
         "EPG_SOURCES": "Sorgenti EPG",
@@ -595,6 +616,8 @@
         "STREAM_FORMAT_DESCRIPTION": "Seleziona il formato di streaming predefinito (xtream)",
         "LANGUAGE_DESCRIPTION": "Seleziona la lingua dell'applicazione",
         "THEME_DESCRIPTION": "Seleziona il tema visivo dell'applicazione",
+        "THEME_ACCENT": "Colore di accento",
+        "THEME_ACCENT_DESCRIPTION": "Evidenzia selezione, avanzamento e focus. La luminosità si adatta a ogni tema per mantenere il testo leggibile.",
         "COVER_SIZE": "Dimensione copertine",
         "COVER_SIZE_DESCRIPTION": "Regola la dimensione delle schede poster nelle griglie e nei carousel. Le dimensioni più grandi sono più leggibili sulle TV; quelle più piccole mostrano più contenuti per riga sui monitor grandi.",
         "COVER_SIZE_SMALL": "Piccola",
@@ -801,7 +824,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Paese della classificazione per età",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Scegli il paese della classificazione. In assenza di dati locali, possono essere usati quelli statunitensi o del fornitore.",
-        "AGE_RATING_COUNTRY_AUTO": "Automatico — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automatico — {{country}}",
+        "CARD_HELP": "Aiuto",
+        "KEYBOARD_SHORTCUTS": "Scorciatoie da tastiera",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Scorciatoie per navigazione, riproduzione e finestre di dialogo. Premi ? fuori da un campo di testo per aprirle.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Mostra scorciatoie"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Impossibile salvare sul server. Controlla la connessione e riprova.",
@@ -834,10 +861,21 @@
         "MOCHA_THEME": "Moka",
         "NIGHT_OWL_THEME": "Gufo notturno",
         "BLACK_OLED_THEME": "Nero OLED",
+        "HIGH_CONTRAST_THEME": "Contrasto elevato",
         "SYSTEM_DESCRIPTION": "Sistema segue l’aspetto chiaro o scuro del dispositivo.",
+        "SYSTEM_LIGHT_PAIR": "In modalità chiara",
+        "SYSTEM_DARK_PAIR": "In modalità scura",
         "DARK_THEME": "Scuro",
         "LIGHT_THEME": "Chiaro",
-        "SYSTEM_THEME": "Sistema"
+        "SYSTEM_THEME": "Sistema",
+        "ACCENT_THEME": "Colore del tema",
+        "ACCENT_BLUE": "Blu",
+        "ACCENT_TEAL": "Verde acqua",
+        "ACCENT_GREEN": "Verde",
+        "ACCENT_AMBER": "Ambra",
+        "ACCENT_CORAL": "Corallo",
+        "ACCENT_MAGENTA": "Magenta",
+        "ACCENT_VIOLET": "Viola"
     },
     "AUDIO_PLAYER": {
         "PLAY": "Riproduci",
@@ -868,6 +906,7 @@
             "NEXT_EPISODE": "Episodio successivo",
             "BACK_10_SECONDS": "Indietro di 10 secondi",
             "FORWARD_10_SECONDS": "Avanti di 10 secondi",
+            "JUMP_TO_LIVE": "Vai alla diretta",
             "LIVE_STREAM": "Stream in diretta",
             "LIVE_BADGE": "DIRETTA",
             "PLAYBACK_POSITION": "Posizione di riproduzione",
@@ -945,6 +984,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Prova il lettore integrato",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Torna al lettore web",
         "HLS_WAIT": "In attesa dei dati del flusso. Puoi continuare ad aspettare o riprovare.",
         "STAGE_LOADER": "Caricamento del flusso",
         "STAGE_DEMUX": "Analisi del contenitore",
@@ -1331,6 +1372,7 @@
         "TWITTER_TOOLTIP": "Condividi su Twitter"
     },
     "UPDATE_AVAILABLE": "Disponibile aggiornamento",
+    "PWA_UPDATE_NONE": "Su questo server non è stata trovata una build più recente.",
     "PWA_UPDATE_READY": "Un aggiornamento è pronto. Ricaricare interrompe la riproduzione.",
     "PWA_UPDATE_FAILED": "Impossibile scaricare l’aggiornamento. Puoi continuare a usare questa versione.",
     "PWA_RELOAD_REQUIRED": "I file dell’applicazione non sono disponibili. Ricarica quando torna la connessione. La riproduzione verrà interrotta.",
@@ -2143,7 +2185,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "Rimozione delle categorie in cache...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "Preferiti, cronologia di visione, categorie nascoste e avanzamento di riproduzione vengono preparati per il ripristino dopo la sincronizzazione.",
             "XTREAM_REFRESH_PROGRESS": "Record locali elaborati: {{current}} / {{total}}",
-            "RAIL_RADIO": "Radio live"
+            "RAIL_RADIO": "Radio live",
+            "MORE_ACTIONS": "Altre azioni"
         },
         "SOURCES": {
             "TITLE": "Sorgenti",
@@ -2214,8 +2257,6 @@
         "SHORTCUTS": {
             "TITLE": "Scorciatoie da tastiera",
             "SUBTITLE": "Scorciatoie disponibili in IPTVnator per area di lavoro, navigazione, riproduzione e dialoghi.",
-            "OPEN_TOOLTIP": "Scorciatoie da tastiera (?)",
-            "OPEN_ARIA": "Apri scorciatoie da tastiera",
             "PLATFORM": {
                 "MAC": "Layout macOS",
                 "OTHER": "Layout Windows/Linux"

@@ -1,5 +1,20 @@
 {
     "TWO_STREAMS": {
+        "MULTIVIEW": "Vista múltipla",
+        "ADD_STREAM": "Adicionar emissão",
+        "OPEN_GRID": "Abrir grelha 2×2",
+        "GRID_LAYOUT": "Grelha 2×2",
+        "FOCUS_LAYOUT": "Foco (3:1)",
+        "PAIR_LAYOUT_HINT": "Mantenha duas janelas abertas para usar esta disposição",
+        "ADD_TO_WINDOW": "Adicionar emissão à janela {{slot}}",
+        "WINDOW": "Janela {{slot}}",
+        "EXIT_MULTIVIEW": "Sair da vista múltipla",
+        "EXIT_MULTIVIEW_LABEL": "Sair da vista múltipla e manter a janela 1",
+        "REPLACE_STREAM": "Substituir a emissão na janela {{slot}}",
+        "CLOSE_WINDOW": "Fechar janela {{slot}}",
+        "PICK_FOR_WINDOW": "Escolha uma emissão para a janela {{slot}}",
+        "PICK_MUTED_HINT": "O vídeo atual continua a ser reproduzido. A nova emissão começa sem som.",
+        "DUPLICATE_WINDOW": "Este vídeo já está aberto na janela {{slot}}.",
         "PICK_SOURCE": "Escolher uma segunda transmissão",
         "CONTENT_TYPE": "Tipo de conteúdo",
         "LOADING_TITLES": "A carregar títulos…",
@@ -18,7 +33,12 @@
         "PAUSE": "Colocar a vista pequena em pausa",
         "RESUME": "Retomar a vista pequena",
         "CLOSE": "Fechar a segunda transmissão e voltar",
-        "AUDIO_ERROR": "Não foi possível transferir o som. Tente trocar as vistas novamente.",
+        "LAYOUT": "Disposição",
+        "FLOATING_LAYOUT": "Janela flutuante",
+        "SIDE_BY_SIDE_LAYOUT": "Lado a lado",
+        "CONTROL_VIEW": "Controlar {{title}}",
+        "SOUND_FROM": "Som de {{title}}",
+        "AUDIO_ERROR": "Não foi possível mudar a fonte do som. Tente novamente.",
         "PICK_HINT": "O vídeo atual continua. A segunda transmissão começa sem som.",
         "UNGROUPED": "Outros canais",
         "LOADING": "A carregar canais…",
@@ -372,6 +392,7 @@
         "SEARCH_EMPTY_HINT": "Nenhuma definição corresponde à pesquisa. Tenta outra palavra, como leitor, tema ou EPG.",
         "GENERAL": "Geral",
         "GENERAL_SUBTITLE": "Idioma, arranque e preferências dos canais.",
+        "OPEN_ANDROID_APP_SETTINGS": "Abrir as definições da aplicação Android",
         "PLAYBACK": "Reprodução",
         "SAVE_EPG_SOURCES": "Guardar fontes de EPG",
         "EPG_SOURCES": "Fontes de EPG",
@@ -595,6 +616,8 @@
         "STREAM_FORMAT_DESCRIPTION": "A opção automática dá prioridade ao HLS. Se a reprodução em direto falhar no MPV, VLC ou MPV integrado, para o leitor, seleciona ts, guarda e volta a abrir o canal. Após uma falha HTTP inicial no HLS, os leitores web podem tentar uma vez a transmissão TS indicada pela fonte.",
         "LANGUAGE_DESCRIPTION": "Selecionar idioma da aplicação",
         "THEME_DESCRIPTION": "Selecionar tema visual da aplicação",
+        "THEME_ACCENT": "Cor de destaque",
+        "THEME_ACCENT_DESCRIPTION": "Realça a seleção, o progresso e o foco. O brilho adapta-se a cada tema para manter o texto legível.",
         "COVER_SIZE": "Tamanho da capa",
         "COVER_SIZE_DESCRIPTION": "Ajusta o tamanho das capas nas grelhas e filas de conteúdo. As capas maiores são mais fáceis de ver numa televisão; as mais pequenas mostram mais conteúdo por linha em monitores grandes.",
         "COVER_SIZE_SMALL": "Pequeno",
@@ -801,7 +824,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "País da classificação etária",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Escolha o país da classificação. Na ausência de dados locais, podem ser usados dados dos EUA ou do fornecedor.",
-        "AGE_RATING_COUNTRY_AUTO": "Automático — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automático — {{country}}",
+        "CARD_HELP": "Ajuda",
+        "KEYBOARD_SHORTCUTS": "Atalhos de teclado",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Atalhos de navegação, reprodução e caixas de diálogo. Prima ? fora de um campo de texto para os abrir.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Mostrar atalhos"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Não foi possível guardar no servidor. Verifica a ligação e tenta novamente.",
@@ -834,10 +861,21 @@
         "MOCHA_THEME": "Moca",
         "NIGHT_OWL_THEME": "Coruja noturna",
         "BLACK_OLED_THEME": "Preto OLED",
+        "HIGH_CONTRAST_THEME": "Alto contraste",
         "SYSTEM_DESCRIPTION": "Sistema segue a aparência clara ou escura do dispositivo.",
+        "SYSTEM_LIGHT_PAIR": "No modo claro",
+        "SYSTEM_DARK_PAIR": "No modo escuro",
         "DARK_THEME": "Escuro",
         "LIGHT_THEME": "Claro",
-        "SYSTEM_THEME": "Sistema"
+        "SYSTEM_THEME": "Sistema",
+        "ACCENT_THEME": "Cor do tema",
+        "ACCENT_BLUE": "Azul",
+        "ACCENT_TEAL": "Verde-azulado",
+        "ACCENT_GREEN": "Verde",
+        "ACCENT_AMBER": "Âmbar",
+        "ACCENT_CORAL": "Coral",
+        "ACCENT_MAGENTA": "Magenta",
+        "ACCENT_VIOLET": "Violeta"
     },
     "AUDIO_PLAYER": {
         "PLAY": "Reproduzir",
@@ -868,6 +906,7 @@
             "NEXT_EPISODE": "Episódio seguinte",
             "BACK_10_SECONDS": "Voltar 10 segundos",
             "FORWARD_10_SECONDS": "Avançar 10 segundos",
+            "JUMP_TO_LIVE": "Ir para o direto",
             "LIVE_STREAM": "Transmissão em direto",
             "LIVE_BADGE": "Em direto",
             "PLAYBACK_POSITION": "Posição de reprodução",
@@ -945,6 +984,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Experimentar o leitor integrado",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Voltar ao leitor web",
         "HLS_WAIT": "Ainda à espera dos dados da transmissão. Pode continuar à espera ou tentar novamente.",
         "STAGE_LOADER": "Carregamento da transmissão",
         "STAGE_DEMUX": "Análise do contentor",
@@ -1331,6 +1372,7 @@
         "TWITTER_TOOLTIP": "Partilhar no Twitter"
     },
     "UPDATE_AVAILABLE": "Atualização disponível",
+    "PWA_UPDATE_NONE": "Não foi encontrada uma compilação mais recente neste servidor.",
     "PWA_UPDATE_READY": "Está pronta uma atualização. Recarregar interrompe a reprodução.",
     "PWA_UPDATE_FAILED": "Não foi possível transferir a atualização. Pode continuar a utilizar esta versão.",
     "PWA_RELOAD_REQUIRED": "Os ficheiros da aplicação estão indisponíveis. Recarregue quando a ligação voltar. A reprodução será interrompida.",
@@ -2143,7 +2185,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "A remover as categorias em cache…",
             "XTREAM_REFRESH_DETAIL_LOCAL": "Os favoritos, o histórico de visualização, as categorias ocultas e o progresso de reprodução ficam preservados para restauro após a sincronização.",
             "XTREAM_REFRESH_PROGRESS": "Registos locais processados: {{current}} / {{total}}",
-            "RAIL_RADIO": "Rádio"
+            "RAIL_RADIO": "Rádio",
+            "MORE_ACTIONS": "Mais ações"
         },
         "SOURCES": {
             "TITLE": "Fontes",
@@ -2214,8 +2257,6 @@
         "SHORTCUTS": {
             "TITLE": "Atalhos de teclado",
             "SUBTITLE": "Atalhos do espaço de trabalho, navegação, reprodução e caixas de diálogo disponíveis no IPTVnator.",
-            "OPEN_TOOLTIP": "Atalhos de teclado (?)",
-            "OPEN_ARIA": "Abrir atalhos de teclado",
             "PLATFORM": {
                 "MAC": "Disposição macOS",
                 "OTHER": "Disposição Windows/Linux"

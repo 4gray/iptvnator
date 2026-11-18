@@ -20,6 +20,7 @@ import { type SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data
 import {
     createLogger,
     isPortalPlaybackInProgress,
+    compareSeriesSeasonKeys,
     isPortalPlaybackWatched,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -172,7 +173,7 @@ export class SeasonContainerComponent implements OnInit {
     readonly viewMode = signal<EpisodeViewMode>('list');
 
     readonly sortedSeasonKeys = computed(() =>
-        Object.keys(this.seasons()).sort((a, b) => Number(a) - Number(b))
+        Object.keys(this.seasons()).sort(compareSeriesSeasonKeys)
     );
 
     readonly episodeCounts = computed(() => {
@@ -201,18 +202,7 @@ export class SeasonContainerComponent implements OnInit {
             : findSeasonOfEpisode(this.seasons(), episodeId);
     });
 
-    /**
-     * Selected season. Auto-resolves when the season key set changes or when
-     * playback positions first arrive (priority: inline-playing episode's
-     * season → most recently updated in-progress episode's season → earliest
-     * season with unwatched episodes → latest season, with unhydrated
-     * lazy-VOD seasons pinning the fallback to the first season); user tab
-     * clicks write to it and stick until the auto-select
-     * key changes. Ongoing position saves do not reset the selection — only
-     * the empty→loaded transition of the positions map does, and even that
-     * is ignored once this session toggled watched state itself (the flip is
-     * then an echo of the local action, not an initial load).
-     */
+    /** Season chosen by the viewer or resolved from playback progress. */
     readonly selectedSeason = signal<string | undefined>(undefined);
 
     readonly seasonUnknown = computed(() =>
@@ -348,11 +338,12 @@ export class SeasonContainerComponent implements OnInit {
         // season-auto-select.state.ts / season-auto-select.util.ts.
         this.autoSelect = createSeasonAutoSelectState({
             selectedSeason: this.selectedSeason,
+            seriesId: this.seriesId,
+            playlistId: this.playlistId,
             seasons: this.seasons,
             sortedSeasonKeys: this.sortedSeasonKeys,
             playingSeasonKey: this.playingSeasonKey,
             playbackPositions: this.playbackPositions,
-            positionOf: (episode) => this.getEpisodePosition(episode),
             hasUnloadedSeasons: this.hasUnloadedSeasons,
             unloadedSeasonKeys: this.unloadedSeasonKeys,
             episodeCounts: this.episodeCounts,
@@ -388,6 +379,7 @@ export class SeasonContainerComponent implements OnInit {
     }
 
     selectSeason(seasonKey: string) {
+        this.autoSelect.markManualSelection();
         this.selectedSeason.set(seasonKey);
     }
 

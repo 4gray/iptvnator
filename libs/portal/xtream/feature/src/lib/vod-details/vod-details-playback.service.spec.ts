@@ -54,6 +54,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
     >({ id: ROUTE_PLAYLIST });
     const routeVodId = signal(ROUTE_VOD_ID);
     const getPlaybackPosition = jest.fn();
+    const savePlaybackPosition = jest.fn();
 
     function deferred<T>() {
         let resolve!: (value: T) => void;
@@ -113,6 +114,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         supersedePendingSwitch.mockClear();
         getPlaybackPosition.mockReset();
         getPlaybackPosition.mockResolvedValue(null);
+        savePlaybackPosition.mockReset();
 
         TestBed.configureTestingModule({
             providers: [
@@ -136,7 +138,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
                     provide: PORTAL_PLAYBACK_POSITIONS,
                     useValue: {
                         getPlaybackPosition,
-                        savePlaybackPosition: jest.fn(),
+                        savePlaybackPosition,
                     },
                 },
                 {
@@ -664,6 +666,72 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         expect(
             service.handleInlineTimeUpdate({ currentTime: 12, duration: 7744 })
         ).toBe(false);
+    });
+
+    describe('closing the inline player', () => {
+        function playRouteMovie(from: number, to: number): void {
+            service.inlinePlayback.set({
+                streamUrl: 'https://example.com/route.mkv',
+                title: 'Example Movie',
+                contentInfo: {
+                    playlistId: ROUTE_PLAYLIST,
+                    contentXtreamId: ROUTE_VOD_ID,
+                    contentType: 'vod',
+                },
+            });
+            for (let second = from; second <= to; second++) {
+                service.handleInlineTimeUpdate({
+                    currentTime: second,
+                    duration: 7744,
+                });
+            }
+        }
+
+        const savedSeconds = () =>
+            savePlaybackPosition.mock.calls.map(
+                ([, position]) => position.positionSeconds
+            );
+
+        it('saves the latest position, so Resume does not go back', () => {
+            playRouteMovie(600, 614);
+
+            service.closeInlinePlayer();
+
+            expect(savedSeconds()).toEqual([600, 614]);
+            expect(savePlaybackPosition).toHaveBeenLastCalledWith(
+                ROUTE_PLAYLIST,
+                expect.objectContaining({ contentXtreamId: ROUTE_VOD_ID })
+            );
+            expect(service.routePlaybackPosition()?.positionSeconds).toBe(614);
+        });
+
+        it('saves the movie a new start supersedes before mounting it', async () => {
+            playRouteMovie(600, 614);
+            openResolvedPlayback.mockResolvedValue(undefined);
+
+            await service.playVod({
+                info: {},
+                movie_data: {
+                    stream_id: ROUTE_VOD_ID,
+                    container_extension: 'mkv',
+                },
+            } as unknown as XtreamVodDetails);
+
+            expect(savedSeconds()).toEqual([600, 614]);
+        });
+
+        it('keeps the old movie out of the route it moved on to', () => {
+            playRouteMovie(600, 614);
+            routeVodId.set(ROUTE_VOD_ID + 1);
+
+            service.closeInlinePlayer();
+
+            expect(savedSeconds()).toEqual([600, 614]);
+            // The flushed row is persisted but not mirrored: the page state
+            // still holds the earlier tick until the route resets it.
+            expect(service.routePlaybackPosition()?.positionSeconds).toBe(600);
+            expect(service.vodPlaybackPosition()?.positionSeconds).toBe(600);
+        });
     });
 
     describe('position updates from the bridge', () => {

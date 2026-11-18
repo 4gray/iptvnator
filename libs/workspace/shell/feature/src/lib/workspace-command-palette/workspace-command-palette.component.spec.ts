@@ -162,6 +162,90 @@ describe('WorkspaceCommandPaletteComponent', () => {
             query: '',
         });
     });
+
+    describe('IME composition', () => {
+        const pressInQuery = (init: KeyboardEventInit) => {
+            const input = fixture.nativeElement.querySelector(
+                'input'
+            ) as HTMLInputElement;
+            const event = new KeyboardEvent('keydown', {
+                bubbles: true,
+                cancelable: true,
+                ...init,
+            });
+            input.dispatchEvent(event);
+            return event;
+        };
+
+        it.each([
+            ['isComposing', { key: 'Enter', isComposing: true }],
+            [
+                'keyCode 229 after compositionend',
+                { key: 'Enter', keyCode: 229 },
+            ],
+        ])(
+            'leaves an Enter that commits a composition to the IME (%s)',
+            (_label, init) => {
+                // Safari: the commit key follows compositionend with 229.
+                if (!('isComposing' in init)) {
+                    fixture.nativeElement
+                        .querySelector('input')
+                        .dispatchEvent(
+                            new Event('compositionend', { bubbles: true })
+                        );
+                }
+                const event = pressInQuery(init);
+                fixture.nativeElement
+                    .querySelector('input')
+                    .dispatchEvent(
+                        new KeyboardEvent('keyup', { bubbles: true })
+                    );
+
+                expect(dialogRef.close).not.toHaveBeenCalled();
+                expect(event.defaultPrevented).toBe(false);
+            }
+        );
+
+        it('runs an Android Enter that reports keyCode 229 without a composition', () => {
+            const event = pressInQuery({ key: 'Enter', keyCode: 229 });
+
+            expect(dialogRef.close).toHaveBeenCalled();
+            expect(event.defaultPrevented).toBe(true);
+        });
+
+        it('leaves arrows and Escape to the candidate list while composing', () => {
+            component.query.set('');
+            fixture.detectChanges();
+            // The dialog's own Escape handler listens above the palette.
+            const bubbled = jest.fn();
+            document.addEventListener('keydown', bubbled);
+
+            const arrow = pressInQuery({ key: 'ArrowDown', isComposing: true });
+            const escape = pressInQuery({
+                key: 'Escape',
+                keyCode: 27,
+                isComposing: true,
+            });
+            const fullscreen = pressInQuery({ key: 'F11', isComposing: true });
+            document.removeEventListener('keydown', bubbled);
+
+            expect(component.selectedIndex()).toBe(0);
+            expect(arrow.defaultPrevented).toBe(false);
+            expect(escape.defaultPrevented).toBe(false);
+            expect(dialogRef.close).not.toHaveBeenCalled();
+            expect(bubbled.mock.calls).toEqual([[fullscreen]]);
+        });
+
+        it('runs the selected command on a plain Enter', () => {
+            const event = pressInQuery({ key: 'Enter' });
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(dialogRef.close).toHaveBeenCalledWith({
+                commandId: 'playlist-search',
+                query: 'search',
+            });
+        });
+    });
 });
 
 describe('WorkspaceCommandPaletteComponent - Turkish case folding', () => {

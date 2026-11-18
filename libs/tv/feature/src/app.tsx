@@ -111,7 +111,7 @@ export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
                 : tv.home,
     };
     const element = video.current;
-    const controlsVisible = usePlayerControls(
+    const controls = usePlayerControls(
         tv.fullscreen,
         !!overlay.panel || (element?.paused ?? true)
     );
@@ -276,7 +276,7 @@ export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
             <NativePlayerView
                 tv={tv}
                 video={video}
-                controlsVisible={controlsVisible}
+                controls={controls}
                 overlay={overlay}
                 seriesDetails={seriesDetails}
                 vod={vod}

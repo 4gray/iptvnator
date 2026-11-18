@@ -70,6 +70,12 @@
     padding-inline-start: 56px;
 }
 
+// With both rails folded the shared .sidebar-restore handle floats here
+// instead; it is anchored with a physical `left`, so the room is too.
+.category-content-header.category-content-header--panels-collapsed {
+    padding-left: 56px;
+}
+
 .category-title {
     @include panel.standard-panel-title();
 }

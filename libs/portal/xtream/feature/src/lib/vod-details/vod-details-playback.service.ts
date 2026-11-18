@@ -25,6 +25,7 @@ import {
     ExternalPlayerName,
     ExternalPlayerSession,
     PlaybackPositionData,
+    PlaybackPositionUpdate,
     PlayerContentInfo,
     ResolvedPortalPlayback,
     XtreamVodDetails,
@@ -266,6 +267,9 @@ export class VodDetailsPlaybackService {
                 position
             ),
         onSaved: (position) => this.positions.track(position),
+        // The route effect closes the player after the route has moved on.
+        ownerKey: () =>
+            `${this.xtreamStore.currentPlaylist()?.id}:${this.bindings()?.vodId()}`,
     });
 
     /**
@@ -273,10 +277,7 @@ export class VodDetailsPlaybackService {
      * resume latch. Multi-source reads the same answer before carrying a
      * timecode to another source.
      */
-    handleInlineTimeUpdate(event: {
-        currentTime: number;
-        duration: number;
-    }): boolean {
+    handleInlineTimeUpdate(event: PlaybackPositionUpdate): boolean {
         return this.positionWriter.handleTimeUpdate(event);
     }
 

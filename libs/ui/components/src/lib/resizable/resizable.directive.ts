@@ -70,8 +70,15 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
     /** Emits when resize starts */
     readonly resizeStart = output<void>();
 
-    /** Emits when resize ends */
+    /** Emits when a resize that moved the edge ends, with the kept width */
     readonly resizeEnd = output<number>();
+
+    /**
+     * Emits instead of `resizeEnd` when the edge did not move: a click on
+     * the handle, or a drag a CSS cap stopped. Carries the saved width,
+     * which stands, so a host that mirrored `widthChange` can restore it.
+     */
+    readonly resizeCancel = output<number>();
 
     private handleElement: HTMLElement | null = null;
     private isResizing = signal(false);
@@ -254,6 +261,12 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
         this.isResizing.set(true);
         this.startX = clientX;
         this.startWidth = this.renderedWidth();
+        // A host may drive the width through its own `[style.width.px]`
+        // binding; the inline width is the one to keep if this is no resize.
+        const inlineWidth = parseFloat(this.el.nativeElement.style.width);
+        if (Number.isFinite(inlineWidth)) {
+            this.currentWidth.set(inlineWidth);
+        }
         this.widthBeforeResize = this.currentWidth();
         this.resizeStart.emit();
     }
@@ -269,6 +282,35 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
             window.getComputedStyle(this.el.nativeElement).width
         );
         return Number.isFinite(width) ? width : this.currentWidth();
+    }
+
+    /**
+     * The width the element settles at, not a frame of a running width
+     * transition (the directive's own, or a host's rail animation): turning
+     * the transition off for the read cancels it, and turning it back on
+     * starts nothing, since the width does not change again. Enclosing
+     * resizable elements are settled too: a nested rail (the M3U Groups rail)
+     * caps itself against a parent sidebar that its own drag is resizing.
+     */
+    private settledWidth(): number {
+        const el: HTMLElement = this.el.nativeElement;
+        const settled: HTMLElement[] = [el];
+        let parent = el.parentElement?.closest<HTMLElement>(
+            '.resizable-element'
+        );
+        while (parent) {
+            settled.push(parent);
+            parent = parent.parentElement?.closest<HTMLElement>(
+                '.resizable-element'
+            );
+        }
+        const inline = settled.map((element) => element.style.transition);
+        settled.forEach((element) => (element.style.transition = 'none'));
+        const width = this.renderedWidth();
+        settled.forEach(
+            (element, index) => (element.style.transition = inline[index])
+        );
+        return width;
     }
 
     private onMouseMove(e: MouseEvent): void {
@@ -304,10 +346,23 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
     private endResize(): void {
         if (!this.isResizing()) return;
 
+        const rendered = this.settledWidth();
         this.isResizing.set(false);
         this.removeGlobalListeners();
-        // A click on the handle is not a resize: persisting would save the
-        // width this sidebar clamped instead of the shared one.
+        if (rendered === this.startWidth) {
+            // The edge did not move: a click on the handle, or a drag against
+            // a CSS cap narrower than `maxWidth` (a responsive `max-width`).
+            // Persisting would replace the saved width with the clamped one.
+            if (this.currentWidth() !== this.widthBeforeResize) {
+                this.setWidth(this.widthBeforeResize);
+            }
+            this.resizeCancel.emit(this.widthBeforeResize);
+            return;
+        }
+        // Never save more than the CSS cap let the user see.
+        if (rendered < this.currentWidth()) {
+            this.setWidth(rendered);
+        }
         if (this.currentWidth() !== this.widthBeforeResize) {
             this.persistWidth();
         }

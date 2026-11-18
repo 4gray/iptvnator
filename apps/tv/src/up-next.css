@@ -1,0 +1,154 @@
+/*
+ * Up next card for the fullscreen player (#2240): bottom-right inside the
+ * safe area, above the controls, and visible while the controls are dormant.
+ * Same content as the desktop and web card: still, episode code, title,
+ * countdown with a ring.
+ */
+.tv-up-next {
+    position: absolute;
+    right: var(--tv-safe-x);
+    bottom: calc(var(--tv-safe-y) + 280px);
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    max-width: 760px;
+    padding: var(--tv-space-2);
+    border: 1px solid var(--tv-line);
+    border-radius: var(--tv-control-radius);
+    background: rgba(11, 15, 14, 0.88);
+    color: var(--tv-text);
+    font: inherit;
+    text-align: left;
+    animation: tv-up-next-in 220ms ease-out;
+}
+
+.tv-up-next > * + * {
+    margin-left: var(--tv-space-3);
+}
+
+@keyframes tv-up-next-in {
+    from {
+        opacity: 0;
+        transform: translateX(32px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tv-up-next {
+        animation: none;
+    }
+}
+
+.tv-up-next__thumb {
+    position: relative;
+    flex: none;
+    width: 256px;
+    height: 144px;
+    overflow: hidden;
+    border-radius: 10px;
+    background: var(--tv-control);
+}
+
+.tv-up-next__thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.tv-up-next__placeholder {
+    display: grid;
+    place-items: center;
+    height: 100%;
+    color: var(--tv-muted);
+    font-size: var(--tv-type-meta);
+}
+
+.tv-up-next__progress {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.tv-up-next__progress span {
+    display: block;
+    height: 100%;
+    background: var(--tv-accent);
+}
+
+.tv-up-next__meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.tv-up-next__meta > * + * {
+    margin-top: var(--tv-space-1);
+}
+
+.tv-up-next__eyebrow {
+    color: var(--tv-muted);
+    font-size: var(--tv-type-eyebrow);
+    letter-spacing: var(--tv-tracking-eyebrow);
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.tv-up-next__title {
+    overflow: hidden;
+    font-size: var(--tv-type-body);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tv-up-next__hint {
+    color: var(--tv-muted);
+    font-size: var(--tv-type-eyebrow);
+}
+
+/*
+ * Collapsed: after a while the card shrinks to a single-line pill with the
+ * episode code and countdown, like desktop, so it no longer covers the
+ * credits. It keeps focus: OK still plays, Back still hides.
+ */
+.tv-up-next--collapsed {
+    padding: var(--tv-space-1) var(--tv-space-3);
+    border-radius: 999px;
+}
+
+/* Countdown ring: empties from the moment the card appears to the end. */
+.tv-up-next__ring {
+    display: inline-block;
+    width: 1.2em;
+    height: 1.2em;
+    margin-left: 8px;
+    vertical-align: -0.25em;
+    transform: rotate(-90deg);
+}
+
+.tv-up-next__ring-track,
+.tv-up-next__ring-fill {
+    fill: none;
+    stroke-width: 2.5;
+}
+
+.tv-up-next__ring-track {
+    stroke: rgba(255, 255, 255, 0.2);
+}
+
+.tv-up-next__ring-fill {
+    stroke: var(--tv-accent);
+    stroke-dasharray: 100;
+    stroke-linecap: round;
+}
+
+.tv-up-next:focus .tv-up-next__ring-fill {
+    stroke: currentColor;
+}

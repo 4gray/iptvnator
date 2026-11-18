@@ -802,6 +802,8 @@ close the guide only after the requested stream opens, including in the inline
 player. Committing the same row after an inline playback error or stream end
 retries the stream; committing while it is still opening waits for that attempt.
 An inline retry must confirm again even when the stream URL is unchanged.
+On Android, leaving a live Media3 session returns to the guide as stopped,
+including at the end of a stream. Selecting that channel again retries playback.
 An embedded MPV reconnect also waits for the resumed stream to play.
 A guide or remote switch reuses the managed player when available. Otherwise
 it waits for the exact previous process to exit before opening the new channel,
@@ -1093,6 +1095,13 @@ the provider does not advertise output formats, `auto` falls back to `m3u8`.
 Manual `ts` and `m3u8` settings remain supported; when a manual setting is not
 allowed by the portal, URL construction falls back to the first
 provider-allowed format.
+
+Latency differs by format. With `ts`, many panels burst 20–30 s of backlog
+when a connection opens and then stream at real-time rate. Embedded MPV's
+jump-to-live button skips that backlog. With `m3u8`, data arrives in whole
+segments (often ~10 s) and the client picks the start segment. The button
+does not exist for HLS, and `Auto` keeps preferring `m3u8`. Details and
+measurements: `embedded-mpv-native.md`, "Jump to live (MPEG-TS)".
 
 ### Initial Auto HLS failure
 

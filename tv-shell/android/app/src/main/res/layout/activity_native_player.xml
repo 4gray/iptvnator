@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black">
+
+    <androidx.media3.ui.PlayerView
+        android:id="@+id/native_player"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:show_next_button="false"
+        app:show_previous_button="false"
+        app:show_subtitle_button="true" />
+
+    <ImageButton
+        android:id="@+id/native_mute"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="16dp"
+        android:background="?android:attr/selectableItemBackground"
+        android:contentDescription="@string/native_playback_mute"
+        android:focusable="true"
+        android:tint="@android:color/white"
+        android:visibility="gone" />
+</FrameLayout>

@@ -1204,6 +1204,6 @@ async function toggleFavoriteForChannel(
     await item.hover();
     await item.locator('.favorite-button').first().click();
     await expect(item.locator('.favorite-button mat-icon').first()).toHaveText(
-        /star/
+        'favorite'
     );
 }

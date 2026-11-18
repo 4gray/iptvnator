@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
 import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -62,6 +62,7 @@ export class PwaService extends DataService {
     private readonly http = inject(HttpClient);
     private readonly snackBar = inject(LazySnackBar);
     private readonly store = inject(Store);
+    private readonly injector = inject(Injector);
     private readonly translateService = inject(TranslateService);
     private readonly serverStatus = inject(ServerStorageStatusService);
     private readonly logger = createLogger('PwaService');
@@ -112,7 +113,7 @@ export class PwaService extends DataService {
         }
 
         if (type === PLAYLIST_UPDATE) {
-            // Settles when the refresh does, so callers keep the source busy.
+            // Keep the source busy through the fetch and the local write.
             return this.refreshPlaylist(
                 payload as Partial<Playlist & { id: string }>
             ) as T;
@@ -199,55 +200,39 @@ export class PwaService extends DataService {
         }
     }
 
-    /** Resolves once the backend has answered, whether it succeeded or not. */
-    refreshPlaylist(
+    async refreshPlaylist(
         payload?: Partial<Playlist & { id: string }>
     ): Promise<void> {
         if (!payload?.url || !payload?.id) {
-            return Promise.resolve();
+            return;
         }
 
-        const playlistId = payload.id;
-        const { url } = payload;
-        const userAgent = payload.userAgent?.trim() || undefined;
-
-        return new Promise<void>((resolve) => {
-            this.getPlaylistFromUrl(url, userAgent).subscribe({
-                next: (playlist: Playlist) => {
-                    this.store.dispatch(
-                        PlaylistActions.updatePlaylist({
-                            playlist: { ...playlist, url, userAgent },
-                            playlistId,
-                            refreshEpg: true,
-                        })
-                    );
-
-                    void this.snackBar.open(
-                        this.translateService.instant(
-                            'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
-                        ),
-                        undefined,
-                        { duration: 2000 }
-                    );
-                },
-                error: (error: unknown) => {
-                    // Redacted: the error can carry the playlist URL.
-                    this.logger.error('Playlist refresh error:', error);
-                    void this.snackBar.open(
-                        this.appendProviderErrorCode(
-                            this.getPlaylistRefreshErrorMessage(error),
-                            error
-                        ),
-                        this.translateService.instant('CLOSE'),
-                        {
-                            duration: 5000,
-                        }
-                    );
-                    resolve();
-                },
-                complete: () => resolve(),
-            });
-        });
+        const { id, url, userAgent } = payload;
+        try {
+            const { refreshPwaPlaylist } =
+                await import('./pwa-playlist-refresh');
+            await refreshPwaPlaylist(
+                this.injector,
+                id,
+                url,
+                userAgent,
+                (agent) => this.fetchPlaylistDefinition(url, agent),
+                (error) =>
+                    this.appendProviderErrorCode(
+                        this.getPlaylistRefreshErrorMessage(error),
+                        error
+                    )
+            );
+        } catch (error) {
+            this.logger.error('Playlist refresh could not finish:', error);
+            void this.snackBar.open(
+                this.translateService.instant(
+                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED'
+                ),
+                this.translateService.instant('CLOSE'),
+                { duration: 5000 }
+            );
+        }
     }
 
     private getPlaylistRefreshErrorMessage(error: unknown): string {
@@ -255,17 +240,8 @@ export class PwaService extends DataService {
             this.getErrorDetails(error)?.status ??
             this.extractHttpStatusCode(error);
 
-        if (statusCode === 404) {
-            return this.translateService.instant('HOME.URL_UPLOAD.ERROR_404');
-        }
-        if (statusCode === 403) {
-            return this.translateService.instant('HOME.URL_UPLOAD.ERROR_403');
-        }
-        if (statusCode === 401) {
-            return this.translateService.instant('HOME.URL_UPLOAD.ERROR_401');
-        }
-        return this.translateService.instant(
-            'HOME.URL_UPLOAD.ERROR_FETCH_FAILED'
+        return this.getErrorMessageByStatusCode(
+            statusCode === 413 ? null : statusCode
         );
     }
 
@@ -367,9 +343,13 @@ export class PwaService extends DataService {
         return match ? parseInt(match[1], 10) : null;
     }
 
-    async forwardXtreamRequest(payload: PwaXtreamRequest, signal?: AbortSignal) {
+    async forwardXtreamRequest(
+        payload: PwaXtreamRequest,
+        signal?: AbortSignal
+    ) {
         signal?.throwIfAborted();
-        const { forwardPwaXtreamRequest } = await import('./pwa-xtream-request');
+        const { forwardPwaXtreamRequest } =
+            await import('./pwa-xtream-request');
         return forwardPwaXtreamRequest(
             {
                 http: this.http,

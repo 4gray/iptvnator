@@ -171,7 +171,13 @@ app-source-tile {
     white-space: nowrap;
     font-size: 12.5px;
     line-height: 1.35;
-    color: var(--app-body-color);
+    // A step toward the heading colour: body colour alone fell under 4.5:1
+    // on the tinted current and hovered rows.
+    color: color-mix(
+        in srgb,
+        var(--app-heading-color) 35%,
+        var(--app-body-color)
+    );
 
     .source-row--compact & {
         font-size: 12px;

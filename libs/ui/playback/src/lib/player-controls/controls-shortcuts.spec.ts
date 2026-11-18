@@ -56,6 +56,14 @@ describe('ControlsShortcuts', () => {
         expect(handlers.toggleMute).toHaveBeenCalledTimes(1);
     });
 
+    it('claims Escape only when the handler closed something', () => {
+        expect(dispatchKey('Escape')).toBe(false);
+        expect(handlers.onEscape).toHaveBeenCalledTimes(1);
+
+        handlers.onEscape.mockReturnValue(true);
+        expect(dispatchKey('Escape')).toBe(true);
+    });
+
     it('ignores every shortcut while the host sits inside an inert region', () => {
         const inertRegion = document.createElement('div');
         inertRegion.setAttribute('inert', '');
@@ -106,6 +114,30 @@ describe('ControlsShortcuts', () => {
             expect(handlers.onEscape).not.toHaveBeenCalled();
         } finally {
             suspendedRegion.remove();
+        }
+    });
+
+    it('closes popovers once when a surface suspends the player', async () => {
+        const surface = document.createElement('div');
+        const host = document.createElement('div');
+        surface.appendChild(host);
+        document.body.appendChild(surface);
+        // The watch starts on attach, where the host is known.
+        shortcuts.detach();
+        shortcuts.attach({ ...handlers, hostElement: () => host });
+
+        try {
+            surface.setAttribute('data-player-shortcuts-suspended', '');
+            await Promise.resolve();
+            expect(handlers.onEscape).toHaveBeenCalledTimes(1);
+
+            shortcuts.detach();
+            surface.removeAttribute('data-player-shortcuts-suspended');
+            surface.setAttribute('data-player-shortcuts-suspended', '');
+            await Promise.resolve();
+            expect(handlers.onEscape).toHaveBeenCalledTimes(1);
+        } finally {
+            surface.remove();
         }
     });
 

@@ -117,3 +117,129 @@ describe('typed shared Stalker favorites collection', () => {
         TestBed.resetTestingModule();
     });
 });
+
+describe('legacy Stalker favorites in Recently Viewed', () => {
+    const movie = {
+        id: '42',
+        title: 'Synthetic Movie',
+        favoriteContentType: 'vod',
+    } as const;
+    const live = {
+        id: '42',
+        title: 'Synthetic Channel',
+        favoriteContentType: 'itv',
+    } as const;
+    const legacy = { id: '42', title: movie.title };
+
+    it.each([
+        {
+            scenario:
+                'keeps the heart selected for an unambiguous legacy favorite',
+            favorites: [legacy],
+            recent: [movie],
+            selected: [movie.title],
+        },
+        {
+            scenario: 'matches two untyped records by their provider id',
+            favorites: [legacy],
+            recent: [legacy],
+            selected: [legacy.title],
+        },
+        {
+            scenario: 'leaves an ambiguous legacy match unselected',
+            favorites: [legacy],
+            recent: [movie, live],
+            selected: [],
+        },
+        {
+            scenario: 'keeps an exact typed match despite a legacy favorite',
+            favorites: [legacy, live],
+            recent: [movie, live],
+            selected: [live.title],
+        },
+        {
+            scenario:
+                'keeps another typed favorite from making a legacy match look unambiguous',
+            favorites: [legacy, live],
+            recent: [movie],
+            selected: [],
+        },
+        {
+            scenario: 'does not use another typed favorite with the same id',
+            favorites: [live],
+            recent: [movie],
+            selected: [],
+        },
+    ])('$scenario', async ({ favorites, recent, selected }) => {
+        const source = {
+            _id: 'synthetic-source',
+            macAddress: '00:11:22:33:44:55',
+            title: 'Synthetic Source',
+            recentlyViewed: recent,
+            favorites,
+        };
+        const removeFromPortalFavorites = jest.fn(() => of(source));
+        const playlistsService = {
+            getPlaylistById: () => of(source),
+            preparePortalFavoriteActions: async () => undefined,
+            removeFromPortalFavorites,
+        };
+        const favoritesData = Object.assign(
+            Object.create(UnifiedFavoritesDataService.prototype),
+            {
+                favoriteSync: {
+                    active: () => false,
+                    project: async (value: unknown) => value,
+                },
+                stalkerMetadata: { project: (value: unknown) => value },
+                playlistsService,
+                getPlaylistMeta: async () => source,
+            }
+        );
+        const recentData = Object.assign(
+            Object.create(UnifiedRecentDataService.prototype),
+            {
+                history: { active: () => false },
+                stalkerMetadata: {
+                    item: (_: unknown, item: StalkerPortalItem) => item,
+                },
+                playlistsService,
+                getPlaylistMeta: async () => source,
+            }
+        );
+        TestBed.configureTestingModule({
+            providers: [
+                UnifiedCollectionDataService,
+                {
+                    provide: UnifiedFavoritesDataService,
+                    useValue: favoritesData,
+                },
+                { provide: UnifiedRecentDataService, useValue: recentData },
+            ],
+        });
+        const collection = TestBed.inject(UnifiedCollectionDataService);
+        const items = await collection.load({
+            mode: 'recent',
+            scope: 'playlist',
+            playlistId: source._id,
+            portalType: 'stalker',
+        });
+
+        expect(items?.map((item) => item.name)).toEqual(
+            recent.map((item) => item.title)
+        );
+        const selectedItems = items?.filter((item) =>
+            collection.favoriteUidSet().has(item.uid)
+        );
+        expect(selectedItems?.map((item) => item.name)).toEqual(selected);
+        if (selectedItems?.length === 1) {
+            const [item] = selectedItems;
+            await collection.toggleFavorite(item);
+            expect(removeFromPortalFavorites).toHaveBeenCalledWith(
+                source._id,
+                '42',
+                item.stalkerItem
+            );
+        }
+    });
+});

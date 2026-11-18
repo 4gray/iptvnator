@@ -41,6 +41,7 @@ import {
     SourceActivityService,
 } from '@iptvnator/services';
 import { PlaylistMeta, PlaylistSourceKind } from '@iptvnator/shared/interfaces';
+import { ImeInputDirective } from '@iptvnator/ui/components';
 import { PlaylistRefreshActionService } from '../playlist-refresh-action.service';
 import { PlaylistInfoComponent } from '../recent-playlists/playlist-info/playlist-info.component';
 import { playlistInfoDialogConfig } from '../recent-playlists/playlist-info/playlist-info-dialog';
@@ -66,6 +67,7 @@ const KINDS: readonly PlaylistSourceKind[] = ['m3u', 'xtream', 'stalker'];
 @Component({
     selector: 'app-playlist-switcher-panel',
     imports: [
+        ImeInputDirective,
         A11yModule,
         MatButton,
         MatButtonToggleModule,
@@ -81,6 +83,7 @@ const KINDS: readonly PlaylistSourceKind[] = ['m3u', 'xtream', 'stalker'];
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PlaylistSwitcherPanelComponent {
+    private readonly imeInput = viewChild(ImeInputDirective);
     private readonly activity = inject(SourceActivityService);
     private readonly context = inject(PlaylistContextFacade);
     private readonly document = inject(DOCUMENT);
@@ -243,6 +246,9 @@ export class PlaylistSwitcherPanelComponent {
     }
 
     onSearchKeydown(event: KeyboardEvent): void {
+        // The keys belong to the input method, not to the overlay's Escape.
+        if (this.imeInput()?.isCompositionKey(event))
+            return event.stopPropagation();
         const count = this.options().length;
         switch (event.key) {
             case 'ArrowDown':

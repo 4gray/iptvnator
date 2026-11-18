@@ -110,7 +110,8 @@ describe('SerialDetailsSeasonWatchService', () => {
             'playlist-1',
             state,
             () => true,
-            'series'
+            'series',
+            7
         );
 
         expect(persisted).toBe(true);
@@ -119,7 +120,8 @@ describe('SerialDetailsSeasonWatchService', () => {
             [
                 { contentXtreamId: 101, contentType: 'episode' },
                 { contentXtreamId: 201, contentType: 'episode' },
-            ]
+            ],
+            { seriesXtreamId: 7 }
         );
         expect(state.removeMany).toHaveBeenCalledWith([101, 201]);
         expect(snackBarOpen).toHaveBeenCalledWith(

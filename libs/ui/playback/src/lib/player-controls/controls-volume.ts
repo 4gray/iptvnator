@@ -1,6 +1,8 @@
 import { signal } from '@angular/core';
 import {
     persistVolume,
+    readLastAudibleVolume,
+    rememberAudibleVolume,
     readStoredVolume,
     volumeIcon,
 } from './controls-format.utils';
@@ -44,6 +46,10 @@ export class ControlsVolume {
         const clamped = Math.max(0, Math.min(1, value));
         this.value.set(clamped);
         persistVolume(clamped);
+        if (clamped > 0 && clamped !== this.mutedVolume) {
+            this.mutedVolume = clamped;
+            rememberAudibleVolume(clamped);
+        }
         this.deps.apply(clamped);
     }
 
@@ -105,10 +111,11 @@ export class ControlsVolume {
         const current = this.value();
         if (current > 0) {
             this.mutedVolume = current;
+            rememberAudibleVolume(current);
             this.set(0);
             this.deps.flash('volume_off', this.deps.mutedLabel());
         } else {
-            const restored = this.mutedVolume || 0.5;
+            const restored = this.mutedVolume || readLastAudibleVolume() || 0.5;
             this.set(restored);
             this.deps.flash(
                 volumeIcon(restored),

@@ -1,4 +1,4 @@
-import type { Locator, Page } from '@playwright/test';
+import { devices, type Locator, type Page } from '@playwright/test';
 import { expect, test } from './pwa-mock.fixture';
 import {
     addXtreamPortal,
@@ -26,6 +26,10 @@ import {
  *   5. On a 640x360 landscape phone the live route keeps the channel
  *      sidebar at least 72px tall and the player container inside the
  *      viewport.
+ *   6. The phone dashboard hero: the slide covers the lower part of the
+ *      art, the art fades on under it into the first rail, the banner keeps
+ *      one height across slides, and the slide's action stays reachable on
+ *      portrait iPhones, a short landscape phone and an installed PWA.
  *
  * Conventions: docs/architecture/iptvnator-ui-guidelines.md, "Phone Layout"
  * (640px breakpoint, resizable rails stack full-width via `!important`).
@@ -36,6 +40,11 @@ import {
 
 const PHONE = { width: 375, height: 812 };
 const LANDSCAPE_PHONE = { width: 640, height: 360 };
+const HERO_VIEWPORTS = [
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+    LANDSCAPE_PHONE,
+];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -87,6 +96,58 @@ async function expectRailLinksInsideTopBar(page: Page): Promise<void> {
         expect(linkBox.y + linkBox.height).toBeLessThanOrEqual(
             railBox.y + railBox.height + 1
         );
+    }
+}
+
+/**
+ * The phone hero's geometry, relative to the hero box: the slides start 60%
+ * down an art area as tall as the hero is wide (at most 52% of the
+ * viewport), the art spans the whole hero, and the first rail's heading
+ * starts inside the hero's bottom fade.
+ */
+async function phoneHeroGeometry(page: Page) {
+    return page.evaluate(() => {
+        const hero = document.querySelector('[data-test-id="dashboard-hero"]');
+        const stage = hero?.querySelector('.hero__stage');
+        // Every slide shares one grid cell, aligned to its bottom: the
+        // tallest one starts where the overlap begins.
+        const slides = [...(hero?.querySelectorAll('.hero__content') ?? [])];
+        const rail = document.querySelector('lib-dashboard-rail h2');
+        if (!hero || !stage || !slides.length || !rail) return null;
+        const box = hero.getBoundingClientRect();
+        const art = Math.min(box.width, innerHeight * 0.52);
+        return {
+            slideOffset: Math.abs(
+                Math.min(
+                    ...slides.map((slide) => slide.getBoundingClientRect().top)
+                ) -
+                    box.top -
+                    art * 0.6
+            ),
+            stageGap: Math.max(
+                Math.abs(stage.getBoundingClientRect().top - box.top),
+                Math.abs(stage.getBoundingClientRect().bottom - box.bottom)
+            ),
+            railInFade: rail.getBoundingClientRect().top - box.bottom,
+            heroHeight: box.height,
+        };
+    });
+}
+
+async function favoriteFirstMovies(page: Page, count: number): Promise<void> {
+    const catalog = page.url();
+    for (let index = 0; index < count; index++) {
+        await page.goto(catalog);
+        await page.locator('app-grid-list mat-card').nth(index).click();
+        await page
+            .getByRole('button', { name: 'Add to favorites', exact: true })
+            .click();
+        await expect(
+            page.getByRole('button', {
+                name: 'Remove from favorites',
+                exact: true,
+            })
+        ).toBeVisible();
     }
 }
 
@@ -152,6 +213,48 @@ test.describe('portrait phone 375x812', () => {
     });
 });
 
+test.describe('touch-only phone', () => {
+    test.use({
+        viewport: PHONE,
+        hasTouch: true,
+        userAgent: devices['iPhone 13'].userAgent,
+        serviceWorkers: 'block',
+    });
+
+    test('@mobile @pwa @xtream @settings applies cover titles after repeated saves', async ({
+        page,
+        pwaMocks,
+    }) => {
+        await interceptPwaProviderRequests(page);
+        await page.goto('/');
+        expect(
+            await page.evaluate(() => matchMedia('(any-hover: hover)').matches)
+        ).toBe(false);
+        await addXtreamPortal(page, 'Touch Layout Portal', pwaMocks);
+        const catalogUrl = page.url();
+        const card = page.locator('app-grid-list mat-card').first();
+        const title = card.locator('.title');
+        await expect(title).toBeVisible();
+
+        for (const showTitles of [false, true, false]) {
+            await page.goto('/workspace/settings/appearance');
+            const toggle = page
+                .locator('[data-test-id="cover-titles-toggle"]')
+                .getByRole('switch');
+            await expect(toggle).toBeChecked({ checked: !showTitles });
+            await toggle.tap();
+            const save = page.locator('[data-test-id="save-settings"]');
+            await save.tap();
+            await expect(save).toBeHidden();
+
+            await page.goto(catalogUrl);
+            await expect(card).toBeVisible();
+            await expect(title).toHaveCount(Number(showTitles));
+            await expect(card).toHaveAccessibleName(/\S/);
+        }
+    });
+});
+
 // ---------------------------------------------------------------------------
 // Xtream portal routes — the portal is imported at the default desktop
 // viewport (which persists desktop rail widths, the exact regression
@@ -211,6 +314,110 @@ test.describe('xtream portal routes on a phone', () => {
 
         await expectNoHorizontalOverflow(page, PHONE.width);
         await expectRailLinksInsideTopBar(page);
+
+        const header = page.locator('.category-content-header');
+        const meta = await boxOf(header.locator('.category-meta'));
+        const refine = header.getByRole('button', { name: 'Refine' });
+        const trigger = await boxOf(refine);
+        expect(
+            Math.abs(meta.y + meta.height / 2 - trigger.y - trigger.height / 2)
+        ).toBeLessThanOrEqual(1);
+        await refine.click();
+        const watchStatus = page.getByRole('menuitem', {
+            name: /Watch status/,
+        });
+        await expect(watchStatus).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(watchStatus).toBeHidden();
+        await expect(page.locator('.cdk-overlay-backdrop')).toHaveCount(0);
+
+        const rail = page.locator('.app-rail');
+        const { x, y, height } = await boxOf(rail);
+        for (const offset of [2, height - 3]) {
+            await rail.evaluate((element) => (element.scrollLeft = 0));
+            expect(
+                await rail.evaluate(
+                    (element, start) =>
+                        element.contains(
+                            document.elementFromPoint(start.x, start.y)
+                        ),
+                    { x: x + 100, y: y + offset }
+                )
+            ).toBe(true);
+            await page.mouse.move(x + 100, y + offset);
+            await page.mouse.wheel(170, 0);
+            await expect
+                .poll(() => rail.evaluate((element) => element.scrollLeft))
+                .toBeGreaterThan(0);
+            await expect(
+                rail.getByRole('link', { name: 'Open settings' })
+            ).toBeInViewport();
+        }
+        await expectNoHorizontalOverflow(page, PHONE.width);
+    });
+
+    test('@mobile @xtream dashboard hero slide overlaps its art and fades into the first rail', async ({
+        page,
+    }) => {
+        test.setTimeout(90_000);
+        await favoriteFirstMovies(page, 2);
+
+        const hero = page.locator('[data-test-id="dashboard-hero"]');
+        const pause = page.locator('[data-test-id="dashboard-hero-pause"]');
+        const dots = page.locator('[data-test-id="dashboard-hero-dot"]');
+        const primary = hero.locator(
+            '[data-test-id="dashboard-hero-primary-action"]'
+        );
+        for (const viewport of HERO_VIEWPORTS) {
+            await page.setViewportSize(viewport);
+            await page.goto('/workspace/dashboard');
+            await expect(hero).toBeVisible({ timeout: 20_000 });
+            await expect(dots).toHaveCount(2);
+            await pause.click();
+
+            const geometry = await phoneHeroGeometry(page);
+            expect(geometry).not.toBeNull();
+            const { slideOffset, stageGap, railInFade, heroHeight } =
+                geometry as NonNullable<typeof geometry>;
+            expect(slideOffset).toBeLessThan(1);
+            expect(stageGap).toBeLessThan(1);
+            // The rail's heading sits in the hero's last 64px (its tail).
+            expect(railInFade).toBeLessThan(0);
+            expect(railInFade).toBeGreaterThan(-64);
+
+            // Another slide keeps the banner's height: the rails stay put.
+            await dots.nth(1).click();
+            await expect
+                .poll(async () => (await boxOf(hero)).height)
+                .toBeCloseTo(heroHeight, 0);
+
+            await primary.scrollIntoViewIfNeeded();
+            await expect(primary).toBeInViewport({ ratio: 1 });
+            await expectNoHorizontalOverflow(page, viewport.width);
+        }
+
+        // An installed PWA pads the top bar below the status bar
+        // (`display-mode: standalone`, which Playwright cannot emulate):
+        // with an iPhone's 47px inset applied, the hero still starts right
+        // under the header and keeps its geometry.
+        await page.setViewportSize(HERO_VIEWPORTS[0]);
+        await page.goto('/workspace/dashboard');
+        await expect(hero).toBeVisible({ timeout: 20_000 });
+        const content = page.locator('main.workspace-content');
+        const offset = async () =>
+            (await boxOf(hero)).y - (await boxOf(content)).y;
+        const before = { hero: (await boxOf(hero)).y, offset: await offset() };
+        await page
+            .locator('app-workspace-shell-rail')
+            .evaluate((rail: HTMLElement) => (rail.style.paddingTop = '47px'));
+        await expect
+            .poll(async () => (await boxOf(hero)).y)
+            .toBe(before.hero + 47);
+        expect(await offset()).toBeCloseTo(before.offset, 0);
+        const inset = await phoneHeroGeometry(page);
+        expect(inset?.slideOffset).toBeLessThan(1);
+        expect(inset?.railInFade).toBeLessThan(0);
+        await expectNoHorizontalOverflow(page, HERO_VIEWPORTS[0].width);
     });
 
     test('@mobile @xtream landscape live route keeps the channel list and the player inside the viewport', async ({

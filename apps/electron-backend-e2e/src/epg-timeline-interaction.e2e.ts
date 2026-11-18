@@ -551,6 +551,22 @@ test('@epg @xtream @electron reaches programmes beyond the rendered range with T
             // The previous walk moved the window away from now.
             await timeline.locator('.epg-timeline__jump').click();
             await expect(nowBlock).toBeVisible();
+            // The jump scrolls smoothly and the ribbon re-windows on scroll:
+            // focus once the window has caught up on both sides of "now",
+            // or Shift+Tab can leave from a "now" rendered at its edge.
+            await expect
+                .poll(() =>
+                    nowBlock.evaluate(
+                        (block) =>
+                            !!block.previousElementSibling?.matches(
+                                '.epg-timeline__block, .epg-timeline__group'
+                            ) &&
+                            !!block.nextElementSibling?.matches(
+                                '.epg-timeline__block, .epg-timeline__group'
+                            )
+                    )
+                )
+                .toBe(true);
             await nowBlock.focus();
             const reached = new Set<string>();
             for (let press = 0; press < 400 && reached.size < 10; press++) {

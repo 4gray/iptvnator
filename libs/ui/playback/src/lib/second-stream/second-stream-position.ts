@@ -7,7 +7,8 @@ export class SecondStreamPosition {
         height: number;
     }>({ width: 0, height: 0 });
     private measured = false;
-    private fullscreen = false;
+    private readonly fullscreen = signal(false);
+    readonly isFullscreen = this.fullscreen.asReadonly();
     private windowPoint = { x: 1, y: 0.45 };
     private windowWidth = 320;
     readonly preferredWidth = signal(320);
@@ -43,12 +44,31 @@ export class SecondStreamPosition {
             travelY,
         };
     });
+    observe(stage: HTMLElement): () => void {
+        const measure = () =>
+            this.measure(
+                stage.getBoundingClientRect(),
+                { width: window.innerWidth, height: window.innerHeight },
+                document.fullscreenElement === stage
+            );
+        const observer = new ResizeObserver(measure);
+        observer.observe(stage);
+        window.addEventListener('resize', measure);
+        document.addEventListener('fullscreenchange', measure);
+        measure();
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', measure);
+            document.removeEventListener('fullscreenchange', measure);
+        };
+    }
+
     measure(
         stage: { left: number; top: number; width: number; height: number },
         viewport: { width: number; height: number },
         fullscreen: boolean
     ): void {
-        if (fullscreen !== this.fullscreen) {
+        if (fullscreen !== this.fullscreen()) {
             if (fullscreen) {
                 this.windowPoint = this.point();
                 this.windowWidth = this.preferredWidth();
@@ -56,7 +76,7 @@ export class SecondStreamPosition {
                 this.point.set(this.windowPoint);
                 this.preferredWidth.set(this.windowWidth);
             }
-            this.fullscreen = fullscreen;
+            this.fullscreen.set(fullscreen);
         }
         this.area.set(viewport);
         if (!this.measured) {

@@ -698,6 +698,38 @@ describe('EpgGuideComponent', () => {
         }
     );
 
+    it('recentres the viewport when the guide follows today across midnight', async () => {
+        fixture.destroy();
+        jest.useFakeTimers({ now: new Date(2026, 5, 28, 23, 59, 45) });
+        try {
+            fixture = TestBed.createComponent(EpgGuideComponent);
+            component = fixture.componentInstance;
+            fixture.detectChanges();
+            const viewport: HTMLElement = fixture.debugElement.query(
+                By.css('cdk-virtual-scroll-viewport')
+            ).nativeElement;
+            const scrollTo = jest.fn();
+            viewport.scrollTo = scrollTo;
+            Object.defineProperty(viewport, 'clientWidth', { value: 900 });
+            await jest.advanceTimersByTimeAsync(100);
+            fixture.detectChanges();
+            scrollTo.mockClear();
+            viewport.scrollLeft = 1200;
+            component.view.scrollLeft.set(1200);
+
+            await jest.advanceTimersByTimeAsync(60_000);
+            fixture.detectChanges();
+
+            expect(component.dayKey()).toBe('2026-06-29');
+            expect(scrollTo).toHaveBeenCalledWith(
+                expect.objectContaining({ left: 0, behavior: 'auto' })
+            );
+        } finally {
+            fixture.destroy();
+            jest.useRealTimers();
+        }
+    });
+
     it('jumps to now on N without scrolling back to a focus left off-screen', async () => {
         await settle(fixture);
         const viewportEl: HTMLElement = fixture.debugElement.query(

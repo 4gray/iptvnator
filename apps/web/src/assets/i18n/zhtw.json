@@ -1,5 +1,20 @@
 {
     "TWO_STREAMS": {
+        "MULTIVIEW": "多畫面",
+        "ADD_STREAM": "新增串流",
+        "OPEN_GRID": "開啟 2×2 格狀版面",
+        "GRID_LAYOUT": "2×2 格狀版面",
+        "FOCUS_LAYOUT": "聚焦 (3:1)",
+        "PAIR_LAYOUT_HINT": "保留兩個視窗即可使用此版面",
+        "ADD_TO_WINDOW": "新增串流至視窗 {{slot}}",
+        "WINDOW": "視窗 {{slot}}",
+        "EXIT_MULTIVIEW": "離開多畫面",
+        "EXIT_MULTIVIEW_LABEL": "離開多畫面並保留視窗 1",
+        "REPLACE_STREAM": "更換視窗 {{slot}} 中的串流",
+        "CLOSE_WINDOW": "關閉視窗 {{slot}}",
+        "PICK_FOR_WINDOW": "選擇視窗 {{slot}} 的串流",
+        "PICK_MUTED_HINT": "目前的影片會繼續播放。新的串流會以靜音開始播放。",
+        "DUPLICATE_WINDOW": "這部影片已在視窗 {{slot}} 中開啟。",
         "PICK_SOURCE": "選擇第二個串流",
         "CONTENT_TYPE": "內容類型",
         "LOADING_TITLES": "正在載入標題…",
@@ -18,7 +33,12 @@
         "PAUSE": "暫停小畫面",
         "RESUME": "繼續播放小畫面",
         "CLOSE": "關閉第二個串流並返回",
-        "AUDIO_ERROR": "無法切換聲音，請重新交換畫面。",
+        "LAYOUT": "版面配置",
+        "FLOATING_LAYOUT": "浮動視窗",
+        "SIDE_BY_SIDE_LAYOUT": "並排",
+        "CONTROL_VIEW": "控制 {{title}}",
+        "SOUND_FROM": "播放 {{title}} 的聲音",
+        "AUDIO_ERROR": "無法切換聲音。請再試一次。",
         "PICK_HINT": "目前的影片會繼續播放，第二個串流會靜音播放。",
         "UNGROUPED": "其他頻道",
         "LOADING": "正在載入頻道…",
@@ -372,6 +392,7 @@
         "SEARCH_EMPTY_HINT": "沒有符合的設定。試試其他詞，例如「播放器」「主題」或「EPG」。",
         "GENERAL": "一般",
         "GENERAL_SUBTITLE": "語言、啟動和頻道偏好設定。",
+        "OPEN_ANDROID_APP_SETTINGS": "開啟 Android 應用程式設定",
         "PLAYBACK": "播放",
         "SAVE_EPG_SOURCES": "儲存節目指南來源",
         "EPG_SOURCES": "EPG 來源",
@@ -595,6 +616,8 @@
         "STREAM_FORMAT_DESCRIPTION": "選擇預設串流格式（xtream）",
         "LANGUAGE_DESCRIPTION": "選擇應用程式語言",
         "THEME_DESCRIPTION": "選擇應用程式視覺主題",
+        "THEME_ACCENT": "強調色",
+        "THEME_ACCENT_DESCRIPTION": "突顯選取項目、進度與焦點。亮度會隨主題自動調整，確保文字清晰易讀。",
         "COVER_SIZE": "封面大小",
         "COVER_SIZE_DESCRIPTION": "調整網格與導覽列中海報卡片的大小。較大的尺寸更適合在電視上觀看；較小的尺寸則可在大型螢幕上每列顯示更多內容。",
         "COVER_SIZE_SMALL": "小",
@@ -801,7 +824,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "年齡分級國家",
         "AGE_RATING_COUNTRY_DESCRIPTION": "選擇年齡分級使用的國家。缺少當地分級時，可能使用美國或供應商的資料。",
-        "AGE_RATING_COUNTRY_AUTO": "自動 — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "自動 — {{country}}",
+        "CARD_HELP": "說明",
+        "KEYBOARD_SHORTCUTS": "鍵盤快捷鍵",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "導覽、播放和對話框的快捷鍵。在文字欄位外按 ? 即可開啟。",
+        "KEYBOARD_SHORTCUTS_OPEN": "顯示快捷鍵"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "無法儲存到伺服器。請檢查連線後再試一次。",
@@ -834,10 +861,21 @@
         "MOCHA_THEME": "摩卡",
         "NIGHT_OWL_THEME": "夜貓子",
         "BLACK_OLED_THEME": "OLED 純黑",
+        "HIGH_CONTRAST_THEME": "高對比",
         "SYSTEM_DESCRIPTION": "系統主題跟隨裝置的淺色或深色外觀。",
+        "SYSTEM_LIGHT_PAIR": "淺色模式下",
+        "SYSTEM_DARK_PAIR": "深色模式下",
         "DARK_THEME": "深色",
         "LIGHT_THEME": "淺色",
-        "SYSTEM_THEME": "跟隨系統"
+        "SYSTEM_THEME": "跟隨系統",
+        "ACCENT_THEME": "主題色彩",
+        "ACCENT_BLUE": "藍色",
+        "ACCENT_TEAL": "青色",
+        "ACCENT_GREEN": "綠色",
+        "ACCENT_AMBER": "琥珀色",
+        "ACCENT_CORAL": "珊瑚色",
+        "ACCENT_MAGENTA": "洋紅色",
+        "ACCENT_VIOLET": "紫羅蘭色"
     },
     "AUDIO_PLAYER": {
         "PLAY": "播放",
@@ -868,6 +906,7 @@
             "NEXT_EPISODE": "下一集",
             "BACK_10_SECONDS": "倒轉 10 秒",
             "FORWARD_10_SECONDS": "快轉 10 秒",
+            "JUMP_TO_LIVE": "跳到直播",
             "LIVE_STREAM": "現場直播",
             "LIVE_BADGE": "直播",
             "PLAYBACK_POSITION": "播放位置",
@@ -945,6 +984,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "試用內建播放器",
+        "ACTION_RETURN_TO_WEB_PLAYER": "返回網頁播放器",
         "HLS_WAIT": "仍在等待串流資料。您可以繼續等待或重試。",
         "STAGE_LOADER": "載入串流",
         "STAGE_DEMUX": "解析容器",
@@ -1331,6 +1372,7 @@
         "TWITTER_TOOLTIP": "在 Twitter 上分享"
     },
     "UPDATE_AVAILABLE": "有可用的更新",
+    "PWA_UPDATE_NONE": "此伺服器上找不到更新的組建版本。",
     "PWA_UPDATE_READY": "更新已就緒。重新載入將停止播放。",
     "PWA_UPDATE_FAILED": "無法下載應用程式更新。您可以繼續使用目前版本。",
     "PWA_RELOAD_REQUIRED": "應用程式檔案無法使用。請在網路恢復後重新載入。播放將停止。",
@@ -2143,7 +2185,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "正在移除快取的分類...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "我的最愛、觀看記錄、隱藏分類和播放進度會保留，以便同步後還原。",
             "XTREAM_REFRESH_PROGRESS": "已處理本機記錄：{{current}} / {{total}}",
-            "RAIL_RADIO": "廣播"
+            "RAIL_RADIO": "廣播",
+            "MORE_ACTIONS": "更多動作"
         },
         "SOURCES": {
             "TITLE": "來源",
@@ -2214,8 +2257,6 @@
         "SHORTCUTS": {
             "TITLE": "鍵盤快捷鍵",
             "SUBTITLE": "IPTVnator 中可用的工作區、導覽、播放和對話框快捷鍵。",
-            "OPEN_TOOLTIP": "鍵盤快捷鍵 (?)",
-            "OPEN_ARIA": "開啟鍵盤快捷鍵",
             "PLATFORM": {
                 "MAC": "macOS 佈局",
                 "OTHER": "Windows/Linux 佈局"

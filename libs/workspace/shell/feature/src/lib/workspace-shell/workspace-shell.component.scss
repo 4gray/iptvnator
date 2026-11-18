@@ -212,8 +212,8 @@ app-workspace-shell-context-sidebar {
 
 @media (max-width: 640px) {
     .workspace-shell {
-        grid-template-columns: 1fr;
-        grid-template-rows: 52px 56px minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto 56px minmax(0, 1fr) auto;
     }
 
     app-workspace-shell-rail {

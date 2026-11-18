@@ -68,7 +68,10 @@ async function openChannel(
 
     // Keep the live stub request pending: everything played here is local.
     await page.route('https://test-streams.mux.dev/**', () => undefined);
-    await addXtreamPortal(page, { name: 'Long catch-up titles', ...CREDENTIALS });
+    await addXtreamPortal(page, {
+        name: 'Long catch-up titles',
+        ...CREDENTIALS,
+    });
     await waitForXtreamWorkspaceReady(page);
     if (locale) {
         await openSettings(page);
@@ -169,8 +172,16 @@ function labelPlacement(controls: Locator) {
     });
 }
 
-async function hideCategories(page: Page, player: Locator) {
-    await page.locator('[data-test-id="context-hide-categories"]').click();
+/**
+ * Waits for the narrow layout's player. Below 1101px the categories rail
+ * folds on its own (UI-67), so there is nothing left to click.
+ */
+async function waitForNarrowPlayer(page: Page, player: Locator) {
+    await expect(
+        page.locator(
+            'app-workspace-shell-context-sidebar .context-panel--route'
+        )
+    ).toHaveClass(/context-panel--collapsed/);
     await page.mouse.move(1, 1);
     await expect
         .poll(() =>
@@ -216,7 +227,8 @@ test('@epg @xtream @electron keyboard reaches the catch-up programme name and it
     await resetMockServers(request, ['xtream']);
     const app = await launchElectronApp(dataDir);
     const page = app.mainWindow;
-    const template = messages('en').EMBEDDED_MPV.PLAYER.TIMELINE_SEGMENT_POSITION;
+    const template =
+        messages('en').EMBEDDED_MPV.PLAYER.TIMELINE_SEGMENT_POSITION;
 
     try {
         const { player, longTitle } = await openChannel(page, request, null);
@@ -225,10 +237,9 @@ test('@epg @xtream @electron keyboard reaches the catch-up programme name and it
         for (const width of [1280, 800]) {
             await page.setViewportSize({ width, height: 800 });
             if (width < 900) {
-                // Below the desktop window's minimum width the guide pushes
-                // the player off-screen; hiding the categories is how such a
-                // narrow layout gets a (narrow) player.
-                await hideCategories(page, player);
+                // Below the desktop window's minimum width the narrow
+                // layout's categories rail is folded away.
+                await waitForNarrowPlayer(page, player);
             }
             for (const theme of ['light', 'dark'] as const) {
                 await applyTheme(page, theme);
@@ -315,7 +326,7 @@ for (const locale of ['de', 'ru'] as const) {
                 longTitle
             );
             await page.setViewportSize({ width: 800, height: 800 });
-            await hideCategories(page, player);
+            await waitForNarrowPlayer(page, player);
             await tabToSeekBar(controls, slider);
             await page.keyboard.press('Home');
             await expect(slider).toHaveAttribute(

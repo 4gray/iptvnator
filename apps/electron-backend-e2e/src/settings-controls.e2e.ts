@@ -17,7 +17,10 @@ for (const theme of ['Light', 'Dark'] as const) {
         try {
             await openSettings(page);
             await openSettingsSection(page, 'appearance');
-            await page.getByRole('radio', { name: theme, exact: true }).click();
+            await page
+                .getByTestId('select-theme')
+                .getByRole('radio', { name: theme, exact: true })
+                .click();
             await saveSettings(page);
             await openSettingsSection(page, 'about');
             await expect(page.locator('html')).toHaveCSS('user-select', 'none');

@@ -30,6 +30,7 @@ import {
     WORKSPACE_SHELL_ACTIONS,
 } from '@iptvnator/workspace/shell/util';
 import { RecentCommandsService } from '../../recent-commands';
+import { WorkspaceKeyboardShortcutsService } from '../../workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service';
 import { WorkspacePlayerCommandsContributor } from '../../workspace-player-commands';
 import { XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS } from './helpers/workspace-shell-constants';
 import { WorkspaceShellFacade } from './workspace-shell.facade';
@@ -268,6 +269,10 @@ describe('WorkspaceShellFacade', () => {
                 WorkspaceShellHeaderService,
                 WorkspaceShellXtreamImportService,
                 WorkspaceShellCommandPaletteService,
+                {
+                    provide: WorkspaceKeyboardShortcutsService,
+                    useValue: { openShortcutsDialog: jest.fn() },
+                },
                 {
                     provide: WorkspaceShellContextDrawerService,
                     useValue: contextDrawer,
@@ -826,6 +831,7 @@ describe('WorkspaceShellFacade', () => {
             'open-global-recent',
             'open-downloads',
             'open-settings',
+            'keyboard-shortcuts',
             'open-sources',
             'add-playlist-stalker',
             'add-playlist-xtream',
@@ -836,6 +842,21 @@ describe('WorkspaceShellFacade', () => {
             true
         );
         expect(commands.every((command) => command.enabled)).toBe(true);
+    });
+
+    it('opens the keyboard shortcuts from the palette', () => {
+        const open = jest.mocked(
+            TestBed.inject(WorkspaceKeyboardShortcutsService)
+                .openShortcutsDialog
+        );
+        facade.currentUrl.set('/workspace/dashboard');
+
+        facade
+            .commandPaletteCommands()
+            .find((command) => command.id === 'keyboard-shortcuts')
+            ?.run({ query: '' });
+
+        expect(open).toHaveBeenCalledTimes(1);
     });
 
     it('shows the global search command for M3U-only sources', () => {

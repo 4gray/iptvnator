@@ -7,6 +7,7 @@ import {
 } from '@iptvnator/services';
 import { CatalogTitleMatch } from '@iptvnator/shared/interfaces';
 import type { TmdbTrendingEntry } from '@iptvnator/services';
+import { DashboardDataService } from './dashboard-data.service';
 
 /** One trending card: TMDB entry + optional library match for navigation */
 export interface DashboardTrendingItem extends TmdbTrendingEntry {
@@ -25,6 +26,7 @@ export interface DashboardTrendingItem extends TmdbTrendingEntry {
 export class DashboardTrendingService {
     private readonly enrichment = inject(TmdbEnrichmentService);
     private readonly titleMatch = inject(CatalogTitleMatchService);
+    private readonly data = inject(DashboardDataService);
 
     private readonly loaded = signal<{
         entries: TmdbTrendingEntry[];
@@ -38,8 +40,11 @@ export class DashboardTrendingService {
      */
     readonly items = computed<DashboardTrendingItem[]>(() => {
         const { entries, matches } = this.loaded();
+        const playlists = new Set(this.data.playlists().map(({ _id }) => _id));
         const grouped = groupTitleMatchesByKey(
-            this.titleMatch.visibleMatches(matches)
+            this.titleMatch.visibleMatches(
+                matches.filter((match) => playlists.has(match.playlistId))
+            )
         );
         return entries.map((entry) => ({
             ...entry,
@@ -48,19 +53,27 @@ export class DashboardTrendingService {
     });
     readonly loading = signal(false);
 
-    private loadedOnce = false;
+    /** What the shown rail was loaded for; a load for the same inputs is skipped. */
+    private loadedKey: string | null = null;
 
     get isAvailable(): boolean {
         return this.enrichment.isEnabled() && this.titleMatch.isAvailable;
     }
 
     /**
-     * Runs once per app session on success. Empty or failed loads (TMDB
-     * temporarily unreachable) do NOT latch, so the next dashboard visit
-     * retries instead of hiding the rail until an app restart.
+     * Runs once per TMDB language and imported-playlist set on success:
+     * titles are localized, and the library matches link into playlists —
+     * a deleted one would leave cards pointing nowhere, a new import would
+     * stay unmatched. Empty or failed loads (TMDB temporarily unreachable)
+     * do NOT latch, so the next dashboard visit retries instead of hiding
+     * the rail until an app restart.
      */
     async load(): Promise<void> {
-        if (this.loadedOnce || this.loading() || !this.isAvailable) {
+        if (this.loading() || !this.isAvailable) {
+            return;
+        }
+        const key = this.loadKey();
+        if (key === this.loadedKey) {
             return;
         }
         this.loading.set(true);
@@ -75,12 +88,23 @@ export class DashboardTrendingService {
                 entries.map((entry) => entry.title)
             );
             this.loaded.set({ entries, matches });
-            this.loadedOnce = true;
+            this.loadedKey = key;
         } catch (error) {
             console.warn('Dashboard trending load failed:', error);
         } finally {
             this.loading.set(false);
+            // The call that noticed a change returned on the loading guard.
+            if (this.loadKey() !== key) await this.load();
         }
+    }
+
+    private loadKey(): string {
+        const playlists = this.data
+            .playlists()
+            .map((playlist) => playlist._id)
+            .sort()
+            .join(',');
+        return `${this.enrichment.language()}//${playlists}`;
     }
 
     private matchFor(

@@ -658,7 +658,11 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
                 seriesToggleRequest([firstId], true)
             );
 
-            expect(fetch).toHaveBeenCalledWith(String(SERIES_A_ID), 'season-2');
+            expect(fetch).toHaveBeenCalledWith(
+                String(SERIES_A_ID),
+                'season-2',
+                expect.any(Function)
+            );
             expect(repositoryOrder).toEqual([
                 `save:${firstId}`,
                 `save:${S2_SCOPED_ID}`,

@@ -522,6 +522,13 @@ that movie without re-reading the whole progress history.
 Catalog entry also refreshes local progress so watched toggles and inline
 playback in Favorites/Recent are reflected when returning to Movies; retained
 provider pages are not refetched for that refresh.
+Every inline Stalker player saves through the shared
+`createInlinePlaybackPositionWriter` (`@iptvnator/portal/shared/util`): the
+catalog detail, `StalkerVodPlaybackController` (search, Favorites, Recent and
+dashboard collections) and the series view. Its one-shot resume latch skips
+the ~0 s updates an engine reports before reaching `startTime`, which would
+otherwise overwrite the position being resumed from. Closing the player or
+starting another title persists the position the writer's throttle still held.
 
 `StalkerCatalogFacadeService` derives the visible list from retained raw pages;
 provider totals, deduplication and exhaustion remain store-owned. Counts say how
@@ -1263,7 +1270,9 @@ a CDN-hosted one keeps the permanent URL that survives retry.
 A temporary link lives about 5 seconds (`tv_tmp_link_ttl` /
 `vclub_tmp_link_ttl`, both default 5). It is time-limited but not single-use,
 so the rule is to resolve immediately before playback and never persist,
-cache or replay the result. What each persisting path actually stores:
+cache or replay the result. The Android handoff uses the resolver's explicit
+fresh-link flag, including when `create_link` returns the same text as the
+catalog command. What each persisting path actually stores:
 
 | Path                                                                  | Stores                                                                             | Verdict                                                                                                                         |
 | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -1507,6 +1516,10 @@ list:
   transient failure (network, or a page that failed both attempts) is retried
   later but throttled by a per-portal cooldown (`ERROR_COOLDOWN_MS`, 30s) so a
   deterministically-failing page can't trigger an unbounded re-crawl loop.
+- Keyed by the playlist id, `stalkerSessionFingerprint` (portal endpoint,
+  MAC and device identity, credentials), and the observed full or simple
+  portal mode. A change to the connection or its mode uses a separate
+  channel list and `unsupported` verdict.
 - Per-portal reactivity: the "cache ready / refreshed" trigger is a
   **per-portal** version signal (`versionFor(playlist)`), not one global
   counter, and the content resource reads it **only for ITV**. This is
@@ -1650,8 +1663,9 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
   determine completion. Legacy array replies without paging metadata stay
   single-response lists. Empty early pages, malformed replies, repeated pages
   and the 1000-page safety bound fail the load rather than publish a partial
-  list. Navigation retires the collection before another page or state write;
-  an HTTP request already in flight may still finish. Other seasons stay lazy.
+  list. Changing the selected series or closing its view retires episode
+  loading before another page or state write. An HTTP request already in flight
+  may still finish.
 - The season resource depends on the VOD item id and series mode, so a TMDB
   metadata patch does not reload seasons or discard loaded episodes. Pending
   episode requests belong to the exact loading season VM; replies from an old
@@ -1663,14 +1677,17 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
   Multi-season items keep provider numbering. Lazy VOD retains the original
   season key/number separately for stable tracking IDs and compatible legacy
   progress; provider request ids remain unchanged.
-- The series quick-start CTA can load the first unloaded VOD-series season
-  before playback. Unloaded seasons are considered unplayed in full season
-  order, so an earlier unloaded season is not skipped just because a later
-  season was loaded manually. If all currently loaded episodes are watched and
-  more season metadata exists, quick start loads the next unloaded season
-  instead of showing the completed state. After a lazy load, quick start is
-  recomputed from the mapped episodes before playback so provider episode
-  ordering cannot start the wrong episode.
+- When a lazy VOD series opens with saved positions, pending regular seasons
+  load one at a time to fill episode and watched counts and reconcile progress.
+  Failed requests are skipped for the current season list and can be retried by
+  selecting the season. A reused view continues with the current series after
+  an older request settles. Without saved positions, seasons load on demand.
+- Quick start preserves the shared resume and recent-launch actions. Otherwise
+  it follows the first unwatched episode after the most recently watched one,
+  loading a pending season in that range before falling back to skipped
+  episodes. After loading, it recomputes the action against the actual episode
+  order. The season picker follows watched progress as episode lists arrive and
+  preserves a manual choice or watched toggle within the current series.
 - Extras (season 0) follow the shared next-episode rule (`getSeriesNextUp`):
   while the series has other seasons they never become the quick-start target,
   and the lazy load before playback picks the first regular season the portal
@@ -1894,6 +1911,16 @@ Where this is used:
 - `libs/portal/stalker/feature/src/lib/stalker-search/stalker-search.component.ts`
 - `libs/portal/stalker/feature/src/lib/stalker-catalog-detail/stalker-catalog-detail.component.ts`
 - `libs/portal/stalker/feature/src/lib/stalker-favorites-button/stalker-favorites-button.component.ts`
+
+A local Recently Viewed touch (`mutatePlaylistHistory`,
+`libs/services/src/lib/playlist-history.ts`) moves a row to the top by its
+normalized id and compatible type from `stalkerFavoriteReference`. Live, radio,
+movies, and the regular, embedded and lazy series modes each have distinct
+identities. Episodes of the same series share its history row. Rows of an
+unknown kind, such as older untyped snapshots, still match by id.
+The unified Recent collection uses typed row ids. The favorite heart uses an
+exact typed match first. It falls back to an untyped favorite in the same source
+when the available references for that id identify at most one type and mode.
 
 Navigation rule to preserve:
 

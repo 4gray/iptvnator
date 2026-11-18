@@ -34,6 +34,7 @@ function createFakeController() {
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),
         togglePictureInPicture: jest.fn(),
+        jumpToLiveEdge: jest.fn(),
     };
     const controller: PlayerController = {
         capabilities,
@@ -143,7 +144,7 @@ describe('PlayerControlsComponent timeline scrubbing', () => {
         });
         fixture.detectChanges();
 
-        expect(fixture.componentInstance.scrubPosition()).toBeNull();
+        expect(fixture.componentInstance.timeline.scrubPosition()).toBeNull();
         expect(currentTimeText()).toBe('0:05');
     });
 
@@ -152,7 +153,7 @@ describe('PlayerControlsComponent timeline scrubbing', () => {
 
         fake.capabilities.set({ ...DEFAULT_PLAYER_CAPABILITIES });
         fixture.detectChanges();
-        expect(fixture.componentInstance.scrubPosition()).toBeNull();
+        expect(fixture.componentInstance.timeline.scrubPosition()).toBeNull();
         expect(slider()).toBeNull();
 
         fake.capabilities.set({

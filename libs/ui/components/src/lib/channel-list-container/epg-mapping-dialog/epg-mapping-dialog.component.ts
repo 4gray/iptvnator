@@ -165,7 +165,7 @@ export class EpgMappingDialogComponent {
                     this.notify('EPG_MAPPING_DIALOG.SAVE_FAILED');
                     return;
                 }
-                this.epgService.clearCache();
+                this.epgService.refreshEpgData();
                 this.notify('EPG_MAPPING_DIALOG.SAVED');
                 this.dialogRef.close({
                     channelKey: this.data.channelKey,
@@ -180,7 +180,7 @@ export class EpgMappingDialogComponent {
                 this.notify('EPG_MAPPING_DIALOG.SAVE_FAILED');
                 return;
             }
-            this.epgService.clearCache();
+            this.epgService.refreshEpgData();
             this.notify('EPG_MAPPING_DIALOG.REMOVED');
             this.dialogRef.close();
         });
