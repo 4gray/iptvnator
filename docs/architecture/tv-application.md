@@ -468,13 +468,23 @@ one Episode options button for the selected episode (Up returns to it); its
 dialog holds the watch actions and Start over. Starting over captures the
 episode's focus for Back or Stop. The player validates
 successors against exact source/parent/episode identity in provider-supplied order.
-Next episode is visible
-during playback and focused on completion, including season transitions; no IDs
-or media files are inferred from episode numbers. `ended` never resolves or starts
-a successor automatically. Next resolves a fresh link only on activation, keeps
-the mounted video element and originating page focus, and Back/source changes
-cancel pending resolution. Missing parent, failed lookup and unavailable final
-successors retain the current episode, with retry where appropriate.
+Next episode is available during playback, including season transitions. Near
+the end, Up next joins the fullscreen controls in remote navigation. Back
+dismisses the card first and returns its focus to the Play/Pause control. The
+next Back leaves the player. Settings → Playback controls autoplay and card
+visibility independently. Autoplay waits for both the end of playback and the
+provider's successor, including when the episode list arrives after playback
+ends. Autoplay waits while the app is hidden and cancels a pending stream
+resolution on app hide. Returning to the app retries the ended episode's
+successor. A replay intent owns playback while its saved-position reset is
+pending. An in-flight Series details lookup also holds autoplay until its
+navigation settles. Committing the autoplay successor preserves its consecutive-episode
+count. With autoplay off, the Next episode button receives focus at the end.
+Manual Next and autoplay both resolve a fresh link, retain the mounted video
+and originating page focus, and cancel pending resolution on Back or a source
+change. No IDs or media files are inferred from episode numbers. Missing
+parents, failed lookups and unavailable successors retain the current episode,
+with retry where appropriate.
 
 Remote Stop (413) cancels pending source actions, tears down the stream and
 returns focus to its origin or channel. Back from catalog-origin fullscreen

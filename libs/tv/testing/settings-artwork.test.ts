@@ -73,3 +73,29 @@ test('phone settings reject missing required key at commit, malformed values and
     assert.equal(next.tmdb.apiKey, 'new-key');
     assert.equal(next.backend, '');
 });
+test('phone settings carry the playback switches and keep the TV values when absent', () => {
+    const data = initialData();
+    data.seriesAutoplay = false;
+    const defaults = phoneSettingsDefaults(data);
+    assert.equal(defaults.seriesAutoplay, false);
+    assert.equal(defaults.playerUpNextCard, true);
+    const value = {
+        layout: 'cinema',
+        epg: true,
+        tmdb: { enabled: false, language: 'en' },
+    };
+    const kept = applySettingsDraft(data, value);
+    assert.equal(kept.seriesAutoplay, false);
+    assert.equal(kept.playerUpNextCard, true);
+    const changed = applySettingsDraft(data, {
+        ...value,
+        seriesAutoplay: true,
+        playerUpNextCard: false,
+    });
+    assert.equal(changed.seriesAutoplay, true);
+    assert.equal(changed.playerUpNextCard, false);
+    assert.throws(() =>
+        parseSettingsDraft({ ...value, playerUpNextCard: 'false' })
+    );
+    assert.equal('seriesAutoplay' in parseSettingsDraft(value), false);
+});

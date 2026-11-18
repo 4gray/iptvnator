@@ -1,6 +1,14 @@
 import { expect, Page, test } from '@playwright/test';
 import { checkHorizontalRail } from './horizontal-rail';
-import { chooseTv, addSource, nav, start, xtream, cardAction } from './helpers';
+import {
+    chooseTv,
+    addSource,
+    nav,
+    start,
+    xtream,
+    cardAction,
+    backFromPlayback,
+} from './helpers';
 
 async function watch(page: Page, index: number, episode = false) {
     await nav(page, episode ? 'Series' : 'Movies');
@@ -21,7 +29,7 @@ async function watch(page: Page, index: number, episode = false) {
         )
         .toBe(true);
     await page.getByRole('button', { name: 'Pause', exact: false }).click();
-    await page.keyboard.press('Escape');
+    await backFromPlayback(page);
     await nav(page, 'Home');
     await expect(page.locator('[data-focus="nav:home"]')).toBeFocused();
     // Clicking the nav button focuses it before its scheduled restoration runs.
@@ -180,7 +188,7 @@ for (const provider of ['xtream', 'stalker'] as const)
                     .evaluate((v: HTMLVideoElement) => v.currentTime)
             )
             .toBeGreaterThan(7);
-        await page.keyboard.press('Escape');
+        await backFromPlayback(page);
         await expect(page.locator('[data-focus="hero-resume"]')).toBeFocused();
         await page.locator('[data-focus="hero-resume"]').click();
         await page.locator('[data-focus="player-series-details"]').click();
@@ -405,7 +413,7 @@ for (const action of ['exit', 'play'] as const) {
                 )
                 .toBe(true);
             await expect(page.locator('.hero h1')).toHaveText(title);
-            if (action === 'play') await page.keyboard.press('Escape');
+            if (action === 'play') await backFromPlayback(page);
             await expect(page.locator('.hero h1')).toHaveText(title);
             await expect(page.locator('.detail-hero')).toHaveCount(0);
             await expect(page.locator('video[src], video source')).toHaveCount(
