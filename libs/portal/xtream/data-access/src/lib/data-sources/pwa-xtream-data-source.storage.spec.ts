@@ -64,8 +64,29 @@ describe('PwaXtreamDataSource injected user data storage', () => {
         const source = TestBed.inject(PwaXtreamDataSource);
 
         values.set('xtream-favorites', JSON.stringify({ p1: ['live:1'] }));
-        await source.deletePlaylist('p1');
+        const positionsKey = 'xtream-playback-positions';
+        const position = {
+            contentType: 'vod',
+            contentXtreamId: 42,
+            positionSeconds: 10,
+        };
+        const receiptsKey = '__iptvnator_xtream_restore_receipts__';
+        const receipt = { serverList: [position] };
+        values.set(
+            positionsKey,
+            JSON.stringify({
+                p1: [position],
+                p2: [position],
+                [receiptsKey]: { p1: receipt, p2: receipt },
+            })
+        );
+        const deleting = source.deletePlaylist('p1');
 
+        const remaining = JSON.parse(values.get(positionsKey) ?? '{}');
+        expect(remaining.p1).toBeUndefined();
+        expect(remaining.p2).toEqual([position]);
+        expect(remaining[receiptsKey]).toEqual({ p2: receipt });
+        await deleting;
         expect(JSON.parse(values.get('xtream-favorites') ?? '{}')).toEqual({});
         expect(localStorage.getItem('xtream-favorites')).toBeNull();
     });

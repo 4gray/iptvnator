@@ -33,6 +33,7 @@ function createFakeController() {
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),
         togglePictureInPicture: jest.fn(),
+        jumpToLiveEdge: jest.fn(),
     };
     const controller: PlayerController = { capabilities, state, commands };
     return { controller, capabilities, state, commands };
@@ -87,7 +88,6 @@ describe('PlayerControlsComponent', () => {
                     SUBTITLES: 'Subtitles',
                     SUBTITLES_OFF: 'Off',
                     PLAYBACK_SPEED: 'Playback speed',
-                    SPEED_TOOLTIP: 'Speed: {{speed}}',
                     ASPECT_RATIO: 'Aspect ratio',
                     ASPECT_DEFAULT: 'Default',
                     START_RECORDING: 'Start recording',
@@ -110,12 +110,6 @@ describe('PlayerControlsComponent', () => {
             expect(query('[aria-label="Back 10 seconds"]')).toBeNull();
             expect(
                 query('[data-test-id="player-controls-settings-button"]')
-            ).toBeNull();
-            expect(
-                query('[data-test-id="player-controls-subtitle-chip"]')
-            ).toBeNull();
-            expect(
-                query('[data-test-id="player-controls-speed-chip"]')
             ).toBeNull();
             expect(query('.player-controls__record-button')).toBeNull();
             expect(query('[aria-label="Enter fullscreen"]')).toBeNull();
@@ -166,16 +160,16 @@ describe('PlayerControlsComponent', () => {
             expect(query('[aria-label="Settings"]')).not.toBeNull();
         });
 
-        it('shows the speed chip and the settings button per their capabilities', () => {
+        it('exposes speed and aspect ratio through settings', () => {
             setCapabilities({ playbackSpeed: true, aspectRatio: true });
             fixture.detectChanges();
+            query('[data-test-id="player-controls-settings-button"]')?.click();
+            fixture.detectChanges();
             expect(
-                query('[data-test-id="player-controls-speed-chip"]')
+                query('[data-test-id="player-settings-speed"]')
             ).not.toBeNull();
-            // Aspect ratio has no chip of its own: it lives in the panel.
-            expect(query('[aria-label="Aspect ratio"]')).toBeNull();
             expect(
-                query('[data-test-id="player-controls-settings-button"]')
+                query('[data-test-id="player-settings-aspect"]')
             ).not.toBeNull();
         });
 

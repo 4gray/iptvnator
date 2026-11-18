@@ -33,15 +33,3 @@ export function retainServerRestoreReceipts(
     map[XTREAM_RESTORE_RECEIPTS] = next;
     return true;
 }
-
-export function forgetServerRestoreReceipts(
-    map: Record<string, unknown>,
-    playlistId: string
-): void {
-    const receipts = map[XTREAM_RESTORE_RECEIPTS];
-    if (record(receipts)) {
-        const next = { ...receipts };
-        delete next[playlistId];
-        map[XTREAM_RESTORE_RECEIPTS] = next;
-    }
-}

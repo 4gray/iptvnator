@@ -1,4 +1,6 @@
+@use '@angular/material' as mat;
 @use '../epg-theme' as *;
+@use '../../../../styles/app-controls' as controls;
 @use '../../../../styles/focus-ring';
 
 /* This app has no global border-box reset; the timeline relies on it. */
@@ -20,14 +22,19 @@
     flex-direction: column;
     height: 100%;
     min-height: 0;
+    /* the collapsed summary drops its progress bar when the bar is narrow */
+    container-type: inline-size;
 }
 
-/* ── toolbar (single header bar) ── */
+/* ── toolbar (single header bar) ──
+   44px including its hairline: 32px controls, the height the host gives the
+   collapsed panel (`_portal-layout.scss`). */
 .epg-timeline__toolbar {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 11px 16px;
+    gap: 4px;
+    height: 44px;
+    padding: 0 12px 0 8px;
     border-bottom: 1px solid $line;
     background: $surface-1;
     flex: 0 0 auto;
@@ -51,13 +58,17 @@
     border: none;
     color: $text-primary;
     cursor: pointer;
-    padding: 4px 6px;
-    border-radius: 7px;
+    padding: 2px 6px;
+    border-radius: controls.$radius-sm;
     font: inherit;
     /* Shrinks only when the toolbar overflows: the channel + programme title
        take every pixel the fixed-width controls leave (no hard width cap). */
     flex: 0 1 auto;
     min-width: 0;
+
+    &:focus-visible {
+        @include focus-ring.focus-ring-declarations($offset: 1px);
+    }
 
     &:hover {
         background: $surface-2;
@@ -99,25 +110,21 @@
         text-overflow: ellipsis;
     }
 
-    span {
-        font-family: $font-mono;
-        font-size: 9.5px;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
+    .epg-timeline__source {
+        display: block;
+        font-size: 11px;
         color: $text-tertiary;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
-    /* dynamic subtitle: the now-playing / archive programme title — a readable
-       title, not the uppercase mono source label. Nested for higher specificity
-       than the generic `span` rule above. */
+    /* dynamic subtitle: the now-playing / archive programme title */
     .epg-timeline__subtitle {
         display: flex;
         align-items: center;
         gap: 4px;
-        font-family: inherit;
         font-size: 11.5px;
-        letter-spacing: normal;
-        text-transform: none;
         color: $text-secondary;
         white-space: nowrap;
         overflow: hidden;
@@ -142,8 +149,8 @@
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    height: 34px;
-    padding: 0 14px;
+    height: 32px;
+    padding: 0 12px;
     border-radius: 999px;
     background: rgba(255, 91, 110, 0.14);
     border: 1px solid rgba(255, 91, 110, 0.32);
@@ -160,24 +167,39 @@
         height: 7px;
         border-radius: 50%;
         background: $accent-live;
-        box-shadow: 0 0 7px $accent-live;
     }
 }
 
-/* icon-only toolbar buttons: "Now" + zoom level (label lives in the tooltip
-   and aria-label, so the channel/programme title keeps the toolbar width) */
+/* Guide, Now and zoom: the kit's ghost icon actions (labels live in the
+   tooltip and aria-label, so the channel/programme title keeps the width).
+   Only the zoom's "detail" level, a state the user switched on, is filled. */
 .epg-timeline__iconbtn {
-    display: inline-grid;
-    place-items: center;
-    width: 34px;
-    height: 34px;
-    padding: 0;
-    border-radius: 999px;
-    background: $surface-2;
-    border: 1px solid $line-strong;
-    color: $text-secondary;
-    cursor: pointer;
+    @include controls.ghost-icon-button(32px, 18px);
     flex: 0 0 auto;
+}
+
+.epg-timeline__zoom[data-zoom-level='detail'] {
+    background: color-mix(in srgb, var(--app-on-surface) 10%, transparent);
+    @include mat.icon-button-overrides(
+        (
+            icon-color: var(--app-heading-color),
+        )
+    );
+}
+
+/* day stepper: the kit's segmented track, chevrons as its segments */
+.epg-timeline__stepper {
+    @include controls.segmented-track;
+    flex-wrap: nowrap;
+    align-items: center;
+    flex: 0 0 auto;
+}
+
+.epg-timeline__nav {
+    @include controls.segment(26px);
+    justify-content: center;
+    width: 26px;
+    padding: 0;
 
     mat-icon {
         font-size: 16px;
@@ -186,8 +208,7 @@
     }
 
     &:hover {
-        color: $text-primary;
-        border-color: $accent-blue;
+        color: var(--app-heading-color);
     }
 
     &:focus-visible {
@@ -195,69 +216,24 @@
     }
 }
 
-.epg-timeline__zoom[data-zoom-level='detail'] {
-    color: $accent-text;
-}
-
-/* the Guide button opens the multi-channel grid; accent so it reads as the
-   way "out" of the single-channel ribbon */
-.epg-timeline__guide {
-    color: $accent-text;
-    border-color: $accent-blue;
-}
-
-.epg-timeline__stepper {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    height: 34px;
-    background: $surface-2;
-    border: 1px solid $line;
-    border-radius: 999px;
-    padding: 2px;
-    flex: 0 0 auto;
-}
-
-.epg-timeline__nav {
-    width: 28px;
-    height: 28px;
-    display: grid;
-    place-items: center;
-    border: none;
-    border-radius: 50%;
-    background: transparent;
-    color: $text-secondary;
-    cursor: pointer;
-
-    mat-icon {
-        font-size: 15px;
-        width: 15px;
-        height: 15px;
-    }
-
-    &:hover {
-        background: $surface-3;
-        color: $text-primary;
-    }
-}
-
+/* one line: "Today 15 Nov" / "Mon 16 Nov" */
 .epg-timeline__day {
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 5px;
+    min-width: 96px;
+    padding: 0 6px;
     font-size: 12.5px;
     font-weight: 500;
-    padding: 0 6px;
-    min-width: 112px;
-    text-align: center;
-    line-height: 1.1;
-    color: $text-primary;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--app-heading-color);
 
     small {
-        display: block;
-        font-family: $font-mono;
-        font-size: 9px;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
+        font-size: 11px;
+        font-weight: 400;
         color: $text-tertiary;
-        margin-top: 1px;
     }
 }
 
@@ -266,12 +242,15 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font-family: $font-mono;
-    font-size: 9.5px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    flex: 0 0 auto;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    /* gives way (with an ellipsis) only after the programme title */
+    flex: 0 1 auto;
+    margin-inline-end: 4px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 
     mat-icon {
         font-size: 13px;
@@ -287,8 +266,8 @@
             width: 6px;
             height: 6px;
             border-radius: 50%;
+            flex: 0 0 auto;
             background: $accent-live;
-            box-shadow: 0 0 6px $accent-live;
         }
     }
 
@@ -305,7 +284,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     min-width: 0;
-    flex: 1;
+    flex: 1 1 0;
 
     &--muted {
         color: $text-tertiary;
@@ -329,37 +308,64 @@
 }
 
 .epg-timeline__summary-meta {
-    font-family: $font-mono;
     font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
     color: $text-tertiary;
     flex: 0 0 auto;
 }
 
-/* ── schedule-only notice ── */
-.epg-timeline__notice {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 16px;
-    background: var(--app-selection-surface);
-    border-bottom: 1px solid $line;
-    color: $text-secondary;
-    font-size: 12.5px;
+/* Collapsed, the channel name is the bar's identity: it keeps its full
+   width (up to 60% of the bar) and the programme title takes the rest. In a
+   narrow bar the progress bar and time left go first, then the ON NOW text
+   (its dot stays; screen readers still read it); the day stepper drops its
+   secondary date. */
+.epg-timeline--collapsed .epg-timeline__collapse {
     flex: 0 0 auto;
+    max-width: 60%;
+}
 
-    mat-icon {
-        font-size: 16px;
-        width: 16px;
-        height: 16px;
-        color: $accent-text;
-        flex: 0 0 auto;
+/* ...and the spacer does not compete with the title for the free width */
+.epg-timeline--collapsed .epg-timeline__spacer {
+    flex: 0 0 8px;
+}
+
+.epg-timeline__summary-tag-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@container (max-width: 560px) {
+    .epg-timeline__summary-bar,
+    .epg-timeline__summary-meta {
+        display: none;
+    }
+}
+
+@container (max-width: 480px) {
+    .epg-timeline__summary-tag-text {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .epg-timeline__day {
+        min-width: 0;
+
+        small {
+            display: none;
+        }
     }
 }
 
 /* ── ribbon ── */
 .epg-timeline__ribbon {
     flex: 1 1 auto;
-    min-height: 96px;
+    min-height: 90px;
     overflow-x: auto;
     overflow-y: hidden;
     background: var(--app-content-bg);
@@ -374,13 +380,14 @@
 .epg-timeline__ribbon--skeleton {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 22px 18px;
+    gap: 8px;
+    padding: 24px 12px 10px;
     overflow: hidden;
 }
 
 .epg-timeline__sk {
-    height: 128px;
+    align-self: stretch;
+    max-height: 128px;
     border-radius: 11px;
     border: 1px solid $line;
     background: linear-gradient(

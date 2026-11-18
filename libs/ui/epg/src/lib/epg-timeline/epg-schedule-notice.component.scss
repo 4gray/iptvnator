@@ -1,0 +1,24 @@
+@use '../../../../styles/app-controls' as controls;
+
+:host {
+    display: inline-flex;
+    flex: 0 0 auto;
+}
+
+.epg-schedule-notice__button {
+    @include controls.ghost-icon-button(32px, 18px);
+}
+
+/* The kit menu's frame, holding one short paragraph. */
+.epg-schedule-notice__popover {
+    box-sizing: border-box;
+    max-width: min(300px, calc(100vw - 24px));
+    padding: 10px 12px;
+    border: 1px solid var(--app-line-strong);
+    border-radius: controls.$radius;
+    background: var(--app-widget-bg);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+    color: var(--app-body-color);
+    font-size: 12.5px;
+    line-height: 1.45;
+}

@@ -1,36 +1,100 @@
 import { TvSelect } from '@iptvnator/tv/ui';
+import type { UserData } from '@iptvnator/tv/util';
 import { useEffect, useState } from 'preact/hooks';
 import type { TvModel } from './use-tv';
 
-// Each form owns one persisted field. Saving one category must never commit
-// another category's draft, including after a phone settings update.
+type Toggle = 'epg' | 'seriesAutoplay' | 'playerUpNextCard';
+type Category = 'layout' | 'epg' | 'playback';
+type Values = Partial<Pick<UserData, 'layout' | Toggle>>;
+
+const copy: Record<
+    Category,
+    {
+        title: string;
+        description: string;
+        toggles: { field: Toggle; label: string }[];
+    }
+> = {
+    layout: {
+        title: 'Appearance',
+        description: 'Choose how titles appear on Home.',
+        toggles: [],
+    },
+    epg: {
+        title: 'Programme guide',
+        description: 'Show programme information supplied by your TV provider.',
+        toggles: [{ field: 'epg', label: 'Show provider programme guide' }],
+    },
+    playback: {
+        title: 'Playback',
+        description:
+            'When an episode ends, the next one plays. The Up next card shows it shortly before the end.',
+        // Same names, labels and defaults as the desktop and web settings.
+        toggles: [
+            { field: 'seriesAutoplay', label: 'Autoplay next episode' },
+            { field: 'playerUpNextCard', label: '"Up next" card' },
+        ],
+    },
+};
+
+/** The category's switches, read through `value` (no Object.fromEntries on TV). */
+function toggleValues(
+    category: Category,
+    value: (field: Toggle) => boolean
+): Values {
+    const values: Values = {};
+    for (const { field } of copy[category].toggles)
+        values[field] = value(field);
+    return values;
+}
+
+function persistedValues(data: UserData, category: Category): Values {
+    if (category === 'layout') return { layout: data.layout };
+    return toggleValues(category, (field) => data[field]);
+}
+
+// Each form owns its category's persisted fields. Saving one category must
+// never commit another category's draft, including after a phone settings
+// update.
 export function SettingsPreferences({
     tv,
-    field,
+    category,
 }: {
     tv: TvModel;
-    field: 'layout' | 'epg';
+    category: Category;
 }) {
-    const persisted = tv.data[field];
-    const [value, setValue] = useState(persisted);
+    const persisted = persistedValues(tv.data, category);
+    const persistedKey = JSON.stringify(persisted);
+    const [values, setValues] = useState<Values>(persisted);
     const [saved, setSaved] = useState(false);
     const [saving, setSaving] = useState(false);
     useEffect(() => {
-        setValue(persisted);
-    }, [persisted]);
+        setValues(persisted);
+    }, [persistedKey]);
+    const change = (next: Values) => {
+        setValues((current) => ({ ...current, ...next }));
+        setSaved(false);
+    };
     const save = (event: SubmitEvent) => {
         event.preventDefault();
-        const draft = value;
+        const draft = values;
         const persist = async () => {
             setSaving(true);
             try {
                 await tv.update((data) =>
-                    field === 'layout'
+                    category === 'layout'
                         ? {
                               ...data,
-                              layout: draft === 'shelf' ? 'shelf' : 'cinema',
+                              layout:
+                                  draft.layout === 'shelf' ? 'shelf' : 'cinema',
                           }
-                        : { ...data, epg: draft === true }
+                        : {
+                              ...data,
+                              ...toggleValues(
+                                  category,
+                                  (field) => draft[field] === true
+                              ),
+                          }
                 );
                 setSaved(true);
                 tv.setError('');
@@ -49,48 +113,46 @@ export function SettingsPreferences({
     };
     return (
         <form class="source-form" onSubmit={save}>
-            <h2>{field === 'layout' ? 'Appearance' : 'Programme guide'}</h2>
-            <p class="muted">
-                {field === 'layout'
-                    ? 'Choose how titles appear on Home.'
-                    : 'Show programme information supplied by your TV provider.'}
-            </p>
-            {field === 'layout' ? (
+            <h2>{copy[category].title}</h2>
+            <p class="muted">{copy[category].description}</p>
+            {category === 'layout' ? (
                 <label>
                     Home composition
                     <TvSelect
                         label="Home composition"
                         focusKey="settings:layout:value"
-                        value={String(value)}
+                        value={String(values.layout)}
                         options={[
                             { value: 'cinema', label: 'Кинозал · Cinema' },
                             { value: 'shelf', label: 'Витрина · Showcase' },
                         ]}
-                        onChange={(next) => {
-                            setValue(next === 'shelf' ? 'shelf' : 'cinema');
-                            setSaved(false);
-                        }}
+                        onChange={(next) =>
+                            change({
+                                layout: next === 'shelf' ? 'shelf' : 'cinema',
+                            })
+                        }
                     />
                 </label>
             ) : (
-                <label class="check">
-                    <input
-                        type="checkbox"
-                        name="epg"
-                        data-focus="settings:epg:value"
-                        checked={value === true}
-                        onChange={(event) => {
-                            setValue(event.currentTarget.checked);
-                            setSaved(false);
-                        }}
-                    />
-                    Show provider programme guide
-                </label>
+                copy[category].toggles.map(({ field, label }) => (
+                    <label class="check" key={field}>
+                        <input
+                            type="checkbox"
+                            name={field}
+                            data-focus={`settings:${field}:value`}
+                            checked={values[field] === true}
+                            onChange={(event) =>
+                                change({ [field]: event.currentTarget.checked })
+                            }
+                        />
+                        {label}
+                    </label>
+                ))
             )}
             <button
                 class="primary"
                 disabled={saving}
-                data-focus={`settings:${field}:save`}
+                data-focus={`settings:${category}:save`}
             >
                 {saving ? 'Saving…' : 'Save settings'}
             </button>

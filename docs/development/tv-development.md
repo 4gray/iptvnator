@@ -178,6 +178,20 @@ moves all fixture ports together. Inspected WebP documentation copies are in
 These are browser captures, not real-LG certification. All displayed content
 and portraits are fictional demo assets.
 
+## Design review screens
+
+The design review uses 24 fixed screens (first launch, settings, Home, catalog,
+details, Live, players, guide, Favorites, History and Search) with the same
+fictional catalog. Capture them at 1920×1080 before and after a visual change:
+
+```sh
+TV_DESIGN_REVIEW=1 TV_DESIGN_REVIEW_DIR=dist/tv-design-review/after \
+  pnpm nx e2e tv-e2e --grep='design review' --skip-nx-cache
+```
+
+Without `TV_DESIGN_REVIEW=1` the scenario is skipped. The default directory is
+`dist/tv-design-review/`; files are named after the review's screen numbers.
+
 ## Add sources from a phone
 
 Install the matching TV and backend builds. `pnpm nx build web-backend` first

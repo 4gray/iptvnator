@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { EpgService } from '@iptvnator/epg/data-access';
 import {
     applyPlaylistEpgImportPreference,
+    getM3uArchiveDays,
     isDashChannel,
     isDashStreamUrl,
     normalizeEpgUrls,
@@ -216,7 +217,12 @@ export class PlaylistEffects {
                 // Use modern EPG service to get channel programs
                 const channelId = resolveChannelEpgLookupKey(channel);
                 if (channelId) {
-                    this.epgService.getChannelPrograms(channelId);
+                    this.epgService.getChannelPrograms(
+                        channelId,
+                        getM3uArchiveDays(channel)
+                    );
+                } else {
+                    this.epgService.clearSchedule();
                 }
 
                 void window.electron
@@ -366,6 +372,15 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(PlaylistActions.updatePlaylist),
+                tap((action) => {
+                    if (action.persist === false) {
+                        this.publishRefresh(
+                            action.playlist,
+                            action.refreshEpg === true
+                        );
+                    }
+                }),
+                filter((action) => action.persist !== false),
                 switchMap((action) =>
                     persistPlaylistUpdate(this.playlistsService, action).pipe(
                         tap((persisted) =>

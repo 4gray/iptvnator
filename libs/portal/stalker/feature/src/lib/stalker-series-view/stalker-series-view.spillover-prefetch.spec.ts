@@ -101,7 +101,8 @@ describe('StalkerSeriesViewComponent Up Next spillover prefetch', () => {
 
         expect(fetchVodSeriesEpisodes).toHaveBeenCalledWith(
             '50001',
-            'season-2'
+            'season-2',
+            expect.any(Function)
         );
 
         const inlinePlayer = fixture.debugElement.query(
@@ -116,7 +117,7 @@ describe('StalkerSeriesViewComponent Up Next spillover prefetch', () => {
         ]);
     });
 
-    it('does not re-request a spillover season that came back empty', async () => {
+    it('loads past an empty season without requesting it again', async () => {
         selectedContentType.set('vod');
         selectedItem.set({
             id: '50001',
@@ -140,6 +141,12 @@ describe('StalkerSeriesViewComponent Up Next spillover prefetch', () => {
                 video_id: '50001',
                 season_number: '2',
                 name: 'Season 2',
+            },
+            {
+                id: 'season-3',
+                video_id: '50001',
+                season_number: '3',
+                name: 'Season 3',
             },
         ]);
         isEmbeddedPlayer.mockReturnValue(true);
@@ -168,11 +175,22 @@ describe('StalkerSeriesViewComponent Up Next spillover prefetch', () => {
                 isLoading: false,
                 isExpanded: false,
             },
+            {
+                id: 'season-3',
+                video_id: '50001',
+                season_number: '3',
+                name: 'Season 3',
+                episodes: [],
+                isLoading: false,
+                isExpanded: false,
+            },
         ]);
         fetchVodSeriesEpisodes.mockClear();
-        // Failed or genuinely empty season: isLoading returns to false while
-        // episodes stays empty — the retry trap.
-        fetchVodSeriesEpisodes.mockResolvedValue([]);
+        fetchVodSeriesEpisodes
+            .mockResolvedValueOnce([])
+            .mockResolvedValue([
+                { id: 'episode-3', series_number: 1, name: 'Next Season' },
+            ]);
 
         const seasonOne = fixture.componentInstance.mappedSeasons()['1'];
         fixture.componentInstance.onEpisodeClicked(seasonOne[0]);
@@ -180,7 +198,9 @@ describe('StalkerSeriesViewComponent Up Next spillover prefetch', () => {
         await stabilize();
         fixture.detectChanges();
 
-        expect(fetchVodSeriesEpisodes).toHaveBeenCalledTimes(1);
+        expect(
+            fetchVodSeriesEpisodes.mock.calls.map(([, season]) => season)
+        ).toEqual(['season-2', 'season-3']);
 
         // Further playback activity in the same season must not retrigger it.
         fixture.componentInstance.onEpisodeClicked(seasonOne[1]);
@@ -188,7 +208,10 @@ describe('StalkerSeriesViewComponent Up Next spillover prefetch', () => {
         await stabilize();
         fixture.detectChanges();
 
-        expect(fetchVodSeriesEpisodes).toHaveBeenCalledTimes(1);
+        expect(fetchVodSeriesEpisodes).toHaveBeenCalledTimes(2);
+        expect(
+            fixture.componentInstance.upNextEpisodes().map((item) => item.label)
+        ).toEqual(['S01E02', 'S03E01']);
     });
 
     it('retries a failed spillover prefetch on the next episode', async () => {

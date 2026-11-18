@@ -145,7 +145,40 @@ jobs:
                   CI: true
                   NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
 
+            - name: Typecheck web and Electron entry points
+              run: pnpm run typecheck:ci
+
+    # A skipped PR-only note gate is valid on master/manual runs; failures are not.
+    preflight:
+        name: Fast validation
+        needs: [actionlint, release-note-gate, lint]
+        if: ${{ !cancelled() }}
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - name: Require successful fast checks
+              run: |
+                  test '${{ needs.actionlint.result }}' = success
+                  test '${{ needs.lint.result }}' = success
+                  case '${{ needs.release-note-gate.result }}' in
+                      success|skipped) ;;
+                      *) exit 1 ;;
+                  esac
+
+    pr-e2e:
+        name: PR E2E
+        needs: [preflight, initial-bytes-ratchet, performance-journeys-scope]
+        if: >-
+            ${{ !cancelled() && github.event_name == 'pull_request' &&
+                needs.preflight.result == 'success' &&
+                needs.initial-bytes-ratchet.result == 'success' &&
+                needs.performance-journeys-scope.result == 'success' &&
+                needs.performance-journeys-scope.outputs.e2e == 'true' }}
+        uses: ./.github/workflows/e2e-tests.yaml
+
     initial-bytes-ratchet:
+        needs: preflight
+        if: ${{ !cancelled() && needs.preflight.result == 'success' }}
         name: Initial bytes ratchet
         runs-on: ubuntu-latest
         timeout-minutes: 30
@@ -295,6 +328,7 @@ jobs:
         timeout-minutes: 5
         outputs:
             run: ${{ steps.scope.outputs.run }}
+            e2e: ${{ steps.e2e.outputs.run }}
 
         steps:
             # The PR checkout is the merge commit: its first parent is the
@@ -335,12 +369,30 @@ jobs:
                   fi
                   echo "run=true" >> "$GITHUB_OUTPUT"
 
+            - name: Preserve PR E2E path exclusions
+              id: e2e
+              if: github.event_name == 'pull_request'
+              run: |
+                  set -euo pipefail
+                  # Match the former pull_request paths-ignore, including renames.
+                  if relevant="$(git diff --name-only --no-renames --ignore-submodules=none HEAD^1 HEAD -- . \
+                      ':(exclude,glob)**/*.md' ':(exclude,top)docs/' \
+                      ':(exclude,top).plans/' ':(exclude,top).agents/' ':(exclude,top).codex/' \
+                      ':(exclude,top).claude/' ':(exclude,top)apps/website/')" && [ -z "$relevant" ]; then
+                      echo "run=false" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "run=true" >> "$GITHUB_OUTPUT"
+                  fi
+
     # Runs the journey benchmarks (docs/architecture/performance-journeys.md)
     # on the canonical Linux runner and uploads the summary as evidence.
     performance-journeys:
         name: Performance journeys
-        needs: performance-journeys-scope
-        if: needs.performance-journeys-scope.outputs.run == 'true'
+        needs: [preflight, performance-journeys-scope]
+        if: >-
+            ${{ !cancelled() && needs.preflight.result == 'success' &&
+                needs.performance-journeys-scope.result == 'success' &&
+                needs.performance-journeys-scope.outputs.run == 'true' }}
         runs-on: ubuntu-latest
         # The electron-performance build is the bulk of the time; each journey
         # (launch, open-source, playback, search) is six fresh Electron
@@ -420,6 +472,8 @@ jobs:
                   retention-days: 14
 
     unit-and-typecheck:
+        needs: preflight
+        if: ${{ !cancelled() && needs.preflight.result == 'success' }}
         name: Unit Tests and Typechecks
         runs-on: ubuntu-latest
         timeout-minutes: 45
@@ -492,6 +546,11 @@ jobs:
             - name: Validate icon-only button names
               run: pnpm run a11y:icon-buttons:validate
 
+            # The heart means favourite and the star means rating: both come
+            # from APP_ICONS (tools/nx/check-favorite-glyph.mjs).
+            - name: Validate favourite and rating glyphs
+              run: pnpm run ui:favorite-glyph:validate
+
             # Form-field defaults are provided per lazy component: the root
             # token import would load Material form-field and @angular/forms
             # on startup (tools/nx/check-form-field-defaults.mjs).
@@ -508,9 +567,6 @@ jobs:
             # unset, so this checks both the local and the CI inference.
             - name: Validate Playwright task graphs
               run: pnpm run e2e:task-graphs:validate
-
-            - name: Typecheck web and Electron entry points
-              run: pnpm run typecheck:ci
 
             - name: Typecheck Jest spec programs
               run: pnpm run typecheck:spec:test && pnpm run typecheck:spec

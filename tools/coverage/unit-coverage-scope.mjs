@@ -188,14 +188,7 @@ function gitShow(ref, file) {
     }
 }
 
-if (isMain) {
-    const argv = process.argv.slice(2);
-    const baseIndex = argv.indexOf('--base');
-    const base = baseIndex === -1 ? null : argv[baseIndex + 1];
-    const input = readFileSync(0, 'utf8');
-    const files = argv.includes('--null')
-        ? input.split('\0')
-        : input.split('\n').map((file) => file.trim());
+export async function checkUnitCoverageScope(files, base) {
     let packageJsonScriptsOnly = false;
     if (base && files.includes('package.json')) {
         const basePackageJson = gitShow(base, 'package.json');
@@ -226,7 +219,19 @@ if (isMain) {
     if (decision.blocking.length > 20) {
         console.log(`  … and ${decision.blocking.length - 20} more`);
     }
-    if (process.argv.includes('--github-output')) {
+    return decision;
+}
+
+if (isMain) {
+    const argv = process.argv.slice(2);
+    const baseIndex = argv.indexOf('--base');
+    const base = baseIndex === -1 ? null : argv[baseIndex + 1];
+    const input = readFileSync(0, 'utf8');
+    const files = argv.includes('--null')
+        ? input.split('\0')
+        : input.split('\n').map((file) => file.trim());
+    const decision = await checkUnitCoverageScope(files, base);
+    if (argv.includes('--github-output')) {
         const outputFile = process.env.GITHUB_OUTPUT;
         if (!outputFile) {
             console.error('--github-output needs GITHUB_OUTPUT to be set.');

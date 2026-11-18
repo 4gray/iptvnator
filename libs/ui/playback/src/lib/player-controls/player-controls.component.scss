@@ -223,7 +223,7 @@
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
-// Top-right corner chrome (stream-info button). It fades with the dock
+// The top-right Stream info button fades with the dock
 // but is its own layer: the title scrim above it is click-through, so the
 // button opts back into pointer events on its own.
 .player-controls__corner {
@@ -316,11 +316,25 @@
     min-width: 0;
 }
 
+// Play is the fixed centre: the buttons on either side sit in two equal
+// `1fr` columns (an intrinsically sized grid gives both the width of the
+// wider side), so an extra button on one side, such as jump to live,
+// never pushes play off-centre.
 .player-controls__transport {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 8px;
+}
+
+.player-controls__transport-side {
     display: flex;
     align-items: center;
-    justify-content: center;
     gap: 8px;
+}
+
+.player-controls__transport-side--start {
+    justify-content: flex-end;
 }
 
 .player-controls__actions {
@@ -350,72 +364,7 @@
     color: var(--pc-danger) !important;
 }
 
-// Value chips (subtitles, speed): the two settings a viewer changes mid-film.
-// Neutral until something is on (cyan) or changed (violet).
-.player-controls__chip {
-    display: inline-flex;
-    flex: 0 0 auto;
-    align-items: center;
-    gap: 6px;
-    height: 32px;
-    max-width: 132px;
-    padding: 0 11px;
-    color: var(--pc-text);
-    background: transparent;
-    border: 0;
-    border-radius: 10px;
-    cursor: pointer;
-    font: inherit;
-    font-size: 13px;
-    font-weight: 600;
-    transition: background 120ms ease-out;
-}
-
-.player-controls__chip mat-icon {
-    flex: 0 0 auto;
-    width: 19px;
-    height: 19px;
-    font-size: 19px;
-}
-
-.player-controls__chip-label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.player-controls__chip:hover,
-.player-controls__chip:focus-visible {
-    background: var(--pc-hover);
-}
-
-.player-controls__chip:focus-visible {
-    outline: 2px solid var(--pc-text);
-    outline-offset: 2px;
-}
-
-.player-controls__chip--on {
-    color: var(--pc-accent-cyan);
-    background: rgba(92, 214, 255, 0.15);
-}
-
-.player-controls__chip--modified {
-    color: var(--pc-accent-violet);
-    background: rgba(181, 153, 255, 0.16);
-}
-
-.player-controls__chip--on:hover,
-.player-controls__chip--on:focus-visible {
-    background: rgba(92, 214, 255, 0.24);
-}
-
-.player-controls__chip--modified:hover,
-.player-controls__chip--modified:focus-visible {
-    background: rgba(181, 153, 255, 0.26);
-}
-
-// The settings button: filled in the accent while its panel is open, and
-// carrying state dots where the chips are folded away (compact).
+// The settings button shows state dots while the panel is closed.
 :host :is(.player-controls__tune) {
     position: relative;
 }
@@ -799,7 +748,8 @@
         gap: 4px;
     }
 
-    .player-controls__transport {
+    .player-controls__transport,
+    .player-controls__transport-side {
         gap: 4px;
     }
 
@@ -818,8 +768,7 @@
 
     .player-controls__actions {
         position: relative;
-        // When even the row cannot hold the cluster (worst case: audio/
-        // subtitles/quality/speed/aspect/PiP), wrap the actions instead of
+        // If the row cannot hold the action buttons, wrap them instead of
         // making them a scroll container. A scroll container would clip
         // every absolutely positioned capability panel.
         flex-wrap: wrap;

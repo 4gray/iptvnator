@@ -144,6 +144,41 @@ describe('epg-timeline.utils', () => {
         });
     });
 
+    describe('ticks on daylight-saving days', () => {
+        // A DST day is 23 or 25 hours. `TZ` cannot be pinned per test in a
+        // running Node process, so these are invariants that hold in every
+        // zone. The ui-epg `test` target runs with `TZ=Europe/Berlin`
+        // (project.json), where 2026-03-29 springs forward and 2026-10-25
+        // falls back, so they exercise both clock changes on every run.
+        it.each(['2026-03-29', '2026-10-25', '2026-06-28'])(
+            'places every tick of %s on its wall-clock step inside the day',
+            (dayKey) => {
+                const [year, month, day] = dayKey.split('-').map(Number);
+                const startMs = new Date(year, month - 1, day).getTime();
+                const endMs = new Date(year, month - 1, day + 1).getTime();
+                const axis = { startMs, endMs } as Parameters<
+                    typeof buildTimelineTicks
+                >[0];
+
+                const ticks = buildTimelineTicks(axis);
+                const wallMinutes = ticks.map(({ ms }) => {
+                    const date = new Date(ms);
+                    return date.getHours() * 60 + date.getMinutes();
+                });
+
+                expect(ticks.length).toBeGreaterThanOrEqual(10);
+                expect(wallMinutes.every((minute) => minute % 120 === 0)).toBe(
+                    true
+                );
+                expect(new Set(wallMinutes).size).toBe(ticks.length);
+                ticks.forEach(({ ms }, index) => {
+                    expect(ms).toBeGreaterThan(index ? ticks[index - 1].ms : startMs);
+                    expect(ms).toBeLessThan(endMs);
+                });
+            }
+        );
+    });
+
     describe('date helpers', () => {
         it('reports whether a date key has programmes', () => {
             const programs = [

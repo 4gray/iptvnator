@@ -120,12 +120,14 @@ pnpm nx build web --configuration=pwa --skip-nx-cache
 
 ## Application updates and offline recovery
 
-The global update panel loads `PwaUpdateService` once per enabled browser app lifetime. It
-announces only `VERSION_READY` as ready, offers Retry after installation or
-check failures, and rechecks once when the browser returns online. A manifest
-fetch failure resolves false without a version event, so Retry is restored in
-that case; a successful `NO_NEW_VERSION_DETECTED` clears an obsolete failure
-notice while preserving pending reloads. Refresh is
+The global update panel and Settings → About share one `PwaUpdateService`.
+It checks when a worker first controls the visible, online page, when the
+page returns to the foreground, and when the browser returns online. About
+checks the app's origin on demand and reports the result in the version card.
+Either `VERSION_READY` or a successful `checkForUpdate()` returning true marks
+the new build ready. A manifest fetch failure resolves false without a version
+event, so the explicit check offers Retry. `NO_NEW_VERSION_DETECTED` clears
+an obsolete failure notice while preserving pending reloads. Refresh is
 explicit, warns that playback stops, and retains the browser's unsaved-settings
 beforeunload confirmation. Later check or candidate failures retain an already
 pending Refresh action. The deferred card uses the desktop notification's layout
@@ -133,8 +135,13 @@ and remains reachable after a cancelled reload or a settings-save toast.
 Unrecoverable cache errors request a reload without claiming a new version is
 ready. Notifications use the normal translation pipeline;
 the English fallback dictionary is prefetched with the app shell so a first
-offline reload retains readable recovery controls. Electron does not start
-these subscriptions.
+offline reload retains readable recovery controls. Electron uses its desktop
+updater, and the Android TV Shell updates the web bundle with its APK. Both
+runtimes disable the browser updater.
+
+Docker serves `/ngsw.json` and `/ngsw-worker.js` without HTTP caching or the
+SPA fallback. A missing manifest returns 503 so a temporary deployment
+problem preserves Angular's existing worker and cache.
 
 Angular service worker 22.2.2 is pinned with
 `patches/@angular__service-worker@22.2.2.patch`. A failed candidate download
@@ -142,8 +149,10 @@ previously moved the driver to `EXISTING_CLIENTS_ONLY`, making a subsequent
 offline navigation return an empty 504 even though the installed version was
 healthy. The patch retains the previous driver state after a failed candidate;
 it does not change candidate hash verification, initial installation or the
-degradation of a corrupt installed version. Retire it when an upstream worker
-passes the same regressions without the patch.
+degradation of a corrupt installed version. Explicit checks can also report a
+cached version as ready when it is newer than the requesting page's version.
+This recovers when a page misses the original ready event. Retire the patch
+when an upstream worker passes the same regressions without it.
 
 `pnpm nx run web-e2e:test-service-worker` exercises the installed Driver methods.
 `pnpm nx run web-e2e:pwa-updates` builds the production PWA and uses its real
@@ -215,6 +224,9 @@ remain compatible but do not enable viewing-activity synchronization:
 - `PATCH|DELETE /v1/sources/:id`: require the current `If-Match` revision;
   stale edits return `412`, missing revisions `428`
 - `DELETE /v1/sources`: requires the collection revision
+- Source `If-Match` checks compare weakly, so the `W/"…"` form that nginx's
+  gzip gives a response ETag still matches its revision; `If-Match: *`
+  returns `412`, because it names no revision
 
 Instances with server storage advertise the additive `sources-v1` capability.
 Source mutations and legacy document mutations invalidate the same revisions.
@@ -1234,7 +1246,17 @@ local SQL row IDs and content snapshots are not identity inputs.
 `begin` and explicit manual actions require the current revision. A successful
 begin advances the ownership generation. Checkpoints require that generation,
 the owning device/session and an increasing sequence; a deliberate rewind is
-valid. Checkpoints, local conflict choices and explicit imports share whole-second
+valid. Android checkpoint recovery compares capture times against both saved
+positions and in-flight writes. Copying shared progress to local storage when
+sync is disabled preserves capture ordering. A begin acknowledgement establishes
+ownership without recording a playback capture. If a write is displaced before it commits,
+Android keeps its checkpoint for retry. The recovery payload omits the title.
+The client carries the title forward from the persisted activity record.
+If an older server omits the capture time from a checkpoint acknowledgement,
+the client keeps the time from its queued checkpoint through same-revision refreshes.
+Choosing Keep local for an Activity Sync conflict also carries the selected
+position's capture time into the replacement checkpoint.
+Checkpoints, local conflict choices and explicit imports share whole-second
 normalization of player snapshots; unknown or sub-second durations stay omitted.
 Completion retains the portal's rounded 90% threshold when duration is
 known. Manual watched state does not manufacture a duration. A checkpoint does
@@ -1250,8 +1272,10 @@ The server SQLite store receives a synchronous authorization callback that must
 verify instance and current source incarnation in the mutation transaction.
 State and the immutable operation receipt commit together. Reusing an operation
 ID for another address/body is rejected; an exact retry returns its original
-result without applying the mutation again. Conflict receipts also remain
-immutable: a user-approved retry on a new base needs a new operation ID. Reset
+result without applying the mutation again. Retries of receipts created before
+the server recorded capture times match the original command fields and return
+the original result. Conflict receipts also remain immutable: a user-approved
+retry on a new base needs a new operation ID. Reset
 rows and receipts have no automatic TTL. The HTTP boundary additionally checks
 authentication, source existence and bounded request shapes; the store does not
 replace that access-control boundary.

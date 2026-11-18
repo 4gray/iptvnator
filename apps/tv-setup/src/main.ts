@@ -1,4 +1,4 @@
-import { settingsForm } from './settings-form';
+import { playbackValues, settingsForm } from './settings-form';
 import type { PhoneSettingsDefaults } from '@iptvnator/tv/util';
 import './theme.css';
 /** Phone-only setup UI; the capability stays in this page’s memory. */
@@ -145,6 +145,7 @@ export function phoneClient() {
                         ? {
                               layout: data.layout,
                               epg: values.has('epg'),
+                              ...playbackValues(form, values),
                               tmdb: {
                                   enabled: values.has('enabled'),
                                   language: data.language,

@@ -1,0 +1,473 @@
+<app-dialog-shell
+    [heading]="
+        'TWO_STREAMS.PICK_FOR_WINDOW' | translate: { slot: dialogData.slot }
+    "
+    [subtitle]="
+        (dialogData.returningToOriginal
+            ? 'TWO_STREAMS.REPLACE_SWAPPED_HINT'
+            : 'TWO_STREAMS.PICK_MUTED_HINT'
+        ) | translate
+    "
+    icon="picture_in_picture_alt"
+    bodyLayout="column"
+>
+    <div class="picker">
+        <div class="picker__filters">
+            <div class="picker__search">
+                <mat-icon aria-hidden="true">search</mat-icon>
+                <input
+                    #searchInput
+                    type="search"
+                    [ngModel]="search()"
+                    (ngModelChange)="updateSearch($event)"
+                    [placeholder]="searchLabel() | translate"
+                    [attr.aria-label]="searchLabel() | translate"
+                />
+                @if (search()) {
+                    <button
+                        mat-icon-button
+                        type="button"
+                        class="picker__search-clear"
+                        (click)="updateSearch(''); searchInput.focus()"
+                        [attr.aria-label]="'CLEAR_SEARCH' | translate"
+                    >
+                        <mat-icon>close</mat-icon>
+                    </button>
+                }
+                <label class="picker__source">
+                    <select
+                        [ngModel]="source()"
+                        (ngModelChange)="changeSource($event)"
+                        [attr.aria-label]="
+                            'HOME.PLAYLISTS.INFO_DIALOG.EXPORT_FILE_TYPE'
+                                | translate
+                        "
+                    >
+                        <option value="">
+                            {{ 'HOME.PLAYLISTS.GLOBAL_FAVORITES' | translate }}
+                        </option>
+                        <option [value]="historySource">
+                            {{ 'PORTALS.RECENTLY_VIEWED' | translate }}
+                        </option>
+                        @for (entry of sources(); track entry.id) {
+                            <option [value]="entry.id">{{ entry.name }}</option>
+                        }
+                    </select>
+                </label>
+            </div>
+        </div>
+        @if (sourceLoadFailed()) {
+            <div class="picker__source-error" role="alert">
+                <span>{{
+                    'PORTALS.CATALOG_LOAD_ERROR.TITLE' | translate
+                }}</span>
+                <button mat-button type="button" (click)="loadSources()">
+                    {{ 'EMBEDDED_MPV.PLAYER.RETRY' | translate }}
+                </button>
+            </div>
+        }
+        @if (hasContentTypes()) {
+            <div
+                class="picker__types"
+                role="group"
+                [attr.aria-label]="'TWO_STREAMS.CONTENT_TYPE' | translate"
+            >
+                <button
+                    type="button"
+                    [attr.aria-pressed]="!vod.type()"
+                    (click)="changeType(null)"
+                >
+                    {{ 'PORTALS.LIVE_TV' | translate }}
+                </button>
+                <button
+                    type="button"
+                    [attr.aria-pressed]="vod.type() === 'movie'"
+                    (click)="changeType('movie')"
+                >
+                    {{ 'PORTALS.MOVIES' | translate }}
+                </button>
+                <button
+                    type="button"
+                    [attr.aria-pressed]="vod.type() === 'series'"
+                    (click)="changeType('series')"
+                >
+                    {{ 'PORTALS.SERIES' | translate }}
+                </button>
+            </div>
+        }
+        @if (vod.type()) {
+            @if (vod.series(); as series) {
+                <div class="picker__series">
+                    <button
+                        mat-icon-button
+                        type="button"
+                        (click)="backToSeries()"
+                        [attr.aria-label]="'BACK' | translate"
+                    >
+                        <mat-icon>arrow_back</mat-icon>
+                    </button>
+                    <h3>{{ series.name }}</h3>
+                </div>
+            }
+            <div
+                class="picker__vod-list"
+                [attr.aria-busy]="vod.loading() || resolving() !== null"
+            >
+                @if (vod.loading()) {
+                    <p class="picker__state" role="status">
+                        {{ 'TWO_STREAMS.LOADING_TITLES' | translate }}
+                    </p>
+                } @else if (vod.failed()) {
+                    <div class="picker__state" role="alert">
+                        <p>{{ 'TWO_STREAMS.LOAD_TITLES_ERROR' | translate }}</p>
+                        <button mat-button type="button" (click)="vod.retry()">
+                            {{ 'EMBEDDED_MPV.PLAYER.RETRY' | translate }}
+                        </button>
+                    </div>
+                } @else if (vod.series(); as series) {
+                    @for (
+                        row of filteredEpisodes().slice(0, limit());
+                        track row.episode.id
+                    ) {
+                        @let slot = openSlot(series, row.episode.id);
+                        @let progress = vod.episodeProgress(row);
+                        @let details = vod.episodeInfo(row);
+                        @let still = details?.movie_image;
+                        @let artwork =
+                            vod.artworkUrl(still || series.posterUrl);
+                        <button
+                            class="picker__vod-row"
+                            type="button"
+                            [disabled]="resolving() !== null"
+                            [attr.aria-disabled]="slot ? true : null"
+                            [attr.data-episode-id]="row.episode.id"
+                            (click)="chooseEpisode(series, row)"
+                        >
+                            <span
+                                class="picker__episode-thumb"
+                                [class.picker__episode-thumb--fallback]="
+                                    !still ||
+                                    still === series.posterUrl ||
+                                    !artwork
+                                "
+                                aria-hidden="true"
+                            >
+                                @if (artwork) {
+                                    <img
+                                        [src]="artwork"
+                                        alt=""
+                                        loading="lazy"
+                                        (error)="vod.artworkFailed(artwork)"
+                                    />
+                                } @else {
+                                    <mat-icon>video_library</mat-icon>
+                                }
+                                @if (progress) {
+                                    <span class="picker__progress">
+                                        <span [style.width.%]="progress"></span>
+                                    </span>
+                                }
+                            </span>
+                            <span class="picker__vod-text">
+                                <strong>{{
+                                    row.episode.title ||
+                                        ('PORTALS.DETAIL.EPISODE_NUMBER'
+                                            | translate
+                                                : {
+                                                      episode:
+                                                          row.episode
+                                                              .episode_num,
+                                                  })
+                                }}</strong>
+                                <span
+                                    >{{
+                                        'PORTALS.SEASON_TAB'
+                                            | translate: { number: row.season }
+                                    }}
+                                    ·
+                                    {{
+                                        'PORTALS.DETAIL.EPISODE_NUMBER'
+                                            | translate
+                                                : {
+                                                      episode:
+                                                          row.episode
+                                                              .episode_num,
+                                                  }
+                                    }}</span
+                                >
+                                @if (slot) {
+                                    <span class="picker__opened">
+                                        <mat-icon aria-hidden="true"
+                                            >picture_in_picture_alt</mat-icon
+                                        >
+                                        {{
+                                            'TWO_STREAMS.DUPLICATE_WINDOW'
+                                                | translate: { slot }
+                                        }}
+                                    </span>
+                                }
+                                @if (details?.plot) {
+                                    <span class="picker__episode-plot">{{
+                                        details?.plot
+                                    }}</span>
+                                }
+                                @if (progress) {
+                                    <span class="cdk-visually-hidden">{{
+                                        'WORKSPACE.DASHBOARD.PERCENT_WATCHED'
+                                            | translate: { value: progress }
+                                    }}</span>
+                                }
+                            </span>
+                            @if (vod.episodeWatched(row)) {
+                                <span class="picker__episode-watched">
+                                    <mat-icon aria-hidden="true"
+                                        >check_circle</mat-icon
+                                    >
+                                    <span class="cdk-visually-hidden">{{
+                                        'XTREAM.WATCHED' | translate
+                                    }}</span>
+                                </span>
+                            } @else if (!slot) {
+                                <mat-icon aria-hidden="true"
+                                    >play_arrow</mat-icon
+                                >
+                            }
+                        </button>
+                    } @empty {
+                        <p class="picker__state">
+                            {{ 'TWO_STREAMS.NO_TITLES' | translate }}
+                        </p>
+                    }
+                    @if (filteredEpisodes().length > limit()) {
+                        <button
+                            mat-button
+                            type="button"
+                            (click)="limit.set(limit() + 100)"
+                        >
+                            {{ 'TWO_STREAMS.MORE_TITLES' | translate }}
+                        </button>
+                    }
+                } @else {
+                    @for (
+                        item of filteredVod().slice(0, limit());
+                        track item.uid
+                    ) {
+                        @let slot =
+                            item.contentType === 'movie'
+                                ? openSlot(item)
+                                : undefined;
+                        <button
+                            class="picker__vod-row"
+                            type="button"
+                            [disabled]="resolving() !== null"
+                            [attr.aria-disabled]="slot ? true : null"
+                            [attr.data-catalog-uid]="item.uid"
+                            (click)="
+                                item.contentType === 'series'
+                                    ? openSeries(item)
+                                    : chooseMovie(item)
+                            "
+                        >
+                            <span class="picker__poster" aria-hidden="true">
+                                @if (
+                                    vod.artworkUrl(item.posterUrl);
+                                    as poster
+                                ) {
+                                    <img
+                                        [src]="poster"
+                                        alt=""
+                                        loading="lazy"
+                                        (error)="vod.artworkFailed(poster)"
+                                    />
+                                } @else {
+                                    <mat-icon>{{
+                                        item.contentType === 'series'
+                                            ? 'video_library'
+                                            : 'movie'
+                                    }}</mat-icon>
+                                }
+                            </span>
+                            <span class="picker__vod-text">
+                                <strong>{{ item.name }}</strong>
+                                @if (source() === historySource || !source()) {
+                                    <span>{{ item.playlistName }}</span>
+                                }
+                                @if (slot) {
+                                    <span class="picker__opened">
+                                        <mat-icon aria-hidden="true"
+                                            >picture_in_picture_alt</mat-icon
+                                        >
+                                        {{
+                                            'TWO_STREAMS.DUPLICATE_WINDOW'
+                                                | translate: { slot }
+                                        }}
+                                    </span>
+                                }
+                            </span>
+                            @if (!slot) {
+                                <mat-icon aria-hidden="true">{{
+                                    item.contentType === 'series'
+                                        ? 'chevron_right'
+                                        : 'play_arrow'
+                                }}</mat-icon>
+                            }
+                        </button>
+                    } @empty {
+                        <p class="picker__state">
+                            {{
+                                (source() === historySource && !search()
+                                    ? 'PORTALS.NO_RECENT_ITEMS'
+                                    : 'TWO_STREAMS.NO_TITLES'
+                                ) | translate
+                            }}
+                        </p>
+                    }
+                    @if (filteredVod().length > limit() || vod.hasMore()) {
+                        <button
+                            mat-button
+                            type="button"
+                            (click)="
+                                filteredVod().length > limit()
+                                    ? limit.set(limit() + 100)
+                                    : vod.more()
+                            "
+                        >
+                            {{ 'TWO_STREAMS.MORE_TITLES' | translate }}
+                        </button>
+                    }
+                }
+            </div>
+        } @else if (loading()) {
+            <p class="picker__state" role="status">
+                {{ 'TWO_STREAMS.LOADING' | translate }}
+            </p>
+        } @else if (error() === 'load') {
+            <div class="picker__state" role="alert">
+                <p>{{ 'TWO_STREAMS.LOAD_ERROR' | translate }}</p>
+                <button mat-button (click)="reload()">
+                    {{ 'EMBEDDED_MPV.PLAYER.RETRY' | translate }}
+                </button>
+            </div>
+        } @else if (!data().channels.length && !data().groups.length) {
+            <p class="picker__state">
+                {{
+                    (source() === historySource
+                        ? 'PORTALS.NO_RECENT_ITEMS'
+                        : source()
+                          ? 'TWO_STREAMS.EMPTY_SOURCE'
+                          : 'TWO_STREAMS.EMPTY_FAVORITES'
+                    ) | translate
+                }}
+            </p>
+        } @else {
+            <div
+                class="picker__body"
+                [class.picker__body--single]="!data().groups.length"
+            >
+                @if (data().groups.length) {
+                    <nav
+                        class="picker__groups"
+                        [attr.aria-label]="'CHANNELS.GROUPS' | translate"
+                    >
+                        <h3>{{ 'CHANNELS.GROUPS' | translate }}</h3>
+                        <button
+                            type="button"
+                            [attr.aria-pressed]="group() === null"
+                            (click)="selectGroup(null)"
+                        >
+                            <span
+                                [title]="'CHANNELS.ALL_CHANNELS' | translate"
+                                >{{ 'CHANNELS.ALL_CHANNELS' | translate }}</span
+                            >
+                        </button>
+                        @for (entry of data().groups; track entry.id) {
+                            <button
+                                type="button"
+                                [attr.aria-pressed]="group() === entry.id"
+                                (click)="selectGroup(entry.id)"
+                            >
+                                @let label =
+                                    entry.name ||
+                                    ('TWO_STREAMS.UNGROUPED' | translate);
+                                <span [title]="label">{{ label }}</span>
+                            </button>
+                        }
+                    </nav>
+                }
+                <div
+                    #channelList
+                    class="picker__channels"
+                    [attr.aria-busy]="resolving() !== null"
+                >
+                    @if (groupLoading()) {
+                        <p class="picker__state" role="status">
+                            {{ 'TWO_STREAMS.LOADING' | translate }}
+                        </p>
+                    } @else if (error() === 'group') {
+                        <div class="picker__state" role="alert">
+                            <p>{{ 'TWO_STREAMS.LOAD_ERROR' | translate }}</p>
+                            <button mat-button (click)="selectGroup(group())">
+                                {{ 'EMBEDDED_MPV.PLAYER.RETRY' | translate }}
+                            </button>
+                        </div>
+                    } @else {
+                        @for (row of visible(); track row.item.uid) {
+                            @let slot = openSlot(row.item);
+                            @let program = epg.program(row.item.uid);
+                            <app-channel-list-item
+                                #channelRow
+                                [attr.data-epg-row]="row.item.uid"
+                                [name]="row.item.name"
+                                [logo]="row.item.logo"
+                                [showEpg]="!!program"
+                                [epgProgram]="program"
+                                [progressPercentage]="epg.progress(program)"
+                                [showProgramInfoButton]="false"
+                                [disabled]="!!slot || resolving() !== null"
+                                [selected]="
+                                    !!slot || resolving() === row.item.uid
+                                "
+                                [statusLabel]="
+                                    slot
+                                        ? ('TWO_STREAMS.DUPLICATE_WINDOW'
+                                          | translate: { slot })
+                                        : ''
+                                "
+                                [statusIcon]="
+                                    slot ? 'picture_in_picture_alt' : ''
+                                "
+                                (clicked)="choose(row)"
+                                (keyboardActivated)="choose(row)"
+                            />
+                        } @empty {
+                            <p class="picker__state">
+                                {{ 'TWO_STREAMS.NO_MATCHES' | translate }}
+                            </p>
+                        }
+                        @if (filtered().length > limit()) {
+                            <button
+                                mat-button
+                                (click)="limit.set(limit() + 100)"
+                            >
+                                {{ 'TWO_STREAMS.MORE' | translate }}
+                            </button>
+                        }
+                    }
+                </div>
+            </div>
+        }
+        <div class="picker__status" aria-live="polite">
+            @if (duplicateSlot(); as slot) {
+                <span role="alert">{{
+                    'TWO_STREAMS.DUPLICATE_WINDOW' | translate: { slot }
+                }}</span>
+            } @else if (error() === 'play') {
+                <span role="alert">{{
+                    'TWO_STREAMS.PLAY_ERROR' | translate
+                }}</span>
+            } @else if (resolving()) {
+                {{ 'TWO_STREAMS.OPENING' | translate }}
+            }
+        </div>
+    </div>
+</app-dialog-shell>

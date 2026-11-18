@@ -1,7 +1,8 @@
 import type { PlaybackActivityEvents } from '@iptvnator/services/activity-events';
-import type {
-    PlaybackPositionData,
-    ResolvedPortalPlayback,
+import {
+    hasReachedPlaybackStart,
+    type PlaybackPositionData,
+    type ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 
@@ -11,6 +12,7 @@ export class WebPlayerActivity {
     private last?: PlaybackPositionData;
     private savedAt = 0;
     private session?: string;
+    private beginning?: Promise<void>;
     private resumeSettled = false;
     constructor(private readonly activity: PlaybackActivityEvents | null) {}
     begin(playback: ResolvedPortalPlayback | null): void {
@@ -18,6 +20,7 @@ export class WebPlayerActivity {
             this.flush();
             this.latest = undefined;
             this.session = undefined;
+            this.beginning = undefined;
             this.resumeSettled = false;
             return;
         }
@@ -26,10 +29,18 @@ export class WebPlayerActivity {
             this.latest = undefined;
             this.resumeSettled = false;
         }
-        void this.activity
-            ?.begin(playback.contentInfo, playback.startTime, playback.title)
-            .catch(() => undefined);
+        this.beginning = this.activity?.begin(
+            playback.contentInfo,
+            playback.startTime,
+            playback.title
+        );
+        void this.beginning?.catch(() => undefined);
         this.session = playback.contentInfo.activitySessionId;
+    }
+    waitForBegin(sessionId: string | undefined): Promise<void> | undefined {
+        return sessionId && sessionId === this.session
+            ? this.beginning
+            : undefined;
     }
     record(
         playback: ResolvedPortalPlayback | null,
@@ -37,17 +48,19 @@ export class WebPlayerActivity {
     ): boolean {
         const info = playback?.contentInfo;
         if (!info?.activitySessionId || !this.activity?.active()) return true;
-        if (!this.resumeSettled) {
-            const start = playback?.startTime ?? 0;
-            const reachable = !(event.duration > 0) || start < event.duration;
-            if (reachable && start > 0 && event.currentTime < start - 5)
-                return false;
-            this.resumeSettled = true;
-        }
+        if (
+            !this.resumeSettled &&
+            !hasReachedPlaybackStart(event, playback?.startTime ?? 0)
+        )
+            return false;
+        this.resumeSettled = true;
         this.last = {
             ...info,
             positionSeconds: event.currentTime,
             durationSeconds: event.duration,
+            ...(event.nativeCheckpointAt
+                ? { nativeCheckpointAt: event.nativeCheckpointAt }
+                : {}),
         };
         this.latest = this.last;
         if (Date.now() - this.savedAt >= 5000 || event.playing === false)

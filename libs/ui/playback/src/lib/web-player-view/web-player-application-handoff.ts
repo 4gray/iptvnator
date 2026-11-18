@@ -1,4 +1,8 @@
-import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
+import { untracked } from '@angular/core';
+import type {
+    ResolvedPortalPlayback,
+    VideoPlayer,
+} from '@iptvnator/shared/interfaces';
 import type { VideoPlayerOptions } from '../vjs-player/vjs-player.types';
 import { ElectronStreamHeadersService } from './electron-stream-headers.service';
 import {
@@ -10,6 +14,7 @@ import {
     createVideoJsOptions,
     createWebPlayerChannel,
 } from './web-player-playback-state';
+import { toInlinePlaybackPlayer } from './web-player-recovery-policy';
 
 export interface WebPlayerApplicationHandoff {
     readonly channel: ReturnType<typeof createWebPlayerChannel>;
@@ -34,11 +39,20 @@ export class WebPlayerApplicationHandoffCoordinator {
         playback: ResolvedPortalPlayback,
         isLive: boolean,
         reloadToken: number,
-        binding: PlaybackBinding,
+        selectedPlayer: VideoPlayer,
         token: WebPlayerApplicationToken,
         currentToken: () => WebPlayerApplicationToken,
         accept: (handoff: WebPlayerApplicationHandoff) => void
     ): void {
+        const target = toInlinePlaybackPlayer(selectedPlayer);
+        if (target === null) {
+            this.release();
+            this.recoverySession.clearPlaybackBinding();
+            return;
+        }
+        const binding = untracked(() =>
+            this.recoverySession.beginPlayback(target)
+        );
         this.activeOwnership = Object.freeze({ binding, token });
         const headerSync = this.streamHeaders.apply(playback);
         this.headerScopeStreamUrl = playback.streamUrl;

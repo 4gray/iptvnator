@@ -1,6 +1,7 @@
-import { signal } from '@angular/core';
+import { signal, type Provider } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TranslateService } from '@ngx-translate/core';
+import { TmdbEnrichmentService } from '@iptvnator/services';
 import { EMPTY, Subject } from 'rxjs';
 import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
 import type {
@@ -125,7 +126,19 @@ describe('DashboardHeroSlidesPresenter', () => {
         ],
     ]);
 
-    function create(): DashboardHeroSlidesPresenter {
+    function create(
+        tmdbProviders: Provider[] = [
+            {
+                provide: DashboardHeroTmdbService,
+                useValue: {
+                    isEnabled: () => tmdbEnabled(),
+                    keyFor: (item: PortalActivityItem) =>
+                        `${tmdbLanguage()}//${item.title}`,
+                    getExtras,
+                },
+            },
+        ]
+    ): DashboardHeroSlidesPresenter {
         TestBed.configureTestingModule({
             providers: [
                 DashboardHeroSlidesPresenter,
@@ -187,15 +200,7 @@ describe('DashboardHeroSlidesPresenter', () => {
                         heroLiveAwaitingFirstAnswer: () => liveAwaiting(),
                     },
                 },
-                {
-                    provide: DashboardHeroTmdbService,
-                    useValue: {
-                        isEnabled: () => tmdbEnabled(),
-                        keyFor: (item: PortalActivityItem) =>
-                            `${tmdbLanguage()}//${item.title}`,
-                        getExtras,
-                    },
-                },
+                ...tmdbProviders,
                 {
                     provide: TranslateService,
                     useValue: {
@@ -440,6 +445,119 @@ describe('DashboardHeroSlidesPresenter', () => {
             rating: null,
             description: null,
         });
+    });
+
+    it('keeps cold manual and automatic hero results on their own slides', async () => {
+        const item: PortalRecentItem = {
+            ...series,
+            id: 21,
+            xtream_id: 21,
+            title: 'Synthetic Same Title',
+            source: 'xtream',
+            watch_kind: 'movie',
+        };
+        recentItems.set([item, { ...item, id: 22, xtream_id: 22 }]);
+        favorites.set([]);
+        addedItems.set([]);
+        candidates.set([]);
+        tmdbEnabled.set(true);
+        const store = {
+            read: ({ itemId }: { itemId: string }) =>
+                itemId === '21'
+                    ? { mode: 'manual', tmdbId: 604, title: 'Synthetic Match' }
+                    : null,
+        };
+        let loadStore!: () => void;
+        const matches = new Promise<typeof store>((resolve) => {
+            loadStore = () => resolve(store);
+        });
+        const enrichMovie = jest.fn(
+            async ({ matchIdentity }: { matchIdentity?: unknown }) => ({
+                overview: matchIdentity
+                    ? 'Synthetic manual plot'
+                    : 'Synthetic automatic plot',
+            })
+        );
+        const presenter = create([
+            DashboardHeroTmdbService,
+            {
+                provide: TmdbEnrichmentService,
+                useValue: {
+                    isEnabled: tmdbEnabled,
+                    language: tmdbLanguage,
+                    getMatches: () => matches,
+                    enrichMovie,
+                },
+            },
+        ]);
+        TestBed.tick();
+        loadStore();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        TestBed.tick();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(presenter.slides().map((slide) => slide.description)).toEqual([
+            'Synthetic manual plot',
+            'Synthetic automatic plot',
+        ]);
+        expect(enrichMovie).toHaveBeenCalledTimes(2);
+    });
+
+    it('loads the series choice for an episode-keyed recent in the hero', async () => {
+        const recent: PortalRecentItem = {
+            ...series,
+            id: 31,
+            xtream_id: 501,
+            title: 'Synthetic Parent Series',
+            source: 'xtream',
+            type: 'series',
+        };
+        recentItems.set([recent]);
+        favorites.set([]);
+        addedItems.set([]);
+        candidates.set([]);
+        tmdbEnabled.set(true);
+        positions.set(recent.id, {
+            contentType: 'episode',
+            contentXtreamId: 501,
+            seriesXtreamId: 77,
+            positionSeconds: 30,
+        });
+        try {
+            const presenter = create([
+                DashboardHeroTmdbService,
+                {
+                    provide: TmdbEnrichmentService,
+                    useValue: {
+                        isEnabled: tmdbEnabled,
+                        language: tmdbLanguage,
+                        getMatches: async () => ({
+                            read: ({ itemId }: { itemId: string }) =>
+                                itemId === '77'
+                                    ? {
+                                          mode: 'manual',
+                                          tmdbId: 604,
+                                          title: 'Synthetic Match',
+                                      }
+                                    : { mode: 'provider' },
+                        }),
+                        enrichTv: async () => ({
+                            overview: 'Synthetic parent plot',
+                        }),
+                    },
+                },
+            ]);
+            TestBed.tick();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            TestBed.tick();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+
+            expect(presenter.slides()[0].description).toBe(
+                'Synthetic parent plot'
+            );
+        } finally {
+            positions.delete(recent.id);
+        }
     });
 
     it('loads the extras again when the TMDB language changes', async () => {

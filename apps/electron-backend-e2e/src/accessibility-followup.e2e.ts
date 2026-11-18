@@ -40,6 +40,7 @@ test('@electron @a11y Settings text meets contrast in every preset', async ({
             'mocha',
             'night-owl',
             'black-oled',
+            'high-contrast',
         ] as const) {
             await page
                 .getByTestId('select-theme')
@@ -55,7 +56,7 @@ test('@electron @a11y Settings text meets contrast in every preset', async ({
             const paletteLabels = page
                 .getByTestId('select-theme')
                 .locator('.theme-palette__label');
-            await expect(paletteLabels).toHaveCount(7);
+            await expect(paletteLabels).toHaveCount(8);
             for (const label of await paletteLabels.all()) {
                 await expectTextContrast(label);
             }
@@ -320,7 +321,12 @@ test('@electron @a11y Stalker inline detail restores its card and shares season 
             macAddress: '00:1A:79:00:00:07',
         });
         await page.getByRole('link', { name: 'Movies', exact: true }).click();
-        await page.locator('.category-item').first().click();
+        // Pick a fixture genre and wait for its grid. The initial All
+        // categories grid can be replaced while the tab finishes loading.
+        await page.locator('.category-item[data-category-id="2901"]').click();
+        await expect(page.locator('.category-title')).toHaveText(
+            'Action & Mystery'
+        );
         const grid = page.locator('app-grid-list');
         await expect(grid.locator('mat-card').first()).toBeVisible();
         const key = await grid
@@ -340,7 +346,10 @@ test('@electron @a11y Stalker inline detail restores its card and shares season 
         await page.keyboard.press('Enter');
         await expect(card).toBeFocused();
         await page.getByRole('link', { name: 'Series', exact: true }).click();
-        await page.locator('.category-item').first().click();
+        await page.locator('.category-item[data-category-id="3001"]').click();
+        await expect(page.locator('.category-title')).toHaveText(
+            'Drama Series'
+        );
         await grid.locator('mat-card').first().click();
         const tabs = page.locator('app-season-tabs [role="tab"]');
         await expect(tabs).toHaveCount(2);

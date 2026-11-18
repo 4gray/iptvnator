@@ -108,6 +108,8 @@ export interface ActivityLocalRecord {
 
 export interface ActivityPositionMetadata {
     title?: string;
+    /** Time of a delayed playback checkpoint, independent of the server revision time. */
+    playedAt?: string;
     contentXtreamId: number;
     seriesXtreamId?: number;
     seasonNumber?: number;

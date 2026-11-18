@@ -4,9 +4,10 @@ import { ParentalLockService, PlaylistsService } from '@iptvnator/services';
 import { captureHistoryOwner } from '@iptvnator/services/history-events';
 import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import { favoriteSourceRetirementKey } from '@iptvnator/services/favorites-sync';
-import type {
-    PlaylistMeta,
-    StalkerPortalItem,
+import {
+    extractStalkerItemPoster,
+    type PlaylistMeta,
+    type StalkerPortalItem,
 } from '@iptvnator/shared/interfaces';
 import { stalkerSessionFingerprint } from '@iptvnator/shared/interfaces/stalker-session';
 import {
@@ -44,9 +45,58 @@ export class StalkerCollectionMetadataService {
                 typeof item !== 'object' ||
                 ('source' in item && item.source === 'm3u')
                     ? item
-                    : this.item(playlist, item)
+                    : this.item(
+                          playlist,
+                          this.withSavedFavoriteArtwork(playlist, item)
+                      )
             ),
         };
+    }
+
+    private withSavedFavoriteArtwork(
+        playlist: PlaylistMeta,
+        item: StalkerPortalItem
+    ): StalkerPortalItem {
+        const reference = stalkerFavoriteReference(item);
+        if (
+            !reference ||
+            (reference.kind !== 'movie' && reference.kind !== 'series')
+        )
+            return item;
+
+        const base = playlist.portalUrl ?? playlist.url ?? '';
+        if (resolveStalkerArtwork(base, extractStalkerItemPoster(item)))
+            return item;
+
+        const favorite = playlist.favorites?.find(
+            (entry): entry is StalkerPortalItem => {
+                if (!entry || typeof entry !== 'object') return false;
+                const candidate = stalkerFavoriteReference(entry);
+                return (
+                    candidate?.id === reference.id &&
+                    candidate.kind === reference.kind &&
+                    candidate.mode === reference.mode
+                );
+            }
+        );
+        if (
+            !favorite ||
+            this.injector
+                .get(ParentalLockService)
+                .isStalkerCategoryLocked(
+                    playlist._id,
+                    reference.mode === 'regular' ? 'series' : 'vod',
+                    favorite.category_id
+                )
+        )
+            return item;
+
+        const cover = resolveStalkerArtwork(
+            base,
+            createStalkerInfo(favorite).movie_image,
+            extractStalkerItemPoster(favorite)
+        );
+        return cover ? { ...item, cover } : item;
     }
 
     item<T extends StalkerPortalItem>(playlist: PlaylistMeta, item: T): T {

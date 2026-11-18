@@ -1,0 +1,232 @@
+/*
+ * Home resume hero, detail actions and the series episode rail
+ * (TV design review: Home A, Detail D).
+ */
+
+/* Home: with something to continue, the hero drops its description so the
+   Continue watching rail starts on the first screen. */
+.hero.resume {
+    min-height: 0;
+    padding: var(--tv-space-6) 0 var(--tv-space-4);
+    margin-bottom: var(--tv-space-3);
+}
+.hero.resume h1 {
+    margin: var(--tv-space-2) 0;
+}
+.hero-position {
+    margin: var(--tv-space-1) 0 var(--tv-space-4);
+}
+.hero-episode {
+    display: block;
+    color: var(--tv-muted);
+    font-size: var(--tv-type-meta);
+    margin-bottom: var(--tv-space-1);
+}
+.hero-progress {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+}
+.hero-position .hero-progress progress {
+    display: block;
+    width: 360px;
+    height: 8px;
+    margin: 0 var(--tv-space-3) 0 0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+/* Detail: progress words beside the bar, one row of actions. */
+.watch-status {
+    display: block;
+    color: var(--tv-muted);
+    font-size: var(--tv-type-meta);
+    margin: var(--tv-space-1) 0 var(--tv-space-3);
+}
+.watch-status.in-progress {
+    display: flex;
+    align-items: center;
+}
+.watch-status progress {
+    display: block;
+    flex: none;
+    width: 420px;
+    height: 8px;
+    margin: 0 var(--tv-space-3) 0 0;
+    border: 0;
+    border-radius: 4px;
+    overflow: hidden;
+    -webkit-appearance: none;
+}
+.watch-status progress::-webkit-progress-bar,
+.episode-progress::-webkit-progress-bar {
+    background: rgba(255, 255, 255, 0.22);
+}
+.watch-status progress::-webkit-progress-value,
+.episode-progress::-webkit-progress-value {
+    background: var(--tv-accent);
+}
+.detail-hero .actions {
+    flex-wrap: nowrap;
+}
+.detail-hero .actions button {
+    flex: none;
+    white-space: nowrap;
+}
+button.more-actions {
+    min-width: var(--tv-control-height);
+    padding: 0 var(--tv-space-2);
+    text-align: center;
+    font-size: var(--tv-type-heading);
+    letter-spacing: 2px;
+    line-height: 1;
+}
+
+/* Series: episodes come before the cast, as one horizontal rail. */
+.detail-episodes .section-title {
+    margin: var(--tv-space-5) 0 var(--tv-space-2);
+}
+.episode-rail > .episode {
+    flex: none;
+    display: block;
+    width: 448px;
+    min-width: 448px;
+    min-height: 0;
+    margin-right: var(--tv-card-gap);
+    padding: 0;
+    background: none;
+    border: 0;
+    text-align: left;
+}
+.episode-rail > .episode:hover {
+    background: none;
+}
+.episode-spacer {
+    display: block;
+    flex: none;
+    height: 1px;
+}
+.episode-frame {
+    display: block;
+    position: relative;
+    height: 252px;
+    overflow: hidden;
+    border-radius: var(--tv-control-radius);
+    background: linear-gradient(145deg, #263e31, #141e1a);
+}
+.episode-still {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.episode-frame .episode-number {
+    position: absolute;
+    left: var(--tv-space-3);
+    bottom: var(--tv-space-2);
+    font-family: var(--tv-font-serif);
+    font-size: var(--tv-type-title);
+    color: var(--tv-muted);
+}
+.episode.watched .episode-still {
+    -webkit-filter: saturate(0.55) brightness(0.7);
+    filter: saturate(0.55) brightness(0.7);
+}
+.episode-check {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+    border-radius: 50%;
+    text-align: center;
+    font-size: var(--tv-type-eyebrow);
+    font-weight: 700;
+    color: var(--tv-on-accent);
+    background: var(--tv-accent);
+}
+.episode .episode-progress {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 8px;
+    border: 0;
+    margin: 0;
+    -webkit-appearance: none;
+}
+.episode-title {
+    display: block;
+    margin-top: var(--tv-space-2);
+    font-size: var(--tv-type-body);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.episode-title strong {
+    font-weight: 500;
+}
+.episode.watched .episode-title {
+    color: var(--tv-muted);
+}
+.episode-meta {
+    display: block;
+    margin-top: 4px;
+    font-size: var(--tv-type-meta);
+    color: var(--tv-muted);
+}
+.episode-focus {
+    display: flex;
+    align-items: flex-start;
+    margin: var(--tv-space-2) 0 var(--tv-space-5);
+}
+.episode-focus p {
+    flex: 1;
+    min-width: 0;
+    max-width: 1200px;
+    margin: 0 var(--tv-space-4) 0 0;
+    font-size: var(--tv-type-meta);
+    line-height: 1.45;
+    color: var(--tv-muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.episode-focus p strong {
+    color: var(--tv-text);
+    font-weight: 500;
+}
+.episode-focus .episode-options {
+    flex: none;
+    white-space: nowrap;
+}
+
+@media (max-width: 1400px) {
+    .episode-rail > .episode {
+        width: 320px;
+        min-width: 320px;
+    }
+    .episode-frame {
+        height: 180px;
+    }
+    .watch-status progress {
+        width: 300px;
+    }
+}
+
+/* Resume hero: the title switcher shares the action row. */
+.hero.resume .hero-copy {
+    max-width: 960px;
+}
+.hero.resume .actions,
+.hero.resume .hero-switcher {
+    display: inline-flex;
+    vertical-align: middle;
+}
+.hero.resume .hero-switcher {
+    margin: 0 0 0 var(--tv-space-2);
+}

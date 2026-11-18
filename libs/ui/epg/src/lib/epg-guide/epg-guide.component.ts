@@ -106,7 +106,11 @@ export class EpgGuideComponent implements OnDestroy {
     readonly viewport = viewChild<CdkVirtualScrollViewport>('viewport');
 
     /** Day, zoom, density, filters, clock and the derived day geometry. */
-    readonly view = new EpgGuideViewState(!this.source.deferredCoverage);
+    readonly view = new EpgGuideViewState(!this.source.deferredCoverage, () =>
+        this.afterNextGuideRender(() =>
+            this.viewportController.scrollToNow(this.view.nowLeftPx(), false)
+        )
+    );
     readonly dayKey = this.view.dayKey;
     readonly zoom = this.view.zoom;
     readonly density = this.view.density;

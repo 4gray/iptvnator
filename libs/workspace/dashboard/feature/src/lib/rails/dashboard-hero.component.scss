@@ -745,6 +745,78 @@
     }
 }
 
+// Phone: the slide moves up over the lower part of the art, which runs on
+// under the slide and dissolves into the page across the first rail's
+// heading, as on wide screens. The art's clear area is a fixed share of the
+// viewport, never of the slide, so it is the same for every slide; the
+// tallest slide still sets the banner's total height.
+@media (max-width: 640px) {
+    .hero {
+        // Container units exclude the dashboard gutters; the art bleeds
+        // across both. Close to square on a portrait phone; the viewport cap
+        // keeps short and landscape windows usable.
+        --hero-art-height: min(100cqw + 2 * var(--hero-inset), 52svh);
+        // Where the slide begins: it covers the art's lower ~40%.
+        --hero-overlap-top: calc(var(--hero-art-height) * 0.6);
+        // The first rail tucks into the fade (see the base rule).
+        --hero-tail: 64px;
+
+        min-height: 0;
+        padding-top: var(--hero-overlap-top);
+    }
+
+    .hero__backdrop-image {
+        object-position: center 30%;
+    }
+
+    // A live slide's logo stays in the clear part of the art, above the
+    // slide, instead of centring on the banner behind the text.
+    .hero__backdrop--live .hero__backdrop-keyart {
+        top: calc(var(--hero-overlap-top) / 2);
+        right: var(--hero-inset);
+        width: 40%;
+        height: calc(var(--hero-overlap-top) * 0.6);
+    }
+
+    // One long vertical fade instead of the narrow layout's text block: a
+    // light veil under the rotation controls, the art clear, then the page
+    // colour rises over the lower ~40% of the art to 90% where the slide begins
+    // (the narrow layout's text-safe level), keeps closing behind the slide
+    // and reaches the exact page colour across the first rail's heading,
+    // before its cards.
+    .hero__scrim {
+        background: linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--hero-scrim) 30%, transparent) 0,
+            transparent calc(var(--hero-overlap-top) * 0.25),
+            transparent calc(var(--hero-overlap-top) * 0.3),
+            color-mix(in srgb, var(--hero-scrim) 25%, transparent)
+                calc(var(--hero-overlap-top) * 0.55),
+            color-mix(in srgb, var(--hero-scrim) 62%, transparent)
+                calc(var(--hero-overlap-top) * 0.8),
+            color-mix(in srgb, var(--hero-scrim) 90%, transparent)
+                var(--hero-overlap-top),
+            color-mix(in srgb, var(--hero-scrim) 94%, transparent)
+                calc(100% - var(--hero-tail)),
+            var(--hero-scrim) calc(100% - var(--hero-tail) * 0.4)
+        );
+    }
+
+    // The scrim above carries the text; the narrow layout's text-block
+    // scrim would draw a second, hard-topped band over the art.
+    .hero__content {
+        padding-top: 0;
+
+        &::before {
+            content: none;
+        }
+    }
+
+    .hero__controls {
+        background: var(--hero-scrim);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .hero__backdrop,
     .hero__backdrop-image {

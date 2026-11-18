@@ -1,4 +1,7 @@
-import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import {
+    playbackTimestamp,
+    type PlaybackPositionData,
+} from '@iptvnator/shared/interfaces';
 import type { ActivityAddress } from '@iptvnator/shared/interfaces/activity-sync';
 import { activityIdentityKey } from './activity-projection';
 
@@ -7,6 +10,10 @@ export class ActivitySupersededError extends Error {}
 /** Explicit actions supersede older launches, including their failure fallback. */
 export class ActivityActionFence {
     private readonly current = new Map<string, object>();
+    private readonly pendingCheckpoints = new Map<
+        string,
+        { capturedAt: number }
+    >();
 
     position(
         sourceId: string,
@@ -25,20 +32,51 @@ export class ActivityActionFence {
             keys.every((key, index) => this.current.get(key) === tokens[index]);
     }
 
-    /** Background reports order within their session without claiming explicit-action ownership. */
-    checkpoint(
+    savePosition<T>(
         sourceId: string,
-        position: Partial<PlaybackPositionData>
-    ): () => boolean {
+        position: PlaybackPositionData,
+        write: (playedAt: string, current: () => boolean) => Promise<T>
+    ): Promise<T> {
+        const playedAt =
+            (position.activitySessionId && position.nativeCheckpointAt) ||
+            new Date().toISOString();
+        if (!position.activitySessionId)
+            return write(playedAt, this.position(sourceId, position));
+        return this.checkpoint(
+            sourceId,
+            position,
+            playbackTimestamp(playedAt),
+            (current) => write(playedAt, current)
+        );
+    }
+
+    /** Background reports order within their session without claiming explicit-action ownership. */
+    private async checkpoint<T>(
+        sourceId: string,
+        position: PlaybackPositionData,
+        capturedAt: number,
+        write: (current: () => boolean) => Promise<T>
+    ): Promise<T> {
+        const key = JSON.stringify([sourceId, position.activitySessionId]);
+        const pending = this.pendingCheckpoints.get(key);
+        if (
+            position.nativeCheckpointAt &&
+            pending &&
+            pending.capturedAt > capturedAt
+        ) {
+            throw new ActivitySupersededError(
+                'A newer playback checkpoint is still pending'
+            );
+        }
         const currentAction = this.watch(sourceId, position);
-        const latest = this.advance([
-            JSON.stringify([
-                'checkpoint',
-                sourceId,
-                position.activitySessionId,
-            ]),
-        ]);
-        return () => currentAction() && latest();
+        const checkpoint = { capturedAt };
+        this.pendingCheckpoints.set(key, checkpoint);
+        const latest = () => this.pendingCheckpoints.get(key) === checkpoint;
+        try {
+            return await write(() => currentAction() && latest());
+        } finally {
+            if (latest()) this.pendingCheckpoints.delete(key);
+        }
     }
 
     private keys(

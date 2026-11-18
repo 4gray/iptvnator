@@ -27,6 +27,7 @@ import { WEB_PLAYER_SHARED_CONTROLS } from '../player-controls';
 import {
     StubArtPlayerComponent,
     StubEmbeddedMpvPlayerComponent,
+    StubSecondStreamComponent,
     StubFullscreenChannelPanelComponent,
     StubHtmlVideoPlayerComponent,
     StubVjsPlayerComponent,
@@ -90,6 +91,7 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
                     imports: [
                         StubArtPlayerComponent,
                         StubEmbeddedMpvPlayerComponent,
+                        StubSecondStreamComponent,
                         StubFullscreenChannelPanelComponent,
                         StubHtmlVideoPlayerComponent,
                         StubVjsPlayerComponent,

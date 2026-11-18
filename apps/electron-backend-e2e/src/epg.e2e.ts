@@ -1144,7 +1144,7 @@ test.describe('Electron EPG', () => {
             await channelItem.locator('.favorite-button').first().click();
             await expect(
                 channelItem.locator('.favorite-button mat-icon').first()
-            ).toHaveText(/star/);
+            ).toHaveText('favorite');
 
             await goToDashboard(app.mainWindow);
             const card = app.mainWindow

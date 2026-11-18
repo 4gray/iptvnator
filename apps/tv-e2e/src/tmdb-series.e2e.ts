@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { fillTvField, addSource, nav, start } from './helpers';
+import {
+    fillTvField,
+    addSource,
+    nav,
+    start,
+    backFromPlayback,
+} from './helpers';
 
 const svg =
     '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="170"><rect width="300" height="170" fill="#275947"/></svg>';
@@ -134,12 +140,11 @@ test('@tmdb credits and season stills/descriptions preserve episode playback and
         page.getByRole('button', { name: 'Retry episode metadata' })
     ).toBeVisible();
     await expect(page.locator('.episode').first()).toBeVisible();
-    expect(
-        await page
-            .locator('.episode')
-            .first()
-            .evaluate((el) => el.getBoundingClientRect().height)
-    ).toBe(260);
+    // Episode cards keep one size whether or not a still arrives.
+    const cardHeight = await page
+        .locator('.episode')
+        .first()
+        .evaluate((el) => el.getBoundingClientRect().height);
     failSeason = false;
     await page.getByRole('button', { name: 'Retry episode metadata' }).click();
     await expect(page.locator('.episode-description').first()).toHaveText(
@@ -155,13 +160,13 @@ test('@tmdb credits and season stills/descriptions preserve episode playback and
             .locator('.episode')
             .first()
             .evaluate((el) => el.getBoundingClientRect().height)
-    ).toBe(480);
+    ).toBe(cardHeight);
     expect(
         await page
             .locator('.episode')
             .nth(1)
             .evaluate((el) => el.getBoundingClientRect().height)
-    ).toBe(260);
+    ).toBe(cardHeight);
     expect(
         await page
             .locator('.episode-still')
@@ -197,7 +202,7 @@ test('@tmdb credits and season stills/descriptions preserve episode playback and
         )
         .toBe(true);
     await page.getByRole('button', { name: 'Pause', exact: false }).click();
-    await page.keyboard.press('Escape');
+    await backFromPlayback(page);
     await nav(page, 'Home');
     await expect(page.locator('.hero h1')).toHaveText(seriesTitle);
     await expect(page.locator('.hero-position')).toContainText(title);

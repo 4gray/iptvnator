@@ -6,11 +6,13 @@ import { episodeCode, mediaTitle } from '@iptvnator/tv/util';
 import type { TvModel } from './use-tv';
 import type { useLiveOverlay } from './live-overlay';
 import type { useSeriesDetails } from './use-series-details';
+import { UpNextCard, useUpNext } from './up-next-card';
+import type { usePlayerControls } from './player-controls';
 
 export function NativePlayerView({
     tv,
     video,
-    controlsVisible,
+    controls,
     overlay,
     seriesDetails,
     back,
@@ -20,7 +22,7 @@ export function NativePlayerView({
 }: {
     tv: TvModel;
     video: RefObject<HTMLVideoElement>;
-    controlsVisible: boolean;
+    controls: ReturnType<typeof usePlayerControls>;
     overlay: ReturnType<typeof useLiveOverlay>;
     seriesDetails: ReturnType<typeof useSeriesDetails>;
     back: () => void;
@@ -30,6 +32,14 @@ export function NativePlayerView({
 }) {
     const current = tv.playing;
     const element = video.current;
+    const upNext = useUpNext(
+        tv,
+        video,
+        vod,
+        !!overlay.panel,
+        controls.reveal,
+        seriesDetails.busy
+    );
     useLayoutEffect(() => {
         if (!element?.ended || !vod.next || !tv.fullscreen) return;
         let owns = true;
@@ -45,15 +55,40 @@ export function NativePlayerView({
         Number.isFinite(seconds)
             ? `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`
             : 'LIVE';
+    // Same action as the Play/Pause button: an ended title starts over.
+    const togglePlayback = () =>
+        element?.ended && current && current.kind !== 'live'
+            ? tv.startOver(current)
+            : tv.player.current?.toggle();
+    // The visible controls layer sits over the video and receives bare picture clicks.
+    const clickPicture = (event: MouseEvent) => {
+        if (
+            !tv.fullscreen ||
+            overlay.panel ||
+            !(event.target as Element | null)?.matches?.(
+                'video, .player-controls'
+            )
+        )
+            return;
+        togglePlayback();
+    };
     return (
         <div
             class={`native-player ${tv.fullscreen ? 'fullscreen' : 'preview'}`}
             hidden={!current}
+            onClick={clickPicture}
         >
             <video ref={video} playsInline preload="metadata" />
+            {tv.fullscreen && upNext.card ? (
+                <UpNextCard
+                    card={upNext.card}
+                    collapsed={upNext.collapsed}
+                    play={upNext.play}
+                />
+            ) : null}
             {tv.fullscreen ? (
                 <div
-                    class={`player-controls ${controlsVisible || tv.error ? '' : 'dormant'}`}
+                    class={`player-controls ${controls.visible || tv.error ? '' : 'dormant'}`}
                     hidden={!!overlay.panel}
                 >
                     <div class="player-top">
@@ -113,7 +148,9 @@ export function NativePlayerView({
                             <p role="status">
                                 Episode finished.{' '}
                                 {vod.next
-                                    ? 'Choose Next episode to continue.'
+                                    ? vod.activating
+                                        ? 'Playing the next episode…'
+                                        : 'Choose Next episode to continue.'
                                     : vod.busy
                                       ? 'Finding the next episode…'
                                       : vod.failed
@@ -132,7 +169,7 @@ export function NativePlayerView({
                                     class={element?.ended ? 'primary' : ''}
                                     data-focus="player-next"
                                     disabled={vod.activating}
-                                    onClick={vod.playNext}
+                                    onClick={() => void vod.playNext()}
                                 >
                                     Next episode · {episodeCode(vod.next)} →
                                 </button>
@@ -140,13 +177,7 @@ export function NativePlayerView({
                             <button
                                 data-focus="player-toggle"
                                 class="primary"
-                                onClick={() =>
-                                    element?.ended &&
-                                    current &&
-                                    current.kind !== 'live'
-                                        ? tv.startOver(current)
-                                        : tv.player.current?.toggle()
-                                }
+                                onClick={togglePlayback}
                             >
                                 {element?.ended && current?.kind !== 'live'
                                     ? 'Watch again ▶'
@@ -198,6 +229,7 @@ export function NativePlayerView({
                                 </button>
                             ) : null}
                             <button
+                                class="tv-toggle"
                                 aria-pressed={tv.data.favorites.some(
                                     (item) => item.id === current?.id
                                 )}

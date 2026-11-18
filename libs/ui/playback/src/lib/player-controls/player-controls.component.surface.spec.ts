@@ -35,6 +35,7 @@ function createFakeController() {
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),
         togglePictureInPicture: jest.fn(),
+        jumpToLiveEdge: jest.fn(),
     };
     const controller: PlayerController = { capabilities, state, commands };
     return { controller, capabilities, state, commands };
@@ -270,6 +271,88 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
             expect(exitFullscreen).toHaveBeenCalledTimes(1);
             expect(requestFullscreen).not.toHaveBeenCalled();
             expect(component.isFullscreen()).toBe(false);
+        });
+
+        it('uses native video fullscreen when the document cannot fullscreen the player', () => {
+            const video = document.createElement('video');
+            let supported = false;
+            let displaying = false;
+            const enter = jest.fn(() => {
+                displaying = true;
+                video.dispatchEvent(new Event('webkitbeginfullscreen'));
+            });
+            const exit = jest.fn(() => {
+                displaying = false;
+                video.dispatchEvent(new Event('webkitendfullscreen'));
+            });
+            Object.defineProperties(video, {
+                webkitSupportsFullscreen: { get: () => supported },
+                webkitDisplayingFullscreen: { get: () => displaying },
+                webkitEnterFullscreen: { value: enter },
+                webkitExitFullscreen: { value: exit },
+            });
+            surface.appendChild(video);
+            const original = Object.getOwnPropertyDescriptor(
+                document,
+                'fullscreenEnabled'
+            );
+            Object.defineProperty(document, 'fullscreenEnabled', {
+                configurable: true,
+                value: false,
+            });
+            try {
+                fixture.componentRef.setInput('fullscreenTarget', surface);
+                fixture.componentRef.setInput(
+                    'nativeFullscreenSurface',
+                    surface
+                );
+                fixture.detectChanges();
+                const host = fixture.nativeElement as HTMLElement;
+                const button = host.querySelector<HTMLButtonElement>(
+                    'button[aria-label="EMBEDDED_MPV.PLAYER.ENTER_FULLSCREEN"]'
+                );
+                expect(button).toHaveProperty('disabled', true);
+
+                supported = true;
+                video.dispatchEvent(new Event('loadedmetadata'));
+                fixture.detectChanges();
+                expect(button).toHaveProperty('disabled', false);
+                button?.click();
+                expect(enter).toHaveBeenCalledTimes(1);
+                expect(requestFullscreen).not.toHaveBeenCalled();
+                expect(component.isFullscreen()).toBe(true);
+
+                displaying = false;
+                video.dispatchEvent(new Event('webkitendfullscreen'));
+                expect(component.isFullscreen()).toBe(false);
+
+                button?.click();
+                fixture.componentRef.setInput('showControls', false);
+                fixture.detectChanges();
+                expect(exit).toHaveBeenCalledTimes(1);
+                expect(exitFullscreen).not.toHaveBeenCalled();
+                expect(component.isFullscreen()).toBe(false);
+
+                fixture.componentRef.setInput('showControls', true);
+                supported = false;
+                video.dispatchEvent(new Event('emptied'));
+                fixture.detectChanges();
+                expect(
+                    host.querySelector(
+                        'button[aria-label="EMBEDDED_MPV.PLAYER.ENTER_FULLSCREEN"]'
+                    )
+                ).toHaveProperty('disabled', true);
+            } finally {
+                if (original) {
+                    Object.defineProperty(
+                        document,
+                        'fullscreenEnabled',
+                        original
+                    );
+                } else {
+                    Reflect.deleteProperty(document, 'fullscreenEnabled');
+                }
+            }
         });
 
         it('puts a host-supplied fullscreen target into fullscreen instead of the surface', async () => {

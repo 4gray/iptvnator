@@ -16,7 +16,9 @@ for (const mode of ['catalog', 'missing', 'direct'] as const) {
         request,
     }) => {
         test.setTimeout(90_000);
-        await request.post(`${MOCK_SERVER}/reset?username=minimal&password=minimal`);
+        await request.post(
+            `${MOCK_SERVER}/reset?username=minimal&password=minimal`
+        );
         const catalogResponse = await request.get(
             `${MOCK_SERVER}/player_api.php?username=minimal&password=minimal&action=get_vod_streams`
         );
@@ -58,7 +60,11 @@ for (const mode of ['catalog', 'missing', 'direct'] as const) {
                         action,
                         payload: {
                             ...details,
-                            info: { ...details.info, name: title },
+                            info: {
+                                ...details.info,
+                                name: title,
+                                youtube_trailer: 'FakeClip_01',
+                            },
                             movie_data: {
                                 ...details.movie_data,
                                 container_extension: null,
@@ -115,10 +121,77 @@ for (const mode of ['catalog', 'missing', 'direct'] as const) {
         await page.waitForURL(/\/vod\/[^/]+\/[^/]+$/);
         await page.reload();
         const primary = page.locator('[data-testid="vod-primary-action"]');
+        const trailer = page.locator('[data-testid="vod-trailer"]');
         const favorite = page.locator('[data-testid="vod-favorite-toggle"]');
         const watched = page.locator('[data-testid="vod-watched-toggle"]');
+        const more = page.locator('[data-testid="vod-more-menu"]');
         await expect(favorite).toBeEnabled();
         await expect(watched).toBeEnabled();
+        await expect(trailer).toHaveText(/Trailer/);
+        if (mode === 'catalog') {
+            const desktop = page.viewportSize();
+            const phone = { width: 375, height: 812 };
+            // Exercise the wider Russian playback label from the phone UI.
+            await page.route('**/assets/i18n/en.json', async (route) => {
+                const response = await route.fetch();
+                const messages = await response.json();
+                messages.XTREAM.PLAY = 'Воспроизвести';
+                await route.fulfill({ response, json: messages });
+            });
+            await page.reload();
+            await expect(primary).toHaveAccessibleName(/^Воспроизвести(?: |$)/);
+            await page.evaluate(() => document.fonts.ready.then(() => null));
+            for (const width of [375, 390, 430]) {
+                await page.setViewportSize({ ...phone, width });
+                await expect(trailer).toHaveAccessibleName('Trailer');
+                await expect(trailer.locator('.play-btn__label')).toBeHidden();
+                const bounds = await page
+                    .locator('app-content-hero .action-buttons button')
+                    .evaluateAll((buttons) =>
+                        buttons.map((button) =>
+                            button.getBoundingClientRect().toJSON()
+                        )
+                    );
+                expect(bounds, `hero controls at ${width}px`).toHaveLength(5);
+                const top = bounds[0].y;
+                expect(
+                    bounds.map(({ x, y, width }) => ({ x, y, width })),
+                    `hero controls at ${width}px`
+                ).toEqual(bounds.map(({ x, width }) => ({ x, y: top, width })));
+                for (const box of bounds) {
+                    expect(box.width).toBeGreaterThanOrEqual(44);
+                    expect(box.height).toBeGreaterThanOrEqual(44);
+                    expect(box.x + box.width).toBeLessThanOrEqual(width);
+                }
+                const label = primary.locator('.play-btn__label');
+                const labelFits = await label.evaluate((element) => {
+                    const button = element.closest('button');
+                    if (!button) return false;
+                    const { left, right } = element.getBoundingClientRect();
+                    const bounds = button.getBoundingClientRect();
+                    return (
+                        left >= bounds.left &&
+                        right <= bounds.right &&
+                        element.scrollWidth <= element.clientWidth
+                    );
+                });
+                expect(labelFits, `playback label at ${width}px`).toBe(true);
+            }
+            const actionRow = page.locator('app-content-hero .action-buttons');
+            await page.setViewportSize(phone);
+            await actionRow.screenshot({
+                animations: 'disabled',
+                path: test.info().outputPath('phone-actions.png'),
+            });
+            await more.click();
+            await expect(
+                page.getByRole('menu', { name: 'More actions' })
+            ).toBeVisible();
+            await page.keyboard.press('Escape');
+            await expect(more).toBeFocused();
+            await page.setViewportSize(desktop ?? { width: 1280, height: 720 });
+            await expect(trailer.locator('.play-btn__label')).toBeVisible();
+        }
         await watched.click();
         await expect(watched).toHaveAttribute('aria-pressed', 'true');
         await favorite.click();
@@ -129,13 +202,10 @@ for (const mode of ['catalog', 'missing', 'direct'] as const) {
                 page.locator('app-portal-detail-shell [role="status"]')
             ).toContainText('the provider did not supply');
             for (const theme of ['light', 'dark']) {
-                await page.evaluate(
-                    (dark) => {
-                        document.body.classList.toggle('dark-theme', dark);
-                        document.body.classList.toggle('light-theme', !dark);
-                    },
-                    theme === 'dark'
-                );
+                await page.evaluate((dark) => {
+                    document.body.classList.toggle('dark-theme', dark);
+                    document.body.classList.toggle('light-theme', !dark);
+                }, theme === 'dark');
                 await page.locator('app-portal-detail-shell').screenshot({
                     path: test.info().outputPath(`unavailable-${theme}.png`),
                 });

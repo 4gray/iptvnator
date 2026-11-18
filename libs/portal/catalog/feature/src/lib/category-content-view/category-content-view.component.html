@@ -59,7 +59,7 @@
                                         | translate: { value: rating }
                                 "
                             >
-                                <mat-icon>star</mat-icon>
+                                <mat-icon>{{ appIcons.rating }}</mat-icon>
                                 <span class="refinement-chip-label">
                                     {{ rating }}.0+
                                 </span>
@@ -198,7 +198,9 @@
                                     class="refine-rating-trigger"
                                     [matMenuTriggerFor]="ratingMenu"
                                 >
-                                    <mat-icon>star_outline</mat-icon>
+                                    <mat-icon>{{
+                                        appIcons.ratingOutline
+                                    }}</mat-icon>
                                     <span>{{
                                         'WORKSPACE.REFINE_RATING_SECTION'
                                             | translate

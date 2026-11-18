@@ -16,6 +16,7 @@ function connect() {
         favoritesLoaded: signal(false),
         continueWatchingSettled: signal(false),
         recentVod: signal<unknown[]>([]),
+        playbackPositions: signal<unknown>(null),
     };
     const trendingLoad = jest.fn(() => Promise.resolve());
     const recommendationsLoad = jest.fn(() => Promise.resolve());
@@ -29,6 +30,7 @@ function connect() {
             globalFavoritesLoaded: () => state.favoritesLoaded(),
             continueWatchingSettled: () => state.continueWatchingSettled(),
             globalRecentVodItems: () => state.recentVod(),
+            playbackPositions$: () => state.playbackPositions(),
             globalFavoriteItems: () => [],
             playlists: () => [],
         },
@@ -84,6 +86,20 @@ describe('connectDashboardTmdbRails', () => {
 
         expect(trendingLoad).not.toHaveBeenCalled();
         expect(recommendationsLoad).not.toHaveBeenCalled();
+    });
+
+    it('reloads recommendations when episode positions arrive after history', () => {
+        const { state, trendingLoad, recommendationsLoad } = connect();
+        state.favoritesLoaded.set(true);
+        state.continueWatchingSettled.set(true);
+        state.recentVod.set([{ id: 1, source: 'xtream', type: 'series' }]);
+        TestBed.tick();
+
+        state.playbackPositions.set(new Map([[501, { seriesXtreamId: 77 }]]));
+        TestBed.tick();
+
+        expect(trendingLoad).toHaveBeenCalledTimes(1);
+        expect(recommendationsLoad).toHaveBeenCalledTimes(2);
     });
 
     it('reloads recommendations when the history changes, trending only once', () => {

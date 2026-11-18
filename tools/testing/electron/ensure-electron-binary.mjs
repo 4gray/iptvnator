@@ -11,7 +11,9 @@
 // the binary while another is still extracting it (ETXTBSY on Linux, clobbered
 // framework symlinks on macOS). Running this first leaves nothing to download.
 //
-// Usage: node tools/testing/electron/ensure-electron-binary.mjs
+// Usage: node tools/testing/electron/ensure-electron-binary.mjs [--download-only]
+// Linux E2E downloads first so ldd can diagnose missing libraries before this
+// script runs the executable for its version check.
 
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -37,6 +39,11 @@ try {
         `Electron ${version} binary download failed: ${error.message}`
     );
     process.exit(1);
+}
+
+if (process.argv.includes('--download-only')) {
+    console.log(`Electron ${version} binary available at ${electronPath}`);
+    process.exit(0);
 }
 
 let reported;

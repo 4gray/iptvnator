@@ -19,6 +19,8 @@ import {
     EpgViewMode,
     Language,
     Theme,
+    ThemeAccent,
+    ThemeMode,
 } from '@iptvnator/shared/interfaces';
 import { SettingsSnackbarService } from './settings-snackbar.service';
 import { SettingsStore } from '../services/settings-store.service';
@@ -29,6 +31,11 @@ import {
     SETTINGS_RESTART_CONTROLS,
 } from './settings-change-tracking';
 import { SettingsLaunchValuesService } from './settings-launch-values.service';
+import {
+    normalizeSavedAppearance,
+    previewSystemThemes,
+    restoreSavedAppearance,
+} from './settings-theme-preview';
 import {
     applyEpgUrlsToFormArray,
     createEpgUrlControl,
@@ -139,6 +146,7 @@ export class SettingsFormFacade {
             ageRatingCountry: normalizeAgeRatingCountry(
                 currentSettings.ageRatingCountry
             ),
+            ...normalizeSavedAppearance(currentSettings),
         });
         this.syncDashboardControlsEnabledState(
             currentSettings.showDashboard ?? true
@@ -183,6 +191,28 @@ export class SettingsFormFacade {
 
         this.patchAndMarkDirty({ theme }, 'theme');
         this.settingsService.changeTheme(theme);
+    }
+
+    /** The preset System shows in one device mode; previews like the theme. */
+    selectSystemTheme(mode: ThemeMode, theme: Theme): void {
+        const control =
+            mode === 'dark' ? 'systemDarkTheme' : 'systemLightTheme';
+        if (this.form.value[control] === theme) {
+            return;
+        }
+
+        this.patchAndMarkDirty({ [control]: theme }, control);
+        previewSystemThemes(this.settingsService, this.form.value);
+    }
+
+    /** Previews immediately like the theme; the write happens on Save. */
+    selectThemeAccent(themeAccent: ThemeAccent | null): void {
+        if ((this.form.value.themeAccent ?? null) === themeAccent) {
+            return;
+        }
+
+        this.patchAndMarkDirty({ themeAccent }, 'themeAccent');
+        void this.settingsService.changeThemeAccent(themeAccent);
     }
 
     /**
@@ -328,12 +358,11 @@ export class SettingsFormFacade {
         void this.dateLocales.use(
             this.savedSnapshot.language ?? Language.ENGLISH
         );
-        // Theme selections preview immediately; an older save must not undo one.
-        if (this.form.value.theme === this.savedSnapshot.theme) {
-            this.settingsService.changeTheme(
-                this.savedSnapshot.theme ?? Theme.SystemTheme
-            );
-        }
+        restoreSavedAppearance(
+            this.settingsService,
+            this.form.value,
+            this.savedSnapshot
+        );
     }
 
     /**

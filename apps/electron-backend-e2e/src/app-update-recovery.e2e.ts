@@ -93,6 +93,7 @@ test('keeps an unseen native close guarded until install IPC arrives @electron @
         await openSettings(app.mainWindow);
         await openSettingsSection(app.mainWindow, 'appearance');
         await app.mainWindow
+            .getByTestId('select-theme')
             .getByRole('radio', { name: 'Dark', exact: true })
             .click();
         await installUpdateFixture(app, 'downloaded', true);
@@ -155,6 +156,7 @@ for (const entry of ['panel', 'about'] as const) {
             await openSettings(page);
             await openSettingsSection(page, 'appearance');
             await page
+                .getByTestId('select-theme')
                 .getByRole('radio', { name: 'Dark', exact: true })
                 .click();
             await expect(page.getByTestId('save-settings')).toBeVisible();
@@ -213,7 +215,9 @@ for (const entry of ['panel', 'about'] as const) {
             await openSettings(app.mainWindow);
             await openSettingsSection(app.mainWindow, 'appearance');
             await expect(
-                app.mainWindow.getByRole('radio', { name: 'Dark', exact: true })
+                app.mainWindow
+                    .getByTestId('select-theme')
+                    .getByRole('radio', { name: 'Dark', exact: true })
             ).toBeChecked();
         } finally {
             await closeElectronApp(app);

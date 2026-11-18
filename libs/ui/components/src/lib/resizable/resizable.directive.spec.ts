@@ -12,6 +12,8 @@ import { ResizableDirective } from './resizable.directive';
             [defaultWidth]="defaultWidth"
             [storageKey]="storageKey"
             [handlePosition]="handlePosition"
+            (resizeEnd)="ended.push($event)"
+            (resizeCancel)="cancelled.push($event)"
         ></aside>
     `,
 })
@@ -21,6 +23,8 @@ class Host {
     defaultWidth = 300;
     storageKey = 'sidebar-width';
     handlePosition: 'right' | 'left' = 'right';
+    ended: number[] = [];
+    cancelled: number[] = [];
 }
 
 /** A content-box element's border box: its width plus padding and border. */
@@ -37,6 +41,10 @@ function borderBoxWidth(el: HTMLElement): number {
 
 describe('ResizableDirective', () => {
     const fixtures: ComponentFixture<Host>[] = [];
+
+    function lastHost(): Host {
+        return fixtures[fixtures.length - 1].componentInstance;
+    }
 
     function render(host: Partial<Host> = {}): HTMLElement {
         const fixture = TestBed.createComponent(Host);
@@ -188,6 +196,69 @@ describe('ResizableDirective', () => {
 
         expect(settings.style.width).toBe('400px');
         expect(localStorage.getItem('sidebar-width')).toBe('520');
+    });
+
+    /** A responsive CSS `max-width` narrower than the directive's `maxWidth`. */
+    function capRenderedWidth(cap: number): void {
+        jest.spyOn(window, 'getComputedStyle').mockImplementation(
+            (element: Element) =>
+                ({
+                    width: `${Math.min(
+                        parseFloat((element as HTMLElement).style.width),
+                        cap
+                    )}px`,
+                }) as CSSStyleDeclaration
+        );
+    }
+
+    it('keeps the saved width when a CSS cap stops an outward drag (UI-67)', () => {
+        localStorage.setItem('sidebar-width', '400');
+        const aside = render();
+        capRenderedWidth(324);
+
+        drag(aside, 100, 120);
+
+        expect(localStorage.getItem('sidebar-width')).toBe('400');
+        expect(aside.style.width).toBe('400px');
+        expect(lastHost().cancelled).toEqual([400]);
+        expect(lastHost().ended).toEqual([]);
+    });
+
+    it('saves no more than a CSS cap shows after a drag that moved the edge', () => {
+        localStorage.setItem('sidebar-width', '300');
+        const aside = render();
+        capRenderedWidth(324);
+
+        drag(aside, 100, 150);
+
+        expect(aside.style.width).toBe('324px');
+        expect(localStorage.getItem('sidebar-width')).toBe('324');
+        expect(lastHost().ended).toEqual([324]);
+        expect(lastHost().cancelled).toEqual([]);
+    });
+
+    it('keeps a width the host set itself when the handle is only clicked', () => {
+        localStorage.setItem('sidebar-width', '400');
+        const aside = render();
+        // The host's own [style.width.px] binding, outside the directive.
+        aside.style.width = '520px';
+
+        drag(aside, 100, 100);
+
+        expect(aside.style.width).toBe('520px');
+        expect(lastHost().cancelled).toEqual([520]);
+        expect(localStorage.getItem('sidebar-width')).toBe('400');
+    });
+
+    it('saves an inward drag below a CSS cap', () => {
+        localStorage.setItem('sidebar-width', '400');
+        const aside = render();
+        capRenderedWidth(324);
+
+        drag(aside, 100, 60);
+
+        expect(aside.style.width).toBe('284px');
+        expect(localStorage.getItem('sidebar-width')).toBe('284');
     });
 
     it('falls back to the default without writing an unparseable width', () => {

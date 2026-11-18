@@ -74,4 +74,17 @@ describe('runtime config helpers', () => {
             )
         ).toBe(false);
     });
+
+    it('disables service workers for the bundled TV Shell on loopback', () => {
+        document.documentElement.classList.add('tv-shell');
+        try {
+            expect(
+                shouldEnableServiceWorker(true, {
+                    serviceWorker: {},
+                } as Navigator)
+            ).toBe(false);
+        } finally {
+            document.documentElement.classList.remove('tv-shell');
+        }
+    });
 });

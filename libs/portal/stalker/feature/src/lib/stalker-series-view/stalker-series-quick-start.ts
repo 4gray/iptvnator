@@ -1,8 +1,11 @@
 import {
     SERIES_QUICK_START_ACTION_KIND,
+    compareSeriesSeasonKeys,
     formatSeriesEpisodeCode,
-    getSeriesQuickStartAction,
+    getSeriesNextUp,
     isExtrasSeason,
+    toSeriesQuickStartAction,
+    type SeriesNextUp,
     type SeriesQuickStartAction,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -33,23 +36,20 @@ interface StalkerQuickStartRequest {
     vodSeriesSeasons: ReadonlyArray<VodSeriesSeasonVm>;
 }
 
-const naturalCollator = new Intl.Collator(undefined, {
-    numeric: true,
-    sensitivity: 'base',
-});
-
 export function getStalkerSeriesQuickStartButton(
     request: StalkerQuickStartRequest
 ): StalkerQuickStartButton | null {
-    const action = getSeriesQuickStartAction({
+    const nextUp = getSeriesNextUp({
         seasons: request.mappedSeasons,
         playbackPositions: request.playbackPositions,
     });
+    const action = toSeriesQuickStartAction(nextUp);
     const orderedVodSeriesSeasons = getOrderedVodSeriesSeasons(
         request.vodSeriesSeasons
     );
     const lazySeason = request.isVodSeries
         ? getQuickStartLazyVodSeriesSeason(
+              nextUp,
               action,
               request.mappedSeasons,
               orderedVodSeriesSeasons
@@ -89,7 +89,7 @@ function getOrderedVodSeriesSeasons(
     seasons: ReadonlyArray<VodSeriesSeasonVm>
 ): VodSeriesSeasonVm[] {
     return [...seasons].sort((seasonA, seasonB) =>
-        naturalCollator.compare(
+        compareSeriesSeasonKeys(
             getVodSeriesSeasonKey(seasonA),
             getVodSeriesSeasonKey(seasonB)
         )
@@ -97,6 +97,7 @@ function getOrderedVodSeriesSeasons(
 }
 
 function getQuickStartLazyVodSeriesSeason(
+    nextUp: SeriesNextUp | null,
     action: SeriesQuickStartAction | null,
     mappedSeasons: Record<string, XtreamSerieEpisode[]>,
     seasons: ReadonlyArray<VodSeriesSeasonVm>
@@ -105,7 +106,7 @@ function getQuickStartLazyVodSeriesSeason(
         seasons,
         mappedSeasons
     );
-    if (!action) {
+    if (!nextUp || !action) {
         return firstUnloadedSeason;
     }
     if (!firstUnloadedSeason) {
@@ -128,12 +129,43 @@ function getQuickStartLazyVodSeriesSeason(
         return firstUnloadedSeason;
     }
 
-    if (action.kind === SERIES_QUICK_START_ACTION_KIND.Resume) {
+    const lastWatched =
+        nextUp.kind === 'next' || nextUp.kind === 'caught-up'
+            ? nextUp.lastWatched
+            : null;
+    const lastWatchedSeasonIndex = lastWatched
+        ? findVodSeriesSeasonIndexForEpisode(
+              lastWatched.episode,
+              seasons,
+              mappedSeasons
+          )
+        : -1;
+
+    if (nextUp.kind === 'caught-up' && lastWatchedSeasonIndex !== -1) {
+        const following = getFirstUnloadedVodSeriesSeason(
+            seasons.slice(lastWatchedSeasonIndex + 1),
+            mappedSeasons
+        );
+        if (following) return following;
+    }
+    if (action.kind === SERIES_QUICK_START_ACTION_KIND.Completed) {
+        return firstUnloadedSeason;
+    }
+    if (
+        action.kind === SERIES_QUICK_START_ACTION_KIND.Resume ||
+        action.kind === SERIES_QUICK_START_ACTION_KIND.PlayRecent
+    ) {
         return null;
     }
 
-    if (action.kind === SERIES_QUICK_START_ACTION_KIND.Completed) {
-        return firstUnloadedSeason;
+    if (
+        lastWatchedSeasonIndex !== -1 &&
+        actionSeasonIndex >= lastWatchedSeasonIndex
+    ) {
+        return getFirstUnloadedVodSeriesSeason(
+            seasons.slice(lastWatchedSeasonIndex + 1, actionSeasonIndex),
+            mappedSeasons
+        );
     }
 
     const unloadedSeasonIndex = seasons.findIndex(

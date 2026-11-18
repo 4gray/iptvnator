@@ -26,6 +26,7 @@ import {
     parseEpgDateKey,
     shiftEpgDateKey,
 } from '../epg-date';
+import { epgTodayKey, followEpgTodayRollover } from '../epg-today';
 import { EpgItemDialogAction } from '../epg-item-description/epg-item-description.component';
 import type { EpgProgramActivationEvent } from '../epg-program-activation-event';
 import { EpgProgrammeDialogService } from '../epg-programme-dialog.service';
@@ -78,10 +79,9 @@ export class EpgListViewComponent {
     readonly programs = input<EpgProgram[]>([]);
     readonly channelName = input('');
     readonly channelLogo = input('');
-    /** Same input as the timeline's, but a list-appropriate default: hosts
-     * that don't pass a label (M3U, unified tab) would otherwise show the
-     * timeline's literal "Timeline" while in list mode. */
-    readonly sourceLabel = input('Programme guide');
+    /** Same input as the timeline's. Empty shows the translated
+     * "Programme guide", for hosts that pass no label (M3U, unified tab). */
+    readonly sourceLabel = input('');
     readonly archivePlaybackAvailable = input(false);
     /** Source/channel identity captured by programme details, independent of playback. */
     readonly archiveDownloadAvailable = input(false);
@@ -150,8 +150,9 @@ export class EpgListViewComponent {
     });
 
     readonly viewDate = computed(() => parseEpgDateKey(this.viewDayKey()));
+    private readonly todayKey = epgTodayKey(this.nowMs);
     readonly isViewToday = computed(
-        () => this.viewDayKey() === getTodayEpgDateKey()
+        () => this.viewDayKey() === this.todayKey()
     );
 
     readonly renderState = computed<RenderState>(() => {
@@ -224,6 +225,15 @@ export class EpgListViewComponent {
     });
 
     constructor() {
+        followEpgTodayRollover(
+            this.todayKey,
+            () => this.viewDayKey(),
+            (dayKey) => {
+                this.commitDay(dayKey);
+                this.scroll.resetListScroll();
+                this.scroll.focusNowAfterRender();
+            }
+        );
         registerEpgListViewEffects({
             nowMs: this.nowMs,
             list: () => this.list()?.nativeElement,

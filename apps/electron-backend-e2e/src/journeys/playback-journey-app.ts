@@ -51,6 +51,7 @@ export const PLAYBACK_JOURNEY_MAIN_IPC_STATE_KEY =
     '__iptvnatorJourneyPlaybackMainIpcCapture';
 export const PLAYBACK_JOURNEY_PORTAL_NAME = 'Journey live portal';
 const ERROR_PREFIX = 'playback-journey';
+const LIVE_FALLBACK_CATEGORY_ID = 101;
 
 /** Seeds J2's profile with the local-media portal and the HTML5 player. */
 export const PLAYBACK_JOURNEY_SEED: LaunchJourneySeedOptions = {
@@ -77,9 +78,14 @@ async function openLiveCategory(page: Page, timeoutMs: number): Promise<void> {
     await page
         .getByRole('link', { name: 'Live TV', exact: true })
         .click({ timeout: timeoutMs });
+    await page.waitForURL(/\/workspace\/xtreams\/[^/]+\/live(?:[?#]|$)/, {
+        timeout: timeoutMs,
+    });
+    // The shared sidebar can still show VOD categories while Live TV loads.
     await page
-        .locator('app-workspace-context-panel .category-item')
-        .first()
+        .locator(
+            `app-workspace-context-panel .category-item[data-category-id="${LIVE_FALLBACK_CATEGORY_ID}"]`
+        )
         .click({ timeout: timeoutMs });
 }
 

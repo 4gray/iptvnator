@@ -14,6 +14,7 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import { MockStore } from '@ngrx/store/testing';
+import { AppConfig } from '../../environments/environment';
 import { SettingsComponent } from './settings.component';
 import {
     configureSettingsComponentTestBed,
@@ -150,7 +151,47 @@ describe('SettingsComponent', () => {
         expect(nativeElement.querySelector('.settings-intro')).toBeNull();
     });
 
+    it('skips the GitHub version comparison in the production PWA', async () => {
+        fixture.destroy();
+        const production = AppConfig.production;
+        AppConfig.production = true;
+        Object.defineProperty(navigator, 'serviceWorker', {
+            configurable: true,
+            value: {},
+        });
+        Reflect.deleteProperty(window, 'electron');
+        try {
+            fixture = TestBed.createComponent(SettingsComponent);
+            const pwa = fixture.componentInstance;
+            stubSettingsSideEffects(pwa);
+            await pwa.ngOnInit();
+            expect(pwa.appUpdate.checkAppVersion).not.toHaveBeenCalled();
+        } finally {
+            AppConfig.production = production;
+            Reflect.deleteProperty(navigator, 'serviceWorker');
+        }
+    });
+
     describe('Section pages', () => {
+        it('opens Android settings only when the shell bridge is available', () => {
+            const selector = '[data-test-id="open-android-shell-settings"]';
+            expect(fixture.nativeElement.querySelector(selector)).toBeNull();
+            const postMessage = jest.fn();
+            const shellWindow = Object.assign(window, {
+                TvShell: { postMessage },
+            });
+            fixture.destroy();
+            try {
+                fixture = TestBed.createComponent(SettingsComponent);
+                stubSettingsSideEffects(fixture.componentInstance);
+                fixture.detectChanges();
+                fixture.nativeElement.querySelector(selector).click();
+                expect(postMessage).toHaveBeenCalledWith('["openSettings"]');
+            } finally {
+                Reflect.deleteProperty(shellWindow, 'TvShell');
+            }
+        });
+
         it('renders only the section named by the route param', () => {
             const nativeElement = fixture.nativeElement as HTMLElement;
 
