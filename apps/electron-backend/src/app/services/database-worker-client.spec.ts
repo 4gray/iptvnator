@@ -548,4 +548,163 @@ describe('DatabaseWorkerClient', () => {
             message: expect.stringContaining('database.worker.js'),
         });
     });
+
+    describe('drainAndShutdown', () => {
+        function createDrainingClient(
+            drainMs = 1000,
+            closeMs = 1000
+        ): DatabaseWorkerClientType {
+            const client = new DatabaseWorkerClient({ drainMs, closeMs });
+            clients.push(client);
+            return client;
+        }
+
+        /** The real worker exits after closing SQLite on `close`. */
+        function exitOnClose(worker: any): void {
+            worker.postMessage.mockImplementation((message: any) => {
+                if (message.type === 'close') {
+                    setImmediate(() => worker.emit('exit', 0));
+                }
+            });
+        }
+
+        function respond(worker: any, index: number, result: unknown): void {
+            const message = worker.postMessage.mock.calls[index][0];
+            worker.emit('message', {
+                type: 'response',
+                requestId: message.requestId,
+                success: true,
+                result,
+            });
+        }
+
+        function postedTypes(worker: any): string[] {
+            return worker.postMessage.mock.calls.map(
+                ([message]: [{ type: string }]) => message.type
+            );
+        }
+
+        it('waits for an accepted write before closing and terminating the worker', async () => {
+            const client = createDrainingClient();
+            const write = client.request('DB_SAVE_PLAYBACK_POSITION', {});
+            const worker = mockWorkerInstances[0];
+            exitOnClose(worker);
+            worker.emit('message', { type: 'ready' });
+            await flushPromises();
+
+            let closed = false;
+            const shutdown = client
+                .drainAndShutdown()
+                .then(() => (closed = true));
+            await flushPromises();
+
+            expect(closed).toBe(false);
+            expect(postedTypes(worker)).toEqual(['request']);
+            expect(worker.terminate).not.toHaveBeenCalled();
+
+            respond(worker, 0, { success: true });
+            await shutdown;
+
+            await expect(write).resolves.toEqual({ success: true });
+            expect(postedTypes(worker)).toEqual(['request', 'close']);
+            expect(worker.terminate).toHaveBeenCalledTimes(1);
+        });
+
+        it('counts a write still waiting for the worker to become ready', async () => {
+            const client = createDrainingClient();
+            const write = client.request('DB_SAVE_PLAYBACK_POSITION', {});
+            const worker = mockWorkerInstances[0];
+            exitOnClose(worker);
+            const shutdown = client.drainAndShutdown();
+
+            worker.emit('message', { type: 'ready' });
+            await flushPromises();
+            respond(worker, 0, { success: true });
+            await shutdown;
+
+            await expect(write).resolves.toEqual({ success: true });
+            expect(postedTypes(worker)).toEqual(['request', 'close']);
+        });
+
+        it('also drains a write the renderer sends while the drain runs', async () => {
+            const client = createDrainingClient();
+            const first = client.request(
+                'DB_SAVE_PLAYBACK_POSITIONS_BATCH',
+                {}
+            );
+            const worker = mockWorkerInstances[0];
+            exitOnClose(worker);
+            worker.emit('message', { type: 'ready' });
+            await flushPromises();
+            const shutdown = client.drainAndShutdown();
+
+            const pageHideFlush = client.request(
+                'DB_SAVE_PLAYBACK_POSITION',
+                {}
+            );
+            await flushPromises();
+            respond(worker, 0, { success: true });
+            await flushPromises();
+
+            expect(postedTypes(worker)).toEqual(['request', 'request']);
+            respond(worker, 1, { success: true });
+            await shutdown;
+
+            await expect(first).resolves.toEqual({ success: true });
+            await expect(pageHideFlush).resolves.toEqual({ success: true });
+            expect(postedTypes(worker)).toEqual([
+                'request',
+                'request',
+                'close',
+            ]);
+            expect(mockWorkerInstances).toHaveLength(1);
+        });
+
+        it('gives up on a stuck request and a worker that never exits', async () => {
+            const client = createDrainingClient(20, 20);
+            const stuck = client.request('DB_SAVE_CONTENT', {});
+            const stuckResult = expect(stuck).rejects.toThrow(
+                'Database worker shut down'
+            );
+            const worker = mockWorkerInstances[0];
+            worker.emit('message', { type: 'ready' });
+            await flushPromises();
+
+            await client.drainAndShutdown();
+
+            await stuckResult;
+            expect(postedTypes(worker)).toEqual(['request', 'close']);
+            expect(worker.terminate).toHaveBeenCalledTimes(1);
+        });
+
+        it('rejects later requests instead of starting a new worker', async () => {
+            const client = createDrainingClient();
+            void client.request('DB_GLOBAL_SEARCH', {}).catch(() => undefined);
+            const worker = mockWorkerInstances[0];
+            exitOnClose(worker);
+            worker.emit('message', { type: 'ready' });
+            await flushPromises();
+            respond(worker, 0, []);
+
+            const shutdown = client.drainAndShutdown();
+            expect(client.drainAndShutdown()).toBe(shutdown);
+            await shutdown;
+
+            await expect(
+                client.request('DB_SAVE_PLAYBACK_POSITION', {})
+            ).rejects.toThrow('Database worker shut down');
+            await expect(client.setParentalLockState(true)).rejects.toThrow(
+                'Database worker shut down'
+            );
+            expect(mockWorkerInstances).toHaveLength(1);
+        });
+
+        it('resolves at once when no worker was ever started', async () => {
+            const client = createDrainingClient();
+
+            await client.drainAndShutdown();
+
+            expect(mockWorkerInstances).toHaveLength(0);
+        });
+    });
 });

@@ -96,7 +96,7 @@ export function bootstrapDeferredEvents(
     registerConnectivityGuardHandlers();
     registerSourceSyncEvents(async () => {
         await stopHostedServerForRestart();
-        shutdownDeferredServices();
+        await shutdownDeferredServices();
     });
     DatabaseEvents.bootstrapDatabaseEvents();
     EpgEvents.bootstrapEpgEvents();
@@ -113,13 +113,17 @@ export function bootstrapDeferredEvents(
 
 export { finishStartupAfterFirstLoad };
 
-/** Tears down sessions and the DB worker; safe when nothing was started. */
-export function shutdownDeferredServices(): void {
+/**
+ * Tears down sessions and the DB worker; safe when nothing was started.
+ * Resolves once the worker drained the writes it accepted and closed SQLite,
+ * within the worker client's bounded budgets; never rejects.
+ */
+export function shutdownDeferredServices(): Promise<void> {
     shutdownEmbeddedMpv();
     shutdownMpvSession();
     shutdownVlcSession();
     disposePrivatePlayerIpcEndpoints();
-    void databaseWorkerClient.shutdown();
+    return databaseWorkerClient.drainAndShutdown();
 }
 
 /** The module shape main.ts receives from its dynamic import. */
