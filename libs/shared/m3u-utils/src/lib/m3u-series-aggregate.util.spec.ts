@@ -195,6 +195,21 @@ describe('buildM3uSeriesCatalog', () => {
         expect(new Set(episodes.map((episode) => episode.id)).size).toBe(2);
     });
 
+    it('keeps each file its id when the provider reverses two rows at one coordinate', () => {
+        const ids = (names: string[]) =>
+            new Map(
+                (
+                    buildM3uSeriesCatalog(
+                        names.map((name) => row(name)),
+                        'pl-1'
+                    )[0].seasons.get(1) ?? []
+                ).map((episode) => [episode.channel.name, episode.id])
+            );
+        const parts = ['SHOW S1 E1 Part 1', 'SHOW S1 E1 Part 2'];
+
+        expect(ids([...parts].reverse())).toEqual(ids(parts));
+    });
+
     it('keeps the id of the first row when a second one joins its coordinate', () => {
         const alone = buildM3uSeriesCatalog([row('SHOW S1 E1')], 'pl-1');
         const joined = buildM3uSeriesCatalog(

@@ -70,6 +70,43 @@ describe('m3uPlaybackKey', () => {
 });
 
 describe('placeNumberedEpisode', () => {
+    const coordinateHolder = (files: string[]) => {
+        const season = new Map<number, M3uSeriesEpisode<Row>>();
+        for (const file of files) {
+            placeNumberedEpisode(season, episode(row(file), 1));
+        }
+        return [...season.entries()]
+            .sort(([a], [b]) => a - b)
+            .map(([key, held]) => [
+                key,
+                held.channel.name,
+                held.rowKey ?? null,
+            ]);
+    };
+
+    it('keeps the coordinate on the same file whatever the row order', () => {
+        // A refresh that reverses two parts must not hand one part's
+        // watched mark and resume point to the other.
+        const inOrder = coordinateHolder(['part-1.mp4', 'part-2.mp4']);
+        const reversed = coordinateHolder(['part-2.mp4', 'part-1.mp4']);
+
+        expect(reversed).toEqual(inOrder);
+        expect(inOrder).toEqual([
+            [1, 'part-1.mp4', null],
+            [1.001, 'part-2.mp4', 'part-2.mp4'],
+        ]);
+    });
+
+    it('parks the same row twice under the holder after a swap', () => {
+        const season = new Map<number, M3uSeriesEpisode<Row>>();
+        placeNumberedEpisode(season, episode(row('part-2.mp4'), 1));
+        placeNumberedEpisode(season, episode(row('part-1.mp4'), 1));
+        placeNumberedEpisode(season, episode(row('part-2.mp4'), 1));
+
+        expect(season.size).toBe(2);
+        expect(season.get(1.001)?.alternatives).toHaveLength(1);
+    });
+
     it('takes the coordinate from an unnumbered row sitting in it', () => {
         // The unnumbered row's number was only its place in the list; a row
         // that states the coordinate holds it, and the other is listed next.

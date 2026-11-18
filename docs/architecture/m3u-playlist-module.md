@@ -2194,11 +2194,15 @@ coordinate holds dozens of rows.
   hashes the series key once (`createM3uIdHasher`) and continues it per
   episode.
 - No episode row with its own URL is hidden behind another
-  (`m3u-series-placement.util.ts`). The first row at a season×episode
-  holds the coordinate and the id derived from it; a later row there with
-  another URL (a second quality, a "Part 2", a trailer, a show whose title
-  merely normalizes the same) is listed beside it under the same number
-  with a `rowKey` id. `alternatives` holds only the same stream listed again
+  (`m3u-series-placement.util.ts`). One row at a season×episode holds the
+  coordinate and the id derived from it, chosen independently of row order
+  (`holdsCoordinateBefore`: the shorter name, then the smaller playback
+  key), so a refresh that reorders "Part 1" and "Part 2" leaves each its
+  watched mark and resume point, and a variant added later ("… FHD")
+  normally leaves the episode its id. The other rows there with another URL
+  (a second quality, a "Part 2", a trailer, a show whose title merely
+  normalizes the same) are listed beside it under the same number with a
+  `rowKey` id. `alternatives` holds only the same stream listed again
   (same URL, request headers and DRM; `m3uPlaybackKey`).
   A year written in brackets ("Harbor Lights (2018)") counts as the stated year,
   so remakes spelled that way reach the remake split.

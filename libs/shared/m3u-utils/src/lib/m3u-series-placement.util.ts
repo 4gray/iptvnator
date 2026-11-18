@@ -74,12 +74,16 @@ function park<T extends M3uArtworkBearing>(
 /**
  * Files an episode at the season×episode it states.
  *
- * The first row at a coordinate holds it, and with it the id derived from
- * the coordinate. A later row there with another URL — a second quality, a
- * "Part 2", a trailer, or an episode of a show whose title merely
- * normalizes the same — is listed next to it under the same number, with
- * an id keyed on its own row (`rowKey`). An unnumbered row sitting in the
- * slot gives it up: its number was only its place in the list.
+ * One row at a coordinate holds it, and with it the id derived from the
+ * coordinate: of the rows that play differently there, the one
+ * `holdsCoordinateBefore` ranks first, so a provider that reorders its rows
+ * does not hand one file's watched mark and resume point to another. The
+ * others — a
+ * second quality, a "Part 2", a trailer, or an episode of a show whose
+ * title merely normalizes the same — are listed next to it under the same
+ * number, with an id keyed on their own row (`rowKey`). An unnumbered row
+ * sitting in the slot gives it up: its number was only its place in the
+ * list.
  */
 export function placeNumberedEpisode<T extends M3uArtworkBearing>(
     season: Season<T>,
@@ -96,10 +100,42 @@ export function placeNumberedEpisode<T extends M3uArtworkBearing>(
         placeUnnumberedEpisode(season, occupant);
         return;
     }
+    if (holdsCoordinateBefore(episode.channel, occupant.channel)) {
+        season.set(number, episode);
+        placeExtraEpisode(season, number, occupant, 1);
+        return;
+    }
+    placeExtraEpisode(season, number, episode, 0);
+}
 
+/**
+ * Which of two rows at one coordinate holds it, independent of row order.
+ * The shorter name first: a variant added later ("… FHD", "… Part 2")
+ * usually extends the episode's own name, so the episode keeps its id. The
+ * playback key breaks a tie, so equal lengths ("Part 1"/"Part 2") still
+ * rank the same way on every refresh.
+ */
+function holdsCoordinateBefore(
+    candidate: M3uArtworkBearing & M3uPlaybackFields,
+    holder: M3uArtworkBearing & M3uPlaybackFields
+): boolean {
+    const length = (row: M3uArtworkBearing) => (row.name ?? '').trim().length;
+    if (length(candidate) !== length(holder)) {
+        return length(candidate) < length(holder);
+    }
+    return m3uPlaybackKey(candidate) < m3uPlaybackKey(holder);
+}
+
+/** Lists a further row of `number`, from the `from`th slot on. */
+function placeExtraEpisode<T extends M3uArtworkBearing>(
+    season: Season<T>,
+    number: number,
+    episode: M3uSeriesEpisode<T>,
+    from: number
+): void {
     // Further rows of one number sit at fractional keys, which keeps the
     // map ordered by episode without a second container.
-    for (let extra = 0; ; extra += 1) {
+    for (let extra = from; ; extra += 1) {
         const key = number + extra / 1000;
         const held = season.get(key);
         if (!held) {
