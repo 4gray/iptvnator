@@ -2627,5 +2627,37 @@
         "STATE_offline": "حُفظ السجل محلياً؛ الخادم غير متاح",
         "STATE_incompatible": "لا يدعم هذا الخادم مزامنة السجل",
         "PENDING": "تغييرات السجل في الانتظار: {{count}}"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "قائمة تشغيل M3U",
+            "XTREAM": "حساب Xtream",
+            "STALKER": "بوابة Stalker"
+        },
+        "ADD_SOURCE": "أضف قائمة تشغيل M3U أو حساب Xtream أو بوابة Stalker",
+        "XTREAM_SYNC": "جارٍ تحميل الفئات التي اخترتها لحساب Xtream هذا",
+        "XTREAM_CATEGORIES": "اختر الفئات التي يعرضها حساب Xtream هذا",
+        "GROUPS": "اختر المجموعات التي تعرضها قائمة القنوات",
+        "DELETE_ALL_SOURCES": "يزيل كل المصادر وبياناتها المحفوظة",
+        "SERVER_SYNC_ABOUT": "شارك المصادر بين الأجهزة عبر خادمك الخاص",
+        "TMDB_TRANSFER": "انسخ مفتاح TMDB محفوظًا إلى جهاز آخر",
+        "UNSAVED_SETTINGS": "احفظ تعديلاتك أو تجاهلها قبل المغادرة",
+        "RELEASE_NOTES": "التغييرات في كل إصدار من IPTVnator",
+        "RELEASE_NOTES_VERSION": "التغييرات في الإصدار {{version}}",
+        "SERVER_MIGRATION": "انقلها إلى الخادم لاستخدامها على كل جهاز",
+        "EXTERNAL_PLAYER_TITLE": "التشغيل في مشغل خارجي",
+        "EXTERNAL_PLAYER": "يُشغَّل البث في MPV أو VLC في نافذة مستقلة",
+        "EPISODE_SEASON": "الموسم {{season}} · الحلقة {{episode}}",
+        "EPISODE": "الحلقة {{episode}}",
+        "TRAILER": "يُشغَّل من YouTube",
+        "PROGRAMME": "برنامج من دليل التلفزيون",
+        "SOURCE_CLEANUP_TITLE": "تنظيف المصادر غير النشطة",
+        "SOURCE_CLEANUP": "اعثر على المصادر التي لم تعد تستجيب واحذفها",
+        "CLEAR_EPG": "يزيل جداول البرامج المحفوظة من هذا الجهاز",
+        "TLS_HOST": "شهادة {{host}}",
+        "CANCEL_DOWNLOAD": "يوقف التنزيل الجاري",
+        "CLEAR_COLLECTION": "تتغير هذه القائمة فقط؛ تبقى مصادرك كما هي",
+        "CLEAR_FINISHED_DOWNLOADS": "يزيل الإدخالات المكتملة من القائمة",
+        "DOWNLOAD_RECOVERY": "ملف في مجلد التنزيلات يحتاج إلى انتباهك"
     }
 }

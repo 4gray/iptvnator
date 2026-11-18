@@ -608,6 +608,9 @@ export class ElectronService extends DataService {
             title: this.translateService.instant(
                 'HOME.URL_UPLOAD.TRUST_TLS_HOST_TITLE'
             ),
+            subtitle: this.translateService.instant('DIALOGS.TLS_HOST', {
+                host,
+            }),
             message: this.translateService.instant(
                 'HOME.URL_UPLOAD.TRUST_TLS_HOST_WARNING'
             ),

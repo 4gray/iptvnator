@@ -2627,5 +2627,37 @@
         "STATE_offline": "履歴を端末に保存しました。サーバーに接続できません",
         "STATE_incompatible": "このサーバーは履歴の同期に対応していません",
         "PENDING": "送信待ちの履歴変更：{{count}} 件"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "M3U プレイリスト",
+            "XTREAM": "Xtream アカウント",
+            "STALKER": "Stalkerポータル"
+        },
+        "ADD_SOURCE": "M3U プレイリスト、Xtream アカウント、Stalkerポータルを追加",
+        "XTREAM_SYNC": "この Xtream アカウントで選んだカテゴリを読み込み中",
+        "XTREAM_CATEGORIES": "この Xtream アカウントに表示するカテゴリを選択",
+        "GROUPS": "チャンネル一覧に表示するグループを選択",
+        "DELETE_ALL_SOURCES": "すべてのソースと保存済みデータを削除します",
+        "SERVER_SYNC_ABOUT": "自分のサーバーを通じてデバイス間でソースを共有",
+        "TMDB_TRANSFER": "保存済みの TMDB キーを別のデバイスにコピー",
+        "UNSAVED_SETTINGS": "移動する前に変更を保存するか破棄してください",
+        "RELEASE_NOTES": "IPTVnator の各リリースの変更点",
+        "RELEASE_NOTES_VERSION": "バージョン {{version}} の変更点",
+        "SERVER_MIGRATION": "サーバーに移すと、どのデバイスでも使えます",
+        "EXTERNAL_PLAYER_TITLE": "外部プレーヤーで再生中",
+        "EXTERNAL_PLAYER": "ストリームは MPV または VLC の別ウィンドウで再生されます",
+        "EPISODE_SEASON": "シーズン {{season}} · 第 {{episode}} 話",
+        "EPISODE": "第 {{episode}} 話",
+        "TRAILER": "YouTube から再生",
+        "PROGRAMME": "番組表の番組",
+        "SOURCE_CLEANUP_TITLE": "無効なソースを整理",
+        "SOURCE_CLEANUP": "応答しなくなったソースを見つけて削除",
+        "CLEAR_EPG": "このデバイスから保存済みの番組表を削除します",
+        "TLS_HOST": "{{host}} の証明書",
+        "CANCEL_DOWNLOAD": "実行中のダウンロードを停止します",
+        "CLEAR_COLLECTION": "変わるのはこの一覧だけで、ソースは残ります",
+        "CLEAR_FINISHED_DOWNLOADS": "完了した項目を一覧から削除します",
+        "DOWNLOAD_RECOVERY": "ダウンロードフォルダー内のファイルに対応が必要です"
     }
 }

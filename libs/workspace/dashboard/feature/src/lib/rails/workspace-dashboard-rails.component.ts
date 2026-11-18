@@ -12,6 +12,7 @@ import {
     isXtreamAccountPlaylist,
     normalizeDashboardRailsSettings,
     playlistDisplayLabel,
+    sourceDialogSubtitle,
 } from '@iptvnator/shared/interfaces';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -678,6 +679,9 @@ export class WorkspaceDashboardRailsComponent {
     private confirmRemovePlaylist(playlist: PlaylistMeta): void {
         this.dialogService.openConfirmDialog({
             title: this.translate.instant('HOME.PLAYLISTS.REMOVE_DIALOG.TITLE'),
+            subtitle: sourceDialogSubtitle(playlist, (key) =>
+                this.translate.instant(key)
+            ),
             message: this.translate.instant(
                 'HOME.PLAYLISTS.REMOVE_DIALOG.MESSAGE'
             ),

@@ -48,7 +48,8 @@ export interface SourceCleanupDialogData extends SourceCleanupContext {
         <app-dialog-shell
             icon="cleaning_services"
             iconTone="warn"
-            [heading]="'SOURCE_CLEANUP.TITLE' | translate"
+            [heading]="'DIALOGS.SOURCE_CLEANUP_TITLE' | translate"
+            [subtitle]="'DIALOGS.SOURCE_CLEANUP' | translate"
             [showClose]="!locked()"
         >
             <p>{{ 'SOURCE_CLEANUP.SCOPE' | translate }}</p>

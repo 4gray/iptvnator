@@ -59,7 +59,7 @@ import {
 } from './workspace-context-panel-route.utils';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 import { foldSearchText } from '@iptvnator/shared/interfaces';
-import { dialogSize } from '@iptvnator/ui/components/dialog-size';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 import { WorkspaceShellSearchSyncService } from '../workspace-shell/services/workspace-shell-search-sync.service';
 
 type WorkspaceProvider = 'xtreams' | 'stalker' | 'playlists';

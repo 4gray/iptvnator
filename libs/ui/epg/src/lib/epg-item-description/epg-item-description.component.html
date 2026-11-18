@@ -1,157 +1,138 @@
-<div class="epg-dialog">
-    <div class="epg-dialog__hero">
-        @if (channelName) {
-            <span class="epg-dialog__chan">
-                <mat-icon>live_tv</mat-icon>
-                <span class="epg-dialog__chan-name">{{ channelName }}</span>
-            </span>
-        }
-        @if (channelLogo && !logoFailed) {
+<!-- The footer wrapper sits at the top level of the content, outside every
+     control-flow block: a block there is projected into the body. -->
+<app-dialog-shell
+    class="epg-dialog"
+    icon="live_tv"
+    [heading]="epgProgram.title"
+    [subtitle]="channelName || ('DIALOGS.PROGRAMME' | translate)"
+    [bodyFocusable]="true"
+>
+    @if (channelLogo && !logoFailed) {
+        <div class="epg-dialog__hero">
             <img
                 class="epg-dialog__logo"
                 [src]="channelLogo"
                 [alt]="channelName ?? ''"
                 (error)="logoFailed = true"
             />
-        } @else {
-            <mat-icon class="epg-dialog__hero-glyph">live_tv</mat-icon>
+        </div>
+    }
+
+    <div class="epg-dialog__meta">
+        <span>{{ startMs | date: 'EEE d MMM' : '' : currentLocale() }}</span>
+        <span class="epg-dialog__dot"></span>
+        <span
+            >{{ startMs | date: 'HH:mm' }} – {{ stopMs | date: 'HH:mm' }}</span
+        >
+        @if (duration) {
+            <span class="epg-dialog__dot"></span>
+            <span>{{ duration }}</span>
+        }
+        @if (epgProgram.category) {
+            <span class="epg-dialog__dot"></span>
+            <span>{{ epgProgram.category }}</span>
         }
     </div>
 
-    <div
-        class="epg-dialog__body"
-        tabindex="0"
-        role="region"
-        [attr.aria-label]="epgProgram.title"
-        cdkFocusInitial
-    >
-        <div class="epg-dialog__meta">
-            <span>{{
-                startMs | date: 'EEE d MMM' : '' : currentLocale()
-            }}</span>
-            <span class="epg-dialog__dot"></span>
-            <span
-                >{{ startMs | date: 'HH:mm' }} –
-                {{ stopMs | date: 'HH:mm' }}</span
-            >
-            @if (duration) {
-                <span class="epg-dialog__dot"></span>
-                <span>{{ duration }}</span>
+    @if (epgProgram.desc) {
+        <p class="epg-dialog__desc">{{ epgProgram.desc }}</p>
+    }
+
+    @if (epgProgram.episodeNum || epgProgram.rating) {
+        <div class="epg-dialog__tags">
+            @if (epgProgram.episodeNum) {
+                <span class="epg-dialog__tag">
+                    <small>{{
+                        'EPG.PROGRAM_DIALOG.EPISODE' | translate
+                    }}</small>
+                    {{ epgProgram.episodeNum }}
+                </span>
             }
-            @if (epgProgram.category) {
-                <span class="epg-dialog__dot"></span>
-                <span>{{ epgProgram.category }}</span>
+            @if (epgProgram.rating) {
+                <span class="epg-dialog__tag epg-dialog__tag--rating">
+                    <small>{{
+                        'EPG.PROGRAM_DIALOG.PARENTAL_RATING_SYSTEM' | translate
+                    }}</small>
+                    {{ epgProgram.rating }}
+                </span>
             }
         </div>
+    }
 
-        <h2 mat-dialog-title class="epg-dialog__title">
-            {{ epgProgram.title }}
-        </h2>
-
-        @if (epgProgram.desc) {
-            <p class="epg-dialog__desc">{{ epgProgram.desc }}</p>
-        }
-
-        @if (epgProgram.episodeNum || epgProgram.rating) {
-            <div class="epg-dialog__tags">
-                @if (epgProgram.episodeNum) {
-                    <span class="epg-dialog__tag">
-                        <small>{{
-                            'EPG.PROGRAM_DIALOG.EPISODE' | translate
-                        }}</small>
-                        {{ epgProgram.episodeNum }}
-                    </span>
-                }
-                @if (epgProgram.rating) {
-                    <span class="epg-dialog__tag epg-dialog__tag--rating">
-                        <small>{{
-                            'EPG.PROGRAM_DIALOG.PARENTAL_RATING_SYSTEM'
-                                | translate
-                        }}</small>
-                        {{ epgProgram.rating }}
-                    </span>
-                }
-            </div>
-        }
-
-        @if (
-            dialogData.archiveUrlAvailable ||
-            dialogData.archiveDownloadAvailable
-        ) {
-            <!-- Archive tools sit with their notice, so the footer below keeps
-                 one row: the dismiss first, the primary action last. -->
-            <div class="epg-dialog__archive">
+    @if (
+        dialogData.archiveUrlAvailable || dialogData.archiveDownloadAvailable
+    ) {
+        <!-- Archive tools sit with their notice, so the footer keeps one
+             row: the dismiss first, the primary action last. -->
+        <div class="epg-dialog__archive">
+            @if (dialogData.archiveUrlAvailable) {
+                <p class="epg-dialog__note">
+                    {{ 'EPG.PROGRAM_DIALOG.ARCHIVE_URL_NOTICE' | translate }}
+                </p>
+            }
+            <div class="epg-dialog__tools">
                 @if (dialogData.archiveUrlAvailable) {
-                    <p class="epg-dialog__note">
-                        {{
-                            'EPG.PROGRAM_DIALOG.ARCHIVE_URL_NOTICE' | translate
-                        }}
-                    </p>
+                    <button
+                        type="button"
+                        mat-flat-button
+                        class="app-dialog__secondary"
+                        data-testid="copy-catchup-url"
+                        [mat-dialog-close]="'copy-catchup-url'"
+                    >
+                        <mat-icon>content_copy</mat-icon>
+                        {{ 'EPG.PROGRAM_DIALOG.COPY_ARCHIVE_URL' | translate }}
+                    </button>
                 }
-                <div class="epg-dialog__tools">
-                    @if (dialogData.archiveUrlAvailable) {
-                        <button
-                            type="button"
-                            class="epg-dialog__btn epg-dialog__btn--ghost"
-                            data-testid="copy-catchup-url"
-                            [mat-dialog-close]="'copy-catchup-url'"
-                        >
-                            <mat-icon>content_copy</mat-icon>
-                            {{
-                                'EPG.PROGRAM_DIALOG.COPY_ARCHIVE_URL'
-                                    | translate
-                            }}
-                        </button>
-                    }
-                    @if (dialogData.archiveDownloadAvailable) {
-                        <button
-                            type="button"
-                            class="epg-dialog__btn epg-dialog__btn--ghost"
-                            data-testid="download-catchup"
-                            [mat-dialog-close]="'download-catchup'"
-                        >
-                            <mat-icon>download</mat-icon>
-                            {{
-                                'EPG.PROGRAM_DIALOG.DOWNLOAD_ARCHIVE'
-                                    | translate
-                            }}
-                        </button>
-                    }
-                </div>
+                @if (dialogData.archiveDownloadAvailable) {
+                    <button
+                        type="button"
+                        mat-flat-button
+                        class="app-dialog__secondary"
+                        data-testid="download-catchup"
+                        [mat-dialog-close]="'download-catchup'"
+                    >
+                        <mat-icon>download</mat-icon>
+                        {{ 'EPG.PROGRAM_DIALOG.DOWNLOAD_ARCHIVE' | translate }}
+                    </button>
+                }
             </div>
-        }
-        @if (archiveUnavailableNote) {
-            <p class="epg-dialog__note">
-                {{ 'EPG.TIMELINE.ARCHIVE_UNAVAILABLE_NOTE' | translate }}
-            </p>
-        }
-        <div class="epg-dialog__actions">
+        </div>
+    }
+    @if (archiveUnavailableNote) {
+        <p class="epg-dialog__note">
+            {{ 'EPG.TIMELINE.ARCHIVE_UNAVAILABLE_NOTE' | translate }}
+        </p>
+    }
+
+    <div appDialogFooter>
+        <button
+            type="button"
+            mat-button
+            class="epg-dialog__close"
+            mat-dialog-close
+        >
+            {{ 'HOME.PLAYLISTS.INFO_DIALOG.CLOSE' | translate }}
+        </button>
+        @if (primaryAction === 'live') {
             <button
                 type="button"
-                class="epg-dialog__btn epg-dialog__btn--ghost epg-dialog__close"
-                mat-dialog-close
+                mat-flat-button
+                class="epg-dialog__primary"
+                [mat-dialog-close]="'live'"
             >
-                {{ 'HOME.PLAYLISTS.INFO_DIALOG.CLOSE' | translate }}
+                <mat-icon>play_arrow</mat-icon>
+                {{ 'EPG.TIMELINE.WATCH_LIVE' | translate }}
             </button>
-            @if (primaryAction === 'live') {
-                <button
-                    type="button"
-                    class="epg-dialog__btn epg-dialog__btn--primary"
-                    [mat-dialog-close]="'live'"
-                >
-                    <mat-icon>play_arrow</mat-icon>
-                    {{ 'EPG.TIMELINE.WATCH_LIVE' | translate }}
-                </button>
-            } @else if (primaryAction === 'timeshift') {
-                <button
-                    type="button"
-                    class="epg-dialog__btn epg-dialog__btn--primary"
-                    [mat-dialog-close]="'timeshift'"
-                >
-                    <mat-icon>replay</mat-icon>
-                    {{ 'EPG.TIMELINE.WATCH_FROM_START' | translate }}
-                </button>
-            }
-        </div>
+        } @else if (primaryAction === 'timeshift') {
+            <button
+                type="button"
+                mat-flat-button
+                class="epg-dialog__primary"
+                [mat-dialog-close]="'timeshift'"
+            >
+                <mat-icon>replay</mat-icon>
+                {{ 'EPG.TIMELINE.WATCH_FROM_START' | translate }}
+            </button>
+        }
     </div>
-</div>
+</app-dialog-shell>

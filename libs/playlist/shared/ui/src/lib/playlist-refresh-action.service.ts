@@ -346,6 +346,7 @@ export class PlaylistRefreshActionService {
             title: this.translate.instant(
                 'HOME.URL_UPLOAD.TRUST_TLS_HOST_TITLE'
             ),
+            subtitle: this.translate.instant('DIALOGS.TLS_HOST', { host }),
             message: this.translate.instant(
                 'HOME.URL_UPLOAD.TRUST_TLS_HOST_WARNING'
             ),

@@ -16,6 +16,7 @@ export const SERVER_GUIDES = {
         <app-dialog-shell
             icon="dns"
             [heading]="'SOURCE_SYNC.ABOUT_TITLE' | translate"
+            [subtitle]="'DIALOGS.SERVER_SYNC_ABOUT' | translate"
             [bodyFocusable]="true"
         >
             <div class="server-about">

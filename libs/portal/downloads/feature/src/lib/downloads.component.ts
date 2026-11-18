@@ -54,7 +54,7 @@ import { RecordingLibraryComponent } from './recording-library.component';
 import { RecordingManagerActionsService } from './recording-manager-actions.service';
 import { buildRecordingManagerViewModel } from './recording-manager.viewmodel';
 import { RecordingQueueComponent } from './recording-queue.component';
-import { dialogSize } from '@iptvnator/ui/components/dialog-size';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 
 const FILTER_KEYS = {
     all: 'DOWNLOADS.FILTER.ALL',

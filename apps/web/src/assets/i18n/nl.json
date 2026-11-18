@@ -2627,5 +2627,37 @@
         "STATE_offline": "Geschiedenis lokaal opgeslagen; server niet bereikbaar",
         "STATE_incompatible": "Deze server ondersteunt geen geschiedenissynchronisatie",
         "PENDING": "Geschiedeniswijzigingen in wachtrij: {{count}}"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "M3U-afspeellijst",
+            "XTREAM": "Xtream-account",
+            "STALKER": "Stalker-portaal"
+        },
+        "ADD_SOURCE": "Voeg een M3U-afspeellijst, Xtream-account of Stalker-portaal toe",
+        "XTREAM_SYNC": "De gekozen categorieën van dit Xtream-account worden geladen",
+        "XTREAM_CATEGORIES": "Kies welke categorieën dit Xtream-account toont",
+        "GROUPS": "Kies welke groepen de zenderlijst toont",
+        "DELETE_ALL_SOURCES": "Verwijdert alle bronnen en hun opgeslagen gegevens",
+        "SERVER_SYNC_ABOUT": "Deel bronnen tussen apparaten via je eigen server",
+        "TMDB_TRANSFER": "Kopieer een opgeslagen TMDB-sleutel naar een ander apparaat",
+        "UNSAVED_SETTINGS": "Sla je wijzigingen op of verwerp ze voordat je weggaat",
+        "RELEASE_NOTES": "De wijzigingen in elke IPTVnator-versie",
+        "RELEASE_NOTES_VERSION": "Wijzigingen in versie {{version}}",
+        "SERVER_MIGRATION": "Verplaats ze naar de server om ze op elk apparaat te gebruiken",
+        "EXTERNAL_PLAYER_TITLE": "Afspelen in externe speler",
+        "EXTERNAL_PLAYER": "De stream speelt in MPV of VLC, in een eigen venster",
+        "EPISODE_SEASON": "Seizoen {{season}} · Aflevering {{episode}}",
+        "EPISODE": "Aflevering {{episode}}",
+        "TRAILER": "Speelt af via YouTube",
+        "PROGRAMME": "Programma uit de tv-gids",
+        "SOURCE_CLEANUP_TITLE": "Inactieve bronnen opschonen",
+        "SOURCE_CLEANUP": "Zoek bronnen die niet meer reageren en verwijder ze",
+        "CLEAR_EPG": "Verwijdert opgeslagen programmagegevens van dit apparaat",
+        "TLS_HOST": "Certificaat voor {{host}}",
+        "CANCEL_DOWNLOAD": "Stopt de lopende download",
+        "CLEAR_COLLECTION": "Alleen deze lijst verandert; je bronnen blijven",
+        "CLEAR_FINISHED_DOWNLOADS": "Verwijdert voltooide items uit de lijst",
+        "DOWNLOAD_RECOVERY": "Een bestand in de downloadmap vraagt je aandacht"
     }
 }

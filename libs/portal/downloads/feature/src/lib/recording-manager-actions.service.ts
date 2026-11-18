@@ -62,6 +62,7 @@ export class RecordingManagerActionsService {
             title: this.translate.instant(
                 'DOWNLOADS.REMOVE_RECORDING_DIALOG.TITLE'
             ),
+            subtitle: item.programTitle || item.channelName,
             message: this.translate.instant(
                 'DOWNLOADS.REMOVE_RECORDING_DIALOG.MESSAGE'
             ),

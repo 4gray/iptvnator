@@ -27,8 +27,8 @@ import {
 } from '@iptvnator/services';
 import { TmdbMatchService } from '@iptvnator/services/tmdb-match';
 import { cleanTitleForSearch } from '@iptvnator/shared/interfaces';
-import { DialogShellComponent } from '../dialog-shell/dialog-shell.component';
-import { DialogFooterDirective } from '../dialog-shell/dialog-shell.directives';
+import { DialogShellComponent } from '@iptvnator/ui/dialog';
+import { DialogFooterDirective } from '@iptvnator/ui/dialog';
 import { provideFormFieldDefaults } from '../form-field-defaults/form-field-defaults';
 import { ImeInputDirective } from '../ime-input.directive';
 

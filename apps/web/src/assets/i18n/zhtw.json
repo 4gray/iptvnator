@@ -2627,5 +2627,37 @@
         "STATE_offline": "歷史已儲存在本機；伺服器無法使用",
         "STATE_incompatible": "此伺服器不支援歷史同步",
         "PENDING": "佇列中的歷史變更：{{count}}"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "M3U 播放清單",
+            "XTREAM": "Xtream 帳號",
+            "STALKER": "Stalker 入口網站"
+        },
+        "ADD_SOURCE": "新增 M3U 播放清單、Xtream 帳號或 Stalker 入口網站",
+        "XTREAM_SYNC": "正在載入你為此 Xtream 帳號選擇的分類",
+        "XTREAM_CATEGORIES": "選擇此 Xtream 帳號顯示哪些分類",
+        "GROUPS": "選擇頻道清單顯示哪些群組",
+        "DELETE_ALL_SOURCES": "刪除所有來源及其已儲存的資料",
+        "SERVER_SYNC_ABOUT": "透過你自己的伺服器在裝置間共用來源",
+        "TMDB_TRANSFER": "將已儲存的 TMDB 金鑰複製到另一台裝置",
+        "UNSAVED_SETTINGS": "離開前請儲存或捨棄你的變更",
+        "RELEASE_NOTES": "IPTVnator 每個版本的變更",
+        "RELEASE_NOTES_VERSION": "版本 {{version}} 的變更",
+        "SERVER_MIGRATION": "移到伺服器後即可在所有裝置上使用",
+        "EXTERNAL_PLAYER_TITLE": "正在外部播放器中播放",
+        "EXTERNAL_PLAYER": "串流在 MPV 或 VLC 的獨立視窗中播放",
+        "EPISODE_SEASON": "第 {{season}} 季 · 第 {{episode}} 集",
+        "EPISODE": "第 {{episode}} 集",
+        "TRAILER": "從 YouTube 播放",
+        "PROGRAMME": "節目指南中的節目",
+        "SOURCE_CLEANUP_TITLE": "清理失效的來源",
+        "SOURCE_CLEANUP": "找出不再回應的來源並刪除",
+        "CLEAR_EPG": "從此裝置刪除已儲存的節目表",
+        "TLS_HOST": "{{host}} 的憑證",
+        "CANCEL_DOWNLOAD": "停止進行中的下載",
+        "CLEAR_COLLECTION": "只有此清單會變更，來源保持不變",
+        "CLEAR_FINISHED_DOWNLOADS": "從清單中移除已完成的項目",
+        "DOWNLOAD_RECOVERY": "下載資料夾中的一個檔案需要處理"
     }
 }

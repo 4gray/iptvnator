@@ -2627,5 +2627,37 @@
         "STATE_offline": "Historial guardado localmente; servidor no disponible",
         "STATE_incompatible": "Este servidor no admite la sincronización del historial",
         "PENDING": "Cambios del historial en cola: {{count}}"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "Lista M3U",
+            "XTREAM": "Cuenta Xtream",
+            "STALKER": "Portal Stalker"
+        },
+        "ADD_SOURCE": "Añade una lista M3U, una cuenta Xtream o un portal Stalker",
+        "XTREAM_SYNC": "Cargando las categorías elegidas para esta cuenta Xtream",
+        "XTREAM_CATEGORIES": "Elige qué categorías muestra esta cuenta Xtream",
+        "GROUPS": "Elige qué grupos muestra la lista de canales",
+        "DELETE_ALL_SOURCES": "Elimina todas las fuentes y sus datos guardados",
+        "SERVER_SYNC_ABOUT": "Comparte fuentes entre dispositivos con tu propio servidor",
+        "TMDB_TRANSFER": "Copia una clave de TMDB guardada a otro dispositivo",
+        "UNSAVED_SETTINGS": "Guarda o descarta tus cambios antes de salir",
+        "RELEASE_NOTES": "Los cambios de cada versión de IPTVnator",
+        "RELEASE_NOTES_VERSION": "Cambios de la versión {{version}}",
+        "SERVER_MIGRATION": "Muévelas al servidor para usarlas en todos tus dispositivos",
+        "EXTERNAL_PLAYER_TITLE": "Reproduciendo en el reproductor externo",
+        "EXTERNAL_PLAYER": "La emisión se reproduce en MPV o VLC, en su propia ventana",
+        "EPISODE_SEASON": "Temporada {{season}} · Episodio {{episode}}",
+        "EPISODE": "Episodio {{episode}}",
+        "TRAILER": "Se reproduce desde YouTube",
+        "PROGRAMME": "Programa de la guía de TV",
+        "SOURCE_CLEANUP_TITLE": "Limpiar fuentes inactivas",
+        "SOURCE_CLEANUP": "Encuentra las fuentes que ya no responden y elimínalas",
+        "CLEAR_EPG": "Elimina la programación guardada de este dispositivo",
+        "TLS_HOST": "Certificado de {{host}}",
+        "CANCEL_DOWNLOAD": "Detiene la descarga en curso",
+        "CLEAR_COLLECTION": "Solo cambia esta lista; tus fuentes se mantienen",
+        "CLEAR_FINISHED_DOWNLOADS": "Quita de la lista las entradas terminadas",
+        "DOWNLOAD_RECOVERY": "Un archivo de la carpeta de descargas requiere atención"
     }
 }

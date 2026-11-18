@@ -2627,5 +2627,37 @@
         "STATE_offline": "기록을 로컬에 저장함. 서버 사용 불가",
         "STATE_incompatible": "이 서버는 기록 동기화를 지원하지 않습니다",
         "PENDING": "대기 중인 기록 변경: {{count}}개"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "M3U 재생목록",
+            "XTREAM": "Xtream 계정",
+            "STALKER": "Stalker 포털"
+        },
+        "ADD_SOURCE": "M3U 재생목록, Xtream 계정 또는 Stalker 포털 추가",
+        "XTREAM_SYNC": "이 Xtream 계정에서 선택한 카테고리를 불러오는 중",
+        "XTREAM_CATEGORIES": "이 Xtream 계정에 표시할 카테고리 선택",
+        "GROUPS": "채널 목록에 표시할 그룹 선택",
+        "DELETE_ALL_SOURCES": "모든 소스와 저장된 데이터를 삭제합니다",
+        "SERVER_SYNC_ABOUT": "내 서버를 통해 기기 간에 소스 공유",
+        "TMDB_TRANSFER": "저장된 TMDB 키를 다른 기기로 복사",
+        "UNSAVED_SETTINGS": "나가기 전에 변경 사항을 저장하거나 취소하세요",
+        "RELEASE_NOTES": "IPTVnator 각 릴리스의 변경 사항",
+        "RELEASE_NOTES_VERSION": "버전 {{version}}의 변경 사항",
+        "SERVER_MIGRATION": "서버로 옮기면 모든 기기에서 사용할 수 있습니다",
+        "EXTERNAL_PLAYER_TITLE": "외부 플레이어에서 재생 중",
+        "EXTERNAL_PLAYER": "스트림은 MPV 또는 VLC의 별도 창에서 재생됩니다",
+        "EPISODE_SEASON": "시즌 {{season}} · {{episode}}화",
+        "EPISODE": "{{episode}}화",
+        "TRAILER": "YouTube에서 재생",
+        "PROGRAMME": "TV 편성표의 프로그램",
+        "SOURCE_CLEANUP_TITLE": "비활성 소스 정리",
+        "SOURCE_CLEANUP": "더 이상 응답하지 않는 소스를 찾아 삭제",
+        "CLEAR_EPG": "이 기기에서 저장된 편성표를 삭제합니다",
+        "TLS_HOST": "{{host}} 인증서",
+        "CANCEL_DOWNLOAD": "진행 중인 다운로드를 중지합니다",
+        "CLEAR_COLLECTION": "이 목록만 바뀌며 소스는 그대로입니다",
+        "CLEAR_FINISHED_DOWNLOADS": "완료된 항목을 목록에서 제거합니다",
+        "DOWNLOAD_RECOVERY": "다운로드 폴더의 파일을 확인해야 합니다"
     }
 }

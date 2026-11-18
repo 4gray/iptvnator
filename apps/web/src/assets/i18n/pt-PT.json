@@ -2627,5 +2627,37 @@
         "STATE_offline": "Histórico guardado localmente; servidor indisponível",
         "STATE_incompatible": "Este servidor não suporta sincronização do histórico",
         "PENDING": "Alterações do histórico na fila: {{count}}"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "Lista M3U",
+            "XTREAM": "Conta Xtream",
+            "STALKER": "Portal Stalker"
+        },
+        "ADD_SOURCE": "Adicione uma lista M3U, conta Xtream ou portal Stalker",
+        "XTREAM_SYNC": "A carregar as categorias escolhidas para esta conta Xtream",
+        "XTREAM_CATEGORIES": "Escolha que categorias esta conta Xtream mostra",
+        "GROUPS": "Escolha que grupos a lista de canais mostra",
+        "DELETE_ALL_SOURCES": "Remove todas as fontes e os seus dados guardados",
+        "SERVER_SYNC_ABOUT": "Partilhe fontes entre dispositivos através do seu próprio servidor",
+        "TMDB_TRANSFER": "Copie uma chave do TMDB guardada para outro dispositivo",
+        "UNSAVED_SETTINGS": "Guarde ou descarte as alterações antes de sair",
+        "RELEASE_NOTES": "As alterações de cada versão do IPTVnator",
+        "RELEASE_NOTES_VERSION": "Alterações da versão {{version}}",
+        "SERVER_MIGRATION": "Mova-as para o servidor para as usar em todos os dispositivos",
+        "EXTERNAL_PLAYER_TITLE": "A reproduzir no leitor externo",
+        "EXTERNAL_PLAYER": "A emissão é reproduzida no MPV ou VLC, numa janela própria",
+        "EPISODE_SEASON": "Temporada {{season}} · Episódio {{episode}}",
+        "EPISODE": "Episódio {{episode}}",
+        "TRAILER": "Reproduzido a partir do YouTube",
+        "PROGRAMME": "Programa do guia de TV",
+        "SOURCE_CLEANUP_TITLE": "Limpar fontes inativas",
+        "SOURCE_CLEANUP": "Encontre as fontes que já não respondem e elimine-as",
+        "CLEAR_EPG": "Remove a programação guardada deste dispositivo",
+        "TLS_HOST": "Certificado de {{host}}",
+        "CANCEL_DOWNLOAD": "Para a transferência em curso",
+        "CLEAR_COLLECTION": "Só esta lista muda; as suas fontes mantêm-se",
+        "CLEAR_FINISHED_DOWNLOADS": "Remove da lista as entradas concluídas",
+        "DOWNLOAD_RECOVERY": "Um ficheiro na pasta de transferências precisa de atenção"
     }
 }

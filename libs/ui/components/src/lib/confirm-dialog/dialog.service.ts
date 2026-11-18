@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { dialogSize } from '../dialog-shell/dialog-size';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 import { LazyMatDialog } from '../lazy-dialog/lazy-mat-dialog';
 import type {
     ConfirmDialogComponent,

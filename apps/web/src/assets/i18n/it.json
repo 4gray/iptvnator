@@ -2627,5 +2627,37 @@
         "STATE_offline": "Cronologia salvata localmente; server non disponibile",
         "STATE_incompatible": "Questo server non supporta la sincronizzazione della cronologia",
         "PENDING": "Modifiche alla cronologia in coda: {{count}}"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "Playlist M3U",
+            "XTREAM": "Account Xtream",
+            "STALKER": "Portale Stalker"
+        },
+        "ADD_SOURCE": "Aggiungi una playlist M3U, un account Xtream o un portale Stalker",
+        "XTREAM_SYNC": "Caricamento delle categorie scelte per questo account Xtream",
+        "XTREAM_CATEGORIES": "Scegli quali categorie mostra questo account Xtream",
+        "GROUPS": "Scegli quali gruppi mostra l’elenco dei canali",
+        "DELETE_ALL_SOURCES": "Rimuove tutte le sorgenti e i loro dati salvati",
+        "SERVER_SYNC_ABOUT": "Condividi le sorgenti tra dispositivi con il tuo server",
+        "TMDB_TRANSFER": "Copia una chiave TMDB salvata su un altro dispositivo",
+        "UNSAVED_SETTINGS": "Salva o annulla le modifiche prima di uscire",
+        "RELEASE_NOTES": "Le novità di ogni versione di IPTVnator",
+        "RELEASE_NOTES_VERSION": "Modifiche della versione {{version}}",
+        "SERVER_MIGRATION": "Spostale sul server per usarle su ogni dispositivo",
+        "EXTERNAL_PLAYER_TITLE": "Riproduzione nel lettore esterno",
+        "EXTERNAL_PLAYER": "Il flusso viene riprodotto in MPV o VLC, in una finestra propria",
+        "EPISODE_SEASON": "Stagione {{season}} · Episodio {{episode}}",
+        "EPISODE": "Episodio {{episode}}",
+        "TRAILER": "Riprodotto da YouTube",
+        "PROGRAMME": "Programma della guida TV",
+        "SOURCE_CLEANUP_TITLE": "Pulisci sorgenti inattive",
+        "SOURCE_CLEANUP": "Trova le sorgenti che non rispondono più ed eliminale",
+        "CLEAR_EPG": "Rimuove i palinsesti salvati da questo dispositivo",
+        "TLS_HOST": "Certificato di {{host}}",
+        "CANCEL_DOWNLOAD": "Interrompe il download in corso",
+        "CLEAR_COLLECTION": "Cambia solo questo elenco; le sorgenti restano",
+        "CLEAR_FINISHED_DOWNLOADS": "Rimuove dall’elenco le voci completate",
+        "DOWNLOAD_RECOVERY": "Un file nella cartella dei download richiede attenzione"
     }
 }

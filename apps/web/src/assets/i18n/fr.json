@@ -2627,5 +2627,37 @@
         "STATE_offline": "Historique enregistré localement ; serveur indisponible",
         "STATE_incompatible": "Ce serveur ne prend pas en charge la synchronisation de l’historique",
         "PENDING": "Modifications de l’historique en attente : {{count}}"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "Playlist M3U",
+            "XTREAM": "Compte Xtream",
+            "STALKER": "Portail Stalker"
+        },
+        "ADD_SOURCE": "Ajouter une playlist M3U, un compte Xtream ou un portail Stalker",
+        "XTREAM_SYNC": "Chargement des catégories choisies pour ce compte Xtream",
+        "XTREAM_CATEGORIES": "Choisissez les catégories affichées par ce compte Xtream",
+        "GROUPS": "Choisissez les groupes affichés dans la liste des chaînes",
+        "DELETE_ALL_SOURCES": "Supprime toutes les sources et leurs données enregistrées",
+        "SERVER_SYNC_ABOUT": "Partagez vos sources entre appareils via votre propre serveur",
+        "TMDB_TRANSFER": "Copier une clé TMDB enregistrée vers un autre appareil",
+        "UNSAVED_SETTINGS": "Enregistrez ou annulez vos modifications avant de quitter",
+        "RELEASE_NOTES": "Les changements de chaque version d’IPTVnator",
+        "RELEASE_NOTES_VERSION": "Changements de la version {{version}}",
+        "SERVER_MIGRATION": "Déplacez-les sur le serveur pour les utiliser sur chaque appareil",
+        "EXTERNAL_PLAYER_TITLE": "Lecture dans le lecteur externe",
+        "EXTERNAL_PLAYER": "Le flux est lu dans MPV ou VLC, dans sa propre fenêtre",
+        "EPISODE_SEASON": "Saison {{season}} · Épisode {{episode}}",
+        "EPISODE": "Épisode {{episode}}",
+        "TRAILER": "Lu depuis YouTube",
+        "PROGRAMME": "Programme du guide TV",
+        "SOURCE_CLEANUP_TITLE": "Nettoyer les sources inactives",
+        "SOURCE_CLEANUP": "Trouver les sources qui ne répondent plus et les supprimer",
+        "CLEAR_EPG": "Supprime les programmes enregistrés de cet appareil",
+        "TLS_HOST": "Certificat de {{host}}",
+        "CANCEL_DOWNLOAD": "Arrête le téléchargement en cours",
+        "CLEAR_COLLECTION": "Seule cette liste change ; vos sources restent",
+        "CLEAR_FINISHED_DOWNLOADS": "Retire les entrées terminées de la liste",
+        "DOWNLOAD_RECOVERY": "Un fichier du dossier de téléchargement demande votre attention"
     }
 }

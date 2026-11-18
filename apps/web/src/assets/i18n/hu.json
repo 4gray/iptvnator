@@ -2627,5 +2627,37 @@
         "STATE_offline": "Az előzményeket az alkalmazás helyben mentette; a kiszolgáló nem érhető el",
         "STATE_incompatible": "Ez a kiszolgáló nem támogatja a megtekintési előzmények szinkronizálását",
         "PENDING": "Küldésre váró előzménymódosítások: {{count}}"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "M3U-lista",
+            "XTREAM": "Xtream-fiók",
+            "STALKER": "Stalker-portál"
+        },
+        "ADD_SOURCE": "M3U-lista, Xtream-fiók vagy Stalker-portál hozzáadása",
+        "XTREAM_SYNC": "A fiókhoz választott Xtream-kategóriák betöltése",
+        "XTREAM_CATEGORIES": "Válaszd ki, mely kategóriákat mutassa ez az Xtream-fiók",
+        "GROUPS": "Válaszd ki, mely csoportokat mutassa a csatornalista",
+        "DELETE_ALL_SOURCES": "Minden forrást és mentett adatát eltávolítja",
+        "SERVER_SYNC_ABOUT": "Források megosztása az eszközök között a saját szervereden",
+        "TMDB_TRANSFER": "Mentett TMDB-kulcs másolása egy másik eszközre",
+        "UNSAVED_SETTINGS": "Mentsd vagy vesd el a módosításokat, mielőtt kilépsz",
+        "RELEASE_NOTES": "Az IPTVnator egyes kiadásainak változásai",
+        "RELEASE_NOTES_VERSION": "A(z) {{version}} verzió változásai",
+        "SERVER_MIGRATION": "Helyezd át őket a szerverre, hogy minden eszközön elérd őket",
+        "EXTERNAL_PLAYER_TITLE": "Lejátszás külső lejátszóban",
+        "EXTERNAL_PLAYER": "A stream az MPV-ben vagy a VLC-ben, külön ablakban fut",
+        "EPISODE_SEASON": "{{season}}. évad · {{episode}}. rész",
+        "EPISODE": "{{episode}}. rész",
+        "TRAILER": "Lejátszás a YouTube-ról",
+        "PROGRAMME": "Műsor a TV-műsorújságból",
+        "SOURCE_CLEANUP_TITLE": "Inaktív források eltávolítása",
+        "SOURCE_CLEANUP": "Keresd meg a már nem válaszoló forrásokat, és töröld őket",
+        "CLEAR_EPG": "Eltávolítja a mentett műsoradatokat erről az eszközről",
+        "TLS_HOST": "Tanúsítvány: {{host}}",
+        "CANCEL_DOWNLOAD": "Leállítja a futó letöltést",
+        "CLEAR_COLLECTION": "Csak ez a lista változik; a források megmaradnak",
+        "CLEAR_FINISHED_DOWNLOADS": "Eltávolítja a befejezett bejegyzéseket a listából",
+        "DOWNLOAD_RECOVERY": "A letöltési mappában egy fájl figyelmet igényel"
     }
 }
