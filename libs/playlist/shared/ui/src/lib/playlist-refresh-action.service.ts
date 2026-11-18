@@ -27,6 +27,9 @@ import {
     type XtreamRefreshProgressReporter,
 } from './xtream-refresh-flow.service';
 
+/** What an M3U refresh did; a failure has already been reported. */
+export type M3uRefreshOutcome = 'refreshed' | 'failed' | 'skipped';
+
 export interface XtreamRefreshPreparationState {
     playlistId: string;
     operationId: string;
@@ -99,31 +102,59 @@ export class PlaylistRefreshActionService {
 
         if (playlist.serverUrl && this.runtime.supportsXtreamSqliteDataSource) {
             this.refreshXtream(playlist);
-        } else if (
+        } else {
+            void this.refreshM3uSource(playlist);
+        }
+    }
+
+    /**
+     * Fetches an M3U playlist again from its URL or file and settles with the
+     * outcome, so a caller that just changed the source can report it (#1677).
+     */
+    async refreshM3uSource(playlist: PlaylistMeta): Promise<M3uRefreshOutcome> {
+        if (this.isBlocked(playlist._id)) {
+            return 'skipped';
+        }
+        if (
             this.runtime.supportsPlaylistRefresh &&
             (playlist.url || playlist.filePath)
         ) {
-            void this.refreshM3u(playlist);
-        } else if (playlist.url) {
-            void this.refreshViaBackend(playlist, playlist.url);
+            return this.refreshM3u(playlist);
         }
+        if (playlist.url) {
+            return this.refreshViaBackend(playlist, playlist.url);
+        }
+        return 'skipped';
     }
 
     /** Keep the source busy until the browser refresh reports its result. */
     private async refreshViaBackend(
         item: PlaylistMeta,
         url: string
-    ): Promise<void> {
+    ): Promise<M3uRefreshOutcome> {
         this.m3uRefreshId.set(item._id);
         this.isRefreshing.set(true);
         const release = this.activity.begin([item._id]);
         try {
-            await this.dataService.sendIpcEvent(PLAYLIST_UPDATE, {
-                id: item._id,
-                title: item.title,
-                url,
-                ...(item.userAgent ? { userAgent: item.userAgent } : {}),
-            });
+            // The browser runtime reports and resolves false on failure.
+            const loaded = await this.dataService.sendIpcEvent<boolean>(
+                PLAYLIST_UPDATE,
+                {
+                    id: item._id,
+                    title: item.title,
+                    url,
+                    ...(item.userAgent ? { userAgent: item.userAgent } : {}),
+                }
+            );
+            return loaded === false ? 'failed' : 'refreshed';
+        } catch (error) {
+            console.error('Error refreshing playlist:', error);
+            this.snackBar.open(
+                this.translate.instant('HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR'),
+                this.translate.instant('CLOSE'),
+                { duration: 5000 }
+            );
+            return 'failed';
         } finally {
             this.m3uRefreshId.set(null);
             this.isRefreshing.set(false);
@@ -167,7 +198,7 @@ export class PlaylistRefreshActionService {
         waitForVisibleProgress: () => this.waitForRefreshPreparationPaint(),
     };
 
-    private async refreshM3u(item: PlaylistMeta): Promise<void> {
+    private async refreshM3u(item: PlaylistMeta): Promise<M3uRefreshOutcome> {
         const isActiveM3uRoute =
             this.playlistContext.routeProvider() === 'playlists' &&
             this.playlistContext.resolvedPlaylistId() === item._id;
@@ -217,6 +248,7 @@ export class PlaylistRefreshActionService {
                 undefined,
                 { duration: 2000 }
             );
+            return 'refreshed';
         } catch (error) {
             if (!isDbAbortError(error)) {
                 console.error('Error refreshing playlist:', error);
@@ -226,7 +258,7 @@ export class PlaylistRefreshActionService {
                         this.refresh(item)
                     )
                 ) {
-                    return;
+                    return 'failed';
                 }
                 this.snackBar.open(
                     this.getRefreshErrorMessage(error, item),
@@ -234,6 +266,7 @@ export class PlaylistRefreshActionService {
                     { duration: 5000 }
                 );
             }
+            return 'failed';
         } finally {
             if (isActiveM3uRoute) {
                 this.store.dispatch(

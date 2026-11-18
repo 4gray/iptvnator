@@ -41,7 +41,7 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
         dispatch = jest.fn();
         open = jest.fn();
         close = jest.fn();
-        refresh = jest.fn();
+        refresh = jest.fn().mockResolvedValue('refreshed');
         blocked = false;
         await TestBed.configureTestingModule({
             imports: [PlaylistInfoComponent],
@@ -74,7 +74,10 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
                 },
                 {
                     provide: PlaylistRefreshActionService,
-                    useValue: { refresh, isBlocked: () => blocked },
+                    useValue: {
+                        refreshM3uSource: refresh,
+                        isBlocked: () => blocked,
+                    },
                 },
                 {
                     provide: Router,
@@ -149,5 +152,90 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
         expect(refresh).toHaveBeenCalledWith(
             expect.objectContaining({ _id: 'm3u', url })
         );
+    });
+
+    // Saving a new source reports what loading it did (A-6).
+    it('waits for the new source to load before reporting success', async () => {
+        let finish!: (outcome: string) => void;
+        refresh.mockReturnValueOnce(
+            new Promise((resolve) => {
+                finish = resolve;
+            })
+        );
+
+        const saving = component.saveChanges({
+            ...opened,
+            url: 'https://new.example.com/list.m3u',
+        });
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(component.isLoadingSource()).toBe(true);
+        expect(component.isSaving()).toBe(true);
+        expect(close).not.toHaveBeenCalled();
+        expect(open).not.toHaveBeenCalled();
+
+        finish('refreshed');
+        await saving;
+
+        expect(component.isLoadingSource()).toBe(false);
+        expect(close).toHaveBeenCalled();
+        expect(open).toHaveBeenCalledWith(
+            'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS',
+            'CLOSE',
+            { duration: 3000 }
+        );
+    });
+
+    it('keeps the dialog open and says the old channels remain when loading fails', async () => {
+        refresh.mockResolvedValueOnce('failed');
+
+        await component.saveChanges({
+            ...opened,
+            url: 'https://unreachable.example.com/list.m3u',
+        });
+
+        // The URL stays saved; the refresh itself reported why it failed.
+        expect(dispatch).toHaveBeenCalled();
+        expect(close).not.toHaveBeenCalled();
+        expect(open).not.toHaveBeenCalledWith(
+            'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS',
+            expect.anything(),
+            expect.anything()
+        );
+        expect(component.sourceLoadFailed()).toBe(true);
+        expect(component.isSaving()).toBe(false);
+    });
+
+    it('says the source was saved but not loaded when the refresh was skipped', async () => {
+        refresh.mockResolvedValueOnce('skipped');
+
+        await component.saveChanges({
+            ...opened,
+            url: 'https://new.example.com/list.m3u',
+        });
+
+        expect(close).toHaveBeenCalled();
+        expect(open).toHaveBeenCalledWith(
+            'HOME.PLAYLISTS.SOURCE_SAVED_NOT_LOADED',
+            'CLOSE',
+            { duration: 6000 }
+        );
+    });
+
+    it('clears an earlier load failure when the next save starts', async () => {
+        refresh.mockResolvedValueOnce('failed');
+        await component.saveChanges({
+            ...opened,
+            url: 'https://unreachable.example.com/list.m3u',
+        });
+        expect(component.sourceLoadFailed()).toBe(true);
+
+        await component.saveChanges({
+            ...opened,
+            url: 'https://new.example.com/list.m3u',
+        });
+
+        expect(component.sourceLoadFailed()).toBe(false);
+        expect(close).toHaveBeenCalled();
     });
 });

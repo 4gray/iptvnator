@@ -365,6 +365,74 @@ describe('PlaylistRefreshActionService', () => {
         expect(activity.isBusy('playlist-url')).toBe(false);
     });
 
+    describe('refreshM3uSource outcome (#1677)', () => {
+        const m3u = (overrides: Partial<PlaylistMeta> = {}) =>
+            createPlaylistMeta({
+                _id: 'm3u-source',
+                title: 'M3U source',
+                serverUrl: undefined,
+                username: undefined,
+                password: undefined,
+                url: 'https://new.example.com/list.m3u',
+                ...overrides,
+            });
+
+        it('reports refreshed once the new source is loaded', async () => {
+            playlistRefreshService.refreshPlaylist.mockResolvedValue({
+                _id: 'm3u-source',
+                playlist: { items: [] },
+            } as Playlist);
+
+            await expect(service.refreshM3uSource(m3u())).resolves.toBe(
+                'refreshed'
+            );
+        });
+
+        it('reports failed when the new file cannot be read', async () => {
+            playlistRefreshService.refreshPlaylist.mockRejectedValue(
+                new Error('ENOENT: no such file or directory')
+            );
+
+            await expect(
+                service.refreshM3uSource(
+                    m3u({ url: undefined, filePath: '/tmp/missing.m3u' })
+                )
+            ).resolves.toBe('failed');
+            expect(snackBar.open).toHaveBeenCalledWith(
+                'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_NOT_FOUND',
+                'CLOSE',
+                { duration: 5000 }
+            );
+        });
+
+        it('reports failed when the browser backend cannot load the URL', async () => {
+            runtime.supportsPlaylistRefresh = false;
+            dataService.sendIpcEvent.mockResolvedValueOnce(false);
+
+            await expect(service.refreshM3uSource(m3u())).resolves.toBe(
+                'failed'
+            );
+        });
+
+        it('reports refreshed when the browser backend loads the URL', async () => {
+            runtime.supportsPlaylistRefresh = false;
+            dataService.sendIpcEvent.mockResolvedValueOnce(true);
+
+            await expect(service.refreshM3uSource(m3u())).resolves.toBe(
+                'refreshed'
+            );
+        });
+
+        it('reports skipped while another refresh runs', async () => {
+            service.isRefreshing.set(true);
+
+            await expect(service.refreshM3uSource(m3u())).resolves.toBe(
+                'skipped'
+            );
+            expect(playlistRefreshService.refreshPlaylist).not.toHaveBeenCalled();
+        });
+    });
+
     it('tracks a header M3U refresh by source until the operation settles', async () => {
         const playlist = createPlaylistMeta({
             _id: 'busy',

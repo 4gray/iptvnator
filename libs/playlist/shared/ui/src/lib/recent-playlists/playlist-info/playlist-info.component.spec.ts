@@ -246,7 +246,10 @@ describe('PlaylistInfoComponent', () => {
     });
 
     it('saves a trimmed new M3U URL and refreshes from it (#1677)', async () => {
-        const refreshAction = { refresh: jest.fn(), isBlocked: () => false };
+        const refreshAction = {
+            refreshM3uSource: jest.fn().mockResolvedValue('refreshed'),
+            isBlocked: () => false,
+        };
         TestBed.overrideProvider(PlaylistRefreshActionService, {
             useValue: refreshAction,
         });
@@ -261,7 +264,7 @@ describe('PlaylistInfoComponent', () => {
         } as PlaylistMeta);
 
         // The saved (trimmed) source is what the refresh fetches.
-        expect(refreshAction.refresh).toHaveBeenCalledWith(
+        expect(refreshAction.refreshM3uSource).toHaveBeenCalledWith(
             expect.objectContaining({ _id: 'playlist-1', url })
         );
     });

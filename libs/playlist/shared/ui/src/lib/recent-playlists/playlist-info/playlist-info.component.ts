@@ -8,6 +8,7 @@ import {
     signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
     FormControl,
     ReactiveFormsModule,
@@ -98,6 +99,10 @@ export class PlaylistInfoComponent {
     public playlistData = inject<Playlist & { id: string }>(MAT_DIALOG_DATA);
     readonly isSaving = signal(false);
     readonly isRefreshingSelectedCatalogs = signal(false);
+    /** Saved a new M3U source and waiting for its channels to load. */
+    readonly isLoadingSource = signal(false);
+    /** The saved M3U source could not be loaded; old channels remain. */
+    readonly sourceLoadFailed = signal(false);
     readonly isHydratingStalkerPlaylist = signal(false);
     readonly stalkerPlaylistHydrationFailed = signal(false);
     private dialogClosing = false;
@@ -211,6 +216,12 @@ export class PlaylistInfoComponent {
         this.connectionTest = createXtreamConnectionTestState(
             this.playlistDetails
         );
+        // An inline load failure is cleared by any edit, as other checks are.
+        this.playlistDetails.valueChanges
+            .pipe(takeUntilDestroyed())
+            .subscribe(() => {
+                if (!this.isSaving()) this.sourceLoadFailed.set(false);
+            });
         if (
             this.playlist.portalUrl ||
             this.playlistStorage.kind() === 'server'

@@ -28,7 +28,8 @@
     line-height: 1.45;
 }
 
-.playlist-info-body p.stalker-device-id-warning {
+.playlist-info-body p.stalker-device-id-warning,
+.playlist-info-body p.playlist-info-source-load-failed {
     color: var(--mat-sys-error);
 }
 
