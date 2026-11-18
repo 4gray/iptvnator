@@ -1364,6 +1364,31 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   the change count, Discard and Save (Cmd/Ctrl+S); the sidebar marks pages
   with staged edits. A saved change that waits for a restart shows a sticky
   notice at the top of the page.
+- Save writes only the paths that differ from the form's saved baseline
+  (`pickChangedSettings` in `settings-form-rebase.ts`); a changed dashboard
+  rail goes out over the rails as stored now. Settings another surface wrote
+  while the page was open (the command palette's player switch, or any
+  other store writer) keep their value, and after Save the untouched
+  controls show the stored values. A staged edit wins over an outside
+  change to the same setting. A staged EPG source list is saved together
+  with sources added elsewhere since the page loaded, but it also keeps a
+  source removed elsewhere meanwhile (the list on the page wins). A setting
+  already submitted by a Save awaiting acknowledgement is written again by
+  the next Save, so an edit reverted to its saved value still takes effect.
+  An EPG retry keeps sources added elsewhere, including ones merged by the
+  earlier Save. Outside EPG additions are merged from the saved record in the
+  write transaction, so a failed import cannot contribute sources. Saves
+  without EPG edits also reuse the committed source list. Desktop receives
+  the merged settings except the parental-lock switch, whose dedicated
+  writer owns its native mirror and rollback.
+- A backup import brings in restored EPG URLs and keeps staged edits.
+  Save acknowledgements adopt committed EPG sources, so an unfinished import
+  cannot make its sources appear saved in the form.
+  If overlapping settings writes fail, the EPG list falls back to the last
+  list that reached storage. A playlist-only restore during a pending removal
+  keeps the removal staged for retry if storage fails.
+  The form becomes pristine when it has no edits or pending Save failures.
+  Discard reloads stored values.
 
 ### Light Theme
 

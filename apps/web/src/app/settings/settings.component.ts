@@ -512,7 +512,7 @@ export class SettingsComponent
 
     importData(): void {
         if (this.playlistReset.isRemovingAllPlaylists()) return;
-        this.backup.importData(() => this.discardChanges());
+        this.backup.importData(() => this.form.syncWithStore());
     }
 
     removeAll(): void {

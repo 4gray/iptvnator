@@ -41,7 +41,7 @@ export class SettingsEpgFacade {
             return;
         }
         const filePath = await this.epgBridge.pickEpgFile();
-        if (!filePath) {
+        if (!filePath || !this.formFacade.epgUrl.controls.includes(control)) {
             return;
         }
         control.setValue(filePath);
