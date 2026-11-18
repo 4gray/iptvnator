@@ -340,18 +340,23 @@ export class M3uSeriesDetailRouteComponent {
             this.resumeSettled = true;
         }
 
-        void this.positions.recordProgress(this.playlistId(), {
-            contentXtreamId: Number(episode.id),
-            contentType: 'episode',
-            seriesXtreamId: this.seriesId(),
-            seasonNumber: episode.season,
-            episodeNumber: episode.episode_num,
-            positionSeconds: Math.floor(update.currentTime),
-            durationSeconds: Number.isFinite(update.duration)
-                ? Math.floor(update.duration)
-                : undefined,
-            playlistId: this.playlistId(),
-        });
+        void this.positions.recordProgress(
+            this.playlistId(),
+            {
+                contentXtreamId: Number(episode.id),
+                contentType: 'episode',
+                seriesXtreamId: this.seriesId(),
+                seasonNumber: episode.season,
+                episodeNumber: episode.episode_num,
+                positionSeconds: Math.floor(update.currentTime),
+                durationSeconds: Number.isFinite(update.duration)
+                    ? Math.floor(update.duration)
+                    : undefined,
+                playlistId: this.playlistId(),
+            },
+            // A pause or seek holds still: write it now, as the portals do.
+            update.playing === false
+        );
     }
 
     protected readonly posterUrl = computed(

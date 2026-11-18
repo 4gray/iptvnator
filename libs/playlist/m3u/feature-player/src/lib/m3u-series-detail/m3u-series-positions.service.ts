@@ -151,11 +151,13 @@ export class M3uSeriesPositionsService implements OnDestroy {
      * Persistence is throttled to one write per episode per 15 s, but the
      * in-memory patch is not: the grid should follow the player smoothly
      * while the database sees a handful of rows per episode. Switching
-     * episodes writes immediately, so the one just left keeps its offset.
+     * episodes writes immediately, so the one just left keeps its offset,
+     * and so does an `immediate` tick (a pause or seek).
      */
     async recordProgress(
         playlistId: string,
-        position: PlaybackPositionData
+        position: PlaybackPositionData,
+        immediate = false
     ): Promise<void> {
         if (!playlistId || !this.owns(playlistId, position.seriesXtreamId)) {
             // A tick from the player the viewer has already navigated away
@@ -167,6 +169,7 @@ export class M3uSeriesPositionsService implements OnDestroy {
 
         const now = Date.now();
         if (
+            !immediate &&
             position.contentXtreamId === this.lastSavedEpisodeId &&
             now - this.lastSaveAt <= PROGRESS_SAVE_INTERVAL_MS
         ) {
@@ -213,8 +216,23 @@ export class M3uSeriesPositionsService implements OnDestroy {
         this.lastSavedEpisodeId = 0;
     }
 
+    /**
+     * Closing the window skips `ngOnDestroy`; `pagehide` still fires, so a
+     * held tick is written then too.
+     */
+    private readonly flushOnPageHide = () => void this.flushProgress();
+
+    constructor() {
+        if (typeof window !== 'undefined') {
+            window.addEventListener('pagehide', this.flushOnPageHide);
+        }
+    }
+
     /** Leaving the page mid-episode must not drop its last seconds. */
     ngOnDestroy(): void {
+        if (typeof window !== 'undefined') {
+            window.removeEventListener('pagehide', this.flushOnPageHide);
+        }
         void this.flushProgress();
     }
 

@@ -2227,7 +2227,10 @@ coordinate holds dozens of rows.
   their own series, losing progress on any coordinate only they carried.
 - Episode progress reaches storage at most once per 15 s per episode; the
   held-back tick is written when the player closes, another episode starts,
-  another series opens, or the page is destroyed.
+  another series opens, the page is destroyed or hidden for good
+  (`pagehide`, which fires when the window closes without destroying the
+  page), and a pause or seek (`playing: false`) is written at once, as the
+  portals' shared position writer does.
 - The series detail page feeds the portals' own `PortalDetailShellComponent`
   / `SeasonContainerComponent` / `PortalInlinePlayerComponent` through an
   adapter in the feature library. Nothing shared is forked.

@@ -202,6 +202,35 @@ describe('M3uSeriesPositionsService', () => {
             ]);
         });
 
+        it('is saved when the window closes without destroying the page', async () => {
+            window.dispatchEvent(new Event('pagehide'));
+            await Promise.resolve();
+
+            expect(saved()).toEqual([
+                [11, 10],
+                [11, 15],
+            ]);
+        });
+
+        it('is not written again by a page hide after the page went away', async () => {
+            service.ngOnDestroy();
+            await Promise.resolve();
+            window.dispatchEvent(new Event('pagehide'));
+            await Promise.resolve();
+
+            expect(saved()).toHaveLength(2);
+        });
+
+        it('gives way to a pause, which is written at once', async () => {
+            nowSpy.mockReturnValue(3_006_000);
+            await service.recordProgress('pl-1', position(11, 16), true);
+
+            expect(saved()).toEqual([
+                [11, 10],
+                [11, 16],
+            ]);
+        });
+
         it('is saved when another series opens', async () => {
             await service.load('pl-1', 600);
 
