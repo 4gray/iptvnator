@@ -24,7 +24,10 @@
 .groups-nav-panel {
     width: 208px;
     min-width: 164px;
-    max-width: 320px;
+    // The channel pane beside the rail keeps at least 160px: the sidebar
+    // around this view narrows with the window (UI-67), and a saved 320px
+    // rail would otherwise take all of it.
+    max-width: min(320px, calc(100% - 160px));
     flex-shrink: 0;
     min-height: 0;
     display: flex;

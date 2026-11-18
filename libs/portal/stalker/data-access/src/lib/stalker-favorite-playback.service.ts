@@ -176,7 +176,8 @@ export class StalkerFavoritePlaybackResolver {
                 if (direct) return direct;
                 if (
                     !result.data.length ||
-                    (page + 1) * result.pageSize >= result.total
+                    (result.totalKnown &&
+                        (page + 1) * result.pageSize >= result.total)
                 ) {
                     complete = true;
                     break;

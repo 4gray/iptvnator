@@ -1,4 +1,5 @@
 @use '../epg-theme' as *;
+@use '../../../../styles/app-controls' as controls;
 
 :host {
     display: block;
@@ -23,6 +24,7 @@
 }
 .now-playing__eyebrow {
     display: flex;
+    min-width: 0;
     gap: 10px;
     align-items: center;
     font: 500 10px $font-mono;
@@ -30,7 +32,14 @@
     text-transform: uppercase;
     color: $text-secondary;
 
+    > span:first-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
     .now-playing__on {
+        flex: none;
+        white-space: nowrap;
         color: $live-text;
     }
     .now-playing__on::before {
@@ -87,9 +96,20 @@
 }
 .now-playing__actions {
     display: flex;
+    flex: none;
     flex-direction: column;
     align-items: flex-end;
     gap: 6px;
+}
+
+// Kit roles: Close guide is the strip's ordinary action (small secondary),
+// Collapse/Expand a ghost text action beside it.
+.now-playing__close {
+    @include controls.secondary-button(sm);
+}
+
+.now-playing__collapse {
+    @include controls.ghost-button(sm);
 }
 .now-playing--collapsed {
     gap: 12px;
@@ -102,12 +122,32 @@
     .now-playing__title {
         font-size: 13px;
     }
+    .now-playing__eyebrow {
+        max-width: 50%;
+    }
     .now-playing__actions {
         flex-direction: row;
     }
 }
+
+@media (max-height: 400px), (max-width: 640px) and (max-height: 600px) {
+    .now-playing .now-playing__body {
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: center;
+        gap: 1px;
+    }
+    .now-playing .now-playing__eyebrow {
+        max-width: none;
+    }
+    .now-playing__desc,
+    .now-playing__progress,
+    .now-playing__actions button[aria-expanded] {
+        display: none;
+    }
+}
 kbd {
-    font: 10px $font-mono;
+    font: 500 10px $font-mono;
     border: 1px solid $line-strong;
     border-radius: 4px;
     padding: 0 4px;

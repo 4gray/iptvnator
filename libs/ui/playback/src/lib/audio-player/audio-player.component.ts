@@ -24,6 +24,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { ChannelActions } from '@iptvnator/m3u-state';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import { PlaybackHistoryConfirmation } from '../playback-history/playback-history-confirmation';
+import { LegacyMuteMemory } from '../player-controls/legacy-player-shortcuts';
 
 @Component({
     selector: 'app-audio-player',
@@ -125,13 +126,13 @@ import { PlaybackHistoryConfirmation } from '../playback-history/playback-histor
                         mat-icon-button
                         class="vol-icon"
                         [matTooltip]="
-                            (isMuted() || volume() === 0
+                            (isMuted()
                                 ? 'AUDIO_PLAYER.UNMUTE'
                                 : 'AUDIO_PLAYER.MUTE'
                             ) | translate
                         "
                         [attr.aria-label]="
-                            (isMuted() || volume() === 0
+                            (isMuted()
                                 ? 'AUDIO_PLAYER.UNMUTE'
                                 : 'AUDIO_PLAYER.MUTE'
                             ) | translate
@@ -164,6 +165,10 @@ import { PlaybackHistoryConfirmation } from '../playback-history/playback-histor
                 autoplay
                 #audio
                 (timeupdate)="onTimeUpdate()"
+                (play)="playState.set('play')"
+                (pause)="playState.set('paused')"
+                (ended)="playState.set('paused')"
+                (error)="playState.set('paused')"
             ></audio>
         </div>
     `,
@@ -191,13 +196,17 @@ export class AudioPlayerComponent {
 
     readonly playState = signal<'play' | 'paused'>('paused');
     readonly volume = signal(1);
-    readonly isMuted = signal(false);
+    /**
+     * Muting sets the volume to zero, as in the shared player controls: the
+     * slider then shows it, and raising the volume is also an unmute.
+     */
+    readonly isMuted = computed(() => this.volume() === 0);
     readonly logoError = signal(false);
 
     readonly displayIcon = computed(() => this.icon() || null);
     readonly volumeIcon = computed(() => {
         const v = this.volume();
-        if (v === 0 || this.isMuted()) return 'volume_off';
+        if (v === 0) return 'volume_off';
         return v < 0.5 ? 'volume_down' : 'volume_up';
     });
 
@@ -207,7 +216,8 @@ export class AudioPlayerComponent {
     private store = inject(Store);
     private destroyRef = inject(DestroyRef);
     private hostEl = inject(ElementRef);
-    private fallbackVolume = 1;
+    private readonly muteMemory = new LegacyMuteMemory();
+    private playAttempt = 0;
     /** Commits the deferred "recently viewed" write once the station plays. */
     private readonly historyConfirmation = new PlaybackHistoryConfirmation({
         gate: inject(PlaybackHistoryGate),
@@ -222,6 +232,7 @@ export class AudioPlayerComponent {
         if (!isNaN(saved)) {
             this.volume.set(Math.max(0, Math.min(1, saved)));
         }
+        this.muteMemory.rememberIfAudible(this.volume());
 
         effect(() => {
             const volume = this.externalVolume();
@@ -235,7 +246,10 @@ export class AudioPlayerComponent {
             const audio = this.audioRef()?.nativeElement;
             if (!audio || !url) return;
             audio.src = url;
-            audio.volume = untracked(() => this.volume());
+            this.applyVolume(
+                audio,
+                untracked(() => this.volume())
+            );
             audio.load();
             this.logoError.set(false);
             this.play();
@@ -275,6 +289,9 @@ export class AudioPlayerComponent {
         // pointer and Tab access, but this document-level listener still
         // fires, so it must opt out itself.
         if (this.hostEl.nativeElement.closest('[inert]')) return;
+        // Cmd/Ctrl/Alt chords belong to the app and the system (Cmd+M
+        // minimizes on macOS), not to the radio's M and arrow keys.
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
 
         if (event.key === 'ArrowUp') {
             event.preventDefault();
@@ -301,13 +318,19 @@ export class AudioPlayerComponent {
     play() {
         const audio = this.audioRef()?.nativeElement;
         if (!audio) return;
+        const attempt = ++this.playAttempt;
+        // A media error remains latched until the browser reloads the source.
+        if (audio.error) audio.load();
         audio.play().catch((err) => {
+            if (attempt !== this.playAttempt) return;
+            this.playState.set('paused');
             console.warn('[AudioPlayer] Audio playback failed:', err);
         });
         this.playState.set('play');
     }
 
     stop() {
+        ++this.playAttempt;
         this.audioRef()?.nativeElement?.pause();
         this.playState.set('paused');
     }
@@ -315,25 +338,30 @@ export class AudioPlayerComponent {
     setVolume(value: number, options: { emitChange?: boolean } = {}) {
         const clamped = Math.round(Math.max(0, Math.min(1, value)) * 100) / 100;
         this.volume.set(clamped);
+        this.muteMemory.rememberIfAudible(clamped);
         const audio = this.audioRef()?.nativeElement;
-        if (audio) audio.volume = clamped;
+        if (audio) this.applyVolume(audio, clamped);
         localStorage.setItem('volume', String(clamped));
         if (options.emitChange !== false) {
             this.volumeChange.emit(clamped);
         }
     }
 
+    private applyVolume(audio: HTMLAudioElement, volume: number): void {
+        audio.volume = volume;
+        // iPhone Safari can ignore programmatic changes to the volume.
+        audio.muted = volume === 0;
+    }
+
+    /**
+     * Toggles between silence and the last audible volume (0.5 when none
+     * is known, e.g. a stored volume of zero), so unmute always sounds.
+     */
     mute() {
-        const audio = this.audioRef()?.nativeElement;
-        if (!audio) return;
-        audio.muted = !audio.muted;
-        this.isMuted.set(audio.muted);
-        if (audio.muted) {
-            this.fallbackVolume = this.volume();
-            this.setVolume(0);
-        } else {
-            this.setVolume(this.fallbackVolume);
-        }
+        // The shared volume key can contain a value below radio's precision.
+        this.setVolume(
+            this.isMuted() ? Math.max(0.01, this.muteMemory.unmuteVolume(0)) : 0
+        );
     }
 
     switchChannel(direction: 'next' | 'previous') {

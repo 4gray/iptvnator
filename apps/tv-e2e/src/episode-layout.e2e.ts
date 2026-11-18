@@ -1,11 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { fillTvField, addSource, nav, start } from './helpers';
 
-for (const { index, actions } of [
-    { index: 72, actions: false },
-    { index: 180, actions: true },
-])
-    test(`@tmdb delayed episode stills preserve ${actions ? 'watch actions' : 'playback focus'} at episode ${index + 1} and its viewport anchor`, async ({
+for (const index of [30, 120])
+    test(`@tmdb a long season stays a windowed rail; delayed stills keep focus on episode ${index + 1}`, async ({
         page,
     }) => {
         await start(page);
@@ -93,58 +90,54 @@ for (const { index, actions } of [
         await nav(page, 'Series');
         await page.locator('.poster-card').first().click();
         await expect.poll(() => !!release).toBe(true);
-        await expect(
-            page.locator('.virtual-collection[data-loaded="200"]')
-        ).toBeVisible();
-        const columns = await page
-            .locator('.episode-grid')
-            .evaluate(
-                (el) =>
-                    getComputedStyle(el).gridTemplateColumns.split(' ').length
-            );
-        await page.locator('.episode').first().focus();
-        for (let next = columns; next <= index; next += columns) {
-            await page.keyboard.press('ArrowDown');
-            await expect(
-                page.locator('.episode-entry .tv-select:focus')
-            ).toHaveCount(1);
-            await page.keyboard.press('ArrowDown');
+        const rail = page.locator('.episode-rail');
+        await expect(rail.locator('.episode').first()).toBeVisible();
+        await rail.locator('.episode').first().focus();
+        for (let next = 1; next <= index; next++) {
+            await page.keyboard.press('ArrowRight');
             await expect(page.locator('.episode:focus')).toHaveAttribute(
-                'data-virtual-index',
+                'data-episode-index',
                 String(next)
             );
         }
-        const chosen = page.locator(`.episode[data-virtual-index="${index}"]`);
+        const chosen = rail.locator(`[data-episode-index="${index}"]`);
         await expect(chosen).toBeFocused();
-        const focused = actions
-            ? chosen.locator('..').getByRole('combobox')
-            : chosen;
-        if (actions) await page.keyboard.press('ArrowDown');
-        await expect(focused).toBeFocused();
-        const before = await chosen.evaluate(
-            (el) => el.getBoundingClientRect().top
+        // Only a window around the selected episode is in the DOM.
+        expect(await rail.locator('.episode').count()).toBeLessThanOrEqual(24);
+        await expect(page.locator('.episode-focus')).toContainText(
+            `Anchored episode ${index + 1}`
         );
+        // Layout position in the rail: the focus scale transition does not count.
+        const position = () =>
+            chosen.evaluate(
+                (el) =>
+                    (el as HTMLElement).offsetLeft -
+                    (el.parentElement?.scrollLeft ?? 0)
+            );
+        const before = await position();
         release!();
-        await expect(page.locator('.rich-episodes')).toBeVisible();
-        await page.evaluate(
-            () =>
-                new Promise<void>((resolve) =>
-                    requestAnimationFrame(() =>
-                        requestAnimationFrame(() => resolve())
-                    )
-                )
-        );
-        await expect(focused).toBeFocused();
-        await expect
-            .poll(() =>
-                chosen.evaluate(
-                    (el, top) => Math.abs(el.getBoundingClientRect().top - top),
-                    before
-                )
-            )
-            .toBeLessThan(2);
-        expect(await page.locator('.episode').count()).toBeLessThanOrEqual(30);
-        if (actions) await page.keyboard.press('ArrowUp');
+        await expect(chosen.locator('.episode-still')).toBeVisible();
+        await expect(chosen).toBeFocused();
+        expect(Math.abs((await position()) - before)).toBeLessThan(2);
+        await page.keyboard.press('ArrowDown');
+        await expect(
+            page.locator('[data-focus="episode-options"]')
+        ).toBeFocused();
+        await page.keyboard.press('ArrowUp');
+        await expect(chosen).toBeFocused();
+        // Pointer or wheel scrolling to the end renders the episodes there
+        // instead of empty spacer, and keeps the focused episode mounted.
+        await rail.evaluate((el) => {
+            el.scrollLeft = el.scrollWidth;
+        });
+        await expect(rail.locator('[data-episode-index="199"]')).toBeVisible();
+        await expect(chosen).toBeFocused();
+        // Scrolling back to the start puts the window before the focused
+        // episode; its button must survive the split.
+        await rail.evaluate((el) => {
+            el.scrollLeft = 0;
+        });
+        await expect(rail.locator('[data-episode-index="0"]')).toBeVisible();
         await expect(chosen).toBeFocused();
         await page.keyboard.press('Enter');
         await expect(page.locator('.player-bottom')).toContainText(

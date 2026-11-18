@@ -37,7 +37,7 @@ import {
     playlistDisplayLabel,
 } from '@iptvnator/shared/interfaces';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
-import { EpgMappingDialogComponent } from '@iptvnator/ui/components';
+import { APP_ICONS, EpgMappingDialogComponent } from '@iptvnator/ui/components';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
@@ -73,6 +73,7 @@ export type GlobalFavoritesListMode = 'favorites' | 'recent';
     ],
 })
 export class GlobalFavoritesListComponent {
+    protected readonly appIcons = APP_ICONS;
     private readonly dialog = inject(MatDialog);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     get supportsEpgMapping(): boolean {
@@ -301,16 +302,11 @@ export class GlobalFavoritesListComponent {
             });
     }
 
-    /**
-     * The stalker item id lives in the uid's third segment
-     * (`stalker::{playlistId}::{stalkerId}`) — same extraction the
-     * unified favorites data service uses.
-     */
     private stalkerItemId(channel: UnifiedFavoriteChannel): string | null {
         if (channel.sourceType !== 'stalker') {
             return null;
         }
-        const id = channel.uid.split('::')[2]?.trim();
+        const id = String(channel.stalkerId ?? '').trim();
         return id || null;
     }
 

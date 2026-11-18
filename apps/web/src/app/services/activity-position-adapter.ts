@@ -2,7 +2,10 @@ import { clearActivityPositions } from './activity-position-clear';
 import { ActivityPositionWriteFence } from './activity-position-write-fence';
 import type { IXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
-import type { ActivitySyncClient } from '@iptvnator/services/activity-sync';
+import {
+    ActivitySupersededError,
+    type ActivitySyncClient,
+} from '@iptvnator/services/activity-sync';
 import {
     ActivityLocalOnlyPositions,
     type LocalActivitySnapshot,
@@ -61,6 +64,13 @@ export class ActivityPositionAdapter {
                 method === 'savePlaybackPosition' ? [args[1]] : args[1]
             ) as PlaybackPositionData[];
             for (const position of positions) {
+                if (
+                    position.nativeCheckpointAt &&
+                    this.writeFence.blocksCheckpoint(sourceId, position)
+                )
+                    throw new ActivitySupersededError(
+                        'A newer playback action is still pending'
+                    );
                 const { current, finish } = this.writeFence.start(
                     sourceId,
                     position
@@ -122,7 +132,10 @@ export class ActivityPositionAdapter {
                         delivery = await this.client.save(sourceId, position);
                     } catch (error) {
                         // A new source may never have received its portable incarnation before going offline.
-                        if (current())
+                        if (
+                            current() &&
+                            !(error instanceof ActivitySupersededError)
+                        )
                             await this.saveLocalOnly(raw, sourceId, position);
                         throw error;
                     }
@@ -147,7 +160,8 @@ export class ActivityPositionAdapter {
                     all: () => this.all(raw, sourceId),
                     local: (position) =>
                         this.resetLocal(raw, sourceId, position),
-                    start: (item) => this.writeFence.start(sourceId, item),
+                    start: (item) =>
+                        this.writeFence.start(sourceId, item, true),
                 }
             );
         }

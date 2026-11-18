@@ -1,4 +1,10 @@
-import { computed, DestroyRef, inject, Injectable } from '@angular/core';
+import {
+    computed,
+    DestroyRef,
+    inject,
+    Injectable,
+    Injector,
+} from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
@@ -27,6 +33,7 @@ import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.s
 import { WorkspaceShellSearchService } from './workspace-shell-search.service';
 import { WorkspaceShellXtreamImportService } from './workspace-shell-xtream-import.service';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
+import { WorkspaceKeyboardShortcutsService } from '../../workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service';
 import { PlaylistSwitcherOpenService } from '@iptvnator/playlist/shared/ui';
 
 @Injectable()
@@ -48,6 +55,8 @@ export class WorkspaceShellFacade {
     private readonly xtreamImport = inject(WorkspaceShellXtreamImportService);
     readonly headerContext = inject(WorkspaceHeaderContextService);
     private readonly backNavigation = inject(WorkspaceBackNavigationService);
+    // Resolved on use: the shortcuts service is the shell's sibling provider.
+    private readonly injector = inject(Injector);
 
     private readonly languageTick = injectTranslationTick();
     // Root-provided; optional keeps standalone unit tests light. While the phone context drawer is modal, opening the command
@@ -121,8 +130,16 @@ export class WorkspaceShellFacade {
     );
     readonly dashboardXtreamContext = this.routeState.dashboardXtreamContext;
     readonly contextPanel = this.routeState.contextPanel;
-    readonly showContextPanel = this.routeState.showContextPanel;
-    readonly hasContextPanelContent = this.routeState.hasContextPanelContent;
+    readonly showContextPanel = computed(
+        () =>
+            this.routeState.showContextPanel() &&
+            !this.header.headerShortcut()?.hidesContextPanel?.()
+    );
+    readonly hasContextPanelContent = computed(
+        () =>
+            this.routeState.hasContextPanelContent() &&
+            !this.header.headerShortcut()?.hidesContextPanel?.()
+    );
     readonly contextDrawerLabelKeys = this.routeState.contextDrawerLabelKeys;
     readonly showXtreamImportOverlay =
         this.xtreamImport.showXtreamImportOverlay;
@@ -177,7 +194,7 @@ export class WorkspaceShellFacade {
 
     closeActiveExternalSession(): void {
         void this.externalPlayback
-            .closeSession(this.externalPlayback.activeSession())
+            .closeSession(this.externalPlayback.activeSession(), true)
             .catch(() => undefined);
     }
 
@@ -312,6 +329,10 @@ export class WorkspaceShellFacade {
         unlockParentalLock: () => {
             void this.parentalLock.requestUnlock();
         },
+        openKeyboardShortcuts: () =>
+            this.injector
+                .get(WorkspaceKeyboardShortcutsService)
+                .openShortcutsDialog(),
     };
 
     private translateText(

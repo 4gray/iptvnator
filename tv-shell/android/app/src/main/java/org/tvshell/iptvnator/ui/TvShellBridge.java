@@ -32,6 +32,20 @@ final class TvShellBridge {
                 Log.i(ShellApp.TAG, "web app ready");
                 activity.onWebAppReady();
                 break;
+            case "playNative":
+                if (args.size() == 3) {
+                    String id = stringAt(args, 1);
+                    if (id != null && id.matches("[a-f0-9-]{36}")) activity.playNative(id, args.get(2));
+                }
+                break;
+            case "acknowledgeNativePlaybackCheckpoint":
+                String checkpointId = stringAt(args, 1);
+                if (checkpointId != null) activity.acknowledgeNativePlaybackCheckpoint(checkpointId);
+                break;
+            case "stopNative":
+                String playbackId = stringAt(args, 1);
+                if (playbackId != null) activity.stopNative(playbackId);
+                break;
             case "openExternal":
             case "onUrlCopied":
             case "onPlaybackError":

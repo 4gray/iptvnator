@@ -19,7 +19,7 @@ import {
     guideTrackWidthPx,
 } from './epg-guide-layout.util';
 import { EpgGuideRowStatus } from './epg-guide-programs.service';
-import { EpgGuideChannel } from './epg-guide-source';
+import { EpgGuideCatchUp, EpgGuideChannel } from './epg-guide-source';
 
 /**
  * One channel row: the sticky channel cell and the lane with positioned
@@ -48,7 +48,7 @@ export class EpgGuideRowComponent {
     readonly hourWidthPx = input(EPG_GUIDE_ZOOM_DEFAULT);
     readonly nowMs = input(0);
     readonly offsetMinutes = input(0);
-    readonly catchUpAvailable = input(false);
+    readonly catchUp = input<EpgGuideCatchUp>();
     readonly active = input(false);
     readonly density = input<EpgGuideDensity>('comfortable');
     readonly rowFocused = input(false);
@@ -63,7 +63,8 @@ export class EpgGuideRowComponent {
     /** Single click on the channel cell or the on-now card. */
     readonly channelActivated = output<void>();
     /** Double click: activate and close the guide. */
-    readonly channelCommitted = output<void>();
+    readonly channelCommitted = output<boolean>();
+    private gestureStartedOnActive = false;
     readonly detailsRequested = output<TimelineRenderBlock>();
     readonly watchRequested = output<TimelineRenderBlock>();
     /**
@@ -73,15 +74,18 @@ export class EpgGuideRowComponent {
      */
     readonly focusRequested = output<number | null>();
 
-    readonly blocks = computed(() =>
-        buildGuideRowBlocks(this.programs(), {
+    readonly blocks = computed(() => {
+        const catchUp = this.catchUp();
+        return buildGuideRowBlocks(this.programs(), {
             axis: this.axis(),
             hourWidthPx: this.hourWidthPx(),
             nowMs: this.nowMs(),
             offsetMinutes: this.offsetMinutes(),
-            catchUpAvailable: this.catchUpAvailable(),
-        })
-    );
+            canWatch:
+                catchUp &&
+                ((program) => catchUp.canWatch(this.channel(), program)),
+        });
+    });
     readonly nowBlock = computed(
         () => this.blocks().find((item) => item.block.when === 'now') ?? null
     );
@@ -107,15 +111,19 @@ export class EpgGuideRowComponent {
         return this.roving() && this.focusedBlock() === index ? 0 : -1;
     }
 
-    onChannelClick(): void {
+    onChannelClick(event: MouseEvent): void {
         this.focusRequested.emit(null);
-        this.channelActivated.emit();
+        this.activateGesture(event);
     }
 
-    onBlockClick(item: TimelineRenderBlock, index: number): void {
+    onBlockClick(
+        item: TimelineRenderBlock,
+        index: number,
+        event: MouseEvent
+    ): void {
         this.focusRequested.emit(index);
         if (item.block.when === 'now') {
-            this.channelActivated.emit();
+            this.activateGesture(event);
         } else {
             this.detailsRequested.emit(item);
         }
@@ -123,8 +131,19 @@ export class EpgGuideRowComponent {
 
     onBlockDoubleClick(item: TimelineRenderBlock): void {
         if (item.block.when === 'now') {
-            this.channelCommitted.emit();
+            this.commitGesture();
         }
+    }
+
+    commitGesture(): void {
+        this.channelCommitted.emit(this.gestureStartedOnActive);
+        this.gestureStartedOnActive = false;
+    }
+
+    private activateGesture(event: MouseEvent): void {
+        if (event.detail > 1) return;
+        this.gestureStartedOnActive = this.active();
+        this.channelActivated.emit();
     }
 
     onWatchClick(event: Event, item: TimelineRenderBlock): void {

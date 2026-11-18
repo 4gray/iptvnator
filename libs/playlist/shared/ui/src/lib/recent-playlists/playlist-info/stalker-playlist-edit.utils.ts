@@ -81,6 +81,17 @@ export function normalizePlaylistConnectionMeta(
             username: update.username.trim(),
         };
     }
+    if (!stored.serverUrl && !stored.portalUrl) {
+        normalized = {
+            ...normalized,
+            ...(typeof update.url === 'string'
+                ? { url: update.url.trim() }
+                : {}),
+            ...(typeof update.filePath === 'string'
+                ? { filePath: update.filePath.trim() }
+                : {}),
+        };
+    }
     if (update.macAddress === stored.macAddress) return normalized;
     const macAddress = normalizeStalkerMacAddress(update.macAddress);
     return macAddress ? { ...normalized, macAddress } : normalized;

@@ -3,6 +3,17 @@ import {
     clickPointerOrigin,
 } from './pointer-focus-release';
 
+/** No `matchMedia` (tests, SSR) counts as hover-capable, the old behavior. */
+function anyPointerCanHover(): boolean {
+    if (
+        typeof window === 'undefined' ||
+        typeof window.matchMedia !== 'function'
+    ) {
+        return true;
+    }
+    return window.matchMedia('(any-hover: hover)').matches;
+}
+
 export interface ControlsSurfaceHandlers {
     /** Reveal the controls (pointer move / enter / click on the surface). */
     reveal: () => void;
@@ -167,6 +178,27 @@ export class ControlsSurface {
         if (typeof pointerType === 'string' && pointerType !== '') {
             return pointerType === 'touch';
         }
+        return this.hadRecentTouchPress();
+    }
+
+    /**
+     * Whether a `pointerenter` on the controls is not a pointer resting over
+     * them. After a tap, Chromium hit-tests the tap point again as the
+     * controls fade in under the finger and dispatches `pointerenter` with
+     * `pointerType: 'mouse'`; on a touch screen no `pointerleave` follows,
+     * so treating it as hover pinned the controls on screen for good. A
+     * device without any hover-capable pointer (phones, TV remotes) never
+     * hovers at all.
+     */
+    isEmulatedHover(event?: Event): boolean {
+        return (
+            this.wasTouchInteraction(event) ||
+            this.hadRecentTouchPress() ||
+            !anyPointerCanHover()
+        );
+    }
+
+    private hadRecentTouchPress(): boolean {
         return (
             this.lastTouchPointerDownAt !== null &&
             Date.now() - this.lastTouchPointerDownAt <=

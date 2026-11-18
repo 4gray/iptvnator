@@ -13,6 +13,7 @@ import type {
 } from '@iptvnator/playback/util';
 import {
     VideoPlayer,
+    type EmbeddedMpvSession,
     type ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import type { ExternalPlaybackRecoveryCoordinator } from './external-playback-recovery-coordinator';
@@ -35,6 +36,8 @@ export interface WebPlayerRecoveryControllerDeps {
     readonly selectedPlayer: Signal<VideoPlayer>;
     readonly reloadToken: WritableSignal<number>;
     readonly playbackApplicationToken: Signal<WebPlayerApplicationToken>;
+    readonly embeddedSession: () =>
+        Pick<EmbeddedMpvSession, 'id' | 'reconnect'> | null | undefined;
     readonly resolvedPlayback: Signal<ResolvedPortalPlayback>;
     readonly resolvedIsLive: Signal<boolean>;
     readonly playbackExternallyTransferable: Signal<boolean>;
@@ -68,6 +71,11 @@ export class WebPlayerRecoveryController {
     });
     private readonly diagnosticOwnerToken =
         signal<WebPlayerApplicationToken | null>(null);
+    private playbackState?: {
+        token: WebPlayerApplicationToken;
+        ended: boolean;
+        embeddedId?: string;
+    };
     readonly visiblePlaybackDiagnostic = computed(() =>
         this.deps.selectedPlayer() === VideoPlayer.EmbeddedMpv ||
         this.diagnosticOwnerToken() !== this.diagnosticIntentToken()
@@ -95,6 +103,85 @@ export class WebPlayerRecoveryController {
     });
 
     constructor(private readonly deps: WebPlayerRecoveryControllerDeps) {}
+
+    recordTimeUpdate(
+        token: WebPlayerApplicationToken,
+        playing?: boolean
+    ): boolean {
+        const embedded = this.deps.embeddedSession();
+        if (embedded?.reconnect) this.recordEnd(token);
+        if (!playing || embedded?.reconnect) return false;
+        const embeddedId = embedded?.id;
+        if (
+            this.playbackState?.token === token &&
+            this.playbackState.embeddedId === embeddedId &&
+            !this.playbackState.ended
+        )
+            return false;
+        this.playbackState = { token, ended: false, embeddedId };
+        return true;
+    }
+
+    recordEnd(token: WebPlayerApplicationToken): void {
+        this.playbackState = { token, ended: true };
+    }
+
+    confirmAndroidStart(): boolean {
+        const alreadyStarted = this.hasStartedPlayback();
+        this.clearDiagnostic();
+        this.playbackState = {
+            token: this.deps.playbackApplicationToken(),
+            ended: false,
+        };
+        return !alreadyStarted;
+    }
+
+    readonly hasStartedPlayback = (): boolean => {
+        const embedded = this.deps.embeddedSession();
+        const token = this.deps.playbackApplicationToken();
+        if (embedded?.reconnect) this.recordEnd(token);
+        return (
+            this.playbackState?.token === token &&
+            this.playbackState.embeddedId === embedded?.id &&
+            !this.playbackState.ended &&
+            !this.visiblePlaybackDiagnostic()
+        );
+    };
+
+    canRetry(): boolean {
+        return (
+            (this.playbackState?.ended &&
+                this.playbackState.token ===
+                    this.deps.playbackApplicationToken()) ||
+            !!this.visiblePlaybackDiagnostic()
+        );
+    }
+
+    retryFailedPlayback(
+        mpv:
+            | {
+                  isReconnecting(): boolean;
+                  isErrored(): boolean;
+                  isLiveEnded(): boolean;
+                  retry(): void;
+              }
+            | undefined,
+        retryWeb: () => void
+    ): boolean {
+        if (!mpv) {
+            if (!this.canRetry()) return false;
+            retryWeb();
+        } else {
+            if (
+                mpv.isReconnecting() ||
+                (!mpv.isErrored() && !mpv.isLiveEnded())
+            )
+                return false;
+            this.recordEnd(this.deps.playbackApplicationToken());
+            mpv.retry();
+        }
+        return true;
+    }
 
     handlePlaybackIssue(
         issue: PlaybackDiagnostic | null,

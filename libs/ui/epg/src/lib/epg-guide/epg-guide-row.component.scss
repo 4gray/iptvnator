@@ -11,7 +11,12 @@
         background: $surface-3;
     }
     &.is-active {
-        background: var(--app-selection-surface);
+        background:
+            linear-gradient(
+                var(--app-selection-surface),
+                var(--app-selection-surface)
+            ),
+            var(--app-content-bg);
     }
     &.is-focused {
         box-shadow: inset 0 0 0 2px var(--app-focus-ring);
@@ -120,6 +125,7 @@
 
 .epg-guide-row__lane {
     position: relative;
+    z-index: 0;
     flex: 0 0 auto;
     height: 100%;
 }
@@ -162,6 +168,9 @@
     justify-content: center;
     gap: 2px;
     min-width: 0;
+    // The width is set inline from the programme length; the container lets
+    // the ON NOW tag adapt to it.
+    container: epg-guide-block / inline-size;
     transition:
         border-color 120ms,
         transform 120ms;
@@ -196,11 +205,14 @@
     &.is-playing {
         background: var(--app-selection-surface-strong);
     }
+    // Keep the title's ellipsis clear of the catch-up button in the corner.
+    &.has-watch .epg-guide-row__title {
+        padding-right: 18px;
+    }
     &[data-tier='narrow'] {
         padding: 6px 8px;
 
-        .epg-guide-row__time,
-        .epg-guide-row__tag {
+        .epg-guide-row__meta {
             display: none;
         }
     }
@@ -208,9 +220,8 @@
         padding: 0;
         border-radius: 4px;
 
-        .epg-guide-row__time,
-        .epg-guide-row__title,
-        .epg-guide-row__tag {
+        .epg-guide-row__meta,
+        .epg-guide-row__title {
             display: none;
         }
     }
@@ -234,12 +245,35 @@
     pointer-events: none;
 }
 
+// Time and tag share one line, so the tag can never sit on top of the time.
+// A comfortable block has room for two lines only (time, title): rather than
+// wrap the tag onto a third line and push the title out of the block, a block
+// too narrow for the full tag keeps only its live dot (see the container query
+// below), and the time itself truncates as a last resort.
+.epg-guide-row__meta {
+    position: relative;
+    display: flex;
+    align-items: center;
+    column-gap: 6px;
+    min-width: 0;
+    :host(.is-compact) & {
+        // Compact blocks are one row: time, title, then the tag at the end.
+        display: contents;
+    }
+}
+
 .epg-guide-row__time {
     position: relative;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font: 10.5px $font-mono;
     color: $text-secondary;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
+    :host(.is-compact) & {
+        flex: 0 0 auto;
+    }
 }
 
 .epg-guide-row__title {
@@ -249,12 +283,15 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    :host(.is-compact) & {
+        min-width: 0;
+    }
 }
 
 .epg-guide-row__tag {
-    position: absolute;
-    right: 8px;
-    top: 7px;
+    position: relative;
+    flex: 0 0 auto;
+    white-space: nowrap;
     font: 600 9px $font-mono;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -271,8 +308,25 @@
         vertical-align: 1px;
     }
     :host(.is-compact) & {
-        position: static;
+        order: 1;
+        flex: 0 0 auto;
         margin-left: auto;
+    }
+}
+
+// Below ~160px of block the full tag no longer fits beside the rest: in a
+// comfortable block "16:30 – 17:00" plus the tag fill the line, and in a
+// compact one the start time and the tag would leave the title on the same
+// row almost no width. Either way the tag is reduced to its dot.
+@container epg-guide-block (max-width: 160px) {
+    .epg-guide-row__tag {
+        font-size: 0;
+        letter-spacing: 0;
+
+        &::before {
+            margin-right: 0;
+            vertical-align: middle;
+        }
     }
 }
 

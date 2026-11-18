@@ -20,6 +20,7 @@ import {
     m3uCatalogSource,
     selectAllPlaylistsMeta,
 } from '@iptvnator/m3u-state';
+import { APP_ICONS } from '@iptvnator/ui/components/app-icons';
 import {
     injectTranslationTick,
     RuntimeCapabilitiesService,
@@ -124,7 +125,7 @@ export class WorkspaceShellRouteStateService {
         }
 
         links.push({
-            icon: 'favorite',
+            icon: APP_ICONS.favorite,
             tooltip: this.translateText('HOME.PLAYLISTS.GLOBAL_FAVORITES'),
             path: ['/workspace/global-favorites'],
             exact: true,

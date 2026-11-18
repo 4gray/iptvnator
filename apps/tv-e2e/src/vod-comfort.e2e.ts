@@ -1,5 +1,13 @@
 import { expect, Page, test } from '@playwright/test';
-import { addSource, cardAction, chooseTv, nav, start } from './helpers';
+import {
+    addSource,
+    cardAction,
+    chooseTv,
+    disableUpNextAndAutoplay,
+    moreAction,
+    nav,
+    start,
+} from './helpers';
 
 async function editSaved(
     page: Page,
@@ -78,7 +86,7 @@ test('TV VOD comfort completed movie never says Resume after historical schema-1
     );
 });
 
-async function syntheticSeries(page: Page) {
+async function syntheticSeries(page: Page, nextStill?: string) {
     await page.route('**/xtream?**', async (route) => {
         const action = new URL(route.request().url()).searchParams.get(
             'action'
@@ -113,6 +121,7 @@ async function syntheticSeries(page: Page) {
                                     season: 1,
                                     episode_num: 4,
                                     title: 'The crossing',
+                                    info: { movie_image: nextStill },
                                     container_extension: 'mp4',
                                 },
                             ],
@@ -181,9 +190,7 @@ test('TV VOD comfort manual marks commit before display, recover from quota and 
             throw new DOMException('Synthetic quota', 'QuotaExceededError');
         };
     });
-    await page
-        .getByRole('button', { name: 'Mark watched', exact: true })
-        .click();
+    await moreAction(page, 'Mark watched');
     await expect(
         page.getByRole('button', { name: 'Retry viewing status' })
     ).toBeVisible();
@@ -195,10 +202,9 @@ test('TV VOD comfort manual marks commit before display, recover from quota and 
     await expect(page.locator('[data-focus="detail-play"]')).toContainText(
         'Watch again'
     );
-    await page
-        .getByRole('button', { name: 'Reset progress', exact: true })
-        .click();
-    await expect(page.locator('[data-focus="detail-play"]')).toBeFocused();
+    await moreAction(page, 'Reset progress');
+    // The ⋯ menu returns focus to its opener.
+    await expect(page.locator('[data-focus="detail-more"]')).toBeFocused();
     await expect(page.locator('[data-focus="detail-play"]')).toContainText(
         'Watch now'
     );
@@ -241,10 +247,223 @@ test('TV VOD comfort manual marks commit before display, recover from quota and 
     expect(retained).toBe(true);
 });
 
+test('TV Up next can be reached again by remote and Back dismisses it first', async ({
+    page,
+}) => {
+    await start(page);
+    await syntheticSeries(page, 'https://artwork.invalid/episode.jpg');
+    await addSource(page, 'xtream');
+    await nav(page, 'Series');
+    await page.locator('.poster-card').first().click();
+    await page.locator('[data-focus="detail-play"]').click();
+
+    const card = page.locator('[data-focus="player-up-next"]');
+    const player = page.locator('.native-player.fullscreen');
+    await expect(card).toBeFocused();
+    await expect(card.locator('.tv-up-next__placeholder')).toHaveText(
+        'S1 · E4'
+    );
+    const thumb = card.locator('.tv-up-next__thumb');
+    await expect(thumb).toHaveCSS('height', '144px');
+    await page.addStyleTag({
+        content: '.tv-up-next, .tv-up-next__meta { gap: 0 !important; }',
+    });
+    const metadata = card.locator('.tv-up-next__meta');
+    await expect(card.locator('.tv-up-next__ring-fill')).toHaveCSS(
+        'transition-duration',
+        '0s'
+    );
+    await expect
+        .poll(() =>
+            metadata.evaluate((element) => {
+                const previous = element.previousElementSibling!;
+                return (
+                    element.getBoundingClientRect().left -
+                    previous.getBoundingClientRect().right
+                );
+            })
+        )
+        .toBeGreaterThan(0);
+    await expect
+        .poll(() =>
+            metadata.evaluate((element) => {
+                const [first, second] = Array.from(element.children);
+                return (
+                    second.getBoundingClientRect().top -
+                    first.getBoundingClientRect().bottom
+                );
+            })
+        )
+        .toBeGreaterThan(0);
+    await expect(card.locator('.tv-up-next__ring-fill')).not.toHaveCSS(
+        'stroke',
+        await card.evaluate(
+            (element) => getComputedStyle(element).backgroundColor
+        )
+    );
+    await page.keyboard.press('ArrowDown');
+    await expect(card).not.toBeFocused();
+    await page.keyboard.press('ArrowUp');
+    await expect(card).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(card).toBeHidden();
+    await expect(player).toBeVisible();
+    await expect(page.locator('[data-focus="player-toggle"]')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(player).toHaveCount(0);
+
+    await page.locator('[data-focus="detail-play"]').click();
+    await expect(card).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.player-bottom')).toContainText('The crossing');
+});
+
+for (const replay of [false, true])
+    test(`TV Up next handles a late episode list with ${replay ? 'Watch again pending' : 'app hide'}`, async ({
+        page,
+    }) => {
+        await start(page);
+        await syntheticSeries(page);
+        await addSource(page, 'xtream');
+        await nav(page, 'Series');
+        await page.locator('.poster-card').first().click();
+        await chooseTv(page, 'Season', '1');
+        await page.locator('.episode').last().click();
+        const video = page.locator('video');
+        await expect
+            .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime))
+            .toBeGreaterThan(0.1);
+
+        // Resume with an empty sequence cache and hold the lookup until playback ends.
+        await expect(
+            page.locator('[data-focus="player-up-next"]')
+        ).toBeVisible();
+        await page.keyboard.press('Escape');
+        await page.keyboard.press('Escape');
+        await expect(page.locator('.native-player.fullscreen')).toHaveCount(0);
+        let release!: () => void;
+        const gate = new Promise<void>((resolve) => (release = resolve));
+        await page.route('**/xtream?**', async (route) => {
+            if (
+                new URL(route.request().url()).searchParams.get('action') ===
+                'get_series_info'
+            )
+                await gate;
+            await route.fallback();
+        });
+        try {
+            await page.reload();
+            await cardAction(page, page.locator('.resume-card'));
+            await expect
+                .poll(() =>
+                    video.evaluate((v: HTMLVideoElement) => v.currentTime)
+                )
+                .toBeGreaterThan(0.1);
+            await endedUnknown(page);
+            await expect(page.locator('.player-bottom')).toContainText(
+                'Finding the next episode'
+            );
+            if (replay) {
+                await page.evaluate(() => {
+                    const state = window as unknown as {
+                        replaySaveHeld?: boolean;
+                        releaseReplaySave?: () => void;
+                    };
+                    const put = IDBObjectStore.prototype.put;
+                    const assign = Object.getOwnPropertyDescriptor(
+                        IDBTransaction.prototype,
+                        'oncomplete'
+                    )!.set!;
+                    IDBObjectStore.prototype.put = function (value, key) {
+                        if (
+                            key === 'user' &&
+                            Object.values(value.data.positions).some(
+                                (position) =>
+                                    (position as { reset?: boolean }).reset
+                            )
+                        ) {
+                            IDBObjectStore.prototype.put = put;
+                            Object.defineProperty(
+                                this.transaction,
+                                'oncomplete',
+                                {
+                                    configurable: true,
+                                    set(callback: (event: Event) => void) {
+                                        assign.call(this, (event: Event) => {
+                                            state.replaySaveHeld = true;
+                                            state.releaseReplaySave = () =>
+                                                callback.call(this, event);
+                                        });
+                                    },
+                                }
+                            );
+                        }
+                        return put.call(this, value, key);
+                    };
+                });
+                await page.locator('[data-focus="player-toggle"]').click();
+                await expect
+                    .poll(() =>
+                        page.evaluate(
+                            () =>
+                                !!(
+                                    window as unknown as {
+                                        replaySaveHeld?: boolean;
+                                    }
+                                ).replaySaveHeld
+                        )
+                    )
+                    .toBe(true);
+            } else {
+                await page.evaluate(() => {
+                    Object.defineProperty(document, 'hidden', {
+                        configurable: true,
+                        value: true,
+                    });
+                    document.dispatchEvent(new Event('visibilitychange'));
+                });
+            }
+            release();
+            await expect(
+                page.locator('[data-focus="player-next"]')
+            ).toContainText('S2 · E1');
+            await expect(page.locator('.player-bottom')).toContainText(
+                'The crossing'
+            );
+            if (replay) {
+                await page.evaluate(() =>
+                    (
+                        window as unknown as { releaseReplaySave?: () => void }
+                    ).releaseReplaySave?.()
+                );
+                await expect(video).toHaveJSProperty('ended', false);
+                await expect(page.locator('.player-bottom')).toContainText(
+                    'The crossing'
+                );
+            } else {
+                await page.evaluate(() => {
+                    Reflect.deleteProperty(document, 'hidden');
+                    document.dispatchEvent(new Event('visibilitychange'));
+                });
+                await expect(page.locator('.player-bottom')).toContainText(
+                    'Arrival'
+                );
+            }
+            await expect
+                .poll(() =>
+                    video.evaluate((v: HTMLVideoElement) => v.currentTime)
+                )
+                .toBeGreaterThan(0.1);
+        } finally {
+            release();
+        }
+    });
+
 test('TV VOD comfort series Start, ended, explicit Next and Home advance across actual supplied seasons', async ({
     page,
 }) => {
     await start(page);
+    await disableUpNextAndAutoplay(page);
     await syntheticSeries(page);
     await addSource(page, 'xtream');
     await nav(page, 'Series');
@@ -400,6 +619,7 @@ test('TV VOD comfort lazy Ministra Next crosses seasons, resolves on demand and 
     page,
 }) => {
     await start(page);
+    await disableUpNextAndAutoplay(page);
     await addSource(page, 'stalker', { mac: '00:1a:79:00:00:0b' });
     await nav(page, 'Movies');
     await page.locator('.poster-card').first().click();
@@ -446,6 +666,91 @@ test('TV VOD comfort lazy Ministra Next crosses seasons, resolves on demand and 
         release();
     }
 });
+
+for (const action of ['app hide', 'seek back'] as const)
+    test(`TV autoplay cancels a held resolution on ${action}`, async ({
+        page,
+    }) => {
+        await start(page);
+        await addSource(page, 'stalker', { mac: '00:1a:79:00:00:0b' });
+        await nav(page, 'Movies');
+        await page.locator('.poster-card').first().click();
+        await page.locator('[data-focus="detail-play"]').click();
+        await expect(page.locator('[data-focus="player-next"]')).toContainText(
+            'S1 · E2'
+        );
+        await expect
+            .poll(() =>
+                page
+                    .locator('video')
+                    .evaluate((v: HTMLVideoElement) => v.currentTime)
+            )
+            .toBeGreaterThan(0.1);
+        let requests = 0;
+        let release!: () => void;
+        const gate = new Promise<void>((resolve) => (release = resolve));
+        await page.route('**/stalker?**', async (route) => {
+            if (
+                new URL(route.request().url()).searchParams.get('action') !==
+                'create_link'
+            )
+                return route.fallback();
+            requests++;
+            if (requests === 1) await gate;
+            await route.fallback();
+        });
+        try {
+            await page
+                .locator('video')
+                .evaluate(async (v: HTMLVideoElement) => {
+                    v.currentTime = v.duration - 0.1;
+                    await v.play();
+                });
+            await expect.poll(() => requests).toBe(1);
+            if (action === 'app hide') {
+                await page.evaluate(() => {
+                    Object.defineProperty(document, 'hidden', {
+                        configurable: true,
+                        value: true,
+                    });
+                    document.dispatchEvent(new Event('visibilitychange'));
+                });
+            } else {
+                await page.locator('video').evaluate((v: HTMLVideoElement) => {
+                    v.currentTime = 1;
+                });
+                await expect(page.locator('video')).toHaveJSProperty(
+                    'ended',
+                    false
+                );
+            }
+            release();
+            await expect(
+                page.locator('[data-focus="player-next"]')
+            ).toBeEnabled();
+            await expect(page.locator('.player-bottom')).toContainText(
+                'Episode 1'
+            );
+            if (action === 'app hide') {
+                await page.evaluate(() => {
+                    Reflect.deleteProperty(document, 'hidden');
+                    document.dispatchEvent(new Event('visibilitychange'));
+                });
+                await expect(page.locator('.player-bottom')).toContainText(
+                    'Episode 2'
+                );
+                expect(requests).toBe(2);
+            } else {
+                expect(requests).toBe(1);
+                await expect(page.locator('video')).toHaveJSProperty(
+                    'ended',
+                    false
+                );
+            }
+        } finally {
+            release();
+        }
+    });
 
 test('TV VOD comfort failed sequence lookup keeps playback and Retry finds the actual successor', async ({
     page,
@@ -541,10 +846,11 @@ test('TV VOD comfort Next resolution failure preserves the current episode and r
     await expect(page.locator('video')).toHaveCount(1);
 });
 
-test('TV VOD comfort remote arrows reach early-row episode watch actions and return focus after marking', async ({
+test('TV VOD comfort remote arrows move along the episode rail, reach its options and return focus after marking', async ({
     page,
 }) => {
     await start(page);
+    await disableUpNextAndAutoplay(page);
     await syntheticSeries(page);
     await addSource(page, 'xtream');
     await page.route('**/xtream?**', (route) => {
@@ -572,36 +878,61 @@ test('TV VOD comfort remote arrows reach early-row episode watch actions and ret
     });
     await nav(page, 'Series');
     await page.locator('.poster-card').first().click();
+    // Details focus their primary action first; start from there.
+    await expect(page.locator('[data-focus="detail-play"]')).toBeFocused();
     await page.locator('.episode').first().focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(page.locator('.episode').nth(1)).toBeFocused();
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.locator('.episode').first()).toBeFocused();
     await page.keyboard.press('ArrowDown');
-    await expect(
-        page.locator('.episode-entry .tv-select').first()
-    ).toBeFocused();
+    const options = page.locator('[data-focus="episode-options"]');
+    await expect(options).toBeFocused();
+    await expect(options).toHaveAttribute(
+        'aria-label',
+        'Episode options · S1 · E1 · Synthetic chapter 1'
+    );
     await page.keyboard.press('Enter');
     await expect(page.getByRole('dialog')).toBeVisible();
     await expect(
-        page.getByRole('option', { name: 'Mark watched', exact: true })
+        page.getByRole('button', { name: 'Mark watched', exact: true })
     ).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(page.getByRole('dialog')).toBeHidden();
     await expect(page.locator('.episode').first()).toContainText('Watched');
-    await expect(
-        page.locator('.episode-entry .tv-select').first()
-    ).toBeFocused();
-    await page.keyboard.press('ArrowDown');
-    await expect(page.locator('.episode').nth(3)).toBeFocused();
+    await expect(options).toBeFocused();
     await page.keyboard.press('ArrowUp');
     await expect(page.locator('.episode').first()).toBeFocused();
     await expect(page.locator('video[src],video source')).toHaveCount(0);
     await page.screenshot({
         path: test.info().outputPath('synthetic-episode-actions.png'),
     });
-    await page.keyboard.press('ArrowDown');
+    // Start over is offered for an episode in progress and returns to it.
+    await page.keyboard.press('ArrowRight');
     await page.keyboard.press('Enter');
-    await page.getByRole('option', { name: 'Start over', exact: true }).click();
+    const video = page.locator('video');
+    await expect
+        .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime))
+        .toBeGreaterThan(0.1);
+    await page.getByLabel('Playback position').fill('8');
+    await expect
+        .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime))
+        .toBeGreaterThanOrEqual(8);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.episode').nth(1)).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(options).toHaveAttribute(
+        'aria-label',
+        'Episode options · S1 · E2 · Synthetic chapter 2'
+    );
+    await page.keyboard.press('Enter');
+    await page
+        .getByRole('dialog')
+        .getByRole('button', { name: 'Start over', exact: true })
+        .click();
     await expect(page.locator('[data-focus="player-toggle"]')).toBeFocused();
     await page.keyboard.press('Escape');
-    await expect(page.locator('.episode').first()).toBeFocused();
+    await expect(page.locator('.episode').nth(1)).toBeFocused();
 });
 
 for (const replay of [
@@ -614,6 +945,7 @@ for (const replay of [
         page,
     }) => {
         await start(page);
+        await disableUpNextAndAutoplay(page);
         await syntheticSeries(page);
         await addSource(page, 'xtream');
         await nav(page, 'Series');
@@ -676,5 +1008,6 @@ for (const replay of [
             .toBe(true);
         await page.keyboard.press('Escape');
         await expect(origin).toBeFocused();
-        await expect(origin).toContainText('Resume');
+        // The replayed episode is in progress again.
+        await expect(origin).toContainText(/ min (left|watched)/);
     });

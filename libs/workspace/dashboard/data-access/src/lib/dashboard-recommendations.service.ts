@@ -2,6 +2,8 @@ import { computed, Injectable, inject, signal } from '@angular/core';
 import {
     CatalogTitleMatchService,
     TmdbEnrichmentService,
+    type TmdbMatchIdentity,
+    type TmdbMatchService,
 } from '@iptvnator/services';
 import {
     CatalogTitleMatch,
@@ -13,6 +15,12 @@ import {
     buildDashboardTmdbAttempts,
     dashboardTmdbLookupKey,
 } from './dashboard-tmdb-lookup.util';
+import {
+    DashboardTmdbMatchItem,
+    dashboardTmdbMatchIdentity,
+    dashboardTmdbMatchToken,
+    resolveDashboardTmdbDetails,
+} from './dashboard-tmdb-match.util';
 import {
     ExclusionIndex,
     RecommendationCandidate,
@@ -30,8 +38,16 @@ interface LoadedRecommendations {
 
 const EMPTY_LOAD: LoadedRecommendations = { candidates: [], matches: [] };
 
+interface RecommendationSeed {
+    item: DashboardTmdbMatchItem;
+    identities: (TmdbMatchIdentity | null)[];
+    matchToken: string;
+}
+
 interface SeedRecommendations {
     resolved: boolean;
+    /** The viewer chose the provider's data: no TMDB, and no verdict on TMDB */
+    skipped?: true;
     seedTitle: string;
     entries: RecommendationCandidate[];
 }
@@ -100,6 +116,8 @@ export class DashboardRecommendationsService {
 
     private loadedKey: string | null = null;
     private rerunQueued = false;
+    /** Loaded on the first TMDB request, before keying or deduplicating seeds. */
+    private matches: TmdbMatchService | null = null;
 
     get isAvailable(): boolean {
         return this.enrichment.isEnabled() && this.titleMatch.isAvailable;
@@ -109,6 +127,7 @@ export class DashboardRecommendationsService {
         if (!this.isAvailable) {
             return;
         }
+        this.matches ??= (await this.enrichment.getMatches?.()) ?? null;
         if (this.loading()) {
             // Re-run after the active load settles — its result may be for
             // a seed/exclusion set that just went stale.
@@ -129,11 +148,17 @@ export class DashboardRecommendationsService {
         // card titles) are localized, so a language change must reload —
         // the service outlives the dashboard and would otherwise keep
         // titles in the previous language all session.
+        // So is each seed's TMDB match choice: re-matching a title in its
+        // detail view must change what it recommends.
         const loadKey = `${this.enrichment.language()}//${buildLoadKey(
-            seeds,
+            seeds.map(({ item }) => item),
             excluded,
             this.catalogKey()
-        )}`;
+        )}//${seeds
+            .map(({ identities, matchToken }) =>
+                JSON.stringify([identities, matchToken])
+            )
+            .join(',')}`;
         if (loadKey === this.loadedKey) {
             return;
         }
@@ -150,7 +175,12 @@ export class DashboardRecommendationsService {
             // still-valid cards is the worse answer for an offline user.
             // Only the cards the user has meanwhile watched or favorited
             // are dropped, since those the failure cannot excuse.
-            if (!perSeed.some((seed) => seed.resolved)) {
+            // A seed the viewer took off TMDB says nothing about TMDB.
+            const answered = perSeed.filter((seed) => !seed.skipped);
+            if (
+                answered.length > 0 &&
+                !answered.some((seed) => seed.resolved)
+            ) {
                 this.dropExcludedCards(excluded);
             } else {
                 const candidates = this.mergeCandidates(
@@ -175,7 +205,7 @@ export class DashboardRecommendationsService {
                     // enrichment misses are cached and the catalog match is
                     // one batched `matchTitles` call (worker requests of
                     // five titles, other reads in between).
-                    this.loadedKey = perSeed.every((seed) => seed.resolved)
+                    this.loadedKey = answered.every((seed) => seed.resolved)
                         ? loadKey
                         : null;
                 } else {
@@ -223,16 +253,36 @@ export class DashboardRecommendationsService {
         const livePlaylists = new Set(
             this.data.playlists().map((playlist) => playlist._id)
         );
+        const keptCandidates: RecommendationCandidate[] = [];
+        for (const candidate of candidates) {
+            if (isExcludedCandidate(candidate, excluded)) {
+                continue;
+            }
+            // Cached contributors may be absent from the deduplicated seed list.
+            const contributors = candidate.contributors.filter(
+                ({ identity, matchToken }) =>
+                    dashboardTmdbMatchToken(this.matches, identity) ===
+                    matchToken
+            );
+            if (contributors.length > 0) {
+                keptCandidates.push(
+                    contributors.length === candidate.contributors.length
+                        ? candidate
+                        : { ...candidate, contributors }
+                );
+            }
+        }
         const kept: LoadedRecommendations = {
-            candidates: candidates.filter(
-                (candidate) => !isExcludedCandidate(candidate, excluded)
-            ),
+            candidates: keptCandidates,
             matches: matches.filter((match) =>
                 livePlaylists.has(match.playlistId)
             ),
         };
         if (
             kept.candidates.length === candidates.length &&
+            kept.candidates.every(
+                (candidate, i) => candidate === candidates[i]
+            ) &&
             kept.matches.length === matches.length
         ) {
             return;
@@ -264,7 +314,7 @@ export class DashboardRecommendationsService {
      * without it a deleted playlist would leave cards linking nowhere and
      * a new import would stay invisible until the seeds changed. A
      * refreshed playlist keeps its id and is NOT detected (parity with
-     * the trending rail's once-per-session load).
+     * the trending rail).
      */
     private catalogKey(): string {
         return this.data
@@ -274,54 +324,74 @@ export class DashboardRecommendationsService {
             .join(',');
     }
 
-    /** Most recent distinct watched VOD/series usable as TMDB lookups */
-    private selectSeeds(): DashboardTmdbLookupItem[] {
-        const seeds: DashboardTmdbLookupItem[] = [];
-        const seen = new Set<string>();
+    /** Most recent distinct TMDB lookups and all activity rows behind them. */
+    private selectSeeds(): RecommendationSeed[] {
+        const seeds = new Map<string, RecommendationSeed>();
         for (const item of this.data.globalRecentVodItems()) {
-            if (buildDashboardTmdbAttempts(item).length === 0) {
+            const position =
+                item.source === 'xtream' && item.type === 'series'
+                    ? this.data.getPlaybackPositionForItem(item)
+                    : null;
+            const identity = dashboardTmdbMatchIdentity(item, position);
+            const matchToken = dashboardTmdbMatchToken(this.matches, identity);
+            if (
+                matchToken === 'provider' ||
+                (!matchToken && buildDashboardTmdbAttempts(item).length === 0)
+            ) {
                 continue;
             }
-            const key = dashboardTmdbLookupKey(item);
-            if (seen.has(key)) {
-                continue;
-            }
-            seen.add(key);
-            seeds.push(item);
-            if (seeds.length === MAX_SEEDS) {
-                break;
+            const key = JSON.stringify([
+                dashboardTmdbLookupKey(item),
+                matchToken,
+            ]);
+            const seed = seeds.get(key);
+            if (seed) {
+                seed.identities.push(identity);
+            } else if (seeds.size < MAX_SEEDS) {
+                seeds.set(key, { item, identities: [identity], matchToken });
             }
         }
-        return seeds;
+        return [...seeds.values()];
     }
 
-    private async recommendationsForSeed(
-        seed: DashboardTmdbLookupItem
-    ): Promise<SeedRecommendations> {
-        for (const attempt of buildDashboardTmdbAttempts(seed)) {
-            const query = {
-                title: attempt.title,
-                originalTitle: attempt.originalTitle,
-                tmdbId: attempt.tmdbId,
-                year: attempt.year,
+    private async recommendationsForSeed({
+        item,
+        identities,
+        matchToken,
+    }: RecommendationSeed): Promise<SeedRecommendations> {
+        const resolved = await resolveDashboardTmdbDetails(
+            this.enrichment,
+            item,
+            this.matches,
+            identities[0]
+        );
+        if (!resolved) {
+            return {
+                resolved: false,
+                seedTitle: item.title,
+                entries: [],
             };
-            const details =
-                attempt.mediaType === 'tv'
-                    ? await this.enrichment.enrichTv(query)
-                    : await this.enrichment.enrichMovie(query);
-            if (details) {
-                return {
-                    resolved: true,
-                    seedTitle: attempt.title,
-                    entries: toCandidates(
-                        details.recommendations?.results ?? [],
-                        attempt.mediaType,
-                        attempt.title
-                    ),
-                };
-            }
         }
-        return { resolved: false, seedTitle: seed.title, entries: [] };
+        const { attempt, details } = resolved;
+        if (!details) {
+            return {
+                resolved: true,
+                skipped: true,
+                seedTitle: attempt.title,
+                entries: [],
+            };
+        }
+        return {
+            resolved: true,
+            seedTitle: attempt.title,
+            entries: toCandidates(
+                details.recommendations?.results ?? [],
+                attempt.mediaType,
+                attempt.title,
+                identities,
+                matchToken
+            ),
+        };
     }
 
     /**
@@ -333,8 +403,7 @@ export class DashboardRecommendationsService {
         lists: readonly RecommendationCandidate[][],
         excluded: ExclusionIndex
     ): RecommendationCandidate[] {
-        const seen = new Set<string>();
-        const merged: RecommendationCandidate[] = [];
+        const merged = new Map<string, RecommendationCandidate>();
         const longest = Math.max(0, ...lists.map((list) => list.length));
         for (let i = 0; i < longest; i++) {
             for (const list of lists) {
@@ -350,14 +419,25 @@ export class DashboardRecommendationsService {
                 // Two candidates that end up on the same catalog row are
                 // collapsed after matching instead.
                 const idKey = `${entry.mediaType}:${entry.tmdbId}`;
-                if (seen.has(idKey) || isExcludedCandidate(entry, excluded)) {
+                if (isExcludedCandidate(entry, excluded)) {
                     continue;
                 }
-                seen.add(idKey);
-                merged.push(entry);
+                const existing = merged.get(idKey);
+                merged.set(
+                    idKey,
+                    existing
+                        ? {
+                              ...existing,
+                              contributors: [
+                                  ...existing.contributors,
+                                  ...entry.contributors,
+                              ],
+                          }
+                        : entry
+                );
             }
         }
-        return merged;
+        return [...merged.values()];
     }
 
     /**

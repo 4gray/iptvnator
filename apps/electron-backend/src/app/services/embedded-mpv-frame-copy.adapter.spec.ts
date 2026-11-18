@@ -65,6 +65,38 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
         expect(child.stdin.written[0]).toBe('mpv-options\n');
     });
 
+    it('waits for native completion before confirming a volume change', async () => {
+        const id = createSession();
+        const finished = jest.fn();
+        const pending = adapter.setVolume(id, 0.4).then(finished);
+        await Promise.resolve();
+        expect(finished).not.toHaveBeenCalled();
+        child.emitStdout({
+            event: 'command-result',
+            requestId: '1',
+            success: true,
+        });
+        await pending;
+        expect(adapter.getSessionSnapshot(id)?.volume).toBe(0.4);
+    });
+
+    it('confirms helper exit before rejecting an ambiguous volume timeout', async () => {
+        const id = createSession();
+        child.kill.mockImplementation(() => true);
+        const failed = jest.fn();
+        const pending = adapter.setVolume(id, 0.7).catch(failed);
+        await jest.advanceTimersByTimeAsync(3000);
+        expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+        expect(failed).not.toHaveBeenCalled();
+        await jest.advanceTimersByTimeAsync(500);
+        expect(child.kill).toHaveBeenCalledWith('SIGKILL');
+        expect(failed).not.toHaveBeenCalled();
+        child.exitCode = 0;
+        child.emit('exit', 0, 'SIGKILL');
+        await pending;
+        expect(failed).toHaveBeenCalledTimes(1);
+    });
+
     it('caches helper snapshot events for getSessionSnapshot', () => {
         const sessionId = createSession();
         child.emitStdout({

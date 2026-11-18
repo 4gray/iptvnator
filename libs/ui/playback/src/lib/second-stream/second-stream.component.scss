@@ -1,0 +1,433 @@
+@use '../../../../styles/app-controls' as controls;
+@use './floating-surface';
+
+:host {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+:host(.second-stream--tiled) {
+    display: contents;
+}
+button,
+.second-stream__video,
+.second-stream__tile {
+    app-region: no-drag;
+    pointer-events: auto;
+}
+.second-stream__video,
+.second-stream__tile {
+    position: absolute;
+    width: var(--pip-width);
+    height: var(--pip-height);
+    left: var(--pip-left);
+    top: var(--pip-top);
+}
+.second-stream__video {
+    z-index: 3;
+    background: #000;
+}
+.second-stream__video[popover],
+.second-stream__tile[popover] {
+    @include floating-surface.surface;
+}
+.second-stream__video[popover] {
+    @include floating-surface.frame;
+}
+.second-stream__tile[popover] {
+    background: transparent;
+}
+.second-stream__video--main {
+    inset: 0;
+    width: 100%;
+    height: calc(100% - var(--second-stream-strip-height, 0px));
+    z-index: 0;
+    outline: none;
+}
+.second-stream__video--beside,
+.second-stream__grid-cell,
+.second-stream__focus-cell {
+    position: relative;
+    inset: auto;
+    width: auto;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    z-index: auto;
+}
+
+.second-stream__video--beside,
+.second-stream__grid-cell[data-multiview-slot='2'] {
+    grid-area: 1 / 2;
+}
+
+.second-stream__grid-cell[data-multiview-slot='3'] {
+    grid-area: 2 / 1;
+}
+
+.second-stream__grid-cell[data-multiview-slot='4'] {
+    grid-area: 2 / 2;
+}
+
+.second-stream__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid var(--app-widget-header-border);
+    background: var(--app-widget-bg);
+    color: var(--app-body-color);
+    font: inherit;
+    font-weight: 500;
+    text-align: start;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+
+    .second-stream__number {
+        position: absolute;
+        inset-block-start: 8px;
+        inset-inline-start: 8px;
+        padding: 2px 4px;
+        font-size: 12px;
+    }
+
+    mat-icon {
+        flex: none;
+        width: 20px;
+        height: 20px;
+        font-size: 20px;
+    }
+
+    &:hover:not([aria-disabled='true']) {
+        border-color: var(--app-list-selected-outline);
+        background: var(--app-list-selected-bg);
+        color: var(--app-list-selected-fg);
+    }
+}
+.second-stream__tile {
+    z-index: 5;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+.second-stream__tile--dragging {
+    cursor: grabbing;
+}
+.second-stream__tile:focus-visible {
+    outline: 2px solid var(--app-focus-ring);
+    outline-offset: 2px;
+}
+// Controls over moving video use a fixed contrast pair in both themes.
+.second-stream__chrome {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    height: 40px;
+    box-sizing: border-box;
+    padding: 0 8px;
+    gap: 4px;
+    background: transparent;
+    color: #fff;
+    opacity: 0;
+    pointer-events: none;
+}
+.second-stream__chrome button {
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #fff;
+    background: rgb(0 0 0 / 76%);
+
+    mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+    }
+    &:hover:not(:disabled) {
+        background: #15171b;
+    }
+    &:disabled {
+        cursor: default;
+        color: rgb(255 255 255 / 50%);
+    }
+    &:focus-visible {
+        outline: 2px solid var(--app-focus-ring);
+        outline-offset: -3px;
+    }
+}
+.second-stream__bottom button:first-child:not(:disabled) {
+    background: #183c80;
+    color: #fff;
+}
+.second-stream__bottom button:first-child:not(:disabled):hover {
+    background: #204b97;
+}
+.second-stream__top > span + button,
+.second-stream__bottom button:last-child {
+    margin-inline-start: auto;
+}
+.second-stream__tile:hover .second-stream__chrome,
+.second-stream__tile:focus-within .second-stream__chrome,
+.second-stream__tile--dragging .second-stream__chrome,
+.second-stream__tile--resizing .second-stream__chrome {
+    opacity: 1;
+    pointer-events: auto;
+    button {
+        pointer-events: auto;
+    }
+}
+.second-stream__top {
+    top: 4px;
+}
+.second-stream__bottom {
+    bottom: 4px;
+    padding-inline: 24px;
+}
+.second-stream__chrome > span {
+    flex: 0 1 auto;
+    padding: 4px 7px;
+    border-radius: 4px;
+    background: rgb(0 0 0 / 76%);
+    color: #fff;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+}
+.second-stream__top > span {
+    font-weight: 500;
+}
+.second-stream__error {
+    position: absolute;
+    top: 56px;
+    right: 12px;
+    z-index: 6;
+    max-width: min(320px, 80%);
+    padding: 12px;
+    background: var(--app-widget-bg);
+    color: var(--app-danger-text);
+}
+@media (hover: none) {
+    .second-stream__chrome {
+        opacity: 1;
+        pointer-events: auto;
+        button {
+            pointer-events: auto;
+        }
+    }
+}
+
+.second-stream__resize {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 24px;
+    height: 24px;
+    pointer-events: auto;
+    cursor: nwse-resize;
+    touch-action: none;
+    app-region: no-drag;
+    &:focus-visible {
+        outline: 2px solid var(--app-focus-ring);
+        outline-offset: -3px;
+    }
+}
+.second-stream__resize--left {
+    right: auto;
+    left: 0;
+    cursor: nesw-resize;
+}
+
+.second-stream__strip {
+    position: absolute;
+    inset: auto 0 0;
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-sizing: border-box;
+    height: var(--second-stream-strip-height);
+    padding: 4px 8px;
+    background: var(--app-content-bg);
+    border-block-start: 1px solid var(--app-widget-header-border);
+}
+
+.second-stream__streams {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    gap: 6px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    list-style: none;
+
+    li {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        flex: 0 1 auto;
+        min-width: 48px;
+        max-width: 214px;
+        padding: 2px;
+        border: 1px solid var(--app-widget-header-border);
+        border-radius: 7px;
+        background: var(--app-widget-bg);
+        color: var(--app-body-color);
+        font-size: 12px;
+    }
+
+    .second-stream__stream--has-actions {
+        min-width: 104px;
+    }
+
+    .second-stream__stream--selected {
+        border-color: var(--app-list-selected-outline);
+        background: var(--app-list-selected-bg);
+        color: var(--app-list-selected-fg);
+    }
+
+    mat-icon {
+        flex: none;
+        width: 15px;
+        height: 15px;
+        font-size: 15px;
+    }
+}
+
+.second-stream__select,
+.second-stream__strip-button {
+    display: inline-flex;
+    align-items: center;
+    height: 26px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.second-stream__select {
+    min-width: 0;
+    gap: 4px;
+    padding: 0 3px;
+    text-align: start;
+}
+
+.second-stream__strip-button {
+    flex: 0 0 28px;
+    justify-content: center;
+    padding: 0;
+    color: var(--app-body-color);
+
+    mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+    }
+}
+
+.second-stream__sound {
+    flex-basis: 22px;
+    color: inherit;
+}
+
+.second-stream__select:hover:not([aria-disabled='true']),
+.second-stream__strip-button:hover:not(:disabled, [aria-disabled='true']),
+.second-stream__sound[aria-pressed='true'] {
+    background: var(--app-hover-overlay);
+}
+
+.second-stream__layouts {
+    @include controls.segmented-track;
+    flex: none;
+
+    button {
+        @include controls.segment(24px);
+        justify-content: center;
+        width: 30px;
+        padding: 0;
+
+        &[aria-pressed='true'] {
+            @include controls.segment-selected;
+        }
+    }
+
+    mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+    }
+}
+
+.second-stream__strip button:disabled,
+.second-stream__strip button[aria-disabled='true'] {
+    cursor: default;
+    opacity: 0.65;
+}
+
+// The PiP labels stay readable even though its transport follows the main view.
+.second-stream__strip .second-stream__select[tabindex='-1'] {
+    opacity: 1;
+}
+
+.second-stream__beside-icon {
+    rotate: 90deg;
+}
+
+.second-stream__number {
+    flex: none;
+    min-width: 16px;
+    border-radius: 4px;
+    background: var(--app-hover-overlay);
+    text-align: center;
+    font-weight: 600;
+}
+
+.second-stream__action {
+    flex: none;
+    gap: 5px;
+    min-width: 28px;
+    padding-inline: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.second-stream__strip button:focus-visible,
+.second-stream__empty:focus-visible {
+    outline: 2px solid var(--app-focus-ring);
+    outline-offset: -2px;
+}
+
+.second-stream__title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@container (max-width: 940px) {
+    .second-stream__action span {
+        display: none;
+    }
+}
+
+@container (max-width: 600px) {
+    .second-stream__title {
+        display: none;
+    }
+}

@@ -30,6 +30,7 @@ import {
     WORKSPACE_SHELL_ACTIONS,
 } from '@iptvnator/workspace/shell/util';
 import { RecentCommandsService } from '../../recent-commands';
+import { WorkspaceKeyboardShortcutsService } from '../../workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service';
 import { WorkspacePlayerCommandsContributor } from '../../workspace-player-commands';
 import { XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS } from './helpers/workspace-shell-constants';
 import { WorkspaceShellFacade } from './workspace-shell.facade';
@@ -268,6 +269,10 @@ describe('WorkspaceShellFacade', () => {
                 WorkspaceShellHeaderService,
                 WorkspaceShellXtreamImportService,
                 WorkspaceShellCommandPaletteService,
+                {
+                    provide: WorkspaceKeyboardShortcutsService,
+                    useValue: { openShortcutsDialog: jest.fn() },
+                },
                 {
                     provide: WorkspaceShellContextDrawerService,
                     useValue: contextDrawer,
@@ -826,6 +831,7 @@ describe('WorkspaceShellFacade', () => {
             'open-global-recent',
             'open-downloads',
             'open-settings',
+            'keyboard-shortcuts',
             'open-sources',
             'add-playlist-stalker',
             'add-playlist-xtream',
@@ -836,6 +842,21 @@ describe('WorkspaceShellFacade', () => {
             true
         );
         expect(commands.every((command) => command.enabled)).toBe(true);
+    });
+
+    it('opens the keyboard shortcuts from the palette', () => {
+        const open = jest.mocked(
+            TestBed.inject(WorkspaceKeyboardShortcutsService)
+                .openShortcutsDialog
+        );
+        facade.currentUrl.set('/workspace/dashboard');
+
+        facade
+            .commandPaletteCommands()
+            .find((command) => command.id === 'keyboard-shortcuts')
+            ?.run({ query: '' });
+
+        expect(open).toHaveBeenCalledTimes(1);
     });
 
     it('shows the global search command for M3U-only sources', () => {
@@ -972,6 +993,41 @@ describe('WorkspaceShellFacade', () => {
         expect(commands.some((command) => command.id === 'account-info')).toBe(
             false
         );
+    });
+
+    it('shows a portal guide action only for its owning live route and folds the category panel while it is open', () => {
+        const headerContext = TestBed.inject(WorkspaceHeaderContextService);
+        const open = signal(false);
+        const id = 'xtream-epg-guide';
+        headerContext.setAction({
+            id,
+            icon: 'grid_view',
+            tooltipKey: 'TOP_MENU.OPEN_EPG_GUIDE',
+            ariaLabelKey: 'TOP_MENU.OPEN_EPG_GUIDE',
+            owner: {
+                provider: 'xtreams',
+                playlistId: 'synthetic-portal',
+                section: 'live',
+            },
+            hidesContextPanel: open,
+            palette: { labelKey: 'TOP_MENU.OPEN_EPG_GUIDE' },
+            run: jest.fn(),
+        });
+        const commands = () =>
+            facade.commandPaletteCommands().map((command) => command.id);
+        facade.currentUrl.set('/workspace/xtreams/synthetic-portal/live/1');
+        expect(facade.headerShortcut()?.id).toBe(id);
+        expect(commands()).toContain(id);
+        expect(facade.showContextPanel()).toBe(true);
+        open.set(true);
+        expect(facade.showContextPanel()).toBe(false);
+        expect(facade.headerSidebarToggle()).toBeNull();
+        facade.currentUrl.set('/workspace/xtreams/another-portal/live/1');
+        expect(facade.headerShortcut()).toBeNull();
+        expect(commands()).not.toContain(id);
+        expect(facade.showContextPanel()).toBe(true);
+        facade.currentUrl.set('/workspace/xtreams/synthetic-portal/vod');
+        expect(facade.headerShortcut()).toBeNull();
     });
 
     it('disables the programme guide command while the header action reports disabled', () => {

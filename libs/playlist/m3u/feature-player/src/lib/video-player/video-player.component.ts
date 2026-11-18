@@ -532,11 +532,20 @@ export class VideoPlayerComponent
             return null;
         }
 
+        const playlist = this.activePlaylistMeta();
         return buildM3uPlaybackPayload({
             channel: activeChannel,
             target: playbackTarget,
-            playlistMeta: this.activePlaylistMeta(),
+            playlistMeta: playlist,
             isLive: !this.activePlaybackUrl() && !isLikelyM3uVod(activeChannel),
+            catalogIdentity:
+                playlist && !this.activePlaybackUrl()
+                    ? {
+                          playlistId: playlist._id,
+                          type: 'live',
+                          id: activeChannel.id,
+                      }
+                    : undefined,
         });
     }
     readonly sidebarStorageKey = computed(() =>

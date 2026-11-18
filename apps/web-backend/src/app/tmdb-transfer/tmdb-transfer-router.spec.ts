@@ -1,6 +1,8 @@
-import type {
-    TmdbTransferRequest,
-    TmdbTransferSession,
+import {
+    isTmdbTransferCapability,
+    isTmdbTransferCode,
+    type TmdbTransferRequest,
+    type TmdbTransferSession,
 } from '@iptvnator/shared/interfaces';
 import { withTempStorage } from '../storage/server-storage.spec-helpers';
 import { createWebBackendApp } from '../web-backend-app';
@@ -51,10 +53,12 @@ describe('TMDB transfer', () => {
                     )
                 ).status
             ).toBe(409);
-            const start = await post({ action: 'start' });
+            const start = await post({ action: 'start', codeFormat: 'short' });
             expect(start.status).toBe(201);
             const { senderToken, receiverToken } =
                 (await start.json()) as TmdbTransferSession;
+            expect(isTmdbTransferCode(senderToken)).toBe(true);
+            expect(isTmdbTransferCapability(receiverToken)).toBe(true);
             expect(
                 (
                     await post({
@@ -130,12 +134,56 @@ describe('TMDB transfer', () => {
             ).toBe(410);
         }));
 
+    it('retains the original sender capability for clients without a format preference', () =>
+        withTransfer(async (post) => {
+            const { senderToken } = (await (
+                await post({ action: 'start' })
+            ).json()) as TmdbTransferSession;
+            expect(isTmdbTransferCapability(senderToken)).toBe(true);
+            expect(
+                (await post({ action: 'check', transferToken: senderToken }))
+                    .status
+            ).toBe(200);
+        }));
+
+    it('limits short code checks and sends together without affecting receiver polling', () =>
+        withTransfer(async (post) => {
+            const { senderToken, receiverToken } = (await (
+                await post({ action: 'start', codeFormat: 'short' })
+            ).json()) as TmdbTransferSession;
+            const wrongCode = senderToken === '2222' ? '3333' : '2222';
+            for (let attempt = 0; attempt < 12; attempt++) {
+                const response = await post({
+                    action: 'check',
+                    transferToken: wrongCode,
+                });
+                expect(response.status).toBe(410);
+            }
+            expect(
+                (
+                    await post({
+                        action: 'send',
+                        transferToken: senderToken,
+                        apiKey: key,
+                    })
+                ).status
+            ).toBe(429);
+            expect(
+                await (
+                    await post({
+                        action: 'status',
+                        transferToken: receiverToken,
+                    })
+                ).json()
+            ).toEqual({ status: 'waiting' });
+        }));
+
     it.each(['cancel', 'expire'] as const)(
         'discards a pending key after %s',
         (action) =>
             withTransfer(async (post) => {
                 const { senderToken, receiverToken, expiresInMs } = (await (
-                    await post({ action: 'start' })
+                    await post({ action: 'start', codeFormat: 'short' })
                 ).json()) as TmdbTransferSession;
                 expect(
                     (

@@ -69,6 +69,68 @@ describe('resetStaleDownloads', () => {
         expect(removePartialDownloadFile).not.toHaveBeenCalled();
     });
 
+    it('leaves downloads this process already runs or queued untouched', async () => {
+        jest.resetModules();
+
+        const rows = [
+            {
+                filePath: '/downloads/live.mp4',
+                id: 1,
+                status: 'downloading',
+                totalBytes: 100,
+            },
+            {
+                filePath: null,
+                id: 2,
+                status: 'queued',
+                totalBytes: null,
+            },
+            {
+                filePath: '/downloads/stale.mp4',
+                id: 3,
+                status: 'downloading',
+                totalBytes: 100,
+            },
+        ];
+        const set = jest.fn(() => ({
+            where: jest.fn().mockResolvedValue(undefined),
+        }));
+        const db = {
+            select: jest.fn(() => ({
+                from: jest.fn(() => ({
+                    where: jest.fn().mockResolvedValue(rows),
+                })),
+            })),
+            update: jest.fn(() => ({ set })),
+        };
+        const getPartialDownloadSize = jest.fn(() => 64);
+
+        jest.doMock('../../database/connection', () => ({
+            getDatabase: jest.fn().mockResolvedValue(db),
+        }));
+        jest.doMock('./download-file-path', () => ({
+            getPartialDownloadSize,
+            removePartialDownloadFile: jest.fn(),
+        }));
+        jest.doMock('./download-runtime', () => ({
+            hasRuntimeDownload: (id: number) => id === 1 || id === 2,
+        }));
+
+        try {
+            const { resetStaleDownloads } = await import('./download-recovery');
+            await resetStaleDownloads();
+        } finally {
+            // resetModules() keeps doMock registrations for later tests.
+            jest.dontMock('./download-runtime');
+        }
+
+        expect(set).toHaveBeenCalledTimes(1);
+        expect(getPartialDownloadSize).toHaveBeenCalledTimes(1);
+        expect(getPartialDownloadSize).toHaveBeenCalledWith(
+            '/downloads/stale.mp4'
+        );
+    });
+
     it('commits a finalized download whose completion was interrupted', async () => {
         jest.resetModules();
 
@@ -216,9 +278,9 @@ describe('resetStaleDownloads', () => {
         expect(removePartialDownloadFile).toHaveBeenCalledWith(
             '/downloads/empty.mp4'
         );
-        expect(removePartialDownloadFile.mock.invocationCallOrder[0]).toBeLessThan(
-            set.mock.invocationCallOrder[0]
-        );
+        expect(
+            removePartialDownloadFile.mock.invocationCallOrder[0]
+        ).toBeLessThan(set.mock.invocationCallOrder[0]);
         expect(set).toHaveBeenCalledWith(
             expect.objectContaining({
                 errorMessage: 'Download interrupted by application restart',

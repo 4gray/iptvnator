@@ -358,6 +358,26 @@ describe('withStalkerSeries serialSeasonsResource gating', () => {
             expect(store.vodSeriesEpisodes()).toEqual([]);
         });
 
+        it('stops pagination when the episode view retires', async () => {
+            let viewOpen = true;
+            dataService.sendIpcEvent.mockImplementationOnce(async () => {
+                viewOpen = false;
+                return {
+                    js: {
+                        total_items: 2,
+                        data: [
+                            { id: 'e1', is_episode: true, series_number: 1 },
+                        ],
+                    },
+                };
+            });
+            await expect(
+                store.fetchVodSeriesEpisodes('11', 's1', () => viewOpen)
+            ).rejects.toMatchObject({ name: 'AbortError' });
+            expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(1);
+            expect(store.vodSeriesEpisodes()).toEqual([]);
+        });
+
         it('trusts a well-formed empty answer in either envelope shape', async () => {
             dataService.sendIpcEvent.mockResolvedValue({ js: { data: [] } });
             await expect(

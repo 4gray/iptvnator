@@ -1,3 +1,4 @@
+import { playbackTimestamp } from '@iptvnator/shared/interfaces';
 import type {
     PlaybackPositionData,
     XtreamSerieEpisode,
@@ -42,11 +43,17 @@ export interface SeriesEpisodeEntry {
  */
 export type SeriesNextUp =
     | {
-          readonly kind: 'start' | 'resume' | 'next';
+          readonly kind: 'start' | 'resume';
           readonly entry: SeriesEpisodeEntry;
       }
     | {
+          readonly kind: 'next';
+          readonly entry: SeriesEpisodeEntry;
+          readonly lastWatched: SeriesEpisodeEntry | null;
+      }
+    | {
           readonly kind: 'caught-up';
+          readonly lastWatched: SeriesEpisodeEntry;
           readonly skipped: SeriesEpisodeEntry | null;
           readonly last: SeriesEpisodeEntry;
       };
@@ -56,8 +63,9 @@ const naturalCollator = new Intl.Collator(undefined, {
     sensitivity: 'base',
 });
 
-/** SQLite's CURRENT_TIMESTAMP: UTC, written without a zone. */
-const SQLITE_UTC_TIMESTAMP = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d+)?$/;
+export function compareSeriesSeasonKeys(a: string, b: string): number {
+    return naturalCollator.compare(a, b);
+}
 
 export function getSeriesNextUp(
     request: SeriesProgressRequest
@@ -75,7 +83,7 @@ export function getSeriesNextUp(
         nextUp.kind === 'start' &&
         entries.some(({ position }) => position !== null)
     ) {
-        return { kind: 'next', entry: nextUp.entry };
+        return { kind: 'next', entry: nextUp.entry, lastWatched: null };
     }
     return nextUp;
 }
@@ -107,10 +115,11 @@ function getNextUpWithin(
     );
     const next = unwatched.find((entry) => entry.order > lastWatched.order);
     if (next) {
-        return { kind: 'next', entry: next };
+        return { kind: 'next', entry: next, lastWatched };
     }
     return {
         kind: 'caught-up',
+        lastWatched,
         skipped: unwatched[0] ?? null,
         last: sequence[sequence.length - 1],
     };
@@ -123,10 +132,10 @@ function getOrderedSeriesEpisodes(
     const entries: SeriesEpisodeEntry[] = [];
     Object.entries(request.seasons)
         .sort(([seasonA], [seasonB]) =>
-            naturalCollator.compare(seasonA, seasonB)
+            compareSeriesSeasonKeys(seasonA, seasonB)
         )
         .forEach(([seasonKey, episodes]) => {
-            [...episodes].sort(compareEpisodes).forEach((episode) => {
+            [...episodes].sort(compareSeriesEpisodes).forEach((episode) => {
                 const seasonNumber = episodeSeasonNumber(episode, seasonKey);
                 let position =
                     request.playbackPositions.get(Number(episode.id)) ?? null;
@@ -173,7 +182,7 @@ function episodeSeasonNumber(
     return toSeasonNumber(episode.season) ?? toSeasonNumber(seasonKey);
 }
 
-function compareEpisodes(
+export function compareSeriesEpisodes(
     episodeA: XtreamSerieEpisode,
     episodeB: XtreamSerieEpisode
 ): number {
@@ -214,21 +223,7 @@ function compareEntryRecency(
     entryB: SeriesEpisodeEntry
 ): number {
     const delta =
-        getTimestamp(entryA.position?.updatedAt) -
-        getTimestamp(entryB.position?.updatedAt);
+        playbackTimestamp(entryA.position?.updatedAt) -
+        playbackTimestamp(entryB.position?.updatedAt);
     return delta !== 0 ? delta : entryA.order - entryB.order;
-}
-
-/**
- * SQLite rows are UTC without a zone, which `Date.parse` alone would read as
- * local time and misorder against the ISO times the renderer writes.
- */
-function getTimestamp(value: string | undefined): number {
-    if (!value) {
-        return 0;
-    }
-    const timestamp = Date.parse(
-        SQLITE_UTC_TIMESTAMP.test(value) ? `${value.replace(' ', 'T')}Z` : value
-    );
-    return Number.isFinite(timestamp) ? timestamp : 0;
 }

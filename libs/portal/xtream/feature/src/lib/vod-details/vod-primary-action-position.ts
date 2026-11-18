@@ -62,6 +62,13 @@ export interface PrimaryActionPosition {
 export function isResumablePosition(
     position: PlaybackPositionData | null
 ): boolean {
+    if (position && !position.durationSeconds) {
+        return (
+            !position.watched &&
+            Number.isFinite(position.positionSeconds) &&
+            position.positionSeconds > 0
+        );
+    }
     const progress = getPortalPlaybackProgressPercent(position);
     return progress > 0 && progress < PORTAL_WATCHED_PROGRESS_PERCENT;
 }

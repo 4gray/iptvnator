@@ -13,7 +13,10 @@ import {
     Channel,
     PlaylistRecentlyViewedItem,
 } from '@iptvnator/shared/interfaces';
-import { ChannelListContainerComponent } from '@iptvnator/ui/components';
+import {
+    APP_ICONS,
+    ChannelListContainerComponent,
+} from '@iptvnator/ui/components';
 import { isM3uCollectionView } from '../m3u-collection-view.util';
 
 export type M3uFullscreenChannelView =
@@ -29,7 +32,11 @@ export const M3U_FULLSCREEN_CHANNEL_VIEWS: readonly M3uFullscreenChannelViewOpti
     [
         { id: 'all', labelKey: 'CHANNELS.ALL_CHANNELS', icon: 'list' },
         { id: 'groups', labelKey: 'CHANNELS.GROUPS', icon: 'folder' },
-        { id: 'favorites', labelKey: 'CHANNELS.FAVORITES', icon: 'star' },
+        {
+            id: 'favorites',
+            labelKey: 'CHANNELS.FAVORITES',
+            icon: APP_ICONS.favorite,
+        },
         { id: 'recent', labelKey: 'PORTALS.SIDEBAR.RECENT', icon: 'history' },
     ];
 

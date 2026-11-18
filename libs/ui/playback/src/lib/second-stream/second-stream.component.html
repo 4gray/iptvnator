@@ -1,0 +1,432 @@
+@if (available()) {
+    @for (slot of companionSlots; track slot) {
+        @if (selectionAt(slot); as current) {
+            <section
+                class="second-stream__video"
+                [attr.data-multiview-slot]="slot"
+                [attr.aria-label]="'TWO_STREAMS.WINDOW' | translate: { slot }"
+                [attr.inert]="isWithheld(slot) ? '' : null"
+                [style.visibility]="isWithheld(slot) ? 'hidden' : null"
+                [appSecondStreamFloating]="
+                    layout() === 'pip' && !swapped() && !isWithheld(slot)
+                "
+                [class.second-stream__video--main]="swapped()"
+                [class.second-stream__video--beside]="
+                    layout() === 'side-by-side'
+                "
+                [class.second-stream__grid-cell]="layout() === 'grid'"
+                [class.second-stream__focus-cell]="layout() === 'focus'"
+                [style.grid-area]="focusGridArea(slot)"
+            >
+                <app-embedded-mpv-player
+                    #companionPlayer
+                    [multiviewSlot]="slot"
+                    [class.embedded-mpv-player-host--selected]="
+                        tiled() && controlsSlot() === slot
+                    "
+                    [playback]="current.playback"
+                    [initialVolumeOverride]="
+                        audioSlot() === slot ? audibleVolume() : 0
+                    "
+                    [retryEnabled]="!busy() && !isWithheld(slot)"
+                    [showControls]="
+                        controlsSlot() === slot && !busy() && !isWithheld(slot)
+                    "
+                    [sharedVolumeController]="audioController()"
+                    (inactiveSurfaceClicked)="selectControls(slot)"
+                    [fullscreenTarget]="fullscreenTarget()"
+                    [recordingFolder]="primary()?.recordingFolder() ?? ''"
+                    (timeUpdate)="
+                        savePosition(
+                            slot,
+                            current.playback,
+                            companionPlayer,
+                            $event
+                        )
+                    "
+                    (recordingStopped)="recordingStopped.emit($event)"
+                />
+            </section>
+        } @else if (fourWindowLayout()) {
+            <button
+                #emptySlot
+                type="button"
+                class="second-stream__empty"
+                [class.second-stream__grid-cell]="layout() === 'grid'"
+                [class.second-stream__focus-cell]="layout() === 'focus'"
+                [style.grid-area]="focusGridArea(slot)"
+                [attr.data-multiview-slot]="slot"
+                [attr.data-multiview-add]="slot"
+                aria-haspopup="dialog"
+                [attr.aria-disabled]="busy()"
+                [attr.aria-label]="
+                    'TWO_STREAMS.ADD_TO_WINDOW' | translate: { slot }
+                "
+                (click)="focus.pick(openPicker(slot), emptySlot)"
+            >
+                <span class="second-stream__number" aria-hidden="true">{{
+                    slot
+                }}</span>
+                <mat-icon aria-hidden="true">add</mat-icon>
+                {{ 'TWO_STREAMS.ADD_STREAM' | translate }}
+            </button>
+        }
+    }
+
+    @if (stripVisible()) {
+        <div class="second-stream__strip" (click)="onStripClick($event)">
+            <ul
+                class="second-stream__streams"
+                [attr.aria-label]="'TWO_STREAMS.OPEN_STREAMS' | translate"
+            >
+                @for (stream of openStreams(); track stream.slot) {
+                    @let streamSlot = stream.slot;
+                    @let windowName =
+                        'TWO_STREAMS.WINDOW' | translate: { slot: streamSlot };
+                    @let streamName =
+                        stream.playback.title + ' · ' + windowName;
+                    <li
+                        [class.second-stream__stream--has-actions]="
+                            streamSlot !== 1 && layout() !== 'pip'
+                        "
+                        [class.second-stream__stream--selected]="
+                            controlsSlot() === streamSlot
+                        "
+                    >
+                        <button
+                            class="second-stream__select"
+                            type="button"
+                            [attr.data-multiview-control]="streamSlot"
+                            (click)="selectControls(streamSlot)"
+                            [attr.tabindex]="layout() === 'pip' ? -1 : null"
+                            [attr.aria-disabled]="layout() === 'pip' || busy()"
+                            [attr.aria-pressed]="controlsSlot() === streamSlot"
+                            [attr.aria-label]="
+                                'TWO_STREAMS.CONTROL_VIEW'
+                                    | translate: { title: streamName }
+                            "
+                            [matTooltip]="stream.playback.title"
+                        >
+                            <span
+                                class="second-stream__number"
+                                aria-hidden="true"
+                                >{{ streamSlot }}</span
+                            >
+                            <span class="second-stream__title">{{
+                                stream.playback.title
+                            }}</span>
+                        </button>
+                        @if (layout() === 'pip') {
+                            <span class="cdk-visually-hidden">{{
+                                (stream.small
+                                    ? 'TWO_STREAMS.SMALL_VIEW'
+                                    : 'TWO_STREAMS.MAIN_VIEW'
+                                ) | translate
+                            }}</span>
+                            <mat-icon
+                                role="img"
+                                [attr.aria-label]="
+                                    (stream.muted
+                                        ? 'TWO_STREAMS.MUTED'
+                                        : 'AUDIO_PLAYER.VOLUME'
+                                    ) | translate
+                                "
+                                >{{
+                                    stream.muted ? 'volume_off' : 'volume_up'
+                                }}</mat-icon
+                            >
+                        } @else {
+                            <button
+                                class="second-stream__strip-button second-stream__sound"
+                                type="button"
+                                (click)="selectSound(streamSlot)"
+                                [attr.aria-pressed]="audioSlot() === streamSlot"
+                                [attr.aria-disabled]="
+                                    !canSelectSound(streamSlot)
+                                "
+                                [attr.aria-label]="
+                                    'TWO_STREAMS.SOUND_FROM'
+                                        | translate: { title: streamName }
+                                "
+                                [attr.aria-description]="
+                                    audioSlot() === streamSlot && stream.muted
+                                        ? ('TWO_STREAMS.MUTED' | translate)
+                                        : null
+                                "
+                                [matTooltip]="
+                                    'TWO_STREAMS.SOUND_FROM'
+                                        | translate
+                                            : { title: stream.playback.title }
+                                "
+                            >
+                                <mat-icon>{{
+                                    stream.muted
+                                        ? audioSlot() === streamSlot
+                                            ? 'volume_mute'
+                                            : 'volume_off'
+                                        : 'volume_up'
+                                }}</mat-icon>
+                            </button>
+                            @if (streamSlot !== 1) {
+                                <button
+                                    #replaceSlot
+                                    class="second-stream__strip-button"
+                                    type="button"
+                                    aria-haspopup="dialog"
+                                    [attr.aria-disabled]="busy()"
+                                    (click)="
+                                        focus.pick(
+                                            openPicker(streamSlot, true),
+                                            replaceSlot
+                                        )
+                                    "
+                                    [matTooltip]="
+                                        'TWO_STREAMS.REPLACE_STREAM'
+                                            | translate: { slot: streamSlot }
+                                    "
+                                    [attr.aria-label]="
+                                        'TWO_STREAMS.REPLACE_STREAM'
+                                            | translate: { slot: streamSlot }
+                                    "
+                                >
+                                    <mat-icon>playlist_play</mat-icon>
+                                </button>
+                                <button
+                                    class="second-stream__strip-button"
+                                    type="button"
+                                    (click)="
+                                        focus.close(
+                                            close(streamSlot),
+                                            streamSlot
+                                        )
+                                    "
+                                    [matTooltip]="
+                                        'TWO_STREAMS.CLOSE_WINDOW'
+                                            | translate: { slot: streamSlot }
+                                    "
+                                    [attr.aria-label]="
+                                        'TWO_STREAMS.CLOSE_WINDOW'
+                                            | translate: { slot: streamSlot }
+                                    "
+                                >
+                                    <mat-icon>close</mat-icon>
+                                </button>
+                            }
+                        }
+                    </li>
+                }
+            </ul>
+            <div
+                class="second-stream__layouts"
+                role="group"
+                [attr.aria-label]="'TWO_STREAMS.LAYOUT' | translate"
+            >
+                @let paired = openStreams().length === 2;
+                <button
+                    type="button"
+                    (click)="setLayout('pip')"
+                    [attr.aria-pressed]="layout() === 'pip'"
+                    [attr.aria-disabled]="busy() || !paired"
+                    [matTooltip]="
+                        (openStreams().length > 2
+                            ? 'TWO_STREAMS.PAIR_LAYOUT_HINT'
+                            : 'TWO_STREAMS.FLOATING_LAYOUT'
+                        ) | translate
+                    "
+                    [attr.aria-label]="
+                        'TWO_STREAMS.FLOATING_LAYOUT' | translate
+                    "
+                >
+                    <mat-icon>picture_in_picture_alt</mat-icon>
+                </button>
+                <button
+                    type="button"
+                    (click)="setLayout('side-by-side')"
+                    [attr.aria-pressed]="layout() === 'side-by-side'"
+                    [attr.aria-disabled]="busy() || !paired"
+                    [matTooltip]="
+                        (openStreams().length > 2
+                            ? 'TWO_STREAMS.PAIR_LAYOUT_HINT'
+                            : 'TWO_STREAMS.SIDE_BY_SIDE_LAYOUT'
+                        ) | translate
+                    "
+                    [attr.aria-label]="
+                        'TWO_STREAMS.SIDE_BY_SIDE_LAYOUT' | translate
+                    "
+                >
+                    <mat-icon class="second-stream__beside-icon"
+                        >splitscreen</mat-icon
+                    >
+                </button>
+                <button
+                    type="button"
+                    (click)="setLayout('grid')"
+                    [attr.aria-pressed]="layout() === 'grid'"
+                    [attr.aria-disabled]="busy()"
+                    [matTooltip]="'TWO_STREAMS.GRID_LAYOUT' | translate"
+                    [attr.aria-label]="'TWO_STREAMS.GRID_LAYOUT' | translate"
+                >
+                    <mat-icon>grid_view</mat-icon>
+                </button>
+                <button
+                    type="button"
+                    (click)="setLayout('focus')"
+                    [attr.aria-pressed]="layout() === 'focus'"
+                    [attr.aria-disabled]="busy()"
+                    [matTooltip]="'TWO_STREAMS.FOCUS_LAYOUT' | translate"
+                    [attr.aria-label]="'TWO_STREAMS.FOCUS_LAYOUT' | translate"
+                >
+                    <mat-icon>view_sidebar</mat-icon>
+                </button>
+            </div>
+            <button
+                #addStream
+                class="second-stream__strip-button second-stream__action"
+                type="button"
+                aria-haspopup="dialog"
+                [disabled]="!firstEmptySlot()"
+                [attr.aria-disabled]="busy() ? true : null"
+                (click)="focus.pick(openPicker(), addStream)"
+                [matTooltip]="'TWO_STREAMS.ADD_STREAM' | translate"
+                [attr.aria-label]="'TWO_STREAMS.ADD_STREAM' | translate"
+            >
+                <mat-icon>add</mat-icon>
+                <span>{{ 'TWO_STREAMS.ADD_STREAM' | translate }}</span>
+            </button>
+            <button
+                class="second-stream__strip-button second-stream__action"
+                type="button"
+                (click)="focus.close(close())"
+                [matTooltip]="'TWO_STREAMS.EXIT_MULTIVIEW' | translate"
+                [attr.aria-label]="
+                    'TWO_STREAMS.EXIT_MULTIVIEW_LABEL' | translate
+                "
+            >
+                <mat-icon>exit_to_app</mat-icon>
+                <span>{{ 'TWO_STREAMS.EXIT_MULTIVIEW' | translate }}</span>
+            </button>
+        </div>
+    }
+
+    @if (layout() === 'pip' && pairedSlot(); as paired) {
+        <div
+            class="second-stream__tile"
+            [appSecondStreamFloating]="true"
+            [floatingControls]="true"
+            tabindex="0"
+            role="group"
+            [attr.aria-label]="'TWO_STREAMS.SMALL_VIEW' | translate"
+            [attr.aria-description]="'TWO_STREAMS.MOVE' | translate"
+            (pointerdown)="placement.down($event)"
+            (pointermove)="placement.move($event)"
+            (pointerup)="placement.up($event)"
+            (pointercancel)="placement.up($event)"
+            (lostpointercapture)="placement.up($event)"
+            (keydown)="placement.key($event)"
+            [class.second-stream__tile--dragging]="placement.dragging()"
+            [class.second-stream__tile--resizing]="placement.resizing()"
+        >
+            <div class="second-stream__chrome second-stream__top">
+                <span>{{ small()?.playback()?.title }}</span>
+                <button
+                    #replacePip
+                    type="button"
+                    aria-haspopup="dialog"
+                    [disabled]="busy()"
+                    (click)="focus.pick(openPicker(paired, true), replacePip)"
+                    [matTooltip]="'TWO_STREAMS.CHANGE_CHANNEL' | translate"
+                    [attr.aria-label]="'TWO_STREAMS.CHANGE_CHANNEL' | translate"
+                >
+                    <mat-icon>playlist_play</mat-icon>
+                </button>
+                <button
+                    type="button"
+                    (click)="focus.close(close(paired), paired)"
+                    [matTooltip]="'TWO_STREAMS.CLOSE' | translate"
+                    [attr.aria-label]="'TWO_STREAMS.CLOSE' | translate"
+                >
+                    <mat-icon>close</mat-icon>
+                </button>
+            </div>
+            <div class="second-stream__chrome second-stream__bottom">
+                <button
+                    type="button"
+                    [disabled]="busy() || !ready()"
+                    (click)="swap()"
+                    [matTooltip]="'TWO_STREAMS.SWAP' | translate"
+                    [attr.aria-label]="'TWO_STREAMS.SWAP' | translate"
+                >
+                    <mat-icon>swap_horiz</mat-icon>
+                </button>
+                <span>{{
+                    (small()?.isPaused()
+                        ? 'TWO_STREAMS.PAUSED'
+                        : 'TWO_STREAMS.MUTED'
+                    ) | translate
+                }}</span>
+                @if (small()?.isErrored()) {
+                    <button
+                        [disabled]="busy()"
+                        (click)="small()?.retry()"
+                        [attr.aria-label]="
+                            'EMBEDDED_MPV.PLAYER.RETRY' | translate
+                        "
+                    >
+                        <mat-icon>refresh</mat-icon>
+                    </button>
+                } @else {
+                    <button
+                        type="button"
+                        [disabled]="busy() || !small()?.controller.sessionId()"
+                        (click)="pauseSmall()"
+                        [matTooltip]="
+                            (small()?.isPaused()
+                                ? 'TWO_STREAMS.RESUME'
+                                : 'TWO_STREAMS.PAUSE'
+                            ) | translate
+                        "
+                        [attr.aria-label]="
+                            (small()?.isPaused()
+                                ? 'TWO_STREAMS.RESUME'
+                                : 'TWO_STREAMS.PAUSE'
+                            ) | translate
+                        "
+                    >
+                        <mat-icon>{{
+                            small()?.isPaused() ? 'play_arrow' : 'pause'
+                        }}</mat-icon>
+                    </button>
+                }
+            </div>
+            @for (corner of resizeCorners; track corner) {
+                <div
+                    class="second-stream__resize"
+                    [class.second-stream__resize--left]="corner === 'left'"
+                    [attr.data-corner]="corner"
+                    role="slider"
+                    tabindex="0"
+                    [attr.aria-label]="
+                        (corner === 'left'
+                            ? 'TWO_STREAMS.RESIZE_LEFT'
+                            : 'TWO_STREAMS.RESIZE_RIGHT'
+                        ) | translate
+                    "
+                    [attr.aria-valuemin]="placement.minimumWidth()"
+                    [attr.aria-valuemax]="placement.maximumWidth()"
+                    [attr.aria-valuenow]="placement.geometry().width"
+                    (pointerdown)="placement.down($event, corner)"
+                    (pointermove)="placement.move($event)"
+                    (pointerup)="placement.up($event)"
+                    (pointercancel)="placement.up($event)"
+                    (lostpointercapture)="placement.up($event)"
+                    (keydown)="placement.resizeKey($event, corner)"
+                ></div>
+            }
+        </div>
+    }
+    @if (error()) {
+        <p class="second-stream__error" role="alert">
+            {{ 'TWO_STREAMS.AUDIO_ERROR' | translate }}
+        </p>
+    }
+}

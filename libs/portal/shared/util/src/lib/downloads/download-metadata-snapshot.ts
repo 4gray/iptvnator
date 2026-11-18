@@ -84,7 +84,8 @@ interface DownloadSnapshotFields {
     posterUrl?: string;
     backdropUrl?: string;
     tmdbId?: number;
-    providerCategoryId?: string;
+    /** Xtream and Stalker portals send category ids as strings or numbers. */
+    providerCategoryId?: string | number;
     cast?: readonly DownloadMetadataPerson[];
     creators?: readonly DownloadMetadataPerson[];
     enrichedAt?: string;
@@ -99,6 +100,13 @@ export interface DownloadSeriesEpisodeSnapshotInput extends DownloadSnapshotFiel
 function text(value: string | undefined): string | undefined {
     const normalized = value?.trim();
     return normalized ? normalized : undefined;
+}
+
+function identifier(value: string | number | undefined): string | undefined {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? String(value) : undefined;
+    }
+    return typeof value === 'string' ? text(value) : undefined;
 }
 
 function finite(value: number | undefined): number | undefined {
@@ -277,7 +285,7 @@ function snapshotFields(input: DownloadSnapshotFields) {
     const posterUrl = artworkUrl(input.posterUrl);
     const backdropUrl = artworkUrl(input.backdropUrl);
     const tmdbId = integer(input.tmdbId);
-    const providerCategoryId = text(input.providerCategoryId);
+    const providerCategoryId = identifier(input.providerCategoryId);
     const cast = people(input.cast);
     const creators = people(input.creators);
 

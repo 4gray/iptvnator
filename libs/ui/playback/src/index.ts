@@ -9,6 +9,7 @@ export * from './lib/fullscreen-episode-panel';
 export * from './lib/html-video-player/html-video-player.component';
 export * from '@iptvnator/playback/util';
 export * from './lib/player-controls';
+export * from './lib/portal-inline-player/autoplay-streak.service';
 export * from './lib/portal-inline-player/portal-inline-player.component';
 export * from './lib/portal-inline-player/series-playback-navigation';
 export * from './lib/portal-inline-player/up-next-rail.component';

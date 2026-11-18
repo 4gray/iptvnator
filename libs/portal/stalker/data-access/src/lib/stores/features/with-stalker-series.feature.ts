@@ -257,7 +257,8 @@ export function withStalkerSeries() {
                 return {
                     async fetchVodSeriesEpisodes(
                         videoId: string,
-                        seasonId: string
+                        seasonId: string,
+                        isCurrent: () => boolean = () => true
                     ): Promise<StalkerVodSeriesEpisode[]> {
                         const playlist = storeContext.currentPlaylist();
                         if (!playlist) {
@@ -281,6 +282,7 @@ export function withStalkerSeries() {
                                         }
                                     ),
                                 () =>
+                                    isCurrent() &&
                                     storeContext.currentPlaylist() ===
                                         playlist &&
                                     storeContext.selectedItem()?.id ===

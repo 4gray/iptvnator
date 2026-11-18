@@ -9,7 +9,16 @@
     padding: 3px 9px;
     border: 0;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--app-on-surface, #e6e1e5) 10%, transparent);
+    // The tint sits on an opaque page-colour base: a translucent chip let a
+    // bright backdrop through and the text fell to 1.5:1.
+    --meta-chip-tint: color-mix(
+        in srgb,
+        var(--app-on-surface, #e6e1e5) 10%,
+        transparent
+    );
+    background:
+        linear-gradient(var(--meta-chip-tint), var(--meta-chip-tint)),
+        var(--app-content-bg, #161a22);
     color: var(--app-heading-color, #d8dce8);
     font-family: inherit;
     font-size: 12px;
@@ -28,7 +37,7 @@
 // Production status is a state, not a fact about the title: the soft
 // selection tint sets it apart from the plain facts beside it.
 :host(.meta-chip--status) {
-    background: var(--app-selection-surface, rgba(152, 184, 255, 0.16));
+    --meta-chip-tint: var(--app-selection-surface, rgba(152, 184, 255, 0.16));
     color: var(--app-selection-color, #98b8ff);
 }
 

@@ -1,3 +1,4 @@
+import { TranslateModule } from '@ngx-translate/core';
 import { EpgArchiveDownloadService } from '@iptvnator/ui/epg';
 import { EpgArchiveCopyService } from '@iptvnator/ui/epg';
 import { computed, signal } from '@angular/core';
@@ -94,7 +95,7 @@ describe('Xtream live auto-open playback queue', () => {
         query = new BehaviorSubject(convertToParamMap({}));
         events = new Subject();
         await TestBed.configureTestingModule({
-            imports: [LiveStreamLayoutComponent],
+            imports: [TranslateModule.forRoot(), LiveStreamLayoutComponent],
             providers: [
                 {
                     provide: EpgArchiveDownloadService,

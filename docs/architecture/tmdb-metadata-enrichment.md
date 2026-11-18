@@ -40,17 +40,23 @@ Related:
 
 ## One-time key transfer
 
-Connect both the PWA and Electron to the same IPTVnator library server. In
+Connect both devices to the same IPTVnator library server. The Android TV
+shell uses the PWA's transfer dialog. In
 **Settings → Metadata (TMDB) → Transfer key from another device**, choose
 **Receive key** on the receiver, then **Send a saved key** on the sender. Enter
-the receiver's temporary code and explicitly send the key. The receiver saves
+the receiver's four-character code and explicitly send the key. The receiver saves
 it locally only after **Save key** or **Replace key**. TMDB enablement and other
 settings do not travel with the key. Start a new transfer after rotating it.
 
 The transfer uses the selected server's authenticated transport and checks the
 instance identity. Use HTTPS or a trusted local network; the relay sees the key
 in memory. The five-minute session has separate send and receive capabilities.
-The shared code can submit one key and cannot read it. The receiver claims the
+The shared code can submit one key and cannot read it. The server limits
+short-code checks and sends to 12 requests per minute per connecting IP.
+Updated clients request the short format from the server and also accept the
+original long code. A receiver with an older client or server still displays a
+long code, which works with either sender version. Sending to a short code
+requires an updated sender. The receiver claims the
 key once; claim, cancellation, expiration or server restart discards the server
 copy. The receiving device needs writable IndexedDB. It compares the previous
 key and saves the replacement in one transaction. A failed local write can be
@@ -906,7 +912,13 @@ since shipped.)
   prefilled. Requires both the TMDB opt-in and the Electron DB worker
   (the rail is hidden in the PWA). The load fires only after the
   dashboard's own recent/favorites data is in, so it never competes for
-  the worker at startup, and runs once per app session.
+  the worker at startup, and latches per TMDB language and imported-playlist
+  id set: a language change re-localizes the titles, and importing or
+  deleting a playlist re-runs the matching (a deleted one would leave cards
+  linking nowhere). An empty or failed load does not latch. If the inputs
+  change during a request, the pending inputs load after it settles,
+  even when that request returned no entries. Cached cards stop linking
+  to deleted playlists even while TMDB is unreachable.
 - **Recommendations rail** ("Because you watched",
   `dashboardRails.tmdbRecommendations` toggle): TMDB has no account-free
   "recommendations for you" endpoint, so `DashboardRecommendationsService`
@@ -986,15 +998,47 @@ since shipped.)
   clears the rail (the service is root-provided and outlives the
   dashboard); a load requested while one is in flight is queued and
   re-run afterwards; a load where no seed resolved (TMDB unreachable)
-  does not latch and retries instead. Same gating as trending: TMDB
+  does not latch and retries instead. Offline, changing a seed's choice
+  removes the attribution to its previous match. A card recommended by
+  multiple seeds stays visible while another contributor's match is
+  unchanged, and the card takes its attribution from the first remaining
+  contributor. Same gating as trending: TMDB
   opt-in + Electron DB worker, deferred behind the dashboard's own data.
+- **The viewer's match choice** (`TmdbMatchService`, set in a detail view's
+  "Match on TMDB" dialog) holds on the dashboard too. Both the hero and
+  the recommendations rail resolve a row through
+  `resolveDashboardTmdbDetails` (`dashboard-tmdb-match.util.ts`), which
+  builds the row's match identity the way the detail views do (Xtream:
+  catalog type and stream/series id, using the parent from playback
+  progress for episode-keyed history; the rail rechecks those identities
+  when playback positions arrive. Stalker uses the stored entry's id,
+  media type and catalog) and reads the choice first. A manual match is
+  loaded by its media type and TMDB id, including for rows with no
+  searchable provider title. "Use the provider's data"
+  resolves to no TMDB data at all, so the automatic attempts (and their
+  movie→tv retry) cannot find another title; rows without a choice run
+  the automatic attempts. The choice is part of the hero's memo key and
+  the recommendations load key and seed de-duplication
+  (`dashboardTmdbMatchToken`), so re-matching a title reloads both. The
+  match store loads on first use with TMDB on, off the startup path: the
+  hero uses an activity-specific key while the store loads. Waiting
+  callers share one enrichment request keyed by the resolved choice. The recommendations rail waits for the store before
+  deduplicating and keying seeds. Rows with the same lookup and match
+  choice share one request and keep their separate match identities for
+  offline pruning. A row with a match identity skips TMDB when the store
+  cannot be read. Rows whose viewers chose provider data leave room for
+  older usable seeds and lose any cached recommendations from the old match.
 - **Hero extras**: `DashboardHeroTmdbService`
   (`libs/workspace/dashboard/feature`) patches each movie/series hero slide
   with a TMDB backdrop (when the activity row has none), a rating badge, up
   to two genre chips, the overview and the release/first-air year — resolved
   through the enrichment facade, so items already opened in a detail view
-  come from the SQLite cache without network. Results are memoized per
-  lookup identity for the session. Slides render immediately from provider
+  come from the SQLite cache without network. Found extras are memoized per
+  lookup identity (TMDB language and match choice included) for the
+  session once the match store has loaded; a lookup that found nothing
+  is not memoized, since it may have failed
+  offline — a lasting miss is the enrichment layer's own negative cache.
+  Slides render immediately from provider
   data; extras appear when resolved and disappear when TMDB is turned off.
   Series slides additionally show the tracked "S{n}·E{n}" badge from the
   playback position (no TMDB involved). Live slides never query TMDB.

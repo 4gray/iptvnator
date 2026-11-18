@@ -33,6 +33,12 @@ test('phone settings require TV confirmation, preserve the saved key on blank re
                 phone.getByLabel('TMDB API key or read access token')
             ).toHaveValue('');
             await phone.getByLabel('Home layout').selectOption('shelf');
+            const autoplay = phone.getByLabel('Autoplay next episode');
+            const upNext = phone.getByLabel('"Up next" card');
+            await expect(autoplay).toBeChecked({ checked: replace });
+            await expect(upNext).toBeChecked();
+            await autoplay.uncheck();
+            if (!replace) await upNext.uncheck();
             await phone.getByLabel('Use TMDB metadata').check();
             await phone
                 .getByLabel('Metadata language')
@@ -56,6 +62,12 @@ test('phone settings require TV confirmation, preserve the saved key on blank re
             ).toBeVisible();
             await expect(page.locator('.phone-review')).not.toContainText(
                 'phone-test-key'
+            );
+            await expect(page.locator('.phone-review')).toContainText(
+                'Autoplay off'
+            );
+            await expect(page.locator('.phone-review')).toContainText(
+                replace ? 'Up next card on' : 'Up next card off'
             );
             await expect(phone.getByRole('status')).toContainText('Confirm');
             await page
@@ -81,6 +93,11 @@ test('phone settings require TV confirmation, preserve the saved key on blank re
         await expect(
             page.getByLabel('TMDB API key or read access token')
         ).toHaveValue('phone-test-key');
+        await page.getByRole('tab', { name: 'Playback' }).click();
+        await expect(
+            page.getByLabel('Autoplay next episode')
+        ).not.toBeChecked();
+        await expect(page.getByLabel('"Up next" card')).not.toBeChecked();
     } finally {
         await phone.close();
     }

@@ -43,8 +43,8 @@ nightly builds, see [Installation](docs/installation.md).
 
 - **Your sources together:** local or remote M3U/M3U8 playlists, Xtream Codes,
   and Stalker / Ministra portals.
-- **Live TV:** channel groups, search and favorites; XMLTV guide, multi-channel
-  EPG and catch-up on desktop.
+- **Live TV:** channel groups, search and favorites, with a multi-channel
+  programme guide for M3U and Xtream. XMLTV imports and catch-up run on desktop.
 - **Movies and series:** posters, seasons, watch history and resume positions;
   optional TMDB metadata with your own API key.
 - **Playback options:** built-in web players, external MPV/VLC/IINA and

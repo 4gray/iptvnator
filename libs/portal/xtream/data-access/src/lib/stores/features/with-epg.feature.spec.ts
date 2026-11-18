@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { signalStore, withState } from '@ngrx/signals';
+import { patchState, signalStore, withState } from '@ngrx/signals';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { EpgItem } from '@iptvnator/shared/interfaces';
 import { XtreamApiService } from '../../services/xtream-api.service';
@@ -47,13 +47,18 @@ interface TestStoreSetup {
     appEnvironment?: 'electron' | 'pwa';
     /** Portal transport present (default true, as in both runtimes). */
     providerEpg?: boolean;
-    selectedItem: { xtream_id: number; epg_channel_id?: string | null };
+    selectedItem: {
+        xtream_id: number;
+        epg_channel_id?: string | null;
+        tv_archive_duration?: number | string;
+    };
     preferUploaded?: boolean;
     epgOffsetMinutes?: number;
 }
 
 function configureStore(setup: TestStoreSetup) {
     const TestEpgStore = signalStore(
+        { protectedState: false },
         withState({
             currentPlaylist: { ...PLAYLIST, userAgent: setup.userAgent },
             selectedItem: setup.selectedItem,
@@ -106,6 +111,47 @@ function configureStore(setup: TestStoreSetup) {
 
 describe('withEpg', () => {
     afterEach(() => TestBed.resetTestingModule());
+
+    it('keeps the newest channel guide when a previous channel replies last', async () => {
+        const { store, xtreamApiService } = configureStore({
+            selectedItem: { xtream_id: 101 },
+        });
+        let finish!: (items: EpgItem[]) => void;
+        xtreamApiService.getFullEpg.mockImplementationOnce(
+            () => new Promise((resolve) => (finish = resolve))
+        );
+        const old = store.loadEpg();
+        patchState(store, { selectedItem: { xtream_id: 102 } });
+        const newest = [buildProgram('Synthetic Programme B', 100, 200)];
+        xtreamApiService.getFullEpg.mockResolvedValueOnce(newest);
+        await store.loadEpg();
+        finish([buildProgram('Synthetic Programme A', 100, 200)]);
+        await old;
+        expect(store.epgItems()).toEqual(newest);
+        expect(store.isLoadingEpg()).toBe(false);
+    });
+
+    it('reuses guide EPG for the player and cancels an abandoned guide read', async () => {
+        const { store, xtreamApiService } = configureStore({
+            selectedItem: { xtream_id: 101 },
+        });
+        const abandoned = store.loadEpg(
+            (signal) =>
+                new Promise((_resolve, reject) => {
+                    signal.addEventListener(
+                        'abort',
+                        () => reject(signal.reason),
+                        { once: true }
+                    );
+                })
+        );
+        patchState(store, { selectedItem: { xtream_id: 102 } });
+        const items = [buildProgram('Synthetic Cached Programme', 100, 200)];
+        await store.loadEpg(async () => items);
+        await abandoned;
+        expect(store.epgItems()).toBe(items);
+        expect(xtreamApiService.getFullEpg).not.toHaveBeenCalled();
+    });
 
     it('forwards the playlist User-Agent for selected and row guides', async () => {
         const { store, xtreamApiService } = configureStore({
@@ -189,7 +235,11 @@ describe('withEpg', () => {
 
     it('falls back to XMLTV when Xtream returns empty and epg_channel_id is set', async () => {
         const { store, xtreamApiService, fallbackService } = configureStore({
-            selectedItem: { xtream_id: 101, epg_channel_id: 'rtl.de' },
+            selectedItem: {
+                xtream_id: 101,
+                epg_channel_id: 'rtl.de',
+                tv_archive_duration: '7',
+            },
         });
         xtreamApiService.getFullEpg.mockResolvedValue([]);
         const now = Math.floor(Date.now() / 1000);
@@ -201,7 +251,8 @@ describe('withEpg', () => {
         const result = await store.loadEpg();
 
         expect(fallbackService.getProgramsForChannel).toHaveBeenCalledWith(
-            'rtl.de'
+            'rtl.de',
+            7
         );
         expect(result).toEqual(xmltvPrograms);
         expect(store.epgItems()).toEqual(xmltvPrograms);
@@ -295,7 +346,8 @@ describe('withEpg', () => {
         const result = await store.loadEpg();
 
         expect(fallbackService.getProgramsForChannel).toHaveBeenCalledWith(
-            'rtl.de'
+            'rtl.de',
+            0
         );
         expect(xtreamApiService.getFullEpg).not.toHaveBeenCalled();
         expect(result).toEqual(xmltvPrograms);
@@ -316,7 +368,8 @@ describe('withEpg', () => {
         const result = await store.loadEpg();
 
         expect(fallbackService.getProgramsForChannel).toHaveBeenCalledWith(
-            'rtl.de'
+            'rtl.de',
+            0
         );
         expect(xtreamApiService.getFullEpg).toHaveBeenCalled();
         expect(result).toEqual(apiPrograms);

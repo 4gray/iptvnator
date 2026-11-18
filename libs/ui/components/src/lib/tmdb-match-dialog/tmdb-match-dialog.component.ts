@@ -5,6 +5,7 @@ import {
     computed,
     inject,
     signal,
+    viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
@@ -29,6 +30,7 @@ import { cleanTitleForSearch } from '@iptvnator/shared/interfaces';
 import { DialogShellComponent } from '../dialog-shell/dialog-shell.component';
 import { DialogFooterDirective } from '../dialog-shell/dialog-shell.directives';
 import { provideFormFieldDefaults } from '../form-field-defaults/form-field-defaults';
+import { ImeInputDirective } from '../ime-input.directive';
 
 const DisplayNames = (
     Intl as unknown as {
@@ -45,6 +47,7 @@ type Mode = 'auto' | 'manual' | 'provider';
     selector: 'app-tmdb-match-dialog',
     providers: [provideFormFieldDefaults()],
     imports: [
+        ImeInputDirective,
         FormsModule,
         MatButtonModule,
         MatFormFieldModule,
@@ -60,6 +63,7 @@ type Mode = 'auto' | 'manual' | 'provider';
 })
 export class TmdbMatchDialogComponent {
     readonly data = inject<TmdbMatchContext>(MAT_DIALOG_DATA);
+    private readonly imeInput = viewChild(ImeInputDirective);
     private readonly dialog = inject(MatDialogRef<TmdbMatchDialogComponent>);
     private readonly matches = inject(TmdbMatchService);
     private readonly api = inject(TmdbApiService);
@@ -127,6 +131,11 @@ export class TmdbMatchDialogComponent {
         this.searched.set(false);
         this.loading.set(value.trim().length >= 2);
         this.timer = setTimeout(() => void this.search(), 300);
+    }
+
+    /** Enter that commits an IME composition is not a search request. */
+    onSearchEnter(event: Event): void {
+        if (!this.imeInput()?.isCompositionKey(event)) void this.search();
     }
 
     async search(): Promise<void> {

@@ -9,6 +9,8 @@ export type WorkspaceSearchBehavior =
     | 'local-filter'
     | 'remote-search'
     | 'advanced-only'
+    // Enter hands the term to global search (the desktop dashboard).
+    | 'global-launcher'
     | 'degraded-loaded-only';
 
 export interface WorkspaceSearchCapability {

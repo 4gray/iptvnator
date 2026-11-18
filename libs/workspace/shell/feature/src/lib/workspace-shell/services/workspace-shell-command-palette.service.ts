@@ -14,6 +14,7 @@ import { RecentCommandsService } from '../../recent-commands';
 import { WorkspacePlayerCommandsContributor } from '../../workspace-player-commands';
 import { SettingsSearchService } from '@iptvnator/workspace/shell/util/settings-search';
 import { buildSettingsPaletteCommands } from './helpers/workspace-settings-commands';
+import { WorkspaceShellHeaderService } from './workspace-shell-header.service';
 import {
     buildCommandPaletteItems,
     CommandBuilderContext,
@@ -23,6 +24,7 @@ import {
 export class WorkspaceShellCommandPaletteService {
     private readonly dialog = inject(MatDialog);
     private readonly viewCommands = inject(WorkspaceViewCommandService);
+    private readonly header = inject(WorkspaceShellHeaderService);
     private readonly recentCommands = inject(RecentCommandsService);
     private readonly destroyRef = inject(DestroyRef);
     private readonly playerCommands = inject(
@@ -39,7 +41,10 @@ export class WorkspaceShellCommandPaletteService {
     buildPaletteCommands(
         ctx: CommandBuilderContext
     ): WorkspaceResolvedCommandItem[] {
-        return buildCommandPaletteItems(ctx, this.viewCommands.commands());
+        return buildCommandPaletteItems(
+            ctx,
+            this.viewCommands.commands(this.header.headerShortcut())
+        );
     }
 
     openCommandPalette(ctx: CommandBuilderContext, initialQuery: string): void {

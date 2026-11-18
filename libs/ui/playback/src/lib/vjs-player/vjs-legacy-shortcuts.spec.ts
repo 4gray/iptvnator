@@ -141,18 +141,22 @@ describe('attachVjsLegacyShortcuts', () => {
         expect(mock.volumeValue).toBe(0.5);
     });
 
-    it('restores the remembered volume when unmuting after mute zeroed out', () => {
-        mock.volumeValue = 0.7;
-        dispatchKey('m');
-        expect(mock.mutedValue).toBe(true);
+    it.each([true, false])(
+        'restores the remembered volume from zero (muted: %s)',
+        (muted) => {
+            mock.volumeValue = 0.7;
+            dispatchKey('m');
+            expect(mock.mutedValue).toBe(true);
 
-        dispatchKey('ArrowDown');
-        expect(mock.volumeValue).toBe(0);
+            dispatchKey('ArrowDown');
+            expect(mock.volumeValue).toBe(0);
+            mock.mutedValue = muted;
 
-        dispatchKey('m');
-        expect(mock.mutedValue).toBe(false);
-        expect(mock.volumeValue).toBe(0.7);
-    });
+            dispatchKey('m');
+            expect(mock.mutedValue).toBe(false);
+            expect(mock.volumeValue).toBe(0.7);
+        }
+    );
 
     it('toggles the vendor fullscreen with F', () => {
         dispatchKey('f');

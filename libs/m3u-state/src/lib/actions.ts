@@ -42,6 +42,8 @@ export const PlaylistActions = createActionGroup({
             playlist: Playlist;
             playlistId: string;
             refreshEpg?: boolean;
+            /** False when the caller has already awaited persistence. */
+            persist?: boolean;
         }>(),
         'Update Many Playlists': props<{ playlists: Playlist[] }>(),
         'Parse Playlist': props<{

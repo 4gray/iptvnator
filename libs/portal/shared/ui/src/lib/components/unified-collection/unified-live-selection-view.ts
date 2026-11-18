@@ -85,6 +85,7 @@ export function createUnifiedLiveSelectionView(options: {
             ...playback,
             streamUrl: timeshift.url,
             isLive: false,
+            catalogIdentity: undefined,
         };
     });
 

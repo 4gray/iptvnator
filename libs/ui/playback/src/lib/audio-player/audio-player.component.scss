@@ -125,7 +125,7 @@
 // ─── Station name ────────────────────────────────────────────────────────────
 .station-name {
     margin: 4px 0 0;
-    font-family: 'DM Sans', sans-serif;
+    font-family: var(--app-font-family);
     font-size: clamp(1.15rem, 2.5vw, 1.5rem);
     font-weight: 700;
     letter-spacing: -0.015em;
@@ -144,7 +144,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-family: 'DM Sans', sans-serif;
+    font-family: var(--app-font-family);
     font-size: 0.65rem;
     font-weight: 700;
     letter-spacing: 0.14em;

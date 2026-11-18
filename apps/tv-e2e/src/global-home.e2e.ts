@@ -2,7 +2,7 @@ import { expect, Page, test } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { workspaceRoot } from '@nx/devkit';
-import { addSource, nav, start, cardAction } from './helpers';
+import { addSource, nav, start, cardAction, backFromPlayback } from './helpers';
 
 const sourceA = 'Synthetic source A';
 const sourceB = 'Synthetic source B';
@@ -32,7 +32,7 @@ async function watch(page: Page, name: string, episode = false, index = 0) {
         )
         .toBeGreaterThanOrEqual(8);
     await page.getByRole('button', { name: 'Pause', exact: false }).click();
-    await page.keyboard.press('Escape');
+    await backFromPlayback(page);
     await nav(page, 'Home');
 }
 const resume = (page: Page, name: string) =>

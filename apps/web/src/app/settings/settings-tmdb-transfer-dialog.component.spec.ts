@@ -11,7 +11,7 @@ const connection = {
     apiUrl: 'https://iptvnator.synthetic.invalid/api',
     instanceId: 'synthetic-server',
 };
-const senderToken = 's'.repeat(32);
+const senderToken = '2K7M';
 const receiverToken = 'r'.repeat(32);
 const apiKey = 'synthetic-tmdb-key';
 const session = { senderToken, receiverToken, expiresInMs: 300_000 };
@@ -103,7 +103,14 @@ describe('TMDB key transfer dialog', () => {
             .mockResolvedValueOnce(ok({ apiKey }));
 
         await dialog.start();
+        fixture.detectChanges();
         expect(dialog.sendCode()).toBe(senderToken);
+        const tiles = (fixture.nativeElement as HTMLElement).querySelectorAll(
+            '.transfer-code__character'
+        );
+        expect(Array.from(tiles, (tile) => tile.textContent?.trim())).toEqual([
+            ...senderToken,
+        ]);
         expect(dialog.replacing()).toBe(true);
         await poll();
         expect(dialog.stage()).toBe('waiting');
@@ -142,7 +149,7 @@ describe('TMDB key transfer dialog', () => {
         closeEvents.next();
         await jest.advanceTimersByTimeAsync(session.expiresInMs);
         expect(actions()).toEqual([
-            { action: 'start' },
+            { action: 'start', codeFormat: 'short' },
             { action: 'cancel', transferToken: receiverToken },
         ]);
         expect(dialog.sendCode()).toBe('');
@@ -217,7 +224,7 @@ describe('TMDB key transfer dialog', () => {
         await dialog.send();
         expect(dialog.error()).toBe('INVALID_CODE');
         expect(sendRequest).not.toHaveBeenCalled();
-        dialog.codeInput.setValue(` ${senderToken} `);
+        dialog.codeInput.setValue(` ${senderToken.toLowerCase()} `);
         await dialog.send();
         expect(actions()).toEqual([
             { action: 'check', transferToken: senderToken },
@@ -225,6 +232,20 @@ describe('TMDB key transfer dialog', () => {
         ]);
         expect(dialog.stage()).toBe('sent');
         expect(dialog.codeInput.value).toBe('');
+    });
+
+    it('accepts the original case-sensitive code from an older receiver', async () => {
+        const legacyCode = 'aB7_'.repeat(8);
+        storage.readSavedTmdbKey.mockResolvedValue(apiKey);
+        sendRequest
+            .mockResolvedValueOnce(ok({ status: 'waiting' }))
+            .mockResolvedValueOnce(ok({ status: 'ready' }));
+        dialog.codeInput.setValue(legacyCode);
+        await dialog.send();
+        expect(actions()).toEqual([
+            { action: 'check', transferToken: legacyCode },
+            { action: 'send', transferToken: legacyCode, apiKey },
+        ]);
     });
 
     it('never submits a key for a used code or falls back to a bundled key', async () => {

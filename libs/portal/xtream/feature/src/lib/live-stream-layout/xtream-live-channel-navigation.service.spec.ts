@@ -142,7 +142,7 @@ describe('XtreamLiveChannelNavigationService', () => {
         service.sortMode.set('name-desc');
         query.next(convertToParamMap({ q: 'Other' }));
         expect(service.remoteChannels()).toEqual([second, first]);
-        service.capture(second, service.displayedChannels(), true);
+        service.capture(second, service.displayedChannels(), 'preserve');
         expect(service.remoteChannels()).toEqual([second, first]);
         service.capture(second);
         expect(service.remoteChannels()).toEqual([second, first]);
@@ -168,6 +168,26 @@ describe('XtreamLiveChannelNavigationService', () => {
         expect(service.canReveal()).toBe(false);
     });
 
+    it('resolves the queued category copy when another category has the same stream', () => {
+        const copy = {
+            ...second,
+            category_id: '20',
+            epg_channel_id: 'synthetic.other',
+        };
+        const queued = { ...second, epg_channel_id: 'synthetic.queued' };
+        liveStreams.set([first, queued, copy]);
+        service.capture(first, [first, queued]);
+        const refreshed = {
+            ...queued,
+            category_id: '010',
+            epg_channel_id: 'synthetic.updated',
+        };
+        liveStreams.set([first, refreshed, copy]);
+        expect(service.remoteChannels()).toEqual([first, refreshed]);
+        liveStreams.set([first, copy]);
+        expect(service.remoteChannels()).toEqual([first]);
+    });
+
     it('invalidates a queue when its source or content type changes', () => {
         service.capture(first);
         currentPlaylist.set({ id: 'source-2' });
@@ -183,6 +203,16 @@ describe('XtreamLiveChannelNavigationService', () => {
         expect(service.activeItem()).toBeNull();
     });
 
+    it('captures a new queue when the confirmed channel is a different category copy', () => {
+        const copy = { ...first, category_id: '20' };
+        liveStreams.set([first, second, copy, other]);
+        service.capture(first, [first, second]);
+        expect(service.remoteChannels()).toEqual([first, second]);
+
+        service.capture(copy, [first, copy, other]);
+        expect(service.remoteChannels()).toEqual([copy, other]);
+    });
+
     it('shows reveal only when the playing channel is absent from the actual filtered list', () => {
         service.capture(first);
         expect(service.canReveal()).toBe(false);
@@ -190,6 +220,20 @@ describe('XtreamLiveChannelNavigationService', () => {
         expect(service.canReveal()).toBe(true);
         categories.set([{ category_id: 10, hidden: true }]);
         expect(service.canReveal()).toBe(false);
+    });
+
+    it('reveals the playing category copy when the browsed copy shares its ID', async () => {
+        const copy = { ...first, category_id: '20' };
+        liveStreams.set([first, second, copy, other]);
+        selectedCategoryId.set(10);
+        service.capture(copy, [copy, other]);
+        expect(service.canReveal()).toBe(true);
+        await service.reveal();
+        expect(selectedCategoryId()).toBe(20);
+        expect(service.revealRequest()).toMatchObject({
+            channelId: first.xtream_id,
+            categoryId: 20,
+        });
     });
 
     it.each([false, true])(

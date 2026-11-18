@@ -74,6 +74,7 @@ export function createUnifiedLiveCatchup(options: {
                 ...playback,
                 streamUrl: url,
                 isLive: false,
+                catalogIdentity: undefined,
             });
         }
     };

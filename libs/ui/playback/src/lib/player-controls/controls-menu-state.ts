@@ -2,7 +2,6 @@ import { computed, signal } from '@angular/core';
 import {
     anySettingsGroupAvailable,
     getSettingsGroupAvailability,
-    type SettingsGroup,
 } from './controls-settings-groups';
 import type {
     PlayerControlsCapabilities,
@@ -34,14 +33,12 @@ function getControlsMenuAvailability(
  * Tracks which menu/popover is currently open and exposes individual signals
  * the template binds to. Only one menu can be open at a time. The settings
  * panel is one menu: every track, quality, speed and aspect choice lives
- * inside it, and `settingsFocus` names the group it was opened for (a chip
- * click), so the panel can bring that group into view.
+ * inside it.
  */
 export class ControlsMenuState {
     readonly volumeOpen = signal(false);
     readonly settingsOpen = signal(false);
     readonly statsOpen = signal(false);
-    readonly settingsFocus = signal<SettingsGroup | null>(null);
 
     readonly anyOpen = computed(
         () => this.volumeOpen() || this.settingsOpen() || this.statsOpen()
@@ -62,24 +59,14 @@ export class ControlsMenuState {
         this.signalFor(menu).set(true);
     }
 
-    /** Opens the settings panel on one group (or wherever it was). */
-    openSettings(group: SettingsGroup | null = null): void {
-        this.open('settings');
-        this.settingsFocus.set(group);
-    }
-
     close(menu: ControlsMenu): void {
         this.signalFor(menu).set(false);
-        if (menu === 'settings') {
-            this.settingsFocus.set(null);
-        }
     }
 
     closeAll(): void {
         this.volumeOpen.set(false);
         this.settingsOpen.set(false);
         this.statsOpen.set(false);
-        this.settingsFocus.set(null);
     }
 
     reconcile(availability: ControlsMenuAvailability): boolean {

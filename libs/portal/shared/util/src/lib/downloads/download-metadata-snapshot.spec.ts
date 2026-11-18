@@ -100,6 +100,36 @@ describe('download metadata snapshot factories', () => {
         });
     });
 
+    it('stores a numeric provider category id as a string', () => {
+        const episode = {
+            seasonNumber: 1,
+            episodeNumber: 1,
+        };
+
+        expect(
+            createSeriesEpisodeDownloadSnapshot({
+                language: 'en',
+                title: 'Signal House',
+                providerCategoryId: 617,
+                episode,
+            }).providerCategoryId
+        ).toBe('617');
+        expect(
+            createMovieDownloadSnapshot({
+                language: 'en',
+                title: 'Night Ferry',
+                providerCategoryId: 617,
+            }).providerCategoryId
+        ).toBe('617');
+        expect(
+            createMovieDownloadSnapshot({
+                language: 'en',
+                title: 'Night Ferry',
+                providerCategoryId: Number.NaN,
+            })
+        ).not.toHaveProperty('providerCategoryId');
+    });
+
     it('bounds people to 30 and genres to 20 in deterministic input order', () => {
         const snapshot = createMovieDownloadSnapshot({
             language: 'en',

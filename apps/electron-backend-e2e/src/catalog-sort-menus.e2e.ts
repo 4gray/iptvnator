@@ -10,6 +10,7 @@ import {
     expect,
     launchElectronApp,
     openSettings,
+    openSettingsSection,
     openSources,
     openWorkspaceSection,
     resetMockServers,
@@ -262,6 +263,26 @@ test.describe('Electron catalog sort menus', () => {
                 page.locator('app-category-content-view mat-card').first()
             ).toBeVisible({ timeout: 20_000 });
 
+            const card = page.locator('app-grid-list mat-card').first();
+            const title = card.locator('.title');
+            await expect(title).toBeVisible();
+            const catalogUrl = page.url();
+            for (const showTitles of [false, true]) {
+                await openSettings(page);
+                await openSettingsSection(page, 'appearance');
+                const toggle = page
+                    .getByTestId('cover-titles-toggle')
+                    .getByRole('switch');
+                await expect(toggle).toBeChecked({ checked: !showTitles });
+                await toggle.click();
+                await saveSettings(page);
+
+                await page.getByTestId('workspace-header-back').click();
+                await expect(page).toHaveURL(catalogUrl);
+                await expect(card).toBeVisible();
+                await expect(title).toHaveCount(Number(showTitles));
+            }
+
             // A rating threshold shows the second chip next to the sort one.
             let menu = await openRefineMenu(page);
             const thresholds = await openRatingSubmenu(page);
@@ -403,14 +424,22 @@ test.describe('Electron catalog sort menus', () => {
                             chipsTop: chips.top,
                             chipsRight: chips.right,
                             actionLeft: action.left,
+                            actionCenter: action.y + action.height / 2,
+                            actionBottom: action.bottom,
                         };
                     });
                 expect(
                     bounds.overflow,
                     `${width}: toolbar fits`
                 ).toBeLessThanOrEqual(1);
-                expect(bounds.actionLeft).toBeGreaterThan(bounds.chipsRight);
+                expect(
+                    Math.abs(bounds.metaCenter - bounds.actionCenter),
+                    `${width}: Refine shares the title row`
+                ).toBeLessThanOrEqual(1);
                 if (bounds.paneWidth > 640) {
+                    expect(bounds.actionLeft).toBeGreaterThan(
+                        bounds.chipsRight
+                    );
                     expect(
                         Math.abs(bounds.metaCenter - bounds.chipsCenter),
                         `${width}: long title shares the controls row`
@@ -419,7 +448,9 @@ test.describe('Electron catalog sort menus', () => {
                     expect(
                         bounds.chipsTop,
                         `${width}: narrow toolbar keeps a separate controls row`
-                    ).toBeGreaterThan(bounds.metaBottom);
+                    ).toBeGreaterThan(
+                        Math.max(bounds.metaBottom, bounds.actionBottom)
+                    );
                 }
             }
         } finally {

@@ -27,6 +27,8 @@ export interface M3uPlaybackPayloadInput {
      * Live rows never set it — there is no offset into a live edge.
      */
     readonly startTime?: number;
+    /** The row's playlist identity, independent of expiring stream URLs. */
+    readonly catalogIdentity?: ResolvedPortalPlayback['catalogIdentity'];
 }
 
 export function buildM3uPlaybackPayload({
@@ -35,6 +37,7 @@ export function buildM3uPlaybackPayload({
     playlistMeta,
     isLive,
     startTime,
+    catalogIdentity,
 }: M3uPlaybackPayloadInput): ResolvedPortalPlayback {
     // Embedded MPV requests bypass the Electron webRequest override, so the
     // playlist-level custom headers must ride in the payload; channel
@@ -57,6 +60,7 @@ export function buildM3uPlaybackPayload({
         thumbnail: channel.tvg?.logo ?? null,
         isLive,
         startTime,
+        catalogIdentity,
         headers: Object.keys(headers).length > 0 ? headers : undefined,
         userAgent: effective['user-agent'],
         referer: effective.referer,

@@ -1,5 +1,6 @@
 import type {
     PlaybackPositionData,
+    PlaybackPositionUpdate,
     PlayerContentInfo,
 } from '@iptvnator/shared/interfaces';
 export interface RemainingTimeLabel {
@@ -16,12 +17,15 @@ interface ProgressPosition {
 /** The position row an inline player's time update writes for its content. */
 export function inlineProgressPosition(
     contentInfo: PlayerContentInfo,
-    event: { currentTime: number; duration: number }
+    event: PlaybackPositionUpdate
 ): PlaybackPositionData {
     return {
         ...contentInfo,
         positionSeconds: Math.floor(event.currentTime),
         durationSeconds: Math.floor(event.duration),
+        ...(event.nativeCheckpointAt
+            ? { nativeCheckpointAt: event.nativeCheckpointAt }
+            : {}),
     };
 }
 

@@ -40,6 +40,21 @@ export async function verifyCompatibleFavoriteActions(db: AppDatabase) {
             id + 2,
             'identity-qualified actions must resolve the compatible duplicate'
         );
+        assert.deepEqual(
+            {
+                title: row.title,
+                poster: row.poster_url,
+                tmdbId: row.tmdb_id,
+                releaseYear: row.release_year,
+            },
+            {
+                title: 'Displayed original',
+                poster: 'https://art.invalid/poster.jpg',
+                tmdbId: 100,
+                releaseYear: 1995,
+            },
+            'synchronized history needs the catalog identity with the artwork'
+        );
         assert(await isFavorite(db, row.id, 'p'));
         await removeFavorite(db, row.id, 'p');
         assert.equal(

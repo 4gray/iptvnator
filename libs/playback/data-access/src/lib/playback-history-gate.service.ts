@@ -10,12 +10,15 @@ export interface PlaybackHistoryTarget {
      * A write deferred with one is only confirmed by that same key.
      */
     readonly sessionKey?: string | null;
+    /** A particular native launch, even when another launch uses the same URL. */
+    readonly launchId?: string | null;
     /** Stream URLs; what a write without a session key is matched by. */
     readonly streamUrls?: readonly (string | null | undefined)[];
 }
 
 interface NormalizedTarget {
     readonly sessionKey: string | null;
+    readonly launchId: string | null;
     readonly streamUrls: ReadonlySet<string>;
 }
 
@@ -38,16 +41,17 @@ const MAX_PENDING_HISTORY_WRITES = 20;
  * the player, or handed to MPV/VLC. Writers therefore `defer` the write under
  * what the playback will be known by, and whoever observes the playback
  * `confirm`s it: the inline players once the stream has advanced for a
- * couple of seconds, and the external-player session as soon as MPV/VLC is
- * launched. A stream that fails before that point never reaches history or
+ * couple of seconds, and the external-player session when it confirms media
+ * or opens without readiness support. A stream that fails before that point never reaches history or
  * the dashboard hero.
  *
  * A write deferred with a session key is only confirmed by the same key: the
  * same stream URL can sit in two playlists, and playing it in one — inline
- * or in MPV/VLC, whose app-wide confirmation knows only the URL — must not
+ * or in MPV/VLC — must not
  * record a failed attempt in the other. Writers that cannot know the
  * playing host's key (portal resolvers, collection tabs) defer by stream
- * URL, which any confirmation of that URL matches.
+ * URL, which any confirmation of that URL matches. Native launches that know
+ * their launch ID defer under that ID instead.
  * Several writers may defer for the same playback; one confirmation commits
  * all of them. A write with nothing to match on cannot be confirmed and is
  * committed immediately, as before this gate existed.
@@ -57,14 +61,31 @@ export class PlaybackHistoryGate {
     private pending: PendingHistoryWrite[] = [];
 
     constructor() {
-        // MPV/VLC cannot report whether a live stream plays, so a launch
-        // that opened is the confirmation. Subscribed here rather than in
+        // Subscribed here rather than in
         // the app-wide external-playback service so the gate stays off the
         // initial bundle: it is created by the first deferred write, which
         // always precedes the launch it waits for.
+        const launching = new Set<string>();
         window.electron?.onExternalPlayerSessionUpdate?.((session) => {
-            if (session.status === 'opened' || session.status === 'playing') {
-                this.confirm({ streamUrls: [session.streamUrl] });
+            if (session.restoredFromSessionId) return;
+            if (session.status === 'launching') {
+                launching.add(session.id);
+            } else if (
+                session.status === 'opened' ||
+                session.status === 'playing'
+            ) {
+                if (
+                    session.mediaLoaded === false &&
+                    !session.mediaObservationUnavailable
+                )
+                    return;
+                if (launching.delete(session.id))
+                    this.confirm({
+                        launchId: session.launchId,
+                        streamUrls: [session.streamUrl],
+                    });
+            } else {
+                launching.delete(session.id);
             }
         });
     }
@@ -79,7 +100,11 @@ export class PlaybackHistoryGate {
             if (current()) commit();
         };
         const normalized = normalizeTarget(target);
-        if (!normalized.sessionKey && normalized.streamUrls.size === 0) {
+        if (
+            !normalized.sessionKey &&
+            !normalized.launchId &&
+            normalized.streamUrls.size === 0
+        ) {
             runCommit(confirmedCommit);
             return;
         }
@@ -111,12 +136,14 @@ function matchesTarget(
     if (write.sessionKey) {
         return write.sessionKey === confirmed.sessionKey;
     }
+    if (write.launchId) return write.launchId === confirmed.launchId;
     return [...write.streamUrls].some((url) => confirmed.streamUrls.has(url));
 }
 
 function normalizeTarget(target: PlaybackHistoryTarget): NormalizedTarget {
     return {
         sessionKey: normalizeKey(target.sessionKey),
+        launchId: normalizeKey(target.launchId),
         streamUrls: new Set(
             (target.streamUrls ?? [])
                 .map(normalizeKey)

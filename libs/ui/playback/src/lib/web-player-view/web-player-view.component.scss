@@ -1,3 +1,5 @@
+@use '../second-stream/floating-surface';
+
 .web-player-view {
     container-type: inline-size;
     display: block;
@@ -27,4 +29,97 @@ app-html-video-player {
     width: 100%;
     height: 100%;
     background: #000;
+}
+
+.web-player-android-actions {
+    position: absolute;
+    inset-block-start: 8px;
+    // Reserve the shared controls' top-right Stream Info hit area.
+    left: 8px;
+    right: 72px;
+    z-index: 6;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    pointer-events: none;
+
+    button {
+        pointer-events: auto;
+        background: var(--mat-sys-surface);
+    }
+}
+
+.embedded-mpv-pair {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+.embedded-mpv-pair--multiview {
+    --multiview-rows: 1;
+    --second-stream-strip-height: 0px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(var(--multiview-rows), minmax(0, 1fr));
+
+    &.embedded-mpv-pair--with-strip {
+        --second-stream-strip-height: 40px;
+        grid-template-rows:
+            repeat(var(--multiview-rows), minmax(0, 1fr))
+            var(--second-stream-strip-height);
+    }
+
+    > app-embedded-mpv-player {
+        grid-area: 1 / 1;
+        min-width: 0;
+        min-height: 0;
+    }
+}
+.embedded-mpv-pair--side-by-side,
+.embedded-mpv-pair--grid,
+.embedded-mpv-pair--focus {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 4px;
+    background: #000;
+}
+.embedded-mpv-pair--grid {
+    --multiview-rows: 2;
+}
+.embedded-mpv-pair--focus {
+    --multiview-rows: 3;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
+}
+.embedded-mpv-pair--grid,
+.embedded-mpv-pair--focus {
+    row-gap: 4px;
+
+    &:focus-visible::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+        border: 2px solid var(--app-focus-ring);
+        pointer-events: none;
+    }
+}
+.embedded-mpv-pair--swapped > app-embedded-mpv-player {
+    position: absolute;
+    width: var(--pip-width);
+    height: var(--pip-height);
+    left: var(--pip-left);
+    top: var(--pip-top);
+    z-index: 3;
+    background: #000;
+}
+
+.embedded-mpv-pair > app-embedded-mpv-player[popover] {
+    @include floating-surface.surface;
+    @include floating-surface.frame;
+}
+
+// The diagnostic panel replaces Video.js's own error dialog for the same
+// failure. Hide the vendor layer while the panel shows, so its text does not
+// show through behind the panel's title.
+.web-player-view:has(> app-playback-diagnostic-panel) .vjs-error-display {
+    display: none;
 }

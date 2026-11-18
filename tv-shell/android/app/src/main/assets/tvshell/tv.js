@@ -1355,6 +1355,56 @@
             promptedRoot = root;
             return true;
         }
+        var webFailures = new WeakMap(), nativeFailures = new WeakMap();
+        function offerIfBothFailed(stage) {
+            var failure = nativeFailures.get(stage);
+            var webFailure = webFailures.get(stage);
+            if (!failure || failure.offered || !webFailure || webFailure.attempt !== failure.attempt) return;
+            failure.offered = true;
+            native('onPlaybackError', failure.url, failure.title || document.title || '', '4');
+        }
+        function offerAfterWebError(url, title, code, root, promptRoot) {
+            var stage = root instanceof Element ? root.closest('app-web-player-view') : null;
+            var attempt = stage && stage.getAttribute('data-tv-playback-attempt');
+            if (attempt) {
+                var previous = webFailures.get(stage);
+                if (!previous || previous.attempt !== attempt) {
+                    previous = { attempt: attempt };
+                    webFailures.set(stage, previous);
+                }
+                if (url) Object.assign(previous, { url: url, title: title, code: code, root: promptRoot });
+            }
+            if (attempt && stage.querySelector('[data-tv-native-playback]')) {
+                offerIfBothFailed(stage);
+                return;
+            }
+            if (url && armPrompt(url, promptRoot)) native('onPlaybackError', url, title, String(code));
+        }
+        window.addEventListener('iptvnator:android-playback-availability', function () {
+            if (window.iptvnatorAndroidPlaybackEnabled !== false) return;
+            var stages = document.querySelectorAll('app-web-player-view[data-tv-playback-attempt]');
+            for (var i = 0; i < stages.length; i++) {
+                var stage = stages[i], webFailure = webFailures.get(stage);
+                if (!webFailure || !webFailure.url ||
+                    webFailure.attempt !== stage.getAttribute('data-tv-playback-attempt')) continue;
+                var failure = nativeFailures.get(stage);
+                if (!(failure && failure.attempt === webFailure.attempt && failure.offered) &&
+                    armPrompt(webFailure.url, webFailure.root))
+                    native('onPlaybackError', webFailure.url, webFailure.title, String(webFailure.code));
+            }
+        });
+        document.addEventListener('iptvnator:android-playback-failed', function (event) {
+            var stage = event.target;
+            var detail = event.detail;
+            var button = stage instanceof Element && stage.querySelector('[data-tv-native-playback]');
+            if (!button || !detail || !detail.attempt ||
+                stage.getAttribute('data-tv-playback-attempt') !== detail.attempt ||
+                typeof detail.url !== 'string') return;
+            var previous = nativeFailures.get(stage);
+            if (previous && previous.attempt === detail.attempt) return;
+            nativeFailures.set(stage, { attempt: detail.attempt, url: detail.url, title: detail.title });
+            offerIfBothFailed(stage);
+        });
         document.addEventListener('error', function (e) {
             var t = e.target;
             if (!t || !(t.tagName === 'VIDEO' || t.tagName === 'AUDIO')) return;
@@ -1369,9 +1419,9 @@
                 var code = (t.error && t.error.code) || (hasPlayerError(t) ? 4 : 0);
                 // 1 = aborted, 2 = network: the connection failed, not the format; an external
                 // player would fail the same way.
-                if (!url || code < 3 || !armPrompt(url, t.closest ? t.closest('.video-js') : null)) return;
+                if (code < 3) return;
                 lastMediaTitle = document.title;
-                native('onPlaybackError', url, lastMediaTitle || '', String(code));
+                offerAfterWebError(url, lastMediaTitle || '', code, t, t.closest('.video-js'));
             }, 400);
         }, true);
         // The screen stays on only while something plays (the shell holds no wake lock otherwise).
@@ -1388,16 +1438,19 @@
                     });
                 }
                 if (type === 'playing' && t.tagName === 'VIDEO') dropVjsSeekBar(t);
+                if (type === 'playing') webFailures.delete(t.closest('app-web-player-view'));
                 syncKeepScreenOn(type === 'playing');
             }, true);
         });
         document.addEventListener('iptvnator:playback-issue', function (event) {
             var code = event.detail && event.detail.code;
-            if (code !== 'unsupported-codec' && code !== 'unsupported-container' && code !== 'media-decode-error') return;
-            var url = api.currentStreamUrl();
+            var accessFailure = code === 'network-error' || code === 'browser-access-error';
+            if (code !== 'unsupported-codec' && code !== 'unsupported-container' &&
+                code !== 'media-decode-error' && !accessFailure) return;
+            // Web access and network errors count only if Media3 also fails.
+            var url = accessFailure ? null : api.currentStreamUrl();
             var root = currentVideo && currentVideo.closest ? currentVideo.closest('.video-js') : null;
-            if (!url || !armPrompt(url, root)) return;
-            native('onPlaybackError', url, document.title || '', '4');
+            offerAfterWebError(url, document.title || '', 4, event.target, root);
         });
         // video.js never sets the <video> src when no tech accepts the source
         // (raw .ts streams): it flags its root with `vjs-error` instead.
@@ -1409,9 +1462,8 @@
                 // (no CORS headers, the common case on a TV) as a network error, and an external
                 // player, which has no CORS, is exactly what plays it.
                 var url = videoJsSource();
-                if (!url || !armPrompt(url, el)) continue;
                 lastMediaTitle = document.title;
-                native('onPlaybackError', url, lastMediaTitle || '', '4');
+                offerAfterWebError(url, lastMediaTitle || '', 4, el, el);
             }
         });
         vjsObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'], subtree: true });
@@ -1565,6 +1617,7 @@
     // ------------------------------------------------------------- init
     function init() {
         document.documentElement.classList.add('tv-shell');
+        if (isAndroid) document.documentElement.classList.add('android-tv-shell');
         document.body.classList.add('tv-shell');
         installStyle();
         installNetworkTracking();

@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import {
+    type ElectronBridgeEpgLookupOptions,
     EpgItem,
     EpgProgram,
     epgProviderClockMs,
@@ -12,7 +13,10 @@ import {
 } from '@iptvnator/services';
 
 type ElectronEpgBridge = {
-    getChannelPrograms?: (channelId: string) => Promise<EpgProgram[]>;
+    getChannelPrograms?: (
+        channelId: string,
+        options: ElectronBridgeEpgLookupOptions
+    ) => Promise<EpgProgram[]>;
     getCurrentProgramsBatch?: (
         channelIds: string[],
         options?: { nowMs?: number }
@@ -48,7 +52,8 @@ export class XtreamXmltvFallbackService {
      * is found or the bridge function is unavailable.
      */
     async getProgramsForChannel(
-        epgChannelId: string | null | undefined
+        epgChannelId: string | null | undefined,
+        archiveDays?: number
     ): Promise<EpgItem[]> {
         if (!this.preferences.enabled()) return [];
         const revision = this.sources.revision();
@@ -58,14 +63,25 @@ export class XtreamXmltvFallbackService {
         const fn = this.bridge?.getChannelPrograms;
         if (typeof fn !== 'function') return [];
 
-        try {
-            const programs = await fn.call(this.bridge, id);
-            if (revision !== this.sources.revision()) return [];
-            return (programs ?? []).map((p) => mapEpgProgramToEpgItem(p, id));
-        } catch (error) {
-            this.logger.error(`Failed to load XMLTV programs for ${id}`, error);
-            return [];
-        }
+        const programs = await fn.call(this.bridge, id, {
+            ...this.clock,
+            archiveDays,
+            rejectOnError: true,
+        });
+        const { mapEpgProgramToEpgItem } =
+            await import('./xtream-xmltv-program.util');
+        if (revision !== this.sources.revision()) return [];
+        return programs.map((p) => mapEpgProgramToEpgItem(p, id));
+    }
+
+    /** Query options for the provider's EPG clock. */
+    private get clock(): { nowMs: number } {
+        return {
+            nowMs: epgProviderClockMs(
+                Date.now(),
+                this.settingsStore.resolvedEpgOffsetMinutes()
+            ),
+        };
     }
 
     async getCurrentProgramsBatch(
@@ -76,24 +92,17 @@ export class XtreamXmltvFallbackService {
         const fn = this.bridge?.getCurrentProgramsBatch;
         if (typeof fn !== 'function') return {};
 
-        const ids = Array.from(
-            new Set(
-                epgChannelIds
-                    .map((id) => (id ?? '').trim())
-                    .filter((id): id is string => id.length > 0)
-            )
-        );
+        const ids = [
+            ...new Set(
+                epgChannelIds.map((id) => (id ?? '').trim()).filter(Boolean)
+            ),
+        ];
         if (ids.length === 0) return {};
 
         try {
-            // "Now" in the provider's EPG clock (`epg-display-offset.util.ts`,
-            // clock form), like every other current-programme lookup.
-            const rows = await fn.call(this.bridge, ids, {
-                nowMs: epgProviderClockMs(
-                    Date.now(),
-                    this.settingsStore.resolvedEpgOffsetMinutes()
-                ),
-            });
+            const rows = await fn.call(this.bridge, ids, this.clock);
+            const { mapEpgProgramToEpgItem } =
+                await import('./xtream-xmltv-program.util');
             if (revision !== this.sources.revision()) return {};
             const out: Record<string, EpgItem> = {};
             for (const id of ids) {
@@ -122,50 +131,32 @@ export class XtreamXmltvFallbackService {
     async resolveCurrentEpg(args: {
         epgChannelId: string | null | undefined;
         preferUploaded: boolean;
+        archiveDays?: number;
         fetchProvider: () => Promise<EpgItem[]>;
+        signal?: AbortSignal;
     }): Promise<EpgItem[]> {
+        args.signal?.throwIfAborted();
         const id = (args.epgChannelId ?? '').trim();
 
-        if (args.preferUploaded && id) {
-            const xmltv = await this.getProgramsForChannel(id);
-            if (xmltv.length > 0) return xmltv;
-            return args.fetchProvider();
+        if (!id) return args.fetchProvider();
+        const readXmltv = () => {
+            args.signal?.throwIfAborted();
+            return this.getProgramsForChannel(id, args.archiveDays);
+        };
+
+        const primary = args.preferUploaded ? readXmltv : args.fetchProvider;
+        const fallback = args.preferUploaded ? args.fetchProvider : readXmltv;
+
+        try {
+            const programs = await primary();
+            if (programs.length) return programs;
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError')
+                throw error;
+            const programs = await fallback();
+            if (!programs.length) throw error;
+            return programs;
         }
-
-        const provider = await args.fetchProvider();
-        if (provider.length > 0 || !id) return provider;
-        return this.getProgramsForChannel(id);
+        return fallback();
     }
-}
-
-function mapEpgProgramToEpgItem(
-    program: EpgProgram,
-    channelId: string
-): EpgItem {
-    const startMs = program.startTimestamp
-        ? program.startTimestamp * 1000
-        : Date.parse(program.start);
-    const stopMs = program.stopTimestamp
-        ? program.stopTimestamp * 1000
-        : Date.parse(program.stop);
-    const startTimestamp = Number.isFinite(startMs)
-        ? Math.floor(startMs / 1000)
-        : 0;
-    const stopTimestamp = Number.isFinite(stopMs)
-        ? Math.floor(stopMs / 1000)
-        : 0;
-
-    return {
-        id: `${channelId}|${program.start}`,
-        epg_id: '',
-        title: program.title ?? '',
-        lang: '',
-        start: program.start,
-        end: program.stop,
-        stop: program.stop,
-        description: program.desc ?? '',
-        channel_id: channelId,
-        start_timestamp: String(startTimestamp),
-        stop_timestamp: String(stopTimestamp),
-    };
 }

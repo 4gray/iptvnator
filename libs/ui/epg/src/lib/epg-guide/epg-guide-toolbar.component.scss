@@ -22,10 +22,13 @@
     background: var(--app-content-bg);
     color: $text-primary;
 
+    // Controls take only the family: their sizes come from the kit's button
+    // roles and the rules below, which a full `font: inherit` (more specific
+    // than a single class) would override with the page's body size.
     button,
     label,
     input {
-        font: inherit;
+        font-family: inherit;
     }
 }
 
@@ -38,66 +41,57 @@
     flex: 0 0 auto;
 }
 
+// Day stepper: the kit's segmented track with the chevrons as its segments,
+// the same control as the inline timeline's stepper.
 .guide-toolbar__day {
-    display: inline-flex;
+    @include controls.segmented-track;
+    flex-wrap: nowrap;
     align-items: center;
-    border: 1px solid $line-strong;
-    border-radius: 8px;
-    height: 30px;
-    overflow: hidden;
-
-    button {
-        width: 30px;
-        height: 30px;
-        padding: 0;
-    }
 }
 
-.guide-toolbar__date {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0 12px;
-    font-weight: 500;
-    white-space: nowrap;
-    border-left: 1px solid $line-strong;
-    border-right: 1px solid $line-strong;
-    height: 100%;
+.guide-toolbar__nav {
+    @include controls.segment(26px);
+    justify-content: center;
+    width: 26px;
+    padding: 0;
 
-    small {
-        font: 10px $font-mono;
-        letter-spacing: 0.1em;
-        color: $text-tertiary;
+    mat-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
     }
-}
-
-.guide-toolbar__now {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    height: 30px;
-    padding: 0 12px;
-    border-radius: 999px;
-    border: 1px solid $line-strong;
-    background: transparent;
-    color: $text-primary;
-    font-size: 12.5px;
-    font-weight: 500;
-    cursor: pointer;
-    white-space: nowrap;
-
     &:hover {
-        background: $surface-2;
+        color: var(--app-heading-color);
     }
     &:focus-visible {
         @include focus-ring.focus-ring-declarations($offset: 1px);
     }
 }
 
+.guide-toolbar__date {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 0 8px;
+    font-size: 12.5px;
+    font-weight: 500;
+    white-space: nowrap;
+    color: var(--app-heading-color);
+
+    small {
+        font-size: 11px;
+        font-weight: 400;
+        color: $text-tertiary;
+    }
+}
+
+// Now: a small kit secondary button; the live dot says where it jumps.
 .guide-toolbar__now {
-    border-color: $accent-blue;
-    color: $accent-text;
-    background: var(--app-selection-surface);
+    @include controls.native-secondary-button(sm);
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    white-space: nowrap;
 
     &::before {
         content: '';
@@ -105,8 +99,19 @@
         height: 7px;
         border-radius: 50%;
         background: $accent-live;
-        box-shadow: 0 0 0 3px color-mix(in srgb, $accent-live 20%, transparent);
     }
+    &:focus-visible {
+        @include focus-ring.focus-ring-declarations($offset: 1px);
+    }
+}
+
+// Density and the fields' clear actions: the kit's square ghost icons.
+.guide-toolbar__density {
+    @include controls.ghost-icon-button(32px, 18px);
+}
+
+.guide-toolbar__clear {
+    @include controls.ghost-icon-button(24px, 14px);
 }
 
 // The kit's toolbar picker: a small secondary button with a chevron.
@@ -193,7 +198,8 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    height: 30px;
+    box-sizing: border-box;
+    height: 32px;
     padding: 0 4px 0 10px;
     // Grows to its old fixed width when there is room and shrinks before the
     // row wraps; `max-width` keeps the wide-window layout unchanged.
@@ -202,7 +208,7 @@
     min-width: 120px;
     max-width: 190px;
     border: 1px solid $line-strong;
-    border-radius: 8px;
+    border-radius: controls.$radius-sm;
     background: $surface-1;
     color: $text-tertiary;
 
@@ -222,15 +228,6 @@
 
         &::placeholder {
             color: $text-tertiary;
-        }
-    }
-    button {
-        width: 24px;
-        height: 24px;
-        padding: 0;
-
-        mat-icon {
-            font-size: 14px;
         }
     }
     &:focus-within {
@@ -273,4 +270,14 @@
     font: 10.5px $font-mono;
     color: $text-tertiary;
     white-space: nowrap;
+}
+
+@media (max-height: 400px) {
+    .guide-toolbar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+    }
+    .guide-toolbar__input--search {
+        flex-basis: 160px;
+    }
 }

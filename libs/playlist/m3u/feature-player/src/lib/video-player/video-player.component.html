@@ -18,6 +18,7 @@
     [storageKey]="sidebarStorageKey()"
     (widthChange)="onSidebarWidthChange($event)"
     (resizeEnd)="onSidebarResizeEnd($event)"
+    (resizeCancel)="onSidebarWidthChange($event)"
 >
     @if (activeView() !== 'groups' && activeView() !== 'all') {
         <button

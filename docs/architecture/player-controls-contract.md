@@ -112,11 +112,20 @@ ownership when the session, playback, engine, or component changes.
 
 ## Diagnostics And Recovery Ownership Boundary
 
+The Video.js component loads its aspect-ratio plugin stylesheet with the
+engine, so opening the workspace does not fetch those styles.
+
 The diagnostic panel publishes a bubbling `iptvnator:playback-issue` DOM event
 after rendering each issue, with only its bounded `code` in the detail. It contains
 no stream URL or provider credentials; the TV
-shell uses format/decode codes for its external-player offer without treating
-network failures as unsupported media.
+shell uses format/decode codes for its standalone external-player offer. With
+the Media3 pilot enabled, the shell waits for both engines to fail in the same
+playback attempt before offering an external player. It records a web failure
+by attempt, including network and browser access errors reported by the engine,
+and failures where the media element has only a blob URL. It uses the URL from
+Media3 for the offer.
+Turning Media3 off rechecks the current attempt for a deferred format or decode
+error and uses the web player's URL for the standalone offer.
 Delayed native media errors retain the media element, source and load-attempt
 identity. Removal, replacement, a changed source or another `loadstart` discards
 that error before it can offer recovery for a newer playback attempt.
@@ -143,12 +152,12 @@ project `playback-util`). `WebPlayerViewComponent` owns their in-memory,
 session-local application. No diagnostic or recommendation state or command is
 added to `PlayerController`.
 
-The only controls-layer participation is interaction gating. While the sibling
-diagnostic panel is visible, a web-player host disables shared surface and
-keyboard ownership and exits only the resolved fullscreen owner's DOM
-fullscreen (the host-supplied `fullscreenTarget`, else its own shell) so the
-recovery actions remain reachable. Clearing the diagnostic restores those paths; it
-does not make the controls contract an owner of the recovery lifecycle.
+While the sibling diagnostic panel is visible, a web-player host disables
+shared surface and keyboard ownership and exits the resolved fullscreen owner's
+DOM fullscreen (the host-supplied `fullscreenTarget`, else its own shell).
+When disabled, the shared Video.js controls also exit native fullscreen on
+their own video so the recovery actions remain reachable. Clearing the diagnostic
+restores surface and keyboard ownership.
 
 Video.js HLS has a separate nonterminal waiting notice. After 15 seconds of
 unpaused waiting with insufficient buffered data, it explains the delay and
@@ -238,8 +247,8 @@ interface PlayerController {
 `PlayerControlsCapabilities` contains booleans for `seek`, `volume`,
 `audioTracks`, `subtitles`, `externalSubtitles`, `subtitleDelay`,
 `subtitleStyle`, `qualityLevels`, `playbackSpeed`, `aspectRatio`,
-`recording`, `pictureInPicture`, `fullscreen`, `seriesNavigation`, and
-`streamStats`.
+`recording`, `pictureInPicture`, `fullscreen`, `seriesNavigation`,
+`streamStats`, and `liveEdge`.
 
 The default is all-false. An adapter enables only features that its engine and
 current runtime support. Capability flags primarily control whether optional UI
@@ -257,7 +266,7 @@ is rendered; state such as `canSeek`, `canPreviousEpisode`, and
 - pre-labelled quality levels and the ABR/auto flag;
 - playback speed and aspect-ratio selections/presets;
 - recording state;
-- picture-in-picture active state and runtime availability; and
+- picture-in-picture active state and runtime availability;
 - previous/next episode availability.
 
 Adapters translate engine types into this model. The controls component must not
@@ -283,6 +292,10 @@ owner.
 - `setAspectRatio`
 - `toggleRecording`
 - `togglePictureInPicture`
+- `jumpToLiveEdge` — skips buffered live data so playback runs close to the
+  broadcast. Only Embedded MPV implements it, for live MPEG-TS; web adapters
+  report `liveEdge: false` and treat the command as a no-op (see
+  "Jump to live" below)
 
 Episode navigation is deliberately exposed as component outputs
 (`previousEpisodeRequested` and `nextEpisodeRequested`) because the owning
@@ -292,11 +305,30 @@ Fullscreen is also outside the engine command contract. The landed component
 uses `ControlsFullscreen`, which operates on one DOM element through
 `requestFullscreen()` / `document.exitFullscreen()`: the optional
 `fullscreenTarget` input when the host supplies one, else the `playerSurface`.
-There is no fullscreen delegate or native-fullscreen IPC path.
 `ControlsFullscreen.sync()` reconciles state when that element attaches or
-changes, including when it is already fullscreen. The Embedded MPV host's
+changes, including when it is already fullscreen. If DOM fullscreen is
+unavailable, Video.js opts into WebKit's native fullscreen on the video
+inside its `nativeFullscreenSurface`. The button becomes available when the video
+reports support, and WebKit's video events keep the button state in sync.
+The WebKit presentation mode distinguishes fullscreen from Picture in Picture.
+In native fullscreen, Safari supplies the controls and the app's channel and
+episode panels are unavailable. Fullscreen stays outside the engine command
+contract and requires no IPC. The Embedded MPV host's
 existing `fullscreenchange` listener still triggers bounds sync so frame-copy
 render size follows the fullscreen DOM surface.
+
+Embedded MPV multiview keeps the fullscreen target on the player host,
+which contains all open viewports. The stream bar appears in windowed
+multiview and in fullscreen Grid and Focus. Regular single playback, and
+fullscreen Floating window and Side by side, have no stream bar. The
+fullscreen overlay container keeps the picker available from the bar,
+empty tiles or the floating window controls. Only the selected viewport
+handles shared controls. Transport stays on that viewport, and volume and
+mute apply to the designated audio session. In Grid and Focus, keys 1
+through 4 select occupied windows when the player owns keyboard input. Pointer clicks
+on the stream bar's window, sound, and layout toggles return focus to the grid
+stage so those shortcuts stay available. The selected window and audio session
+may differ.
 
 The owner matters because `WebPlayerViewComponent` remounts the engine
 component for every playback application (`@for ... track application.token`:
@@ -401,8 +433,13 @@ one colour in every player surface (UI guidelines, "Watch progress colour").
   the hover/tap popover in the compact mode — inline, the button is a
   plain mute toggle for every pointer type (`buttonClick(event,
   { inlineSlider: true })`). Center: previous episode · −10s · **play** ·
-  +10s · next episode. Right: the value chips, the `tune` button,
-  recording, picture-in-picture and fullscreen, end-aligned.
+  jump to live · +10s · next episode (jump to live and ±10s never appear
+  together: one is live-only, the other VOD-only). The centre is itself a
+  `1fr auto 1fr` grid: play owns the middle column and the buttons before
+  and after it sit in two `.player-controls__transport-side` columns of equal
+  width, so a button that appears on one side never moves play.
+  Right: add second stream, settings, recording,
+  picture-in-picture and fullscreen, end-aligned and capability-gated.
 - **Play button** (`.player-controls__play`, `data-test-id
   ="player-controls-play"`): a 52px filled accent circle with a white glyph,
   not a Material icon button. Fills under a white glyph (play, active
@@ -418,6 +455,23 @@ one colour in every player surface (UI guidelines, "Watch progress colour").
   off: its colour comes from the app theme, and the light theme's dark layer
   left no visible focus on video. The settings panel's icon buttons use the
   same ring, inset by 2px because the panel body clips at its edge.
+
+### Jump to live
+
+`capabilities.liveEdge` renders a `fast_forward` icon button
+(`data-test-id="player-controls-jump-to-live"`, label `JUMP_TO_LIVE`)
+directly right of play. It is always enabled: whether there is backlog to
+skip is decided by the engine at click time, because a state flag tracking a
+jittery live buffer made the button flicker.
+`ControlsTransport` owns it together with the ±10s skip. The jump reveals the
+controls and sends the command when the engine offers it. The controls do
+not flash a confirmation because a seek request does not guarantee that
+playback reached the live edge. There is no keyboard shortcut.
+
+Embedded MPV is the only engine that enables it, and only for a live session
+whose mpv `file-format` is `mpegts`; the native-view engine's legacy dock
+renders the same button (`embedded-mpv-jump-to-live`). Why TS only and how
+the jump works: `embedded-mpv-native.md`, "Jump to live (MPEG-TS)".
 
 ### Timeline segments
 
@@ -525,11 +579,28 @@ episode: `upNextThresholdSeconds` is 4% of the duration clamped to
 `timelineSegments` carry a closing-credits chapter in the last third
 (`creditsStartSeconds`: "Credits", "Outro", "Ending", an anime `ED`, and a
 few localized names), the card appears when it starts instead, at most
-5 min before the end. Embedded MPV under the frame-copy engine supplies
+5 min before the end. A credits start supplied through the optional `creditsStart`
+dependency (a metadata source such as TheIntroDB, #2239) wins over chapters.
+The timing lives in `upNextLeadSeconds` (`@iptvnator/shared/interfaces`,
+`up-next-timing.util.ts`), so the TV client uses the same adaptive timing when chapter data is unavailable.
+Embedded MPV under the frame-copy engine supplies
 file chapters (see the chapter producer above); every other engine, and a
 file without a credits chapter, uses the adaptive lead. The countdown shows
-whole minutes and switches to seconds in the last minute. It appears only when
-series autoplay is enabled and the next episode is in the current season.
+whole minutes and switches to seconds in the last minute, beside a ring that
+empties from the moment the card appears (`leadSeconds`). Both appear only when
+series autoplay is enabled. At a season's last episode autoplay continues into
+the next season: `PortalInlinePlayerComponent.onPlaybackEnded` emits
+`upNextEpisodeSelected` for the next rail entry instead of `playbackEnded`.
+The Stalker rail stops at the first season waiting for episode data. If an
+in-flight list arrives after playback ends, autoplay resumes the sequence while
+the same session is still at the end. Automatic rail selections carry a
+request-scoped `autoplaySignal`. Rewind, resume, manual episode choices and
+Close cancel that signal before a pending Stalker link can replace playback.
+Committed successors keep their autoplay count.
+Escape dismisses a visible card for the episode after any open menu closes
+(`ControlsUpNext.dismissIfVisible`). With the inline controls active, the card
+dismisses before Escape reaches the detail shell. Another Escape closes the
+inline player.
 A still that fails to load falls back to the label tile. A click emits
 `nextEpisodeRequested` directly — not through the
 transport's `canNextEpisode` guard, which is season-local — so the card
@@ -561,40 +632,25 @@ Every track, quality, speed and aspect choice lives behind one **`tune`**
 button (`data-test-id="player-controls-settings-button"`) in a single
 surface, `app-player-settings-panel` (`player-settings-panel.component.*`),
 instead of five popovers. `ControlsMenuState` knows three menus — `volume`,
-`settings`, `stats` — and `settingsFocus`, the group the panel was opened
-for. `ControlsSettings` derives, from capabilities and state, which groups
-exist (`getSettingsGroupAvailability`: audio needs more than one track,
-subtitles a track or `externalSubtitles`, quality more than one level,
-speed and aspect their capabilities), whether anything is on or changed,
-and owns open/toggle/close; the `tune` button and the panel render only
-while at least one group exists, and the availability reconciliation closes
-the panel the moment the last group disappears.
+`settings` and `stats`. `ControlsSettings` derives from capabilities and
+state which groups exist. Audio needs more than one track, subtitles need a
+track or `externalSubtitles`, and quality needs more than one level. Speed
+and aspect depend on their capabilities. The `tune` button and panel render
+while at least one group exists. If the last group disappears, settings close.
 
-- **Roomy wide dock** (≥ 960px): two **value chips** precede `tune` — subtitles
-  (`closed_caption` + the selected track's label, or "Off") and speed
-  (`speed` + `1.25×`). A chip's accessible name and tooltip carry its
-  value (`SUBTITLES_TOOLTIP` "Subtitles: English", `SPEED_TOOLTIP`
-  "Speed: 1.25×"); `tune` has `aria-haspopup="dialog"` and
-  `aria-expanded`. Audio and aspect ratio have no chip: they are
-  panel-only. A chip click opens the panel **focused on its group**
-  (`settingsFocus`; the group scrolls into view and wears a brief ring);
-  right-click or long-press on the subtitle chip toggles subtitles without
-  opening anything (`ControlsSettings.toggleSubtitles`: the first embedded
-  track on, `-1` off; with no track to turn on it opens the group so the
-  file loader is reachable). While the panel is open the dock, title and
-  corner shift left by the panel's width (`--panel-open` modifiers,
-  `right: 370px`), the chips and the picture-in-picture / recording buttons
-  fold away, `tune` fills in the accent color, and fullscreen stays.
-- **Compact dock, and wide docks below 960px**: no chips; `tune` carries **state dots** (5px, cyan when
-  subtitles are on or a non-default audio track is selected, violet when
-  speed, aspect or manual quality differ from their default) and the panel
-  opens as a **bottom sheet** (`--sheet` modifier: grip, two-column rows,
-  24px segmented items) that replaces the dock while open. Picture-in-
-  picture and recording stay in the compact dock — the mock shows only
-  `tune` + fullscreen there, but those two are engine features a viewer
-  needs without opening anything. At 200% zoom or on a short stage, the
-  whole sheet scrolls, including its header, so the body cannot collapse to
-  zero height. Wide panels retain the body as their sole scroll owner.
+- **Settings button**: the `tune` button has `aria-haspopup="dialog"` and
+  `aria-expanded`. While closed, it carries 5px state dots. Cyan means
+  subtitles are on or a non-default audio track is selected. Violet means
+  speed, aspect or manual quality differ from their default.
+- **Roomy wide dock** (≥ 960px): settings open beside the video. The dock,
+  title and corner shift left by the panel's width (`--panel-open` modifiers,
+  `right: 370px`). Second stream, recording and picture-in-picture fold away,
+  `tune` fills with the accent color, and fullscreen stays.
+- **Docks below 960px**: settings open as a bottom sheet (`--sheet` modifier:
+  grip, two-column rows, 24px segmented items) that replaces the dock while
+  open. At 200% zoom or on a short stage, the whole sheet scrolls, including
+  its header, so the body cannot collapse to zero height. Wide panels retain
+  the body as their sole scroll owner.
 - **Inside**: every choice is a `radio` in a `radiogroup`
   (`SettingsRadioGroupDirective` / `SettingsRadioDirective`). List groups
   (audio, subtitles, quality) are rows with a check mark and a cyan
@@ -615,9 +671,6 @@ the panel the moment the last group disappears.
   white frame. They wrap with `overflow-wrap: anywhere` and `hyphens: auto`,
   so one long word (German "Wiedergabegeschwindigkeit") breaks inside the
   sheet's 84px heading column. Hyphenation needs a `lang` on `<html>`.
-  With subtitles on but no track marked selected yet (the engine can report
-  the switch before the track list), the subtitle chip reads "On"
-  (`SUBTITLES_ON`), never "Off".
   Every focused option shows the `--pc-text` ring; a selected swatch has a
   white border with a dark inner gap, and focus adds an outer ring. The
   subtitle group carries the load-file action (a plain button outside the
@@ -635,6 +688,18 @@ the panel the moment the last group disappears.
   button, a click on the video surface or an outside pointerdown close it.
 - **Colors** follow the color-as-state rule of the dock: cyan means "on",
   violet means "changed", and neutral rows/items read as the default.
+
+### Multiview action
+
+The frame-copy host sets `canOpenMultiview` during regular single-stream
+playback. The `grid_view` button sits immediately before Settings in the
+bottom controls and opens the localized Multiview menu. Its Add stream action
+emits `multiviewAddRequested` so the host opens its stream picker. Grid and
+Focus emit `multiviewLayoutRequested` with the selected layout so the host
+can open it with the current stream. The stream bar provides layout and
+stream actions in windowed multiview and in fullscreen Grid and Focus.
+Browser video engines can expose their native picture-in-picture action
+when available.
 
 ### Stream info popover
 
@@ -1037,7 +1102,13 @@ listeners still fire, so the optional `hostElement` handler on
 above the player (e.g. the workspace's phone context drawer) owns the
 keyboard. `EmbeddedMpvShortcutHandlers` (the native-view legacy dock) and
 the radio audio player's document-level volume/mute keys apply the same
-rule.
+rule. Shared and native-view player controls also yield every shortcut while
+an ancestor carries `data-player-shortcuts-suspended`, used by the programme
+guide while the player is docked. Gaining that attribute also closes the
+shared controls' open popovers, as Escape would (`watchPlayerSuspension` in
+`controls-suspension.ts`, started by `ControlsShortcuts.attach`): the docked
+mini player shows only play/pause, and a settings sheet left open would keep
+the controls bar `inert` behind hidden chrome.
 
 Action-specific keys are prevented only when the active controller can handle
 them: seek requires both capability and current seekability, volume/mute
@@ -1129,9 +1200,10 @@ components bind that value to `showControls` and
 `shortcutsEnabled`. If the shared controls' fullscreen owner (the supplied
 `fullscreenTarget`, else the player shell) is in DOM fullscreen, the host
 exits fullscreen before hiding the controls so the diagnostic banner and its
-recovery actions remain visible; fullscreen owned by another element is left
-untouched. Retrying playback or clearing the diagnostic
-restores both interaction paths.
+recovery actions remain visible. If the Video.js video is in WebKit native
+fullscreen, the shared controls exit that presentation when hidden. Fullscreen
+owned by another element is left untouched. Retrying
+playback or clearing the diagnostic restores both interaction paths.
 
 Frame-copy recording transitions use the adapter's playback/session identity as
 their `transitionKey`. Session disposal, retry, channel changes, and engine
@@ -1203,8 +1275,11 @@ setter clamps against, so an unknown duration never jumps to zero); volume
 steps by ±5% and syncs muted state the way `applyVideoVolume` does (raising
 out of mute unmutes, reaching zero mutes); M mirrors `ControlsVolume`'s mute
 memory through `LegacyMuteMemory` — muting remembers the audible volume, and
-unmuting while the volume sits at zero restores it (same 0.5 fallback), so M
-can never leave the player silently "unmuted"; `isAvailable` is the host's
+unmuting while the volume sits at zero restores it (same 0.5 fallback).
+A positive shared-control slider setting is remembered across a later change
+to zero. The Android handoff uses that level for Unmute and falls back to 50%.
+A remounted player at zero volume is considered muted even if its engine
+initializes the mute flag to false. `isAvailable` is the host's
 `interactionEnabled`, so a visible playback diagnostic disables the keys; and
 Escape defaults to a no-op without consuming the key, because the vendor
 chrome owns its own overlays. Instances attach in the component's legacy
@@ -1265,21 +1340,17 @@ template branches CSS cannot express — the inline volume slider versus
 its popover. Without `ResizeObserver` (unit tests) the mode stays `wide`.
 
 A second threshold, `ROOMY_LAYOUT_MIN_WIDTH` (960px, `ControlsLayout.roomy`),
-gates the wide dock's extras: the subtitle/speed chips and the settings
-panel beside the video. Between 720px and 960px the dock stays wide (full
-button sizes, inline volume) but folds the chips into `tune` with state
-dots and opens settings as the bottom sheet, because the widest action row
-(volume, series transport, two chips, tune/record/PiP/fullscreen) and the
-dock beside a 370px panel do not fit there. The control row's side columns
+gates the settings panel beside the video. Between 720px and 960px the dock
+stays wide (full button sizes, inline volume) and settings open as the bottom
+sheet. The control row's side columns
 are `minmax(min-content, 1fr)`, so if the actions still need more than half
 of what the transport leaves, the transport slides off-centre instead of
 the actions overlapping it or leaving the player.
 Episode navigation stays in the compact transport: the series hosts rely on
 those buttons, and the inline series player is often narrower than 720px.
 
-The actions cluster's width is content-dependent (audio, subtitles, quality,
-speed, aspect, recording, PiP, and fullscreen are all conditional), so in
-the compact layout the cluster is end-aligned, capped at the row width, and
+The actions depend on the host's capabilities. In the compact layout the
+cluster is end-aligned, capped at the row width, and
 wraps when the row cannot hold it. Its popover anchors become static at this
 breakpoint so capability panels position against the unclipped actions
 cluster and remain accessible above every wrapped row.
@@ -1316,6 +1387,9 @@ they differ in who owns the caption UI:
 - **Shared controls: authoritative.** The preference holds for the whole
   session; user intent arrives through `setSubtitleTrack`, which records an
   explicit override (including `-1` for off) that wins until the source changes.
+  During Video.js native fullscreen, Safari owns the native subtitle menu.
+  Track changes made there become the current source's override, so the
+  selection carries back to the shared controls.
 - **Vendor chrome: source-default.** The engine still renders its own caption
   menu, so the preference only seeds each new source and is released once the
   media element reports `playing`. Enforcing it for the whole session would
@@ -1774,6 +1848,7 @@ libs/ui/playback/src/lib/player-controls/
 ├── controls-layout.ts
 ├── controls-timeline-label.ts
 ├── controls-timeline-segments.ts
+├── controls-transport.ts
 ├── controls-settings.ts
 ├── controls-settings-groups.ts
 ├── controls-up-next.ts
@@ -1835,6 +1910,7 @@ libs/ui/playback/src/lib/embedded-mpv-player/
 ├── embedded-mpv-controls.adapter.ts
 ├── embedded-mpv-controls-recording.ts
 ├── embedded-mpv-controls-recording-feedback.ts
+├── embedded-mpv-live-edge.ts
 ├── embedded-mpv-stream-stats.ts
 ├── embedded-mpv-player.component.ts
 ├── embedded-mpv-player.component.html
@@ -1955,6 +2031,13 @@ live together; routing/integration stays in the M3U player template.
 When focus is inside a dialog or alertdialog, its reading region owns the
 arrows and M key. Radio leaves those events unconsumed and does not change or
 persist background volume; keyboard volume control resumes after dismissal.
+Ctrl, Cmd and Alt chords are never radio shortcuts (Cmd+M minimizes on macOS).
+Mute sets the app volume to zero and also sets `audio.muted`, so it works on
+iPhone Safari where the element can ignore volume assignments. Unmute restores
+the last audible volume (`LegacyMuteMemory`, 0.5 when none is known). Raising
+the volume also clears `audio.muted`. The LIVE badge and the play button follow
+the element's `play`, `pause`, `ended` and `error` events. Play reloads a failed
+stream, and if the current attempt is rejected, the player shows paused.
 
 ### Display sleep during playback
 

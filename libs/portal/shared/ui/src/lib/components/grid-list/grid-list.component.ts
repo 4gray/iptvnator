@@ -25,6 +25,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { SettingsStore } from '@iptvnator/services';
 import {
+    APP_ICONS,
     ProgressCapsuleComponent,
     WatchedBadgeComponent,
 } from '@iptvnator/ui/components';
@@ -115,6 +116,7 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GridListComponent {
+    protected readonly appIcons = APP_ICONS;
     private readonly host: HTMLElement = inject(ElementRef).nativeElement;
     private readonly failedArtworkUrls = signal<ReadonlySet<string>>(new Set());
     private readonly settingsStore = inject(SettingsStore);

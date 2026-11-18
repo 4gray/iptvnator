@@ -30,15 +30,13 @@ import {
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
 import {
     Channel,
+    hasReachedPlaybackStart,
+    PlaybackPositionUpdate,
     PlaylistMeta,
     ResolvedPortalPlayback,
     XtreamSerieEpisode,
 } from '@iptvnator/shared/interfaces';
-import {
-    createLogger,
-    isBeforeResumePoint,
-    PORTAL_PLAYER,
-} from '@iptvnator/portal/shared/util';
+import { createLogger, PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
 import { extractDrmFromRaw, isDashChannel } from '@iptvnator/shared/m3u-utils';
 import { M3uSeries } from '@iptvnator/shared/m3u-utils/series';
 import {
@@ -327,10 +325,7 @@ export class M3uSeriesDetailRouteComponent {
      * is the one they belong to; a tick that arrives after the viewer moved
      * on would otherwise be filed against the wrong episode.
      */
-    protected onTimeUpdate(update: {
-        currentTime: number;
-        duration: number;
-    }): void {
+    protected onTimeUpdate(update: PlaybackPositionUpdate): void {
         const playing = this.playing();
         const episode = playing?.episode;
         if (!episode || !Number.isFinite(update.currentTime)) {
@@ -339,7 +334,7 @@ export class M3uSeriesDetailRouteComponent {
         // A tick at ~0 before the seek to `startTime` would overwrite the
         // saved point; once reached, a seek back is saved as usual.
         if (!this.resumeSettled) {
-            if (isBeforeResumePoint(playing.startTime, update)) {
+            if (!hasReachedPlaybackStart(update, playing.startTime ?? 0)) {
                 return;
             }
             this.resumeSettled = true;

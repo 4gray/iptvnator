@@ -2,7 +2,7 @@
     <div class="guide-toolbar__day">
         <button
             type="button"
-            mat-icon-button
+            class="guide-toolbar__nav"
             (click)="stepDay.emit('prev')"
             [attr.aria-label]="'EPG.PREVIOUS_DAY' | translate"
         >
@@ -16,7 +16,7 @@
         </span>
         <button
             type="button"
-            mat-icon-button
+            class="guide-toolbar__nav"
             (click)="stepDay.emit('next')"
             [attr.aria-label]="'EPG.NEXT_DAY' | translate"
         >
@@ -85,6 +85,14 @@
         <i aria-hidden="true"></i>
         <span>{{ 'EPG.GUIDE.ONLY_WITH_EPG' | translate }}</span>
     </label>
+    @if (coverageStatus() !== 'idle') {
+        <span class="guide-toolbar__count" role="status">
+            {{
+                (coverageStatus() === 'loading' ? 'EPG.FETCH_EPG' : 'EPG.ERROR')
+                    | translate
+            }}
+        </span>
+    }
 
     <button
         type="button"
@@ -132,6 +140,7 @@
             <button
                 type="button"
                 mat-icon-button
+                class="guide-toolbar__clear"
                 (click)="filterChange.emit('')"
                 [attr.aria-label]="'EPG.GUIDE.CLEAR_FILTER' | translate"
             >
@@ -155,6 +164,7 @@
                 <button
                     type="button"
                     mat-icon-button
+                    class="guide-toolbar__clear"
                     (click)="searchQueryChange.emit('')"
                     [attr.aria-label]="'CLEAR' | translate"
                 >

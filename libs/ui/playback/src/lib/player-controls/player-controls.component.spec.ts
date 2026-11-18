@@ -33,6 +33,7 @@ function createFakeController() {
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),
         togglePictureInPicture: jest.fn(),
+        jumpToLiveEdge: jest.fn(),
     };
     const controller: PlayerController = { capabilities, state, commands };
     return { controller, capabilities, state, commands };
@@ -87,7 +88,6 @@ describe('PlayerControlsComponent', () => {
                     SUBTITLES: 'Subtitles',
                     SUBTITLES_OFF: 'Off',
                     PLAYBACK_SPEED: 'Playback speed',
-                    SPEED_TOOLTIP: 'Speed: {{speed}}',
                     ASPECT_RATIO: 'Aspect ratio',
                     ASPECT_DEFAULT: 'Default',
                     START_RECORDING: 'Start recording',
@@ -110,12 +110,6 @@ describe('PlayerControlsComponent', () => {
             expect(query('[aria-label="Back 10 seconds"]')).toBeNull();
             expect(
                 query('[data-test-id="player-controls-settings-button"]')
-            ).toBeNull();
-            expect(
-                query('[data-test-id="player-controls-subtitle-chip"]')
-            ).toBeNull();
-            expect(
-                query('[data-test-id="player-controls-speed-chip"]')
             ).toBeNull();
             expect(query('.player-controls__record-button')).toBeNull();
             expect(query('[aria-label="Enter fullscreen"]')).toBeNull();
@@ -166,16 +160,16 @@ describe('PlayerControlsComponent', () => {
             expect(query('[aria-label="Settings"]')).not.toBeNull();
         });
 
-        it('shows the speed chip and the settings button per their capabilities', () => {
+        it('exposes speed and aspect ratio through settings', () => {
             setCapabilities({ playbackSpeed: true, aspectRatio: true });
             fixture.detectChanges();
+            query('[data-test-id="player-controls-settings-button"]')?.click();
+            fixture.detectChanges();
             expect(
-                query('[data-test-id="player-controls-speed-chip"]')
+                query('[data-test-id="player-settings-speed"]')
             ).not.toBeNull();
-            // Aspect ratio has no chip of its own: it lives in the panel.
-            expect(query('[aria-label="Aspect ratio"]')).toBeNull();
             expect(
-                query('[data-test-id="player-controls-settings-button"]')
+                query('[data-test-id="player-settings-aspect"]')
             ).not.toBeNull();
         });
 
@@ -305,6 +299,90 @@ describe('PlayerControlsComponent', () => {
             fixture.detectChanges();
             // Now it auto-hides.
             expect(fixture.componentInstance.controlsAreVisible()).toBe(false);
+        });
+
+        it('still hides after a tap whose emulated hover lands on the bar', () => {
+            // Chromium follows a tap with a mouse-typed pointerenter on the
+            // controls fading in under the finger, and no pointerleave.
+            const touchDown = new MouseEvent('pointerdown', { bubbles: true });
+            Object.defineProperty(touchDown, 'pointerType', { value: 'touch' });
+            document.dispatchEvent(touchDown);
+            const emulated = new MouseEvent('pointerenter');
+            Object.defineProperty(emulated, 'pointerType', { value: 'mouse' });
+            bar()?.dispatchEvent(emulated);
+            fixture.detectChanges();
+
+            expect(fixture.componentInstance.chrome.hovered()).toBe(false);
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(false);
+        });
+
+        it('does not open the volume popover on the emulated hover a tap leaves', () => {
+            setCapabilities({ volume: true });
+            fixture.detectChanges();
+            const anchor = query(
+                '.player-controls__popover-anchor'
+            ) as HTMLElement;
+            const touchDown = new MouseEvent('pointerdown', { bubbles: true });
+            Object.defineProperty(touchDown, 'pointerType', { value: 'touch' });
+            document.dispatchEvent(touchDown);
+            const emulated = new MouseEvent('pointerenter');
+            Object.defineProperty(emulated, 'pointerType', { value: 'mouse' });
+            anchor.dispatchEvent(emulated);
+            fixture.detectChanges();
+
+            expect(fixture.componentInstance.menus.volumeOpen()).toBe(false);
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(false);
+        });
+
+        it('opens the volume popover when a real mouse moves over the anchor after a touch', () => {
+            setCapabilities({ volume: true });
+            fixture.detectChanges();
+            const anchor = query(
+                '.player-controls__popover-anchor'
+            ) as HTMLElement;
+            const typed = (type: string, pointerType: string) => {
+                const event = new MouseEvent(type, { bubbles: true });
+                Object.defineProperty(event, 'pointerType', {
+                    value: pointerType,
+                });
+                return event;
+            };
+            document.dispatchEvent(typed('pointerdown', 'touch'));
+            anchor.dispatchEvent(typed('pointerenter', 'mouse'));
+            expect(fixture.componentInstance.menus.volumeOpen()).toBe(false);
+
+            jest.advanceTimersByTime(1500);
+            anchor.dispatchEvent(typed('pointermove', 'mouse'));
+            fixture.detectChanges();
+            expect(fixture.componentInstance.menus.volumeOpen()).toBe(true);
+        });
+
+        it('lets a real mouse moving over the bar claim hover after a touch', () => {
+            const typed = (type: string, pointerType: string) => {
+                const event = new MouseEvent(type, { bubbles: true });
+                Object.defineProperty(event, 'pointerType', {
+                    value: pointerType,
+                });
+                return event;
+            };
+            document.dispatchEvent(typed('pointerdown', 'touch'));
+            // A genuine mouse enter inside the touch window is ignored...
+            bar()?.dispatchEvent(typed('pointerenter', 'mouse'));
+            expect(fixture.componentInstance.chrome.hovered()).toBe(false);
+
+            // ...and its next move, once the window has passed, claims hover.
+            jest.advanceTimersByTime(1500);
+            bar()?.dispatchEvent(typed('pointermove', 'mouse'));
+            fixture.detectChanges();
+            expect(fixture.componentInstance.chrome.hovered()).toBe(true);
+
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(true);
         });
 
         it('reveals on focus, stays visible within the bar, and hides after focus leaves', () => {
