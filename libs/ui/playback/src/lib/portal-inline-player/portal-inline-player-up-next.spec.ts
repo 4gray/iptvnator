@@ -184,7 +184,7 @@ describe('PortalInlinePlayerComponent up next rail', () => {
             autoplayEnabled: true,
         });
         fixture.detectChanges();
-        expect(component.playerUpNext()?.showCountdown).toBe(false);
+        expect(component.playerUpNext()?.showCountdown).toBe(true);
         component.onNextEpisodeRequested();
         expect(selected).toHaveBeenCalledWith(upNextItems[1]);
         expect(next).not.toHaveBeenCalled();
@@ -198,6 +198,221 @@ describe('PortalInlinePlayerComponent up next rail', () => {
         component.onNextEpisodeRequested();
         expect(next).toHaveBeenCalledTimes(1);
         expect(selected).toHaveBeenCalledTimes(1);
+    });
+
+    it('autoplays into the next season when the season ends', async () => {
+        await setup(true);
+        fixture.componentRef.setInput('playback', seriesPlayback);
+        fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+        const selected = jest.fn();
+        const ended = jest.fn();
+        component.upNextEpisodeSelected.subscribe(selected);
+        component.playbackEnded.subscribe(ended);
+
+        fixture.componentRef.setInput('seriesNavigation', {
+            canPrevious: true,
+            canNext: false,
+            autoplayEnabled: true,
+        });
+        fixture.detectChanges();
+        component.onPlaybackEnded();
+        expect(selected).toHaveBeenCalledWith(
+            expect.objectContaining(upNextItems[1])
+        );
+        expect(ended).not.toHaveBeenCalled();
+
+        // Inside a season the host keeps its own autoplay path.
+        fixture.componentRef.setInput('seriesNavigation', {
+            canPrevious: true,
+            canNext: true,
+            autoplayEnabled: true,
+        });
+        fixture.detectChanges();
+        component.onPlaybackEnded();
+        expect(ended).toHaveBeenCalledTimes(1);
+
+        // Autoplay off: the episode just ends.
+        fixture.componentRef.setInput('seriesNavigation', {
+            canPrevious: true,
+            canNext: false,
+            autoplayEnabled: false,
+        });
+        fixture.detectChanges();
+        component.onPlaybackEnded();
+        expect(ended).toHaveBeenCalledTimes(2);
+        expect(selected).toHaveBeenCalledTimes(1);
+        expect(component.playerUpNext()?.showCountdown).toBe(false);
+    });
+
+    it.each(['seek', 'replay', 'committed'] as const)(
+        'aborts an issued season autoplay on %s',
+        async (action) => {
+            await setup(true);
+            fixture.componentRef.setInput('playback', seriesPlayback);
+            fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+            fixture.componentRef.setInput('seriesNavigation', {
+                canPrevious: true,
+                canNext: false,
+                autoplayEnabled: true,
+            });
+            fixture.detectChanges();
+            let issued: AbortSignal | undefined;
+            component.upNextEpisodeSelected.subscribe((item) => {
+                issued = (
+                    item as typeof item & { autoplaySignal?: AbortSignal }
+                ).autoplaySignal;
+            });
+            component.onTimeUpdate({
+                currentTime: 120,
+                duration: 120,
+                playing: false,
+            });
+            component.onPlaybackEnded();
+            expect(issued).toBeDefined();
+            if (action === 'committed')
+                fixture.componentRef.setInput(
+                    'playbackSessionKey',
+                    'next-session'
+                );
+            component.onTimeUpdate({
+                currentTime: action === 'seek' ? 10 : 120,
+                duration: 120,
+                playing: action === 'replay',
+            });
+            expect(issued?.aborted).toBe(action !== 'committed');
+        }
+    );
+
+    it('preserves a pending episode choice when the current season ends', async () => {
+        await setup(true);
+        fixture.componentRef.setInput('playback', seriesPlayback);
+        fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+        fixture.componentRef.setInput('seriesNavigation', {
+            canPrevious: true,
+            canNext: false,
+            autoplayEnabled: true,
+        });
+        fixture.componentRef.setInput('playbackPending', true);
+        const selected = jest.fn();
+        component.upNextEpisodeSelected.subscribe(selected);
+        fixture.detectChanges();
+        component.onPlaybackEnded();
+        expect(selected).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        'ended',
+        'new session',
+        'seek',
+        'replay',
+        'pending choice',
+    ] as const)(
+        'handles a late season only while playback remains ended (%s)',
+        async (state) => {
+            await setup(true);
+            fixture.componentRef.setInput('playback', seriesPlayback);
+            fixture.componentRef.setInput('upNextEpisodes', [upNextItems[0]]);
+            fixture.componentRef.setInput('seasonLoadStates', {
+                '2': 'loading',
+            });
+            fixture.componentRef.setInput('seriesNavigation', {
+                canPrevious: true,
+                canNext: false,
+                autoplayEnabled: true,
+            });
+            const selected = jest.fn();
+            component.upNextEpisodeSelected.subscribe(selected);
+            fixture.detectChanges();
+            component.onTimeUpdate({
+                currentTime: 119,
+                duration: 120,
+                playing: false,
+            });
+            component.onPlaybackEnded();
+            expect(selected).not.toHaveBeenCalled();
+
+            if (state === 'pending choice')
+                fixture.componentRef.setInput('playbackPending', true);
+            if (state === 'new session')
+                fixture.componentRef.setInput(
+                    'playbackSessionKey',
+                    'another-episode'
+                );
+            if (state === 'ended') {
+                component.onTimeUpdate({
+                    currentTime: 119,
+                    duration: 120,
+                    playing: false,
+                });
+                fixture.componentRef.setInput('seasonLoadStates', {
+                    '3': 'unloaded',
+                });
+                fixture.detectChanges();
+            }
+            if (state === 'seek')
+                component.onTimeUpdate({
+                    currentTime: 10,
+                    duration: 120,
+                    playing: false,
+                });
+            if (state === 'replay')
+                component.onTimeUpdate({
+                    currentTime: 119,
+                    duration: 120,
+                    playing: true,
+                });
+            fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+            fixture.componentRef.setInput('seasonLoadStates', {});
+            fixture.detectChanges();
+            expect(selected).toHaveBeenCalledTimes(state === 'ended' ? 1 : 0);
+            if (state === 'ended')
+                expect(selected).toHaveBeenCalledWith(
+                    expect.objectContaining(upNextItems[1])
+                );
+        }
+    );
+
+    it('stops season-crossing autoplay once the autoplay run is at its limit', async () => {
+        await setup(true);
+        fixture.componentRef.setInput('playback', seriesPlayback);
+        fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+        fixture.componentRef.setInput('seriesNavigation', {
+            canPrevious: true,
+            canNext: false,
+            autoplayEnabled: true,
+        });
+        fixture.detectChanges();
+        const { AutoplayStreakService } =
+            await import('./autoplay-streak.service');
+        const streak = TestBed.inject(AutoplayStreakService);
+        jest.spyOn(streak, 'canContinue').mockReturnValue(false);
+        const selected = jest.fn();
+        const ended = jest.fn();
+        component.upNextEpisodeSelected.subscribe(selected);
+        component.playbackEnded.subscribe(ended);
+
+        component.onPlaybackEnded();
+        expect(selected).not.toHaveBeenCalled();
+        expect(ended).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the autoplay run across autoplayed episodes and resets it otherwise', async () => {
+        await setup(true);
+        fixture.detectChanges();
+        const { AutoplayStreakService } =
+            await import('./autoplay-streak.service');
+        const streak = TestBed.inject(AutoplayStreakService);
+        streak.reset();
+
+        expect(streak.beginAutoplay()).toBe(true);
+        fixture.componentRef.setInput('playbackSessionKey', 'episode-2');
+        fixture.detectChanges();
+        expect(streak.length).toBe(1);
+
+        // Started by the viewer, not by autoplay.
+        fixture.componentRef.setInput('playbackSessionKey', 'episode-7');
+        fixture.detectChanges();
+        expect(streak.length).toBe(0);
     });
 
     /** Renders, then feeds a stage size as the ResizeObserver would. */

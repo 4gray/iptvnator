@@ -38,6 +38,7 @@ const one = {
     category_id: 7,
     title: 'Synthetic Channel A',
     epg_channel_id: 'sample.a',
+    tv_archive_duration: 7,
 };
 const two = {
     id: 12,
@@ -473,7 +474,7 @@ describe('XtreamEpgGuideSourceService', () => {
         expect(service.channels().map((channel) => channel.id)).toEqual([
             '101',
         ]);
-        expect(service.channels()[0].epgKey).toBe('7:101:sample.a');
+        expect(service.channels()[0].epgKey).toBe('7:101:sample.a:7');
         expect(locked).toHaveBeenCalledWith(playlist.id, 'live', 80);
         expect(service.scopes().map((scope) => scope.id)).toEqual([
             'all',
@@ -876,7 +877,10 @@ describe('XtreamEpgGuideSourceService', () => {
             playlist,
             101,
             'sample.a',
-            expect.objectContaining({ signal: expect.any(AbortSignal) })
+            expect.objectContaining({
+                signal: expect.any(AbortSignal),
+                archiveDays: 7,
+            })
         );
         const report = jest.fn();
         const coverage = await service.loadCoverage(

@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
-import { BehaviorSubject, of } from 'rxjs';
+import { BehaviorSubject, of, Subject } from 'rxjs';
 import { EpgListViewComponent } from './epg-list-view.component';
 import { EpgListRow } from './epg-list-view.utils';
 
@@ -372,5 +372,65 @@ describe('EpgListViewComponent toolbar action slot', () => {
         fixture.componentInstance.collapsed.set(true);
         fixture.detectChanges();
         expect(inToolbar()).not.toBeNull();
+    });
+});
+
+describe('EpgListViewComponent across midnight', () => {
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
+    it('focuses the new on-air row when the clock crosses midnight', () => {
+        jest.useFakeTimers({
+            now: new Date(2026, 5, 28, 23, 59, 45).getTime(),
+        });
+        TestBed.configureTestingModule({
+            imports: [EpgListViewComponent],
+            providers: [
+                { provide: MatDialog, useValue: { open: jest.fn() } },
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
+                        onDefaultLangChange: new Subject(),
+                        get: (key: string) => of(key),
+                    },
+                },
+            ],
+        });
+        const fixture = TestBed.createComponent(EpgListViewComponent);
+        fixture.componentRef.setInput('programs', [
+            programAt(-60, 60.25, 'Before midnight'),
+            programAt(0.25, 60, 'After midnight'),
+        ]);
+        const emitted: string[] = [];
+        fixture.componentInstance.selectedDateChange.subscribe((key) =>
+            emitted.push(key)
+        );
+        fixture.detectChanges();
+        expect(fixture.componentInstance.isViewToday()).toBe(true);
+
+        const list = fixture.nativeElement.querySelector(
+            '.g-list'
+        ) as HTMLElement;
+        const scrollTo = jest.fn();
+        Object.defineProperty(list, 'scrollTo', { value: scrollTo });
+        jest.advanceTimersByTime(40);
+        scrollTo.mockClear();
+        list.scrollTop = 500;
+
+        jest.advanceTimersByTime(30_000);
+        fixture.detectChanges();
+        jest.advanceTimersByTime(40);
+
+        expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
+        expect(emitted).toEqual(['2026-06-29']);
+        expect(fixture.componentInstance.isViewToday()).toBe(true);
+        expect(
+            fixture.componentInstance.rows().map(({ program }) => program.title)
+        ).toContain('After midnight');
     });
 });

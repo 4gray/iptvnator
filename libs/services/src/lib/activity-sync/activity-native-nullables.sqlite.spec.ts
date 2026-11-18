@@ -80,6 +80,9 @@ describe('nullable positions from historical SQLite', () => {
                         );
                         expect(operation.positionMetadata).toEqual({
                             contentXtreamId: 42,
+                            ...(operation.kind === 'checkpoint'
+                                ? { playedAt: expect.any(String) }
+                                : {}),
                         });
                         return {
                             status: 200,

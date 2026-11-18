@@ -1,0 +1,34 @@
+@let text = 'EPG.TIMELINE.SCHEDULE_ONLY_NOTICE' | translate;
+<button
+    #button
+    type="button"
+    mat-icon-button
+    class="epg-schedule-notice__button"
+    cdkOverlayOrigin
+    #origin="cdkOverlayOrigin"
+    [attr.aria-label]="text"
+    [attr.aria-expanded]="open()"
+    [attr.aria-controls]="open() ? popoverId : null"
+    [matTooltip]="text"
+    [matTooltipDisabled]="open()"
+    (click)="toggle()"
+>
+    <mat-icon>info_outline</mat-icon>
+</button>
+
+<ng-template
+    cdkConnectedOverlay
+    [cdkConnectedOverlayOrigin]="origin"
+    [cdkConnectedOverlayOpen]="open()"
+    [cdkConnectedOverlayPositions]="positions"
+    [cdkConnectedOverlayViewportMargin]="12"
+    [cdkConnectedOverlayHasBackdrop]="true"
+    cdkConnectedOverlayBackdropClass="cdk-overlay-transparent-backdrop"
+    (backdropClick)="close()"
+    (overlayKeydown)="onOverlayKeydown($event)"
+    (detach)="close()"
+>
+    <div [id]="popoverId" class="epg-schedule-notice__popover" role="note">
+        {{ text }}
+    </div>
+</ng-template>

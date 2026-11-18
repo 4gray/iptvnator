@@ -9,13 +9,12 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MockProvider } from 'ng-mocks';
 import { NEVER, of, throwError } from 'rxjs';
 import { ElectronServiceStub } from '../services/electron.service.stub';
-import { SettingsService } from '../services/settings.service';
 import { AppUpdateReleaseNotesDialogComponent } from './app-update-release-notes-dialog.component';
 import { SettingsAppUpdateFacade } from './settings-app-update.facade';
+import { SettingsAppVersionService } from './settings-app-version.service';
 import {
     createElectronStub,
     DEFAULT_APP_UPDATE_STATUS,
-    MockSettingsService,
 } from './test-stubs/settings-test-harness.stub';
 
 /** The retry loop is deliberately private; tests drive it directly. */
@@ -45,7 +44,11 @@ describe('SettingsAppUpdateFacade', () => {
                 SettingsAppUpdateFacade,
                 { provide: DataService, useClass: ElectronServiceStub },
                 MockProvider(MatDialog, { open: jest.fn() }),
-                { provide: SettingsService, useClass: MockSettingsService },
+                MockProvider(SettingsAppVersionService, {
+                    getAppVersion: jest.fn().mockReturnValue(of('1.0.0')),
+                    isVersionOutdated:
+                        SettingsAppVersionService.prototype.isVersionOutdated,
+                }),
             ],
             imports: [TranslateModule.forRoot()],
         });
@@ -219,7 +222,8 @@ describe('SettingsAppUpdateFacade', () => {
     describe('Installed version without the release check', () => {
         it('shows the installed version before GitHub answers', () => {
             (
-                TestBed.inject(SettingsService).getAppVersion as jest.Mock
+                TestBed.inject(SettingsAppVersionService)
+                    .getAppVersion as jest.Mock
             ).mockReturnValue(NEVER);
 
             facade.checkAppVersion();
@@ -230,7 +234,8 @@ describe('SettingsAppUpdateFacade', () => {
 
         it('keeps the installed version when GitHub cannot be reached', async () => {
             (
-                TestBed.inject(SettingsService).getAppVersion as jest.Mock
+                TestBed.inject(SettingsAppVersionService)
+                    .getAppVersion as jest.Mock
             ).mockReturnValue(
                 throwError(() => new Error('rate limit exceeded'))
             );
@@ -249,8 +254,8 @@ describe('SettingsAppUpdateFacade', () => {
         const currentVersion = '0.1.0';
 
         beforeEach(() => {
-            const settingsService = TestBed.inject(SettingsService);
-            (settingsService.getAppVersion as jest.Mock).mockReturnValue(
+            const appVersion = TestBed.inject(SettingsAppVersionService);
+            (appVersion.getAppVersion as jest.Mock).mockReturnValue(
                 of(latestVersion)
             );
 

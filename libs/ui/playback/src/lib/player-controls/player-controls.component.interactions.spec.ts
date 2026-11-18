@@ -35,6 +35,7 @@ function createFakeController() {
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),
         togglePictureInPicture: jest.fn(),
+        jumpToLiveEdge: jest.fn(),
     };
     const controller: PlayerController = { capabilities, state, commands };
     return { controller, capabilities, state, commands };
@@ -77,7 +78,7 @@ describe('PlayerControlsComponent interactions', () => {
             setState({ canSeek: false });
             fixture.detectChanges();
 
-            component.seekBy(10);
+            component.transport.seekBy(10);
             expect(fake.commands.seekBy).not.toHaveBeenCalled();
             expect(component.feedback.current()).toBeNull();
         });
@@ -88,7 +89,7 @@ describe('PlayerControlsComponent interactions', () => {
             setState({ canSeek: true, durationSeconds: 600 });
             fixture.detectChanges();
 
-            component.seekBy(-10);
+            component.transport.seekBy(-10);
             fixture.detectChanges();
 
             expect(fake.commands.seekBy).toHaveBeenCalledWith(-10);
@@ -227,14 +228,13 @@ describe('PlayerControlsComponent interactions', () => {
     });
 
     describe('settings panel selections', () => {
-        it('applies a speed preset from the chip-opened panel and keeps it open', () => {
+        it('applies a speed preset from the settings panel and keeps it open', () => {
             setCapabilities({ playbackSpeed: true });
             fixture.detectChanges();
 
-            query('[data-test-id="player-controls-speed-chip"]')?.click();
+            query('[data-test-id="player-controls-settings-button"]')?.click();
             fixture.detectChanges();
             expect(component.menus.settingsOpen()).toBe(true);
-            expect(component.menus.settingsFocus()).toBe('speed');
 
             const preset = queryAll(
                 '[data-test-id="player-settings-speed"] .player-settings__seg-item'
@@ -250,7 +250,7 @@ describe('PlayerControlsComponent interactions', () => {
             setCapabilities({ aspectRatio: true });
             fixture.detectChanges();
 
-            component.settings.open('aspect');
+            query('[data-test-id="player-controls-settings-button"]')?.click();
             fixture.detectChanges();
 
             const preset = queryAll(
@@ -270,9 +270,8 @@ describe('PlayerControlsComponent interactions', () => {
             });
             fixture.detectChanges();
 
-            query('[data-test-id="player-controls-subtitle-chip"]')?.click();
+            query('[data-test-id="player-controls-settings-button"]')?.click();
             fixture.detectChanges();
-            expect(component.menus.settingsFocus()).toBe('subtitles');
 
             queryAll(
                 '[data-test-id="player-settings-subtitles"] .player-settings__option'
@@ -284,7 +283,7 @@ describe('PlayerControlsComponent interactions', () => {
             setCapabilities({ playbackSpeed: true, volume: true });
             fixture.detectChanges();
 
-            component.settings.open('speed');
+            query('[data-test-id="player-controls-settings-button"]')?.click();
             component.toggleMenu('volume');
             expect(component.menus.settingsOpen()).toBe(false);
             expect(component.menus.volumeOpen()).toBe(true);
@@ -349,7 +348,7 @@ describe('PlayerControlsComponent interactions', () => {
         it('keeps the controls visible while a menu is open, hides after close', () => {
             setCapabilities({ playbackSpeed: true });
             fixture.detectChanges();
-            component.settings.open('speed');
+            query('[data-test-id="player-controls-settings-button"]')?.click();
             fixture.detectChanges();
 
             jest.advanceTimersByTime(10000);

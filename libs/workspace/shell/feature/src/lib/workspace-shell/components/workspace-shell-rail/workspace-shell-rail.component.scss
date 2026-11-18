@@ -185,7 +185,12 @@
 }
 
 @media (max-width: 640px) {
+    :host {
+        background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
+    }
+
     .app-rail {
+        height: 52px;
         flex-direction: row;
         justify-content: flex-start;
         gap: 4px;
@@ -196,6 +201,9 @@
         // scrolls sideways instead of squeezing the icons into overlap.
         overflow-x: auto;
         overflow-y: hidden;
+        overscroll-behavior-x: contain;
+        touch-action: pan-x;
+        touch-action: pan-x pinch-zoom;
 
         &.is-macos {
             padding-top: 6px;
@@ -248,6 +256,19 @@
             transparent,
             var(--app-rail-bg, var(--mat-sys-surface-container-low)) 25%
         );
+    }
+}
+
+@media (max-width: 640px) and (display-mode: standalone) {
+    // Keep the spacing below the system status bar outside the scroller.
+    :host {
+        padding-top: max(8px, env(safe-area-inset-top, 0px));
+    }
+}
+
+@media (max-width: 640px) and (pointer: coarse) {
+    .app-rail {
+        app-region: no-drag;
     }
 }
 

@@ -298,7 +298,9 @@ One `HTMLVideoElement` exists for preview and fullscreen. Focus movement never
 switches streams. First OK starts live preview; repeated OK opens fullscreen.
 Fullscreen Back restores the opening control, and detail Back restores item
 identity and catalog page. Controls appear on demand; remote media keys and
-native VOD seeking use the same adapter.
+native VOD seeking use the same adapter. In fullscreen, Space and clicking
+the picture toggle playback or restart an ended title. The seek slider keeps
+its arrow keys, and an open dialog keeps its own Space activation.
 Failed fullscreen stream re-resolution retains the player surface and recovery
 controls. Source changes clear source-owned route filters and Back history;
 stale details return Home. Detail and playback requests reject another source's
@@ -453,17 +455,36 @@ title retires that retry. A stale watch action cannot recreate viewing records
 after its source is deleted.
 
 Series Details focuses a primary Start/Resume/Continue action naming the actual
-season/episode. Episode actions are siblings of playback controls in the existing
-TV picker, never nested buttons. Starting over from the picker captures the
-episode's focus and scroll position for Back or Stop. The player validates
+season/episode. Detail actions stay on one row: play (a movie in progress names
+the time it resumes from), Start over while in progress, favorite and a ⋯ menu
+with Mark watched/unwatched and Reset progress (for a series, applied to the
+episode the primary action names). The progress text beside the bar reads
+watched and remaining time from the same position and duration as the bar.
+Episodes follow the actions as a horizontal rail with one focus stop per
+episode: OK plays, the still shows progress or a watched check, and long
+seasons keep only a window of about 24 episodes around the selected one in the
+DOM, with spacers that preserve scroll coordinates. Down from the rail reaches
+one Episode options button for the selected episode (Up returns to it); its
+dialog holds the watch actions and Start over. Starting over captures the
+episode's focus for Back or Stop. The player validates
 successors against exact source/parent/episode identity in provider-supplied order.
-Next episode is visible
-during playback and focused on completion, including season transitions; no IDs
-or media files are inferred from episode numbers. `ended` never resolves or starts
-a successor automatically. Next resolves a fresh link only on activation, keeps
-the mounted video element and originating page focus, and Back/source changes
-cancel pending resolution. Missing parent, failed lookup and unavailable final
-successors retain the current episode, with retry where appropriate.
+Next episode is available during playback, including season transitions. Near
+the end, Up next joins the fullscreen controls in remote navigation. Back
+dismisses the card first and returns its focus to the Play/Pause control. The
+next Back leaves the player. Settings → Playback controls autoplay and card
+visibility independently. Autoplay waits for both the end of playback and the
+provider's successor, including when the episode list arrives after playback
+ends. Autoplay waits while the app is hidden and cancels a pending stream
+resolution on app hide. Returning to the app retries the ended episode's
+successor. A replay intent owns playback while its saved-position reset is
+pending. An in-flight Series details lookup also holds autoplay until its
+navigation settles. Committing the autoplay successor preserves its consecutive-episode
+count. With autoplay off, the Next episode button receives focus at the end.
+Manual Next and autoplay both resolve a fresh link, retain the mounted video
+and originating page focus, and cancel pending resolution on Back or a source
+change. No IDs or media files are inferred from episode numbers. Missing
+parents, failed lookups and unavailable successors retain the current episode,
+with retry where appropriate.
 
 Remote Stop (413) cancels pending source actions, tears down the stream and
 returns focus to its origin or channel. Back from catalog-origin fullscreen
@@ -663,6 +684,9 @@ the latest unfinished title. With no unfinished history, a saved title or first 
 (or first available item) remains the featured fallback. Artwork-only parent
 fallbacks and optional TMDB enrichment never replace saved playback commands.
 The hero's title/progress/actions remain usable while metadata loads or fails.
+While there is something to continue, the hero shows the time left instead of
+the description (which stays in Details), so the Continue watching rail starts
+on the first screen.
 
 Home and Favorites share exact-source activation, serialized source saves and
 cancellable playback/detail intents. Opening or resuming a saved item activates
@@ -734,14 +758,10 @@ parent snapshot; sparse catalog repairs retain validated artwork, overview and
 year without replacing episode-specific descriptions. Home and
 Continue watching prefer current parent artwork, then validated saved parent
 artwork. Historical episode images are not cover/backdrop fallbacks when a parent
-is known. Episode cards use the still.
-Cards with stills show a larger image
-and up to three description lines. Missing stills keep compact text cards, and a
-season without stills retains its previous layout. Rich episode grids use fixed
-row tracks so mixed card heights do not corrupt virtual scrolling or focus.
-When delayed metadata changes episode row height, virtualization preserves the
-focused episode and its viewport offset. Apply the corrected scroll after the
-new spacer heights render so offsets near the end of a long season cannot clamp.
+is known. Episode cards use the still in a fixed 16:9 frame; without one the frame
+shows the episode number, so delayed stills never change card size or move the
+focused episode. The selected episode's description is shown once, under the
+rail.
 Circular actor/director/creator controls open cached, language-scoped person
 details and the complete combined acting/directing/creating filmography. Missing
 photos keep initials. Selecting a filmography card searches only the current
@@ -821,6 +841,32 @@ explicit dark WebKit scrollbars. The LG Chromium 68 target ignores
 `color-scheme`, so native scrollbar colours must not depend on that property.
 Overflow is remeasured after rendering, scrolling and window resizing; the
 implementation does not require ResizeObserver or smooth scrolling.
+
+## Type, spacing and focus
+
+`apps/tv/src/tokens.css` holds the 1920×1080 type scale (display 88, title
+56, heading 32, body 28, meta 24, eyebrow 22 with +14% tracking), the 8px
+spacing scale, the 64×48 safe area, 72px controls with a 14px radius and 96px
+list rows. No text is below 22px; the serif face is only for content and
+channel titles. Styles use these tokens instead of literal sizes. Windows
+narrower than 1400px redefine the tokens to the earlier, denser scale.
+Virtualized channel rows keep a 9px spacing, which the list's step assumes.
+
+`apps/tv/src/focus.css` loads last and owns the three state signals:
+
+- Focus is the only use of the mint ring (5px outline, 5px offset). Action
+  buttons also take a mint fill; cards scale to 1.06; list rows and grid cells
+  use an inset ring on their own fill.
+- Selected (current nav item, settings category, tab, category, day) is a mint
+  bar, never a ring.
+- On toggles (`.tv-toggle`, such as Saved) show a filled glyph and no border.
+  Primary buttons are light at rest, so mint never suggests a second focus.
+
+Empty Favorites tabs are disabled: dimmed to 40% and skipped by spatial
+navigation. Chromium 68 constraints apply: no flex `gap`, no
+`backdrop-filter`, transitions only on `transform` and `opacity`, and outlines
+rather than large shadows. Chromium 68 draws outlines as rectangles around
+rounded controls.
 
 ## Media feasibility is a separate gate
 

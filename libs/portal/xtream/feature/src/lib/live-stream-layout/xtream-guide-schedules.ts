@@ -4,6 +4,7 @@ import {
     XtreamFullEpgService,
     type XtreamCredentials,
 } from '@iptvnator/portal/xtream/data-access';
+import { getXtreamCatchupDays } from '@iptvnator/portal/shared/util';
 import {
     foldSearchText,
     type EpgItem,
@@ -21,7 +22,7 @@ type ScheduleRevision = {
 const EMPTY: XtreamGuideSchedule = { items: [], programs: [] };
 
 export function scheduleKey(item: XtreamLiveChannelItem): string {
-    return `${item.xtream_id}:${item.epg_channel_id ?? ''}`;
+    return `${item.xtream_id}:${item.epg_channel_id ?? ''}:${getXtreamCatchupDays(item)}`;
 }
 
 export function isNewGuideSearchMatch(
@@ -106,7 +107,7 @@ export function injectXtreamGuideSchedules(
                         playlist,
                         item.xtream_id,
                         item.epg_channel_id ?? null,
-                        options
+                        { ...options, archiveDays: getXtreamCatchupDays(item) }
                     );
                     return { items, programs: items.map(toSharedEpgProgram) };
                 },

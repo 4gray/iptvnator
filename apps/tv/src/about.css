@@ -5,7 +5,7 @@
     margin-top: 0;
 }
 .about-page h3 {
-    font-size: 24px;
+    font-size: var(--tv-type-heading);
     font-weight: 500;
     margin: 0 0 20px;
 }
@@ -25,11 +25,11 @@
 }
 .about-row dt {
     color: var(--tv-muted);
-    font-size: 20px;
+    font-size: var(--tv-type-meta);
     margin-bottom: 4px;
 }
 .about-row dd {
-    font-size: 24px;
+    font-size: var(--tv-type-body);
     line-height: 1.4;
     margin: 0;
     overflow-wrap: break-word;
@@ -38,7 +38,7 @@
     margin-top: 28px;
 }
 .about-project p {
-    font-size: 22px;
+    font-size: var(--tv-type-meta);
     line-height: 1.5;
     overflow-wrap: break-word;
     margin: 8px 0;

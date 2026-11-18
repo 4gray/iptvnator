@@ -66,9 +66,10 @@
         />
     }
 
-    <!-- Settings search works without any playlist, so a fresh user can
-         find settings before importing a first source. -->
-    @if (!hasNoPlaylists() || isSettingsRoute()) {
+    <!-- Never rendered disabled (see showSearchField). Settings search
+         works without any playlist, so a fresh user can find settings
+         before importing a first source. -->
+    @if (showSearchField()) {
         <label class="search-field" for="workspace-shell-search-input">
             <mat-icon>search</mat-icon>
             @if (searchScopeLabel()) {
@@ -102,6 +103,7 @@
                 }
             }
             <input
+                appImeInput
                 #searchInput
                 id="workspace-shell-search-input"
                 type="search"
@@ -109,7 +111,6 @@
                 [value]="searchQuery()"
                 (input)="onSearchInput($event)"
                 (keydown.enter)="onSearchEnter($event)"
-                [disabled]="!canUseSearch()"
                 [placeholder]="searchPlaceholder() | translate"
                 [attr.aria-label]="'WORKSPACE.SHELL.SEARCH_LABEL' | translate"
             />
@@ -141,129 +142,246 @@
         </label>
     }
 
-    <!-- The "Add playlist" button stays visible on /settings — adding a
-         playlist is a global action, not playlist-scoped, so it must
-         remain reachable (e.g. a fresh user configuring the app before
-         importing their first source). Only the per-playlist shortcut
-         is hidden on Settings. -->
-    <div class="header-actions header-actions--leading">
-        <button
-            type="button"
-            class="shortcuts-trigger"
-            mat-icon-button
-            (click)="onShortcutsRequested()"
-            [matTooltip]="'WORKSPACE.SHORTCUTS.OPEN_TOOLTIP' | translate"
-            [attr.aria-label]="'WORKSPACE.SHORTCUTS.OPEN_ARIA' | translate"
-        >
-            <mat-icon>keyboard</mat-icon>
-        </button>
-        <button
-            type="button"
-            mat-icon-button
-            (click)="onAddPlaylistRequested()"
-            [matTooltip]="'WORKSPACE.SHELL.ADD_PLAYLIST_ALL' | translate"
-            [attr.aria-label]="'WORKSPACE.SHELL.ADD_PLAYLIST' | translate"
-        >
-            <mat-icon>add</mat-icon>
-        </button>
-        @if (parentalLockState() !== 'off') {
-            <button
-                type="button"
-                class="header-shortcut header-parental-lock"
-                mat-icon-button
-                data-test-id="header-parental-lock"
-                [class.is-active]="parentalLockState() === 'locked'"
-                (click)="parentalLockToggleRequested.emit()"
-                [matTooltip]="
-                    (parentalLockState() === 'locked'
-                        ? 'PARENTAL_LOCK.HEADER_UNLOCK'
-                        : 'PARENTAL_LOCK.HEADER_LOCK'
-                    ) | translate
-                "
-                [attr.aria-label]="
-                    (parentalLockState() === 'locked'
-                        ? 'PARENTAL_LOCK.HEADER_UNLOCK'
-                        : 'PARENTAL_LOCK.HEADER_LOCK'
-                    ) | translate
-                "
-                [attr.aria-pressed]="parentalLockState() === 'locked'"
-            >
-                <mat-icon>{{
-                    parentalLockState() === 'locked' ? 'lock' : 'lock_open'
-                }}</mat-icon>
-            </button>
+    <!-- Two groups, cut by the divider: the page's own actions (layout,
+         rail, parental lock), then the global ones (Add source, downloads,
+         the overflow menu). When the header runs short of room, actions
+         move into "More actions" in a fixed order (see
+         workspace-shell-header-overflow.ts); Back, the switcher, search
+         and downloads never move. -->
+    <div class="header-actions-cluster">
+        @if (hasInlineContextualActions()) {
+            <div class="header-actions header-actions--contextual">
+                @if (!isSettingsRoute()) {
+                    @if (headerShortcut(); as action) {
+                        @if (isActionInline('layout')) {
+                            <button
+                                type="button"
+                                class="header-shortcut"
+                                mat-icon-button
+                                [class.is-active]="action.active?.() ?? false"
+                                [attr.data-test-id]="action.id"
+                                [disabled]="action.disabled?.() ?? false"
+                                [attr.aria-pressed]="
+                                    action.active ? action.active() : null
+                                "
+                                (click)="onHeaderShortcutRequested()"
+                                [matTooltip]="action.tooltipKey | translate"
+                                [attr.aria-label]="
+                                    action.ariaLabelKey | translate
+                                "
+                            >
+                                <mat-icon>{{ action.icon }}</mat-icon>
+                            </button>
+                        }
+                    }
+                    @if (headerSidebarToggle(); as sidebarToggle) {
+                        @if (isActionInline('sidebar')) {
+                            <button
+                                type="button"
+                                class="header-shortcut header-sidebar-toggle"
+                                [class.header-sidebar-toggle--collapsed]="
+                                    !sidebarToggle.expanded
+                                "
+                                mat-icon-button
+                                (click)="onHeaderSidebarToggleRequested()"
+                                [matTooltip]="sidebarToggle.tooltip"
+                                [attr.aria-label]="sidebarToggle.ariaLabel"
+                                [attr.aria-pressed]="sidebarToggle.expanded"
+                            >
+                                <mat-icon>view_sidebar</mat-icon>
+                            </button>
+                        }
+                    }
+                }
+                @if (
+                    parentalLockState() !== 'off' &&
+                    isActionInline('parental-lock')
+                ) {
+                    @let lockKey =
+                        parentalLockState() === 'locked'
+                            ? 'PARENTAL_LOCK.HEADER_UNLOCK'
+                            : 'PARENTAL_LOCK.HEADER_LOCK';
+                    <button
+                        type="button"
+                        class="header-shortcut header-parental-lock"
+                        mat-icon-button
+                        data-test-id="header-parental-lock"
+                        [class.is-active]="parentalLockState() === 'locked'"
+                        (click)="parentalLockToggleRequested.emit()"
+                        [matTooltip]="lockKey | translate"
+                        [attr.aria-label]="lockKey | translate"
+                        [attr.aria-pressed]="parentalLockState() === 'locked'"
+                    >
+                        <mat-icon>{{
+                            parentalLockState() === 'locked'
+                                ? 'lock'
+                                : 'lock_open'
+                        }}</mat-icon>
+                    </button>
+                }
+            </div>
         }
-        @if (!isSettingsRoute()) {
-            @if (headerSidebarToggle(); as sidebarToggle) {
+
+        <!-- Add source stays on /settings: adding a source is global, so a
+             fresh user can reach it before importing a first one. -->
+        <div
+            class="header-actions header-actions--global"
+            [class.header-actions--divided]="hasInlineContextualActions()"
+        >
+            @if (isActionInline('add-source')) {
                 <button
                     type="button"
-                    class="header-shortcut header-sidebar-toggle"
-                    [class.header-sidebar-toggle--collapsed]="
-                        !sidebarToggle.expanded
+                    mat-icon-button
+                    data-test-id="header-add-source"
+                    (click)="onAddPlaylistRequested()"
+                    [matTooltip]="'WORKSPACE.SHELL.ADD_PLAYLIST_ALL' | translate"
+                    [attr.aria-label]="'WORKSPACE.SHELL.ADD_PLAYLIST' | translate"
+                >
+                    <mat-icon>add</mat-icon>
+                </button>
+            }
+            @if (showStandaloneCommandTrigger()) {
+                <!-- Without the search field its palette trigger goes too,
+                     and on a phone that trigger is the only pointer way
+                     into the command palette. -->
+                <button
+                    type="button"
+                    mat-icon-button
+                    data-test-id="header-command-palette"
+                    (click)="onCommandPaletteRequested()"
+                    [matTooltip]="
+                        'WORKSPACE.SHELL.COMMAND_PALETTE_SHORTCUT' | translate
                     "
-                    mat-icon-button
-                    (click)="onHeaderSidebarToggleRequested()"
-                    [matTooltip]="sidebarToggle.tooltip"
-                    [attr.aria-label]="sidebarToggle.ariaLabel"
-                    [attr.aria-pressed]="sidebarToggle.expanded"
+                    [attr.aria-label]="
+                        'WORKSPACE.SHELL.OPEN_COMMAND_PALETTE' | translate
+                    "
                 >
-                    <mat-icon>view_sidebar</mat-icon>
+                    <mat-icon>bolt</mat-icon>
                 </button>
             }
-            @if (headerShortcut(); as action) {
+            @if (isElectron()) {
+                <span class="download-btn-wrap">
+                    @if (hasActiveDownloads()) {
+                        <span class="download-activity-bar" aria-hidden="true">
+                            <span class="download-activity-bar__fill"></span>
+                        </span>
+                    }
+                    @if (activeDownloadsCount() > 0) {
+                        <span
+                            class="download-count-badge"
+                            data-test-id="global-download-count"
+                            aria-hidden="true"
+                        >
+                            {{ activeDownloadsCount() }}
+                        </span>
+                    }
+                    <button
+                        type="button"
+                        class="header-shortcut"
+                        mat-icon-button
+                        [class.is-active]="isDownloadsView()"
+                        [class.has-activity]="hasActiveDownloads()"
+                        (click)="onDownloadsRequested()"
+                        [matTooltip]="
+                            'WORKSPACE.SHELL.RAIL_DOWNLOADS' | translate
+                        "
+                        [attr.aria-label]="
+                            ('WORKSPACE.SHELL.OPEN_DOWNLOADS' | translate) +
+                            (hasActiveDownloads()
+                                ? ' (' + activeDownloadsCount() + ')'
+                                : '')
+                        "
+                    >
+                        <mat-icon>download</mat-icon>
+                    </button>
+                </span>
+            }
+            @if (overflowMenuItems().length > 0) {
                 <button
                     type="button"
-                    class="header-shortcut"
+                    class="header-overflow-trigger"
                     mat-icon-button
-                    [class.is-active]="action.active?.() ?? false"
-                    [attr.data-test-id]="action.id"
-                    [disabled]="action.disabled?.() ?? false"
-                    [attr.aria-pressed]="action.active ? action.active() : null"
-                    (click)="onHeaderShortcutRequested()"
-                    [matTooltip]="action.tooltipKey | translate"
-                    [attr.aria-label]="action.ariaLabelKey | translate"
+                    data-test-id="header-overflow-menu"
+                    [matMenuTriggerFor]="overflowMenu"
+                    [matTooltip]="'WORKSPACE.SHELL.MORE_ACTIONS' | translate"
+                    [attr.aria-label]="'WORKSPACE.SHELL.MORE_ACTIONS' | translate"
                 >
-                    <mat-icon>{{ action.icon }}</mat-icon>
+                    <mat-icon>more_vert</mat-icon>
                 </button>
             }
-        }
+        </div>
     </div>
 
-    @if (isElectron()) {
-        <div class="header-actions header-actions--trailing">
-            <span class="download-btn-wrap">
-                @if (hasActiveDownloads()) {
-                    <span class="download-activity-bar" aria-hidden="true">
-                        <span class="download-activity-bar__fill"></span>
-                    </span>
+    <mat-menu #overflowMenu="matMenu" xPosition="before">
+        @for (id of overflowMenuItems(); track id) {
+            @switch (id) {
+                @case ('layout') {
+                    @if (headerShortcut(); as action) {
+                        <button
+                            type="button"
+                            mat-menu-item
+                            [role]="
+                                action.active ? 'menuitemcheckbox' : 'menuitem'
+                            "
+                            [attr.aria-checked]="
+                                action.active ? action.active() : null
+                            "
+                            [class.header-overflow-item--active]="
+                                action.active?.() ?? false
+                            "
+                            [attr.data-test-id]="action.id + '-menu-item'"
+                            [disabled]="action.disabled?.() ?? false"
+                            (click)="onHeaderShortcutRequested()"
+                        >
+                            <mat-icon>{{ action.icon }}</mat-icon>
+                            <span>{{ action.ariaLabelKey | translate }}</span>
+                        </button>
+                    }
                 }
-                @if (activeDownloadsCount() > 0) {
-                    <span
-                        class="download-count-badge"
-                        data-test-id="global-download-count"
-                        aria-hidden="true"
+                @case ('sidebar') {
+                    @if (headerSidebarToggle(); as sidebarToggle) {
+                        <button
+                            type="button"
+                            mat-menu-item
+                            data-test-id="header-sidebar-toggle-menu-item"
+                            (click)="onHeaderSidebarToggleRequested()"
+                        >
+                            <mat-icon>view_sidebar</mat-icon>
+                            <span>{{ sidebarToggle.ariaLabel }}</span>
+                        </button>
+                    }
+                }
+                @case ('parental-lock') {
+                    @let locked = parentalLockState() === 'locked';
+                    <button
+                        type="button"
+                        mat-menu-item
+                        data-test-id="header-parental-lock-menu-item"
+                        (click)="parentalLockToggleRequested.emit()"
                     >
-                        {{ activeDownloadsCount() }}
-                    </span>
+                        <mat-icon>{{ locked ? 'lock' : 'lock_open' }}</mat-icon>
+                        <span>{{
+                            (locked
+                                ? 'PARENTAL_LOCK.HEADER_UNLOCK'
+                                : 'PARENTAL_LOCK.HEADER_LOCK'
+                            ) | translate
+                        }}</span>
+                    </button>
                 }
-                <button
-                    type="button"
-                    class="header-shortcut"
-                    mat-icon-button
-                    [class.is-active]="isDownloadsView()"
-                    [class.has-activity]="hasActiveDownloads()"
-                    (click)="onDownloadsRequested()"
-                    [matTooltip]="'WORKSPACE.SHELL.RAIL_DOWNLOADS' | translate"
-                    [attr.aria-label]="
-                        ('WORKSPACE.SHELL.OPEN_DOWNLOADS' | translate) +
-                        (hasActiveDownloads()
-                            ? ' (' + activeDownloadsCount() + ')'
-                            : '')
-                    "
-                >
-                    <mat-icon>download</mat-icon>
-                </button>
-            </span>
-        </div>
-    }
+                @case ('add-source') {
+                    <button
+                        type="button"
+                        mat-menu-item
+                        data-test-id="header-add-source-menu-item"
+                        (click)="onAddPlaylistRequested()"
+                    >
+                        <mat-icon>add</mat-icon>
+                        <span>{{
+                            'WORKSPACE.SHELL.ADD_PLAYLIST_ALL' | translate
+                        }}</span>
+                    </button>
+                }
+            }
+        }
+    </mat-menu>
 </header>

@@ -473,6 +473,21 @@ describe('PlaybackRecoverySession', () => {
         expect(session.resumeStartTime(8, false)).toBe(75);
     });
 
+    it('preserves the start time through an unsettled seek and accepts a later rewind', () => {
+        const session = new PlaybackRecoverySession();
+        session.beginPlayback(InlinePlaybackPlayer.VideoJs);
+        session.recordTimeUpdate({ currentTime: 1, duration: 100 }, false, 42);
+        expect(session.resumeStartTime(42, false)).toBe(42);
+
+        session.recordTimeUpdate({ currentTime: 41, duration: 100 }, false, 42);
+        session.recordTimeUpdate({ currentTime: 13, duration: 100 }, false, 42);
+        expect(session.resumeStartTime(42, false)).toBe(13);
+
+        session.beginPlayback(InlinePlaybackPlayer.Html5);
+        session.recordTimeUpdate({ currentTime: 1, duration: 100 }, false, 42);
+        expect(session.resumeStartTime(42, false)).toBe(13);
+    });
+
     it('always returns zero for live and otherwise preserves the host start time', () => {
         const session = new PlaybackRecoverySession();
 

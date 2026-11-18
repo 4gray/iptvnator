@@ -31,7 +31,8 @@
     <div class="now-playing__actions">
         <button
             type="button"
-            mat-stroked-button
+            mat-flat-button
+            class="now-playing__close"
             (click)="closeRequested.emit()"
         >
             {{ 'EPG.GUIDE.CLOSE' | translate }} <kbd>Esc</kbd>
@@ -40,6 +41,7 @@
             <button
                 type="button"
                 mat-button
+                class="now-playing__collapse"
                 (click)="collapsedChange.emit(!collapsed())"
                 [attr.aria-expanded]="!collapsed()"
             >

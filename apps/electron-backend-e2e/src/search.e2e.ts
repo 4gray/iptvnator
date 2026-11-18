@@ -1872,7 +1872,7 @@ async function toggleFavoriteForChannel(
 
     await expect(favoriteButton).toBeVisible();
     await favoriteButton.click();
-    await expect(favoriteButton.locator('mat-icon')).toHaveText(/star/);
+    await expect(favoriteButton.locator('mat-icon')).toHaveText('favorite');
 }
 
 function getXtreamTitle(item: XtreamVodStream): string {

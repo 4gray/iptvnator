@@ -34,6 +34,8 @@ export interface BuildUpNextRailItemsOptions<
     /** Id of the episode currently playing inline; no rail without one. */
     currentEpisodeId: string | number | null | undefined;
     playbackPositions?: ReadonlyMap<number, PlaybackPositionData> | null;
+    /** Lazy seasons whose successors are still unknown. */
+    pendingSeasons?: Readonly<Record<string, 'loading' | 'unloaded'>>;
     /** Max entries including the playing episode. */
     limit?: number;
 }
@@ -49,6 +51,7 @@ export function buildUpNextRailItems<TEpisode extends UpNextEpisodeLike>({
     episodesBySeason,
     currentEpisodeId,
     playbackPositions,
+    pendingSeasons,
     limit = DEFAULT_LIMIT,
 }: BuildUpNextRailItemsOptions<TEpisode>): UpNextRailItem<TEpisode>[] {
     if (
@@ -59,16 +62,12 @@ export function buildUpNextRailItems<TEpisode extends UpNextEpisodeLike>({
         return [];
     }
 
-    const flattened = flattenSeasons(episodesBySeason);
-    const currentIndex = flattened.findIndex(
-        ({ episode }) => Number(episode.id) === Number(currentEpisodeId)
-    );
-    if (currentIndex < 0) {
-        return [];
-    }
-
-    return flattened
-        .slice(currentIndex, currentIndex + limit)
+    return flattenFromPlaying(
+        episodesBySeason,
+        currentEpisodeId,
+        pendingSeasons
+    )
+        .slice(0, Math.max(0, limit))
         .map(({ episode, seasonNumber, episodeNumber }, index) => ({
             id: Number(episode.id),
             label: formatSeriesEpisodeLabel(
@@ -98,8 +97,10 @@ interface FlattenedEpisode<TEpisode> {
  * strings mixed with names); non-numeric keys keep their insertion order
  * after the numeric ones.
  */
-function flattenSeasons<TEpisode extends UpNextEpisodeLike>(
-    episodesBySeason: Record<string, readonly TEpisode[]>
+function flattenFromPlaying<TEpisode extends UpNextEpisodeLike>(
+    episodesBySeason: Record<string, readonly TEpisode[]>,
+    currentEpisodeId: string | number,
+    pendingSeasons: BuildUpNextRailItemsOptions<TEpisode>['pendingSeasons']
 ): FlattenedEpisode<TEpisode>[] {
     interface SeasonEntry {
         seasonKey: string;
@@ -131,14 +132,18 @@ function flattenSeasons<TEpisode extends UpNextEpisodeLike>(
 
     // No Array.flatMap: the e2e build config targets a lib without it.
     const flattened: FlattenedEpisode<TEpisode>[] = [];
+    let playingFound = false;
     for (const { seasonKey, episodes } of entries) {
-        episodes.forEach((episode: TEpisode, episodeIndex: number) => {
+        if (playingFound && pendingSeasons?.[seasonKey]) break;
+        for (const [episodeIndex, episode] of episodes.entries()) {
+            playingFound ||= Number(episode.id) === Number(currentEpisodeId);
+            if (!playingFound) continue;
             flattened.push({
                 episode,
                 seasonNumber: Number(episode.season) || Number(seasonKey) || 0,
                 episodeNumber: Number(episode.episode_num) || episodeIndex + 1,
             });
-        });
+        }
     }
     return flattened;
 }

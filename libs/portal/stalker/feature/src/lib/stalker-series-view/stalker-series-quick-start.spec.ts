@@ -163,4 +163,96 @@ describe('getStalkerSeriesQuickStartButton with extras (season 0)', () => {
 
         expect(button?.lazySeason?.season_number).toBe('0');
     });
+
+    it('offers the next unwatched episode after the last watched episode when skipping ahead', () => {
+        const button = getStalkerSeriesQuickStartButton({
+            isVodSeries: true,
+            mappedSeasons: {
+                '1': [],
+                '2': [],
+                '3': [],
+                '4': mapped(4, 4),
+            },
+            playbackPositions: watched(401, 402),
+            vodSeriesSeasons: [
+                season('1', 0),
+                season('2', 0),
+                season('3', 0),
+                season('4', 4),
+            ],
+        });
+
+        expect(button?.lazySeason).toBeNull();
+        expect(button?.action?.episode.id).toBe('403');
+        expect(button?.episodeLabel).toContain('S04E03');
+    });
+
+    it('keeps the most recent short launch even with a later season pending', () => {
+        const playbackPositions = watched(401, 402);
+        playbackPositions.set(101, {
+            contentXtreamId: 101,
+            contentType: 'episode',
+            positionSeconds: 5,
+            durationSeconds: 100,
+            updatedAt: '2026-10-05T12:00:00.000Z',
+        });
+        const button = getStalkerSeriesQuickStartButton({
+            isVodSeries: true,
+            mappedSeasons: { '1': mapped(1, 2), '4': mapped(4, 2), '5': [] },
+            playbackPositions,
+            vodSeriesSeasons: [season('1', 2), season('4', 2), season('5', 0)],
+        });
+
+        expect(button?.lazySeason).toBeNull();
+        expect(button?.action?.episode.id).toBe('101');
+    });
+
+    it.each([false, true])(
+        'loads the following season before returning to a skipped episode in the same season (older resume: %s)',
+        (hasOlderResume) => {
+            const playbackPositions = watched(402);
+            if (hasOlderResume) {
+                playbackPositions.set(401, {
+                    contentXtreamId: 401,
+                    contentType: 'episode',
+                    positionSeconds: 25,
+                    durationSeconds: 100,
+                    updatedAt: '2026-10-04T10:00:00.000Z',
+                });
+            }
+            const button = getStalkerSeriesQuickStartButton({
+                isVodSeries: true,
+                mappedSeasons: { '4': mapped(4, 2), '5': [] },
+                playbackPositions,
+                vodSeriesSeasons: [season('4', 2), season('5', 0)],
+            });
+
+            expect(button?.lazySeason?.season_number).toBe('5');
+            expect(button?.episodeLabel).toBe('S05E01');
+        }
+    );
+
+    it('loads the next unloaded season after a finished skipped-ahead season instead of wrapping to season 1', () => {
+        const button = getStalkerSeriesQuickStartButton({
+            isVodSeries: true,
+            mappedSeasons: {
+                '1': mapped(1, 2),
+                '2': [],
+                '3': [],
+                '4': mapped(4, 2),
+                '5': [],
+            },
+            playbackPositions: watched(401, 402),
+            vodSeriesSeasons: [
+                season('1', 2),
+                season('2', 0),
+                season('3', 0),
+                season('4', 2),
+                season('5', 0),
+            ],
+        });
+
+        expect(button?.lazySeason?.season_number).toBe('5');
+        expect(button?.episodeLabel).toBe('S05E01');
+    });
 });

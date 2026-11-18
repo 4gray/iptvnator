@@ -716,6 +716,16 @@ export class PlaylistsService {
         operationId?: string
     ) {
         return this.serializePlaylistWrite(playlistId, async () => {
+            if (!this.usesDocumentStore) {
+                await this.ensureIndexedDbPlaylistMigrations();
+                const { persistIndexedDbPlaylistRefresh } =
+                    await import('./playlist-refresh-merge');
+                return persistIndexedDbPlaylistRefresh(
+                    playlistId,
+                    updatedPlaylist
+                );
+            }
+
             const currentPlaylist = await firstValueFrom(
                 this.getPlaylistById(playlistId, operationId)
             );
@@ -726,13 +736,10 @@ export class PlaylistsService {
                 playlistId
             );
 
-            const saved = await this.persistPlaylistMutation(
+            return (await this.persistPlaylistMutation(
                 mergedPlaylist,
                 operationId
-            );
-            return (
-                this.usesDocumentStore ? saved : mergedPlaylist
-            ) as Playlist;
+            )) as Playlist;
         });
     }
 

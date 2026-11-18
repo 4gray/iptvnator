@@ -24,17 +24,21 @@ export function getRuntimeBackendUrl(): string {
 export interface ServiceWorkerRuntimeContext {
     readonly electronBridge?: unknown;
     readonly protocol?: string;
+    readonly tvShell?: boolean;
 }
 
 function getDefaultServiceWorkerRuntimeContext(): ServiceWorkerRuntimeContext {
     const browserWindow = globalThis.window as
-        | (Window & { electron?: unknown })
-        | undefined;
+        (Window & { electron?: unknown }) | undefined;
 
     return {
         electronBridge: browserWindow?.electron,
         protocol:
             browserWindow?.location?.protocol ?? globalThis.location?.protocol,
+        tvShell:
+            browserWindow?.document.documentElement.classList.contains(
+                'tv-shell'
+            ),
     };
 }
 
@@ -48,6 +52,7 @@ export function shouldEnableServiceWorker(
         !!navigatorRef &&
         'serviceWorker' in navigatorRef &&
         !runtimeContext.electronBridge &&
+        !runtimeContext.tvShell &&
         runtimeContext.protocol !== 'file:'
     );
 }

@@ -20,7 +20,9 @@
             <span class="cc"><mat-icon>keyboard_arrow_down</mat-icon></span>
             <span class="gt">
                 <b>{{ channelName() }}</b>
-                <span class="src">{{ sourceLabel() }}</span>
+                <span class="src">{{
+                    sourceLabel() || ('EPG.GUIDE.TITLE' | translate)
+                }}</span>
             </span>
         </button>
 

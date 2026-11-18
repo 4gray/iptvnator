@@ -94,6 +94,9 @@ export function Favorites({
                     <button
                         data-focus={`favorites:${value}`}
                         aria-pressed={kind === value}
+                        disabled={
+                            kind !== value && !favoritesFor(tv, value).length
+                        }
                         onClick={() => {
                             actions.leave();
                             tv.setRoute({ ...tv.route, kind: value, page: 0 });

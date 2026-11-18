@@ -32,6 +32,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     const [selected, setSelected] = useState<Media>();
     const [playing, setPlaying] = useState<Media>();
     const [fullscreen, setFullscreen] = useState(false);
+    const [replayRequest, setReplayRequest] = useState<AbortSignal>();
     const [, tick] = useState(0);
     const playback = useRef(new LatestRequest());
     const failedResolution = useRef<FailedPlayback>();
@@ -267,8 +268,10 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     ) {
         const lane = playback.current;
         const job = lane.start();
+        setReplayRequest(job.signal);
         try {
             await user.saveWatch(item, 'reset');
+            return lane.owns(job) && (await play(item, route.category, origin));
         } catch {
             if (lane.owns(job))
                 setError(
@@ -279,8 +282,11 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                     'Retry start over'
                 );
             return false;
+        } finally {
+            setReplayRequest((current) =>
+                current === job.signal ? undefined : current
+            );
         }
-        return lane.owns(job) && play(item, route.category, origin);
     }
     function back() {
         if (fullscreen) {
@@ -381,6 +387,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         openPerson,
         play,
         startOver,
+        replayPending: !!replayRequest && !replayRequest.aborted,
         back,
         stop,
         saveSource,

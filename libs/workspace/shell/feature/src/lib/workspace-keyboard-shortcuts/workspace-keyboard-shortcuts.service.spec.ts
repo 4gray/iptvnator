@@ -68,6 +68,12 @@ describe('WorkspaceKeyboardShortcutsService', () => {
         expect(dialog.open).toHaveBeenCalledTimes(1);
     });
 
+    it('opens the same dialog for Settings and the palette', () => {
+        TestBed.inject(WorkspaceKeyboardShortcutsService).openShortcutsDialog();
+
+        expect(dialog.open).toHaveBeenCalledTimes(1);
+    });
+
     it('opens the shortcuts dialog for Shift+/', () => {
         document.dispatchEvent(
             new KeyboardEvent('keydown', { key: '/', shiftKey: true })

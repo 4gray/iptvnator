@@ -17,7 +17,8 @@
                     "libs/ui/epg/src"
                 ],
                 "env": {
-                    "NODE_OPTIONS": "--experimental-vm-modules"
+                    "NODE_OPTIONS": "--experimental-vm-modules",
+                    "TZ": "Europe/Berlin"
                 },
                 "forwardAllArgs": true
             }

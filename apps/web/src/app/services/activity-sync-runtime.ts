@@ -216,8 +216,9 @@ export class ActivitySyncRuntime {
                 [position.playlistId!, position],
                 this.isDisabling()
             );
-        } catch {
-            this.reportStorageFailure();
+        } catch (error) {
+            if (!(error instanceof ActivitySupersededError))
+                this.reportStorageFailure();
         }
     }
 
@@ -243,7 +244,8 @@ export class ActivitySyncRuntime {
                 this.isDisabling()
             );
         } catch (error) {
-            this.reportStorageFailure();
+            if (!(error instanceof ActivitySupersededError))
+                this.reportStorageFailure();
             throw error;
         }
     }

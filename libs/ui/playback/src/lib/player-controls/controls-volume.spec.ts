@@ -67,6 +67,16 @@ describe('ControlsVolume', () => {
         expect(volume.value()).toBe(0.5);
     });
 
+    it('remembers a positive slider level when dragged to zero', () => {
+        volume.set(0.8);
+        volume.toggleMute();
+        volume.set(0.35);
+        volume.set(0);
+        expect(localStorage.getItem('volume.lastAudible')).toBe('0.35');
+        volume.toggleMute();
+        expect(volume.value()).toBe(0.35);
+    });
+
     it('reconcile sets the value without persisting or applying', () => {
         volume.reconcile(0.25);
         expect(volume.value()).toBe(0.25);

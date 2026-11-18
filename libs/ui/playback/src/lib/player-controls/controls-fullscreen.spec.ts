@@ -84,6 +84,38 @@ describe('ControlsFullscreen', () => {
         fs.dispose();
     });
 
+    it('distinguishes WebKit picture in picture from native fullscreen', async () => {
+        const video = document.createElement('video');
+        const enter = jest.fn();
+        const exit = jest.fn();
+        let presentationMode = 'fullscreen';
+        Object.defineProperties(video, {
+            webkitPresentationMode: { get: () => presentationMode },
+            webkitDisplayingFullscreen: { value: true },
+            webkitSupportsFullscreen: { value: true },
+            webkitEnterFullscreen: { value: enter },
+            webkitExitFullscreen: { value: exit },
+        });
+        target.appendChild(video);
+        const fs = new ControlsFullscreen(() => null);
+        const unsubscribe = fs.observeVideo(target);
+        try {
+            expect(fs.isFullscreen()).toBe(true);
+
+            presentationMode = 'picture-in-picture';
+            video.dispatchEvent(new Event('webkitpresentationmodechanged'));
+            expect(fs.isFullscreen()).toBe(false);
+
+            fs.exitNativeVideo();
+            await fs.toggle();
+            expect(exit).not.toHaveBeenCalled();
+            expect(enter).toHaveBeenCalledTimes(1);
+        } finally {
+            unsubscribe();
+            fs.dispose();
+        }
+    });
+
     it('stops reacting to fullscreenchange after dispose', () => {
         const onChange = jest.fn();
         const fs = new ControlsFullscreen(() => target, onChange);

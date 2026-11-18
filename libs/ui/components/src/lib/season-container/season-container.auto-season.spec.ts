@@ -205,4 +205,92 @@ describe('SeasonContainerComponent default-season fallback', () => {
 
         expect(component.selectedSeason()).toBe('1');
     });
+
+    it('continues to the next named season in natural order', () => {
+        setRequiredInputs({
+            'Season 10': [createEpisode({ id: '1001', season: 10 })],
+            'Season 2': [createEpisode({ id: '201', season: 2 })],
+            'Season 1': [createEpisode()],
+            'Season 3': [createEpisode({ id: '301', season: 3 })],
+        });
+        fixture.componentRef.setInput(
+            'playbackPositions',
+            new Map([[101, watchedPosition(101)]])
+        );
+        fixture.detectChanges();
+
+        expect(component.sortedSeasonKeys()).toEqual([
+            'Season 1',
+            'Season 2',
+            'Season 3',
+            'Season 10',
+        ]);
+        expect(component.selectedSeason()).toBe('Season 2');
+    });
+
+    it('keeps a manual selection during hydration and resets it for another series with the same season keys', () => {
+        const seasons = {
+            '1': [createEpisode()],
+            '2': [createEpisode({ id: '201', season: 2 })],
+        };
+        fixture.componentRef.setInput('hasUnloadedSeasons', true);
+        fixture.componentRef.setInput('unloadedSeasonKeys', ['2']);
+        setRequiredInputs({ ...seasons, '2': [] });
+        fixture.detectChanges();
+
+        component.selectSeason('1');
+        fixture.componentRef.setInput('seasons', seasons);
+        fixture.componentRef.setInput('hasUnloadedSeasons', false);
+        fixture.componentRef.setInput('unloadedSeasonKeys', []);
+        const positions = new Map([[101, watchedPosition(101)]]);
+        fixture.componentRef.setInput('playbackPositions', positions);
+        fixture.detectChanges();
+
+        expect(component.selectedSeason()).toBe('1');
+        fixture.componentRef.setInput('seriesId', 21);
+        fixture.detectChanges();
+        expect(component.selectedSeason()).toBe('2');
+    });
+
+    it('re-resolves to the watched season once lazy seasons finish hydrating', () => {
+        fixture.componentRef.setInput('hasUnloadedSeasons', true);
+        fixture.componentRef.setInput('unloadedSeasonKeys', ['2', '3', '4']);
+        setRequiredInputs({
+            '1': [createEpisode()],
+            '2': [],
+            '3': [],
+            '4': [],
+        });
+        fixture.detectChanges();
+        expect(component.selectedSeason()).toBe('1');
+
+        fixture.componentRef.setInput('hasUnloadedSeasons', false);
+        fixture.componentRef.setInput('unloadedSeasonKeys', []);
+        fixture.componentRef.setInput('seasons', {
+            '1': [createEpisode()],
+            '2': [createEpisode({ id: '201', season: 2 })],
+            '3': [createEpisode({ id: '301', season: 3 })],
+            '4': [
+                createEpisode({ id: '401', episode_num: 1, season: 4 }),
+                createEpisode({ id: '402', episode_num: 2, season: 4 }),
+                createEpisode({ id: '403', episode_num: 3, season: 4 }),
+            ],
+        });
+        fixture.componentRef.setInput(
+            'playbackPositions',
+            new Map([
+                [401, watchedPosition(401)],
+                [
+                    402,
+                    {
+                        ...watchedPosition(402),
+                        updatedAt: '2026-07-02T00:00:00.000Z',
+                    },
+                ],
+            ])
+        );
+        fixture.detectChanges();
+
+        expect(component.selectedSeason()).toBe('4');
+    });
 });

@@ -1210,7 +1210,7 @@ export async function initDatabase(
     if (db) return db;
     if (initPromise) return initPromise;
 
-    initPromise = (async () => {
+    const attempt = (async () => {
         const filePath = getDatabasePath();
         sqlite = new Database(filePath, {
             readonly,
@@ -1249,9 +1249,29 @@ export async function initDatabase(
         const database = drizzle(sqlite, { schema });
         db = database;
         return database;
-    })();
+    })().catch((error: unknown) => {
+        // Every caller of this attempt sees its rejection; the next call
+        // starts a fresh attempt instead of replaying it (see README).
+        discardFailedConnection(attempt);
+        throw error;
+    });
+    initPromise = attempt;
 
     return initPromise;
+}
+
+/** Closes a half-open handle the failed attempt left and forgets it. */
+function discardFailedConnection(attempt: Promise<DatabaseInstance>): void {
+    // closeDatabase() during the attempt may already have moved on.
+    if (initPromise !== attempt) return;
+    try {
+        if (sqlite?.open) sqlite.close();
+    } catch {
+        // The handle is unusable either way; the original error matters.
+    }
+    sqlite = null;
+    db = null;
+    initPromise = null;
 }
 
 /**

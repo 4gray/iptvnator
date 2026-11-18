@@ -71,13 +71,11 @@ function press(target: HTMLElement, key: string): KeyboardEvent {
 /**
  * The settings panel as assistive technology and the keyboard meet it: a
  * dialog named by its heading, radio groups named by theirs with one Tab
- * stop each, arrow keys that move focus without applying, and dock chips
- * whose names carry their values.
+ * stop each, and arrow keys that move focus and apply choices.
  */
 describe('PlayerSettingsPanelComponent accessibility', () => {
     const originalResizeObserver = globalThis.ResizeObserver;
     let fixture: ComponentFixture<PlayerControlsComponent>;
-    let component: PlayerControlsComponent;
     let fake: ReturnType<typeof createFakeController>;
 
     const query = (selector: string) =>
@@ -98,7 +96,7 @@ describe('PlayerSettingsPanelComponent accessibility', () => {
             .filter((radio) => radio.getAttribute('tabindex') === '0')
             .map(label);
     const openPanel = () => {
-        component.settings.open();
+        query('[data-test-id="player-controls-settings-button"]')?.click();
         fixture.detectChanges();
     };
 
@@ -127,8 +125,6 @@ describe('PlayerSettingsPanelComponent accessibility', () => {
                     AUDIO_TRACKS: 'Audio tracks',
                     SUBTITLES: 'Subtitles',
                     SUBTITLES_OFF: 'Off',
-                    SUBTITLES_ON: 'On',
-                    SUBTITLES_TOOLTIP: 'Subtitles: {{subtitles}}',
                     SUBTITLE_DELAY: 'Subtitle delay',
                     SUBTITLE_SIZE: 'Subtitle size',
                     SUBTITLE_COLOR: 'Subtitle color',
@@ -136,7 +132,6 @@ describe('PlayerSettingsPanelComponent accessibility', () => {
                     QUALITY: 'Quality',
                     QUALITY_AUTO: 'Auto',
                     PLAYBACK_SPEED: 'Playback speed',
-                    SPEED_TOOLTIP: 'Speed: {{speed}}',
                     ASPECT_RATIO: 'Aspect ratio',
                     ASPECT_DEFAULT: 'Default',
                 },
@@ -146,7 +141,6 @@ describe('PlayerSettingsPanelComponent accessibility', () => {
 
         fake = createFakeController();
         fixture = TestBed.createComponent(PlayerControlsComponent);
-        component = fixture.componentInstance;
         fixture.componentRef.setInput('controller', fake.controller);
         fixture.detectChanges();
         document.body.appendChild(fixture.nativeElement);
@@ -304,47 +298,6 @@ describe('PlayerSettingsPanelComponent accessibility', () => {
         expect(document.activeElement).toBe(speed[3]);
         press(speed[3], 'ArrowRight');
         expect(document.activeElement).toBe(speed[2]);
-    });
-
-    it('names the chips with their current values', () => {
-        const subtitleChip = () =>
-            query('[data-test-id="player-controls-subtitle-chip"]');
-        const speedChip = () =>
-            query('[data-test-id="player-controls-speed-chip"]');
-        expect(subtitleChip()?.getAttribute('aria-label')).toBe(
-            'Subtitles: Off'
-        );
-        expect(speedChip()?.getAttribute('aria-label')).toBe('Speed: 1×');
-
-        fake.state.update((state) => ({
-            ...state,
-            subtitleTracks: [{ id: 5, label: 'Russian', selected: true }],
-            subtitlesEnabled: true,
-            playbackSpeed: 1.25,
-        }));
-        fixture.detectChanges();
-
-        expect(subtitleChip()?.getAttribute('aria-label')).toBe(
-            'Subtitles: Russian'
-        );
-        expect(speedChip()?.getAttribute('aria-label')).toBe('Speed: 1.25×');
-    });
-
-    it('names the subtitle chip "On" while no enabled track is marked selected', () => {
-        // The engine can report subtitles on before the track list marks the
-        // selected track; the chip must not claim they are off.
-        fake.state.update((state) => ({
-            ...state,
-            subtitleTracks: [{ id: 5, label: 'Russian', selected: false }],
-            subtitlesEnabled: true,
-        }));
-        fixture.detectChanges();
-
-        const chip = query('[data-test-id="player-controls-subtitle-chip"]');
-        expect(chip?.getAttribute('aria-label')).toBe('Subtitles: On');
-        expect(
-            chip?.querySelector('.player-controls__chip-label')?.textContent
-        ).toContain('On');
     });
 
     it('announces that the tune button opens a dialog', () => {

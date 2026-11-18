@@ -30,6 +30,8 @@ after the current source's positions have loaded. The status survives technical
 category changes when opening an item from All movies, and the Back action
 continues to use browser history. Updated viewing history can remove a title
 from the filtered list; restoration stays within the remaining scroll range.
+The catalog saves the grid offset before routed detail navigation. While that
+navigation is pending, the outgoing view keeps that snapshot during teardown.
 
 The shell owns the page's Back action, but the workspace header renders it
 (the general contract, other pages and the history fallback are in

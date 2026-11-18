@@ -3,6 +3,7 @@ import {
     parseSourceDraft,
     SourceDraft,
     parseSettingsDraft,
+    playbackDraft,
     SettingsDraft,
     SetupPurpose,
     PhoneSettingsDefaults,
@@ -50,6 +51,7 @@ export class PairingStore {
                 safeDefaults = {
                     layout: parsed.layout,
                     epg: parsed.epg,
+                    ...playbackDraft(parsed),
                     tmdb: {
                         enabled: parsed.tmdb.enabled,
                         language: parsed.tmdb.language,

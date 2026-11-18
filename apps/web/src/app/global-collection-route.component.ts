@@ -18,6 +18,7 @@ import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
+import { APP_ICONS } from '@iptvnator/ui/components/app-icons';
 import { PortalDetailShellComponent } from '@iptvnator/ui/components';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
@@ -48,7 +49,7 @@ const EMPTY_STATE_BY_MODE: Record<
     { icon: string; titleKey: string; descriptionKey: string }
 > = {
     favorites: {
-        icon: 'favorite_border',
+        icon: APP_ICONS.favoriteOutline,
         titleKey: 'WORKSPACE.GLOBAL_FAVORITES.NO_PLAYLISTS_TITLE',
         descriptionKey: 'WORKSPACE.GLOBAL_FAVORITES.NO_PLAYLISTS_BODY',
     },

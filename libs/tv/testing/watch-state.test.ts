@@ -87,3 +87,20 @@ test('a stale watch action cannot recreate deleted history and positions', () =>
         assert.deepEqual(result.positions, {});
     }
 });
+test('progress words come from the same position and duration as the bar', () => {
+    // Regression: 4 s of a 27 s title drew a ~15% bar beside "0 min watched".
+    const short = p(4, 27);
+    assert.equal(tv.watchPercent(short), 15);
+    assert.equal(tv.progressSummary(short), '< 1 min watched · < 1 min left');
+    assert.equal(tv.resumeLabel(short), 'Resume from 0:04');
+    const film = p(42 * 60 + 10, 114 * 60);
+    assert.equal(tv.progressSummary(film), '42 min watched · 1 h 12 min left');
+    assert.equal(tv.resumeLabel(film), 'Resume from 42:10');
+    assert.equal(tv.progressLabel(film), '1 h 12 min left');
+    assert.equal(tv.progressSummary(p(1200, NaN)), '20 min watched');
+    assert.equal(tv.progressLabel(p(1200, 0)), '20 min watched');
+    assert.equal(tv.formatSpan(3600), '1 h');
+    assert.equal(tv.formatClock(3729), '1:02:09');
+    assert.equal(tv.resumeLabel(undefined), 'Watch now');
+    assert.equal(tv.resumeLabel(p(3500, 3600)), 'Watch again');
+});

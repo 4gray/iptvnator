@@ -215,7 +215,8 @@
         clamp(28px, 4vw, 48px);
     overflow-x: hidden;
     overflow-y: auto;
-    overscroll-behavior: contain;
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: var(--app-overscroll-y, contain);
 }
 
 .downloads__message {
