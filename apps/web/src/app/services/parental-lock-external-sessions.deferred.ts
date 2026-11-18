@@ -12,6 +12,12 @@ export function sourceIdOfRoute(url: string | undefined): string | null {
     return match ? decodeURIComponent(match[1]) : null;
 }
 
+/** How a session's media was opened, as the eager half saw it. */
+export interface ExternalSessionLaunch {
+    readonly sourceId: string | null;
+    readonly openedLocked: boolean;
+}
+
 /** What the eager half saw before the tracker loaded. */
 export interface ExternalSessionsHandoff {
     pageStartedAt: number;
@@ -20,10 +26,11 @@ export interface ExternalSessionsHandoff {
     /** The lock-set revision `lockedAt` accounts for. */
     lockRevision: number;
     /**
-     * The route source of each session's media: at its first report, or at
-     * the report that switched a reused player to other media.
+     * Each session's media as first reported, or as switched to by a reused
+     * player: the route source it was opened from, and whether the app was
+     * locked then (opened from the filtered catalog).
      */
-    launchSources: ReadonlyMap<string, string | null>;
+    launchSources: ReadonlyMap<string, ExternalSessionLaunch>;
 }
 
 export interface DeferredExternalSessionsDeps {
@@ -72,7 +79,7 @@ export class DeferredExternalSessions {
     private wasLocked: boolean;
     private readonly launchSources = new Map<
         string,
-        { streamUrl: string; sourceId: string | null }
+        ExternalSessionLaunch & { streamUrl: string }
     >();
     private readonly now: () => number;
 
@@ -103,6 +110,7 @@ export class DeferredExternalSessions {
                 this.launchSources.set(id, {
                     streamUrl,
                     sourceId: sourceIdOfRoute(this.deps.routeUrl()),
+                    openedLocked: this.deps.isLocked(),
                 });
             }
         );
@@ -121,10 +129,12 @@ export class DeferredExternalSessions {
                         lockedAt: this.lockedAt,
                         lockRevision: this.lockRevision,
                         launchSources: new Map(
-                            [...this.launchSources].map(([id, seen]) => [
-                                id,
-                                seen.sourceId,
-                            ])
+                            [...this.launchSources].map(
+                                ([id, { sourceId, openedLocked }]) => [
+                                    id,
+                                    { sourceId, openedLocked },
+                                ]
+                            )
                         ),
                     });
                     this.tracker = tracker;

@@ -12,6 +12,7 @@ import type {
 } from '@iptvnator/shared/interfaces';
 import { ExternalPlaybackService } from './external-playback.service';
 import {
+    type ExternalSessionLaunch,
     type ExternalSessionsHandoff,
     sourceIdOfRoute,
 } from './parental-lock-external-sessions.deferred';
@@ -75,7 +76,8 @@ export class ParentalLockExternalSessions {
     private trackerStartedAt = Number.NEGATIVE_INFINITY;
     private lockRevision = 0;
     private wasLocked = true;
-    private launchSources: ReadonlyMap<string, string | null> = new Map();
+    private launchSources: ReadonlyMap<string, ExternalSessionLaunch> =
+        new Map();
     private started = false;
 
     /** The clock; a field so specs can substitute it. */
@@ -183,7 +185,12 @@ export class ParentalLockExternalSessions {
         // seen after a relock or lock edit it started before raced it.
         const switched =
             !!current && current.session.streamUrl !== session.streamUrl;
-        const unlockedMedia = !this.lock.active() && (!current || switched);
+        // Opened before this loaded: judged by the lock state at its launch,
+        // not now — the PIN may have been entered since.
+        const earlier = current ? undefined : this.launchBeforeLoad(session);
+        const unlockedMedia = earlier
+            ? !earlier.openedLocked
+            : !this.lock.active() && (!current || switched);
         if (
             unlockedMedia ||
             (!current && Date.parse(session.startedAt) <= this.lockedAt)
@@ -318,9 +325,23 @@ export class ParentalLockExternalSessions {
         if (startedAt < this.pageStartedAt) return null;
         // Opened while this was loading: the eager half saw its first report.
         const seen = this.launchSources.get(session.id);
-        if (seen !== undefined) return seen;
+        if (seen !== undefined) return seen.sourceId;
         return startedAt < this.trackerStartedAt
             ? null
             : sourceIdOfRoute(this.router.url);
+    }
+
+    /**
+     * How a session opened before this loaded was launched; undefined for
+     * one opened since. A session the eager half never saw report counts as
+     * opened while unlocked: its history is unknown.
+     */
+    private launchBeforeLoad(
+        session: ExternalPlayerSession
+    ): Pick<ExternalSessionLaunch, 'openedLocked'> | undefined {
+        if (Date.parse(session.startedAt) >= this.trackerStartedAt) {
+            return undefined;
+        }
+        return this.launchSources.get(session.id) ?? { openedLocked: false };
     }
 }

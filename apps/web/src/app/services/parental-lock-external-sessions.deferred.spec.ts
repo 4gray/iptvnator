@@ -163,6 +163,8 @@ describe('DeferredExternalSessions', () => {
         routeUrl = '/workspace/dashboard';
         emitSession?.({ id: 'session-3', streamUrl: film });
         routeUrl = '/workspace/stalker/stalker-4/itv';
+        // The PIN was entered: a switch now is media opened while unlocked.
+        locked = false;
         emitSession?.({
             id: 'session-2',
             streamUrl: 'http://stream.example/b',
@@ -174,9 +176,12 @@ describe('DeferredExternalSessions', () => {
         expect(tracker.start).toHaveBeenCalledWith(
             expect.objectContaining({
                 launchSources: new Map([
-                    ['session-1', 'm3u-1'],
-                    ['session-2', 'stalker-4'],
-                    ['session-3', null],
+                    ['session-1', { sourceId: 'm3u-1', openedLocked: true }],
+                    [
+                        'session-2',
+                        { sourceId: 'stalker-4', openedLocked: false },
+                    ],
+                    ['session-3', { sourceId: null, openedLocked: true }],
                 ]),
             })
         );

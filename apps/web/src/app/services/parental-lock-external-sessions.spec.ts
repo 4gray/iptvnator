@@ -434,13 +434,17 @@ describe('ParentalLockExternalSessions', () => {
         describe('sessions opened while the tracker was loading', () => {
             // It loads after the first screen; the listing reports what
             // opened before, judged by the eager half's clock readings.
+            const launched = (openedLocked: boolean) =>
+                new Map([['session-1', { sourceId: 'm3u-1', openedLocked }]]);
             const loadedPage = (
                 lockedAt: number,
-                launchSources = new Map<string, string | null>([
-                    ['session-1', 'm3u-1'],
-                ])
+                launchSources: Map<
+                    string,
+                    { sourceId: string | null; openedLocked: boolean }
+                > = launched(false),
+                locked = true
             ) => {
-                active.set(true);
+                active.set(locked);
                 const page = TestBed.runInInjectionContext(
                     () => new ParentalLockExternalSessions()
                 );
@@ -492,8 +496,20 @@ describe('ParentalLockExternalSessions', () => {
             it('keeps one opened while locked', async () => {
                 clock = 15_000;
                 listed = [openedAt(12_000)];
-                loadedPage(10_000);
+                loadedPage(10_000, launched(true));
                 await flush();
+
+                expect(closeExternalPlayerSession).not.toHaveBeenCalled();
+            });
+
+            it('keeps one opened while locked after the PIN was entered before the load', async () => {
+                clock = 15_000;
+                listed = [openedAt(12_000)];
+                const page = loadedPage(10_000, launched(true), false);
+                await flush();
+
+                active.set(true);
+                page.onLockChange();
 
                 expect(closeExternalPlayerSession).not.toHaveBeenCalled();
             });

@@ -626,13 +626,16 @@ every session from `onExternalPlayerSessionUpdate`:
   then an idle callback of at most five), and only where the bridge
   reports MPV/VLC or Embedded MPV. Until then it records when the page
   started, when it last relocked or its lock set changed (other version
-  bumps while locked do not count), and the route of each session's media
-  (listener registrations are not bridge calls); a failed chunk load is
-  retried twice, five seconds apart. The tracker judges every listed session by those readings: one
-  opened while unlocked before a relock it missed is closed when it loads,
-  its source is the route of its launch rather than the route at the load
-  (any source when no report was seen), and the busy probe counts nothing
-  yet.
+  bumps while locked do not count), and, for each session's media, the
+  route it was opened from and whether the app was locked then (listener
+  registrations are not bridge calls). A failed chunk load is retried
+  twice, five seconds apart. The tracker judges every listed session by
+  those readings: one opened while unlocked before a relock it missed is
+  closed when it loads; one opened while locked stays allowed even if the
+  PIN was entered before the load; one it never saw report counts as
+  opened while unlocked from any source; a session's source is the route
+  of its launch rather than the route at the load; and the busy probe
+  counts nothing yet.
 - **Owners.** A feature that knows the category of its sessions claims them
   through `ParentalLockSessionOwners` (`libs/services`) and closes only
   those in a withheld category. Xtream Live does:
