@@ -4,7 +4,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { DialogService } from '@iptvnator/ui/components';
 import {
     DataService,
@@ -12,6 +12,7 @@ import {
     DbOperationEvent,
     PlaybackPositionService,
     PlaylistRefreshService,
+    PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
     SourceActivityService,
@@ -103,6 +104,9 @@ describe('PlaylistRefreshActionService', () => {
     };
     let playlistRefreshService: {
         refreshPlaylist: jest.Mock;
+    };
+    let playlistsService: {
+        updatePlaylist: jest.Mock;
     };
     let playbackPositionService: {
         getAllPlaybackPositions: jest.Mock;
@@ -198,6 +202,11 @@ describe('PlaylistRefreshActionService', () => {
         };
         routeProvider = signal<'playlists' | 'xtreams' | null>('xtreams');
         resolvedPlaylistId = signal<string | null>(null);
+        playlistsService = {
+            updatePlaylist: jest.fn((_id: string, playlist: Playlist) =>
+                of(playlist)
+            ),
+        };
 
         TestBed.configureTestingModule({
             providers: [
@@ -239,6 +248,10 @@ describe('PlaylistRefreshActionService', () => {
                 {
                     provide: PlaybackPositionService,
                     useValue: playbackPositionService,
+                },
+                {
+                    provide: PlaylistsService,
+                    useValue: playlistsService,
                 },
                 {
                     provide: RuntimeCapabilitiesService,
@@ -872,22 +885,59 @@ describe('PlaylistRefreshActionService', () => {
             refreshedPlaylist
         );
 
-        service.refresh(item);
-        await Promise.resolve();
-        await Promise.resolve();
+        const saved = { ...refreshedPlaylist, title: 'Saved row' };
+        playlistsService.updatePlaylist.mockReturnValueOnce(of(saved));
+
+        await service.refreshM3uSource(item);
 
         expect(store.dispatch).toHaveBeenNthCalledWith(
             1,
             ChannelActions.setChannelsLoading({ loading: true })
         );
+        // The saved row is published once the write has finished.
+        expect(playlistsService.updatePlaylist).toHaveBeenCalledWith(
+            item._id,
+            refreshedPlaylist,
+            'playlist-refresh-op'
+        );
         expect(store.dispatch).toHaveBeenNthCalledWith(
             2,
             PlaylistActions.updatePlaylist({
-                playlist: refreshedPlaylist,
+                playlist: saved,
                 playlistId: item._id,
                 refreshEpg: true,
                 operationId: 'playlist-refresh-op',
+                persist: false,
             })
+        );
+    });
+
+    it('reports a failed write of the refreshed channels without publishing them', async () => {
+        const item = createPlaylistMeta({
+            _id: 'playlist-1',
+            serverUrl: undefined,
+            url: 'https://example.com/playlist.m3u',
+        });
+        playlistRefreshService.refreshPlaylist.mockResolvedValue({
+            _id: item._id,
+            playlist: { items: [] },
+        } as Playlist);
+        playlistsService.updatePlaylist.mockReturnValueOnce(
+            throwError(() => new Error('Synthetic write failure'))
+        );
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+        await expect(service.refreshM3uSource(item)).resolves.toBe('failed');
+
+        expect(store.dispatch).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: PlaylistActions.updatePlaylist.type,
+            })
+        );
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR',
+            'CLOSE',
+            { duration: 5000 }
         );
     });
 

@@ -36,6 +36,7 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
     let close: jest.Mock;
     let refresh: jest.Mock;
     let blocked: boolean;
+    let storageKind: 'local' | 'server';
 
     beforeEach(async () => {
         dispatch = jest.fn();
@@ -43,6 +44,7 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
         close = jest.fn();
         refresh = jest.fn().mockResolvedValue('refreshed');
         blocked = false;
+        storageKind = 'local';
         await TestBed.configureTestingModule({
             imports: [PlaylistInfoComponent],
             providers: [
@@ -60,7 +62,7 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
                 },
                 {
                     provide: PlaylistStorageBackend,
-                    useValue: { kind: () => 'local' },
+                    useValue: { kind: () => storageKind },
                 },
                 { provide: Store, useValue: { dispatch } },
                 { provide: DatabaseService, useValue: {} },
@@ -106,12 +108,16 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
                 set: { template: '', imports: [] },
             })
             .compileComponents();
+    });
+
+    function createComponent(): void {
         component = TestBed.createComponent(
             PlaylistInfoComponent
         ).componentInstance;
-    });
+    }
 
     it('refuses a new source while a refresh is running and writes nothing', async () => {
+        createComponent();
         blocked = true;
 
         await component.saveChanges({
@@ -130,6 +136,7 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
     });
 
     it('still saves other edits while a refresh is running', async () => {
+        createComponent();
         blocked = true;
 
         await component.saveChanges({ ...opened, title: 'Renamed' });
@@ -144,6 +151,7 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
     });
 
     it('saves and refreshes a new source when nothing is running', async () => {
+        createComponent();
         const url = 'https://new.example.com/list.m3u';
 
         await component.saveChanges({ ...opened, url });
@@ -156,6 +164,7 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
 
     // Saving a new source reports what loading it did (A-6).
     it('waits for the new source to load before reporting success', async () => {
+        createComponent();
         let finish!: (outcome: string) => void;
         refresh.mockReturnValueOnce(
             new Promise((resolve) => {
@@ -187,6 +196,7 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
     });
 
     it('keeps the dialog open and says the old channels remain when loading fails', async () => {
+        createComponent();
         refresh.mockResolvedValueOnce('failed');
 
         await component.saveChanges({
@@ -207,6 +217,7 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
     });
 
     it('says the source was saved but not loaded when the refresh was skipped', async () => {
+        createComponent();
         refresh.mockResolvedValueOnce('skipped');
 
         await component.saveChanges({
@@ -223,6 +234,25 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
     });
 
     it('clears the load failure when the form is edited', async () => {
+        createComponent();
+        refresh.mockResolvedValueOnce('failed');
+        await component.saveChanges({
+            ...opened,
+            url: 'https://unreachable.example.com/list.m3u',
+        });
+        expect(component.sourceLoadFailed()).toBe(true);
+
+        component.playlistDetails.patchValue({
+            url: 'https://fixed.example.com/list.m3u',
+        });
+
+        expect(component.sourceLoadFailed()).toBe(false);
+    });
+
+    it('clears the load failure on edits to a shared source form rebuilt by hydration', async () => {
+        storageKind = 'server';
+        createComponent();
+        await new Promise((resolve) => setTimeout(resolve));
         refresh.mockResolvedValueOnce('failed');
         await component.saveChanges({
             ...opened,
@@ -238,6 +268,7 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
     });
 
     it('clears an earlier load failure when the next save starts', async () => {
+        createComponent();
         refresh.mockResolvedValueOnce('failed');
         await component.saveChanges({
             ...opened,

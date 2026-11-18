@@ -9,6 +9,7 @@ import {
     type DbOperationEvent,
     isDbAbortError,
     PlaylistRefreshService,
+    PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
     SourceActivityService,
@@ -22,6 +23,7 @@ import {
     PlaylistMeta,
 } from '@iptvnator/shared/interfaces';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
+import { firstValueFrom } from 'rxjs';
 import {
     XtreamRefreshFlowService,
     type XtreamRefreshProgressReporter,
@@ -48,6 +50,7 @@ export class PlaylistRefreshActionService {
     private readonly databaseService = inject(DatabaseService);
     private readonly dataService = inject(DataService);
     private readonly playlistRefreshService = inject(PlaylistRefreshService);
+    private readonly playlistsService = inject(PlaylistsService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly playlistContext = inject(PlaylistContextFacade);
@@ -229,15 +232,23 @@ export class PlaylistRefreshActionService {
                             .trustedInsecureTlsHosts,
                 });
 
+            // Saved before it is published, as the browser refresh does, so
+            // success means the channels are stored and a write failure is
+            // reported instead of lost in the effect (#1677).
+            const saved = await firstValueFrom(
+                this.playlistsService.updatePlaylist(
+                    item._id,
+                    { ...refreshedPlaylist, _id: item._id },
+                    operationId
+                )
+            );
             this.store.dispatch(
                 PlaylistActions.updatePlaylist({
-                    playlist: {
-                        ...refreshedPlaylist,
-                        _id: item._id,
-                    },
+                    playlist: saved,
                     playlistId: item._id,
                     refreshEpg: true,
                     operationId,
+                    persist: false,
                 })
             );
 

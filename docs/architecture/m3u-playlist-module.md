@@ -410,9 +410,12 @@ with a "source saved, refresh to load" message.
 ## Playlist Refresh And Startup Auto-Update (Electron)
 
 Catalog reads through `PlaylistsService.getPlaylist()` join the per-playlist
-mutation queue. Refresh publishes its store action before persistence finishes;
-opening the route in that interval must read after the queued save rather than
-overwrite the refreshed channels with an older SQLite/IndexedDB snapshot.
+mutation queue. An explicit refresh from `PlaylistRefreshActionService` saves
+the refreshed playlist first and then publishes the saved row with
+`persist: false`, so its success means the channels are stored and a write
+failure is reported; other refresh paths publish before persistence finishes,
+and opening the route in that interval must read after the queued save rather
+than overwrite the refreshed channels with an older SQLite/IndexedDB snapshot.
 Mutation-internal reads use `getPlaylistById()` directly to avoid queue re-entry.
 Failed writes release the queue, and other playlist IDs remain independent.
 

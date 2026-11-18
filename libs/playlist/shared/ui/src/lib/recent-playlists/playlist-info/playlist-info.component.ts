@@ -8,7 +8,6 @@ import {
     signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
     FormControl,
     ReactiveFormsModule,
@@ -28,7 +27,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 import {
     createXtreamConnectionTestState,
     PlaylistsService,
@@ -93,6 +92,7 @@ export class PlaylistInfoComponent {
     private translate = inject(TranslateService);
     private runtime = inject(RuntimeCapabilitiesService);
     private readonly destroyRef = inject(DestroyRef);
+    private formEdits?: Subscription;
     private dialogRef = inject(MatDialogRef<PlaylistInfoComponent>, {
         optional: true,
     });
@@ -209,6 +209,7 @@ export class PlaylistInfoComponent {
     connectionTest: ReturnType<typeof createXtreamConnectionTestState>;
 
     constructor() {
+        this.destroyRef.onDestroy(() => this.formEdits?.unsubscribe());
         this.dialogRef?.beforeClosed().subscribe(() => {
             this.dialogClosing = true;
         });
@@ -216,12 +217,6 @@ export class PlaylistInfoComponent {
         this.connectionTest = createXtreamConnectionTestState(
             this.playlistDetails
         );
-        // An inline load failure is cleared by any edit, as other checks are.
-        this.playlistDetails.valueChanges
-            .pipe(takeUntilDestroyed())
-            .subscribe(() => {
-                if (!this.isSaving()) this.sourceLoadFailed.set(false);
-            });
         if (
             this.playlist.portalUrl ||
             this.playlistStorage.kind() === 'server'
@@ -249,6 +244,12 @@ export class PlaylistInfoComponent {
                 normalizeXtreamContentTypes(this.playlist.xtreamContentTypes)
             )
         );
+        // An inline load failure is cleared by any edit, as other checks are.
+        // Hydration rebuilds the form, so the listener follows the new one.
+        this.formEdits?.unsubscribe();
+        this.formEdits = this.playlistDetails.valueChanges.subscribe(() => {
+            if (!this.isSaving()) this.sourceLoadFailed.set(false);
+        });
     }
 
     get hasAdvancedStalkerOptions(): boolean {
