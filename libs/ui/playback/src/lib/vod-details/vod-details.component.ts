@@ -28,6 +28,7 @@ import {
     mergeSimilarRailItems,
     TrailerDialogService,
     VodMoreMenuComponent,
+    favoriteIcon,
     scrollToCastCrewRow,
     type SimilarRailItem,
 } from '@iptvnator/ui/components';
@@ -108,6 +109,9 @@ import { createVodSimilarInPortals } from './vod-similar-in-portals.state';
     ],
 })
 export class VodDetailsComponent {
+    /** Filled heart when favourited, outline when not (UI-46). */
+    protected readonly favoriteIcon = favoriteIcon;
+
     // ============ Inputs ============
 
     /** VOD item with discriminated union type */

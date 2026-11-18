@@ -2456,6 +2456,9 @@ describe('DashboardDataService', () => {
             let stored: PlaybackPositionData = {
                 ...vodPosition(102, 2700, 5400),
                 activitySessionId: 'playing',
+                activityPlayedAt: '2026-10-04T09:00:00Z',
+                nativeCheckpointAt: '2026-10-04T09:00:00Z',
+                nativeCheckpointSeasonGroup: 0,
             };
             playbackPositionsMock.getAllPlaybackPositions.mockImplementation(
                 () => Promise.resolve([stored])
@@ -2476,8 +2479,13 @@ describe('DashboardDataService', () => {
                 )
             ).resolves.toBe(true);
 
-            expect(stored.activityAction).toBe('mark-watched');
-            expect(stored.activitySessionId).toBeUndefined();
+            expect(stored).toMatchObject({
+                activityAction: 'mark-watched',
+                activitySessionId: undefined,
+                activityPlayedAt: undefined,
+                nativeCheckpointAt: undefined,
+                nativeCheckpointSeasonGroup: undefined,
+            });
             expect(titles()).toEqual([]);
         });
     });

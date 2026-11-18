@@ -39,6 +39,10 @@ not UI or util.
 - `<mat-icon>` names must exist in the bundled Material Icons font;
   `pnpm run styles:icon-ligatures:validate` checks them (UI guidelines, Icon
   Names).
+- Favourites use the heart and ratings the star, both from `APP_ICONS`
+  (`@iptvnator/ui/components/app-icons`);
+  `pnpm run ui:favorite-glyph:validate` checks it (UI guidelines, Favourite
+  And Rating Glyphs).
 
 ## Validation
 

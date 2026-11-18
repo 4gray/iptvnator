@@ -1032,6 +1032,9 @@ export class LiveStreamLayoutComponent
             title: item.title ?? item.name ?? '',
             thumbnail: item.poster_url ?? item.stream_icon ?? null,
             isLive: true,
+            catalogIdentity: playlist
+                ? { playlistId: playlist.id, type: 'live', id: item.xtream_id }
+                : undefined,
         };
         if (!keepPanel) {
             this.panelCatchupProgram.set(null);

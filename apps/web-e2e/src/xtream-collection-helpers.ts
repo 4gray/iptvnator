@@ -236,10 +236,12 @@ export async function addCollisionFavorite(
         const channel = collisionCollectionItem(page, item);
         const favorite = channel.locator('.favorite-button').first();
         // Other content sharing this ID must not preselect the channel.
-        await expect(favorite.locator('mat-icon')).toHaveText('star_outline');
+        await expect(favorite.locator('mat-icon')).toHaveText(
+            'favorite_border'
+        );
         await channel.hover();
         await favorite.click();
-        await expect(favorite.locator('mat-icon')).toHaveText('star');
+        await expect(favorite.locator('mat-icon')).toHaveText('favorite');
         return;
     }
     const addButton = page.getByRole('button', { name: /add to favorites/i });

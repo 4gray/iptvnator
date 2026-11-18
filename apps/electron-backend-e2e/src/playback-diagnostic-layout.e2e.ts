@@ -268,8 +268,8 @@ test('@electron @m3u @playback diagnostic cards keep every locale label and stat
         const textCount = locales.length * CARD_LABEL_KEYS.length;
         expect(locales.length).toBeGreaterThan(1);
 
-        // 1280x720 is the default window (a 760x404 player beside the channel
-        // list); 1440 leaves the player just past the 760px breakpoint, where
+        // 1280x720 is the default window (a 760x461 player beside the channel
+        // list, above the compact EPG panel); 1440 leaves the player just past the 760px breakpoint, where
         // window-sized padding used to squeeze the content until it overflowed.
         for (const viewport of [
             { width: 1280, height: 720 },
@@ -278,7 +278,7 @@ test('@electron @m3u @playback diagnostic cards keep every locale label and stat
             await page.setViewportSize(viewport);
             await waitForStableBox(banner);
             const box = await banner.boundingBox();
-            expect(box?.height ?? 0).toBeLessThan(420);
+            expect(box?.height ?? 0).toBeLessThan(480);
             if (viewport.width === 1440) {
                 expect(box?.width ?? 0).toBeGreaterThan(760);
             }
@@ -362,9 +362,11 @@ for (const engine of ['html5', 'videojs', 'artplayer']) {
             ];
             for (const theme of ['light', 'dark'] as const) {
                 await applyTheme(page, theme);
+                // The guide's setup action in the short inline panel is the
+                // kit's small accent button (8px radius).
                 await expect(page.getByRole('button', {
                     name: 'Open EPG settings', exact: true,
-                })).toHaveCSS('border-top-left-radius', '10px');
+                })).toHaveCSS('border-top-left-radius', '8px');
                 for (const utility of utilities) {
                     await utility.scrollIntoViewIfNeeded();
                     // Conservative upper bound for the 96% black diagnostic

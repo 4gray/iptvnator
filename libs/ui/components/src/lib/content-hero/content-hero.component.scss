@@ -455,6 +455,11 @@
     .details__title {
         font-size: 1.5rem;
     }
+
+    .action-buttons {
+        // Leave room for the primary label when a classic scrollbar takes space.
+        gap: 6px 4px;
+    }
 }
 
 // ============================================================================

@@ -2,7 +2,11 @@ import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import { inject, Injectable, Injector } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
-import { extractDrmFromRaw } from '@iptvnator/shared/m3u-utils';
+import {
+    extractDrmFromRaw,
+    getM3uArchiveDays,
+    isLikelyM3uVod,
+} from '@iptvnator/shared/m3u-utils';
 import {
     EpgPreferencesService,
     EpgSourceSettingsService,
@@ -209,11 +213,12 @@ export class StreamResolverService {
         item: UnifiedCollectionItem,
         channel?: Channel
     ): Promise<EpgProgram[]> {
-        const epgLookupKey = channel
-            ? this.getM3uEpgLookupKey(channel, item)
-            : await this.getM3uEpgLookupKeyForItem(item);
-
-        return this.fetchM3uPrograms(epgLookupKey);
+        const source = channel ?? (await this.getM3uChannelForItem(item));
+        return this.fetchM3uPrograms(
+            this.getM3uEpgLookupKey(source, item),
+            this.epgLoadClock().nowMs,
+            getM3uArchiveDays(source)
+        );
     }
 
     async loadEpgItems(item: UnifiedCollectionItem): Promise<EpgItem[]> {
@@ -409,6 +414,7 @@ export class StreamResolverService {
             streamUrl: channel.url ?? '',
             title: channel.name,
             thumbnail: channel.tvg?.logo ?? null,
+            isLive: !isLikelyM3uVod(channel),
             drm: channel.drm ?? extractDrmFromRaw(channel.raw),
             headers: Object.keys(headers).length > 0 ? headers : undefined,
             userAgent,
@@ -437,6 +443,11 @@ export class StreamResolverService {
             userAgent: creds.userAgent,
             referer: creds.referrer,
             origin: creds.origin,
+            catalogIdentity: {
+                playlistId: item.playlistId,
+                type: 'live',
+                id: item.xtreamId,
+            },
         };
     }
 
@@ -593,6 +604,7 @@ export class StreamResolverService {
                 rawCmd
             ),
             isLive: item.radio === 'true' ? undefined : true,
+            requiresFreshStreamUrl: true,
         });
     }
 
@@ -631,6 +643,7 @@ export class StreamResolverService {
             portalUrl: string;
             streamUrl: string;
             isLive?: boolean;
+            requiresFreshStreamUrl?: boolean;
         }
     ): Promise<ResolvedPortalPlayback> {
         // The item may carry portal/mac overrides for playlists that no
@@ -684,6 +697,17 @@ export class StreamResolverService {
             title: item.name,
             thumbnail: item.logo ?? null,
             isLive: resolved.isLive,
+            ...(resolved.requiresFreshStreamUrl && {
+                requiresFreshStreamUrl: true,
+            }),
+            catalogIdentity:
+                resolved.isLive && item.stalkerId != null
+                    ? {
+                          playlistId: item.playlistId,
+                          type: 'live',
+                          id: item.stalkerId,
+                      }
+                    : undefined,
             headers,
             userAgent: headers['User-Agent'] || playlist?.userAgent,
             referer: crossOriginStream
@@ -760,7 +784,8 @@ export class StreamResolverService {
     }
 
     private async loadXtreamEpgItems(
-        item: UnifiedCollectionItem
+        item: UnifiedCollectionItem,
+        clock = this.epgLoadClock()
     ): Promise<EpgItem[]> {
         try {
             if (item.xtreamId == null) {
@@ -772,15 +797,15 @@ export class StreamResolverService {
                 return [];
             }
 
+            const scheduleOptions = {
+                nowMs: clock.nowMs,
+                archiveDays: item.tvArchiveDuration ?? undefined,
+            };
             // 1) Check uploaded XMLTV EPG via the provider's epg_channel_id.
-            // The field is populated at runtime from the content table's
-            // epg_channel_id column but is not declared on the TS interface.
-            const epgKey = (
-                item as unknown as Record<string, string | undefined | null>
-            )['epgChannelId']?.trim();
+            const epgKey = item.epgChannelId?.trim();
             if (this.supportsProgramLookup && epgKey) {
                 const uploaded = await this.epgBridge
-                    .getChannelPrograms(epgKey)
+                    .getChannelPrograms(epgKey, scheduleOptions)
                     .catch(() => null);
                 if (uploaded && uploaded.length > 0) {
                     return this.mapProgramsToEpgItems(uploaded);
@@ -797,7 +822,10 @@ export class StreamResolverService {
                     .catch(() => null);
                 if (mapping?.epgChannelId) {
                     const mapped = await this.epgBridge
-                        .getChannelPrograms(mapping.epgChannelId)
+                        .getChannelPrograms(
+                            mapping.epgChannelId,
+                            scheduleOptions
+                        )
                         .catch(() => null);
                     if (mapped && mapped.length > 0) {
                         return this.mapProgramsToEpgItems(mapped);
@@ -863,7 +891,10 @@ export class StreamResolverService {
                 .catch(() => null);
             if (mapping?.epgChannelId) {
                 const mapped = await this.epgBridge
-                    .getChannelPrograms(mapping.epgChannelId)
+                    .getChannelPrograms(mapping.epgChannelId, {
+                        nowMs: clock.nowMs,
+                        archiveDays: item.tvArchiveDuration ?? undefined,
+                    })
                     .catch(() => null);
                 if (mapped && mapped.length > 0) {
                     return this.mapProgramsToEpgItems(mapped);
@@ -947,7 +978,7 @@ export class StreamResolverService {
             return;
         }
 
-        const programs = await this.fetchM3uPrograms(epgLookupKey);
+        const programs = await this.fetchM3uPrograms(epgLookupKey, now);
         epgMap.set(epgLookupKey, this.findCurrentProgram(programs, now));
     }
 
@@ -963,34 +994,40 @@ export class StreamResolverService {
             this.buildFallbackM3uChannel(item);
         const epgPrograms =
             includePrograms && this.supportsProgramLookup
-                ? await this.fetchM3uPrograms(
-                      this.getM3uEpgLookupKey(channel, item)
-                  )
+                ? await this.loadM3uProgramsForItem(item, channel)
                 : [];
 
         return {
-            playback: this.buildM3uPlayback(channel, playlist),
+            playback: {
+                ...this.buildM3uPlayback(channel, playlist),
+                catalogIdentity: {
+                    playlistId: item.playlistId,
+                    type: 'live',
+                    id: channel.id,
+                },
+            },
             epgMode: 'm3u',
             channel,
             epgPrograms,
         };
     }
 
-    private async getM3uEpgLookupKeyForItem(
+    private async getM3uChannelForItem(
         item: UnifiedCollectionItem
-    ): Promise<string | null> {
+    ): Promise<Channel> {
         const playlist = (await firstValueFrom(
             this.playlistsService.getPlaylistById(item.playlistId)
         )) as PlaylistWithChannels | undefined;
-        const channel =
+        return (
             this.findM3uChannel(playlist?.playlist?.items ?? [], item) ??
-            this.buildFallbackM3uChannel(item);
-
-        return this.getM3uEpgLookupKey(channel, item);
+            this.buildFallbackM3uChannel(item)
+        );
     }
 
     private async fetchM3uPrograms(
-        epgLookupKey?: string | null
+        epgLookupKey: string | null,
+        nowMs: number,
+        archiveDays?: number
     ): Promise<EpgProgram[]> {
         if (!this.epgBridge.supportsProgramLookup || !epgLookupKey) {
             return [];
@@ -998,7 +1035,7 @@ export class StreamResolverService {
 
         return this.withFallbackTimeout(
             this.epgBridge
-                .getChannelPrograms(epgLookupKey)
+                .getChannelPrograms(epgLookupKey, { nowMs, archiveDays })
                 .then((programs) => programs ?? []),
             this.m3uEpgTimeoutMs,
             []
@@ -1063,12 +1100,7 @@ export class StreamResolverService {
                     let currentItem: EpgItem | null = null;
 
                     // 1) Try uploaded XMLTV EPG via the provider's epg_channel_id.
-                    const epgChannelKey = (
-                        channel as unknown as Record<
-                            string,
-                            string | undefined | null
-                        >
-                    )['epgChannelId']?.trim();
+                    const epgChannelKey = channel.epgChannelId?.trim();
                     if (this.supportsProgramLookup && epgChannelKey) {
                         currentItem = await this.findCurrentInXmltv(
                             epgChannelKey,
@@ -1582,7 +1614,7 @@ export class StreamResolverService {
     ): Promise<EpgItem | null> {
         if (!this.supportsProgramLookup || !epgChannelId) return null;
         const programs = await this.epgBridge
-            .getChannelPrograms(epgChannelId)
+            .getChannelPrograms(epgChannelId, { nowMs: nowSeconds * 1000 })
             .catch(() => null);
         if (!programs || programs.length === 0) return null;
         const items = this.mapProgramsToEpgItems(programs);

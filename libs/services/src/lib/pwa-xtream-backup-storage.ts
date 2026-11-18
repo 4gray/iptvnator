@@ -51,10 +51,14 @@ export class PwaXtreamBackupStorage {
     ): Promise<void> {
         await this.ready();
         await preparePwaRestore(this.storage, playlistId);
-        this.writeMap('playbackPositions', {
-            ...this.readMap('playbackPositions'),
-            [playlistId]: positions,
-        });
+        const android =
+            'TvShell' in globalThis
+                ? await import('./pwa-native-playback-resets.js')
+                : undefined;
+        const map = this.readMap('playbackPositions');
+        map[playlistId] = positions;
+        android?.stampNativePlaybackPlaylistReset(map, playlistId);
+        this.writeMap('playbackPositions', map);
     }
 
     /**
@@ -217,7 +221,13 @@ export class PwaXtreamBackupStorage {
             state
         );
         try {
-            this.replaceLists(playlistId, state, progress, snapshots, required);
+            await this.replaceLists(
+                playlistId,
+                state,
+                progress,
+                snapshots,
+                required
+            );
         } catch (error) {
             if (!isQuotaExceeded(error)) {
                 try {
@@ -239,13 +249,13 @@ export class PwaXtreamBackupStorage {
         await progress.confirmServer();
     }
 
-    private replaceLists(
+    private async replaceLists(
         playlistId: string,
         state: XtreamPendingRestoreState,
         progress: PwaXtreamRestoreProgress,
         snapshots: Record<string, XtreamBackupCollectionItem>,
         required: Record<string, XtreamBackupCollectionItem>
-    ): void {
+    ): Promise<void> {
         const favorites = state.favorites
             .map((item) => typedKey(item.contentType, item.xtreamId))
             .filter((key): key is string => key !== null);
@@ -294,13 +304,18 @@ export class PwaXtreamBackupStorage {
         }
 
         const now = new Date().toISOString();
+        const android =
+            'TvShell' in globalThis
+                ? await import('./pwa-native-playback-resets.js')
+                : undefined;
         progress.writeList(
             'playbackPositions',
             state.playbackPositions.filter(isPlaybackPosition).map((item) => ({
                 ...item,
                 playlistId,
                 updatedAt: item.updatedAt ?? now,
-            }))
+            })),
+            android?.stampNativePlaybackPlaylistReset
         );
     }
 

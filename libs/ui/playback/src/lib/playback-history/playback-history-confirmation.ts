@@ -33,6 +33,17 @@ export class PlaybackHistoryConfirmation {
 
     /** @param playing see {@link PlaybackProgressConfirmation.record}. */
     record(position: number, playing?: boolean): void {
+        this.syncTarget();
+        this.progress.record(position, playing);
+    }
+
+    recordPlayedTime(seconds: number): void {
+        this.syncTarget();
+        this.progress.rebase();
+        this.progress.addPlayedTime(seconds);
+    }
+
+    private syncTarget(): void {
         const identity = JSON.stringify(this.options.target());
         const sourceRevision = this.options.sourceRevision?.() ?? null;
         if (identity !== this.identity) {
@@ -43,7 +54,5 @@ export class PlaybackHistoryConfirmation {
             this.sourceRevision = sourceRevision;
             this.progress.rebase();
         }
-
-        this.progress.record(position, playing);
     }
 }

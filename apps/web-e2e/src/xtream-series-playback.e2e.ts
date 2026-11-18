@@ -252,6 +252,32 @@ test.describe('@xtream inline series fullscreen', () => {
         await expect(card).toHaveCount(0);
     });
 
+    for (const target of [
+        'player-controls-next-episode',
+        'player-controls-up-next',
+    ])
+        test(`Escape from ${target} dismisses Up next before closing playback`, async ({
+            page,
+            request,
+        }) => {
+            await routeEpisodeClip(page);
+            await rewriteSeriesEpisodesToMp4(page);
+            await selectWebPlayer(page, 'HTML5 video player');
+            const { playerView } = await playFirstSeriesEpisode(page, request);
+            const card = playerView.locator(
+                '[data-test-id="player-controls-up-next"]'
+            );
+            await expect(card).toBeVisible();
+
+            await playerView.locator(`[data-test-id="${target}"]`).focus();
+            await page.keyboard.press('Escape');
+            await expect(card).toHaveCount(0);
+            await expect(playerView).toBeVisible();
+
+            await page.keyboard.press('Escape');
+            await expect(playerView).toHaveCount(0);
+        });
+
     test('switches episodes from the fullscreen episode panel without leaving fullscreen', async ({
         page,
         request,
@@ -295,6 +321,7 @@ test.describe('@xtream inline series fullscreen', () => {
         // Keyboard focus in the panel wears the player's ring, not the
         // theme's: the panel carries `dark-theme` for its tokens, and that
         // context declares the app's ring colour again.
+        await expect(panel).toBeFocused();
         await page.keyboard.press('Tab');
         expect(
             await page.evaluate(() => {

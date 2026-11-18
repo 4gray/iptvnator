@@ -1,9 +1,9 @@
+import type { PlaybackPositionUpdate } from '@iptvnator/shared/interfaces';
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import {
     ChangeDetectionStrategy,
     Component,
     computed,
-    DestroyRef,
     effect,
     ElementRef,
     inject,
@@ -11,6 +11,7 @@ import {
     output,
     signal,
     TemplateRef,
+    untracked,
     viewChild,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
@@ -28,8 +29,10 @@ import {
 import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import type { PlaybackDiagnosticCode } from '@iptvnator/playback/util';
 import { SettingsStore } from '@iptvnator/services';
+import { AutoplayStreakService } from './autoplay-streak.service';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 import type { PlayerMediaTitle, PlayerUpNextItem } from '../player-controls';
+import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 import {
     FULLSCREEN_CHANNEL_PANEL,
     type FullscreenChannelPanelContext,
@@ -55,7 +58,6 @@ import {
 } from './portal-inline-player-stage.util';
 import { UpNextRailComponent } from './up-next-rail.component';
 import type { UpNextRailItem } from './up-next-rail.util';
-import { IdleControlsVisibility } from './idle-controls-visibility';
 
 @Component({
     selector: 'app-portal-inline-player',
@@ -92,6 +94,7 @@ import { IdleControlsVisibility } from './idle-controls-visibility';
 export class PortalInlinePlayerComponent {
     readonly playbackSessionKey = input.required<string>();
     readonly playback = input<ResolvedPortalPlayback | null>(null);
+    readonly playbackPending = input(false);
     readonly episodeMetadata = input<SeriesEpisodeMetadata | null>(null);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     /** Series name for the fullscreen title overlay. Xtream episode playback
@@ -139,12 +142,6 @@ export class PortalInlinePlayerComponent {
      */
     readonly playerOverride = input<VideoPlayer | null>(null);
     private readonly settingsStore = inject(SettingsStore);
-    /**
-     * Title row (name, copy-URL, close) visibility: shown on pointer
-     * activity over the viewport, hidden again once idle, matching standard
-     * video-player control behaviour instead of staying on screen forever.
-     */
-    protected readonly headerControls = new IdleControlsVisibility();
     // Strip only live-channel titles — VOD/series titles ("Mission:
     // Impossible - Fallout") must never lose their leading segment.
     readonly title = computed(() =>
@@ -253,8 +250,9 @@ export class PortalInlinePlayerComponent {
             title: next.title,
             thumbnailUrl: next.thumbnailUrl,
             progressPercent: next.progressPercent,
-            showCountdown:
-                navigation?.autoplayEnabled === true && navigation.canNext,
+            // Autoplay crosses into the next season too (see onPlaybackEnded),
+            // so the countdown holds wherever there is a next episode.
+            showCountdown: navigation?.autoplayEnabled === true,
         };
     });
 
@@ -278,10 +276,7 @@ export class PortalInlinePlayerComponent {
     /** The now-playing bar's Close button: back to browse, no navigation.
      * Leaving the page is the detail shell's sticky Back, not this bar's. */
     readonly closed = output<void>();
-    readonly timeUpdate = output<{
-        currentTime: number;
-        duration: number;
-    }>();
+    readonly timeUpdate = output<PlaybackPositionUpdate>();
     readonly streamUrlCopied = output<void>();
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
     /** Alternatives offered on the playback-error screen. */
@@ -313,11 +308,50 @@ export class PortalInlinePlayerComponent {
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
     /** An episode picked in the Up Next rail or the fullscreen episode panel. */
-    readonly upNextEpisodeSelected = output<UpNextRailItem>();
+    readonly upNextEpisodeSelected = output<
+        UpNextRailItem & { autoplaySignal?: AbortSignal }
+    >();
+    private automaticSeasonAdvance: {
+        session: string;
+        controller: AbortController;
+    } | null = null;
+    private readonly autoplayStreak = inject(AutoplayStreakService);
+    private readonly pendingSeasonAdvance = signal<string | null>(null);
+    private lastReportedPosition: number | undefined;
+    private readonly seasonLoading = computed(() =>
+        Object.values(this.seasonLoadStates() ?? {}).includes('loading')
+    );
     /** A season tab picked in the fullscreen episode panel (lazy load hook). */
     readonly episodePanelSeasonSelected = output<string>();
 
     constructor() {
+        // Every episode start reports to the autoplay run (#2245); one the
+        // viewer started, rather than autoplay, resets it.
+        effect(() => {
+            this.playbackSessionKey();
+            this.lastReportedPosition = undefined;
+            this.automaticSeasonAdvance = null;
+            untracked(() => this.autoplayStreak.playbackStarted());
+        });
+        effect(() => {
+            const session = this.pendingSeasonAdvance();
+            if (session === null) return;
+            if (
+                session === this.playbackSessionKey() &&
+                this.hasPlayback() &&
+                !this.playbackPending() &&
+                this.seriesNavigation()?.autoplayEnabled &&
+                this.seriesNavigation()?.canNext === false
+            ) {
+                const next = this.upNextRailNext();
+                if (!next && Object.keys(this.seasonLoadStates() ?? {}).length)
+                    return;
+                this.pendingSeasonAdvance.set(null);
+                if (next) untracked(() => this.playAutoplaySuccessor(next));
+            } else {
+                this.pendingSeasonAdvance.set(null);
+            }
+        });
         effect((onCleanup) => {
             const element = this.stageViewport()?.nativeElement;
             if (!element || typeof ResizeObserver === 'undefined') {
@@ -329,18 +363,30 @@ export class PortalInlinePlayerComponent {
                 observeStageSize(element, (size) => this.stageSize.set(size))
             );
         });
-        inject(DestroyRef).onDestroy(() => this.headerControls.dispose());
+    }
+
+    private cancelSeasonAdvance(): void {
+        this.pendingSeasonAdvance.set(null);
+        if (this.automaticSeasonAdvance?.session === this.playbackSessionKey())
+            this.automaticSeasonAdvance.controller.abort();
+        this.automaticSeasonAdvance = null;
     }
 
     onClose(): void {
+        this.cancelSeasonAdvance();
         this.closed.emit();
     }
 
-    onViewportActivity(): void {
-        this.headerControls.notifyActivity();
-    }
-
-    onTimeUpdate(event: { currentTime: number; duration: number }): void {
+    onTimeUpdate(event: PlayerTimeUpdate): void {
+        // MPV can report the same final position again after playback ends.
+        if (
+            event.playing ||
+            (this.lastReportedPosition !== undefined &&
+                event.currentTime < this.lastReportedPosition)
+        ) {
+            this.cancelSeasonAdvance();
+        }
+        this.lastReportedPosition = event.currentTime;
         this.timeUpdate.emit(event);
     }
 
@@ -353,14 +399,50 @@ export class PortalInlinePlayerComponent {
     }
 
     onPlaybackEnded(): void {
+        this.pendingSeasonAdvance.set(null);
+        // Hosts autoplay within a season; at a season's last episode the
+        // next season's first plays through the rail selection path, the
+        // same way the TV client continues a series.
+        const navigation = this.seriesNavigation();
+        if (
+            navigation?.autoplayEnabled === true &&
+            !navigation.canNext &&
+            !this.playbackPending()
+        ) {
+            const next = this.upNextRailNext();
+            if (next && this.playAutoplaySuccessor(next)) return;
+            if (!next && this.seasonLoading())
+                this.pendingSeasonAdvance.set(this.playbackSessionKey());
+        }
         this.playbackEnded.emit();
     }
 
+    private playAutoplaySuccessor(next: UpNextRailItem): boolean {
+        if (!this.autoplayStreak.beginAutoplay()) return false;
+        const automatic = new AbortController();
+        this.automaticSeasonAdvance = {
+            session: this.playbackSessionKey(),
+            controller: automatic,
+        };
+        automatic.signal.addEventListener(
+            'abort',
+            () => this.autoplayStreak.cancelAutoplay(),
+            { once: true }
+        );
+        this.upNextEpisodeSelected.emit({
+            ...next,
+            autoplaySignal: automatic.signal,
+        });
+        return true;
+    }
+
     onPreviousEpisodeRequested(): void {
+        this.cancelSeasonAdvance();
         this.previousEpisodeRequested.emit();
     }
 
     onNextEpisodeRequested(): void {
+        this.cancelSeasonAdvance();
         // Season-local navigation ends at a season's last episode; the Up
         // next card can still offer the next season's first, which only
         // the rail selection path knows how to play.
@@ -373,12 +455,13 @@ export class PortalInlinePlayerComponent {
     }
 
     onUpNextEpisodeSelected(item: UpNextRailItem): void {
+        this.cancelSeasonAdvance();
         this.upNextEpisodeSelected.emit(item);
     }
 
     /** Panel pick: same host path as the rail, then the panel slides away. */
     onPanelEpisodeSelected(item: UpNextRailItem, close: () => void): void {
-        this.upNextEpisodeSelected.emit(item);
+        this.onUpNextEpisodeSelected(item);
         close();
     }
 }

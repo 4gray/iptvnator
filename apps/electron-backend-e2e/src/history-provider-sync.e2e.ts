@@ -14,6 +14,7 @@ import {
     saveSourceDialog,
     sourceRowByTitle,
     openGlobalRecent,
+    goToDashboard,
     clearCurrentUnifiedCollection,
     addXtreamPortal,
     addStalkerPortal,
@@ -363,3 +364,137 @@ for (const provider of ['xtream', 'stalker'] as const)
             rmSync(directory, { recursive: true, force: true });
         }
     });
+
+test('shows the catalog title and poster for existing synced Xtream history @history @electron @persistence', async ({
+    browser,
+}) => {
+    const server = await startSourceSyncServer();
+    const context = await browser.newContext({ serviceWorkers: 'block' });
+    const directory = mkdtempSync(join(tmpdir(), 'iptvnator-history-artwork-'));
+    let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
+    try {
+        const page = await context.newPage();
+        await page.route('**/assets/app-config.js', (route) =>
+            route.fulfill({
+                contentType: 'application/javascript',
+                body: `window.__IPTVNATOR_CONFIG__=${JSON.stringify({ BACKEND_URL: server.apiUrl })};`,
+            })
+        );
+        await page.goto(`${frontend}/workspace/sources`);
+        const sourceTitle = 'Synthetic shared catalog';
+        await addXtreamPortal(page, {
+            name: sourceTitle,
+            username: 'marketing',
+            password: 'marketing',
+        });
+        const { instanceId } = await (
+            await fetch(`${server.apiUrl}/v1/instance`)
+        ).json();
+        const inventory = await (
+            await fetch(`${server.apiUrl}/v1/sources`)
+        ).json();
+        const id = inventory.entries[0].source.id;
+        writeFileSync(
+            join(directory, 'source-server.json'),
+            JSON.stringify({ apiUrl: server.apiUrl, instanceId })
+        );
+
+        desktop = await launchElectronApp(directory);
+        const native = desktop.mainWindow;
+        await openSources(native);
+        await sourceRowByTitle(native, sourceTitle)
+            .getByText(sourceTitle, { exact: true })
+            .click();
+        await waitForXtreamWorkspaceReady(native);
+        const identity = { tmdbId: 123456, releaseYear: 2024 };
+        const movie = await native.evaluate(
+            async ({ id, identity }) => {
+                const [item] = await window.electron.dbGetContent(id, 'movie');
+                if (!item?.poster_url)
+                    throw new Error('Missing catalog poster');
+                await window.electron.dbSetContentMetadataIfMissing(
+                    item.id,
+                    identity
+                );
+                await window.electron.dbSavePlaybackPosition(id, {
+                    contentXtreamId: item.xtream_id,
+                    contentType: 'vod',
+                    positionSeconds: 120,
+                    durationSeconds: 7200,
+                });
+                return item;
+            },
+            { id, identity }
+        );
+
+        const headers = { 'X-IPTVnator-Instance-Id': instanceId };
+        const read = async () =>
+            await (
+                await fetch(`${server.apiUrl}/v1/history/sources/${id}`, {
+                    headers,
+                })
+            ).json();
+        const { scope, state } = await read();
+        const snapshotTitle = 'Synthetic remote playback title';
+        const response = await fetch(`${server.apiUrl}/v1/history/operations`, {
+            method: 'POST',
+            headers: { ...headers, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                scope,
+                operation: {
+                    kind: 'touch',
+                    operationId: 'synthetic-existing-watch',
+                    deviceId: 'synthetic-remote',
+                    baseRevision: state.revision,
+                    viewedAt: Date.now(),
+                    reference: {
+                        provider: 'xtream',
+                        kind: 'movie',
+                        id: String(movie.xtream_id),
+                    },
+                    snapshot: {
+                        title: snapshotTitle,
+                        tmdbId: String(identity.tmdbId),
+                        releaseYear: String(identity.releaseYear),
+                    },
+                },
+            }),
+        });
+        expect(response.ok).toBe(true);
+        const before = (await read()).state;
+        expect(before.items).toHaveLength(1);
+
+        await enable(native);
+        await goToDashboard(native);
+        const rail = native.getByTestId('dashboard-continue-watching-rail');
+        const card = rail
+            .getByTestId('dashboard-continue-watching-rail-card')
+            .filter({ hasText: movie.title });
+        await expect(card).toBeVisible();
+        const poster = card.getByRole('img', {
+            name: movie.title,
+            exact: true,
+        });
+        await expect(poster).toHaveAttribute('src', movie.poster_url);
+        await expect
+            .poll(() =>
+                poster.evaluate((image: HTMLImageElement) => image.naturalWidth)
+            )
+            .toBeGreaterThan(0);
+        await expect(
+            rail.getByText(snapshotTitle, { exact: true })
+        ).toHaveCount(0);
+        expect(
+            await native.evaluate(
+                (id) => window.electron.dbGetRecentItems(id),
+                id
+            )
+        ).toEqual([]);
+        expect((await read()).state).toEqual(before);
+    } finally {
+        if (desktop) await closeElectronApp(desktop);
+        await context.close();
+        await server.close();
+        rmSync(directory, { recursive: true, force: true });
+    }
+});

@@ -1,6 +1,7 @@
 <div
     #playerRoot
     class="embedded-mpv-player"
+    [class.embedded-mpv-player--frame-copy]="isFrameCopyEngine()"
     [class.embedded-mpv-player--fullscreen]="isFullscreen()"
     [class.embedded-mpv-player--controls-enabled]="
         !isFrameCopyEngine() && showControls() && isSupported()
@@ -42,7 +43,7 @@
                     isReconnecting() ? 'sync' : 'error_outline'
                 }}</mat-icon>
                 <p>{{ statusLabel() }}</p>
-                <button mat-stroked-button type="button" (click)="retry()">
+                <button mat-stroked-button type="button" [disabled]="!retryEnabled()" (click)="retry()">
                     <mat-icon>refresh</mat-icon>
                     <span>{{ 'EMBEDDED_MPV.PLAYER.RETRY' | translate }}</span>
                 </button>
@@ -70,7 +71,7 @@
             >
                 <mat-icon>warning_amber</mat-icon>
                 <p>{{ 'EMBEDDED_MPV.PLAYER.STALLED' | translate }}</p>
-                <button mat-stroked-button type="button" (click)="retry()">
+                <button mat-stroked-button type="button" [disabled]="!retryEnabled()" (click)="retry()">
                     <mat-icon>refresh</mat-icon>
                     <span>{{ 'EMBEDDED_MPV.PLAYER.RETRY' | translate }}</span>
                 </button>
@@ -106,6 +107,9 @@
             [upNext]="upNext()"
             [timelineSegments]="controlsTimelineSegments()"
             [showControls]="showControls()"
+            [canOpenMultiview]="canOpenMultiview()"
+            (multiviewAddRequested)="multiviewAddRequested.emit()"
+            (multiviewLayoutRequested)="multiviewLayoutRequested.emit($event)"
             [shortcutsEnabled]="sharedShortcutsEnabled()"
             (previousEpisodeRequested)="requestPreviousEpisode()"
             (nextEpisodeRequested)="requestNextEpisode()"
@@ -155,6 +159,25 @@
                             isPaused() ? 'play_arrow' : 'pause'
                         }}</mat-icon>
                     </button>
+
+                    @if (sharedControls.capabilities().liveEdge) {
+                        <button
+                            mat-icon-button
+                            type="button"
+                            class="embedded-mpv-player__control-button"
+                            data-test-id="embedded-mpv-jump-to-live"
+                            (click)="jumpToLiveEdge()"
+                            [attr.aria-label]="
+                                'EMBEDDED_MPV.PLAYER.JUMP_TO_LIVE' | translate
+                            "
+                            [matTooltip]="
+                                'EMBEDDED_MPV.PLAYER.JUMP_TO_LIVE' | translate
+                            "
+                            matTooltipPosition="above"
+                        >
+                            <mat-icon>fast_forward</mat-icon>
+                        </button>
+                    }
 
                     @if (showSeriesNavigation()) {
                         <button

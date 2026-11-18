@@ -53,6 +53,7 @@ export function createBrowserSessionStorage(): UserDataStorage {
 
 export {
     XTREAM_USER_DATA_KEYS,
+    forgetXtreamRestoreReceipt,
     writeXtreamUserDataMap,
 } from './xtream-user-data-keys';
 

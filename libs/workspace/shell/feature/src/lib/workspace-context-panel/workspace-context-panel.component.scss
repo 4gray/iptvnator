@@ -169,7 +169,8 @@ app-workspace-context-category-view {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    overscroll-behavior: contain;
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: var(--app-overscroll-y, contain);
     scrollbar-width: thin;
     scrollbar-color: color-mix(in srgb, var(--app-muted-color) 55%, transparent)
         transparent;

@@ -39,6 +39,7 @@ function createFakeController(sample: jest.Mock) {
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),
         togglePictureInPicture: jest.fn(),
+        jumpToLiveEdge: jest.fn(),
     } as jest.Mocked<PlayerControlsCommands>;
     const controller: PlayerController = {
         capabilities,
@@ -99,6 +100,60 @@ describe('PlayerControlsComponent stream info', () => {
         fixture.destroy();
         surface.remove();
         jest.useRealTimers();
+    });
+
+    it('offers add-stream, Grid and Focus actions from the Multiview button next to settings', () => {
+        jest.useRealTimers();
+        const queryAdd = (): HTMLButtonElement | null =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="player-controls-second-stream-button"]'
+            );
+        expect(queryAdd()).toBeNull();
+        const requested = jest.fn();
+        fixture.componentInstance.multiviewAddRequested.subscribe(requested);
+        const layoutRequested = jest.fn();
+        fixture.componentInstance.multiviewLayoutRequested.subscribe(
+            layoutRequested
+        );
+        fixture.componentRef.setInput('canOpenMultiview', true);
+        fake.capabilities.update((value) => ({
+            ...value,
+            playbackSpeed: true,
+        }));
+        fixture.detectChanges();
+        const settings = fixture.nativeElement.querySelector(
+            '[data-test-id="player-controls-settings-button"]'
+        );
+        expect(settings).not.toBeNull();
+        const actions = [
+            ...fixture.nativeElement.querySelectorAll(
+                '.player-controls__actions > button'
+            ),
+        ];
+        expect(actions[actions.indexOf(queryAdd()) + 1]).toBe(settings);
+        expect(queryAdd()?.getAttribute('aria-haspopup')).toBe('menu');
+        expect(
+            queryButton()?.closest('.player-controls__corner')
+        ).not.toBeNull();
+        queryAdd()?.click();
+        fixture.detectChanges();
+        expect(requested).not.toHaveBeenCalled();
+        const [add, grid, focus] =
+            document.querySelectorAll<HTMLElement>('[role="menuitem"]');
+        expect(add?.textContent).toContain('TWO_STREAMS.ADD_STREAM');
+        expect(grid?.textContent).toContain('TWO_STREAMS.OPEN_GRID');
+        expect(focus?.textContent).toContain('TWO_STREAMS.FOCUS_LAYOUT');
+        grid?.click();
+        expect(layoutRequested).toHaveBeenCalledWith('grid');
+        expect(requested).not.toHaveBeenCalled();
+        fake.capabilities.update((value) => ({ ...value, streamStats: false }));
+        fixture.detectChanges();
+        expect(queryButton()).toBeNull();
+        expect(queryAdd()).not.toBeNull();
+        expect(queryScrim()).toBeNull();
+        fixture.componentRef.setInput('showControls', false);
+        fixture.detectChanges();
+        expect(queryAdd()).toBeNull();
     });
 
     it('renders the corner button only when the engine reports stats', () => {

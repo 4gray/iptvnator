@@ -1,21 +1,26 @@
 import { type Page } from '@playwright/test';
+import { test } from './fixtures';
 
 interface ProviderTargetPayload {
     readonly url: string;
 }
 
 const BACKEND_ORIGIN = 'http://localhost:3000';
-const APP_ORIGIN = process.env['BASE_URL']
-    ? new URL(process.env['BASE_URL']).origin
-    : 'http://localhost:4200';
-const CORS_HEADERS = {
-    'access-control-allow-headers': 'content-type',
-    'access-control-allow-methods': 'POST, OPTIONS',
-    'access-control-allow-origin': APP_ORIGIN,
-} as const;
+
+function mockProviderCorsHeaders() {
+    const { baseURL } = test.info().project.use;
+    return {
+        'access-control-allow-headers': 'content-type',
+        'access-control-allow-methods': 'POST, OPTIONS',
+        'access-control-allow-origin': new URL(
+            baseURL ?? 'http://localhost:4200'
+        ).origin,
+    };
+}
 
 /** Pin standalone provider specs to the mocked stateless backend in every build. */
 export async function configureMockProviderBackend(page: Page): Promise<void> {
+    const headers = mockProviderCorsHeaders();
     await page.route('**/assets/app-config.js', (route) =>
         route.fulfill({
             contentType: 'application/javascript',
@@ -25,7 +30,7 @@ export async function configureMockProviderBackend(page: Page): Promise<void> {
     await page.route(`${BACKEND_ORIGIN}/v1/instance`, (route) =>
         route.fulfill({
             contentType: 'application/json',
-            headers: CORS_HEADERS,
+            headers,
             body: JSON.stringify({
                 service: 'iptvnator',
                 apiVersion: 1,
@@ -41,12 +46,13 @@ export async function interceptProviderTargetRegistration(
     page: Page
 ): Promise<Map<string, string>> {
     const providerTargets = new Map<string, string>();
+    const headers = mockProviderCorsHeaders();
 
     await page.route(`${BACKEND_ORIGIN}/provider-targets**`, async (route) => {
         if (route.request().method() === 'OPTIONS') {
             await route.fulfill({
                 body: '',
-                headers: CORS_HEADERS,
+                headers,
                 status: 200,
             });
             return;
@@ -60,7 +66,7 @@ export async function interceptProviderTargetRegistration(
                     status: 400,
                 }),
                 contentType: 'application/json',
-                headers: CORS_HEADERS,
+                headers,
                 status: 400,
             });
             return;
@@ -72,7 +78,7 @@ export async function interceptProviderTargetRegistration(
         await route.fulfill({
             body: JSON.stringify({ targetId }),
             contentType: 'application/json',
-            headers: CORS_HEADERS,
+            headers,
             status: 200,
         });
     });

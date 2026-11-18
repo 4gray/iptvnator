@@ -72,6 +72,7 @@ export function installRemote(
 ) {
     registerTvKeys();
     let lastMove = 0;
+    let spaceHandled = false;
     const handler = (event: KeyboardEvent) => {
         const code = event.keyCode;
         const direction =
@@ -92,6 +93,15 @@ export function installRemote(
         if (action) {
             event.preventDefault();
             playerKey(action);
+            return;
+        }
+        if (event.key === ' ') {
+            if (!event.repeat)
+                spaceHandled = spaceTogglesPlayback(event, fullscreen());
+            if (spaceHandled) {
+                event.preventDefault();
+                if (!event.repeat) playerKey('toggle');
+            }
             return;
         }
         if (!direction.startsWith('Arrow')) return;
@@ -123,7 +133,7 @@ export function installRemote(
         const root =
             document.querySelector('[data-tv-modal]') ??
             (fullscreen()
-                ? document.querySelector('.player-controls')
+                ? document.querySelector('.native-player.fullscreen')
                 : document);
         const candidates = Array.from(
             root?.querySelectorAll<HTMLElement>(selectors) ?? []
@@ -158,6 +168,34 @@ export function installRemote(
         target?.focus();
         target?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     };
+    // Match the handled keydown even if focus or fullscreen changed meanwhile.
+    const keyup = (event: KeyboardEvent) => {
+        if (event.key !== ' ') return;
+        if (spaceHandled) event.preventDefault();
+        spaceHandled = false;
+    };
     document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
+    document.addEventListener('keyup', keyup);
+    return () => {
+        document.removeEventListener('keydown', handler);
+        document.removeEventListener('keyup', keyup);
+    };
+}
+
+/**
+ * Space toggles playback in the fullscreen player, never inside text entry.
+ * The seek slider is an input too, but Space means nothing to it.
+ */
+function spaceTogglesPlayback(event: KeyboardEvent, fullscreen: boolean) {
+    const target = event.target as Element | null;
+    const slider = !!target?.matches?.('input[type="range"]');
+    return (
+        fullscreen &&
+        event.key === ' ' &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.metaKey &&
+        (slider || !editingText(target)) &&
+        !document.querySelector('[data-tv-modal]')
+    );
 }

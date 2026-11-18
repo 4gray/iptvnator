@@ -524,9 +524,10 @@ export class VideoPlayerComponent
         // Embedded MPV requests bypass the Electron webRequest override, so
         // the playlist-level custom headers must ride in the payload; channel
         // #EXTVLCOPT values still win.
+        const playlist = this.activePlaylistMeta();
         const effective = resolveExternalPlayerHttpHeaders(
             playbackTarget,
-            this.activePlaylistMeta()
+            playlist
         );
         const headers: Record<string, string> = {};
         if (effective['user-agent']) {
@@ -547,6 +548,14 @@ export class VideoPlayerComponent
                 playbackTarget.url,
             thumbnail: activeChannel.tvg?.logo ?? null,
             isLive: !this.activePlaybackUrl() && !isLikelyM3uVod(activeChannel),
+            catalogIdentity:
+                playlist && !this.activePlaybackUrl()
+                    ? {
+                          playlistId: playlist._id,
+                          type: 'live',
+                          id: activeChannel.id,
+                      }
+                    : undefined,
             headers: Object.keys(headers).length > 0 ? headers : undefined,
             userAgent: effective['user-agent'],
             referer: effective.referer,

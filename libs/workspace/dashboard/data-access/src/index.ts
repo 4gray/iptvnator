@@ -6,4 +6,5 @@ export * from './lib/dashboard-recommendations.util';
 export * from './lib/dashboard-source-expiry.service';
 export * from './lib/dashboard-source-expiry.util';
 export * from './lib/dashboard-tmdb-lookup.util';
+export * from './lib/dashboard-tmdb-match.util';
 export * from './lib/dashboard-trending.service';

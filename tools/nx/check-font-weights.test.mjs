@@ -287,25 +287,29 @@ test('reads a TypeScript style object value as code', () => {
 
 test('treats JetBrains Mono after an always-available family as a fallback', () => {
     const source = [
-        ".a { font: 700 16px Roboto, 'JetBrains Mono'; }",
+        ".a { font: 700 16px Inter Variable, 'JetBrains Mono'; }",
         ".b { font-family: monospace, 'JetBrains Mono'; font-weight: 700; }",
         ".c { font-family: 'SF Mono', 'JetBrains Mono'; font-weight: 700; }",
         ".d { font: 700 12px/1.4 'JetBrains Mono'; }",
         ".e { font: 700 12px / 1.4 'JetBrains Mono'; }",
-        ".f { font: 700 12px / 1.4 Roboto, 'JetBrains Mono'; }",
-        ".g { font: 700 12px /1.4 Roboto, 'JetBrains Mono'; }",
-        ".h { font-family: 'Roboto', 'JetBrains Mono'; font-weight: 700; }",
+        ".f { font: 700 12px / 1.4 Inter Variable, 'JetBrains Mono'; }",
+        ".g { font: 700 12px /1.4 Inter Variable, 'JetBrains Mono'; }",
+        ".h { font-family: 'Inter Variable', 'JetBrains Mono'; font-weight: 700; }",
         // DM Sans is Latin-only: Russian or Greek text falls through to Mono.
         ".i { font-family: 'DM Sans', 'JetBrains Mono'; font-weight: 700; }",
         // A size from a variable: the family follows it.
         ".j { font: 700 var(--size, 12px) 'JetBrains Mono'; }",
-        ".k { font: 700 var(--size, 12px) Roboto, 'JetBrains Mono'; }",
+        ".k { font: 700 var(--size, 12px) Inter Variable, 'JetBrains Mono'; }",
         ".l { font: 700 $size 'JetBrains Mono'; }",
         ".m { font: 700 var(--size) 'JetBrains Mono'; }",
         // The name is matched whole.
         ".n { font-family: 'Not JetBrains Mono'; font-weight: 700; }",
         // `emoji` covers special glyphs only; text falls through to Mono.
         ".o { font-family: emoji, 'JetBrains Mono'; font-weight: 700; }",
+        // Only Inter Variable is bundled: Roboto and a plain `Inter` are
+        // local fonts some systems lack.
+        ".p { font-family: Roboto, 'JetBrains Mono'; font-weight: 700; }",
+        ".q { font-family: Inter, 'JetBrains Mono'; font-weight: 700; }",
     ].join('\n');
 
     assert.deepEqual(offScale('libs/m6/a.scss', source).sort(), [
@@ -313,6 +317,8 @@ test('treats JetBrains Mono after an always-available family as a fallback', () 
         '12 font: 700',
         '13 font: 700',
         '15 font-weight: 700',
+        '16 font-weight: 700',
+        '17 font-weight: 700',
         '3 font-weight: 700',
         '4 font: 700',
         '5 font: 700',
@@ -321,7 +327,7 @@ test('treats JetBrains Mono after an always-available family as a fallback', () 
     assert.deepEqual(
         offScale(
             'apps/web/src/a.component.html',
-            `<div style="font: 700 16px Roboto, 'JetBrains Mono'"></div>`
+            `<div style="font: 700 16px Inter Variable, 'JetBrains Mono'"></div>`
         ),
         []
     );
@@ -3764,33 +3770,33 @@ test('reads quoted family text as a name', () => {
     // In a string only a Sass `#{…}` is a variable.
     for (const [source, expected] of [
         [
-            `:root { --face: Roboto; } .x { font-family: "var(--face)", ${mono}; font-weight: 700; }`,
+            `:root { --face: Inter Variable; } .x { font-family: "var(--face)", ${mono}; font-weight: 700; }`,
             ['font-weight: 700'],
         ],
         [
-            `$face: Roboto; .x { font-family: "$face", ${mono}; font-weight: 700; }`,
+            `$face: Inter Variable; .x { font-family: "$face", ${mono}; font-weight: 700; }`,
             ['font-weight: 700'],
         ],
         [
-            `$face: Roboto; .x { font-family: "#{$face}", ${mono}; font-weight: 700; }`,
+            `$face: Inter Variable; .x { font-family: "#{$face}", ${mono}; font-weight: 700; }`,
             [],
         ],
         [
-            `:root { --face: Roboto; } .x { font-family: var(--face, "a)b"), ${mono}; font-weight: 700; }`,
+            `:root { --face: Inter Variable; } .x { font-family: var(--face, "a)b"), ${mono}; font-weight: 700; }`,
             [],
         ],
         // A quoted `)` stays in the fallback, and a quoted `var()` in a
         // value is no reference that could leave it invalid.
         [
-            `.x { font-family: var(--nope, "a)b", Roboto), ${mono}; font-weight: 700; }`,
+            `.x { font-family: var(--nope, "a)b", Inter Variable), ${mono}; font-weight: 700; }`,
             [],
         ],
         [
-            `:root { --face: "var(--x)", Roboto; } .x { font-family: var(--face, ${mono}); font-weight: 700; }`,
+            `:root { --face: "var(--x)", Inter Variable; } .x { font-family: var(--face, ${mono}); font-weight: 700; }`,
             [],
         ],
         [
-            `:root { --face: "a\\"var(--x)", Roboto; } .x { font-family: var(--face, ${mono}); font-weight: 700; }`,
+            `:root { --face: "a\\"var(--x)", Inter Variable; } .x { font-family: var(--face, ${mono}); font-weight: 700; }`,
             [],
         ],
         [
@@ -6032,7 +6038,9 @@ test('resolves family variables in their place in the list', () => {
 
     // `var(--size)` is the size; `var(--face)` comes first in the list.
     assert.deepEqual(
-        report(`:root { --face: Roboto; --size: 12px; } .x { ${shorthand} }`),
+        report(
+            `:root { --face: Inter Variable; --size: 12px; } .x { ${shorthand} }`
+        ),
         []
     );
     assert.deepEqual(
@@ -6043,14 +6051,14 @@ test('resolves family variables in their place in the list', () => {
     );
     assert.deepEqual(
         report(
-            ":root { --face: Roboto; } .y { font-family: var(--face), 'JetBrains Mono'; font-weight: 700; }"
+            ":root { --face: Inter Variable; } .y { font-family: var(--face), 'JetBrains Mono'; font-weight: 700; }"
         ),
         []
     );
     // A comma set apart still ends the entry before it.
     assert.deepEqual(
         report(
-            ":root { --face: Roboto; --size: 12px; } .x { font: 700 var(--size) var(--face) , 'JetBrains Mono'; }"
+            ":root { --face: Inter Variable; --size: 12px; } .x { font: 700 var(--size) var(--face) , 'JetBrains Mono'; }"
         ),
         []
     );
@@ -6071,7 +6079,7 @@ test('resolves family variables in their place in the list', () => {
     // Any branch that can render Mono counts.
     assert.deepEqual(
         report(
-            ":root { --face: Roboto; } .z { --face: 'SF Mono'; } .y { font-family: var(--face), 'JetBrains Mono'; font-weight: 700; }"
+            ":root { --face: Inter Variable; } .z { --face: 'SF Mono'; } .y { font-family: var(--face), 'JetBrains Mono'; font-weight: 700; }"
         ),
         ['font-weight: 700']
     );

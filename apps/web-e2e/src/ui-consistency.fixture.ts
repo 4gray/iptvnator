@@ -104,6 +104,33 @@ export async function expectCollectionFits(page: Page) {
     expect(problems).toEqual([]);
 }
 
+type Box = { x: number; y: number; width: number; height: number };
+
+async function visibleBox(locator: Locator): Promise<Box | null> {
+    if (!(await locator.isVisible())) return null;
+    const box = await locator.boundingBox();
+    return box && box.width > 0 && box.height > 0 ? box : null;
+}
+
+/** No two visible boxes among `items` overlap by more than a pixel. */
+export async function expectNoOverlap(items: Locator[], label: string) {
+    const boxes = await Promise.all(items.map(visibleBox));
+    for (let i = 0; i < boxes.length; i++) {
+        for (let j = i + 1; j < boxes.length; j++) {
+            const a = boxes[i];
+            const b = boxes[j];
+            if (!a || !b) continue;
+            const w =
+                Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+            const h =
+                Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+            expect
+                .soft(w > 1 && h > 1, `${label}: items ${i} and ${j} overlap`)
+                .toBe(false);
+        }
+    }
+}
+
 export async function selectUiLanguage(
     page: Page,
     language: 'en' | 'de' | 'ru' | 'ar'

@@ -6,4 +6,5 @@ export enum Theme {
     MochaTheme = 'MOCHA_THEME',
     NightOwlTheme = 'NIGHT_OWL_THEME',
     BlackOledTheme = 'BLACK_OLED_THEME',
+    HighContrastTheme = 'HIGH_CONTRAST_THEME',
 }

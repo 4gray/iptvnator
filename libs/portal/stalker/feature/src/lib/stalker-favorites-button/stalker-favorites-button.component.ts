@@ -10,7 +10,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 import { BehaviorSubject, map, of, switchMap } from 'rxjs';
 import { PlaylistsService } from '@iptvnator/services';
-import { DetailIconButtonComponent } from '@iptvnator/ui/components';
+import {
+    DetailIconButtonComponent,
+    favoriteIcon,
+} from '@iptvnator/ui/components';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import {
     matchesFavoriteById,
@@ -37,6 +40,8 @@ type FavoriteButtonItem = StalkerSelectedVodItem & {
     ],
 })
 export class FavoritesButtonComponent {
+    /** Filled heart when favourited, outline when not (UI-46). */
+    protected readonly favoriteIcon = favoriteIcon;
     private playlistService = inject(PlaylistsService);
     private stalkerStore = inject(StalkerStore);
 

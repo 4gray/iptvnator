@@ -21,6 +21,7 @@ import {
     restoreEpgGuidePreferences,
 } from './epg-guide-preferences';
 import { EpgGuideChannel } from './epg-guide-source';
+import { epgTodayKey, followEpgTodayRollover } from '../epg-today';
 
 /** How often the guide re-reads the clock; drives "on now" and the now-line. */
 const CLOCK_TICK_MS = 60_000;
@@ -48,10 +49,8 @@ export class EpgGuideViewState {
     readonly scrollLeft = signal(0);
 
     readonly axis = computed(() => buildGuideDayAxis(this.dayKey()));
-    readonly isToday = computed(() => {
-        this.nowMs();
-        return this.dayKey() === getTodayEpgDateKey();
-    });
+    private readonly todayKey = epgTodayKey(this.nowMs);
+    readonly isToday = computed(() => this.dayKey() === this.todayKey());
     readonly ticks = computed(() => buildGuideTicks(this.axis(), this.zoom()));
     readonly trackWidthPx = computed(() =>
         guideTrackWidthPx(this.axis(), this.zoom())
@@ -82,7 +81,15 @@ export class EpgGuideViewState {
         CLOCK_TICK_MS
     );
 
-    constructor(rememberCoverageFilter = true) {
+    constructor(rememberCoverageFilter = true, onRollover?: () => void) {
+        followEpgTodayRollover(
+            this.todayKey,
+            () => this.dayKey(),
+            (dayKey) => {
+                this.dayKey.set(dayKey);
+                onRollover?.();
+            }
+        );
         this.onlyWithEpg = signal(
             rememberCoverageFilter && this.preferences.onlyWithEpg
         );

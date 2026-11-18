@@ -126,6 +126,16 @@ export class WebPlayerRecoveryController {
         this.playbackState = { token, ended: true };
     }
 
+    confirmAndroidStart(): boolean {
+        const alreadyStarted = this.hasStartedPlayback();
+        this.clearDiagnostic();
+        this.playbackState = {
+            token: this.deps.playbackApplicationToken(),
+            ended: false,
+        };
+        return !alreadyStarted;
+    }
+
     readonly hasStartedPlayback = (): boolean => {
         const embedded = this.deps.embeddedSession();
         const token = this.deps.playbackApplicationToken();
@@ -145,6 +155,32 @@ export class WebPlayerRecoveryController {
                     this.deps.playbackApplicationToken()) ||
             !!this.visiblePlaybackDiagnostic()
         );
+    }
+
+    retryFailedPlayback(
+        mpv:
+            | {
+                  isReconnecting(): boolean;
+                  isErrored(): boolean;
+                  isLiveEnded(): boolean;
+                  retry(): void;
+              }
+            | undefined,
+        retryWeb: () => void
+    ): boolean {
+        if (!mpv) {
+            if (!this.canRetry()) return false;
+            retryWeb();
+        } else {
+            if (
+                mpv.isReconnecting() ||
+                (!mpv.isErrored() && !mpv.isLiveEnded())
+            )
+                return false;
+            this.recordEnd(this.deps.playbackApplicationToken());
+            mpv.retry();
+        }
+        return true;
     }
 
     handlePlaybackIssue(

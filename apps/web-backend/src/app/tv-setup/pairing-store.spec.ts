@@ -141,3 +141,35 @@ it('binds settings to a separate purpose and reveals replacement keys only to th
     );
     store.dispose();
 });
+
+it('passes the playback switches through settings defaults and drafts', () => {
+    const store = new PairingStore();
+    const defaults = {
+        layout: 'cinema' as const,
+        epg: true,
+        seriesAutoplay: false,
+        playerUpNextCard: true,
+        tmdb: { enabled: false, language: 'en', hasKey: false },
+    };
+    const session = store.create('playback', 'settings', defaults);
+    expect(store.read(session.id, session.phoneToken, 'phone')).toMatchObject({
+        defaults,
+    });
+    store.submit(session.id, session.phoneToken, {
+        layout: 'cinema',
+        epg: true,
+        seriesAutoplay: true,
+        playerUpNextCard: false,
+        tmdb: { enabled: false, language: 'en' },
+    });
+    expect(store.read(session.id, session.tvToken, 'tv')).toMatchObject({
+        settings: { seriesAutoplay: true, playerUpNextCard: false },
+    });
+    expect(() =>
+        store.create('playback', 'settings', {
+            ...defaults,
+            seriesAutoplay: 'yes' as unknown as boolean,
+        })
+    ).toThrow('Invalid settings defaults.');
+    store.dispose();
+});

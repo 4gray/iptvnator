@@ -30,32 +30,32 @@
     min-height: 0;
 }
 .settings-categories {
-    width: 300px;
+    width: 340px;
     flex-shrink: 0;
     overflow-y: auto;
-    padding: 8px;
-    margin: -8px 28px -8px -8px;
+    padding: var(--tv-focus-reach);
+    margin: -10px 22px -10px -10px;
 }
 .settings-categories button {
     width: 100%;
-    min-height: 88px;
-    margin-bottom: 12px;
+    min-height: var(--tv-list-row);
+    margin-bottom: var(--tv-space-1);
     background: transparent;
+    padding: 8px 24px;
 }
 .settings-categories small {
-    font-size: 16px;
-    margin-top: 6px;
+    font-size: var(--tv-type-eyebrow);
+    margin-top: 2px;
 }
 .settings-categories [aria-selected='true'] {
-    background: #1a2d24;
-    color: var(--tv-accent);
+    background: var(--tv-surface);
 }
 .settings-workspace > [role='tabpanel'] {
     flex: 1;
     min-width: 0;
     overflow-y: auto;
     background: var(--tv-surface);
-    padding: 30px;
+    padding: var(--tv-space-5);
 }
 .settings-workspace .source-form,
 .settings-workspace .backend-connection {
@@ -111,8 +111,8 @@
     border: 0;
 }
 .settings-workspace > [role='tabpanel']:focus {
-    outline: 3px solid var(--app-focus-ring-color);
-    outline-offset: -3px;
+    outline: var(--tv-focus-width) solid var(--app-focus-ring-color);
+    outline-offset: -5px;
 }
 .phone-modal-backdrop {
     position: fixed;
