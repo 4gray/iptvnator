@@ -98,3 +98,23 @@ export function readStoredVolume(): number {
 export function persistVolume(value: number): void {
     localStorage.setItem('volume', String(value));
 }
+
+const AUDIBLE_VOLUME_KEY = 'volume.lastAudible';
+
+export function readLastAudibleVolume(): number {
+    try {
+        const value = Number(localStorage.getItem(AUDIBLE_VOLUME_KEY));
+        return value > 0 && value <= 1 ? value : 0;
+    } catch {
+        return 0;
+    }
+}
+
+export function rememberAudibleVolume(value: number): void {
+    if (!(value > 0 && value <= 1)) return;
+    try {
+        localStorage.setItem(AUDIBLE_VOLUME_KEY, String(value));
+    } catch {
+        // The current controls still retain their in-memory mute state.
+    }
+}

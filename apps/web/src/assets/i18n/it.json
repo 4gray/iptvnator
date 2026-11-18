@@ -4,6 +4,7 @@
         "ADD_STREAM": "Aggiungi flusso",
         "OPEN_GRID": "Apri griglia 2×2",
         "GRID_LAYOUT": "Griglia 2×2",
+        "FOCUS_LAYOUT": "Vista in evidenza (3:1)",
         "PAIR_LAYOUT_HINT": "Lascia aperte due finestre per usare questa disposizione",
         "ADD_TO_WINDOW": "Aggiungi un flusso alla finestra {{slot}}",
         "WINDOW": "Finestra {{slot}}",
@@ -400,6 +401,7 @@
         "ANDROID_LIBRARY_CONNECTION": "Gestisci la connessione alla libreria",
         "ANDROID_SOURCE_SYNC_OPTIONS": "Opzioni di connessione per la sincronizzazione delle sorgenti",
         "DEVICE_SETTINGS_DESCRIPTION": "Gestisci l’abbinamento al server e le preferenze del lettore esterno su questo dispositivo.",
+        "OPEN_ANDROID_APP_SETTINGS": "Apri le impostazioni dell’app Android",
         "PLAYBACK": "Riproduzione",
         "SAVE_EPG_SOURCES": "Salva fonti EPG",
         "EPG_SOURCES": "Sorgenti EPG",
@@ -840,7 +842,11 @@
         "ANDROID_LIBRARY_TITLE": "Connessione alla libreria",
         "ANDROID_SCAN_QR": "Scansiona il codice QR",
         "ANDROID_LOCAL_LIBRARY": "Uso della libreria locale",
-        "ANDROID_LIBRARY_ADDRESS": "Indirizzo del server"
+        "ANDROID_LIBRARY_ADDRESS": "Indirizzo del server",
+        "CARD_HELP": "Aiuto",
+        "KEYBOARD_SHORTCUTS": "Scorciatoie da tastiera",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Scorciatoie per navigazione, riproduzione e finestre di dialogo. Premi ? fuori da un campo di testo per aprirle.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Mostra scorciatoie"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Impossibile salvare sul server. Controlla la connessione e riprova.",
@@ -996,6 +1002,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Prova il lettore integrato",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Torna al lettore web",
         "HLS_WAIT": "In attesa dei dati del flusso. Puoi continuare ad aspettare o riprovare.",
         "STAGE_LOADER": "Caricamento del flusso",
         "STAGE_DEMUX": "Analisi del contenitore",
@@ -2194,7 +2202,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "Rimozione delle categorie in cache...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "Preferiti, cronologia di visione, categorie nascoste e avanzamento di riproduzione vengono preparati per il ripristino dopo la sincronizzazione.",
             "XTREAM_REFRESH_PROGRESS": "Record locali elaborati: {{current}} / {{total}}",
-            "RAIL_RADIO": "Radio live"
+            "RAIL_RADIO": "Radio live",
+            "MORE_ACTIONS": "Altre azioni"
         },
         "SOURCES": {
             "TITLE": "Sorgenti",
@@ -2265,8 +2274,6 @@
         "SHORTCUTS": {
             "TITLE": "Scorciatoie da tastiera",
             "SUBTITLE": "Scorciatoie disponibili in IPTVnator per area di lavoro, navigazione, riproduzione e dialoghi.",
-            "OPEN_TOOLTIP": "Scorciatoie da tastiera (?)",
-            "OPEN_ARIA": "Apri scorciatoie da tastiera",
             "PLATFORM": {
                 "MAC": "Layout macOS",
                 "OTHER": "Layout Windows/Linux"

@@ -6,6 +6,7 @@ import './horizontal-rail.css';
 import './live-overlay.css';
 import './programme-guide.css';
 import './grid-guide.css';
+import './detail-actions.css';
 const root = document.getElementById('app');
 if (!root) throw new Error('Missing TV application root');
 render(<TvApp buildInfo={__TV_BUILD_INFO__} />, root);

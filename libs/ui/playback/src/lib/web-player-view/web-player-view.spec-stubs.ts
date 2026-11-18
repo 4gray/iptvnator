@@ -128,7 +128,7 @@ export class StubEmbeddedMpvPlayerComponent {
     readonly inactiveSurfaceClicked = output<void>();
     readonly canOpenMultiview = input(false);
     readonly multiviewAddRequested = output<void>();
-    readonly multiviewGridRequested = output<void>();
+    readonly multiviewLayoutRequested = output<MultiviewLayout>();
     readonly retryEnabled = input(true);
     readonly initialVolumeOverride = input<number | null>(null);
     readonly support = signal<EmbeddedMpvSupport | null>(null);
@@ -173,8 +173,19 @@ export class StubSecondStreamComponent {
         () => this.primary()?.support()?.engine === 'frame-copy'
     );
     readonly layout = signal<MultiviewLayout>('single');
+    readonly fourWindowLayout = computed(
+        () => this.layout() === 'grid' || this.layout() === 'focus'
+    );
+    readonly tiled = computed(
+        () => this.layout() === 'side-by-side' || this.fourWindowLayout()
+    );
+    readonly multiviewOpen = computed(
+        () => this.active() || this.fourWindowLayout()
+    );
     readonly stripVisible = computed(
-        () => this.active() || this.layout() === 'grid'
+        () =>
+            this.multiviewOpen() &&
+            (!this.placement.isFullscreen() || this.fourWindowLayout())
     );
     readonly controlsSlot = signal<MultiviewSlot>(1);
     readonly audioSlot = signal<MultiviewSlot>(1);
@@ -192,6 +203,10 @@ export class StubSecondStreamComponent {
 
     setLayout(layout: MultiviewLayout): void {
         this.layout.set(layout);
+    }
+
+    focusGridArea(_slot: MultiviewSlot): string | null {
+        return null;
     }
 
     close(): Promise<void> {

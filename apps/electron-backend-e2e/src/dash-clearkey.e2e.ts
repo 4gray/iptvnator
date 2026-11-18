@@ -555,7 +555,7 @@ for (const configuredPlayer of ['videojs', 'mpv', 'artplayer']) {
             await channel.locator('.favorite-button').click();
             await expect(
                 channel.locator('.favorite-button mat-icon')
-            ).toHaveText('star');
+            ).toHaveText('favorite');
 
             for (const openCollection of [
                 openPlaylistRecent,

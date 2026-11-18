@@ -175,6 +175,10 @@ public class SettingsActivity extends Activity {
             }
         });
 
+        CheckBox nativePlayback = findViewById(R.id.native_playback);
+        nativePlayback.setChecked(prefs.nativePlayback());
+        nativePlayback.setOnCheckedChangeListener((button, checked) -> prefs.setNativePlayback(checked));
+
         // External player on playback error
         CompoundButton prompt = findViewById(R.id.prompt_external);
         prompt.setChecked(prefs.promptExternalOnError());
@@ -371,6 +375,7 @@ public class SettingsActivity extends Activity {
                         Toast.makeText(SettingsActivity.this, R.string.webview_unavailable, Toast.LENGTH_LONG).show();
                         return;
                     }
+                    new NativePlaybackCheckpoints(SettingsActivity.this).clear();
                     dataCleared = true;
                     new PairedCredentialStore(SettingsActivity.this).clear();
                     updateConnectionActions();

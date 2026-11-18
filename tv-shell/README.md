@@ -169,8 +169,11 @@ from the configured `--www` directory, with symbolic links confined to that dire
 - **Playback** with the PWA's own players (HLS `.m3u8`, MP4, DASH ClearKey) in
   the WebView. Streams a browser cannot play (raw `.ts`, AC3 audio...) trigger
   a **"This stream cannot be played here"** prompt offering to open them in
-  another player (VLC, Kodi, MX Player...). The app's "Copy stream URL" button
-  does the same on a TV.
+  another player (VLC, Kodi, MX Player...). When Media3 is available, you can
+  try it first. If it fails too, the shell offers the external player after
+  Back, provided the external-player prompt is enabled. Enabling Media3 in
+  settings preserves a web error for the same playback attempt. The app's
+  "Copy stream URL" button also offers an external player on a TV.
 - On phones and tablets, open the gear and choose **Connectivity**. The
   library card shows whether you're using the local library and displays the
   current or saved server address. Tap **Connect** to reconnect to a saved server
@@ -197,6 +200,41 @@ from the configured `--www` directory, with symbolic links confined to that dire
 Inherited PWA limits: no EPG/XMLTV, no downloads, no embedded MPV (desktop-only
 features in IPTVnator).
 
+## Trying the built-in player
+
+Go to **Settings → General → Open Android app settings** and turn on
+**Enable built-in player (experimental)**. Open a channel or start a
+video, then select **Try built-in player** in the video area. It is also
+available when the web engine reports an error. The built-in player starts at
+the current app volume. If muted, the web player restores the previous audible
+level when you unmute after switching back. Back returns to the same page.
+Home ends native playback and keeps the position when you return to the app.
+When a series episode finishes, IPTVnator applies the series autoplay setting
+and starts the next eligible episode in the web player. Choose **Return to web
+player** to compare the two engines on the same stream.
+
+The pilot plays HLS, including HLS variants of Smooth Streaming manifest paths,
+and direct HTTP(S) video such as MP4, MPEG-TS and MKV. Audio
+and video codec support varies by device. The built-in player uses FFmpeg to
+decode AC-3 when the device cannot handle it. DASH, DRM, Smooth Streaming and
+temporary Stalker links stay in the web player. When parental controls are
+enabled, playback stays in the web player so it can enforce the lock.
+The native fullscreen screen supports play/pause, VOD
+seeking, audio tracks and subtitles. Its mute button restores the last
+audible app volume when unmuting. The Show subtitles setting picks the
+initial subtitle track and the native controls can change it. The player keeps
+the play state and selected tracks through rotation. It saves the VOD position
+when you leave, including after seeking. Open the web player to use the channel
+and episode lists. You can
+still explicitly open a stream in an installed external player.
+
+For device testing, compare one ordinary HLS stream, a TS or MKV stream the
+web player struggles with, and a VOD title with a resume position. Check first
+picture and sound, play/pause on the remote, track selection, Back, Home and
+VOD resume. Share the device model, Android or Fire OS version, APK revision,
+container, codecs if known and the result. Leave out stream URLs, credentials
+and actual playlist titles.
+
 ## Security model
 
 - The embedded server listens on `127.0.0.1` only (`TvShellServer`): nothing is
@@ -213,6 +251,11 @@ features in IPTVnator).
 - The published APK is a **non-debuggable** release build, `allowBackup` is
   off (the WebView storage holds portal credentials) and remote debugging
   (`chrome://inspect`) is **opt-in** in the IPTVnator settings.
+- The native player gets its request from the same trusted main frame. It
+  attaches allowlisted provider headers only to requests on the original
+  stream origin, including redirects, segments and HLS key requests. It keeps
+  response cookies in memory for that origin during the playback session.
+  Native Media3 exception logging is disabled because errors can contain stream URLs.
 - Native diagnostics and forwarded WebView errors share a redactor. It removes
   full URLs, including signed paths containing apostrophes, plus credential
   fields and authorization values before logging or
@@ -261,7 +304,8 @@ pnpm install --frozen-lockfile --ignore-scripts
 pnpm nx build web --configuration=pwa
 # 2. copy it into the shell
 tv-shell/scripts/bundle-pwa.sh dist/apps/web
-# 3. the APK (JDK 17 + Android SDK platform 36)
+# 3. the APK (JDK 17 + Android SDK 36 + NDK r28c; macOS or x86-64 Linux)
+sdkmanager "platforms;android-36" "ndk;28.2.13676358"
 cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
 # → app/build/outputs/apk/release/app-release.apk (signed with the debug key)
 ```
@@ -270,6 +314,12 @@ Set `JAVA_HOME` to a JDK 17 installation before running Gradle. Recent Android
 Studio versions can bundle JDK 25, which this Gradle 8.14.3 wrapper cannot run
 with (`Unsupported class file major version 69`). AndroidX Browser requires
 compile SDK 36; the app still targets API 35 and supports API 25 and newer.
+
+The Android build compiles the [Media3 FFmpeg audio extension](https://github.com/androidx/media/tree/1.11.1/libraries/decoder_ffmpeg)
+for ARM and x86 devices. It dynamically links unmodified [FFmpeg 6.1.6 source](https://ffmpeg.org/releases/ffmpeg-6.1.6.tar.xz)
+under LGPL 2.1 or later. The exact sources and configure flags are pinned in
+[`scripts/build-media3-ffmpeg.sh`](scripts/build-media3-ffmpeg.sh). The APK workflow
+includes the matching FFmpeg source archive with its artifacts.
 
 ## Installing on a Fire TV stick
 
@@ -395,6 +445,8 @@ ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-protocol-discovery.mjs emu
 
 # native background playback: keep the mock provider running for the synthetic clip
 ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-background-media.mjs emulator-5554
+# native playback and web handoff in the packaged debug APK (requires ffmpeg)
+ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-native-playback.mjs emulator-5554
 # the real Java backend on the JDK, without Android (same classes as the APK)
 cd tv-shell/android && ./gradlew :backend:check
 # regenerate the parser fixtures after an iptv-playlist-parser upgrade

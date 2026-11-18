@@ -4,6 +4,7 @@
         "ADD_STREAM": "Додати потік",
         "OPEN_GRID": "Відкрити сітку 2×2",
         "GRID_LAYOUT": "Сітка 2×2",
+        "FOCUS_LAYOUT": "Фокус (3:1)",
         "PAIR_LAYOUT_HINT": "Щоб скористатися цим макетом, залиште два вікна відкритими",
         "ADD_TO_WINDOW": "Додати потік до вікна {{slot}}",
         "WINDOW": "Вікно {{slot}}",
@@ -400,6 +401,7 @@
         "ANDROID_LIBRARY_CONNECTION": "Керування підключенням бібліотеки",
         "ANDROID_SOURCE_SYNC_OPTIONS": "Параметри підключення для синхронізації джерел",
         "DEVICE_SETTINGS_DESCRIPTION": "Керуйте сполученням із сервером і налаштуваннями зовнішнього програвача на цьому пристрої.",
+        "OPEN_ANDROID_APP_SETTINGS": "Відкрити налаштування застосунку Android",
         "PLAYBACK": "Відтворення",
         "SAVE_EPG_SOURCES": "Зберегти джерела EPG",
         "EPG_SOURCES": "Джерела телегіду",
@@ -840,7 +842,11 @@
         "ANDROID_LIBRARY_TITLE": "Підключення бібліотеки",
         "ANDROID_SCAN_QR": "Сканувати QR-код",
         "ANDROID_LOCAL_LIBRARY": "Використовується локальна бібліотека",
-        "ANDROID_LIBRARY_ADDRESS": "Адреса сервера"
+        "ANDROID_LIBRARY_ADDRESS": "Адреса сервера",
+        "CARD_HELP": "Довідка",
+        "KEYBOARD_SHORTCUTS": "Комбінації клавіш",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Комбінації клавіш для навігації, відтворення та діалогів. Натисніть ? поза текстовим полем, щоб відкрити їх.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Показати комбінації"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Не вдалося зберегти дані на сервері. Перевірте з’єднання та спробуйте ще раз.",
@@ -996,6 +1002,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Спробувати вбудований програвач",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Повернутися до вебпрогравача",
         "HLS_WAIT": "Очікуємо на дані потоку. Можна зачекати або спробувати ще раз.",
         "STAGE_LOADER": "Завантаження потоку",
         "STAGE_DEMUX": "Аналіз контейнера",
@@ -2194,7 +2202,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "Видалення кешованих категорій...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "Збереження списку вподобань, історії переглядів, прихованих категорій та прогресу відтворення для подальшого відновлення після синхронізації.",
             "XTREAM_REFRESH_PROGRESS": "Обробка локальних записів: {{current}} / {{total}}",
-            "RAIL_RADIO": "Радіо"
+            "RAIL_RADIO": "Радіо",
+            "MORE_ACTIONS": "Більше дій"
         },
         "SOURCES": {
             "TITLE": "Джерела",
@@ -2265,8 +2274,6 @@
         "SHORTCUTS": {
             "TITLE": "Комбінації клавіш",
             "SUBTITLE": "Комбінації клавіш IPTVnator для робочої області, навігації, відтворення та діалогів.",
-            "OPEN_TOOLTIP": "Комбінації клавіш (?)",
-            "OPEN_ARIA": "Відкрити комбінації клавіш",
             "PLATFORM": {
                 "MAC": "Розкладка macOS",
                 "OTHER": "Розкладка Windows/Linux"

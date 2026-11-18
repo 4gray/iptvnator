@@ -176,7 +176,7 @@ describe('GlobalFavoritesListComponent', () => {
         );
     });
 
-    it('renders filled favorite stars in favorites mode', () => {
+    it('renders filled favorite hearts in favorites mode', () => {
         fixture.componentRef.setInput('channels', [buildChannel('b', 'Beta')]);
         fixture.detectChanges();
 
@@ -184,7 +184,7 @@ describe('GlobalFavoritesListComponent', () => {
             '.favorite-button mat-icon'
         );
 
-        expect(favoriteIcon?.textContent?.trim()).toBe('star');
+        expect(favoriteIcon?.textContent?.trim()).toBe('favorite');
         expect(
             fixture.nativeElement.querySelectorAll('.favorite-button')
         ).toHaveLength(1);
@@ -204,7 +204,7 @@ describe('GlobalFavoritesListComponent', () => {
             (element: Element) => element.textContent?.trim()
         );
 
-        expect(icons).toEqual(['star_outline', 'star']);
+        expect(icons).toEqual(['favorite_border', 'favorite']);
     });
 
     it('shows the catch-up badge on Xtream rows with a playable archive', () => {

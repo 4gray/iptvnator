@@ -10,7 +10,6 @@ import type { PlaybackRecoverySession } from './playback-recovery-session';
 import type { WebPlayerApplicationHandoffCoordinator } from './web-player-application-handoff';
 import type { createWebPlayerApplicationState } from './web-player-application-state';
 import type { WebPlayerRecoveryController } from './web-player-recovery-controller';
-import { toInlinePlaybackPlayer } from './web-player-recovery-policy';
 
 export function bindWebPlayerApplication(options: {
     recovery: WebPlayerRecoveryController;
@@ -23,7 +22,8 @@ export function bindWebPlayerApplication(options: {
     channel: WritableSignal<Channel | undefined>;
     vjsOptions: WritableSignal<VideoPlayerOptions | undefined>;
 }): void {
-    const { recovery, session, handoff, channel, vjsOptions, application } = options;
+    const { recovery, session, handoff, channel, vjsOptions, application } =
+        options;
     effect(() => {
         // Session sync can clear a temporary override before we track intent.
         recovery.syncSession();
@@ -34,22 +34,16 @@ export function bindWebPlayerApplication(options: {
         const token = application.token();
         const playback = untracked(application.playback);
         const isLive = untracked(application.isLive);
-        const target = toInlinePlaybackPlayer(untracked(options.player));
+        const selectedPlayer = untracked(options.player);
         const reloadToken = untracked(options.reloadToken);
         channel.set(undefined);
         vjsOptions.set(undefined);
         recovery.clearDiagnostic();
-        if (target === null) {
-            handoff.release();
-            session.clearPlaybackBinding();
-            return;
-        }
-        const binding = untracked(() => session.beginPlayback(target));
         handoff.apply(
             playback,
             isLive,
             reloadToken,
-            binding,
+            selectedPlayer,
             token,
             application.token,
             (next) => {

@@ -4,6 +4,7 @@
         "ADD_STREAM": "ストリームを追加",
         "OPEN_GRID": "2×2 グリッドを開く",
         "GRID_LAYOUT": "2×2 グリッド",
+        "FOCUS_LAYOUT": "フォーカス (3:1)",
         "PAIR_LAYOUT_HINT": "このレイアウトを使うにはウィンドウを 2 つ開いてください",
         "ADD_TO_WINDOW": "ウィンドウ {{slot}} にストリームを追加",
         "WINDOW": "ウィンドウ {{slot}}",
@@ -400,6 +401,7 @@
         "ANDROID_LIBRARY_CONNECTION": "ライブラリ接続を管理",
         "ANDROID_SOURCE_SYNC_OPTIONS": "ソース同期の接続オプション",
         "DEVICE_SETTINGS_DESCRIPTION": "このデバイスでサーバーとのペアリングや外部プレーヤーの設定を管理します。",
+        "OPEN_ANDROID_APP_SETTINGS": "Android アプリの設定を開く",
         "PLAYBACK": "再生",
         "SAVE_EPG_SOURCES": "EPGソースを保存",
         "EPG_SOURCES": "EPGソース",
@@ -840,7 +842,11 @@
         "ANDROID_LIBRARY_TITLE": "ライブラリ接続",
         "ANDROID_SCAN_QR": "QR コードをスキャン",
         "ANDROID_LOCAL_LIBRARY": "ローカルライブラリを使用中",
-        "ANDROID_LIBRARY_ADDRESS": "サーバーアドレス"
+        "ANDROID_LIBRARY_ADDRESS": "サーバーアドレス",
+        "CARD_HELP": "ヘルプ",
+        "KEYBOARD_SHORTCUTS": "キーボードショートカット",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "ナビゲーション、再生、ダイアログのショートカットです。テキスト入力欄の外で ? を押すと開きます。",
+        "KEYBOARD_SHORTCUTS_OPEN": "ショートカットを表示"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "サーバーに保存できませんでした。接続を確認して、もう一度お試しください。",
@@ -996,6 +1002,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "内蔵プレーヤーを試す",
+        "ACTION_RETURN_TO_WEB_PLAYER": "ウェブプレーヤーに戻る",
         "HLS_WAIT": "ストリームデータを待機しています。このまま待つか、再試行できます。",
         "STAGE_LOADER": "ストリームの読み込み",
         "STAGE_DEMUX": "コンテナの解析",
@@ -2194,7 +2202,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "キャッシュ済みカテゴリを削除しています...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "お気に入り、視聴履歴、非表示カテゴリ、再生進捗を同期後に復元できるよう準備しています。",
             "XTREAM_REFRESH_PROGRESS": "処理済みローカルレコード: {{current}} / {{total}}",
-            "RAIL_RADIO": "ラジオ"
+            "RAIL_RADIO": "ラジオ",
+            "MORE_ACTIONS": "その他の操作"
         },
         "SOURCES": {
             "TITLE": "ソース",
@@ -2265,8 +2274,6 @@
         "SHORTCUTS": {
             "TITLE": "キーボードショートカット",
             "SUBTITLE": "IPTVnator で使えるワークスペース、ナビゲーション、再生、ダイアログのショートカットです。",
-            "OPEN_TOOLTIP": "キーボードショートカット（?）",
-            "OPEN_ARIA": "キーボードショートカットを開く",
             "PLATFORM": {
                 "MAC": "macOS 配列",
                 "OTHER": "Windows/Linux 配列"

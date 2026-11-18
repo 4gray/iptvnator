@@ -129,4 +129,8 @@
     <string name="access_invite_forbidden">Autorisez ce téléphone à approuver les jumelages dans Appareils jumelés sur le PC hôte.</string>
     <string name="access_invite_failed">Impossible de créer un code QR de jumelage. Réessayez.</string>
     <string name="access_device_needs_invite">Sur le PC hôte, choisissez Connecter un appareil, puis scannez un nouveau code QR.</string>
+    <string name="setting_native_playback">Activer le lecteur intégré (expérimental)</string>
+    <string name="native_playback_failed">Le lecteur intégré ne peut pas lire ce flux. Appuyez sur Retour.</string>
+    <string name="native_playback_mute">Couper le son</string>
+    <string name="native_playback_unmute">Rétablir le son</string>
 </resources>

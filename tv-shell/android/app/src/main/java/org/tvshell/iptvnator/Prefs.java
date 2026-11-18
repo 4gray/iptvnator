@@ -14,6 +14,7 @@ public class Prefs {
     public static final String KEY_PROMPT_ON_ERROR = "promptExternalOnError";
     public static final String KEY_EXTERNAL_PLAYER = "externalPlayerPackage";
     public static final String KEY_SERVER_PORT = "serverPort";
+    private static final String KEY_NATIVE_PLAYBACK = "native_playback";
     public static final String KEY_DEBUG = "webDebug";
 
     public static final int DEFAULT_LAYOUT_WIDTH = 1280;
@@ -70,6 +71,14 @@ public class Prefs {
 
     public void setLayoutWidth(int width) {
         prefs.edit().putInt(KEY_LAYOUT_WIDTH, width).apply();
+    }
+
+    public boolean nativePlayback() {
+        return prefs.getBoolean(KEY_NATIVE_PLAYBACK, false);
+    }
+
+    public void setNativePlayback(boolean enabled) {
+        prefs.edit().putBoolean(KEY_NATIVE_PLAYBACK, enabled).apply();
     }
 
     /** Offer the external player when the browser player cannot play a stream. */

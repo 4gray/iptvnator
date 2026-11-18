@@ -155,4 +155,5 @@ export class StubResizableDirective {
     readonly storageKey = input('');
     readonly widthChange = output<number>();
     readonly resizeEnd = output<number>();
+    readonly resizeCancel = output<number>();
 }

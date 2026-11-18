@@ -179,6 +179,33 @@ inside the assignment. If the fetch and resolution succeed, pass the SHA to
 both reviewers so they use the same commit even if they select different Git
 remotes. Run them from the branch's worktree and keep their output outside it.
 
+### Checks before local review
+
+Run the pre-review checks from a clean worktree on the candidate commit using
+the fetched destination SHA from above.
+
+```sh
+pnpm run pr:check "$review_base"
+```
+
+The command checks the baseline direction from the merge base, builds the
+production web app without the Nx cache, and runs the
+[initial bytes ratchet](../architecture/performance-journeys.md#rendererinitialbytes).
+For a maintainer-approved baseline increase, append `--allow-increase` to log
+the changed limits and continue locally. CI requires the
+`perf-baseline-increase` label for the exception.
+
+It applies the CI Tier A scope filter to the PR diff from the merge base. When
+coverage is in scope, it generates the same report as `coverage:ci` and shows
+changed lines with missing line or branch coverage before enforcing the coverage
+ratchets. Use those findings to fill missing test scenarios before review. The
+[coverage contract](../architecture/validation-map.md#coverage-tiers) describes
+the coverage checks and the Codecov statuses calculated after upload in CI.
+If Playwright's Chromium is missing, run `pnpm exec playwright install chromium`
+and rerun the command.
+
+### Review and push
+
 - Codex: `codex review --base "$review_base" -c model_reasoning_effort=high`.
   The verdict is the final message on stdout; stderr carries the session log.
   The flag pins the review effort whatever the caller's default is. Codex
@@ -190,21 +217,23 @@ remotes. Run them from the branch's worktree and keep their output outside it.
   did not run, not that it found problems.
 
 1. Finish the change and its targeted checks, then commit.
-2. Run both reviewers on the same commit; they are independent and can run in
-   parallel.
+2. Run `pnpm run pr:check "$review_base"` and wait for it to pass, then run both
+   reviewers on that commit. The reviewers can run in parallel.
 3. Check every finding against the code. Fix the real ones and note a one-line
    reason for each one declined. Never clear a finding by suppressing a rule or
    weakening a test.
-4. Commit the fixes and review again. Stop when both reviewers are clean on the
-   same commit. Also stop after five rounds, or when a round repeats the
-   previous findings, and report what remains instead of pushing.
+4. Commit the fixes and repeat the local checks and reviews. Stop when both
+   reviewers are clean on the same commit. Also stop after five rounds, or when
+   a round repeats the previous findings, and report what remains instead of
+   pushing.
 5. Push, open the pull request, and name the reviewed commit and any declined
    findings in the completion report.
 
 Check which commit each GitHub bot reviewed. After a push, request a fresh
 review if a bot still reports an older head. Comment `@codex review` for Codex
 or `@greptileai` for Greptile. Collect the whole round of bot findings and CI
-failures, fix it locally, pass both local reviewers again and push once.
+failures, fix it locally, pass the local checks and both reviewers again, and
+push once.
 
 When reporting whether a PR is ready, distinguish the reviewed head from the
 base actually tested by CI. Query the live destination branch in the receiving

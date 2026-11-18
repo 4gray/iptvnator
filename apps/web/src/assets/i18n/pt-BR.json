@@ -4,6 +4,7 @@
         "ADD_STREAM": "Adicionar transmissão",
         "OPEN_GRID": "Abrir grade 2×2",
         "GRID_LAYOUT": "Grade 2×2",
+        "FOCUS_LAYOUT": "Foco (3:1)",
         "PAIR_LAYOUT_HINT": "Mantenha duas janelas abertas para usar este layout",
         "ADD_TO_WINDOW": "Adicionar transmissão à janela {{slot}}",
         "WINDOW": "Janela {{slot}}",
@@ -400,6 +401,7 @@
         "ANDROID_LIBRARY_CONNECTION": "Gerenciar conexão da biblioteca",
         "ANDROID_SOURCE_SYNC_OPTIONS": "Opções de conexão para sincronização de fontes",
         "DEVICE_SETTINGS_DESCRIPTION": "Gerencie o pareamento com o servidor e as preferências do player externo neste dispositivo.",
+        "OPEN_ANDROID_APP_SETTINGS": "Abrir as configurações do app Android",
         "PLAYBACK": "Reprodução",
         "SAVE_EPG_SOURCES": "Salvar fontes de EPG",
         "EPG_SOURCES": "Fontes de EPG",
@@ -840,7 +842,11 @@
         "ANDROID_LIBRARY_TITLE": "Conexão da biblioteca",
         "ANDROID_SCAN_QR": "Ler código QR",
         "ANDROID_LOCAL_LIBRARY": "Usando a biblioteca local",
-        "ANDROID_LIBRARY_ADDRESS": "Endereço do servidor"
+        "ANDROID_LIBRARY_ADDRESS": "Endereço do servidor",
+        "CARD_HELP": "Ajuda",
+        "KEYBOARD_SHORTCUTS": "Atalhos de teclado",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Atalhos de navegação, reprodução e diálogos. Pressione ? fora de um campo de texto para abri-los.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Mostrar atalhos"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Não foi possível salvar no servidor. Verifique a conexão e tente novamente.",
@@ -996,6 +1002,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Experimentar o player integrado",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Voltar ao player web",
         "HLS_WAIT": "Ainda aguardando os dados da transmissão. Você pode continuar aguardando ou tentar novamente.",
         "STAGE_LOADER": "Carregamento do fluxo",
         "STAGE_DEMUX": "Análise do contêiner",
@@ -2194,7 +2202,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "Removendo categorias em cache...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "Favoritos, histórico de visualização, categorias ocultas e progresso de reprodução serão mantidos para restauração após a sincronização.",
             "XTREAM_REFRESH_PROGRESS": "Registros locais processados: {{current}} / {{total}}",
-            "RAIL_RADIO": "Rádio"
+            "RAIL_RADIO": "Rádio",
+            "MORE_ACTIONS": "Mais ações"
         },
         "SOURCES": {
             "TITLE": "Fontes",
@@ -2265,8 +2274,6 @@
         "SHORTCUTS": {
             "TITLE": "Atalhos de teclado",
             "SUBTITLE": "Atalhos de área de trabalho, navegação, reprodução e diálogos disponíveis no IPTVnator.",
-            "OPEN_TOOLTIP": "Atalhos de teclado (?)",
-            "OPEN_ARIA": "Abrir atalhos de teclado",
             "PLATFORM": {
                 "MAC": "Layout macOS",
                 "OTHER": "Layout Windows/Linux"

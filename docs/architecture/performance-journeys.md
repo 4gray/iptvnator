@@ -1064,7 +1064,8 @@ runner's network; the number cancelled is kept as
 through the ledger.
 
 **Start.** After J1 has ended, the test clicks the portal's dashboard card,
-the **Live TV** link and the first category (not measured), then installs the
+the **Live TV** link, waits for the Live TV route and clicks the mock's live
+category by ID so it cannot use a stale VOD row (not measured), then installs the
 IPC capture with a start sentinel, arms the probe, hovers the first
 `app-live-stream-layout [data-test-id="channel-item"]` and waits for the same
 1 s quiet as J2 (`src/performance/journey-click-settle.ts`, shared with J2).

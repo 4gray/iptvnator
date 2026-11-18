@@ -14,6 +14,7 @@ import {
     sourceRowByTitle,
     test,
     waitForSourceRowIdle,
+    waitForXtreamCatalog,
     waitForXtreamWorkspaceReady,
 } from './electron-test-fixtures';
 import {
@@ -290,6 +291,7 @@ test.describe('Electron Xtream Category Management', () => {
 
             await openSources(app.mainWindow);
             await refreshSource(app.mainWindow, portalName, { confirm: true });
+            await waitForXtreamCatalog(app.mainWindow);
             await openSources(app.mainWindow);
             await waitForSourceRowIdle(app.mainWindow, portalName);
 

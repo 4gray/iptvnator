@@ -37,7 +37,10 @@ import type {
 } from './second-stream-open-stream';
 import { SecondStreamPickerRequest } from './second-stream-picker-request';
 import { SecondStreamPosition } from './second-stream-position';
-import { samePositionKey } from './second-stream-slot-progress';
+import {
+    sameStreamIdentity,
+    type SecondStreamIdentity,
+} from './second-stream-identity';
 import { SecondStreamSlots } from './second-stream-slots';
 
 @Component({
@@ -69,7 +72,7 @@ export class SecondStreamComponent implements OnDestroy {
             const focused = this.focusSlot();
             if (focused && focused !== 1 && batch.has(focused))
                 this.focusSlot.set(1);
-            if (this.mode() !== 'grid' && !this.active()) this.resetLayout();
+            if (!this.fourWindowLayout() && !this.active()) this.resetLayout();
         }
     );
     readonly companionSlots = this.slots.numbers;
@@ -86,7 +89,7 @@ export class SecondStreamComponent implements OnDestroy {
     );
     readonly layout = computed<MultiviewLayout>(() => {
         const mode = this.mode();
-        if (mode === 'grid') return 'grid';
+        if (mode === 'grid' || mode === 'focus') return mode;
         if (!this.active()) return 'single';
         return mode === 'side-by-side' ? mode : 'pip';
     });
@@ -96,8 +99,13 @@ export class SecondStreamComponent implements OnDestroy {
     readonly active = computed(
         () => this.available() && this.slots.playable().length > 0
     );
-    readonly stripVisible = computed(
+    readonly multiviewOpen = computed(
         () => this.available() && this.layout() !== 'single'
+    );
+    readonly stripVisible = computed(
+        () =>
+            this.multiviewOpen() &&
+            (!this.placement.isFullscreen() || this.fourWindowLayout())
     );
     readonly pairedSlot = computed(() =>
         this.slots.playable().length === 1
@@ -105,6 +113,12 @@ export class SecondStreamComponent implements OnDestroy {
             : undefined
     );
     readonly sideBySide = computed(() => this.layout() === 'side-by-side');
+    readonly fourWindowLayout = computed(
+        () => this.layout() === 'grid' || this.layout() === 'focus'
+    );
+    readonly tiled = computed(
+        () => this.sideBySide() || this.fourWindowLayout()
+    );
     readonly audioSlot = this.audio.slot.asReadonly();
     readonly audibleVolume = this.audio.volume.asReadonly();
     readonly audioController = computed(() =>
@@ -214,23 +228,27 @@ export class SecondStreamComponent implements OnDestroy {
             void this.close();
             return;
         }
-        if (mode !== 'grid' && !this.pairedSlot()) return;
+        if ((mode === 'pip' || mode === 'side-by-side') && !this.pairedSlot())
+            return;
         if (this.focusSlot() === null) this.focusSlot.set(this.controlsSlot());
         this.mode.set(mode);
     }
 
     selectControls(slot: MultiviewSlot): void {
-        if (
-            !this.busy() &&
-            this.isSelectable(slot) &&
-            (this.sideBySide() || this.layout() === 'grid')
-        )
+        if (!this.busy() && this.isSelectable(slot) && this.tiled())
             this.focusSlot.set(slot);
+    }
+
+    focusGridArea(slot: MultiviewSlot): string | null {
+        if (this.layout() !== 'focus') return null;
+        const focused = this.controlsSlot();
+        if (slot === focused) return '1 / 1 / span 3';
+        return `${slot < focused ? slot : slot - 1} / 2`;
     }
 
     selectControlsFromKey(event: KeyboardEvent): void {
         if (
-            this.layout() !== 'grid' ||
+            !this.fourWindowLayout() ||
             this.busy() ||
             !this.primary()?.sharedShortcutsEnabled()
         )
@@ -276,10 +294,10 @@ export class SecondStreamComponent implements OnDestroy {
         const strip = event.currentTarget;
         if (!(strip instanceof HTMLElement) || !clickPointerOrigin(event))
             return;
-        const keepGridShortcuts =
-            this.layout() === 'grid' &&
+        const keepStageShortcuts =
+            this.fourWindowLayout() &&
             strip.ownerDocument.activeElement?.matches('button[aria-pressed]');
-        if (blurFocusedControl(strip) && keepGridShortcuts)
+        if (blurFocusedControl(strip) && keepStageShortcuts)
             strip
                 .closest<HTMLElement>('[data-multiview-stage]')
                 ?.focus({ preventScroll: true });
@@ -310,8 +328,7 @@ export class SecondStreamComponent implements OnDestroy {
                 !this.slots.isClosing(slot) &&
                 this.selectionAt(slot) === previous &&
                 !this.isWithheld(slot),
-            findDuplicateSlot: (selection) =>
-                this.findDuplicateSlot(slot, selection.playback),
+            findDuplicateSlot: (identity) => this.findDuplicateSlot(identity),
             accept: async (selection, allowed) => {
                 if (
                     this.audioSlot() === slot &&
@@ -328,14 +345,11 @@ export class SecondStreamComponent implements OnDestroy {
     }
 
     private findDuplicateSlot(
-        slot: CompanionSlot,
-        playback: ResolvedPortalPlayback
+        identity: SecondStreamIdentity
     ): MultiviewSlot | undefined {
-        if (samePositionKey(this.primary()?.playback(), playback)) return 1;
-        return this.companionSlots.find(
-            (other) =>
-                other !== slot &&
-                samePositionKey(this.selectionAt(other)?.playback, playback)
+        if (sameStreamIdentity(this.primary()?.playback(), identity)) return 1;
+        return this.companionSlots.find((slot) =>
+            sameStreamIdentity(this.selectionAt(slot)?.playback, identity)
         );
     }
 
@@ -345,7 +359,7 @@ export class SecondStreamComponent implements OnDestroy {
     ): void {
         const controls = this.controlsSlot();
         this.slots.accept(slot, selection);
-        if (this.slots.playable().length > 1) {
+        if (this.slots.playable().length > 1 && !this.fourWindowLayout()) {
             if (this.focusSlot() === null) this.focusSlot.set(controls);
             this.mode.set('grid');
         }

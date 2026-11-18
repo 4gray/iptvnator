@@ -4,6 +4,7 @@
         "ADD_STREAM": "زيد بث",
         "OPEN_GRID": "حل شبكة 2×2",
         "GRID_LAYOUT": "شبكة 2×2",
+        "FOCUS_LAYOUT": "تركيز (3:1)",
         "PAIR_LAYOUT_HINT": "خلي جوج نوافذ محلولين باش تستعمل هاد الترتيب",
         "ADD_TO_WINDOW": "زيد بث فالنافذة {{slot}}",
         "WINDOW": "النافذة {{slot}}",
@@ -400,6 +401,7 @@
         "ANDROID_LIBRARY_CONNECTION": "تدبير اتصال المكتبة",
         "ANDROID_SOURCE_SYNC_OPTIONS": "خيارات اتصال مزامنة المصادر",
         "DEVICE_SETTINGS_DESCRIPTION": "تحكّم فربط السيرفر وتفضيلات المشغّل الخارجي فهاد الجهاز.",
+        "OPEN_ANDROID_APP_SETTINGS": "حل إعدادات تطبيق أندرويد",
         "PLAYBACK": "التشغيل",
         "SAVE_EPG_SOURCES": "حفظ مصادر دليل البرامج",
         "EPG_SOURCES": "مصادر EPG",
@@ -840,7 +842,11 @@
         "ANDROID_LIBRARY_TITLE": "اتصال المكتبة",
         "ANDROID_SCAN_QR": "مسح رمز QR",
         "ANDROID_LOCAL_LIBRARY": "استخدام المكتبة المحلية",
-        "ANDROID_LIBRARY_ADDRESS": "عنوان السيرفر"
+        "ANDROID_LIBRARY_ADDRESS": "عنوان السيرفر",
+        "CARD_HELP": "مساعدة",
+        "KEYBOARD_SHORTCUTS": "اختصارات الكلافيي",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "اختصارات للتنقل والتشغيل والنوافذ ديال الحوار. ضغط على ? برا شي خانة ديال الكتابة باش تحلّهم.",
+        "KEYBOARD_SHORTCUTS_OPEN": "وريني الاختصارات"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "ما قدرناش نحفظو فالسيرفر. شوف الاتصال وعاود جرب.",
@@ -996,6 +1002,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "جرّب المشغّل المدمج",
+        "ACTION_RETURN_TO_WEB_PLAYER": "رجع لمشغّل الويب",
         "HLS_WAIT": "باقين كنتسناو بيانات البث. تقدر تبقى كتسنى ولا تعاود المحاولة.",
         "STAGE_LOADER": "تحميل البث",
         "STAGE_DEMUX": "تحليل الحاوية",
@@ -2194,7 +2202,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "كنحيدو التصنيفات المخزنة...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "كنخليو المفضلات، تاريخ المشاهدة، التصنيفات المخفية، وتقدم التشغيل واجدين باش يرجعو من بعد المزامنة.",
             "XTREAM_REFRESH_PROGRESS": "السجلات المحلية اللي تجهزات: {{current}} / {{total}}",
-            "RAIL_RADIO": "راديو مباشر"
+            "RAIL_RADIO": "راديو مباشر",
+            "MORE_ACTIONS": "إجراءات أخرى"
         },
         "SOURCES": {
             "TITLE": "المصادر",
@@ -2265,8 +2274,6 @@
         "SHORTCUTS": {
             "TITLE": "اختصارات الكلافيي",
             "SUBTITLE": "اختصارات متوفرة فـ IPTVnator لمساحة العمل والتنقل والتشغيل والنوافذ.",
-            "OPEN_TOOLTIP": "اختصارات الكلافيي (?)",
-            "OPEN_ARIA": "حل اختصارات الكلافيي",
             "PLATFORM": {
                 "MAC": "تخطيط macOS",
                 "OTHER": "تخطيط Windows/Linux"

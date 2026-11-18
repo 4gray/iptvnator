@@ -428,10 +428,18 @@
                         <button
                             mat-menu-item
                             type="button"
-                            (click)="multiviewGridRequested.emit()"
+                            (click)="multiviewLayoutRequested.emit('grid')"
                         >
                             <mat-icon>grid_view</mat-icon>
                             {{ 'TWO_STREAMS.OPEN_GRID' | translate }}
+                        </button>
+                        <button
+                            mat-menu-item
+                            type="button"
+                            (click)="multiviewLayoutRequested.emit('focus')"
+                        >
+                            <mat-icon>view_sidebar</mat-icon>
+                            {{ 'TWO_STREAMS.FOCUS_LAYOUT' | translate }}
                         </button>
                     </mat-menu>
                 }

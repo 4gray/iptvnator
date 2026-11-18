@@ -4,6 +4,7 @@
         "ADD_STREAM": "Yayın ekle",
         "OPEN_GRID": "2×2 ızgarayı aç",
         "GRID_LAYOUT": "2×2 ızgara",
+        "FOCUS_LAYOUT": "Odak (3:1)",
         "PAIR_LAYOUT_HINT": "Bu düzeni kullanmak için iki pencereyi açık tutun",
         "ADD_TO_WINDOW": "{{slot}}. pencereye yayın ekle",
         "WINDOW": "{{slot}}. pencere",
@@ -400,6 +401,7 @@
         "ANDROID_LIBRARY_CONNECTION": "Kitaplık bağlantısını yönet",
         "ANDROID_SOURCE_SYNC_OPTIONS": "Kaynak eşitleme bağlantı seçenekleri",
         "DEVICE_SETTINGS_DESCRIPTION": "Bu cihazdaki sunucu eşleştirmesini ve harici oynatıcı tercihlerini yönetin.",
+        "OPEN_ANDROID_APP_SETTINGS": "Android uygulama ayarlarını aç",
         "PLAYBACK": "Oynatma",
         "SAVE_EPG_SOURCES": "EPG kaynaklarını kaydet",
         "EPG_SOURCES": "EPG kaynakları",
@@ -840,7 +842,11 @@
         "ANDROID_LIBRARY_TITLE": "Kitaplık bağlantısı",
         "ANDROID_SCAN_QR": "QR kodunu tara",
         "ANDROID_LOCAL_LIBRARY": "Yerel kitaplık kullanılıyor",
-        "ANDROID_LIBRARY_ADDRESS": "Sunucu adresi"
+        "ANDROID_LIBRARY_ADDRESS": "Sunucu adresi",
+        "CARD_HELP": "Yardım",
+        "KEYBOARD_SHORTCUTS": "Klavye kısayolları",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Gezinme, oynatma ve iletişim kutuları için kısayollar. Açmak için bir metin alanı dışında ? tuşuna basın.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Kısayolları göster"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Sunucuya kaydedilemedi. Bağlantıyı kontrol edip tekrar deneyin.",
@@ -996,6 +1002,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Yerleşik oynatıcıyı dene",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Web oynatıcısına dön",
         "HLS_WAIT": "Yayın verileri hâlâ bekleniyor. Beklemeye devam edebilir veya yeniden deneyebilirsiniz.",
         "STAGE_LOADER": "Akış yükleme",
         "STAGE_DEMUX": "Kapsayıcı ayrıştırma",
@@ -2194,7 +2202,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "Önbelleğe alınmış kategoriler kaldırılıyor...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "Favoriler, izleme geçmişi, gizli kategoriler ve oynatma ilerlemesi eşitlemeden sonra geri yüklenmek üzere hazırlanıyor.",
             "XTREAM_REFRESH_PROGRESS": "İşlenen yerel kayıtlar: {{current}} / {{total}}",
-            "RAIL_RADIO": "Canlı radyo"
+            "RAIL_RADIO": "Canlı radyo",
+            "MORE_ACTIONS": "Diğer işlemler"
         },
         "SOURCES": {
             "TITLE": "Kaynaklar",
@@ -2265,8 +2274,6 @@
         "SHORTCUTS": {
             "TITLE": "Klavye kısayolları",
             "SUBTITLE": "IPTVnator’da çalışma alanı, gezinme, oynatma ve iletişim kutuları için kullanılabilir kısayollar.",
-            "OPEN_TOOLTIP": "Klavye kısayolları (?)",
-            "OPEN_ARIA": "Klavye kısayollarını aç",
             "PLATFORM": {
                 "MAC": "macOS düzeni",
                 "OTHER": "Windows/Linux düzeni"

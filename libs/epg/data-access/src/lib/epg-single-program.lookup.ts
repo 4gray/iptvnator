@@ -59,7 +59,11 @@ export class EpgSingleProgramLookup {
 
         // Fetch from backend
         return this.ctx.cache.getOrFetch(cacheKey, () =>
-            from(this.ctx.bridge.getChannelPrograms(channelId)).pipe(
+            from(
+                this.ctx.bridge.getChannelPrograms(channelId, {
+                    nowMs: this.ctx.clockMs(),
+                })
+            ).pipe(
                 this.ctx.guard(),
                 map((programs) => normalizeEpgPrograms(programs ?? [])),
                 map((programs: EpgProgram[]) => this.findCurrent(programs)),
@@ -95,7 +99,10 @@ export class EpgSingleProgramLookup {
 
         return this.ctx.cache.getOrFetch(cacheKey, () =>
             from(
-                this.ctx.bridge.getChannelPrograms(channelId, { sourceUrls })
+                this.ctx.bridge.getChannelPrograms(channelId, {
+                    sourceUrls,
+                    nowMs: this.ctx.clockMs(),
+                })
             ).pipe(
                 this.ctx.guard(),
                 timeout(3000),

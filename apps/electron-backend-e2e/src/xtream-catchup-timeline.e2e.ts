@@ -93,7 +93,9 @@ test('@epg @xtream @electron draws the catch-up programme on the seek bar', asyn
             name: PAST_PROGRAM,
             exact: true,
         });
-        await earlier.click();
+        // The guide can open on "now", with earlier blocks behind the sticky
+        // channel column. Use its keyboard shortcut to open programme details.
+        await earlier.press('i');
         await page
             .getByRole('dialog')
             .getByRole('button', { name: 'Watch from start' })

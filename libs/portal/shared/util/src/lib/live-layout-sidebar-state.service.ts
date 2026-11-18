@@ -5,6 +5,7 @@ import {
     signal,
     WritableSignal,
 } from '@angular/core';
+import { injectLiveCompactViewport } from './live-compact-viewport';
 import {
     forgetLegacyLiveSidebarState,
     LiveSidebarState,
@@ -39,6 +40,14 @@ function bySurface<T>(
  * derived flags rather than the raw state: the categories rail folds on
  * `areCategoriesHiddenFor(surface)`, the channels rail only on
  * `isCollapsedFor(surface)`.
+ *
+ * In the compact desktop band (`LIVE_COMPACT_VIEWPORT_QUERY`) the portal's
+ * categories rail also folds while the stored level is `expanded`: beside
+ * the rail and the channel list the player had about 117px at the 900px
+ * window minimum. The fold is derived, never persisted, so widening the
+ * window brings the stored level back. Asking for the rail there (the
+ * popover's "show categories panel") overrides the fold until the viewport
+ * leaves and re-enters the band.
  */
 @Injectable({ providedIn: 'root' })
 export class LiveLayoutSidebarStateService {
@@ -59,6 +68,15 @@ export class LiveLayoutSidebarStateService {
         LiveSidebarSurface,
         Exclude<LiveSidebarState, 'collapsed'>
     >;
+    /** The user unfolded the portal rail inside the compact band. */
+    private readonly compactRailRequested = signal(false);
+    // Entering the band folds the rail again, whatever was asked for during
+    // an earlier visit.
+    private readonly compactViewport = injectLiveCompactViewport((compact) => {
+        if (compact) {
+            this.compactRailRequested.set(false);
+        }
+    });
 
     constructor() {
         forgetLegacyLiveSidebarState();
@@ -69,7 +87,11 @@ export class LiveLayoutSidebarStateService {
             computed(() => this.states[surface]() === 'collapsed')
         );
         this.categoriesHidden = bySurface((surface) =>
-            computed(() => this.states[surface]() !== 'expanded')
+            computed(
+                () =>
+                    this.states[surface]() !== 'expanded' ||
+                    (surface === 'portal' && this.isCompactFolded())
+            )
         );
         // A restored `categories-hidden` is what Cmd/Ctrl+B comes back to.
         this.restoreTargets = bySurface((surface) => {
@@ -119,11 +141,21 @@ export class LiveLayoutSidebarStateService {
     }
 
     hideCategories(surface: LiveSidebarSurface): void {
+        if (surface === 'portal') {
+            this.compactRailRequested.set(false);
+        }
         this.setState(surface, 'categories-hidden');
     }
 
     showCategories(surface: LiveSidebarSurface): void {
+        if (surface === 'portal' && this.compactViewport()) {
+            this.compactRailRequested.set(true);
+        }
         this.setState(surface, 'expanded');
+    }
+
+    private isCompactFolded(): boolean {
+        return this.compactViewport() && !this.compactRailRequested();
     }
 
     setState(surface: LiveSidebarSurface, state: LiveSidebarState): void {

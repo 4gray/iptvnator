@@ -13,6 +13,7 @@ export * from './lib/confirm-dialog/dialog.service';
 export * from './lib/content-hero/content-hero.component';
 export * from './lib/expandable-text/expandable-text.component';
 export * from './lib/form-field-defaults/form-field-defaults';
+export * from './lib/ime-input.directive';
 export * from './lib/external-playback-dock/external-playback-dock.component';
 export * from './lib/lazy-dialog/lazy-mat-dialog';
 export * from './lib/portal-detail-shell/content-about.component';
@@ -63,5 +64,6 @@ export * from './lib/detail-ui/hero-trailer-backdrop.component';
 export * from './lib/dialog-shell/dialog-shell.component';
 export * from './lib/dialog-shell/dialog-shell.directives';
 export * from './lib/dialog-shell/dialog-size';
+export * from './lib/app-icons/app-icons';
 
 export * from './lib/detail-ui/age-rating-chip.component';

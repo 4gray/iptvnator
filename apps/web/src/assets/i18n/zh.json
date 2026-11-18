@@ -4,6 +4,7 @@
         "ADD_STREAM": "添加流",
         "OPEN_GRID": "打开 2×2 网格",
         "GRID_LAYOUT": "2×2 网格",
+        "FOCUS_LAYOUT": "聚焦 (3:1)",
         "PAIR_LAYOUT_HINT": "保留两个窗口即可使用此布局",
         "ADD_TO_WINDOW": "添加流到窗口 {{slot}}",
         "WINDOW": "窗口 {{slot}}",
@@ -400,6 +401,7 @@
         "ANDROID_LIBRARY_CONNECTION": "管理媒体库连接",
         "ANDROID_SOURCE_SYNC_OPTIONS": "来源同步连接选项",
         "DEVICE_SETTINGS_DESCRIPTION": "管理此设备的服务器配对和外部播放器偏好设置。",
+        "OPEN_ANDROID_APP_SETTINGS": "打开 Android 应用设置",
         "PLAYBACK": "播放",
         "SAVE_EPG_SOURCES": "保存节目指南来源",
         "EPG_SOURCES": "EPG 源",
@@ -840,7 +842,11 @@
         "ANDROID_LIBRARY_TITLE": "媒体库连接",
         "ANDROID_SCAN_QR": "扫描二维码",
         "ANDROID_LOCAL_LIBRARY": "正在使用本地媒体库",
-        "ANDROID_LIBRARY_ADDRESS": "服务器地址"
+        "ANDROID_LIBRARY_ADDRESS": "服务器地址",
+        "CARD_HELP": "帮助",
+        "KEYBOARD_SHORTCUTS": "键盘快捷键",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "导航、播放和对话框的快捷键。在文本框外按 ? 即可打开。",
+        "KEYBOARD_SHORTCUTS_OPEN": "显示快捷键"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "无法保存到服务器。请检查连接后重试。",
@@ -996,6 +1002,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "试用内置播放器",
+        "ACTION_RETURN_TO_WEB_PLAYER": "返回网页播放器",
         "HLS_WAIT": "仍在等待流数据。您可以继续等待或重试。",
         "STAGE_LOADER": "加载流",
         "STAGE_DEMUX": "解析容器",
@@ -2194,7 +2202,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "正在移除缓存的分类...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "收藏、观看历史、隐藏分类和播放进度会保留，以便同步后恢复。",
             "XTREAM_REFRESH_PROGRESS": "已处理本地记录：{{current}} / {{total}}",
-            "RAIL_RADIO": "电台"
+            "RAIL_RADIO": "电台",
+            "MORE_ACTIONS": "更多操作"
         },
         "SOURCES": {
             "TITLE": "源",
@@ -2265,8 +2274,6 @@
         "SHORTCUTS": {
             "TITLE": "键盘快捷键",
             "SUBTITLE": "IPTVnator 中可用的工作区、导航、播放和对话框快捷键。",
-            "OPEN_TOOLTIP": "键盘快捷键 (?)",
-            "OPEN_ARIA": "打开键盘快捷键",
             "PLATFORM": {
                 "MAC": "macOS 布局",
                 "OTHER": "Windows/Linux 布局"

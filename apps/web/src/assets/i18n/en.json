@@ -4,6 +4,7 @@
         "ADD_STREAM": "Add stream",
         "OPEN_GRID": "Open 2×2 grid",
         "GRID_LAYOUT": "2×2 grid",
+        "FOCUS_LAYOUT": "Focus (3:1)",
         "PAIR_LAYOUT_HINT": "Keep two windows open to use this layout",
         "ADD_TO_WINDOW": "Add stream to window {{slot}}",
         "WINDOW": "Window {{slot}}",
@@ -400,6 +401,7 @@
         "ANDROID_LIBRARY_CONNECTION": "Manage library connection",
         "ANDROID_SOURCE_SYNC_OPTIONS": "Source sync connection options",
         "DEVICE_SETTINGS_DESCRIPTION": "Manage server pairing and external player preferences on this device.",
+        "OPEN_ANDROID_APP_SETTINGS": "Open Android app settings",
         "PLAYBACK": "Playback",
         "SAVE_EPG_SOURCES": "Save EPG sources",
         "EPG_SOURCES": "EPG sources",
@@ -840,7 +842,11 @@
         "ANDROID_LIBRARY_TITLE": "Library connection",
         "ANDROID_SCAN_QR": "Scan QR code",
         "ANDROID_LOCAL_LIBRARY": "Using local library",
-        "ANDROID_LIBRARY_ADDRESS": "Server address"
+        "ANDROID_LIBRARY_ADDRESS": "Server address",
+        "CARD_HELP": "Help",
+        "KEYBOARD_SHORTCUTS": "Keyboard shortcuts",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Shortcuts for navigation, playback and dialogs. Press ? anywhere outside a text field to open them.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Show shortcuts"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Could not save to the server. Check the connection and try again.",
@@ -996,6 +1002,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Try built-in player",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Return to web player",
         "HLS_WAIT": "Still waiting for stream data. You can keep waiting or retry.",
         "STAGE_LOADER": "Stream loading",
         "STAGE_DEMUX": "Container parsing",
@@ -2194,7 +2202,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "Removing cached categories...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "Keeping favorites, watch history, hidden categories, and playback progress ready for restore after sync.",
             "XTREAM_REFRESH_PROGRESS": "Local records processed: {{current}} / {{total}}",
-            "RAIL_RADIO": "Radio"
+            "RAIL_RADIO": "Radio",
+            "MORE_ACTIONS": "More actions"
         },
         "SOURCES": {
             "TITLE": "Sources",
@@ -2265,8 +2274,6 @@
         "SHORTCUTS": {
             "TITLE": "Keyboard shortcuts",
             "SUBTITLE": "Workspace, navigation, playback, and dialog shortcuts available in IPTVnator.",
-            "OPEN_TOOLTIP": "Keyboard shortcuts (?)",
-            "OPEN_ARIA": "Open keyboard shortcuts",
             "PLATFORM": {
                 "MAC": "macOS layout",
                 "OTHER": "Windows/Linux layout"

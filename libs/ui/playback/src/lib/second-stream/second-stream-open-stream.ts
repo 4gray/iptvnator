@@ -1,9 +1,10 @@
-import type { SecondStreamSelection } from '@iptvnator/portal/shared/data-access';
+import type { SecondStreamIdentity } from './second-stream-identity';
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 
 export type MultiviewSlot = 1 | 2 | 3 | 4;
 export type CompanionSlot = Exclude<MultiviewSlot, 1>;
-export type MultiviewLayout = 'single' | 'pip' | 'side-by-side' | 'grid';
+export type MultiviewLayout =
+    'single' | 'pip' | 'side-by-side' | 'grid' | 'focus';
 
 export interface SecondStreamOpenStream {
     readonly slot: MultiviewSlot;
@@ -18,6 +19,6 @@ export interface SecondStreamPickerData {
     readonly returningToOriginal: boolean;
     readonly initialPlaylist?: string;
     readonly findDuplicateSlot: (
-        selection: SecondStreamSelection
+        identity: SecondStreamIdentity
     ) => MultiviewSlot | undefined;
 }

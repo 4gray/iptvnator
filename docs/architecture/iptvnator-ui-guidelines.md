@@ -589,6 +589,18 @@ Shared season tabs have one Tab stop, wrapping Left/Right navigation
 The dropdown variant keeps Material menu keyboard behavior. Detail and
 fullscreen instances own distinct tab/panel IDs.
 
+Search fields with custom Enter, Escape or arrow handlers use
+`ImeInputDirective` from `@iptvnator/ui/components`. Composing Enter commits
+the text and Escape and arrows drive the candidate list. The field also
+accepts legacy Safari's `keyCode` 229 after receiving `compositionend`. A
+50 ms timer closes the window once the event loop can run it. Keyup and
+blur also close it. Ordinary Android Enter still submits.
+Handlers leave the default behavior enabled on composition keys and can
+stop those keys from reaching the surrounding overlay. Other shortcuts such
+as F11 still reach the shell. The workspace search, command palette, playlist
+switcher and TMDB match search use the directive. Tests dispatch composition
+and keyboard events. The TV client has its own `ime-guard.ts`.
+
 ## Keyboard Scrolling and Channel Focus
 
 `ChannelScrollFocusDirective` belongs on the actual channel scroll owner,
@@ -845,6 +857,41 @@ remain local when the meaning is explicit.
   `XtreamContentGateComponent` then replaces the live layout with an error view,
   so the shell keeps the rail unfolded (`isLiveContentBlocked`) and the rail
   withholds its hide chevron, rather than hiding the only way back.
+- Compact desktop band (UI-67): between 641px and 1100px
+  (`LIVE_COMPACT_VIEWPORT_QUERY`, `live-compact-viewport.ts`) the portal
+  categories rail renders folded while the stored level is `expanded`, so the
+  900px window minimum still leaves the player about half the width.
+  `LiveLayoutSidebarStateService.areCategoriesHiddenFor('portal')` derives
+  this; nothing is persisted, and widening the window brings the stored level
+  back. The popover's "show categories panel" unfolds the rail inside the band
+  until the viewport leaves and re-enters it. The channel list's `max-width`
+  is `clamp(250px, 36vw, 600px)` (`_portal-layout.scss`), so a stored or
+  default width narrows with the window; the M3U Groups rail inside it caps
+  itself at `min(320px, 100% - 160px)` so the channel pane keeps 160px, and
+  `ResizableDirective` neither saves a drag the CSS cap stopped nor more
+  than the cap shows: an edge that did not move emits `resizeCancel` (with
+  the saved width, for hosts that mirrored `widthChange`) instead of
+  `resizeEnd`. The width it commits is read with the transitions of the host
+  and every enclosing `.resizable-element` suspended, so a Groups rail
+  released while the sidebar it resizes is still animating saves where it
+  settles. The Groups view requests sidebar widths as rail + channel pane +
+  the sidebar's own padding and border, measured when the drag starts, so a
+  capped rail never loses that chrome on commit. At ≤960px the header's playlist switcher yields
+  first (`flex: 0 4 190px`, 88px floor) to a search field with a 200px basis,
+  so the Windows/Linux header, whose window controls take 196px, still shows
+  a scope chip and input at 900px; the field shrinks too, so a route's full
+  set of actions never reaches the window controls. Inside the field the input has a 64px flex
+  basis and the scope chip shrinks twice as fast, so a long scope ellipsizes
+  instead of leaving the input only its padding. On Windows/Linux the
+  palette trigger shows its bolt icon instead of the ~50px "Ctrl+K" label at
+  that width; the tooltip keeps the shortcut. Both values are local until the
+  breakpoint map (UI-36) absorbs them; `live-layout-compact-width.e2e.ts`
+  pins the player share at 900×700 for Xtream, Stalker and M3U. The Windows
+  and macOS CI runners have 1024px screens, inside the band, so
+  `launchElectronApp` widens a narrower launch window to the default 1280px
+  (`electron-window-size.ts`); a spec that needs a narrow window resizes it.
+  Only a stored maximized or fullscreen startup mode keeps its window:
+  macOS reports a default window that fills a small screen as maximized.
 - Xtream Live TV's root view (`/live` with no selected category) follows the
   same paginated `All Items` shell as VOD and Series: a widget header with the
   total channel count, page-size controls, and page navigation above the shared
@@ -890,7 +937,9 @@ remain local when the meaning is explicit.
       survives into the restored rail. Backdrop, Escape, the footer, any
       category selection (`categorySelected` output), any router
       `NavigationStart` and any live-panel level change (`Cmd/Ctrl+B`
-      reaches the layout through the dialog) close it; focus returns to the
+      reaches the layout through the dialog) close it, and so does a window
+      resize across the compact band, which unfolds the rail and removes the
+      dropdown without a level change; focus returns to the
       trigger. The popover host is a `role="dialog"` with `aria-modal` and a
       `CdkTrapFocus` host directive that captures focus on open, matching
       the trigger's `aria-haspopup="dialog"`.
@@ -1614,6 +1663,19 @@ the string results of its bindings, `icon` / `*Icon` inputs, and TypeScript
 values named `icon`, `*Icon`, `*_ICON`, `*Icons` or `*_ICONS`. Name a member
 that feeds an icon that way, so the check can see its values.
 
+## Favourite And Rating Glyphs
+
+The heart means favourite and the star means rating, everywhere. Take both
+from `APP_ICONS` in `@iptvnator/ui/components/app-icons` (also exported from
+`@iptvnator/ui/components`): `favorite` / `favoriteOutline` for favourite
+toggles, rail and command entries, collection headers and empty states;
+`rating` / `ratingOutline` for TMDB and provider scores and the rating filter.
+A toggle shows the filled heart when on and the outline when off; use
+`favoriteIcon(isFavorite)` rather than repeating the ternary.
+`pnpm run ui:favorite-glyph:validate` (CI) rejects star and heart ligatures
+written anywhere else and checks that the registry keeps each meaning on its
+glyph family. It reads the same static names as the icon-name check above.
+
 ## Icon-Only Buttons
 
 A `<button>` whose only content is a `<mat-icon>` needs an accessible name:
@@ -1621,7 +1683,7 @@ the ligature text is hidden from assistive technology, and a `matTooltip`
 only adds a description that appears on hover or focus. Give it a translated
 `aria-label`, usually `[attr.aria-label]` bound to the same key as its
 tooltip, or `aria-labelledby`. A toggle keeps one label and reports its state
-with `aria-pressed` (the channel row's star is "Favorite", pressed or not),
+with `aria-pressed` (the channel row's heart is "Favorite", pressed or not),
 as the password visibility toggle does; its tooltip may still name the next
 action. `pnpm run a11y:icon-buttons:validate` (CI) checks `.html` and inline
 templates, looking through control flow, `ng-container` and spinners; content
@@ -1730,16 +1792,21 @@ whose list shows the toggle again, takes the toggle's slot.
 
 ## Typography
 
-The app stack is DM Sans with Roboto behind it (`$app-font-stack` in
-`apps/web/src/m3-theme.scss`). DM Sans covers Latin only, so Cyrillic and Greek
-UI text (ru, by, el) renders in Roboto. `apps/web/src/styles.scss` bundles both
-families in 400, 500, 600 and 700, and JetBrains Mono in 400 and 500 (its
-heavier faces would exceed the initial-bytes ratchet).
+The app stack is `'Inter Variable', Inter, system-ui, sans-serif`
+(`$app-font-stack` in `apps/web/src/m3-theme.scss`, read everywhere through
+`--app-font-family`). Inter Variable covers Latin, Cyrillic and Greek, so a
+channel name that mixes scripts renders in one face. `apps/web/src/styles.scss`
+bundles it from `@fontsource-variable/inter` (one weight axis, 100–900), and
+JetBrains Mono in 400 and 500 (its heavier faces would exceed the
+initial-bytes ratchet). Font files never count toward initial bytes: the
+browser fetches only the subsets the text on screen needs.
 
-- Use only those four weights: in `font-weight`, in the `font` shorthand, and in
-  any custom property, Sass variable or token map that feeds one. A weight
-  between faces snaps to a neighbour (650 renders as 700), and 600 or more with
-  no face of at least 600 gets Chromium's synthetic bold. CI runs
+- Use only the weights 400, 500, 600 and 700: in `font-weight`, in the `font`
+  shorthand, and in any custom property, Sass variable or token map that feeds
+  one. Inter Variable can render any weight on its axis; the limit keeps the
+  type scale to four steps. In a family with static faces (JetBrains Mono, or
+  a local fallback) a weight between faces snaps to a neighbour, and 600 or
+  more with no face of at least 600 gets Chromium's synthetic bold. CI runs
   `pnpm run styles:font-weights:validate`, which rejects any other value.
 - JetBrains Mono text stays at 500 or lighter, also where it is a fallback
   behind `ui-monospace` (only macOS resolves that). The check enforces this in
@@ -1748,13 +1815,18 @@ heavier faces would exceed the initial-bytes ratchet).
   included, from its own stylesheet module or another one. It cannot see what
   a mono modifier class inherits from its base rule; set `font-weight: 500`
   there.
-- Import whole `@fontsource/<family>/<weight>.css` files. The single-script
-  files such as `cyrillic-600.css` have no `unicode-range`, so a Cyrillic-only
-  face wins the weight match for Latin text in `Roboto, …` stacks and sends it
-  to the next family.
+- Import a package's index or whole-weight CSS (`@fontsource-variable/inter/index.css`,
+  `@fontsource/<family>/<weight>.css`). The single-script files such as
+  `cyrillic-600.css` have no `unicode-range`, so a Cyrillic-only face would
+  claim Latin glyphs too and send them to the next family.
+- Set `font-family: var(--app-font-family)` rather than naming a face, so the
+  stack changes in one place.
 - `<html lang>` follows the UI language (`syncDocumentLanguage()` maps `by` to
   `be` and `zhtw` to `zh-TW`), so `hyphens`, `text-transform` (Turkish İ) and
   Han glyph fallback use the right locale.
+- The web app gives text entry fields at least 16 CSS pixels in iOS WebKit
+  through `apps/web/src/styles.scss`. This prevents focus from zooming the
+  page while preserving the browser's pinch-to-zoom gesture.
 
 Native navigation buttons inherit the app font family in `_nav-list.scss`,
 then apply the shared 14px/500 normal and 600 selected roles. Category

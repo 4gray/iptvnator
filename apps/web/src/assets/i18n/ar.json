@@ -4,6 +4,7 @@
         "ADD_STREAM": "إضافة بث",
         "OPEN_GRID": "فتح شبكة 2×2",
         "GRID_LAYOUT": "شبكة 2×2",
+        "FOCUS_LAYOUT": "تركيز (3:1)",
         "PAIR_LAYOUT_HINT": "أبقِ نافذتين مفتوحتين لاستخدام هذا التخطيط",
         "ADD_TO_WINDOW": "إضافة بث إلى النافذة {{slot}}",
         "WINDOW": "النافذة {{slot}}",
@@ -400,6 +401,7 @@
         "ANDROID_LIBRARY_CONNECTION": "إدارة اتصال المكتبة",
         "ANDROID_SOURCE_SYNC_OPTIONS": "خيارات اتصال مزامنة المصادر",
         "DEVICE_SETTINGS_DESCRIPTION": "أدِر اقتران الخادم وتفضيلات المشغّل الخارجي على هذا الجهاز.",
+        "OPEN_ANDROID_APP_SETTINGS": "فتح إعدادات تطبيق أندرويد",
         "PLAYBACK": "التشغيل",
         "SAVE_EPG_SOURCES": "حفظ مصادر دليل البرامج",
         "EPG_SOURCES": "مصادر EPG",
@@ -840,7 +842,11 @@
         "ANDROID_LIBRARY_TITLE": "اتصال المكتبة",
         "ANDROID_SCAN_QR": "مسح رمز QR",
         "ANDROID_LOCAL_LIBRARY": "استخدام المكتبة المحلية",
-        "ANDROID_LIBRARY_ADDRESS": "عنوان الخادم"
+        "ANDROID_LIBRARY_ADDRESS": "عنوان الخادم",
+        "CARD_HELP": "مساعدة",
+        "KEYBOARD_SHORTCUTS": "اختصارات لوحة المفاتيح",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "اختصارات للتنقل والتشغيل ومربعات الحوار. اضغط ? خارج أي حقل نص لفتحها.",
+        "KEYBOARD_SHORTCUTS_OPEN": "عرض الاختصارات"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "تعذّر الحفظ على الخادم. تحقق من الاتصال وحاول مرة أخرى.",
@@ -996,6 +1002,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "جرّب المشغّل المدمج",
+        "ACTION_RETURN_TO_WEB_PLAYER": "العودة إلى مشغّل الويب",
         "HLS_WAIT": "ما زلنا ننتظر بيانات البث. يمكنك الانتظار أو إعادة المحاولة.",
         "STAGE_LOADER": "تحميل البث",
         "STAGE_DEMUX": "تحليل الحاوية",
@@ -2194,7 +2202,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "جارٍ إزالة الفئات المخزّنة مؤقتًا...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "نحتفظ بالمفضلة وسجل المشاهدة والفئات المخفية وتقدم التشغيل لاستعادتها بعد المزامنة.",
             "XTREAM_REFRESH_PROGRESS": "السجلات المحلية المعالجة: {{current}} / {{total}}",
-            "RAIL_RADIO": "راديو"
+            "RAIL_RADIO": "راديو",
+            "MORE_ACTIONS": "إجراءات إضافية"
         },
         "SOURCES": {
             "TITLE": "المصادر",
@@ -2265,8 +2274,6 @@
         "SHORTCUTS": {
             "TITLE": "اختصارات لوحة المفاتيح",
             "SUBTITLE": "اختصارات مساحة العمل والتنقل والتشغيل ومربعات الحوار المتاحة في IPTVnator.",
-            "OPEN_TOOLTIP": "اختصارات لوحة المفاتيح (?)",
-            "OPEN_ARIA": "فتح اختصارات لوحة المفاتيح",
             "PLATFORM": {
                 "MAC": "تخطيط macOS",
                 "OTHER": "تخطيط Windows/Linux"

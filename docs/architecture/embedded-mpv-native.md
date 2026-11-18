@@ -521,45 +521,62 @@ Trade-offs and constraints:
 ## Frame-copy multiview
 
 The Multiview action in the frame-copy player controls opens a menu to add a
-stream or open the 2×2 grid. In regular single-stream playback the stream bar
-is absent and the player occupies the full stage. Adding a second stream
-from single playback opens a floating window. Opening the grid explicitly
-with one stream shows three empty windows with an add action. The bar stays
-visible in the grid until the viewer exits multiview. Adding a third stream
-from Floating window or Side by side opens the grid.
+stream, open the 2×2 grid or open Focus (3:1). In regular single-stream
+playback the stream bar is absent and the player occupies the full stage.
+Adding a second stream from single playback opens a floating window. Opening
+Grid or Focus with one stream shows three empty windows with an add action.
+Adding a third stream from Floating window or Side by side opens the grid.
+The stream bar is visible in windowed multiview and in fullscreen Grid and
+Focus. In fullscreen Floating window or Side by side, exit fullscreen to use
+the bar. The current layout and playback sessions stay active.
 
 The shared picker opens through the existing dialog shell and can extend
 below the video into the app window. The playlist selector sits inside the
 search bar above the scrolling results. The picker opens on the current
-portal when available. Global favorites and recently viewed are also available
-in the selector. The portal and collection views have Live TV, Movies and Series
-filters. Live playlists offer groups and search. Channel rows reuse the
-sidebar's programme title, time range and progress. XMLTV previews are batched
-by guide scope, and Xtream and Stalker use the collection EPG resolver. The picker
-requests previews only near the visible list and honors the global EPG preference.
+portal when available, otherwise on Global Favorites. Recently Viewed is also
+available in the selector. Both collections span sources. The picker starts on
+Live TV, and each query is scoped to the selected source or collection and the
+active type: Live TV, Movies or Series. A live group narrows the channel search.
+Channel rows reuse the sidebar's programme title, time range and progress.
+XMLTV previews are batched by guide scope. Xtream and Stalker use the collection
+EPG resolver. The picker requests previews only near the visible list and honors
+the global EPG preference.
 It reads M3U, Xtream live and Stalker ITV catalogs independently of the active
 provider selection and uses the shared stream resolver, preserving playback
 metadata and parental locks. Xtream and Stalker also expose movies and a
-series-to-episode drill-down. The shared Xtream resolver loads its VOD details
+series-to-episode drill-down. Movie and series rows show compact provider
+posters with an icon fallback for missing or failed artwork; favorites and
+history retain their source labels. Episode rows show provider thumbnails,
+number/title and an optional description, with a quiet fallback when artwork
+is missing or repeats the series cover. Saved unfinished progress and the
+read-only watched check use the same semantics as Detail View; watched rows
+do not show an unfinished progress bar. These previews add no metadata or
+TMDB requests and never change watch state. Descriptions yield to essential
+labels in narrow dialogs; search, source selection and Back stay reachable.
+The shared Xtream resolver loads its VOD details
 and recovery helpers when resolving a selected movie. Each added video's progress
 uses that video's playlist and content keys. It saves the latest accepted
 position when paused, ended, replaced or closed, including parental relock
 and player teardown. Episode positions retain the parent series and episode
 numbers. Additional videos start muted and record Recently Viewed once
-playback advances. Opening the same VOD twice would share a resume key, so
-the picker reports the already occupied window. Each open video requires
-its own provider connection. Live pause uses MPV pause.
+playback advances. Open channels, movies and episodes are marked with their
+window number and cannot be chosen again. The picker compares playlist and
+content IDs before resolving playback and checks again when accepting the
+selection. A series remains available so viewers can choose another episode.
+Catch-up playback leaves that channel's live feed available in the picker.
+Each open video requires its own provider connection. Live pause uses MPV pause.
 
 The primary stays in window 1. Companion windows have stable numbers 2–4
 that determine their positions in the grid. Closing a companion leaves its
 cell available for another stream. The global add button fills the lowest
 available number. Side by side and Floating window can be selected when
-there are exactly two open windows. Layout changes update CSS and native
-render bounds while preserving the mounted players and their playback.
-Clicking an equal pane or choosing its window in the bar selects the player
-for playback commands. A separate speaker action selects the sole audio
-session. Floating window makes the audio session the main video and
-restores the previous floating geometry.
+there are exactly two open windows. Focus shows the selected player in a
+large viewport and the other three slots in number order down the narrow
+column. Clicking a viewport or using keys 1–4 in Grid or Focus selects that
+player for playback commands. The speaker action independently selects the
+sole audio session. Layout changes update CSS and native render bounds while
+preserving mounted players and their playback. Floating window makes the
+audio session the main video and restores the previous floating geometry.
 
 Replacing or retrying a stream operates on that window's session. When a
 companion with sound is replaced, the primary resumes sound before the

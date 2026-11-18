@@ -12,26 +12,18 @@ on:
             - '.codex/**'
             - '.claude/**'
             - 'apps/website/**'
-    pull_request:
-        branches:
-            - master
-        paths-ignore:
-            - '**/*.md'
-            - 'docs/**'
-            - '.plans/**'
-            - '.agents/**'
-            - '.codex/**'
-            - '.claude/**'
-            - 'apps/website/**'
+    workflow_call:
     workflow_dispatch:
 
+# CI calls PR E2E only after fast validation. Its group must differ from the
+# caller: github.workflow is inherited by reusable workflows.
 # Superseded PR pushes cancel their still-running E2E matrix (the most
 # expensive per-PR runner time). Non-PR runs get a unique group (run_id):
 # GitHub keeps at most one pending run per group even with
 # cancel-in-progress: false, so a shared ref group could silently drop a
 # queued master run between two rapid pushes.
 concurrency:
-    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+    group: e2e-${{ github.event.pull_request.number || github.run_id }}
     cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:

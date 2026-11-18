@@ -129,4 +129,8 @@
     <string name="access_invite_forbidden">Allow this phone to approve pairing under Paired devices on the host computer.</string>
     <string name="access_invite_failed">Could not create a pairing QR. Try again.</string>
     <string name="access_device_needs_invite">Open Connect a device on the host computer and scan a new QR code.</string>
+    <string name="setting_native_playback">Enable built-in player (experimental)</string>
+    <string name="native_playback_failed">The built-in player could not play this stream. Press Back to return.</string>
+    <string name="native_playback_mute">Mute</string>
+    <string name="native_playback_unmute">Unmute</string>
 </resources>

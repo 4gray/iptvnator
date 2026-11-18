@@ -1,4 +1,7 @@
-import type { PlaylistBackupManifestV1 } from '@iptvnator/shared/interfaces';
+import type {
+    PlaylistBackupManifestV1,
+    SourceInventory,
+} from '@iptvnator/shared/interfaces';
 import {
     fetchXtreamVodFixture,
     getXtreamTitle,
@@ -189,7 +192,24 @@ for (const provider of ['xtream', 'stalker'] as const)
             native.on('pageerror', (error) =>
                 console.log('Electron error:', error.message)
             );
-            const legacySourceId = new URL(page.url()).pathname.split('/')[3];
+            let legacySourceId = '';
+            await expect
+                .poll(
+                    async () => {
+                        const inventory = (await (
+                            await fetch(`${server.apiUrl}/v1/sources`)
+                        ).json()) as SourceInventory;
+                        legacySourceId =
+                            inventory.entries.find(
+                                ({ source }) =>
+                                    source.kind === provider &&
+                                    source.title === 'Shared activity'
+                            )?.source.id ?? '';
+                        return legacySourceId;
+                    },
+                    { timeout: 25000 }
+                )
+                .not.toBe('');
             const legacySaved = await native.evaluate(
                 (id) =>
                     window.electron!.dbSavePlaybackPosition!(id, {

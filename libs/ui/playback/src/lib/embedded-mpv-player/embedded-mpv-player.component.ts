@@ -33,7 +33,10 @@ import type {
     PlayerTimelineSegment,
 } from '../player-controls/player-controls.model';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
-import type { MultiviewSlot } from '../second-stream/second-stream-open-stream';
+import type {
+    MultiviewLayout,
+    MultiviewSlot,
+} from '../second-stream/second-stream-open-stream';
 import { embeddedMpvTimelineSegments } from './embedded-mpv-chapter-segments';
 import { EmbeddedMpvControlsAdapter } from './embedded-mpv-controls.adapter';
 import { EmbeddedMpvDockPanelComponent } from './embedded-mpv-dock-panel.component';
@@ -91,7 +94,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly multiviewSlot = input<MultiviewSlot>(1);
     readonly canOpenMultiview = input(false);
     readonly multiviewAddRequested = output<void>();
-    readonly multiviewGridRequested = output<void>();
+    readonly multiviewLayoutRequested = output<MultiviewLayout>();
     readonly initialVolumeOverride = input<number | null>(null);
     readonly retryEnabled = input(true);
     readonly liveSubtitlesOff = model(false);

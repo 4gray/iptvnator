@@ -4,6 +4,7 @@
         "ADD_STREAM": "Дадаць паток",
         "OPEN_GRID": "Адкрыць сетку 2×2",
         "GRID_LAYOUT": "Сетка 2×2",
+        "FOCUS_LAYOUT": "Фокус (3:1)",
         "PAIR_LAYOUT_HINT": "Каб выбраць гэты макет, пакіньце два адкрытыя акны",
         "ADD_TO_WINDOW": "Дадаць паток у акно {{slot}}",
         "WINDOW": "Акно {{slot}}",
@@ -400,6 +401,7 @@
         "ANDROID_LIBRARY_CONNECTION": "Кіраванне падключэннем бібліятэкі",
         "ANDROID_SOURCE_SYNC_OPTIONS": "Параметры падключэння для сінхранізацыі крыніц",
         "DEVICE_SETTINGS_DESCRIPTION": "Кіруйце спалучэннем з серверам і наладамі знешняга прайгравальніка на гэтай прыладзе.",
+        "OPEN_ANDROID_APP_SETTINGS": "Адкрыць налады праграмы Android",
         "PLAYBACK": "Прайграванне",
         "SAVE_EPG_SOURCES": "Захаваць крыніцы EPG",
         "EPG_SOURCES": "Крыніцы EPG",
@@ -840,7 +842,11 @@
         "ANDROID_LIBRARY_TITLE": "Падключэнне бібліятэкі",
         "ANDROID_SCAN_QR": "Сканаваць QR-код",
         "ANDROID_LOCAL_LIBRARY": "Выкарыстоўваецца лакальная бібліятэка",
-        "ANDROID_LIBRARY_ADDRESS": "Адрас сервера"
+        "ANDROID_LIBRARY_ADDRESS": "Адрас сервера",
+        "CARD_HELP": "Даведка",
+        "KEYBOARD_SHORTCUTS": "Спалучэнні клавіш",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Спалучэнні клавіш для навігацыі, прайгравання і дыялогаў. Націсніце ? па-за тэкставым полем, каб адкрыць іх.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Паказаць спалучэнні"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Не ўдалося захаваць на сервер. Праверце злучэнне і паспрабуйце зноў.",
@@ -996,6 +1002,8 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "ACTION_TRY_BUILT_IN_PLAYER": "Паспрабаваць убудаваны прайгравальнік",
+        "ACTION_RETURN_TO_WEB_PLAYER": "Вярнуцца ў вэб-прайгравальнік",
         "HLS_WAIT": "Чакаем даных патоку. Можна пачакаць далей або паўтарыць спробу.",
         "STAGE_LOADER": "Загрузка патоку",
         "STAGE_DEMUX": "Разбор кантэйнера",
@@ -2194,7 +2202,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "Выдаленне кэшаваных катэгорый...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "Выбранае, гісторыя прагляду, схаваныя катэгорыі і прагрэс прайгравання будуць падрыхтаваны для аднаўлення пасля сінхранізацыі.",
             "XTREAM_REFRESH_PROGRESS": "Апрацавана лакальных запісаў: {{current}} / {{total}}",
-            "RAIL_RADIO": "Радыё"
+            "RAIL_RADIO": "Радыё",
+            "MORE_ACTIONS": "Яшчэ дзеянні"
         },
         "SOURCES": {
             "TITLE": "Крыніцы",
@@ -2265,8 +2274,6 @@
         "SHORTCUTS": {
             "TITLE": "Спалучэнні клавіш",
             "SUBTITLE": "Спалучэнні клавіш для працоўнай вобласці, навігацыі, прайгравання і дыялогаў у IPTVnator.",
-            "OPEN_TOOLTIP": "Спалучэнні клавіш (?)",
-            "OPEN_ARIA": "Адкрыць спалучэнні клавіш",
             "PLATFORM": {
                 "MAC": "Раскладка macOS",
                 "OTHER": "Раскладка Windows/Linux"

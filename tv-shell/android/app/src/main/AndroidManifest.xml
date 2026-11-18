@@ -69,6 +69,10 @@
         </activity>
 
         <activity
+            android:name=".ui.NativePlayerActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.LibraryQrActivity"
             android:exported="false"
             android:screenOrientation="portrait"

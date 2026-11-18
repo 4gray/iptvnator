@@ -42,7 +42,7 @@ function createPosition(
 }
 
 function createController(playbackOwnerKey?: () => string) {
-    const inlinePlayback = signal(null);
+    const inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
     const selectedVodPosition = signal<PlaybackPositionData | null>(null);
     const playbackPositions = {
         savePlaybackPosition: jest.fn(),
@@ -91,6 +91,34 @@ function createController(playbackOwnerKey?: () => string) {
 }
 
 describe('StalkerVodPlaybackController', () => {
+    it('saves the final native seek within the ordinary playback throttle', () => {
+        const {
+            controller,
+            inlinePlayback,
+            playbackPositions,
+            selectedVodPosition,
+        } = createController();
+        inlinePlayback.set({
+            title: 'Synthetic movie',
+            streamUrl: 'https://media.example.test/synthetic.mp4',
+            contentInfo: {
+                playlistId: 'synthetic-playlist',
+                contentType: 'vod',
+                contentXtreamId: 17,
+            },
+        });
+        controller.handleInlineTimeUpdate({ currentTime: 21, duration: 90 });
+        controller.handleInlineTimeUpdate({ currentTime: 22, duration: 90 });
+        expect(playbackPositions.savePlaybackPosition).toHaveBeenCalledTimes(1);
+        controller.handleInlineTimeUpdate({
+            currentTime: 60,
+            duration: 90,
+            checkpoint: true,
+        });
+        expect(playbackPositions.savePlaybackPosition).toHaveBeenCalledTimes(2);
+        expect(selectedVodPosition()?.positionSeconds).toBe(60);
+    });
+
     it('does not overwrite the resume point before the engine reaches it', () => {
         // Search, Favorites and Recent resume through this controller.
         const { controller, inlinePlayback, playbackPositions } =
@@ -123,6 +151,90 @@ describe('StalkerVodPlaybackController', () => {
             'stalker-1',
             expect.objectContaining({ positionSeconds: 2401 })
         );
+    });
+
+    describe('closing the inline player', () => {
+        const movie = (contentXtreamId: number): ResolvedPortalPlayback => ({
+            title: 'Synthetic movie',
+            streamUrl: 'https://media.example.test/synthetic.mp4',
+            contentInfo: {
+                playlistId: 'synthetic-playlist',
+                contentType: 'vod',
+                contentXtreamId,
+            },
+        });
+
+        function playUntil(
+            controller: StalkerVodPlaybackController,
+            from: number,
+            to: number
+        ): void {
+            for (let second = from; second <= to; second++) {
+                controller.handleInlineTimeUpdate({
+                    currentTime: second,
+                    duration: 5400,
+                });
+            }
+        }
+
+        it('saves the latest position the throttle held back', () => {
+            const {
+                controller,
+                inlinePlayback,
+                playbackPositions,
+                selectedVodPosition,
+            } = createController();
+            inlinePlayback.set(movie(17));
+            playUntil(controller, 600, 614);
+
+            controller.closeInlinePlayer();
+
+            expect(
+                playbackPositions.savePlaybackPosition
+            ).toHaveBeenLastCalledWith(
+                'synthetic-playlist',
+                expect.objectContaining({
+                    contentXtreamId: 17,
+                    positionSeconds: 614,
+                })
+            );
+            // Resume on the still-open detail starts from there too.
+            expect(selectedVodPosition()?.positionSeconds).toBe(614);
+        });
+
+        it('saves the superseded movie under its own key when another starts', async () => {
+            const { controller, inlinePlayback, playbackPositions } =
+                createController();
+            inlinePlayback.set(movie(17));
+            playUntil(controller, 600, 614);
+
+            await controller.startVodPlayback(async () => movie(18));
+
+            expect(
+                playbackPositions.savePlaybackPosition
+            ).toHaveBeenLastCalledWith(
+                'synthetic-playlist',
+                expect.objectContaining({
+                    contentXtreamId: 17,
+                    positionSeconds: 614,
+                })
+            );
+            expect(inlinePlayback()?.contentInfo?.contentXtreamId).toBe(18);
+        });
+
+        it('keeps the old row out of the next movie shown on the page', () => {
+            let owner = 'movie-17';
+            const { controller, inlinePlayback, selectedVodPosition } =
+                createController(() => owner);
+            inlinePlayback.set(movie(17));
+            playUntil(controller, 600, 614);
+            owner = 'movie-18';
+            selectedVodPosition.set(createPosition(18, 30));
+
+            controller.closeInlinePlayer();
+
+            expect(selectedVodPosition()?.contentXtreamId).toBe(18);
+        });
     });
 
     it('ignores stale VOD position loads that resolve after a newer selection', async () => {

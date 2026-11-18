@@ -34,8 +34,8 @@ export async function verifyStalkerOpenInPlaylist(
     await channels.first().locator('.favorite-button').click();
     await expect(
         channels.first().locator('.favorite-button mat-icon')
-    ).toHaveText('star', { timeout: 10_000 });
-    // The star is optimistic; the toast follows the committed local write.
+    ).toHaveText('favorite', { timeout: 10_000 });
+    // The heart is optimistic; the toast follows the committed local write.
     // A full reload must not destroy an in-flight favorite mutation.
     await expect(page.locator('mat-snack-bar-container')).toContainText(
         'Added to favorites'
