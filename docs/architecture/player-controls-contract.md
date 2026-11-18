@@ -593,7 +593,10 @@ the next season: `PortalInlinePlayerComponent.onPlaybackEnded` emits
 `upNextEpisodeSelected` for the next rail entry instead of `playbackEnded`.
 The Stalker rail stops at the first season waiting for episode data. If an
 in-flight list arrives after playback ends, autoplay resumes the sequence while
-the same session is still at the end.
+the same session is still at the end. Automatic rail selections carry a
+request-scoped `autoplaySignal`. Rewind, resume, manual episode choices and
+Close cancel that signal before a pending Stalker link can replace playback.
+Committed successors keep their autoplay count.
 Escape dismisses a visible card for the episode after any open menu closes
 (`ControlsUpNext.dismissIfVisible`). With the inline controls active, the card
 dismisses before Escape reaches the detail shell. Another Escape closes the

@@ -216,7 +216,9 @@ describe('PortalInlinePlayerComponent up next rail', () => {
         });
         fixture.detectChanges();
         component.onPlaybackEnded();
-        expect(selected).toHaveBeenCalledWith(upNextItems[1]);
+        expect(selected).toHaveBeenCalledWith(
+            expect.objectContaining(upNextItems[1])
+        );
         expect(ended).not.toHaveBeenCalled();
 
         // Inside a season the host keeps its own autoplay path.
@@ -241,6 +243,45 @@ describe('PortalInlinePlayerComponent up next rail', () => {
         expect(selected).toHaveBeenCalledTimes(1);
         expect(component.playerUpNext()?.showCountdown).toBe(false);
     });
+
+    it.each(['seek', 'replay', 'committed'] as const)(
+        'aborts an issued season autoplay on %s',
+        async (action) => {
+            await setup(true);
+            fixture.componentRef.setInput('playback', seriesPlayback);
+            fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+            fixture.componentRef.setInput('seriesNavigation', {
+                canPrevious: true,
+                canNext: false,
+                autoplayEnabled: true,
+            });
+            fixture.detectChanges();
+            let issued: AbortSignal | undefined;
+            component.upNextEpisodeSelected.subscribe((item) => {
+                issued = (
+                    item as typeof item & { autoplaySignal?: AbortSignal }
+                ).autoplaySignal;
+            });
+            component.onTimeUpdate({
+                currentTime: 120,
+                duration: 120,
+                playing: false,
+            });
+            component.onPlaybackEnded();
+            expect(issued).toBeDefined();
+            if (action === 'committed')
+                fixture.componentRef.setInput(
+                    'playbackSessionKey',
+                    'next-session'
+                );
+            component.onTimeUpdate({
+                currentTime: action === 'seek' ? 10 : 120,
+                duration: 120,
+                playing: action === 'replay',
+            });
+            expect(issued?.aborted).toBe(action !== 'committed');
+        }
+    );
 
     it('preserves a pending episode choice when the current season ends', async () => {
         await setup(true);
@@ -325,7 +366,9 @@ describe('PortalInlinePlayerComponent up next rail', () => {
             fixture.detectChanges();
             expect(selected).toHaveBeenCalledTimes(state === 'ended' ? 1 : 0);
             if (state === 'ended')
-                expect(selected).toHaveBeenCalledWith(upNextItems[1]);
+                expect(selected).toHaveBeenCalledWith(
+                    expect.objectContaining(upNextItems[1])
+                );
         }
     );
 

@@ -308,7 +308,13 @@ export class PortalInlinePlayerComponent {
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
     /** An episode picked in the Up Next rail or the fullscreen episode panel. */
-    readonly upNextEpisodeSelected = output<UpNextRailItem>();
+    readonly upNextEpisodeSelected = output<
+        UpNextRailItem & { autoplaySignal?: AbortSignal }
+    >();
+    private automaticSeasonAdvance: {
+        session: string;
+        controller: AbortController;
+    } | null = null;
     private readonly autoplayStreak = inject(AutoplayStreakService);
     private readonly pendingSeasonAdvance = signal<string | null>(null);
     private lastReportedPosition: number | undefined;
@@ -324,6 +330,7 @@ export class PortalInlinePlayerComponent {
         effect(() => {
             this.playbackSessionKey();
             this.lastReportedPosition = undefined;
+            this.automaticSeasonAdvance = null;
             untracked(() => this.autoplayStreak.playbackStarted());
         });
         effect(() => {
@@ -358,8 +365,15 @@ export class PortalInlinePlayerComponent {
         });
     }
 
-    onClose(): void {
+    private cancelSeasonAdvance(): void {
         this.pendingSeasonAdvance.set(null);
+        if (this.automaticSeasonAdvance?.session === this.playbackSessionKey())
+            this.automaticSeasonAdvance.controller.abort();
+        this.automaticSeasonAdvance = null;
+    }
+
+    onClose(): void {
+        this.cancelSeasonAdvance();
         this.closed.emit();
     }
 
@@ -370,7 +384,7 @@ export class PortalInlinePlayerComponent {
             (this.lastReportedPosition !== undefined &&
                 event.currentTime < this.lastReportedPosition)
         ) {
-            this.pendingSeasonAdvance.set(null);
+            this.cancelSeasonAdvance();
         }
         this.lastReportedPosition = event.currentTime;
         this.timeUpdate.emit(event);
@@ -405,17 +419,30 @@ export class PortalInlinePlayerComponent {
 
     private playAutoplaySuccessor(next: UpNextRailItem): boolean {
         if (!this.autoplayStreak.beginAutoplay()) return false;
-        this.upNextEpisodeSelected.emit(next);
+        const automatic = new AbortController();
+        this.automaticSeasonAdvance = {
+            session: this.playbackSessionKey(),
+            controller: automatic,
+        };
+        automatic.signal.addEventListener(
+            'abort',
+            () => this.autoplayStreak.cancelAutoplay(),
+            { once: true }
+        );
+        this.upNextEpisodeSelected.emit({
+            ...next,
+            autoplaySignal: automatic.signal,
+        });
         return true;
     }
 
     onPreviousEpisodeRequested(): void {
-        this.pendingSeasonAdvance.set(null);
+        this.cancelSeasonAdvance();
         this.previousEpisodeRequested.emit();
     }
 
     onNextEpisodeRequested(): void {
-        this.pendingSeasonAdvance.set(null);
+        this.cancelSeasonAdvance();
         // Season-local navigation ends at a season's last episode; the Up
         // next card can still offer the next season's first, which only
         // the rail selection path knows how to play.
@@ -428,7 +455,7 @@ export class PortalInlinePlayerComponent {
     }
 
     onUpNextEpisodeSelected(item: UpNextRailItem): void {
-        this.pendingSeasonAdvance.set(null);
+        this.cancelSeasonAdvance();
         this.upNextEpisodeSelected.emit(item);
     }
 

@@ -265,6 +265,36 @@ test('TV Up next can be reached again by remote and Back dismisses it first', as
     );
     const thumb = card.locator('.tv-up-next__thumb');
     await expect(thumb).toHaveCSS('height', '144px');
+    await page.addStyleTag({
+        content: '.tv-up-next, .tv-up-next__meta { gap: 0 !important; }',
+    });
+    const metadata = card.locator('.tv-up-next__meta');
+    await expect(card.locator('.tv-up-next__ring-fill')).toHaveCSS(
+        'transition-duration',
+        '0s'
+    );
+    await expect
+        .poll(() =>
+            metadata.evaluate((element) => {
+                const previous = element.previousElementSibling!;
+                return (
+                    element.getBoundingClientRect().left -
+                    previous.getBoundingClientRect().right
+                );
+            })
+        )
+        .toBeGreaterThan(0);
+    await expect
+        .poll(() =>
+            metadata.evaluate((element) => {
+                const [first, second] = Array.from(element.children);
+                return (
+                    second.getBoundingClientRect().top -
+                    first.getBoundingClientRect().bottom
+                );
+            })
+        )
+        .toBeGreaterThan(0);
     await expect(card.locator('.tv-up-next__ring-fill')).not.toHaveCSS(
         'stroke',
         await card.evaluate(

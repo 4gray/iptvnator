@@ -278,6 +278,29 @@ describe('StalkerSeriesViewComponent playback session key', () => {
         await fixture.whenStable();
     });
 
+    it('cancels an issued rail autoplay without replacing the replayed episode', async () => {
+        await playFirstEpisode();
+        const playback = fixture.componentInstance.inlinePlayback();
+        const pending = deferred<ResolvedPortalPlayback>();
+        resolveVodPlayback.mockReturnValueOnce(pending.promise);
+        const episode = Object.values(
+            fixture.componentInstance.mappedSeasons()
+        )[0][1];
+        const automatic = new AbortController();
+        fixture.componentInstance.playUpNextEpisode({
+            episode,
+            autoplaySignal: automatic.signal,
+        } as Parameters<StalkerSeriesViewComponent['playUpNextEpisode']>[0]);
+        automatic.abort();
+        pending.resolve({
+            streamUrl: 'https://media.example.test/obsolete-next.mpg',
+            contentInfo: { contentType: 'episode' },
+        } as ResolvedPortalPlayback);
+        await fixture.whenStable();
+        expect(fixture.componentInstance.inlinePlayback()).toBe(playback);
+        expect(fixture.componentInstance.startPending()).toBe(false);
+    });
+
     function setLazySeries(parentId: string, episodeId: string): void {
         selectedContentType.set('vod');
         selectedItem.set({
