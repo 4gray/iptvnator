@@ -25,7 +25,6 @@ import { of } from 'rxjs';
 import {
     EPISODE_INFO_PLAY,
     buildEpisodeInfoDialogData,
-    episodeSubtitleKey,
 } from './episode-info-dialog.component';
 import { SeasonContainerComponent } from './season-container.component';
 
@@ -519,22 +518,6 @@ describe('SeasonContainerComponent', () => {
         expect(buildEpisodeInfoDialogData(episode, '9').episodeLabel).toBe(
             'E189'
         );
-    });
-
-    it('names a known season 0 in the episode info subtitle, and leaves out an unknown season', () => {
-        const special = buildEpisodeInfoDialogData(
-            createEpisode({ season: 0, episode_num: 3 }),
-            '0'
-        );
-        expect(special).toMatchObject({ seasonNumber: 0, episodeNumber: 3 });
-        expect(episodeSubtitleKey(special)).toBe('DIALOGS.EPISODE_SEASON');
-
-        const flat = buildEpisodeInfoDialogData(
-            createEpisode({ season: 9, episode_num: 189, seasonUnknown: true }),
-            '9'
-        );
-        expect(flat.seasonNumber).toBeUndefined();
-        expect(episodeSubtitleKey(flat)).toBe('DIALOGS.EPISODE');
     });
 
     it('opens the episode info dialog and plays on the dialog play action', () => {

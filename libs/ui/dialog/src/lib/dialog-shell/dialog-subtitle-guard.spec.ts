@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 
 /**
  * Every dialog header has an icon, a title and a one-line subtitle that says
@@ -69,7 +69,8 @@ describe('dialog header guard', () => {
     const files = ROOTS.flatMap((dir) => sourceFiles(resolve(root, dir))).map(
         (path) => ({
             path,
-            name: relative(root, path),
+            // Forward slashes on every platform, as the lists above use.
+            name: relative(root, path).split(sep).join('/'),
             source: readFileSync(path, 'utf8'),
         })
     );
