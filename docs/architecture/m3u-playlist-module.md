@@ -1376,7 +1376,9 @@ side — over one shared `EpgQueueService`:
   cooldown, prefetched XMLTV entry and queued id, discards that account's
   requests still in flight, and the running loop continues with the latest
   credentials. Lists read `getCached(streamId, credentials)`, which answers
-  nothing for another account's cache.
+  nothing for another account's cache, and drop an `epgResult$` emission
+  whose `ownerKey` is not the shown playlist's (`isResultFor`): a late answer
+  can land after the list switched playlist but before its first `enqueue`.
 
 ### XMLTV response compression
 

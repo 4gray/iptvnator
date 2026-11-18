@@ -386,19 +386,29 @@ export class PortalChannelsListComponent implements OnDestroy {
 
         if (this.runtime.supportsProviderEpg) {
             this.subscriptions.add(
-                this.epgQueueService.epgResult$.subscribe(
-                    ({ streamId, items }) => {
-                        if (!this.supportsProviderEpg) return;
-                        // The earliest-item fallback belongs to a row that has
-                        // nothing to show yet. Once a row holds a programme,
-                        // only one on air or upcoming may replace it: a refill
-                        // answered with the same finished window would
-                        // otherwise walk the row back to an older programme,
-                        // the very thing the refresh exists to prevent (#767).
-                        const program = this.pickProgramFor(streamId, items);
-                        if (program) this.applyProgram(streamId, program);
-                    }
-                )
+                this.epgQueueService.epgResult$.subscribe((result) => {
+                    if (!this.supportsProviderEpg) return;
+                    // A late answer for the playlist shown before: stream
+                    // ids repeat across accounts.
+                    const playlist = this.xtreamStore.currentPlaylist();
+                    if (
+                        playlist &&
+                        !this.epgQueueService.isResultFor(
+                            result,
+                            xtreamCredentialsOf(playlist)
+                        )
+                    )
+                        return;
+                    const { streamId, items } = result;
+                    // The earliest-item fallback belongs to a row that has
+                    // nothing to show yet. Once a row holds a programme,
+                    // only one on air or upcoming may replace it: a refill
+                    // answered with the same finished window would
+                    // otherwise walk the row back to an older programme,
+                    // the very thing the refresh exists to prevent (#767).
+                    const program = this.pickProgramFor(streamId, items);
+                    if (program) this.applyProgram(streamId, program);
+                })
             );
 
             // Nothing else re-evaluates the shown "current program" as

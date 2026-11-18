@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { SettingsStore } from '@iptvnator/services';
-import { EpgQueueService } from './epg-queue.service';
+import { EpgQueueResult, EpgQueueService } from './epg-queue.service';
 import { XtreamApiService } from './xtream-api.service';
 import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
 import type { EpgItem } from '@iptvnator/shared/interfaces';
@@ -467,6 +467,28 @@ describe('EpgQueueService', () => {
                 { suppressErrorLog: true }
             );
             expect(service.getCached(1, other)?.[0]?.title).toBe('B-Show');
+        });
+
+        it('tags each result with its account', async () => {
+            xtreamApi.getShortEpg.mockResolvedValue([
+                makeEpgItem('channel-1', 'A-Show'),
+            ]);
+            const results: EpgQueueResult[] = [];
+            service.epgResult$.subscribe((result) => results.push(result));
+
+            await service.enqueue([1], new Set([1]), credentials);
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(results).toHaveLength(1);
+            expect(service.isResultFor(results[0], credentials)).toBe(true);
+            expect(service.isResultFor(results[0], other)).toBe(false);
+            // The same account written another way is the same account.
+            expect(
+                service.isResultFor(results[0], {
+                    ...credentials,
+                    serverUrl: `${credentials.serverUrl}/`,
+                })
+            ).toBe(true);
         });
 
         it("moves a running queue to the new account and drops the old one's late results", async () => {

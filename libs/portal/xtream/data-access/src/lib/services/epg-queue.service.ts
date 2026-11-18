@@ -15,6 +15,13 @@ import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
 import { ownerKeyOf } from './epg-queue-owner.util';
 import { createLogger } from '@iptvnator/portal/shared/util/logger';
 
+export interface EpgQueueResult {
+    streamId: number;
+    items: EpgItem[];
+    /** The account the result belongs to (see `isResultFor`). */
+    ownerKey: string | null;
+}
+
 interface CacheEntry {
     data: EpgItem[];
     timestamp: number;
@@ -67,7 +74,11 @@ export class EpgQueueService implements OnDestroy {
             ...this.visibleSet,
         ])) {
             this.invalidate(id);
-            this.epgResult$.next({ streamId: id, items: [] });
+            this.epgResult$.next({
+                streamId: id,
+                items: [],
+                ownerKey: this.ownerKey,
+            });
         }
     });
     private readonly logger = createLogger('EpgQueueService');
@@ -100,8 +111,19 @@ export class EpgQueueService implements OnDestroy {
     private readonly cacheTtlMs = 5 * 60 * 1000; // 5 minutes
     private readonly failureCooldownMs = 60 * 1000;
 
-    /** Emits EPG results as they arrive. */
-    readonly epgResult$ = new Subject<{ streamId: number; items: EpgItem[] }>();
+    /**
+     * Emits EPG results as they arrive, with the account they belong to: a
+     * list that already shows another playlist drops them (`isResultFor`).
+     */
+    readonly epgResult$ = new Subject<EpgQueueResult>();
+
+    /** Whether `result` answers `credentials`' account. */
+    isResultFor(
+        result: EpgQueueResult,
+        credentials: XtreamCredentials
+    ): boolean {
+        return result.ownerKey === ownerKeyOf(credentials);
+    }
 
     /**
      * The cached preview of `streamId`. Pass the reading list's credentials:
@@ -549,7 +571,7 @@ export class EpgQueueService implements OnDestroy {
         if (previous && previous.length === 0 && items.length === 0) {
             return;
         }
-        this.epgResult$.next({ streamId, items });
+        this.epgResult$.next({ streamId, items, ownerKey: this.ownerKey });
     }
 
     private delay(ms: number): Promise<void> {

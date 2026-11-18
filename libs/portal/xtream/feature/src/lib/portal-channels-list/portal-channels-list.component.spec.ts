@@ -74,7 +74,11 @@ describe('PortalChannelsListComponent', () => {
         setSelectedCategory: jest.fn(),
         toggleFavorite: jest.fn().mockResolvedValue(true),
     };
-    const epgResults$ = new Subject<{ streamId: number; items: unknown[] }>();
+    const epgResults$ = new Subject<{
+        streamId: number;
+        items: unknown[];
+        ownerKey?: string;
+    }>();
     const favoritesService = {
         getFavorites: jest.fn().mockReturnValue(of([] as FavoriteItem[])),
     };
@@ -83,6 +87,15 @@ describe('PortalChannelsListComponent', () => {
         getCached: jest.fn().mockReturnValue(null),
         enqueue: jest.fn().mockResolvedValue(undefined),
         invalidate: jest.fn(),
+        // The queue keys results by account; the mock by server URL.
+        isResultFor: jest.fn(
+            (
+                result: { ownerKey?: string },
+                credentials: { serverUrl: string }
+            ) =>
+                result.ownerKey === undefined ||
+                result.ownerKey === credentials.serverUrl
+        ),
     };
     let providerEpgAvailable = true;
 
@@ -482,6 +495,25 @@ describe('PortalChannelsListComponent', () => {
             expect.any(Set),
             expect.objectContaining({ serverUrl: other.serverUrl })
         );
+
+        // A late answer for the playlist shown before stays off the row.
+        epgResults$.next({
+            streamId: 50,
+            ownerKey: demoPlaylist.serverUrl,
+            items: [
+                buildEpgItem({
+                    id: 'late',
+                    title: 'Late Other Playlist Show',
+                    start: '2026-04-05T05:30:00.000Z',
+                    stop: '2026-04-05T06:30:00.000Z',
+                    startTimestamp:
+                        Date.parse('2026-04-05T05:30:00.000Z') / 1000,
+                    stopTimestamp:
+                        Date.parse('2026-04-05T06:30:00.000Z') / 1000,
+                }),
+            ],
+        });
+        expect(component.epgPrograms.has(50)).toBe(false);
     });
 
     it('re-fetches EPG on the refresh tick once the cache has expired, without blanking the row (#767)', async () => {
