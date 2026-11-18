@@ -1,9 +1,4 @@
-import {
-    ChangeDetectionStrategy,
-    Component,
-    computed,
-    inject,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PwaUpdateService } from './services/pwa-update.service';
@@ -24,7 +19,7 @@ import { PwaUpdateService } from './services/pwa-update.service';
                     </span>
                 </header>
                 <div class="app-update-notification__body" role="status">
-                    {{ message() | translate }}
+                    {{ updates.noticeMessage() | translate }}
                 </div>
                 <div class="app-update-notification__actions">
                     <button
@@ -63,14 +58,4 @@ import { PwaUpdateService } from './services/pwa-update.service';
 })
 export class PwaUpdateNotificationComponent {
     readonly updates = inject(PwaUpdateService);
-    readonly message = computed(() => {
-        switch (this.updates.notice()) {
-            case 'unrecoverable':
-                return 'PWA_RELOAD_REQUIRED';
-            case 'failed':
-                return 'PWA_UPDATE_FAILED';
-            default:
-                return 'PWA_UPDATE_READY';
-        }
-    });
 }

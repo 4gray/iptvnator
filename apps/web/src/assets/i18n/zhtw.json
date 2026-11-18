@@ -1372,6 +1372,7 @@
         "TWITTER_TOOLTIP": "在 Twitter 上分享"
     },
     "UPDATE_AVAILABLE": "有可用的更新",
+    "PWA_UPDATE_NONE": "此伺服器上找不到更新的組建版本。",
     "PWA_UPDATE_READY": "更新已就緒。重新載入將停止播放。",
     "PWA_UPDATE_FAILED": "無法下載應用程式更新。您可以繼續使用目前版本。",
     "PWA_RELOAD_REQUIRED": "應用程式檔案無法使用。請在網路恢復後重新載入。播放將停止。",

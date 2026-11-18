@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { test } from 'node:test';
@@ -53,6 +54,49 @@ for (const state of ['NORMAL', 'EXISTING_CLIENTS_ONLY']) {
         assert.deepEqual([...driver.versions.keys()], ['installed']);
     });
 }
+
+test('an explicit check offers the cached version to an older client', async () => {
+    const manifest = { configVersion: 1 };
+    const latest = createHash('sha1')
+        .update(JSON.stringify(manifest))
+        .digest('hex');
+    const completed = [];
+    const driver = Object.create(context.Driver.prototype);
+    Object.assign(driver, {
+        state: context.States.NORMAL,
+        latestHash: latest,
+        versions: new Map([[latest, {}]]),
+        debugger: { log: () => undefined },
+        clientVersionMap: new Map([
+            ['old-page', 'previous'],
+            ['current-page', latest],
+        ]),
+        fetchLatestManifest: async () => manifest,
+        notifyClientsAboutNoNewVersionDetected: async () => undefined,
+        completeOperation: async (_client, operation) => {
+            completed.push(await operation);
+        },
+    });
+
+    for (const id of ['old-page', 'current-page', 'untracked-page']) {
+        await driver.handleMessage(
+            { action: 'CHECK_FOR_UPDATES', nonce: 1 },
+            { id }
+        );
+    }
+
+    assert.deepEqual(completed, [true, false, false]);
+    assert.equal(await driver.checkForUpdate(), false);
+
+    driver.fetchLatestManifest = async () => null;
+    const check = { action: 'CHECK_FOR_UPDATES', nonce: 2 };
+    await driver.handleMessage(check, { id: 'old-page' });
+    assert.equal(completed.at(-1), true);
+
+    driver.state = context.States.EXISTING_CLIENTS_ONLY;
+    await driver.handleMessage(check, { id: 'old-page' });
+    assert.equal(completed.at(-1), false);
+});
 
 test('failure of the installed version still degrades the worker', async () => {
     const installed = {};

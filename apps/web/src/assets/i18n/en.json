@@ -1372,6 +1372,7 @@
         "TWITTER_TOOLTIP": "Share on Twitter"
     },
     "UPDATE_AVAILABLE": "Update available",
+    "PWA_UPDATE_NONE": "No newer build was found on this server.",
     "PWA_UPDATE_READY": "An update is ready. Reloading stops playback.",
     "PWA_UPDATE_FAILED": "The application update could not be downloaded. You can keep using this version.",
     "PWA_RELOAD_REQUIRED": "Application files are unavailable. Reload when online to recover. Playback will stop.",

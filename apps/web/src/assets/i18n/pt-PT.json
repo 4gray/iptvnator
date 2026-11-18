@@ -1372,6 +1372,7 @@
         "TWITTER_TOOLTIP": "Partilhar no Twitter"
     },
     "UPDATE_AVAILABLE": "Atualização disponível",
+    "PWA_UPDATE_NONE": "Não foi encontrada uma compilação mais recente neste servidor.",
     "PWA_UPDATE_READY": "Está pronta uma atualização. Recarregar interrompe a reprodução.",
     "PWA_UPDATE_FAILED": "Não foi possível transferir a atualização. Pode continuar a utilizar esta versão.",
     "PWA_RELOAD_REQUIRED": "Os ficheiros da aplicação estão indisponíveis. Recarregue quando a ligação voltar. A reprodução será interrompida.",
