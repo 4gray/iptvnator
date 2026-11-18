@@ -389,13 +389,33 @@ The explicit refresh loads `pwa-playlist-refresh.ts` on demand. It publishes
 the saved catalog and reports success after persistence resolves. Standalone
 storage waits for the IndexedDB transaction to commit. A write failure
 reports an error and leaves the saved catalog in place.
+`PwaService.refreshPlaylist()` resolves `true` once the catalog is saved and
+`false` after it has reported a failed download or write, so callers learn the
+outcome through `PLAYLIST_UPDATE`.
+
+## Changing an M3U source
+
+Saving a new URL or file path in the playlist details dialog persists the
+source, then awaits `PlaylistRefreshActionService.refreshM3uSource()`, which
+settles with `refreshed`, `failed` or `skipped` on both the Electron
+(`refreshM3u`) and browser backend (`refreshViaBackend`) paths. The Save button
+reads "Loading channels…" meanwhile, and success is reported only after the
+refresh. A failure, already explained by the refresh, keeps the saved source
+rather than rolling it back (a second write could fail too, and a shared
+source would need another revision); the dialog stays open with an inline
+status that the channels are still from the previous source, rebased on the
+saved row so the next Save retries the load. A skipped load closes the dialog
+with a "source saved, refresh to load" message.
 
 ## Playlist Refresh And Startup Auto-Update (Electron)
 
 Catalog reads through `PlaylistsService.getPlaylist()` join the per-playlist
-mutation queue. Refresh publishes its store action before persistence finishes;
-opening the route in that interval must read after the queued save rather than
-overwrite the refreshed channels with an older SQLite/IndexedDB snapshot.
+mutation queue. An explicit refresh from `PlaylistRefreshActionService` saves
+the refreshed playlist first and then publishes the saved row with
+`persist: false`, so its success means the channels are stored and a write
+failure is reported; other refresh paths publish before persistence finishes,
+and opening the route in that interval must read after the queued save rather
+than overwrite the refreshed channels with an older SQLite/IndexedDB snapshot.
 Mutation-internal reads use `getPlaylistById()` directly to avoid queue re-entry.
 Failed writes release the queue, and other playlist IDs remain independent.
 

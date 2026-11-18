@@ -27,7 +27,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 import {
     createXtreamConnectionTestState,
     PlaylistsService,
@@ -92,12 +92,17 @@ export class PlaylistInfoComponent {
     private translate = inject(TranslateService);
     private runtime = inject(RuntimeCapabilitiesService);
     private readonly destroyRef = inject(DestroyRef);
+    private formEdits?: Subscription;
     private dialogRef = inject(MatDialogRef<PlaylistInfoComponent>, {
         optional: true,
     });
     public playlistData = inject<Playlist & { id: string }>(MAT_DIALOG_DATA);
     readonly isSaving = signal(false);
     readonly isRefreshingSelectedCatalogs = signal(false);
+    /** Saved a new M3U source and waiting for its channels to load. */
+    readonly isLoadingSource = signal(false);
+    /** The saved M3U source could not be loaded; old channels remain. */
+    readonly sourceLoadFailed = signal(false);
     readonly isHydratingStalkerPlaylist = signal(false);
     readonly stalkerPlaylistHydrationFailed = signal(false);
     private dialogClosing = false;
@@ -204,6 +209,7 @@ export class PlaylistInfoComponent {
     connectionTest: ReturnType<typeof createXtreamConnectionTestState>;
 
     constructor() {
+        this.destroyRef.onDestroy(() => this.formEdits?.unsubscribe());
         this.dialogRef?.beforeClosed().subscribe(() => {
             this.dialogClosing = true;
         });
@@ -238,6 +244,12 @@ export class PlaylistInfoComponent {
                 normalizeXtreamContentTypes(this.playlist.xtreamContentTypes)
             )
         );
+        // An inline load failure is cleared by any edit, as other checks are.
+        // Hydration rebuilds the form, so the listener follows the new one.
+        this.formEdits?.unsubscribe();
+        this.formEdits = this.playlistDetails.valueChanges.subscribe(() => {
+            if (!this.isSaving()) this.sourceLoadFailed.set(false);
+        });
     }
 
     get hasAdvancedStalkerOptions(): boolean {

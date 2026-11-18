@@ -202,16 +202,16 @@ export class PwaService extends DataService {
 
     async refreshPlaylist(
         payload?: Partial<Playlist & { id: string }>
-    ): Promise<void> {
+    ): Promise<boolean> {
         if (!payload?.url || !payload?.id) {
-            return;
+            return false;
         }
 
         const { id, url, userAgent } = payload;
         try {
             const { refreshPwaPlaylist } =
                 await import('./pwa-playlist-refresh');
-            await refreshPwaPlaylist(
+            return await refreshPwaPlaylist(
                 this.injector,
                 id,
                 url,
@@ -232,6 +232,7 @@ export class PwaService extends DataService {
                 this.translateService.instant('CLOSE'),
                 { duration: 5000 }
             );
+            return false;
         }
     }
 
