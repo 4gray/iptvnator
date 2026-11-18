@@ -602,9 +602,11 @@ every session from `onExternalPlayerSessionUpdate`:
   none. A session first reported after a relock it started before raced
   that relock and counts as opened while unlocked. A
   session opened while locked came from the filtered catalog and keeps
-  playing, until the lock set changes: a session carries no category, so a
-  lock edit counts every open session (and one first reported after the
-  edit that started before it) as opened while unlocked. Closing uses `closeExternalPlayerSession(id, true)` and hides
+  playing, until its source's locks change: a session carries no
+  category, so an edit of that source's locks (of any source's, when the
+  source is unknown) counts it as opened while unlocked, and so does any
+  lock edit for one first reported after the edit that started before it.
+  Deleting another source or re-stamping the index leaves it alone. Closing uses `closeExternalPlayerSession(id, true)` and hides
   the session from the dock first; a launch without a closer yet is closed
   on its next update, a rejected close is retried every second, and a
   session that cannot be closed (`canClose: false`) is only hidden — shown

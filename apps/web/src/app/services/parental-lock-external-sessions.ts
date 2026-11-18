@@ -30,6 +30,8 @@ type Tracked = {
     tainted: boolean;
     /** The session's source; `null` when it cannot be told. */
     sourceId: string | null;
+    /** The locks of `sourceId` (any source's when unknown) last judged. */
+    lockKey?: string;
     closing: boolean;
     /** Dismissed from the dock by the relock. */
     hidden?: boolean;
@@ -123,11 +125,19 @@ export class ParentalLockExternalSessions {
     onLockChange(): void {
         // A session carries no category, so a lock-set change may withhold
         // what any open one plays, however it was opened.
+        // Only its own source's locks count: deleting another source or
+        // re-stamping the index also moves the revision.
         const revision = this.locks.revision();
         if (revision !== this.lockRevision) {
             this.lockRevision = revision;
             this.lockedAt = this.now();
-            this.sessions.forEach((entry) => (entry.tainted = true));
+            this.sessions.forEach((entry) => {
+                const key = this.lockKeyOf(entry.sourceId);
+                if (key !== entry.lockKey) {
+                    entry.lockKey = key;
+                    entry.tainted = true;
+                }
+            });
         }
         // Only a relock: other version bumps while locked would count a
         // session launched from the filtered catalog as having raced one.
@@ -186,6 +196,9 @@ export class ParentalLockExternalSessions {
         }
         entry.session = session;
         entry.sourceId = session.contentInfo?.playlistId ?? entry.sourceId;
+        if (!current || switched) {
+            entry.lockKey = this.lockKeyOf(entry.sourceId);
+        }
         this.sessions.set(session.id, entry);
         this.enforce(entry);
     }
@@ -286,6 +299,16 @@ export class ParentalLockExternalSessions {
                 }, CLOSE_RETRY_MS);
             }
         );
+    }
+
+    /**
+     * What a lock edit is compared by: the source's locks, or the lock
+     * revision when the source cannot be told (any edit may concern it).
+     */
+    private lockKeyOf(sourceId: string | null): string {
+        return sourceId === null
+            ? `revision:${this.locks.revision()}`
+            : JSON.stringify(this.locks.locksFor(sourceId));
     }
 
     /** The source route a new session was launched from, when known. */

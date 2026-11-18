@@ -42,6 +42,7 @@ describe('ParentalLockExternalSessions', () => {
     let active: ReturnType<typeof signal<boolean>>;
     let hasLocks: jest.Mock;
     let lockRevision: ReturnType<typeof signal<number>>;
+    let sourceLocks: Record<string, string[]>;
     let withholdsEverything: ReturnType<typeof signal<boolean>>;
     let activeSession: ReturnType<typeof signal<ExternalPlayerSession | null>>;
     let dismissActiveSession: jest.Mock;
@@ -65,6 +66,7 @@ describe('ParentalLockExternalSessions', () => {
         active = signal(false);
         hasLocks = jest.fn(() => true);
         lockRevision = signal(0);
+        sourceLocks = {};
         withholdsEverything = signal(false);
         activeSession = signal<ExternalPlayerSession | null>(null);
         dismissActiveSession = jest.fn();
@@ -96,7 +98,13 @@ describe('ParentalLockExternalSessions', () => {
                 },
                 {
                     provide: ParentalLockLockStore,
-                    useValue: { hasLocks, revision: lockRevision },
+                    useValue: {
+                        hasLocks,
+                        revision: lockRevision,
+                        locksFor: (id: string) => ({
+                            m3u: sourceLocks[id] ?? [],
+                        }),
+                    },
                 },
                 {
                     provide: ExternalPlaybackService,
@@ -496,7 +504,8 @@ describe('ParentalLockExternalSessions', () => {
             emitSession(session());
             active.set(false);
             service.onLockChange();
-            // The parent locks another category while unlocked.
+            // The parent locks another group of its source while unlocked.
+            sourceLocks['m3u-1'] = ['Synthetic group'];
             lockRevision.set(1);
             service.onLockChange();
 
@@ -506,6 +515,17 @@ describe('ParentalLockExternalSessions', () => {
                 'session-1',
                 true
             );
+        });
+
+        it("keeps a locked-time session when only another source's locks changed", () => {
+            active.set(true);
+            emitSession(session());
+            // Another source is deleted, or the index is re-stamped.
+            sourceLocks['xtream-2'] = ['Synthetic category'];
+            lockRevision.set(1);
+            service.onLockChange();
+
+            expect(closeExternalPlayerSession).not.toHaveBeenCalled();
         });
 
         it('forgets a closed session', () => {
