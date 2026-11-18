@@ -38,6 +38,7 @@ import {
     MetaChipComponent,
     PortalDetailShellComponent,
     castMembersFromNames,
+    favoriteIcon,
 } from '@iptvnator/ui/components';
 import { formatDurationLabel } from '@iptvnator/portal/shared/util';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
@@ -83,6 +84,7 @@ import {
     styleUrls: ['./m3u-vod-detail.component.scss'],
 })
 export class M3uVodDetailComponent {
+    protected readonly favoriteIcon = favoriteIcon;
     private readonly metadata = inject(M3uVodMetadataService);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);

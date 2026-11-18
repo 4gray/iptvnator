@@ -49,7 +49,7 @@
                     : 'PORTALS.ADD_TO_FAVORITES'
                 ) | translate
             "
-            [icon]="isFavorite() ? 'favorite' : 'favorite_border'"
+            [icon]="favoriteIcon(isFavorite())"
             tone="favorite"
             [active]="isFavorite()"
             [pressedState]="isFavorite()"

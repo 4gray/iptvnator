@@ -31,6 +31,7 @@ function createSection(
             startupBehavior: new FormControl(null),
             startupWindowMode: new FormControl(null),
             stripCountryPrefix: new FormControl(false),
+            m3uCatalogTabs: new FormControl(true),
             portalConnectivityGuard: new FormControl(false),
         })
     );

@@ -98,7 +98,7 @@
             [attr.aria-pressed]="favorite()"
             (click)="onFavoriteClick($event)"
         >
-            <mat-icon>{{ favorite() ? 'star' : 'star_outline' }}</mat-icon>
+            <mat-icon>{{ favoriteIcon(favorite()) }}</mat-icon>
         </button>
     }
 

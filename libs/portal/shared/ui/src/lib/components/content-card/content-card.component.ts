@@ -12,6 +12,7 @@ import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { normalizeDateLocale } from '@iptvnator/pipes';
+import { favoriteIcon } from '@iptvnator/ui/components/app-icons';
 import { injectTranslationTick } from '@iptvnator/services';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { CoverTitlesService } from '../../cover-titles/cover-titles.service';
@@ -29,6 +30,7 @@ const LABELLED_CONTENT_TYPES: ReadonlySet<string> = new Set(['live', 'radio']);
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ContentCardComponent {
+    protected readonly favoriteIcon = favoriteIcon;
     private readonly translate = inject(TranslateService);
     private readonly coverTitles = inject(CoverTitlesService);
     private readonly languageTick = injectTranslationTick();
