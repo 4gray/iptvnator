@@ -1024,6 +1024,9 @@ remain local when the meaning is explicit.
   lockstep. The dropdown reuses the static heading's type so folding the rail
   does not move the title; the caret is the only added ink
   (`_portal-sidebar.scss`).
+- The Xtream Live TV All Items header reserves room for the floating
+  show-categories button when the category rail is folded and for the
+  restore button when both panels are hidden, including at phone widths.
 - At the phone breakpoint the M3U layout's bottom-drawer rule overrides the
   desktop collapse to `height: 0` instead of `width: 0`. The floating restore
   handle stays visible there: the collapse toggle is reachable by touch, so
