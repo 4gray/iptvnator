@@ -310,6 +310,8 @@ try {
     await delay(3000);
     adb('shell', 'input', 'keyevent', 'KEYCODE_APP_SWITCH');
     await expect.poll(topActivity).not.toContain(app);
+    // Leave Overview before relaunching: its scaled task card has different touch coordinates.
+    adb('shell', 'input', 'keyevent', 'KEYCODE_HOME');
     adb('shell', 'am', 'start', '-a', 'android.intent.action.MAIN',
         '-c', 'android.intent.category.LAUNCHER', '-n', `${app}/.ui.MainActivity`);
     await expect.poll(topActivity).toContain('.ui.MainActivity');
