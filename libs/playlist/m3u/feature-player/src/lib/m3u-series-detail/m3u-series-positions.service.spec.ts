@@ -266,6 +266,22 @@ describe('M3uSeriesPositionsService', () => {
             expect(bridge.savePlaybackPositionsBatch).toHaveBeenCalledTimes(1);
         });
 
+        it('writes a repeated paused second again after a toggle rewrote the row', async () => {
+            nowSpy.mockReturnValue(3_006_000);
+            await service.recordProgress('pl-1', position(11, 16), true);
+            await service.applyToggle('pl-1', 500, {
+                contentXtreamId: 11,
+                nextPosition: null,
+            } as never);
+            await service.recordProgress('pl-1', position(11, 16), true);
+
+            expect(saved()).toEqual([
+                [11, 10],
+                [11, 16],
+                [11, 16],
+            ]);
+        });
+
         it('is written before a toggle of another episode', async () => {
             bridge.savePlaybackPosition.mockClear();
             const order: string[] = [];

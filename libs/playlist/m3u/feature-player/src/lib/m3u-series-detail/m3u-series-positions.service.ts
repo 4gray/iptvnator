@@ -269,6 +269,9 @@ export class M3uSeriesPositionsService implements OnDestroy {
             | SeasonContainerPlaybackToggleRequest
             | SeasonContainerSeriesPlaybackToggleRequest
     ): Promise<void> {
+        // The toggle rewrites stored rows: a repeat of the last written
+        // second is no longer known to be stored.
+        this.lastWritten = null;
         // Only a season or series batch holds the guard, as on Stalker: one
         // episode's toggle is a single row and must not grey the menu out.
         const bulk = 'requests' in request;
