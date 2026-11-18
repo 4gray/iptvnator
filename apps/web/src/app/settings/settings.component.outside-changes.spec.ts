@@ -63,6 +63,61 @@ describe('SettingsComponent with settings changed outside the form', () => {
         component.importData();
     }
 
+    it('keeps an uncommitted import out of an unrelated Save acknowledgement', async () => {
+        let acknowledge!: () => void;
+        jest.spyOn(window.electron, 'updateSettings').mockReturnValueOnce(
+            new Promise<void>((resolve) => (acknowledge = resolve))
+        );
+        component.settingsForm.controls.showCaptions.setValue(true);
+        const saving = component.form.save(() =>
+            component.form.applySavedSettings()
+        );
+        await Promise.resolve();
+        settingsStore._setSettings({ epgUrl: [SAVED_GUIDE, RESTORED_GUIDE] });
+        jest.spyOn(settingsStore, 'getCommittedEpgUrls').mockReturnValueOnce([
+            SAVED_GUIDE,
+        ]);
+        acknowledge();
+        await saving;
+        settingsStore._setSettings({ epgUrl: [SAVED_GUIDE] });
+        expect(component.form.epgUrls).toEqual([SAVED_GUIDE]);
+        expect(component.settingsForm.pristine).toBe(true);
+
+        component.form.setEpgUrls(STAGED_GUIDE);
+        await component.form.save(() => component.form.applySavedSettings());
+        expect(settingsStore.getSettings().epgUrl).toEqual([
+            SAVED_GUIDE,
+            STAGED_GUIDE,
+        ]);
+    });
+
+    it('keeps a restored source removal after a rebased retry fails', async () => {
+        jest.spyOn(window.electron, 'updateSettings').mockRejectedValueOnce(
+            new Error('runtime unavailable')
+        );
+        component.form.setEpgUrls(STAGED_GUIDE);
+        await expect(component.form.save(() => undefined)).rejects.toThrow();
+        let failWrite!: () => void;
+        settingsStore.updateSettings.mockImplementationOnce(async (patch) => {
+            settingsStore._setSettings(patch);
+            await new Promise<void>((resolve) => (failWrite = resolve));
+            throw new Error('storage unavailable');
+        });
+        const retry = component.form.save(() => undefined);
+        importBackupAddingGuide(RESTORED_GUIDE);
+        component.form.removeEpgSource(
+            component.form.epgUrls.indexOf(RESTORED_GUIDE)
+        );
+        failWrite();
+        await expect(retry).rejects.toThrow('storage unavailable');
+        await component.form.save(() => component.form.applySavedSettings());
+        expect(settingsStore.getSettings().epgUrl).toEqual([
+            SAVED_GUIDE,
+            STAGED_GUIDE,
+        ]);
+        expect(component.settingsForm.pristine).toBe(true);
+    });
+
     it('keeps a persisted removal when a playlist-only import finishes during the next write', async () => {
         let acknowledgeFirst!: () => void;
         jest.spyOn(window.electron, 'updateSettings').mockReturnValueOnce(

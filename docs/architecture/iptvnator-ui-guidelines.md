@@ -1382,6 +1382,8 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   the merged settings except the parental-lock switch, whose dedicated
   writer owns its native mirror and rollback.
 - A backup import brings in restored EPG URLs and keeps staged edits.
+  Save acknowledgements adopt committed EPG sources, so an unfinished import
+  cannot make its sources appear saved in the form.
   If overlapping settings writes fail, the EPG list falls back to the last
   list that reached storage. A playlist-only restore during a pending removal
   keeps the removal staged for retry if storage fails.

@@ -203,6 +203,7 @@ export class MockSettingsStore {
     private _settings = signal<MockSettings>(DEFAULT_SETTINGS);
 
     getSettings = () => this._settings();
+    getCommittedEpgUrls = () => this._settings().epgUrl;
     language = () => this._settings().language;
     ageRatingCountry = () => this._settings().ageRatingCountry;
     readonly savedTmdbApiKey = signal<string | undefined>(undefined);

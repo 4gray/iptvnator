@@ -251,9 +251,7 @@ export class SettingsFormFacade {
     }
 
     selectEpgViewMode(epgViewMode: EpgViewMode): void {
-        if (this.form.value.epgViewMode === epgViewMode) {
-            return;
-        }
+        if (this.form.value.epgViewMode === epgViewMode) return;
 
         this.patchAndMarkDirty({ epgViewMode }, 'epgViewMode');
     }
@@ -479,10 +477,11 @@ export class SettingsFormFacade {
     /** Adopts stored values while retaining any edits still in the form. */
     private rebaseOnStore(submitted?: SettingsFormSubmission): void {
         const current = this.form.getRawValue();
+        const epgUrl = this.settingsStore.getCommittedEpgUrls();
         const { next, staged, addedEpgUrls } = rebaseSettingsForm(
             current,
             this.savedSnapshot,
-            this.settingsStore.getSettings(),
+            { ...this.settingsStore.getSettings(), epgUrl },
             this.unsettledSavePaths,
             this.writes.knownUrls(this.savedSnapshot.epgUrl),
             {

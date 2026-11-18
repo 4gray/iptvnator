@@ -190,6 +190,7 @@ describe('Settings storage', () => {
             const openedSave = waitForOpen();
             const saving = store.updateSettings({ showCaptions: true });
             expect(store.epgUrl()).toEqual([original, imported]);
+            expect(store.getCommittedEpgUrls()).toEqual([original]);
             if (backupSucceeds) {
                 read.result = { ...saved, epgUrl: [original, imported] };
                 transaction.oncomplete?.();
@@ -205,6 +206,7 @@ describe('Settings storage', () => {
             await saving;
             const expected = backupSucceeds ? [original, imported] : [original];
             expect(store.epgUrl()).toEqual(expected);
+            expect(store.getCommittedEpgUrls()).toEqual(expected);
             expect(put).toHaveBeenLastCalledWith(
                 expect.objectContaining({
                     showCaptions: true,

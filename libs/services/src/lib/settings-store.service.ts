@@ -282,6 +282,10 @@ export const SettingsStore = signalStore(
                 );
             },
 
+            getCommittedEpgUrls() {
+                return committedEpg.epgUrl;
+            },
+
             getSettings() {
                 return snapshotSettings(getState(store));
             },
