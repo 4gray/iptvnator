@@ -158,9 +158,11 @@ latest. Requests after that are rejected instead of starting a new worker.
 already closed, so the close guard and the `quitAndInstall()` path see nothing
 new. `QUIT_TEARDOWN_TIMEOUT_MS` (4 s) caps the wait. The teardown stays on
 `will-quit` because the close guard can still cancel a quit at `before-quit`.
-A write that misses the budget is lost whole, not torn: each write is one
-transaction. `quit-write-durability.e2e.ts` relaunches on the same profile to
-check both writes.
+A request that misses the budget is cut off between transactions, never
+inside one: a single-transaction write is lost whole, while a batched write
+(for example `writeXtreamContentValues()`, which commits per batch) keeps the
+batches it committed. `quit-write-durability.e2e.ts` relaunches on the same
+profile to check both writes.
 
 ### Packaged worker bootstrap
 
