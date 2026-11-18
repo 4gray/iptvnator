@@ -251,6 +251,8 @@ until persistence settles. This uses the last committed form list when an
 earlier Save has persisted a removal and still awaits Electron. A source shown
 by that restore remains known across Save retries and rejected writes, so a
 following removal stays staged.
+A guide committed by a restore remains in that baseline even when it also
+appears in a pending Save that later fails.
 When the restore changes the saved list and
 its source identities match the draft, the form adopts the restored spelling
 and order unless the viewer reordered existing sources. A restore during

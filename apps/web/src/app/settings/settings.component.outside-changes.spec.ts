@@ -63,6 +63,32 @@ describe('SettingsComponent with settings changed outside the form', () => {
         component.importData();
     }
 
+    it('keeps a guide committed by backup in the baseline when the first Save fails', async () => {
+        let failWrite!: () => void;
+        settingsStore.updateSettings.mockImplementationOnce(async (patch) => {
+            settingsStore._setSettings(patch);
+            await new Promise<void>((resolve) => (failWrite = resolve));
+            throw new Error('storage unavailable');
+        });
+        component.form.setEpgUrls(STAGED_GUIDE);
+        const saving = component.form.save(() => undefined);
+        jest.spyOn(component.backup, 'importData').mockImplementation(
+            (done) => {
+                settingsStore._setSettings({
+                    epgUrl: [SAVED_GUIDE, STAGED_GUIDE],
+                });
+                done();
+            }
+        );
+        component.importData();
+        failWrite();
+        await expect(saving).rejects.toThrow('storage unavailable');
+        component.form.removeEpgSource(1);
+        await component.form.save(() => component.form.applySavedSettings());
+        expect(settingsStore.getSettings().epgUrl).toEqual([SAVED_GUIDE]);
+        expect(component.settingsForm.pristine).toBe(true);
+    });
+
     it('keeps an uncommitted import out of an unrelated Save acknowledgement', async () => {
         let acknowledge!: () => void;
         jest.spyOn(window.electron, 'updateSettings').mockReturnValueOnce(
@@ -1029,6 +1055,9 @@ describe('SettingsComponent with settings changed outside the form', () => {
     );
 
     it('keeps an EPG addition staged after a playlist-only import and a rolled-back write', async () => {
+        jest.spyOn(settingsStore, 'getCommittedEpgUrls').mockReturnValueOnce([
+            SAVED_GUIDE,
+        ]);
         let failWrite!: () => void;
         settingsStore.updateSettings.mockImplementationOnce(async (patch) => {
             settingsStore._setSettings({ epgUrl: patch['epgUrl'] as string[] });
@@ -1055,6 +1084,9 @@ describe('SettingsComponent with settings changed outside the form', () => {
     });
 
     it('keeps an EPG removal staged after a playlist-only import and a rolled-back write', async () => {
+        jest.spyOn(settingsStore, 'getCommittedEpgUrls').mockReturnValueOnce([
+            SAVED_GUIDE,
+        ]);
         let failWrite!: () => void;
         settingsStore.updateSettings.mockImplementationOnce(async () => {
             settingsStore._setSettings({ epgUrl: [] });

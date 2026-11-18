@@ -91,7 +91,7 @@ export function settingsToFormValue(
     return next as unknown as SettingsFormValue;
 }
 
-/** Adopts current settings as the baseline while identifying each remaining draft. */
+/** Adopts settings with committed EPG sources while identifying each draft. */
 export function rebaseSettingsForm(
     current: SettingsFormValue,
     saved: SettingsFormValue,
@@ -101,7 +101,6 @@ export function rebaseSettingsForm(
     context: {
         submitted?: SettingsFormSubmission;
         pendingEpgUrls?: readonly (string | null)[];
-        pendingEpgSources?: readonly (string | null)[];
         persistedEpgSources?: readonly (string | null)[];
         confirmedTmdbKey?: string;
     }
@@ -110,8 +109,7 @@ export function rebaseSettingsForm(
     staged: ReadonlySet<string>;
     addedEpgUrls: string[];
 } {
-    const { submitted, pendingEpgUrls, pendingEpgSources, confirmedTmdbKey } =
-        context;
+    const { submitted, pendingEpgUrls, confirmedTmdbKey } = context;
     const next = settingsToFormValue(stored, saved);
     const staged = new Set(diffSettingsValues(current, saved));
     if (submitted) {
@@ -136,24 +134,6 @@ export function rebaseSettingsForm(
             ...next.tmdb,
             apiKey: confirmedTmdbKey ?? saved.tmdb.apiKey,
         };
-        // The store can reflect a form write before persistence. Use the
-        // previous baseline and sources added outside this pending write.
-        if (pendingEpgSources && next.epgUrl) {
-            const confirmed = context.persistedEpgSources ?? saved.epgUrl;
-            const unpersisted = new Set(
-                epgUrlsAddedOutside([], confirmed, pendingEpgSources).map(
-                    epgSourceReferenceIdentity
-                )
-            );
-            next.epgUrl = [
-                ...next.epgUrl.filter(
-                    (url) =>
-                        url !== null &&
-                        !unpersisted.has(epgSourceReferenceIdentity(url))
-                ),
-                ...epgUrlsAddedOutside(next.epgUrl, [], confirmed),
-            ];
-        }
         // Backup import may race an unfinished save. Keep its draft staged
         // while adopting the restored EPG list in the baseline.
         for (const path of unsettledPaths) {

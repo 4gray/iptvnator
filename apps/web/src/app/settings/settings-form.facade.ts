@@ -487,7 +487,6 @@ export class SettingsFormFacade {
             {
                 submitted,
                 pendingEpgUrls: this.writes.submittedEpgUrls,
-                pendingEpgSources: this.writes.pendingEpgSources,
                 persistedEpgSources: this.writes.persistedEpgSources,
                 confirmedTmdbKey: this.settingsStore.savedTmdbApiKey(),
             }
