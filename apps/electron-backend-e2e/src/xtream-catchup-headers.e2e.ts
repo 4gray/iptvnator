@@ -147,7 +147,7 @@ test("@epg @xtream @electron probes and plays catch-up with the playlist's heade
 
         await openWorkspaceSection(page, 'Live TV');
         await clickCategoryByNameExact(page, fixture.categoryName);
-        const row = channelItemByTitle(page, fixture.stream.name).first();
+        const row = channelItemByTitle(page, fixture.stream.name ?? '').first();
         await expect(row).toBeVisible({ timeout: 20000 });
         await row.click();
         const block = page
