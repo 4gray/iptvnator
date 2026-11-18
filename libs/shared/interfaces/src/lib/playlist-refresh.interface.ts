@@ -1,15 +1,8 @@
 export type PlaylistRefreshPhase =
-    | 'fetching'
-    | 'reading-file'
-    | 'parsing'
-    | 'saving';
+    'fetching' | 'reading-file' | 'parsing' | 'saving';
 
 export type PlaylistRefreshStatus =
-    | 'started'
-    | 'progress'
-    | 'completed'
-    | 'cancelled'
-    | 'error';
+    'started' | 'progress' | 'completed' | 'cancelled' | 'error';
 
 export interface PlaylistRefreshEvent {
     operationId: string;

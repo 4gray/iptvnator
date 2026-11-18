@@ -16,9 +16,9 @@ describe('encodeStalkerCmdValue', () => {
     });
 
     it('keeps ?, = and : raw in a tokened cmd', () => {
-        expect(
-            encodeStalkerCmdValue('auto http://host/ch/123?token=abc')
-        ).toBe('auto%20http://host/ch/123?token=abc');
+        expect(encodeStalkerCmdValue('auto http://host/ch/123?token=abc')).toBe(
+            'auto%20http://host/ch/123?token=abc'
+        );
     });
 
     it('leaves a bare media path untouched', () => {
@@ -28,9 +28,9 @@ describe('encodeStalkerCmdValue', () => {
     });
 
     it('never double-encodes pre-encoded sequences', () => {
-        expect(
-            encodeStalkerCmdValue('auto http://host/s/a%3Ab%20c.m3u8')
-        ).toBe('auto%20http://host/s/a%3Ab%20c.m3u8');
+        expect(encodeStalkerCmdValue('auto http://host/s/a%3Ab%20c.m3u8')).toBe(
+            'auto%20http://host/s/a%3Ab%20c.m3u8'
+        );
     });
 
     it('passes a bare, malformed % through untouched', () => {
@@ -56,9 +56,7 @@ describe('encodeStalkerCmdValue', () => {
     });
 
     it('encodes quotes, backslash and control characters', () => {
-        expect(encodeStalkerCmdValue(`a"b'c\\d\ne`)).toBe(
-            'a%22b%27c%5Cd%0Ae'
-        );
+        expect(encodeStalkerCmdValue(`a"b'c\\d\ne`)).toBe('a%22b%27c%5Cd%0Ae');
     });
 
     it('percent-encodes non-ASCII as UTF-8', () => {
@@ -73,7 +71,7 @@ describe('encodeStalkerCmdValue', () => {
             'auto http://host/ch/123?token=abc',
             '/media/12345.mpg',
             'auto http://host/s/a%3Ab%20c.m3u8',
-            "a&b#c;d'e\"f",
+            'a&b#c;d\'e"f',
             'ffmpeg http://[::1]:8080/ch/1',
             'auto http://host/канал/1',
         ];

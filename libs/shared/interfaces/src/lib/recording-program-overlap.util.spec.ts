@@ -105,7 +105,12 @@ describe('toRecordingProgramSnapshot', () => {
                 start: 'a',
                 stop: 'b',
             })
-        ).toEqual({ title: 'News', description: 'Daily', start: 'a', stop: 'b' });
+        ).toEqual({
+            title: 'News',
+            description: 'Daily',
+            start: 'a',
+            stop: 'b',
+        });
     });
 
     it('falls back to the XMLTV desc field', () => {

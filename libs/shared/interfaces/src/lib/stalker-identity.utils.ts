@@ -24,10 +24,7 @@ export function normalizeStalkerSerialNumber(
     serialNumber: string | undefined | null
 ): string | undefined {
     const trimmed = normalizeStalkerIdentityValue(serialNumber);
-    if (
-        !trimmed ||
-        trimmed.toUpperCase() === LEGACY_DEFAULT_STALKER_SERIAL
-    ) {
+    if (!trimmed || trimmed.toUpperCase() === LEGACY_DEFAULT_STALKER_SERIAL) {
         return undefined;
     }
 

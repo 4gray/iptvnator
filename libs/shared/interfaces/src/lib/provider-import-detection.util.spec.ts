@@ -152,18 +152,15 @@ describe('detectProviderImportCandidates', () => {
             ['unicode arrow', 'login → carol\npassword → pa55'],
             ['ascii gt', 'USER > carol\nPASS > pa55'],
             ['spaced dash', 'User - carol\nPass - pa55'],
-        ])(
-            'accepts the %s label separator',
-            (_variant, message) => {
-                const xtream = only(
-                    detectProviderImportCandidates(message),
-                    'xtream'
-                );
-                expect(xtream).toHaveLength(1);
-                expect(xtream[0].username).toBe('carol');
-                expect(xtream[0].password).toBe('pa55');
-            }
-        );
+        ])('accepts the %s label separator', (_variant, message) => {
+            const xtream = only(
+                detectProviderImportCandidates(message),
+                'xtream'
+            );
+            expect(xtream).toHaveLength(1);
+            expect(xtream[0].username).toBe('carol');
+            expect(xtream[0].password).toBe('pa55');
+        });
 
         it('folds negative-circled font labels (🅤🅢🅔🅡 / 🅟🅐🅢🅢) and reads the get.php line', () => {
             // Sanitized representative message: negative-circled capitals NFKC does
@@ -719,7 +716,8 @@ describe('detectProviderImportCandidates', () => {
             expect(
                 stalker.every(
                     (candidate) =>
-                        candidate.portalUrl === 'http://multi-account.example.net/c/'
+                        candidate.portalUrl ===
+                        'http://multi-account.example.net/c/'
                 )
             ).toBe(true);
             expect(stalker.map((candidate) => candidate.macAddress)).toEqual([
@@ -830,9 +828,7 @@ describe('detectProviderImportCandidates', () => {
             const stalker = only(candidates, 'stalker');
             expect(stalker).toHaveLength(2);
             for (const candidate of stalker) {
-                expect(candidate.portalUrl).toBe(
-                    'http://multi.example.com/c/'
-                );
+                expect(candidate.portalUrl).toBe('http://multi.example.com/c/');
                 expect(candidate.deviceId1).toBeUndefined();
                 expect(candidate.serialNumber).toBeUndefined();
             }
@@ -971,8 +967,7 @@ describe('detectProviderImportCandidates', () => {
         it('surfaces every MAC of a long multi-account list', () => {
             const macs = Array.from(
                 { length: 20 },
-                (_, index) =>
-                    `00:1A:79:${String(index).padStart(2, '0')}:11:22`
+                (_, index) => `00:1A:79:${String(index).padStart(2, '0')}:11:22`
             );
             const candidates = detectProviderImportCandidates(
                 ['http://long.example.com/c/', ...macs].join('\n')
@@ -1054,7 +1049,9 @@ describe('detectProviderImportCandidates', () => {
 
             expect(only(candidates, 'stalker')).toHaveLength(1);
             expect(only(candidates, 'xtream')).toHaveLength(1);
-            expect(only(candidates, 'm3u-url').length).toBeGreaterThanOrEqual(1);
+            expect(only(candidates, 'm3u-url').length).toBeGreaterThanOrEqual(
+                1
+            );
             // High-confidence candidates sort ahead of low-confidence ones.
             const ranks = candidates.map((candidate) => candidate.confidence);
             const firstLow = ranks.indexOf('low');

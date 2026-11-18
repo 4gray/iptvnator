@@ -34,12 +34,7 @@
             <mat-icon>chevron_left</mat-icon>
         </button>
 
-        <div
-            #track
-            class="rail__track"
-            (scroll)="onScroll()"
-            role="list"
-        >
+        <div #track class="rail__track" (scroll)="onScroll()" role="list">
             <ng-content></ng-content>
         </div>
 

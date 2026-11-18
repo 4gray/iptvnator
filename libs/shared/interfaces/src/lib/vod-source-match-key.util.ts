@@ -128,7 +128,9 @@ export function isTmdbMatchKey(key: string): boolean {
  * Xtream sends this field as a string, as `0`, and as `""` depending on the
  * panel build; none of those are usable ids.
  */
-function normalizeTmdbId(raw: number | string | null | undefined): number | null {
+function normalizeTmdbId(
+    raw: number | string | null | undefined
+): number | null {
     if (raw === null || raw === undefined || raw === '') {
         return null;
     }

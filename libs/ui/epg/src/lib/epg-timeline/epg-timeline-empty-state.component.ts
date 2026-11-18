@@ -74,7 +74,10 @@ const PRESETS: Record<
         @let activePreset = preset();
         @if (activePreset) {
             <div class="epg-empty">
-                <div class="epg-empty__icon" [class]="'tone-' + activePreset.tone">
+                <div
+                    class="epg-empty__icon"
+                    [class]="'tone-' + activePreset.tone"
+                >
                     <mat-icon>{{ activePreset.icon }}</mat-icon>
                 </div>
                 <div class="epg-empty__title">
@@ -103,7 +106,9 @@ const PRESETS: Record<
                                     type="button"
                                     (click)="jumpNearest.emit()"
                                 >
-                                    {{ 'EPG.TIMELINE.JUMP_NEAREST' | translate }}
+                                    {{
+                                        'EPG.TIMELINE.JUMP_NEAREST' | translate
+                                    }}
                                 </button>
                             }
                         </div>
@@ -117,7 +122,9 @@ const PRESETS: Record<
                                 (click)="openSettings.emit()"
                             >
                                 <mat-icon>settings</mat-icon>
-                                {{ 'EPG.TIMELINE.OPEN_EPG_SETTINGS' | translate }}
+                                {{
+                                    'EPG.TIMELINE.OPEN_EPG_SETTINGS' | translate
+                                }}
                             </button>
                         </div>
                     }

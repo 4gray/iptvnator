@@ -19,7 +19,9 @@ interface PlaylistRecentLabels {
     m3u: string;
 }
 
-function firstNonEmpty(...values: Array<string | undefined>): string | undefined {
+function firstNonEmpty(
+    ...values: Array<string | undefined>
+): string | undefined {
     return values.map((value) => value?.trim()).find(Boolean);
 }
 
@@ -94,8 +96,7 @@ function mapM3uPlaylistRecentItems(
                         rawItem.title,
                         rawItem.tvg_name,
                         rawItem.channel_id
-                    ) ||
-                    channelUrl,
+                    ) || channelUrl,
                 type: 'live',
                 playlist_id: playlist._id,
                 playlist_name: playlist.title || defaultPlaylistName,

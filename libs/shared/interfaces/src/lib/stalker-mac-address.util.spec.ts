@@ -71,9 +71,9 @@ describe('validateStalkerMacAddressControl', () => {
     });
 
     it('reports a malformed address', () => {
-        expect(validateStalkerMacAddressControl({ value: 'not-a-mac' })).toEqual(
-            { [STALKER_MAC_ADDRESS_ERROR]: true }
-        );
+        expect(
+            validateStalkerMacAddressControl({ value: 'not-a-mac' })
+        ).toEqual({ [STALKER_MAC_ADDRESS_ERROR]: true });
     });
 
     it('accepts a MAC outside the Infomir range', () => {

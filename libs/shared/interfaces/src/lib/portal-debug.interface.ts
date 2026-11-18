@@ -1,9 +1,7 @@
 export type PortalDebugProvider = 'xtream' | 'stalker';
 
 export type PortalDebugTransport =
-    | 'electron-main'
-    | 'electron-renderer'
-    | 'pwa-http';
+    'electron-main' | 'electron-renderer' | 'pwa-http';
 
 export type PortalDebugStatus = 'success' | 'error';
 

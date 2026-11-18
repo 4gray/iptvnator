@@ -38,8 +38,7 @@ describe('CategoryViewComponent rail scrolling', () => {
             scrollHeight: { value: 3000 },
         });
         container.scrollTop = 500;
-        container.getBoundingClientRect = () =>
-            new DOMRect(0, 100, 200, 400);
+        container.getBoundingClientRect = () => new DOMRect(0, 100, 200, 400);
         const scrollTo = jest.fn();
         container.scrollTo = scrollTo;
         const rows = Array.from(

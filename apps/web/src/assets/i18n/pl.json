@@ -2624,5 +2624,37 @@
         "STATE_offline": "Historia zapisana lokalnie; serwer niedostępny",
         "STATE_incompatible": "Ten serwer nie obsługuje synchronizacji historii",
         "PENDING": "Zmiany historii w kolejce: {{count}}"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "Lista M3U",
+            "XTREAM": "Konto Xtream",
+            "STALKER": "Portal Stalker"
+        },
+        "ADD_SOURCE": "Dodaj listę M3U, konto Xtream lub portal Stalker",
+        "XTREAM_SYNC": "Wczytywanie kategorii wybranych dla tego konta Xtream",
+        "XTREAM_CATEGORIES": "Wybierz kategorie wyświetlane przez to konto Xtream",
+        "GROUPS": "Wybierz grupy wyświetlane na liście kanałów",
+        "DELETE_ALL_SOURCES": "Usuwa wszystkie źródła i ich dane z tego urządzenia",
+        "SERVER_SYNC_ABOUT": "Udostępniaj źródła między urządzeniami przez własny serwer",
+        "TMDB_TRANSFER": "Skopiuj zapisany klucz TMDB na inne urządzenie",
+        "UNSAVED_SETTINGS": "Zapisz lub odrzuć zmiany przed wyjściem",
+        "RELEASE_NOTES": "Zmiany w każdej wersji IPTVnator",
+        "RELEASE_NOTES_VERSION": "Zmiany w wersji {{version}}",
+        "SERVER_MIGRATION": "Przenieś je na serwer, aby używać ich na każdym urządzeniu",
+        "EXTERNAL_PLAYER_TITLE": "Odtwarzanie w zewnętrznym odtwarzaczu",
+        "EXTERNAL_PLAYER": "Strumień jest odtwarzany w MPV lub VLC, w osobnym oknie",
+        "EPISODE_SEASON": "Sezon {{season}} · Odcinek {{episode}}",
+        "EPISODE": "Odcinek {{episode}}",
+        "TRAILER": "Odtwarzane z YouTube",
+        "PROGRAMME": "Program z przewodnika TV",
+        "SOURCE_CLEANUP_TITLE": "Wyczyść nieaktywne źródła",
+        "SOURCE_CLEANUP": "Znajdź źródła, które już nie odpowiadają, i usuń je",
+        "CLEAR_EPG": "Usuwa zapisany program telewizyjny z tego urządzenia",
+        "TLS_HOST": "Certyfikat dla {{host}}",
+        "CANCEL_DOWNLOAD": "Zatrzymuje trwające pobieranie",
+        "CLEAR_COLLECTION": "Zmienia się tylko ta lista; źródła zostają",
+        "CLEAR_FINISHED_DOWNLOADS": "Usuwa zakończone pozycje z listy",
+        "DOWNLOAD_RECOVERY": "Plik w folderze pobierania wymaga uwagi"
     }
 }

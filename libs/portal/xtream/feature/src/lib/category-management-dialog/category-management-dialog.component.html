@@ -1,6 +1,7 @@
 <app-dialog-shell
     icon="category"
     [heading]="'XTREAM.CATEGORY_MANAGEMENT.TITLE' | translate"
+    [subtitle]="'DIALOGS.XTREAM_CATEGORIES' | translate"
     bodyLayout="column"
     [showClose]="!isSaving()"
 >
@@ -41,7 +42,7 @@
                         <div class="bulk-actions">
                             <button
                                 mat-flat-button
-                    class="app-dialog__secondary app-dialog__secondary--sm"
+                                class="app-dialog__secondary app-dialog__secondary--sm"
                                 (click)="selectAll()"
                                 [disabled]="
                                     isSaving() ||
@@ -58,7 +59,7 @@
                             </button>
                             <button
                                 mat-flat-button
-                    class="app-dialog__secondary app-dialog__secondary--sm"
+                                class="app-dialog__secondary app-dialog__secondary--sm"
                                 (click)="deselectAll()"
                                 [disabled]="
                                     isSaving() || filteredSelectedCount() === 0

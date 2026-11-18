@@ -18,6 +18,7 @@ import {
     PlaylistMeta,
     getXtreamContentRoute,
     normalizeXtreamContentTypes,
+    sourceDialogSubtitle,
     XTREAM_CONTENT_TYPES,
     type XtreamBackupRecentlyViewedItem,
     type XtreamPendingRestoreState,
@@ -136,6 +137,9 @@ export class XtreamRefreshFlowService {
         this.dialogService.openConfirmDialog({
             title: this.translate.instant(
                 'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.TITLE'
+            ),
+            subtitle: sourceDialogSubtitle(item, (key) =>
+                this.translate.instant(key)
             ),
             message: this.translate.instant(
                 'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.MESSAGE'

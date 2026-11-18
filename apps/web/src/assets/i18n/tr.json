@@ -2624,5 +2624,37 @@
         "STATE_offline": "Geçmiş yerel kaydedildi; sunucu kullanılamıyor",
         "STATE_incompatible": "Bu sunucu geçmiş eşitlemeyi desteklemiyor",
         "PENDING": "Kuyruktaki geçmiş değişiklikleri: {{count}}"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "M3U çalma listesi",
+            "XTREAM": "Xtream hesabı",
+            "STALKER": "Stalker portalı"
+        },
+        "ADD_SOURCE": "M3U çalma listesi, Xtream hesabı veya Stalker portalı ekleyin",
+        "XTREAM_SYNC": "Bu Xtream hesabı için seçtiğiniz kategoriler yükleniyor",
+        "XTREAM_CATEGORIES": "Bu Xtream hesabının hangi kategorileri göstereceğini seçin",
+        "GROUPS": "Kanal listesinin hangi grupları göstereceğini seçin",
+        "DELETE_ALL_SOURCES": "Tüm kaynakları ve verilerini bu cihazdan kaldırır",
+        "SERVER_SYNC_ABOUT": "Kaynakları kendi sunucunuz üzerinden cihazlar arasında paylaşın",
+        "TMDB_TRANSFER": "Kayıtlı bir TMDB anahtarını başka bir cihaza kopyalayın",
+        "UNSAVED_SETTINGS": "Ayrılmadan önce değişikliklerinizi kaydedin veya atın",
+        "RELEASE_NOTES": "Her IPTVnator sürümündeki değişiklikler",
+        "RELEASE_NOTES_VERSION": "{{version}} sürümündeki değişiklikler",
+        "SERVER_MIGRATION": "Her cihazda kullanmak için onları sunucuya taşıyın",
+        "EXTERNAL_PLAYER_TITLE": "Harici oynatıcıda oynatılıyor",
+        "EXTERNAL_PLAYER": "Yayın MPV veya VLC'de kendi penceresinde oynatılır",
+        "EPISODE_SEASON": "Sezon {{season}} · Bölüm {{episode}}",
+        "EPISODE": "Bölüm {{episode}}",
+        "TRAILER": "YouTube'dan oynatılır",
+        "PROGRAMME": "TV rehberindeki program",
+        "SOURCE_CLEANUP_TITLE": "Etkin olmayan kaynakları temizle",
+        "SOURCE_CLEANUP": "Artık yanıt vermeyen kaynakları bulun ve silin",
+        "CLEAR_EPG": "Kayıtlı program akışını bu cihazdan kaldırır",
+        "TLS_HOST": "{{host}} sertifikası",
+        "CANCEL_DOWNLOAD": "Süren indirmeyi durdurur",
+        "CLEAR_COLLECTION": "Yalnızca bu liste değişir; kaynaklarınız kalır",
+        "CLEAR_FINISHED_DOWNLOADS": "Tamamlanan girişleri listeden kaldırır",
+        "DOWNLOAD_RECOVERY": "İndirme klasöründeki bir dosya ilgi bekliyor"
     }
 }

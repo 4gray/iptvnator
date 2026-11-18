@@ -148,9 +148,7 @@ export class EpgListScrollController {
         this.deps.setNowStripVisible(visible / rowRect.height < 0.5);
     }
 
-    private nowRowElement(
-        list: HTMLElement | undefined
-    ): HTMLElement | null {
+    private nowRowElement(list: HTMLElement | undefined): HTMLElement | null {
         return (
             list?.querySelector<HTMLElement>('.g-row[data-when="now"]') ?? null
         );

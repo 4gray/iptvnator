@@ -53,7 +53,10 @@ const AUTH_FAILURE_PATTERNS: ReadonlyArray<{
         pattern: /^authorization\s+failed[.!]*(?:\s+\d+)?$/i,
     },
     { body: 'Access denied.', pattern: /^access\s+denied[.!]*$/i },
-    { body: 'Unauthorized request.', pattern: /^unauthorized\s+request[.!]*$/i },
+    {
+        body: 'Unauthorized request.',
+        pattern: /^unauthorized\s+request[.!]*$/i,
+    },
 ];
 
 /** Bodies longer than this are never the middleware's bare phrase. */
@@ -158,9 +161,7 @@ export function createStalkerAuthFailureMarker(
     return { stalkerAuthFailure: body };
 }
 
-function readAuthFailureMarker(
-    value: unknown
-): StalkerAuthFailureBody | null {
+function readAuthFailureMarker(value: unknown): StalkerAuthFailureBody | null {
     if (typeof value !== 'object' || value === null) {
         return null;
     }

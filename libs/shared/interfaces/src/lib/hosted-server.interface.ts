@@ -23,5 +23,4 @@ export interface HostedServerStatus {
 }
 
 export type HostedServerWorkerMessage =
-    | { ready: true; instanceId: string }
-    | { error: 'port' | 'startup' };
+    { ready: true; instanceId: string } | { error: 'port' | 'startup' };

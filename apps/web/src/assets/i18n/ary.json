@@ -2624,5 +2624,37 @@
         "STATE_offline": "السجل تحفظ محلياً؛ السيرفر ما متوفرش",
         "STATE_incompatible": "هاد السيرفر ما كيدعمش مزامنة السجل",
         "PENDING": "تغييرات السجل فالانتظار: {{count}}"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "قائمة تشغيل M3U",
+            "XTREAM": "حساب Xtream",
+            "STALKER": "بوابة Stalker"
+        },
+        "ADD_SOURCE": "زيد قائمة تشغيل M3U ولا حساب Xtream ولا بوابة Stalker",
+        "XTREAM_SYNC": "كيتحمّلو الفئات اللي ختاريتي لهاد حساب Xtream",
+        "XTREAM_CATEGORIES": "ختار شمن فئات يبيّن هاد حساب Xtream",
+        "GROUPS": "ختار شمن مجموعات تبيّن لائحة القنوات",
+        "DELETE_ALL_SOURCES": "كيحيّد كاع المصادر والبيانات ديالهم من هاد الجهاز",
+        "SERVER_SYNC_ABOUT": "بارطاجي المصادر بين الأجهزة عبر السيرفر ديالك",
+        "TMDB_TRANSFER": "نسخ مفتاح TMDB محفوظ لجهاز آخر",
+        "UNSAVED_SETTINGS": "سجّل ولا لوح التعديلات ديالك قبل ما تخرج",
+        "RELEASE_NOTES": "التغييرات فكل إصدار ديال IPTVnator",
+        "RELEASE_NOTES_VERSION": "التغييرات فالإصدار {{version}}",
+        "SERVER_MIGRATION": "نقلهم للسيرفر باش تخدم بيهم فكل جهاز",
+        "EXTERNAL_PLAYER_TITLE": "كيتشغّل فمشغّل خارجي",
+        "EXTERNAL_PLAYER": "البث كيتشغّل فـ MPV ولا VLC فنافذة بوحدو",
+        "EPISODE_SEASON": "الموسم {{season}} · الحلقة {{episode}}",
+        "EPISODE": "الحلقة {{episode}}",
+        "TRAILER": "كيتشغّل من YouTube",
+        "PROGRAMME": "برنامج من دليل التلفزة",
+        "SOURCE_CLEANUP_TITLE": "نقّي المصادر غير النشطة",
+        "SOURCE_CLEANUP": "لقى المصادر اللي مابقاتش كتجاوب وحيّدهم",
+        "CLEAR_EPG": "كيحيّد جداول البرامج المحفوظة من هاد الجهاز",
+        "TLS_HOST": "الشهادة ديال {{host}}",
+        "CANCEL_DOWNLOAD": "كيوقّف التحميل اللي خدام",
+        "CLEAR_COLLECTION": "غير هاد اللائحة اللي كتبدّل؛ المصادر ديالك كتبقى",
+        "CLEAR_FINISHED_DOWNLOADS": "كيحيّد العناصر اللي كملات من اللائحة",
+        "DOWNLOAD_RECOVERY": "فيشي فدوسي التحميلات خاصو الانتباه"
     }
 }

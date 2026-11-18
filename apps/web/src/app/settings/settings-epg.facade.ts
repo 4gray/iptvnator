@@ -96,6 +96,7 @@ export class SettingsEpgFacade {
     clear(): void {
         this.dialogService.openConfirmDialog({
             title: this.translate.instant('SETTINGS.CLEAR_EPG_DIALOG.TITLE'),
+            subtitle: this.translate.instant('DIALOGS.CLEAR_EPG'),
             message: this.translate.instant(
                 'SETTINGS.CLEAR_EPG_DIALOG.MESSAGE'
             ),

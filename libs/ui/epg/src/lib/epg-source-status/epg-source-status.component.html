@@ -28,10 +28,7 @@
         </span>
     }
     @case ('error') {
-        <span
-            class="status status--error"
-            [matTooltip]="errorMessage() ?? ''"
-        >
+        <span class="status status--error" [matTooltip]="errorMessage() ?? ''">
             <mat-icon>error</mat-icon>
             <span class="status__label">{{
                 'SETTINGS.EPG_STATUS_ERROR' | translate

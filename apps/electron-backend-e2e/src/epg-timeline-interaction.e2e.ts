@@ -37,8 +37,8 @@ const epgCredentials = {
 };
 
 /**
- * Every opener shares one dialog config: the programme dialog is named by its
- * `mat-dialog-title` and opens in the same 540px pane wherever it starts.
+ * Every opener shares one dialog config: the programme dialog is named by the
+ * shell's heading and opens in the same 560px (`md`) pane wherever it starts.
  */
 async function expectProgrammeDialog(
     page: Page,
@@ -46,7 +46,7 @@ async function expectProgrammeDialog(
 ): Promise<Locator> {
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    const heading = dialog.locator('.epg-dialog__title');
+    const heading = dialog.locator('.app-dialog__title');
     if (title) {
         await expect(heading).toHaveText(title);
     }
@@ -61,15 +61,20 @@ async function expectProgrammeDialog(
                         ?.offsetWidth
             )
         )
-        .toBe(540);
+        .toBe(560);
     return dialog;
 }
 
 async function closeProgrammeDialog(page: Page, dialog: Locator) {
-    // The footer Close is the dialog's only visible dismiss.
-    await expect(dialog.getByRole('button', { name: 'Close' })).toHaveCount(1);
+    // The footer Close is the dialog's only "Close"; the shell's header close
+    // is named "Close dialog".
+    await expect(
+        dialog.getByRole('button', { name: 'Close', exact: true })
+    ).toHaveCount(1);
     await dialog.locator('.epg-dialog__close').click();
-    await page.waitForSelector('.epg-dialog', { state: 'detached' });
+    await page.waitForSelector('app-epg-item-description', {
+        state: 'detached',
+    });
 }
 
 test('@epg @xtream @electron opens the programme dialog from a timeline block and reacts to zoom', async ({
@@ -218,10 +223,10 @@ test('@epg @xtream @electron opens the programme dialog from a timeline block an
         );
         // An on-air programme offers "watch live" as the primary action, last
         // in the footer and to the right of the dismiss.
-        const footer = dialog.locator('.epg-dialog__actions button');
+        const footer = dialog.locator('.app-dialog__footer button');
         await expect(footer).toHaveCount(2);
         await expect(footer.first()).toHaveClass(/epg-dialog__close/);
-        await expect(footer.last()).toHaveClass(/epg-dialog__btn--primary/);
+        await expect(footer.last()).toHaveClass(/epg-dialog__primary/);
         // Layout offsets, not bounding boxes: the dialog may still be scaling
         // in, which transforms client rects.
         const [closeBox, primaryBox] = await footer.evaluateAll((buttons) =>
@@ -235,8 +240,12 @@ test('@epg @xtream @electron opens the programme dialog from a timeline block an
 
         for (const theme of ['light', 'dark', 'light'] as const) {
             await applyTheme(app.mainWindow, theme);
-            await expectThemeSurface(dialog.locator('.epg-dialog'), theme);
-            await expectTextContrast(dialog.locator('.epg-dialog__title'));
+            await expectThemeSurface(
+                dialog.locator('.mat-mdc-dialog-surface'),
+                theme
+            );
+            await expectTextContrast(dialog.locator('.app-dialog__title'));
+            await expectTextContrast(dialog.locator('.app-dialog__subtitle'));
             await expectTextContrast(dialog.locator('.epg-dialog__desc'));
             await expectTextContrast(dialog.locator('.epg-dialog__close'), 3);
         }
@@ -394,21 +403,26 @@ test('@epg @xtream @electron stacks the programme dialog actions on a phone', as
             .click();
         const dialog = app.mainWindow.getByRole('dialog');
         await expect(dialog).toBeVisible();
-        await expect(dialog.locator('.epg-dialog__btn--primary')).toContainText(
+        await expect(dialog.locator('.epg-dialog__primary')).toContainText(
             fr.EPG.TIMELINE.WATCH_FROM_START
         );
 
         // Every action row stacks one full-width button per row in DOM
         // order, and no label spills out of its button.
         const rows = await dialog
-            .locator('.epg-dialog__tools, .epg-dialog__actions')
+            .locator('.epg-dialog__tools, .app-dialog__footer')
             .evaluateAll((containers) =>
                 containers.map((container) => {
                     const buttons = Array.from(
                         container.querySelectorAll<HTMLElement>('button')
                     );
+                    const style = getComputedStyle(container);
                     return {
-                        width: (container as HTMLElement).clientWidth,
+                        // The content box: the footer pads its buttons.
+                        width:
+                            (container as HTMLElement).clientWidth -
+                            parseFloat(style.paddingLeft) -
+                            parseFloat(style.paddingRight),
                         buttons: buttons.map((button) => ({
                             top: button.offsetTop,
                             bottom: button.offsetTop + button.offsetHeight,

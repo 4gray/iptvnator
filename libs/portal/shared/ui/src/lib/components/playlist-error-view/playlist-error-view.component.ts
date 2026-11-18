@@ -21,7 +21,10 @@ import {
     PlaylistDeleteActionService,
     SourceActivityService,
 } from '@iptvnator/services';
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    PlaylistMeta,
+    sourceDialogSubtitle,
+} from '@iptvnator/shared/interfaces';
 import { DialogService } from '@iptvnator/ui/components';
 
 @Component({
@@ -72,6 +75,9 @@ export class PlaylistErrorViewComponent {
 
         this.dialogService.openConfirmDialog({
             title: this.translate.instant('HOME.PLAYLISTS.REMOVE_DIALOG.TITLE'),
+            subtitle: sourceDialogSubtitle(currentPlaylist, (key) =>
+                this.translate.instant(key)
+            ),
             message: this.translate.instant(
                 'HOME.PLAYLISTS.REMOVE_DIALOG.MESSAGE'
             ),

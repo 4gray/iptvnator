@@ -42,10 +42,16 @@ describe('EpgListViewRowComponent', () => {
     });
 
     it('marks an active past programme as playing (archive), not a now row', () => {
-        fixture.componentRef.setInput('row', row({ when: 'past', isActive: true }));
+        fixture.componentRef.setInput(
+            'row',
+            row({ when: 'past', isActive: true })
+        );
         expect(component.isPlaying()).toBe(true);
 
-        fixture.componentRef.setInput('row', row({ when: 'now', isActive: true }));
+        fixture.componentRef.setInput(
+            'row',
+            row({ when: 'now', isActive: true })
+        );
         expect(component.isPlaying()).toBe(false);
     });
 

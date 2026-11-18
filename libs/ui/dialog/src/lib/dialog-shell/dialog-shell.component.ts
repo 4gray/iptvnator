@@ -25,10 +25,10 @@ export type DialogIconTone = 'default' | 'warn';
 export type DialogBodyLayout = 'block' | 'column';
 
 /**
- * The UI kit's dialog shell: a header with an optional icon tile, the
- * heading (`mat-dialog-title`, so the container is named by it), an optional
- * subtitle and a close button; the body; and a footer that renders only when
- * actions are projected into it.
+ * The UI kit's dialog shell: a header with an icon tile, the heading
+ * (`mat-dialog-title`, so the container is named by it), a one-line subtitle
+ * that says what the dialog is for, and a close button; the body; and a
+ * footer that renders only when actions are projected into it.
  *
  * Slots: the body is the default content; an element with
  * `appDialogFooter` wraps the decision buttons, `appDialogFooterStart` the
@@ -59,7 +59,14 @@ export type DialogBodyLayout = 'block' | 'column';
 export class DialogShellComponent {
     /** The translated heading; it names the dialog for assistive tech. */
     readonly heading = input.required<string>();
-    readonly subtitle = input<string>();
+    /**
+     * One short phrase under the heading that says what the dialog is for,
+     * or the data that explains it best (a source name, a version). Every
+     * dialog has one, so the heading block always has two lines to centre
+     * against the icon tile; `dialog-subtitle-guard.spec.ts` covers the
+     * dialogs outside the shell too.
+     */
+    readonly subtitle = input.required<string>();
     /** A Material icon name for the 40px tile before the heading. */
     readonly icon = input<string>();
     readonly iconTone = input<DialogIconTone>('default');

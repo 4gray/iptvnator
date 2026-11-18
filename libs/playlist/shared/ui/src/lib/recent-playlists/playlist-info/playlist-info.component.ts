@@ -1,6 +1,7 @@
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import {
     Component,
+    computed,
     DestroyRef,
     inject,
     Injector,
@@ -30,6 +31,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 import {
     createXtreamConnectionTestState,
+    injectTranslationTick,
     PlaylistsService,
     PlaylistStorageBackend,
     RuntimeCapabilitiesService,
@@ -40,6 +42,7 @@ import {
     normalizeXtreamContentTypes,
     Playlist,
     PlaylistMeta,
+    sourceDialogSubtitle,
 } from '@iptvnator/shared/interfaces';
 import { PasswordVisibilityToggleDirective } from '@iptvnator/ui/components/password-visibility-toggle';
 import { RevealDetailsDirective } from '@iptvnator/ui/components/reveal-details';
@@ -171,6 +174,14 @@ export class PlaylistInfoComponent {
     private readonly playlistState = signal<Playlist & { id: string }>(
         this.playlistData
     );
+    private readonly languageTick = injectTranslationTick();
+    /** The saved name and type of the source being edited. */
+    readonly sourceSubtitle = computed(() => {
+        this.languageTick();
+        return sourceDialogSubtitle(this.playlistState(), (key) =>
+            this.translate.instant(key)
+        );
+    });
     get playlist(): Playlist & { id: string } {
         return this.playlistState();
     }

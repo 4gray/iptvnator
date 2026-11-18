@@ -172,7 +172,9 @@ describe('epg-timeline.utils', () => {
                 );
                 expect(new Set(wallMinutes).size).toBe(ticks.length);
                 ticks.forEach(({ ms }, index) => {
-                    expect(ms).toBeGreaterThan(index ? ticks[index - 1].ms : startMs);
+                    expect(ms).toBeGreaterThan(
+                        index ? ticks[index - 1].ms : startMs
+                    );
                     expect(ms).toBeLessThan(endMs);
                 });
             }

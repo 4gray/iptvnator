@@ -118,9 +118,7 @@ describe('epg-summary.util', () => {
         it('returns null without a summary or stop time', () => {
             expect(summaryMinutesLeft(null, NOW)).toBeNull();
             expect(summaryMinutesLeft(undefined, NOW)).toBeNull();
-            expect(
-                summaryMinutesLeft(summary({ stop: null }), NOW)
-            ).toBeNull();
+            expect(summaryMinutesLeft(summary({ stop: null }), NOW)).toBeNull();
             expect(
                 summaryMinutesLeft(summary({ stop: 'garbage' }), NOW)
             ).toBeNull();
@@ -182,12 +180,10 @@ describe('epg-summary.util', () => {
         });
 
         it('is true when either start or stop is set', () => {
-            expect(
-                summaryHasTimeRange({ start: START, stop: null })
-            ).toBe(true);
-            expect(summaryHasTimeRange({ start: null, stop: STOP })).toBe(
+            expect(summaryHasTimeRange({ start: START, stop: null })).toBe(
                 true
             );
+            expect(summaryHasTimeRange({ start: null, stop: STOP })).toBe(true);
         });
 
         it('treats a numeric 0 timestamp as absent (truthiness check)', () => {
@@ -203,15 +199,15 @@ describe('epg-summary.util', () => {
         });
 
         it('zero-pads single-digit hours and minutes', () => {
-            expect(
-                formatClockTime(new Date(2026, 5, 28, 9, 5).getTime())
-            ).toBe('09:05');
+            expect(formatClockTime(new Date(2026, 5, 28, 9, 5).getTime())).toBe(
+                '09:05'
+            );
         });
 
         it('renders midnight as 00:00', () => {
-            expect(
-                formatClockTime(new Date(2026, 5, 28, 0, 0).getTime())
-            ).toBe('00:00');
+            expect(formatClockTime(new Date(2026, 5, 28, 0, 0).getTime())).toBe(
+                '00:00'
+            );
         });
     });
 });

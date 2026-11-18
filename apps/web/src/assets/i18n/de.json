@@ -2624,5 +2624,37 @@
         "STATE_offline": "Verlauf lokal gespeichert; Server nicht erreichbar",
         "STATE_incompatible": "Dieser Server unterstützt keine Verlaufssynchronisierung",
         "PENDING": "Verlaufsänderungen in der Warteschlange: {{count}}"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "M3U-Playlist",
+            "XTREAM": "Xtream-Konto",
+            "STALKER": "Stalker-Portal"
+        },
+        "ADD_SOURCE": "M3U-Playlist, Xtream-Konto oder Stalker-Portal hinzufügen",
+        "XTREAM_SYNC": "Die gewählten Kategorien dieses Xtream-Kontos werden geladen",
+        "XTREAM_CATEGORIES": "Wähle, welche Kategorien dieses Xtream-Konto zeigt",
+        "GROUPS": "Wähle, welche Gruppen die Senderliste zeigt",
+        "DELETE_ALL_SOURCES": "Entfernt alle Quellen und ihre Daten von diesem Gerät",
+        "SERVER_SYNC_ABOUT": "Quellen über deinen eigenen Server zwischen Geräten teilen",
+        "TMDB_TRANSFER": "Einen gespeicherten TMDB-Schlüssel auf ein anderes Gerät kopieren",
+        "UNSAVED_SETTINGS": "Speichere oder verwirf deine Änderungen, bevor du gehst",
+        "RELEASE_NOTES": "Änderungen in jeder IPTVnator-Version",
+        "RELEASE_NOTES_VERSION": "Änderungen in Version {{version}}",
+        "SERVER_MIGRATION": "Verschiebe sie auf den Server, um sie auf jedem Gerät zu nutzen",
+        "EXTERNAL_PLAYER_TITLE": "Wiedergabe im externen Player",
+        "EXTERNAL_PLAYER": "Der Stream läuft in MPV oder VLC in einem eigenen Fenster",
+        "EPISODE_SEASON": "Staffel {{season}} · Folge {{episode}}",
+        "EPISODE": "Folge {{episode}}",
+        "TRAILER": "Wird von YouTube abgespielt",
+        "PROGRAMME": "Sendung aus dem TV-Programm",
+        "SOURCE_CLEANUP_TITLE": "Inaktive Quellen bereinigen",
+        "SOURCE_CLEANUP": "Quellen finden, die nicht mehr antworten, und löschen",
+        "CLEAR_EPG": "Entfernt gespeicherte Programmdaten von diesem Gerät",
+        "TLS_HOST": "Zertifikat für {{host}}",
+        "CANCEL_DOWNLOAD": "Stoppt den laufenden Download",
+        "CLEAR_COLLECTION": "Nur diese Liste ändert sich; deine Quellen bleiben",
+        "CLEAR_FINISHED_DOWNLOADS": "Entfernt abgeschlossene Einträge aus der Liste",
+        "DOWNLOAD_RECOVERY": "Eine Datei im Download-Ordner braucht deine Aufmerksamkeit"
     }
 }

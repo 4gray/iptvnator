@@ -18,12 +18,12 @@ import {
 import { Channel } from '@iptvnator/shared/interfaces';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { EpgMappingDialogComponent } from '../epg-mapping-dialog/epg-mapping-dialog.component';
-import { DialogShellComponent } from '../../dialog-shell/dialog-shell.component';
-import { dialogSize } from '../../dialog-shell/dialog-size';
+import { DialogShellComponent } from '@iptvnator/ui/dialog';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 import {
     DialogFooterDirective,
     DialogHeaderEndDirective,
-} from '../../dialog-shell/dialog-shell.directives';
+} from '@iptvnator/ui/dialog';
 
 interface ChannelDetailField {
     readonly empty?: boolean;
