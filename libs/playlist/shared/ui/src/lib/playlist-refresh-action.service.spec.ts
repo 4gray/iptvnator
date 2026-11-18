@@ -423,13 +423,44 @@ describe('PlaylistRefreshActionService', () => {
             );
         });
 
+        it('reports failed when the browser backend call rejects', async () => {
+            runtime.supportsPlaylistRefresh = false;
+            dataService.sendIpcEvent.mockRejectedValueOnce(
+                new Error('Synthetic backend failure')
+            );
+            jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+            await expect(service.refreshM3uSource(m3u())).resolves.toBe(
+                'failed'
+            );
+            expect(snackBar.open).toHaveBeenCalledWith(
+                'HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR',
+                'CLOSE',
+                { duration: 5000 }
+            );
+            expect(service.isSourceBusy('m3u-source')).toBe(false);
+        });
+
+        it('reports skipped when there is nothing to refresh from', async () => {
+            runtime.supportsPlaylistRefresh = false;
+
+            await expect(
+                service.refreshM3uSource(
+                    m3u({ url: undefined, filePath: '/tmp/local.m3u' })
+                )
+            ).resolves.toBe('skipped');
+            expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        });
+
         it('reports skipped while another refresh runs', async () => {
             service.isRefreshing.set(true);
 
             await expect(service.refreshM3uSource(m3u())).resolves.toBe(
                 'skipped'
             );
-            expect(playlistRefreshService.refreshPlaylist).not.toHaveBeenCalled();
+            expect(
+                playlistRefreshService.refreshPlaylist
+            ).not.toHaveBeenCalled();
         });
     });
 

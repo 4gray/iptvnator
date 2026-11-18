@@ -222,6 +222,21 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
         );
     });
 
+    it('clears the load failure when the form is edited', async () => {
+        refresh.mockResolvedValueOnce('failed');
+        await component.saveChanges({
+            ...opened,
+            url: 'https://unreachable.example.com/list.m3u',
+        });
+        expect(component.sourceLoadFailed()).toBe(true);
+
+        component.playlistDetails.patchValue({
+            url: 'https://fixed.example.com/list.m3u',
+        });
+
+        expect(component.sourceLoadFailed()).toBe(false);
+    });
+
     it('clears an earlier load failure when the next save starts', async () => {
         refresh.mockResolvedValueOnce('failed');
         await component.saveChanges({
