@@ -2243,7 +2243,12 @@ coordinate holds dozens of rows.
 - The season and series watched toggles are started from the hero "More"
   menu (`M3uSeriesMenuService`) and persist through the batch position
   IPC, one transaction per direction; `toggleRunning` guards a double
-  submit.
+  submit. Where the runtime cannot store positions (the browser build:
+  `PlaybackPositionRuntimeBridgeService.supportsStorage` is false), the
+  page offers no watched controls — no menu, and `SeasonContainerComponent`
+  gets `watchControls: false`, which hides each episode's toggle — since a
+  mark would vanish on the next load. Episode progress is not kept there
+  either; a browser position store for M3U is a follow-up.
 - The inline episode keeps the playlist row captured when it was opened,
   so a catalog rebuild (a refresh, a sync re-publish, a lock change for
   another group) does not remount the player; it closes when its own

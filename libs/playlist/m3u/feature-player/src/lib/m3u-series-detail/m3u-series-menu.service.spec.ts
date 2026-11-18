@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import type { SeasonContainerComponent } from '@iptvnator/ui/components';
 import type { M3uSeriesMenuService as ServiceType } from './m3u-series-menu.service';
 
@@ -33,8 +34,16 @@ describe('M3uSeriesMenuService', () => {
     };
     const container = signal<SeasonContainerComponent | undefined>(undefined);
 
-    function create(): ServiceType {
-        TestBed.configureTestingModule({ providers: [M3uSeriesMenuService] });
+    function create(supportsStorage = true): ServiceType {
+        TestBed.configureTestingModule({
+            providers: [
+                M3uSeriesMenuService,
+                {
+                    provide: PlaybackPositionRuntimeBridgeService,
+                    useValue: { supportsStorage },
+                },
+            ],
+        });
         const service = TestBed.inject(M3uSeriesMenuService);
         service.connect(container);
         return service;
@@ -94,5 +103,16 @@ describe('M3uSeriesMenuService', () => {
         batchRunning.set(false);
         eligible.set(0);
         expect(season()?.disabled).toBe(true);
+    });
+
+    it('offers nothing where positions cannot be stored', () => {
+        const service = create(false);
+        container.set({
+            watchPresenter,
+            seasonWatchBatchRunning: batchRunning,
+        } as unknown as SeasonContainerComponent);
+
+        expect(service.watchControls).toBe(false);
+        expect(service.sections()).toEqual([]);
     });
 });

@@ -93,6 +93,7 @@ class StubSeasonContainerComponent {
     readonly playingEpisodeId = input<number | null>(null);
     readonly playbackPositions = input<Map<number, unknown>>(new Map());
     readonly seasonWatchBatchRunning = input(false);
+    readonly watchControls = input(true);
     readonly episodeClicked = output<unknown>();
     readonly episodeRestartRequested = output<unknown>();
     readonly playbackToggleRequested = output<unknown>();
@@ -772,6 +773,27 @@ describe('M3uSeriesDetailRouteComponent', () => {
                 1
             );
         });
+    });
+
+    it('offers no watched controls where positions cannot be stored', async () => {
+        positionBridge.supportsStorage = false;
+        try {
+            const fixture = await render();
+            fixture.detectChanges();
+
+            expect(
+                fixture.debugElement.query(By.directive(StubMoreMenuComponent))
+            ).toBeNull();
+            expect(
+                (
+                    fixture.debugElement.query(
+                        By.directive(StubSeasonContainerComponent)
+                    ).componentInstance as StubSeasonContainerComponent
+                ).watchControls()
+            ).toBe(false);
+        } finally {
+            positionBridge.supportsStorage = true;
+        }
     });
 
     it('marks a season watched from the hero menu', async () => {

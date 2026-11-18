@@ -175,6 +175,14 @@ describe('EpisodeItemComponent', () => {
         expect(q('.episode-item__thumb img')).toBeNull();
         expect(q('.episode-item__thumb--fallback')).not.toBeNull();
     });
+    it('offers no watched toggle when the host cannot store it', () => {
+        fixture.componentRef.setInput('watchControl', false);
+        fixture.detectChanges();
+
+        expect(q('[data-testid="episode-watched-toggle"]')).toBeNull();
+        expect(q('[data-testid="episode-play-target"]')).not.toBeNull();
+    });
+
     describe('bare row', () => {
         beforeEach(() => {
             fixture.componentRef.setInput(

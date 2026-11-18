@@ -32,12 +32,15 @@
     </ng-container>
 
     <ng-template appDetailActions>
-        <app-vod-more-menu
-            [sections]="menu.sections()"
-            [label]="'PORTALS.DETAIL.MORE_ACTIONS' | translate"
-            testId="series-more-menu"
-            (selected)="menu.run($event)"
-        />
+        <!-- Only watched rows live in the menu (see M3uSeriesMenuService). -->
+        @if (menu.watchControls) {
+            <app-vod-more-menu
+                [sections]="menu.sections()"
+                [label]="'PORTALS.DETAIL.MORE_ACTIONS' | translate"
+                testId="series-more-menu"
+                (selected)="menu.run($event)"
+            />
+        }
     </ng-template>
 
     <div detail-player>
@@ -72,6 +75,7 @@
             [playingEpisodeId]="playingEpisodeId()"
             [playbackPositions]="playbackPositions()"
             [seasonWatchBatchRunning]="watchBatchRunning()"
+            [watchControls]="menu.watchControls"
             (episodeClicked)="onEpisodeClicked($event)"
             (episodeRestartRequested)="onEpisodeRestartRequested($event)"
             (playbackToggleRequested)="onWatchToggled($event)"

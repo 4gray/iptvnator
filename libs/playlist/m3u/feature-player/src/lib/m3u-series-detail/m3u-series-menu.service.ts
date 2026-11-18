@@ -1,4 +1,5 @@
-import { computed, Injectable, Signal, signal } from '@angular/core';
+import { computed, inject, Injectable, Signal, signal } from '@angular/core';
+import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import {
     buildSeriesMenuSections,
     SERIES_MENU_ACTION,
@@ -17,6 +18,14 @@ import {
  */
 @Injectable()
 export class M3uSeriesMenuService {
+    /**
+     * Watched marks are positions: where the runtime cannot store them (the
+     * browser build), a toggle would vanish on the next load, so none is
+     * offered.
+     */
+    readonly watchControls = inject(PlaybackPositionRuntimeBridgeService)
+        .supportsStorage;
+
     private readonly seasonContainer = signal<Signal<
         SeasonContainerComponent | undefined
     > | null>(null);
@@ -28,6 +37,7 @@ export class M3uSeriesMenuService {
     }
 
     readonly sections = computed<VodMoreMenuSection[]>(() => {
+        if (!this.watchControls) return [];
         const container = this.seasonContainer()?.();
         const watch = container?.watchPresenter;
         const batchRunning = container?.seasonWatchBatchRunning() ?? false;
