@@ -96,6 +96,15 @@ export async function checkNativeControls({ adb, dumpLayout, page, origin, topAc
     await open('native_subtitles');
     await choose('English.*', true);
     await expect.poll(() => nodeById(dumpLayout(), 'native_subtitles')).toMatch(/selected="true"/);
+    await open('native_subtitles');
+    await choose('None', true);
+    await expect.poll(() => nodeById(dumpLayout(), 'native_subtitles')).toMatch(/selected="false"/);
+    await open('native_subtitles');
+    assert.match(nodeByText(dumpLayout(), 'None'), /checked="true"/);
+    await choose('OK');
+    await expect.poll(() => nodeById(dumpLayout(), 'native_subtitles')).toMatch(/selected="false"/);
+    await open('native_subtitles');
+    await choose('English.*', true);
     await open('native_quality');
     assert.ok(nodeByText(dumpLayout(), 'Original'));
     adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');

@@ -84,6 +84,7 @@ final class NativePlayerControls {
         Player player = playerView.getPlayer();
         if (player == null) return;
         show(new TrackSelectionDialogBuilder(activity, activity.getString(title), player, type)
+            .setIsDisabled(player.getTrackSelectionParameters().disabledTrackTypes.contains(type))
             .setShowDisableOption(type == C.TRACK_TYPE_TEXT).build(), anchor);
     }
 
