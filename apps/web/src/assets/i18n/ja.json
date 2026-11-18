@@ -2635,7 +2635,7 @@
         "XTREAM_SYNC": "この Xtream アカウントで選んだカテゴリを読み込み中",
         "XTREAM_CATEGORIES": "この Xtream アカウントに表示するカテゴリを選択",
         "GROUPS": "チャンネル一覧に表示するグループを選択",
-        "DELETE_ALL_SOURCES": "このデバイスからすべてのソースとそのデータを削除します",
+        "DELETE_ALL_SOURCES": "すべてのソースと保存済みデータを削除します",
         "SERVER_SYNC_ABOUT": "自分のサーバーを通じてデバイス間でソースを共有",
         "TMDB_TRANSFER": "保存済みの TMDB キーを別のデバイスにコピー",
         "UNSAVED_SETTINGS": "移動する前に変更を保存するか破棄してください",

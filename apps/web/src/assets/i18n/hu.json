@@ -2635,7 +2635,7 @@
         "XTREAM_SYNC": "A fiókhoz választott Xtream-kategóriák betöltése",
         "XTREAM_CATEGORIES": "Válaszd ki, mely kategóriákat mutassa ez az Xtream-fiók",
         "GROUPS": "Válaszd ki, mely csoportokat mutassa a csatornalista",
-        "DELETE_ALL_SOURCES": "Minden forrást és adatát eltávolítja erről az eszközről",
+        "DELETE_ALL_SOURCES": "Minden forrást és mentett adatát eltávolítja",
         "SERVER_SYNC_ABOUT": "Források megosztása az eszközök között a saját szervereden",
         "TMDB_TRANSFER": "Mentett TMDB-kulcs másolása egy másik eszközre",
         "UNSAVED_SETTINGS": "Mentsd vagy vesd el a módosításokat, mielőtt kilépsz",

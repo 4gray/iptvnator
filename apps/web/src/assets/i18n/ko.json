@@ -2635,7 +2635,7 @@
         "XTREAM_SYNC": "이 Xtream 계정에서 선택한 카테고리를 불러오는 중",
         "XTREAM_CATEGORIES": "이 Xtream 계정에 표시할 카테고리 선택",
         "GROUPS": "채널 목록에 표시할 그룹 선택",
-        "DELETE_ALL_SOURCES": "이 기기에서 모든 소스와 데이터를 삭제합니다",
+        "DELETE_ALL_SOURCES": "모든 소스와 저장된 데이터를 삭제합니다",
         "SERVER_SYNC_ABOUT": "내 서버를 통해 기기 간에 소스 공유",
         "TMDB_TRANSFER": "저장된 TMDB 키를 다른 기기로 복사",
         "UNSAVED_SETTINGS": "나가기 전에 변경 사항을 저장하거나 취소하세요",

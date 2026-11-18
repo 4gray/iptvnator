@@ -2635,7 +2635,7 @@
         "XTREAM_SYNC": "正在載入你為此 Xtream 帳號選擇的分類",
         "XTREAM_CATEGORIES": "選擇此 Xtream 帳號顯示哪些分類",
         "GROUPS": "選擇頻道清單顯示哪些群組",
-        "DELETE_ALL_SOURCES": "從此裝置刪除所有來源及其資料",
+        "DELETE_ALL_SOURCES": "刪除所有來源及其已儲存的資料",
         "SERVER_SYNC_ABOUT": "透過你自己的伺服器在裝置間共用來源",
         "TMDB_TRANSFER": "將已儲存的 TMDB 金鑰複製到另一台裝置",
         "UNSAVED_SETTINGS": "離開前請儲存或捨棄你的變更",

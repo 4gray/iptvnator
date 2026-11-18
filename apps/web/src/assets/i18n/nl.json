@@ -2635,7 +2635,7 @@
         "XTREAM_SYNC": "De gekozen categorieën van dit Xtream-account worden geladen",
         "XTREAM_CATEGORIES": "Kies welke categorieën dit Xtream-account toont",
         "GROUPS": "Kies welke groepen de zenderlijst toont",
-        "DELETE_ALL_SOURCES": "Verwijdert alle bronnen en hun gegevens van dit apparaat",
+        "DELETE_ALL_SOURCES": "Verwijdert alle bronnen en hun opgeslagen gegevens",
         "SERVER_SYNC_ABOUT": "Deel bronnen tussen apparaten via je eigen server",
         "TMDB_TRANSFER": "Kopieer een opgeslagen TMDB-sleutel naar een ander apparaat",
         "UNSAVED_SETTINGS": "Sla je wijzigingen op of verwerp ze voordat je weggaat",

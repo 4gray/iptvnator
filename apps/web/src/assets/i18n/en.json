@@ -2635,7 +2635,7 @@
         "XTREAM_SYNC": "Loading the categories you chose for this Xtream account",
         "XTREAM_CATEGORIES": "Choose which categories this Xtream account shows",
         "GROUPS": "Choose which groups the channel list shows",
-        "DELETE_ALL_SOURCES": "Removes every source and its data from this device",
+        "DELETE_ALL_SOURCES": "Removes every source and its saved data",
         "SERVER_SYNC_ABOUT": "Share sources between devices through your own server",
         "TMDB_TRANSFER": "Copy a saved TMDB key to another device",
         "UNSAVED_SETTINGS": "Save or discard your edits before leaving",
