@@ -426,6 +426,40 @@ describe('withStalkerSeries serialSeasonsResource gating', () => {
         });
     });
 
+    it('loads all 38 regular-series seasons from 14-row pages (#2310)', async () => {
+        const all = Array.from({ length: 38 }, (_, index) => ({
+            id: `42:${index + 1}`,
+            name: `Season ${index + 1}`,
+            series: [1],
+        }));
+        dataService.sendIpcEvent.mockImplementation(async (_, payload) => {
+            // Portals serve page 1 when `p` is missing.
+            const page = Number(
+                (payload as { params: { p?: string } }).params.p ?? 1
+            );
+            return {
+                js: {
+                    total_items: 38,
+                    max_page_items: 14,
+                    data: all.slice((page - 1) * 14, page * 14),
+                },
+            };
+        });
+        store.setSelectedContentType('series');
+        store.setSelectedItem({ id: '42', name: 'Long series' });
+        await waitForCondition(
+            () =>
+                !store.isSerialSeasonsLoading() &&
+                (store.getSerialSeasonsResource()?.length ?? 0) > 0
+        );
+        expect(store.getSerialSeasonsResource()).toEqual(all);
+        expect(
+            seriesRequestCalls(dataService.sendIpcEvent).map(
+                ([, payload]) => (payload as { params: { p: string } }).params.p
+            )
+        ).toEqual(['1', '2', '3']);
+    });
+
     it('loads all 20 lazy seasons from 14-row pages', async () => {
         const all = Array.from({ length: 20 }, (_, index) => ({
             id: String(index + 1),

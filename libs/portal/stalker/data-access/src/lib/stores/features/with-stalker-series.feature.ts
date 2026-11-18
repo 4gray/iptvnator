@@ -44,39 +44,7 @@ const initialSeriesState: StalkerSeriesState = {
     selectedVodSeriesSeasonId: undefined,
 };
 
-interface StalkerSeriesResponse<T> {
-    js?:
-        | {
-              data?: T[];
-          }
-        | T[];
-}
-
 type StalkerSeriesStoreContext = StalkerSeriesFeatureStoreContract;
-
-/**
- * Strict variant: null when the envelope carried no array at all, so a
- * malformed answer is distinguishable from a well-formed empty list. The
- * series watched toggle treats an answered-empty season as loaded, so a
- * malformed envelope collapsing to [] would silently skip that season.
- */
-function extractSeriesItemsStrict<T>(
-    response: StalkerSeriesResponse<T>
-): T[] | null {
-    if (Array.isArray(response?.js)) {
-        return response.js;
-    }
-
-    if (Array.isArray(response?.js?.data)) {
-        return response.js.data;
-    }
-
-    return null;
-}
-
-function extractSeriesItems<T>(response: StalkerSeriesResponse<T>): T[] {
-    return extractSeriesItemsStrict(response) ?? [];
-}
 
 function toMovieId(value: unknown): string {
     const raw = String(value ?? '').trim();
@@ -125,6 +93,7 @@ export function withStalkerSeries() {
                         }),
                         loader: async ({
                             params,
+                            abortSignal,
                         }): Promise<StalkerSeason[]> => {
                             const playlist = params.currentPlaylist;
                             const movieId = toMovieId(params.itemId);
@@ -133,24 +102,23 @@ export function withStalkerSeries() {
                                 return [];
                             }
 
-                            const response = await executeStalkerRequest<
-                                StalkerSeriesResponse<StalkerSeason>
-                            >(requestDeps, playlist, {
-                                action: StalkerContentTypes.series
-                                    .getContentAction,
-                                type: 'series',
-                                movie_id: movieId,
-                            });
-
-                            const seasons = extractSeriesItems(response);
-
-                            if (seasons.length === 0) {
-                                logger.warn(
-                                    'Invalid seasons response',
-                                    response
+                            // Portals page seasons (Ministra default: 14 per page).
+                            const seasons =
+                                await fetchStalkerSeriesPages<StalkerSeason>(
+                                    (page) =>
+                                        executeStalkerRequest(
+                                            requestDeps,
+                                            playlist,
+                                            {
+                                                action: StalkerContentTypes
+                                                    .series.getContentAction,
+                                                type: 'series',
+                                                movie_id: movieId,
+                                                p: String(page),
+                                            }
+                                        ),
+                                    () => !abortSignal.aborted
                                 );
-                                return [];
-                            }
 
                             return sortByNumericValue(seasons);
                         },
