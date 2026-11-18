@@ -106,7 +106,7 @@ describe('ParentalLockExternalSessions', () => {
         });
         service = TestBed.inject(ParentalLockExternalSessions);
         service.now = () => clock;
-        service.start();
+        service.start({ pageStartedAt: clock, lockedAt: clock });
     });
 
     afterEach(() => {
@@ -181,9 +181,7 @@ describe('ParentalLockExternalSessions', () => {
         it('keeps a session launched while locked (from the filtered catalog)', () => {
             relock();
             clock += 1_000;
-            emitSession(
-                session({ startedAt: new Date(clock).toISOString() })
-            );
+            emitSession(session({ startedAt: new Date(clock).toISOString() }));
             relock();
 
             expect(closeExternalPlayerSession).not.toHaveBeenCalled();
@@ -192,7 +190,9 @@ describe('ParentalLockExternalSessions', () => {
         it('closes a launch that raced the relock', () => {
             relock();
             // Started before the relock, first reported after it.
-            emitSession(session({ startedAt: new Date(clock - 1).toISOString() }));
+            emitSession(
+                session({ startedAt: new Date(clock - 1).toISOString() })
+            );
 
             expect(closeExternalPlayerSession).toHaveBeenCalledWith(
                 'session-1',
@@ -347,7 +347,7 @@ describe('ParentalLockExternalSessions', () => {
                     () => new ParentalLockExternalSessions()
                 );
                 page.now = () => clock;
-                page.start();
+                page.start({ pageStartedAt: clock, lockedAt: clock });
                 return page;
             };
 
@@ -375,6 +375,44 @@ describe('ParentalLockExternalSessions', () => {
                 hasLocks.mockReturnValue(false);
                 listed = [earlier()];
                 reloadedPage();
+                await flush();
+
+                expect(closeExternalPlayerSession).not.toHaveBeenCalled();
+            });
+        });
+
+        describe('sessions opened while the tracker was loading', () => {
+            // It loads after the first screen; the listing reports what
+            // opened before, judged by the eager half's clock readings.
+            const loadedPage = (lockedAt: number) => {
+                active.set(true);
+                const page = TestBed.runInInjectionContext(
+                    () => new ParentalLockExternalSessions()
+                );
+                page.now = () => clock;
+                page.start({ pageStartedAt: 10_000, lockedAt });
+                return page;
+            };
+            const openedAt = (ms: number) =>
+                session({ startedAt: new Date(ms).toISOString() });
+
+            it('closes one opened unlocked when a relock came before the load', async () => {
+                clock = 15_000;
+                listed = [openedAt(12_000)];
+                loadedPage(14_000);
+                await flush();
+
+                expect(hasLocks).toHaveBeenCalledWith('m3u-1');
+                expect(closeExternalPlayerSession).toHaveBeenCalledWith(
+                    'session-1',
+                    true
+                );
+            });
+
+            it('keeps one opened while locked', async () => {
+                clock = 15_000;
+                listed = [openedAt(12_000)];
+                loadedPage(10_000);
                 await flush();
 
                 expect(closeExternalPlayerSession).not.toHaveBeenCalled();

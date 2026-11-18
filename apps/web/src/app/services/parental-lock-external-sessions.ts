@@ -74,15 +74,21 @@ export class ParentalLockExternalSessions {
     /** The clock; a field so specs can substitute it. */
     now = (): number => Date.now();
 
-    start(): void {
+    /**
+     * `clock` carries the readings the eager half took before this loaded:
+     * when the page started (locked, or with the feature off) and when it
+     * last locked. A session the page did not see open — still running
+     * across a reload or a crashed renderer — has an unknown history and is
+     * treated as opened unlocked; one opened while this was loading is
+     * judged by the relocks it missed.
+     */
+    start(clock: { pageStartedAt: number; lockedAt: number }): void {
         if (this.started) {
             return;
         }
         this.started = true;
-        // A page starts locked (or with the feature off), and a session it
-        // did not see open — still running across a reload or a crashed
-        // renderer — has an unknown history: treated as opened unlocked.
-        this.pageStartedAt = this.lockedAt = this.now();
+        this.pageStartedAt = clock.pageStartedAt;
+        this.lockedAt = clock.lockedAt;
         const bridge = window.electron;
         bridge?.onExternalPlayerSessionUpdate?.((session) =>
             this.observe(session)

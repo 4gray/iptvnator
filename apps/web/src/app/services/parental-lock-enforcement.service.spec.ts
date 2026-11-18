@@ -9,7 +9,7 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import { ParentalLockService } from '@iptvnator/services';
 import { ParentalLockEnforcementService } from './parental-lock-enforcement.service';
-import { ParentalLockExternalSessions } from './parental-lock-external-sessions';
+import { DeferredExternalSessions } from './parental-lock-external-sessions.deferred';
 import { PlaybackKeepAwakeService } from './playback-keep-awake.service';
 
 interface Applier {
@@ -551,19 +551,28 @@ describe('ParentalLockEnforcementService busy probe', () => {
     let version: ReturnType<typeof signal<number>>;
     let active: ReturnType<typeof signal<boolean>>;
     let externalSessions: {
-        start: jest.Mock;
-        isBusy: jest.Mock;
-        onLockChange: jest.Mock;
+        isBusy: jest.SpyInstance<boolean, []>;
+        onLockChange: jest.SpyInstance<void, []>;
     };
+
+    afterEach(() => {
+        externalSessions.isBusy.mockRestore();
+        externalSessions.onLockChange.mockRestore();
+    });
 
     beforeEach(() => {
         probe = undefined;
         version = signal(0);
         active = signal(false);
+        // The tracker itself loads after the first screen, where a bridge
+        // reports players outside the page; the eager half is what counts.
         externalSessions = {
-            start: jest.fn(),
-            isBusy: jest.fn(() => false),
-            onLockChange: jest.fn(),
+            isBusy: jest
+                .spyOn(DeferredExternalSessions.prototype, 'isBusy')
+                .mockReturnValue(false),
+            onLockChange: jest
+                .spyOn(DeferredExternalSessions.prototype, 'onLockChange')
+                .mockImplementation(),
         };
         TestBed.resetTestingModule();
         TestBed.configureTestingModule({
@@ -576,10 +585,6 @@ describe('ParentalLockEnforcementService busy probe', () => {
                         isM3uGroupLocked: () => false,
                         registerBusyProbe: (fn: () => boolean) => (probe = fn),
                     },
-                },
-                {
-                    provide: ParentalLockExternalSessions,
-                    useValue: externalSessions,
                 },
                 { provide: XtreamStore, useValue: {} },
                 { provide: XTREAM_DATA_SOURCE, useValue: {} },
@@ -601,7 +606,6 @@ describe('ParentalLockEnforcementService busy probe', () => {
     });
 
     it('counts players outside the page (Embedded MPV, MPV/VLC films)', () => {
-        expect(externalSessions.start).toHaveBeenCalled();
         expect(probe?.()).toBe(false);
 
         externalSessions.isBusy.mockReturnValue(true);

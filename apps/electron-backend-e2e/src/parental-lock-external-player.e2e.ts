@@ -193,7 +193,10 @@ test('@electron @parental @playback relock and reload close an MPV session opene
         await expect(page.getByTestId('header-parental-lock')).toHaveClass(
             /is-active/
         );
-        await expect.poll(() => playerIsAlive(reloadedPid)).toBe(false);
+        // The tracker loads once the reloaded page is idle (at most ~6 s).
+        await expect
+            .poll(() => playerIsAlive(reloadedPid), { timeout: 15_000 })
+            .toBe(false);
     } finally {
         pids.forEach(stopPlayer);
         await closeElectronApp(app);

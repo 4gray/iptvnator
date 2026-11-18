@@ -588,9 +588,8 @@ never exported.
 
 MPV/VLC play in their own process, and the session the main process
 reports carries no category. `ParentalLockExternalSessions`
-(`apps/web/src/app/services/parental-lock-external-sessions.ts`), started
-by the enforcement service, tracks every session from
-`onExternalPlayerSessionUpdate`:
+(`apps/web/src/app/services/parental-lock-external-sessions.ts`) tracks
+every session from `onExternalPlayerSessionUpdate`:
 
 - **Relock.** A session whose media was opened while unlocked — a launch,
   or an in-place switch of a reused player (a changed stream URL; status
@@ -614,6 +613,16 @@ by the enforcement service, tracks every session from
   has an unknown history and counts as opened while unlocked, with an
   unknown source. A player left running by a reloaded or crashed page is
   therefore closed under the same rule.
+- **Startup.** The tracker and its session listing stay off the startup
+  path (`renderer.initialBytes`, `renderer.ipcCallsToFirstCard`). The
+  enforcement service starts the eager half,
+  `parental-lock-external-sessions.deferred.ts`, which loads the tracker
+  once the first screen has rendered and the page is idle (one second,
+  then an idle callback of at most five), and only where the bridge
+  reports MPV/VLC or Embedded MPV. Until then it records when the page
+  started and when it last locked, and the tracker judges every listed
+  session by those readings: one opened while unlocked before a relock it
+  missed is closed when it loads, and the busy probe counts nothing yet.
 - **Owners.** A feature that knows the category of its sessions claims them
   through `ParentalLockSessionOwners` (`libs/services`) and closes only
   those in a withheld category. Xtream Live does:
@@ -621,7 +630,7 @@ by the enforcement service, tracks every session from
   closes a session of a withheld one, so an unlocked channel keeps
   playing.
 - **Idle relock.** Embedded MPV counts as busy while any session is
-  `playing` (two with multiview). An MPV/VLC film or episode counts while
+  `playing` (up to four with multiview). An MPV/VLC film or episode counts while
   its position, reported every 5 s, moved within the last 15 s, so a pause
   lets the timer run. A session that reports no position does not count,
   like live MPV/VLC: those players cannot report a pause, and an open,
@@ -650,7 +659,8 @@ predicate is `ParentalLockService.is*Locked`.
   persisted lock set, its unreadable state and the SQLite re-stamp),
   `apps/web/src/app/services/parental-lock-prompt.service.ts`,
   `parental-lock-enforcement.service.ts`,
-  `parental-lock-external-sessions.ts` (MPV/VLC and Embedded MPV),
+  `parental-lock-external-sessions.ts` (MPV/VLC and Embedded MPV) with its
+  eager half `parental-lock-external-sessions.deferred.ts`,
   `apps/web/src/app/settings/settings-parental-section.component.*` and `settings-parental-lock.facade.ts` (rows anchored and indexed for settings search),
   `libs/ui/components/src/lib/parental-lock-pin-dialog/`,
   `libs/portal/stalker/feature/src/lib/stalker-category-lock-dialog/`.
