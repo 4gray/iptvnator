@@ -172,6 +172,11 @@ export const SettingsStore = signalStore(
                 });
                 // Save the complete settings object, not just the partial update
                 const completeSettings = this.getSettings();
+                const mergeEpgUrls =
+                    options.mergeEpgUrls ??
+                    (settings.epgUrl === undefined
+                        ? normalizeEpgSourceUrls
+                        : undefined);
                 let storageFailure: 'save' | null = null;
                 let previousEpgUrls: Settings['epgUrl'];
                 try {
@@ -183,15 +188,15 @@ export const SettingsStore = signalStore(
                             storage,
                             completeSettings,
                             preserveTmdbKey,
-                            options.mergeEpgUrls
+                            mergeEpgUrls
                         );
                     } else {
                         const previousWrite = pendingStorageWrite;
                         const write = async () => {
                             if (previousWrite)
                                 await previousWrite.catch(() => undefined);
-                            if (options.mergeEpgUrls)
-                                completeSettings.epgUrl = options.mergeEpgUrls(
+                            if (mergeEpgUrls)
+                                completeSettings.epgUrl = mergeEpgUrls(
                                     committedEpg.epgUrl
                                 );
                             await firstValueFrom(

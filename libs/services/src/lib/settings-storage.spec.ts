@@ -172,6 +172,53 @@ describe('Settings storage', () => {
     });
 
     it.each([false, true])(
+        'preserves committed guides for an unrelated save during import (backup succeeds: %s)',
+        async (backupSucceeds) => {
+            const original = 'https://example.test/saved.xml';
+            const imported = 'https://example.test/imported.xml';
+            storedSettings = { ...saved, epgUrl: [original] };
+            read.result = storedSettings;
+            const store = await loadStore();
+            const openedImport = waitForOpen();
+            const importing = store.updateSettings({
+                epgUrl: [original, imported],
+            });
+            await openedImport;
+            open.onsuccess?.();
+            read.onsuccess?.();
+
+            const openedSave = waitForOpen();
+            const saving = store.updateSettings({ showCaptions: true });
+            expect(store.epgUrl()).toEqual([original, imported]);
+            if (backupSucceeds) {
+                read.result = { ...saved, epgUrl: [original, imported] };
+                transaction.oncomplete?.();
+                await importing;
+            } else {
+                transaction.onabort?.();
+                await expect(importing).rejects.toThrow('Could not save');
+            }
+            await openedSave;
+            open.onsuccess?.();
+            read.onsuccess?.();
+            transaction.oncomplete?.();
+            await saving;
+            const expected = backupSucceeds ? [original, imported] : [original];
+            expect(store.epgUrl()).toEqual(expected);
+            expect(put).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    showCaptions: true,
+                    epgUrl: expected,
+                }),
+                STORE_KEY.Settings
+            );
+            const synchronize = injector?.get(EpgSourceSettingsService)
+                .synchronize as jest.Mock;
+            expect(synchronize.mock.calls.at(-1)?.[0]).toEqual(expected);
+        }
+    );
+
+    it.each([false, true])(
         'merges a guide draft with the committed backup sources (backup succeeds: %s)',
         async (backupSucceeds) => {
             const original = 'https://example.test/saved.xml';

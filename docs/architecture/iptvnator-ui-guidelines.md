@@ -1377,8 +1377,9 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   the next Save, so an edit reverted to its saved value still takes effect.
   An EPG retry keeps sources added elsewhere, including ones merged by the
   earlier Save. Outside EPG additions are merged from the saved record in the
-  write transaction, so a failed import cannot contribute sources. Desktop
-  receives the merged settings except the parental-lock switch, whose dedicated
+  write transaction, so a failed import cannot contribute sources. Saves
+  without EPG edits also reuse the committed source list. Desktop receives
+  the merged settings except the parental-lock switch, whose dedicated
   writer owns its native mirror and rollback.
 - A backup import brings in restored EPG URLs and keeps staged edits.
   If overlapping settings writes fail, the EPG list falls back to the last

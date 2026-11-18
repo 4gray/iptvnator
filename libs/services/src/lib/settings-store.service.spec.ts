@@ -299,6 +299,42 @@ describe('SettingsStore dashboard rail settings', () => {
     );
 
     it.each([false, true])(
+        'preserves committed guides for an unrelated fallback save (backup succeeds: %s)',
+        async (backupSucceeds) => {
+            const original = 'https://example.test/saved.xml';
+            const imported = 'https://example.test/imported.xml';
+            storedSettings = { epgUrl: [original] };
+            const store = injector.get(SettingsStore);
+            await store.loadSettings();
+            const backupWrite = new Subject<void>();
+            storage.set.mockReturnValueOnce(backupWrite);
+            const backup = store.updateSettings({
+                epgUrl: [original, imported],
+            });
+            const saving = store.updateSettings({ showCaptions: true });
+            if (backupSucceeds) {
+                backupWrite.next();
+                await backup;
+            } else {
+                backupWrite.error(new Error('Synthetic backup failure'));
+                await expect(backup).rejects.toThrow(
+                    'Synthetic backup failure'
+                );
+            }
+            await saving;
+            const expected = backupSucceeds ? [original, imported] : [original];
+            expect(store.epgUrl()).toEqual(expected);
+            expect(storage.set).toHaveBeenLastCalledWith(
+                STORE_KEY.Settings,
+                expect.objectContaining({
+                    showCaptions: true,
+                    epgUrl: expected,
+                })
+            );
+        }
+    );
+
+    it.each([false, true])(
         'keeps the latest committed EPG sources after an overlapping write fails (latest fails: %s)',
         async (latestFails) => {
             const initial = 'https://example.test/initial.xml';
