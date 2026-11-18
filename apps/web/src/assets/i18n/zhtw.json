@@ -1633,6 +1633,7 @@
         "EPISODES_WATCHED_COUNT": "已看 {{count}} 集",
         "BACK_TO_PLAYING_EPISODE": "返回正在播放的集數",
         "GRID_VIEW": "格狀檢視",
+        "PLAY_RANDOM_EPISODE": "播放隨機集數",
         "LIST_VIEW": "清單檢視",
         "NO_EPISODES_AVAILABLE": "沒有可用的集數",
         "NO_EPISODES_AVAILABLE_MESSAGE": "此供應商列出了這部影集，但目前沒有可播放的季數或集數。",

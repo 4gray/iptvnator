@@ -1633,6 +1633,7 @@
         "EPISODES_WATCHED_COUNT": "{{count}} 本視聴済み",
         "BACK_TO_PLAYING_EPISODE": "再生中のエピソードに戻る",
         "GRID_VIEW": "グリッド表示",
+        "PLAY_RANDOM_EPISODE": "ランダムなエピソードを再生",
         "LIST_VIEW": "リスト表示",
         "NO_EPISODES_AVAILABLE": "利用可能なエピソードはありません",
         "NO_EPISODES_AVAILABLE_MESSAGE": "このシリーズはプロバイダーに登録されていますが、再生可能なシーズンやエピソードはありません。",

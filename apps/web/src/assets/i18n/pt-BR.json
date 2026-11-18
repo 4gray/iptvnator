@@ -1633,6 +1633,7 @@
         "EPISODES_WATCHED_COUNT": "{{count}} assistidos",
         "BACK_TO_PLAYING_EPISODE": "Voltar ao episódio em reprodução",
         "GRID_VIEW": "Visualização em grade",
+        "PLAY_RANDOM_EPISODE": "Reproduzir episódio aleatório",
         "LIST_VIEW": "Visualização em lista",
         "NO_EPISODES_AVAILABLE": "Nenhum episódio disponível",
         "NO_EPISODES_AVAILABLE_MESSAGE": "Esta série está listada pelo seu provedor, mas não há temporadas ou episódios disponíveis para reprodução.",

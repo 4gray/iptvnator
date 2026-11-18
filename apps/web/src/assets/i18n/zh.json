@@ -1633,6 +1633,7 @@
         "EPISODES_WATCHED_COUNT": "已看 {{count}} 集",
         "BACK_TO_PLAYING_EPISODE": "返回正在播放的剧集",
         "GRID_VIEW": "网格视图",
+        "PLAY_RANDOM_EPISODE": "播放随机剧集",
         "LIST_VIEW": "列表视图",
         "NO_EPISODES_AVAILABLE": "没有可用的剧集",
         "NO_EPISODES_AVAILABLE_MESSAGE": "您的提供商列出了此剧集，但没有可播放的季或集。",

@@ -1633,6 +1633,7 @@
         "EPISODES_WATCHED_COUNT": "{{count}} megnézve",
         "BACK_TO_PLAYING_EPISODE": "Vissza a lejátszás alatt álló epizódhoz",
         "GRID_VIEW": "Rácsnézet",
+        "PLAY_RANDOM_EPISODE": "Véletlenszerű epizód lejátszása",
         "LIST_VIEW": "Listanézet",
         "NO_EPISODES_AVAILABLE": "Nincs elérhető epizód",
         "NO_EPISODES_AVAILABLE_MESSAGE": "A szolgáltató felsorolja ezt a sorozatot, de nem érhető el lejátszható évad vagy epizód.",

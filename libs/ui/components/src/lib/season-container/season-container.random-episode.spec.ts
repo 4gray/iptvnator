@@ -1,0 +1,229 @@
+import { signal } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { TranslateModule } from '@ngx-translate/core';
+import { SeasonDownloadCoordinator } from '@iptvnator/portal/shared/data-access';
+import { XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
+import { DownloadsService } from '@iptvnator/services';
+import { SeasonContainerComponent } from './season-container.component';
+
+// The shuffle button: its own visibility, and lazy (Stalker) seasons.
+
+function createEpisode(id: number, season = 1): XtreamSerieEpisode {
+    return {
+        id: String(id),
+        episode_num: id,
+        title: `Episode ${id}`,
+        container_extension: 'mp4',
+        info: {},
+        custom_sid: '',
+        added: '',
+        season,
+        direct_source: '',
+    } as XtreamSerieEpisode;
+}
+
+describe('SeasonContainerComponent random episode', () => {
+    let fixture: ComponentFixture<SeasonContainerComponent>;
+    let component: SeasonContainerComponent;
+
+    const setInputs = (
+        seasons: Record<string, XtreamSerieEpisode[]>,
+        unloadedSeasonKeys: string[] = []
+    ) => {
+        fixture.componentRef.setInput('seasons', seasons);
+        fixture.componentRef.setInput('seriesId', 20);
+        fixture.componentRef.setInput('playlistId', 'playlist-1');
+        fixture.componentRef.setInput('unloadedSeasonKeys', unloadedSeasonKeys);
+    };
+    const shuffleButton = (): HTMLElement | null =>
+        fixture.nativeElement.querySelector('.play-random-episode');
+
+    beforeEach(async () => {
+        localStorage.clear();
+        await TestBed.configureTestingModule({
+            imports: [
+                NoopAnimationsModule,
+                SeasonContainerComponent,
+                TranslateModule.forRoot(),
+            ],
+            providers: [
+                {
+                    provide: DownloadsService,
+                    useValue: {
+                        isAvailable: signal(false),
+                        hasAuthoritativeDownloadList: signal(false),
+                        hasLoadedDownloads: signal(false),
+                        downloads: signal([]),
+                    },
+                },
+                { provide: MatDialog, useValue: { open: jest.fn() } },
+                SeasonDownloadCoordinator,
+                { provide: MatSnackBar, useValue: { open: jest.fn() } },
+            ],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(SeasonContainerComponent);
+        component = fixture.componentInstance;
+    });
+
+    afterEach(() => jest.restoreAllMocks());
+
+    it('shows shuffle for playable episodes that have no artwork or plot', () => {
+        setInputs({ '1': [createEpisode(1), createEpisode(2)] });
+        fixture.detectChanges();
+
+        expect(component.metaState()).toBe('bare');
+        expect(shuffleButton()).not.toBeNull();
+    });
+
+    it('shows shuffle while an empty season is selected if another has episodes', () => {
+        setInputs({ '1': [], '2': [createEpisode(1, 2)] });
+        fixture.detectChanges();
+        component.selectSeason('1');
+        fixture.detectChanges();
+
+        expect(component.showSeasonEmptyState()).toBe(true);
+        expect(shuffleButton()).not.toBeNull();
+    });
+
+    it('hides shuffle when the series has nothing to play', () => {
+        setInputs({ '1': [] });
+        fixture.detectChanges();
+
+        expect(shuffleButton()).toBeNull();
+    });
+
+    it('loads an unloaded season it picks, then plays one of its episodes', () => {
+        const played: XtreamSerieEpisode[] = [];
+        component.episodeClicked.subscribe((episode) => played.push(episode));
+        setInputs({ '1': [createEpisode(1)], '2': [] }, ['2']);
+        fixture.detectChanges();
+
+        // Total weight 2 (1 loaded episode + season 2 at the loaded average).
+        jest.spyOn(Math, 'random').mockReturnValue(0.9);
+        component.playRandomEpisode();
+        fixture.detectChanges();
+
+        expect(component.selectedSeason()).toBe('2');
+        expect(played).toEqual([]);
+
+        const loaded = createEpisode(7, 2);
+        setInputs({ '1': [createEpisode(1)], '2': [loaded] }, []);
+        fixture.detectChanges();
+
+        expect(played).toEqual([loaded]);
+    });
+
+    it('drops a pending shuffle when the viewer moves to another season', () => {
+        const played: XtreamSerieEpisode[] = [];
+        component.episodeClicked.subscribe((episode) => played.push(episode));
+        setInputs({ '1': [createEpisode(1)], '2': [] }, ['2']);
+        fixture.detectChanges();
+
+        jest.spyOn(Math, 'random').mockReturnValue(0.9);
+        component.playRandomEpisode();
+        fixture.detectChanges();
+        component.selectSeason('1');
+        fixture.detectChanges();
+
+        setInputs({ '1': [createEpisode(1)], '2': [createEpisode(7, 2)] }, []);
+        fixture.detectChanges();
+
+        expect(played).toEqual([]);
+    });
+
+    it('drops a pending shuffle when the page starts other playback', () => {
+        const played: XtreamSerieEpisode[] = [];
+        component.episodeClicked.subscribe((episode) => played.push(episode));
+        setInputs({ '1': [createEpisode(1)], '2': [] }, ['2']);
+        fixture.detectChanges();
+
+        jest.spyOn(Math, 'random').mockReturnValue(0.9);
+        component.playRandomEpisode();
+        fixture.detectChanges();
+        expect(component.selectedSeason()).toBe('2');
+
+        // The hero's Play opens season 1's episode without changing season.
+        fixture.componentRef.setInput('openingEpisodeId', 1);
+        fixture.detectChanges();
+        setInputs({ '1': [createEpisode(1)], '2': [createEpisode(7, 2)] }, []);
+        fixture.detectChanges();
+
+        expect(played).toEqual([]);
+    });
+
+    it('drops a pending shuffle when the viewer picks an episode', () => {
+        const played: XtreamSerieEpisode[] = [];
+        component.episodeClicked.subscribe((episode) => played.push(episode));
+        const first = createEpisode(1);
+        setInputs({ '1': [first], '2': [] }, ['2']);
+        fixture.detectChanges();
+
+        jest.spyOn(Math, 'random').mockReturnValue(0.9);
+        component.playRandomEpisode();
+        fixture.detectChanges();
+        component.selectEpisode(first);
+        fixture.detectChanges();
+        setInputs({ '1': [first], '2': [createEpisode(7, 2)] }, []);
+        fixture.detectChanges();
+
+        expect(played).toEqual([first]);
+    });
+
+    it('keeps a pending shuffle while the launching episode starts playing', () => {
+        const played: XtreamSerieEpisode[] = [];
+        component.episodeClicked.subscribe((episode) => played.push(episode));
+        setInputs({ '1': [createEpisode(1)], '2': [] }, ['2']);
+        fixture.componentRef.setInput('openingEpisodeId', 5);
+        fixture.detectChanges();
+
+        jest.spyOn(Math, 'random').mockReturnValue(0.9);
+        component.playRandomEpisode();
+        fixture.detectChanges();
+        // An external launch completes: opening clears, active takes over.
+        fixture.componentRef.setInput('openingEpisodeId', null);
+        fixture.componentRef.setInput('activeEpisodeId', 5);
+        fixture.detectChanges();
+
+        const loaded = createEpisode(7, 2);
+        setInputs({ '1': [createEpisode(1)], '2': [loaded] }, []);
+        fixture.detectChanges();
+
+        expect(played).toEqual([loaded]);
+    });
+
+    it('draws again when the season it loaded turns out empty', () => {
+        const played: XtreamSerieEpisode[] = [];
+        component.episodeClicked.subscribe((episode) => played.push(episode));
+        const first = createEpisode(1);
+        setInputs({ '1': [first], '2': [] }, ['2']);
+        fixture.detectChanges();
+
+        jest.spyOn(Math, 'random').mockReturnValue(0.9);
+        component.playRandomEpisode();
+        fixture.detectChanges();
+        setInputs({ '1': [first], '2': [] }, []);
+        fixture.detectChanges();
+
+        expect(played).toEqual([first]);
+    });
+
+    it('asks the host to load a selected season again after a failed load', () => {
+        const requested: string[] = [];
+        component.seasonSelected.subscribe((key) => requested.push(key));
+        setInputs({ '1': [createEpisode(1)], '2': [] }, ['2']);
+        fixture.detectChanges();
+        component.selectSeason('2');
+        fixture.detectChanges();
+        const before = requested.length;
+
+        jest.spyOn(Math, 'random').mockReturnValue(0.9);
+        component.playRandomEpisode();
+        fixture.detectChanges();
+
+        expect(requested.slice(before)).toEqual(['2']);
+    });
+});

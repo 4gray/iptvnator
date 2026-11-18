@@ -1633,6 +1633,7 @@
         "EPISODES_WATCHED_COUNT": "{{count}} vus",
         "BACK_TO_PLAYING_EPISODE": "Retour à l'épisode en cours",
         "GRID_VIEW": "Vue en grille",
+        "PLAY_RANDOM_EPISODE": "Lire un épisode au hasard",
         "LIST_VIEW": "Vue en liste",
         "NO_EPISODES_AVAILABLE": "Aucun épisode disponible",
         "NO_EPISODES_AVAILABLE_MESSAGE": "Cette série est répertoriée par votre fournisseur, mais aucune saison ni épisode n'est disponible à la lecture.",

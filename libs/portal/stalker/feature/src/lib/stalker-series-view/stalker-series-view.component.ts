@@ -1294,6 +1294,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         startTime?: number,
         forcePlayer?: ExternalPlayerName
     ): Promise<void> {
+        // Any start (hero Play or Next, a restart) wins over a shuffle still
+        // waiting for its season; the episode ids change only after resolving.
+        this.seasonContainerRef()?.cancelRandomEpisode();
         const generation = ++this.seriesPlaybackRequestGeneration;
         const episodeNum = episodeState.episodeNumber;
         const episodeId = Number(episodeState.episode.id);

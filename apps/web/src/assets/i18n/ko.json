@@ -1633,6 +1633,7 @@
         "EPISODES_WATCHED_COUNT": "{{count}}개 시청함",
         "BACK_TO_PLAYING_EPISODE": "재생 중인 에피소드로 돌아가기",
         "GRID_VIEW": "그리드 보기",
+        "PLAY_RANDOM_EPISODE": "무작위 에피소드 재생",
         "LIST_VIEW": "목록 보기",
         "NO_EPISODES_AVAILABLE": "사용 가능한 에피소드가 없습니다",
         "NO_EPISODES_AVAILABLE_MESSAGE": "이 시리즈는 공급자 목록에 있지만 재생 가능한 시즌이나 에피소드가 없습니다.",

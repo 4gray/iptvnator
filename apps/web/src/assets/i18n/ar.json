@@ -1633,6 +1633,7 @@
         "EPISODES_WATCHED_COUNT": "{{count}} تمت مشاهدتها",
         "BACK_TO_PLAYING_EPISODE": "العودة إلى الحلقة قيد التشغيل",
         "GRID_VIEW": "عرض شبكي",
+        "PLAY_RANDOM_EPISODE": "تشغيل حلقة عشوائية",
         "LIST_VIEW": "عرض قائمة",
         "NO_EPISODES_AVAILABLE": "لا توجد حلقات متاحة",
         "NO_EPISODES_AVAILABLE_MESSAGE": "هذا المسلسل مدرج لدى مزودك، لكن لا توجد مواسم أو حلقات متاحة للتشغيل.",

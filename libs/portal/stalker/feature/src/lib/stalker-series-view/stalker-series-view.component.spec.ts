@@ -160,6 +160,20 @@ describe('StalkerSeriesViewComponent', () => {
         }
     });
 
+    it('starting an episode drops a shuffle still waiting for its season', async () => {
+        await stabilize();
+        const seasonContainer = fixture.debugElement.query(
+            By.directive(StubSeasonContainerComponent)
+        ).componentInstance as StubSeasonContainerComponent;
+        const episode = Object.values(
+            fixture.componentInstance.mappedSeasons()
+        )[0][0];
+
+        fixture.componentInstance.onEpisodeClicked(episode as never);
+
+        expect(seasonContainer.cancelRandomEpisodeCalls).toBe(1);
+    });
+
     it('keeps provider episodes playable while hiding download presentation', async () => {
         fixture.componentRef.setInput('providerOnly', true);
 
