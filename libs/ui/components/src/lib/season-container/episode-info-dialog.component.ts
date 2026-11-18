@@ -49,6 +49,18 @@ export function buildEpisodeInfoDialogData(
 }
 
 /** Result returned when the user chooses to play from the dialog. */
+/**
+ * The header subtitle names the season and the episode; a known season 0
+ * (specials) is still a season, only an unknown one is left out.
+ */
+export function episodeSubtitleKey(
+    data: Pick<EpisodeInfoDialogData, 'seasonNumber'>
+): string {
+    return data.seasonNumber === undefined
+        ? 'DIALOGS.EPISODE'
+        : 'DIALOGS.EPISODE_SEASON';
+}
+
 export const EPISODE_INFO_PLAY = 'play' as const;
 
 /**
@@ -71,10 +83,7 @@ export const EPISODE_INFO_PLAY = 'play' as const;
             icon="info"
             [heading]="data.title"
             [subtitle]="
-                (data.seasonNumber
-                    ? 'DIALOGS.EPISODE_SEASON'
-                    : 'DIALOGS.EPISODE'
-                )
+                episodeSubtitleKey(data)
                     | translate
                         : {
                               season: data.seasonNumber,
@@ -181,6 +190,7 @@ export const EPISODE_INFO_PLAY = 'play' as const;
     ],
 })
 export class EpisodeInfoDialogComponent {
+    protected readonly episodeSubtitleKey = episodeSubtitleKey;
     readonly data: EpisodeInfoDialogData = inject(MAT_DIALOG_DATA);
     private readonly dialogRef = inject(
         MatDialogRef<EpisodeInfoDialogComponent>
