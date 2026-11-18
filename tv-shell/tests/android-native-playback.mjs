@@ -378,6 +378,8 @@ try {
     await waitNative();
     await expect(video).toHaveCount(0);
     await waitAudio();
+    adb('shell', 'input', 'keyevent', 'KEYCODE_MEDIA_PAUSE');
+    await expect.poll(audioTrack).toBe('');
     const subtitleButton = /<node [^>]*resource-id="org\.tvshell\.iptvnator:id\/native_subtitles"[^>]*>/;
     const captionsState = () => {
         const button = dumpLayout().match(subtitleButton)?.[0];
@@ -386,8 +388,6 @@ try {
         return button?.match(/content-desc="([^"]*)"/)?.[1] ?? '';
     };
     await expect.poll(captionsState, { timeout: 8000 }).toBe('Subtitles: on');
-    adb('shell', 'input', 'keyevent', 'KEYCODE_MEDIA_PAUSE');
-    await expect.poll(audioTrack).toBe('');
     function tapNode(node) {
         const [, left, top, right, bottom] = node.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
         adb('shell', 'input', 'tap', String((+left + +right) / 2), String((+top + +bottom) / 2));
