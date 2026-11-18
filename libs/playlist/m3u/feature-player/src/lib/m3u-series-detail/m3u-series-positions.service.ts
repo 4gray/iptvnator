@@ -46,6 +46,9 @@ export class M3uSeriesPositionsService implements OnDestroy {
 
     private lastSavedEpisodeId = 0;
 
+    /** The row last written, by either path: a paused engine repeats it. */
+    private lastWritten: PlaybackPositionData | null = null;
+
     /**
      * The newest tick the throttle held back. Without it, closing the
      * player, switching episodes or leaving the page throws away up to 15 s
@@ -167,6 +170,16 @@ export class M3uSeriesPositionsService implements OnDestroy {
 
         this.patch(position);
 
+        // A paused engine keeps reporting the same second; written once.
+        if (
+            immediate &&
+            !this.pending &&
+            this.lastWritten?.contentXtreamId === position.contentXtreamId &&
+            this.lastWritten.positionSeconds === position.positionSeconds
+        ) {
+            return;
+        }
+
         const now = Date.now();
         if (
             !immediate &&
@@ -188,6 +201,7 @@ export class M3uSeriesPositionsService implements OnDestroy {
         }
         this.lastSaveAt = now;
         this.lastSavedEpisodeId = position.contentXtreamId;
+        this.lastWritten = position;
         await this.bridge.savePlaybackPosition(playlistId, position);
     }
 
@@ -196,6 +210,7 @@ export class M3uSeriesPositionsService implements OnDestroy {
         const pending = this.pending;
         this.pending = null;
         if (pending) {
+            this.lastWritten = pending.position;
             await this.bridge.savePlaybackPosition(
                 pending.playlistId,
                 pending.position

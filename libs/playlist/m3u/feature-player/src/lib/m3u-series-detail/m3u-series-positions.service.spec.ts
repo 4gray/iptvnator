@@ -231,6 +231,18 @@ describe('M3uSeriesPositionsService', () => {
             ]);
         });
 
+        it('writes a pause once while the engine repeats the same second', async () => {
+            nowSpy.mockReturnValue(3_006_000);
+            await service.recordProgress('pl-1', position(11, 16), true);
+            await service.recordProgress('pl-1', position(11, 16), true);
+            await service.recordProgress('pl-1', position(11, 16), true);
+
+            expect(saved()).toEqual([
+                [11, 10],
+                [11, 16],
+            ]);
+        });
+
         it('is saved when another series opens', async () => {
             await service.load('pl-1', 600);
 

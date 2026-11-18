@@ -354,8 +354,9 @@ export class M3uSeriesDetailRouteComponent {
                     : undefined,
                 playlistId: this.playlistId(),
             },
-            // A pause or seek holds still: write it now, as the portals do.
-            update.playing === false
+            // A pause or seek holds still, and a checkpoint is a verified
+            // final position: write them now, as the portals do.
+            update.playing === false || update.checkpoint === true
         );
     }
 
