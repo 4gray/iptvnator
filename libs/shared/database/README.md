@@ -189,9 +189,10 @@ playlists) are guarded in `runMigrations()`, and measured weekly by the
 The #1580 index-ordering fix is included in 0.24 through PR #1550.
 `src/lib/connection-upgrades.spec.ts` exercises `initDatabase()` with real
 SQLite under the Electron runtime, using fresh-install schema snapshots from
-tags 0.17.1 and 0.19–0.24 and a fresh current database. 0.17.1 predates
-`categories.hidden` and the EPG, playback-position and download tables, so it
-guards the partial `idx_categories_visible` index staying in
+tags 0.19–0.24 and a fresh current database. 0.17.1 predates
+`categories.hidden` and the EPG, playback-position and download tables, so
+`src/lib/connection-upgrade-0-17.spec.ts` upgrades its schema snapshot on its
+own: it guards the partial `idx_categories_visible` index staying in
 `INDEX_MIGRATION_STATEMENTS`. The `epg_channel_id` column is absent
 in 0.19, present from 0.20, and indexed from 0.23. Each case checks current Drizzle
 tables, columns/types, and named indexes/uniqueness, as well as preserved user
