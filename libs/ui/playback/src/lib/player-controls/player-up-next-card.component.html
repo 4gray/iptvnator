@@ -43,6 +43,35 @@
             }
             @if (item().showCountdown !== false) {
                 · {{ countdown().key | translate: countdown().params }}
+                @let share = ring();
+                @if (share !== null) {
+                    <svg
+                        class="player-up-next__ring"
+                        data-test-id="player-controls-up-next-ring"
+                        viewBox="0 0 20 20"
+                        aria-hidden="true"
+                    >
+                        <circle
+                            class="player-up-next__ring-track"
+                            cx="10"
+                            cy="10"
+                            r="8"
+                            pathLength="100"
+                            fill="none"
+                            stroke-width="2.5"
+                        />
+                        <circle
+                            class="player-up-next__ring-fill"
+                            cx="10"
+                            cy="10"
+                            r="8"
+                            pathLength="100"
+                            fill="none"
+                            stroke-width="2.5"
+                            [attr.stroke-dashoffset]="100 - share * 100"
+                        />
+                    </svg>
+                }
             }
         </span>
         @if (!collapsed()) {

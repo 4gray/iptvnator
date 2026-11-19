@@ -93,7 +93,6 @@ describe('SettingsComponent storage failures', () => {
     });
 
     it('marks the form pristine only after the settings write succeeded', async () => {
-        settingsStore.updateSettings.mockResolvedValue(undefined);
         const save = jest.spyOn(component.form, 'save');
         jest.spyOn(component.epg, 'fetchConfiguredEpg').mockImplementation();
         component.settingsForm.markAsDirty();
@@ -210,9 +209,9 @@ describe('SettingsComponent storage failures', () => {
             mpvPlayerPath: '/saved/mpv',
             vlcPlayerPath: '/saved/vlc',
         });
-        settingsStore.updateSettings
-            .mockRejectedValueOnce(new EpgSourceReconciliationError())
-            .mockResolvedValue(undefined);
+        settingsStore.applyNextUpdateThen(() =>
+            Promise.reject(new EpgSourceReconciliationError())
+        );
         component.onSubmit();
         await fixture.whenStable();
         expect(component.form.epgUrl.dirty).toBe(true);
@@ -230,8 +229,10 @@ describe('SettingsComponent storage failures', () => {
         expect(window.electron.setVlcPlayerPath).toHaveBeenCalledWith(
             '/saved/vlc'
         );
+        // The list equals the saved one, so it is not rewritten; the dirty
+        // array still asks the store to retry the source cleanup.
         expect(settingsStore.updateSettings).toHaveBeenLastCalledWith(
-            expect.objectContaining({ epgUrl: [] }),
+            expect.not.objectContaining({ epgUrl: expect.anything() }),
             { retryEpgCleanup: true }
         );
         expect(snackBar.open).toHaveBeenCalledWith(

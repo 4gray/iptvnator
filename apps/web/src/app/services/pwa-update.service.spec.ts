@@ -8,6 +8,7 @@ describe('PwaUpdateService', () => {
     let unrecoverable: Subject<unknown>;
     let check: jest.Mock;
     let enabled: boolean;
+    let worker: EventTarget & { controller: object | null };
     const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
     beforeEach(() => {
@@ -15,6 +16,14 @@ describe('PwaUpdateService', () => {
         unrecoverable = new Subject();
         enabled = true;
         check = jest.fn().mockResolvedValue(false);
+        worker = Object.assign(new EventTarget(), { controller: null });
+        Object.defineProperty(navigator, 'serviceWorker', {
+            configurable: true,
+            value: worker,
+        });
+        jest.spyOn(document, 'visibilityState', 'get').mockReturnValue(
+            'visible'
+        );
         TestBed.configureTestingModule({
             providers: [
                 {
@@ -31,7 +40,17 @@ describe('PwaUpdateService', () => {
             ],
         });
     });
-    afterEach(() => TestBed.resetTestingModule());
+    afterEach(() => {
+        TestBed.resetTestingModule();
+        Reflect.deleteProperty(navigator, 'serviceWorker');
+        jest.restoreAllMocks();
+    });
+
+    function startWithControllerAfterInit() {
+        const service = TestBed.inject(PwaUpdateService);
+        worker.controller = {};
+        return service;
+    }
 
     function ready() {
         versions.next({
@@ -82,7 +101,7 @@ describe('PwaUpdateService', () => {
     });
 
     it('coalesces retry/online requests and retains Retry for an eventless false result', async () => {
-        const service = TestBed.inject(PwaUpdateService);
+        const service = startWithControllerAfterInit();
         let finish!: (available: boolean) => void;
         check.mockReturnValue(
             new Promise<boolean>((resolve) => {
@@ -103,7 +122,7 @@ describe('PwaUpdateService', () => {
     });
 
     it('reports a rejected check without exposing its raw error', async () => {
-        const service = TestBed.inject(PwaUpdateService);
+        const service = startWithControllerAfterInit();
         check.mockRejectedValue(
             new Error('Synthetic internal transport error')
         );
@@ -113,7 +132,7 @@ describe('PwaUpdateService', () => {
     });
 
     it('clears a recovered failure when a successful retry finds no update', async () => {
-        const service = TestBed.inject(PwaUpdateService);
+        const service = startWithControllerAfterInit();
         failed();
         expect(service.notice()).toBe('failed');
         check.mockImplementationOnce(async () => {
@@ -126,12 +145,53 @@ describe('PwaUpdateService', () => {
         window.dispatchEvent(new Event('online'));
         await flush();
         expect(service.notice()).toBeNull();
+        expect(service.noUpdate()).toBe(true);
+    });
+
+    it('announces a downloaded version even when VERSION_READY was missed', async () => {
+        const service = startWithControllerAfterInit();
+        check.mockResolvedValue(true);
+        await service.check();
+        expect(service.notice()).toBe('ready');
+        expect(service.canReload()).toBe(true);
+    });
+
+    it('checks on startup when a worker already controls the page', async () => {
+        worker.controller = {};
+        TestBed.inject(PwaUpdateService);
+        expect(check).toHaveBeenCalledTimes(1);
+        await flush();
+    });
+
+    it('checks when control is available and when the page returns to the foreground', async () => {
+        startWithControllerAfterInit();
+        const visibility = jest.spyOn(document, 'visibilityState', 'get');
+        visibility.mockReturnValue('hidden');
+        worker.dispatchEvent(new Event('controllerchange'));
+        document.dispatchEvent(new Event('visibilitychange'));
+        expect(check).not.toHaveBeenCalled();
+
+        visibility.mockReturnValue('visible');
+        worker.dispatchEvent(new Event('controllerchange'));
+        expect(check).toHaveBeenCalledTimes(1);
+        await flush();
+        document.dispatchEvent(new Event('visibilitychange'));
+        expect(check).toHaveBeenCalledTimes(2);
+        await flush();
+    });
+
+    it('reports an unavailable worker for manual checks without waiting for control', async () => {
+        const service = TestBed.inject(PwaUpdateService);
+        await service.check();
+        expect(check).not.toHaveBeenCalled();
+        expect(service.notice()).toBe('failed');
+        expect(service.checking()).toBe(false);
     });
 
     it.each(['ready', 'unrecoverable'] as const)(
         'retains %s across later failures and no-update events',
         async (state) => {
-            const service = TestBed.inject(PwaUpdateService);
+            const service = startWithControllerAfterInit();
             service.reloadWindow = jest.fn();
             if (state === 'ready') ready();
             else
@@ -150,9 +210,11 @@ describe('PwaUpdateService', () => {
     );
 
     it('unsubscribes from online and worker events on destruction', () => {
-        TestBed.inject(PwaUpdateService);
+        startWithControllerAfterInit();
         TestBed.resetTestingModule();
         window.dispatchEvent(new Event('online'));
+        document.dispatchEvent(new Event('visibilitychange'));
+        worker.dispatchEvent(new Event('controllerchange'));
         expect(check).not.toHaveBeenCalled();
         expect(versions.observed).toBe(false);
         expect(unrecoverable.observed).toBe(false);

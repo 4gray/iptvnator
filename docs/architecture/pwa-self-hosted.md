@@ -193,12 +193,14 @@ pnpm nx build web --configuration=pwa --skip-nx-cache
 
 ## Application updates and offline recovery
 
-The global update panel loads `PwaUpdateService` once per enabled browser app lifetime. It
-announces only `VERSION_READY` as ready, offers Retry after installation or
-check failures, and rechecks once when the browser returns online. A manifest
-fetch failure resolves false without a version event, so Retry is restored in
-that case; a successful `NO_NEW_VERSION_DETECTED` clears an obsolete failure
-notice while preserving pending reloads. Refresh is
+The global update panel and Settings → About share one `PwaUpdateService`.
+It checks when a worker first controls the visible, online page, when the
+page returns to the foreground, and when the browser returns online. About
+checks the app's origin on demand and reports the result in the version card.
+Either `VERSION_READY` or a successful `checkForUpdate()` returning true marks
+the new build ready. A manifest fetch failure resolves false without a version
+event, so the explicit check offers Retry. `NO_NEW_VERSION_DETECTED` clears
+an obsolete failure notice while preserving pending reloads. Refresh is
 explicit, warns that playback stops, and retains the browser's unsaved-settings
 beforeunload confirmation. Later check or candidate failures retain an already
 pending Refresh action. The deferred card uses the desktop notification's layout
@@ -206,8 +208,13 @@ and remains reachable after a cancelled reload or a settings-save toast.
 Unrecoverable cache errors request a reload without claiming a new version is
 ready. Notifications use the normal translation pipeline;
 the English fallback dictionary is prefetched with the app shell so a first
-offline reload retains readable recovery controls. Electron does not start
-these subscriptions.
+offline reload retains readable recovery controls. Electron uses its desktop
+updater, and the Android TV Shell updates the web bundle with its APK. Both
+runtimes disable the browser updater.
+
+Docker serves `/ngsw.json` and `/ngsw-worker.js` without HTTP caching or the
+SPA fallback. A missing manifest returns 503 so a temporary deployment
+problem preserves Angular's existing worker and cache.
 
 Angular service worker 22.2.2 is pinned with
 `patches/@angular__service-worker@22.2.2.patch`. A failed candidate download
@@ -215,8 +222,10 @@ previously moved the driver to `EXISTING_CLIENTS_ONLY`, making a subsequent
 offline navigation return an empty 504 even though the installed version was
 healthy. The patch retains the previous driver state after a failed candidate;
 it does not change candidate hash verification, initial installation or the
-degradation of a corrupt installed version. Retire it when an upstream worker
-passes the same regressions without the patch.
+degradation of a corrupt installed version. Explicit checks can also report a
+cached version as ready when it is newer than the requesting page's version.
+This recovers when a page misses the original ready event. Retire the patch
+when an upstream worker passes the same regressions without it.
 
 `pnpm nx run web-e2e:test-service-worker` exercises the installed Driver methods.
 `pnpm nx run web-e2e:pwa-updates` builds the production PWA and uses its real

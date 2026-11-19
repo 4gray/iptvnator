@@ -10,7 +10,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const { chromium } = require('@playwright/test');
+const { chromium, expect } = require('@playwright/test');
 
 const args = process.argv.slice(2);
 const opt = (name, def) => {
@@ -105,19 +105,26 @@ if (materialFocus) {
     check(await materialInput.isChecked() === checked, 'another OK restores its original state');
 }
 await key('Escape');
+await expect(materialDialog).toBeHidden();
 
 console.log('2. rail → Sources → "Add Xtream" with the D-pad only');
-let f = await reach(/\[Sources\]/, ['ArrowDown']);
-check(!!f, 'reached the Sources rail item: ' + f);
+await page.goto(URL_ + '/workspace/dashboard');
+await expect(page.getByRole('link', { name: 'Dashboard', exact: true })).toBeFocused();
+await key('ArrowDown');
+await expect(page.getByRole('link', { name: 'Sources', exact: true })).toBeFocused();
 await key('Enter');
-await page.waitForTimeout(900);
-f = await reach(/Add Xtream/i, ['ArrowRight', 'ArrowDown']);
-check(!!f, 'reached "Add Xtream": ' + f);
+await page.waitForURL('**/workspace/sources');
+const addM3u = page.getByRole('button', { name: 'Add M3U', exact: true });
+await expect(addM3u).toBeVisible();
+// Past the last rail link, Down enters the source cards.
+await key('ArrowDown', 3);
+await expect(addM3u).toBeFocused();
+await key('ArrowRight');
+await expect(page.getByRole('button', { name: 'Add Xtream', exact: true })).toBeFocused();
 await snap('sources');
 await key('Enter');
-await page.waitForTimeout(900);
-let st = await state();
-check(st.scope === 'overlay', 'dialog opened and captured the scope (' + st.active + ')');
+await expect(materialDialog).toBeVisible();
+await expect.poll(async () => (await state()).scope).toBe('overlay');
 
 console.log('3. fill the Xtream form');
 check(await page.evaluate(() => /Xtream/i.test((document.querySelector('.apd-method.active') || {}).textContent || '')), 'method "Xtream credentials" preselected by the "Add Xtream" card');
@@ -128,9 +135,9 @@ const fields = [
     [/password|mot de passe/i, 'pass'],
 ];
 for (const [re, value] of fields) {
-    f = await reach(new RegExp('^input.*' + re.source, 'i'), ['ArrowDown'], 12);
-    check(!!f, 'field focused: ' + f);
-    if (f) await page.keyboard.type(value, { delay: 5 });
+    const field = await reach(new RegExp('^input.*' + re.source, 'i'), ['ArrowDown'], 12);
+    expect(field, `D-pad reaches the ${re.source} field`).toBeTruthy();
+    await page.keyboard.type(value, { delay: 5 });
 }
 await snap('form-filled');
 // Arrows reach the page only while the caret can still move: Left at the end of the
@@ -146,12 +153,12 @@ await page.keyboard.press('ArrowLeft');
 await page.waitForTimeout(200);
 const takenByDpad = (await page.evaluate(() => window.__arrowSeen)) === passedThrough;
 check(passedThrough === 1 && takenByDpad, 'arrows pass through a text field only while the caret can move');
-f = await reach(/^button.*"Add"$|^button.*\bAdd\b/i, ['ArrowDown', 'ArrowRight', 'ArrowRight', 'ArrowRight'], 12);
+let f = await reach(/^button.*"Add"$|^button.*\bAdd\b/i, ['ArrowDown', 'ArrowRight', 'ArrowRight', 'ArrowRight'], 12);
 check(!!f, 'submit button focused: ' + f);
 await key('Enter');
 await page.waitForTimeout(3500);
 await snap('after-submit');
-st = await state();
+let st = await state();
 console.log('  url:', page.url());
 check(/xtream|portal|workspace/i.test(page.url()) && st.scope === 'document', 'dialog closed, portal opened: ' + st.active);
 

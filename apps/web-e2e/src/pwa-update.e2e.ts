@@ -33,6 +33,60 @@ async function checkWorker(page: Page) {
     );
 }
 
+test('checks for PWA updates on startup, in About and on resume @pwa @critical', async ({
+    page,
+}) => {
+    const fixture = await servePwaUpdateFixture();
+    try {
+        await page.addInitScript(() => {
+            // The explicit check must work even when WebKit misses this event.
+            navigator.serviceWorker?.addEventListener('message', (event) => {
+                if (event.data?.type === 'VERSION_READY') {
+                    event.stopImmediatePropagation();
+                }
+            });
+        });
+        await page.goto(fixture.origin + '/workspace/settings');
+        await page.locator('[data-test-id="settings-section-about"]').click();
+        await page.setViewportSize({ width: 390, height: 844 });
+
+        const status = page.locator('[data-test-id="pwa-update-status"]');
+        const check = page.locator('[data-test-id="pwa-update-check"]');
+        await expect(status).toHaveText(
+            'No newer build was found on this server.'
+        );
+        await expect(check).toHaveText(/Check for updates/);
+
+        fixture.state.failManifest = true;
+        await check.click();
+        await expect(status).toContainText('could not be downloaded');
+
+        fixture.state.failManifest = false;
+        await page.evaluate(() =>
+            document.dispatchEvent(new Event('visibilitychange'))
+        );
+        await expect(status).toHaveText(
+            'No newer build was found on this server.'
+        );
+
+        fixture.state.updated = true;
+        expect(await checkWorker(page)).toBe(true);
+        await expect(status).toHaveText(
+            'No newer build was found on this server.'
+        );
+        await check.click();
+        await expect(status).toContainText('An update is ready');
+        await expect(check).toHaveText(/Refresh/);
+        await check.click();
+        await expect(page.locator('meta[name="audit-update"]')).toHaveAttribute(
+            'content',
+            'b'
+        );
+    } finally {
+        await fixture.close();
+    }
+});
+
 test('retains the offline library after failed updates and protects unsaved settings @pwa @critical', async ({
     page,
     context,
@@ -128,7 +182,7 @@ test('retains the offline library after failed updates and protects unsaved sett
         await page.evaluate(() => window.dispatchEvent(new Event('online')));
         await expect(notice).toContainText('An update is ready');
         fixture.state.failManifest = false;
-        expect(await checkWorker(page)).toBe(false);
+        expect(await checkWorker(page)).toBe(true);
         await expect(notice).toContainText('An update is ready');
         await page.evaluate(() => Reflect.set(window, 'auditDocument', true));
         await page.locator('a[href$="/workspace/settings"]').click();

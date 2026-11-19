@@ -174,6 +174,8 @@
                 "ORIGINAL_FILENAME": "Nome original do arquivo",
                 "FILE_PATH": "Caminho do arquivo",
                 "UPDATE_FAILED": "A última atualização da lista de reprodução falhou",
+                "SOURCE_LOADING": "Carregando canais…",
+                "SOURCE_LOAD_FAILED": "A nova fonte foi salva, mas não foi possível carregar seus canais, então a lista de reprodução ainda mostra os canais da fonte anterior. Verifique a fonte e salve novamente para tentar outra vez.",
                 "AUTO_UPDATE": "Atualização automática",
                 "AUTO_UPDATE_DESCRIPTION": "Se a função de atualização automática estiver ativada, a lista de reprodução será atualizada automaticamente cada vez que o aplicativo for iniciado.",
                 "CUSTOM_USER_AGENT": "Alguns provedores de IPTV exigem um User-Agent específico para reproduzir a lista.",
@@ -227,6 +229,7 @@
             "PLAYLIST_UPDATE_ERROR": "Erro ao atualizar detalhes da lista de reprodução.",
             "PLAYLIST_UPDATE_FAILED": "Não foi possível atualizar a lista de reprodução.",
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Falha ao atualizar a lista de reprodução. O arquivo local não está mais disponível. Verifique o caminho do arquivo ou reimporte a lista de reprodução.",
+            "SOURCE_SAVED_NOT_LOADED": "Fonte salva. Atualize a lista de reprodução para carregar seus canais.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Falha ao atualizar a lista de reprodução. O aplicativo não consegue mais acessar o arquivo local.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "As listas de reprodução foram atualizadas com sucesso.",
             "AUTO_REFRESH_UPDATE_PARTIAL": "Atualização automática incompleta: {{updated}} de {{total}} listas de reprodução atualizadas, {{failed}} falharam.",
@@ -1390,6 +1393,7 @@
         "TWITTER_TOOLTIP": "Compartilhar no Twitter"
     },
     "UPDATE_AVAILABLE": "Atualização disponível",
+    "PWA_UPDATE_NONE": "Nenhuma compilação mais recente foi encontrada neste servidor.",
     "PWA_UPDATE_READY": "Uma atualização está pronta. Recarregar interrompe a reprodução.",
     "PWA_UPDATE_FAILED": "Não foi possível baixar a atualização. Você pode continuar usando esta versão.",
     "PWA_RELOAD_REQUIRED": "Os arquivos do aplicativo estão indisponíveis. Recarregue quando a conexão voltar. A reprodução será interrompida.",
@@ -2747,5 +2751,37 @@
         "STATE_offline": "Histórico salvo localmente; servidor indisponível",
         "STATE_incompatible": "Este servidor não oferece sincronização do histórico",
         "PENDING": "Alterações do histórico na fila: {{count}}"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "Lista M3U",
+            "XTREAM": "Conta Xtream",
+            "STALKER": "Portal Stalker"
+        },
+        "ADD_SOURCE": "Adicione uma lista M3U, conta Xtream ou portal Stalker",
+        "XTREAM_SYNC": "Carregando as categorias escolhidas para esta conta Xtream",
+        "XTREAM_CATEGORIES": "Escolha quais categorias esta conta Xtream mostra",
+        "GROUPS": "Escolha quais grupos a lista de canais mostra",
+        "DELETE_ALL_SOURCES": "Remove todas as fontes e seus dados salvos",
+        "SERVER_SYNC_ABOUT": "Compartilhe fontes entre dispositivos pelo seu próprio servidor",
+        "TMDB_TRANSFER": "Copie uma chave do TMDB salva para outro dispositivo",
+        "UNSAVED_SETTINGS": "Salve ou descarte suas alterações antes de sair",
+        "RELEASE_NOTES": "As mudanças de cada versão do IPTVnator",
+        "RELEASE_NOTES_VERSION": "Mudanças da versão {{version}}",
+        "SERVER_MIGRATION": "Mova-as para o servidor para usá-las em todos os dispositivos",
+        "EXTERNAL_PLAYER_TITLE": "Reproduzindo no player externo",
+        "EXTERNAL_PLAYER": "A transmissão toca no MPV ou VLC, em uma janela própria",
+        "EPISODE_SEASON": "Temporada {{season}} · Episódio {{episode}}",
+        "EPISODE": "Episódio {{episode}}",
+        "TRAILER": "Reproduzido do YouTube",
+        "PROGRAMME": "Programa do guia de TV",
+        "SOURCE_CLEANUP_TITLE": "Limpar fontes inativas",
+        "SOURCE_CLEANUP": "Encontre as fontes que não respondem mais e exclua-as",
+        "CLEAR_EPG": "Remove a programação salva deste dispositivo",
+        "TLS_HOST": "Certificado de {{host}}",
+        "CANCEL_DOWNLOAD": "Interrompe o download em andamento",
+        "CLEAR_COLLECTION": "Só esta lista muda; suas fontes continuam",
+        "CLEAR_FINISHED_DOWNLOADS": "Remove da lista as entradas concluídas",
+        "DOWNLOAD_RECOVERY": "Um arquivo na pasta de downloads precisa de atenção"
     }
 }

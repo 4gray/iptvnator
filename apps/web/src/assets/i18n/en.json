@@ -174,6 +174,8 @@
                 "ORIGINAL_FILENAME": "Original filename",
                 "FILE_PATH": "File path",
                 "UPDATE_FAILED": "Last playlist update failed",
+                "SOURCE_LOADING": "Loading channels…",
+                "SOURCE_LOAD_FAILED": "The new source is saved, but its channels could not be loaded, so the playlist still shows the channels from the previous source. Check the source and save again to retry.",
                 "AUTO_UPDATE": "Auto-update",
                 "AUTO_UPDATE_DESCRIPTION": "If the auto-refresh function is activated, the playlist will be updated automatically each time the app is started.",
                 "CUSTOM_USER_AGENT": "Some IPTV providers need a specific user-agent in order to play their playlist.",
@@ -227,6 +229,7 @@
             "PLAYLIST_UPDATE_ERROR": "Error updating playlist details.",
             "PLAYLIST_UPDATE_FAILED": "Couldn't update the playlist.",
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Playlist refresh failed. The local file is no longer available. Check the file path or re-import the playlist.",
+            "SOURCE_SAVED_NOT_LOADED": "Source saved. Refresh the playlist to load its channels.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Playlist refresh failed. The app can no longer access the local file.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Success! The playlists were successfully updated",
             "AUTO_REFRESH_UPDATE_PARTIAL": "Playlist auto-refresh incomplete: {{updated}} of {{total}} playlists updated, {{failed}} failed.",
@@ -1390,6 +1393,7 @@
         "TWITTER_TOOLTIP": "Share on Twitter"
     },
     "UPDATE_AVAILABLE": "Update available",
+    "PWA_UPDATE_NONE": "No newer build was found on this server.",
     "PWA_UPDATE_READY": "An update is ready. Reloading stops playback.",
     "PWA_UPDATE_FAILED": "The application update could not be downloaded. You can keep using this version.",
     "PWA_RELOAD_REQUIRED": "Application files are unavailable. Reload when online to recover. Playback will stop.",
@@ -2747,5 +2751,37 @@
         "STATE_offline": "History saved locally; server unavailable",
         "STATE_incompatible": "This server does not support history synchronization",
         "PENDING": "Queued history changes: {{count}}"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "M3U playlist",
+            "XTREAM": "Xtream account",
+            "STALKER": "Stalker portal"
+        },
+        "ADD_SOURCE": "Add an M3U playlist, Xtream account or Stalker portal",
+        "XTREAM_SYNC": "Loading the categories you chose for this Xtream account",
+        "XTREAM_CATEGORIES": "Choose which categories this Xtream account shows",
+        "GROUPS": "Choose which groups the channel list shows",
+        "DELETE_ALL_SOURCES": "Removes every source and its saved data",
+        "SERVER_SYNC_ABOUT": "Share sources between devices through your own server",
+        "TMDB_TRANSFER": "Copy a saved TMDB key to another device",
+        "UNSAVED_SETTINGS": "Save or discard your edits before leaving",
+        "RELEASE_NOTES": "Changes in each IPTVnator release",
+        "RELEASE_NOTES_VERSION": "Changes in version {{version}}",
+        "SERVER_MIGRATION": "Move them to the server to use them on every device",
+        "EXTERNAL_PLAYER_TITLE": "Playing in external player",
+        "EXTERNAL_PLAYER": "The stream plays in MPV or VLC, in its own window",
+        "EPISODE_SEASON": "Season {{season}} · Episode {{episode}}",
+        "EPISODE": "Episode {{episode}}",
+        "TRAILER": "Plays from YouTube",
+        "PROGRAMME": "Programme from the TV guide",
+        "SOURCE_CLEANUP_TITLE": "Clean up inactive sources",
+        "SOURCE_CLEANUP": "Find sources that no longer respond and delete them",
+        "CLEAR_EPG": "Removes saved programme schedules from this device",
+        "TLS_HOST": "Certificate for {{host}}",
+        "CANCEL_DOWNLOAD": "Stops the running download",
+        "CLEAR_COLLECTION": "Only this list changes; your sources stay",
+        "CLEAR_FINISHED_DOWNLOADS": "Removes finished entries from the list",
+        "DOWNLOAD_RECOVERY": "A file in the download folder needs attention"
     }
 }

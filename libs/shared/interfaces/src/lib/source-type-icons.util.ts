@@ -1,3 +1,4 @@
+import { playlistDisplayLabel } from './playlist-display-label.util';
 import type { PlaylistMeta } from './playlist-meta.type';
 
 /**
@@ -64,4 +65,38 @@ export function resolvePlaylistSourceKind(
         return 'stalker';
     }
     return playlist.serverUrl ? 'xtream' : 'm3u';
+}
+
+/**
+ * The type nouns of decision D6, as i18n keys: "M3U playlist", "Xtream
+ * account" and "Stalker portal". "Source" is the generic noun; "provider"
+ * means the content company only.
+ */
+export const SOURCE_KIND_NOUN_KEYS: Readonly<
+    Record<PlaylistSourceKind, string>
+> = {
+    m3u: 'DIALOGS.SOURCE_KIND.M3U',
+    xtream: 'DIALOGS.SOURCE_KIND.XTREAM',
+    stalker: 'DIALOGS.SOURCE_KIND.STALKER',
+};
+
+/**
+ * A dialog subtitle that names a source and its type ("Living room ·
+ * Xtream account"); only the type when the source has no name. The name
+ * goes through `playlistDisplayLabel`, so a URL typed as the name shows as
+ * its host, without credentials. `translate`
+ * is `TranslateService.instant`, passed in so this library stays free of
+ * Angular.
+ */
+export function sourceDialogSubtitle(
+    playlist: Pick<PlaylistMeta, 'macAddress' | 'serverUrl' | 'title'> & {
+        name?: string | null;
+    },
+    translate: (key: string) => string
+): string {
+    const type = translate(
+        SOURCE_KIND_NOUN_KEYS[resolvePlaylistSourceKind(playlist)]
+    );
+    const name = playlistDisplayLabel(playlist.title || playlist.name);
+    return name ? `${name} · ${type}` : type;
 }

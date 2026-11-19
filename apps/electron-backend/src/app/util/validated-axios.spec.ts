@@ -139,22 +139,19 @@ describe('requestWithValidatedRedirects', () => {
         );
 
         const requestConfig = axiosMock.mock.calls[0][0];
-        const resolvedAddress = await new Promise<{
-            address: string | LookupAddress[];
-            family?: number;
-        }>((resolve, reject) => {
-            lookups[0](
-                'epg.example',
-                { all: false, family: 0 } as LookupOptions,
-                (error, address, family) => {
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
-                    resolve({ address, family });
-                }
-            );
-        });
+        const resolvePinned = (options: LookupOptions) =>
+            new Promise((resolve) => {
+                let lookupReturned = false;
+                lookups[0]('epg.example', options, (error, address, family) =>
+                    resolve({
+                        code: error?.code,
+                        address,
+                        family,
+                        lookupReturned,
+                    })
+                );
+                lookupReturned = true;
+            });
 
         expect(factory.createHttpsAgent).toHaveBeenCalledWith(
             lookups[0],
@@ -162,9 +159,21 @@ describe('requestWithValidatedRedirects', () => {
         );
         expect(requestConfig.httpsAgent).toBeInstanceOf(HttpsAgent);
         expect(requestConfig).not.toHaveProperty('agentFactory');
-        expect(resolvedAddress).toEqual({
+        expect(await resolvePinned({ all: false, family: 0 })).toMatchObject({
+            code: undefined,
             address: '93.184.216.34',
             family: 4,
+            lookupReturned: true,
+        });
+        expect(await resolvePinned({ all: true, family: 4 })).toMatchObject({
+            code: undefined,
+            address: [{ address: '93.184.216.34', family: 4 }],
+            lookupReturned: true,
+        });
+        expect(await resolvePinned({ all: true, family: 6 })).toMatchObject({
+            code: 'ENOTFOUND',
+            address: [],
+            lookupReturned: true,
         });
         expect(requestConfig.proxy).toBe(false);
         expect(requestConfig.url).toBe('https://epg.example/guide.xml');

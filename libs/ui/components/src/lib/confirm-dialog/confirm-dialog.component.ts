@@ -2,8 +2,10 @@ import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
-import { DialogShellComponent } from '../dialog-shell/dialog-shell.component';
-import { DialogFooterDirective } from '../dialog-shell/dialog-shell.directives';
+import {
+    DialogFooterDirective,
+    DialogShellComponent,
+} from '@iptvnator/ui/dialog';
 
 /**
  * `destructive` renders the confirm action with the app-wide error styling
@@ -14,6 +16,11 @@ export type ConfirmDialogTone = 'default' | 'destructive';
 
 export interface ConfirmDialogData {
     title: string;
+    /**
+     * One short phrase under the title: what the action touches (a source
+     * name, a host) or its effect. The message below explains the rest.
+     */
+    subtitle: string;
     message: string;
     width?: string;
     /**
@@ -40,7 +47,9 @@ export interface ConfirmDialogData {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <app-dialog-shell
+            [icon]="isDestructive ? 'warning' : 'help_outline'"
             [heading]="dialogData.title"
+            [subtitle]="dialogData.subtitle"
             [iconTone]="isDestructive ? 'warn' : 'default'"
         >
             {{ dialogData.message }}

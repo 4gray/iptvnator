@@ -1,4 +1,6 @@
 import { app, BrowserWindow, ipcMain, powerMonitor } from 'electron';
+import { Agent } from 'node:https';
+import { getCACertificates } from 'node:tls';
 import {
     SOURCE_SYNC_CAPABILITY,
     type ServerInstanceInfo,
@@ -139,6 +141,16 @@ export async function sourceServerRequest(
             `${apiUrl}${target.path}`,
             {
                 method: target.method,
+                agentFactory: {
+                    createHttpsAgent: (lookup) =>
+                        new Agent({
+                            lookup,
+                            ca: [
+                                ...getCACertificates('default'),
+                                ...getCACertificates('system'),
+                            ],
+                        }),
+                },
                 timeout: ['get', 'create', 'update'].includes(request.operation)
                     ? 120000
                     : 15000,

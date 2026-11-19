@@ -279,12 +279,14 @@ describe('PwaService', () => {
         const write = new Subject<Playlist>();
         updatePlaylist.mockReturnValueOnce(write);
         let settled = false;
+        let loaded: unknown;
         const pending = Promise.resolve(
             service.sendIpcEvent(PLAYLIST_UPDATE, {
                 id: 'playlist-1',
                 url: 'https://provider.example/list.m3u',
             })
-        ).then(() => {
+        ).then((result) => {
+            loaded = result;
             settled = true;
         });
 
@@ -307,6 +309,7 @@ describe('PwaService', () => {
         write.next({ _id: 'playlist-1' } as Playlist);
         await pending;
         expect(settled).toBe(true);
+        expect(loaded).toBe(true);
         expect(TestBed.inject(Store).dispatch).toHaveBeenCalledWith(
             expect.objectContaining({
                 playlistId: 'playlist-1',
@@ -336,7 +339,8 @@ describe('PwaService', () => {
         await firstValueFrom(saveStarted);
         expect(updatePlaylist).toHaveBeenCalled();
         write.error(new Error('Synthetic transaction abort'));
-        await pending;
+        // The caller learns the source was not loaded (#1677).
+        await expect(pending).resolves.toBe(false);
 
         expect(TestBed.inject(Store).dispatch).not.toHaveBeenCalled();
         expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
@@ -362,7 +366,7 @@ describe('PwaService', () => {
             { status: 500, statusText: 'Internal Server Error' }
         );
 
-        await expect(pending).resolves.toBeUndefined();
+        await expect(pending).resolves.toBe(false);
         expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
             expect.any(String),
             'CLOSE',

@@ -174,6 +174,8 @@
                 "ORIGINAL_FILENAME": "원래 파일 이름",
                 "FILE_PATH": "파일 경로",
                 "UPDATE_FAILED": "마지막 재생 목록 업데이트가 실패했습니다",
+                "SOURCE_LOADING": "채널을 불러오는 중…",
+                "SOURCE_LOAD_FAILED": "새 소스는 저장되었지만 채널을 불러오지 못해 재생목록에 이전 소스의 채널이 계속 표시됩니다. 소스를 확인하고 다시 저장하여 재시도하세요.",
                 "AUTO_UPDATE": "자동 업데이트",
                 "AUTO_UPDATE_DESCRIPTION": "자동 새로 고침 기능이 활성화되면 앱이 시작될 때마다 재생 목록이 자동으로 업데이트됩니다.",
                 "CUSTOM_USER_AGENT": "일부 IPTV 공급자는 재생 목록을 재생하기 위해 특정 사용자 에이전트가 필요합니다.",
@@ -227,6 +229,7 @@
             "PLAYLIST_UPDATE_ERROR": "재생목록 정보 업데이트 중 오류가 발생했습니다.",
             "PLAYLIST_UPDATE_FAILED": "재생목록을 업데이트하지 못했습니다.",
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "재생목록 새로 고침에 실패했습니다. 로컬 파일을 더 이상 사용할 수 없습니다. 파일 경로를 확인하거나 재생목록을 다시 가져오세요.",
+            "SOURCE_SAVED_NOT_LOADED": "소스가 저장되었습니다. 채널을 불러오려면 재생목록을 새로 고치세요.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "재생목록 새로 고침에 실패했습니다. 앱이 더 이상 로컬 파일에 접근할 수 없습니다.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "성공! 재생목록이 성공적으로 업데이트되었습니다",
             "AUTO_REFRESH_UPDATE_PARTIAL": "재생목록 자동 새로 고침이 완료되지 않았습니다. {{total}}개 중 {{updated}}개를 업데이트했고 {{failed}}개가 실패했습니다.",
@@ -1390,6 +1393,7 @@
         "TWITTER_TOOLTIP": "Twitter에 공유"
     },
     "UPDATE_AVAILABLE": "업데이트 가능",
+    "PWA_UPDATE_NONE": "이 서버에서 더 새로운 빌드를 찾을 수 없습니다.",
     "PWA_UPDATE_READY": "업데이트가 준비되었습니다. 새로고침하면 재생이 중지됩니다.",
     "PWA_UPDATE_FAILED": "앱 업데이트를 다운로드하지 못했습니다. 현재 버전을 계속 사용할 수 있습니다.",
     "PWA_RELOAD_REQUIRED": "앱 파일을 사용할 수 없습니다. 인터넷 연결 후 새로고침하여 복구하세요. 재생이 중지됩니다.",
@@ -2747,5 +2751,37 @@
         "STATE_offline": "기록을 로컬에 저장함. 서버 사용 불가",
         "STATE_incompatible": "이 서버는 기록 동기화를 지원하지 않습니다",
         "PENDING": "대기 중인 기록 변경: {{count}}개"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "M3U 재생목록",
+            "XTREAM": "Xtream 계정",
+            "STALKER": "Stalker 포털"
+        },
+        "ADD_SOURCE": "M3U 재생목록, Xtream 계정 또는 Stalker 포털 추가",
+        "XTREAM_SYNC": "이 Xtream 계정에서 선택한 카테고리를 불러오는 중",
+        "XTREAM_CATEGORIES": "이 Xtream 계정에 표시할 카테고리 선택",
+        "GROUPS": "채널 목록에 표시할 그룹 선택",
+        "DELETE_ALL_SOURCES": "모든 소스와 저장된 데이터를 삭제합니다",
+        "SERVER_SYNC_ABOUT": "내 서버를 통해 기기 간에 소스 공유",
+        "TMDB_TRANSFER": "저장된 TMDB 키를 다른 기기로 복사",
+        "UNSAVED_SETTINGS": "나가기 전에 변경 사항을 저장하거나 취소하세요",
+        "RELEASE_NOTES": "IPTVnator 각 릴리스의 변경 사항",
+        "RELEASE_NOTES_VERSION": "버전 {{version}}의 변경 사항",
+        "SERVER_MIGRATION": "서버로 옮기면 모든 기기에서 사용할 수 있습니다",
+        "EXTERNAL_PLAYER_TITLE": "외부 플레이어에서 재생 중",
+        "EXTERNAL_PLAYER": "스트림은 MPV 또는 VLC의 별도 창에서 재생됩니다",
+        "EPISODE_SEASON": "시즌 {{season}} · {{episode}}화",
+        "EPISODE": "{{episode}}화",
+        "TRAILER": "YouTube에서 재생",
+        "PROGRAMME": "TV 편성표의 프로그램",
+        "SOURCE_CLEANUP_TITLE": "비활성 소스 정리",
+        "SOURCE_CLEANUP": "더 이상 응답하지 않는 소스를 찾아 삭제",
+        "CLEAR_EPG": "이 기기에서 저장된 편성표를 삭제합니다",
+        "TLS_HOST": "{{host}} 인증서",
+        "CANCEL_DOWNLOAD": "진행 중인 다운로드를 중지합니다",
+        "CLEAR_COLLECTION": "이 목록만 바뀌며 소스는 그대로입니다",
+        "CLEAR_FINISHED_DOWNLOADS": "완료된 항목을 목록에서 제거합니다",
+        "DOWNLOAD_RECOVERY": "다운로드 폴더의 파일을 확인해야 합니다"
     }
 }

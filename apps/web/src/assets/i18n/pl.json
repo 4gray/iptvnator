@@ -174,6 +174,8 @@
                 "ORIGINAL_FILENAME": "Oryginalna nazwa pliku",
                 "FILE_PATH": "Ścieżka pliku",
                 "UPDATE_FAILED": "Ostatnia aktualizacja listy odtwarzania nie powiodła się",
+                "SOURCE_LOADING": "Wczytywanie kanałów…",
+                "SOURCE_LOAD_FAILED": "Nowe źródło zostało zapisane, ale nie udało się wczytać jego kanałów, więc lista odtwarzania nadal pokazuje kanały z poprzedniego źródła. Sprawdź źródło i zapisz ponownie, aby spróbować jeszcze raz.",
                 "AUTO_UPDATE": "Automatyczna aktualizacja",
                 "AUTO_UPDATE_DESCRIPTION": "Jeśli funkcja automatycznego odświeżania jest aktywna, lista odtwarzania będzie automatycznie aktualizowana przy każdym uruchomieniu aplikacji.",
                 "CUSTOM_USER_AGENT": "Niektórzy dostawcy IPTV wymagają określonego agenta użytkownika, aby odtworzyć ich listę odtwarzania.",
@@ -227,6 +229,7 @@
             "PLAYLIST_UPDATE_ERROR": "Błąd aktualizacji szczegółów listy odtwarzania.",
             "PLAYLIST_UPDATE_FAILED": "Nie udało się zaktualizować listy odtwarzania.",
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Odświeżanie listy odtwarzania nie powiodło się. Plik lokalny jest niedostępny. Sprawdź ścieżkę pliku lub zaimportuj listę ponownie.",
+            "SOURCE_SAVED_NOT_LOADED": "Źródło zapisane. Odśwież listę odtwarzania, aby wczytać jej kanały.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Odświeżanie listy odtwarzania nie powiodło się. Aplikacja nie ma już dostępu do pliku lokalnego.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Sukces! Listy odtwarzania zostały pomyślnie zaktualizowane",
             "AUTO_REFRESH_UPDATE_PARTIAL": "Automatyczne odświeżanie niekompletne: zaktualizowano {{updated}} z {{total}} list odtwarzania, {{failed}} nie powiodło się.",
@@ -1390,6 +1393,7 @@
         "TWITTER_TOOLTIP": "Udostępnij na Twitterze"
     },
     "UPDATE_AVAILABLE": "Dostępna aktualizacja",
+    "PWA_UPDATE_NONE": "Na tym serwerze nie znaleziono nowszej kompilacji.",
     "PWA_UPDATE_READY": "Aktualizacja jest gotowa. Ponowne wczytanie zatrzyma odtwarzanie.",
     "PWA_UPDATE_FAILED": "Nie udało się pobrać aktualizacji. Możesz nadal korzystać z tej wersji.",
     "PWA_RELOAD_REQUIRED": "Pliki aplikacji są niedostępne. Wczytaj ponownie po przywróceniu połączenia. Odtwarzanie zostanie zatrzymane.",
@@ -2747,5 +2751,37 @@
         "STATE_offline": "Historia zapisana lokalnie; serwer niedostępny",
         "STATE_incompatible": "Ten serwer nie obsługuje synchronizacji historii",
         "PENDING": "Zmiany historii w kolejce: {{count}}"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "Lista M3U",
+            "XTREAM": "Konto Xtream",
+            "STALKER": "Portal Stalker"
+        },
+        "ADD_SOURCE": "Dodaj listę M3U, konto Xtream lub portal Stalker",
+        "XTREAM_SYNC": "Wczytywanie kategorii wybranych dla tego konta Xtream",
+        "XTREAM_CATEGORIES": "Wybierz kategorie wyświetlane przez to konto Xtream",
+        "GROUPS": "Wybierz grupy wyświetlane na liście kanałów",
+        "DELETE_ALL_SOURCES": "Usuwa wszystkie źródła i ich zapisane dane",
+        "SERVER_SYNC_ABOUT": "Udostępniaj źródła między urządzeniami przez własny serwer",
+        "TMDB_TRANSFER": "Skopiuj zapisany klucz TMDB na inne urządzenie",
+        "UNSAVED_SETTINGS": "Zapisz lub odrzuć zmiany przed wyjściem",
+        "RELEASE_NOTES": "Zmiany w każdej wersji IPTVnator",
+        "RELEASE_NOTES_VERSION": "Zmiany w wersji {{version}}",
+        "SERVER_MIGRATION": "Przenieś je na serwer, aby używać ich na każdym urządzeniu",
+        "EXTERNAL_PLAYER_TITLE": "Odtwarzanie w zewnętrznym odtwarzaczu",
+        "EXTERNAL_PLAYER": "Strumień jest odtwarzany w MPV lub VLC, w osobnym oknie",
+        "EPISODE_SEASON": "Sezon {{season}} · Odcinek {{episode}}",
+        "EPISODE": "Odcinek {{episode}}",
+        "TRAILER": "Odtwarzane z YouTube",
+        "PROGRAMME": "Program z przewodnika TV",
+        "SOURCE_CLEANUP_TITLE": "Wyczyść nieaktywne źródła",
+        "SOURCE_CLEANUP": "Znajdź źródła, które już nie odpowiadają, i usuń je",
+        "CLEAR_EPG": "Usuwa zapisany program telewizyjny z tego urządzenia",
+        "TLS_HOST": "Certyfikat dla {{host}}",
+        "CANCEL_DOWNLOAD": "Zatrzymuje trwające pobieranie",
+        "CLEAR_COLLECTION": "Zmienia się tylko ta lista; źródła zostają",
+        "CLEAR_FINISHED_DOWNLOADS": "Usuwa zakończone pozycje z listy",
+        "DOWNLOAD_RECOVERY": "Plik w folderze pobierania wymaga uwagi"
     }
 }

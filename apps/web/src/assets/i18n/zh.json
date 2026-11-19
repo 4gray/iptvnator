@@ -174,6 +174,8 @@
                 "ORIGINAL_FILENAME": "原始文件名",
                 "FILE_PATH": "文件路径",
                 "UPDATE_FAILED": "上次播放列表更新失败",
+                "SOURCE_LOADING": "正在加载频道…",
+                "SOURCE_LOAD_FAILED": "新源已保存，但无法加载其频道，因此播放列表仍显示之前源的频道。请检查源并再次保存以重试。",
                 "AUTO_UPDATE": "自动更新",
                 "AUTO_UPDATE_DESCRIPTION": "如果启用了自动刷新功能，则每次启动应用程序时都会自动更新播放列表。",
                 "CUSTOM_USER_AGENT": "一些 IPTV 提供商需要特定的用户代理才能播放他们的播放列表。",
@@ -227,6 +229,7 @@
             "PLAYLIST_UPDATE_ERROR": "更新播放列表详情时出错。",
             "PLAYLIST_UPDATE_FAILED": "无法更新播放列表。",
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "播放列表刷新失败。本地文件已不可用。请检查文件路径或重新导入播放列表。",
+            "SOURCE_SAVED_NOT_LOADED": "源已保存。请刷新播放列表以加载其频道。",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "播放列表刷新失败。应用程序无法再访问该本地文件。",
             "AUTO_REFRESH_UPDATE_SUCCESS": "成功！播放列表已成功更新",
             "AUTO_REFRESH_UPDATE_PARTIAL": "播放列表自动刷新未完成：{{total}} 个播放列表中已更新 {{updated}} 个，{{failed}} 个失败。",
@@ -1390,6 +1393,7 @@
         "TWITTER_TOOLTIP": "分享到 Twitter"
     },
     "UPDATE_AVAILABLE": "可用更新",
+    "PWA_UPDATE_NONE": "此服务器上未找到更新的构建版本。",
     "PWA_UPDATE_READY": "更新已就绪。重新加载将停止播放。",
     "PWA_UPDATE_FAILED": "无法下载应用更新。您可以继续使用当前版本。",
     "PWA_RELOAD_REQUIRED": "应用文件不可用。请在网络恢复后重新加载以恢复应用。播放将停止。",
@@ -2747,5 +2751,37 @@
         "STATE_offline": "历史已保存在本地；服务器不可用",
         "STATE_incompatible": "此服务器不支持历史同步",
         "PENDING": "排队中的历史更改：{{count}}"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "M3U 播放列表",
+            "XTREAM": "Xtream 账户",
+            "STALKER": "Stalker 门户"
+        },
+        "ADD_SOURCE": "添加 M3U 播放列表、Xtream 账户或 Stalker 门户",
+        "XTREAM_SYNC": "正在加载你为此 Xtream 账户选择的分类",
+        "XTREAM_CATEGORIES": "选择此 Xtream 账户显示哪些分类",
+        "GROUPS": "选择频道列表显示哪些分组",
+        "DELETE_ALL_SOURCES": "删除所有源及其已保存的数据",
+        "SERVER_SYNC_ABOUT": "通过你自己的服务器在设备间共享源",
+        "TMDB_TRANSFER": "将已保存的 TMDB 密钥复制到另一台设备",
+        "UNSAVED_SETTINGS": "离开前请保存或放弃你的修改",
+        "RELEASE_NOTES": "IPTVnator 每个版本的变更",
+        "RELEASE_NOTES_VERSION": "版本 {{version}} 的变更",
+        "SERVER_MIGRATION": "移到服务器后即可在所有设备上使用",
+        "EXTERNAL_PLAYER_TITLE": "正在外部播放器中播放",
+        "EXTERNAL_PLAYER": "流在 MPV 或 VLC 的独立窗口中播放",
+        "EPISODE_SEASON": "第 {{season}} 季 · 第 {{episode}} 集",
+        "EPISODE": "第 {{episode}} 集",
+        "TRAILER": "从 YouTube 播放",
+        "PROGRAMME": "节目指南中的节目",
+        "SOURCE_CLEANUP_TITLE": "清理失效的源",
+        "SOURCE_CLEANUP": "找出不再响应的源并删除",
+        "CLEAR_EPG": "从此设备删除已保存的节目单",
+        "TLS_HOST": "{{host}} 的证书",
+        "CANCEL_DOWNLOAD": "停止正在进行的下载",
+        "CLEAR_COLLECTION": "只有此列表会改变，源保持不变",
+        "CLEAR_FINISHED_DOWNLOADS": "从列表中移除已完成的条目",
+        "DOWNLOAD_RECOVERY": "下载文件夹中的一个文件需要处理"
     }
 }

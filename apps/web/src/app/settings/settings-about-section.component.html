@@ -42,13 +42,45 @@
                             >
                         }
                     </code>
-                    @if (!appUpdateStatus() && updateMessage()) {
+                    @if (!isDesktop() && pwaUpdates.enabled) {
+                        <small
+                            class="settings-hero__note"
+                            role="status"
+                            data-test-id="pwa-update-status"
+                            >{{ pwaUpdateStatus() | translate }}</small
+                        >
+                    } @else if (!appUpdateStatus() && updateMessage()) {
                         <small class="settings-hero__note">{{
                             updateMessage()
                         }}</small>
                     }
                 </div>
-                @if (isDesktop() && appUpdateStatus()) {
+                @if (!isDesktop() && pwaUpdates.enabled) {
+                    <div class="settings-hero__actions">
+                        <button
+                            mat-flat-button
+                            type="button"
+                            class="settings-primary-button"
+                            data-test-id="pwa-update-check"
+                            [disabled]="
+                                pwaUpdates.checking() && !pwaUpdates.canReload()
+                            "
+                            (click)="
+                                pwaUpdates.canReload()
+                                    ? pwaUpdates.act()
+                                    : pwaUpdates.check()
+                            "
+                        >
+                            <mat-icon>sync</mat-icon>
+                            {{
+                                (pwaUpdates.canReload()
+                                    ? 'REFRESH'
+                                    : 'STARTUP.CHECK_UPDATES'
+                                ) | translate
+                            }}
+                        </button>
+                    </div>
+                } @else if (isDesktop() && appUpdateStatus()) {
                     <div class="settings-hero__actions">
                         @if (canOpenAppUpdateReleaseNotes()) {
                             <button

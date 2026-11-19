@@ -1,5 +1,6 @@
 @let isEmbeddedPlayer = usesEmbeddedPlayer();
 @let streamUrl = activeStreamUrl();
+@let showRestoreHandle = isSidebarCollapsed() && !guide.isOpen();
 
 @if (showLiveChannelSidebar()) {
     <div
@@ -150,7 +151,7 @@
     [class.is-guide]="guide.isOpen()"
     [class.is-guide-collapsed]="guide.collapsed()"
 >
-    @if (isSidebarCollapsed() && !guide.isOpen()) {
+    @if (showRestoreHandle) {
         <button
             #restoreButton
             mat-icon-button
@@ -244,10 +245,15 @@
             </div>
         } @else {
             <div class="live-all-items-content category-content-layout">
+                <!-- The floating show-categories and restore handles sit over
+                     this header's start; the modifiers reserve their room. -->
                 <div
                     class="category-content-header"
                     [class.category-content-header--rail-folded]="
                         livePanels.isCategoriesRailFolded()
+                    "
+                    [class.category-content-header--panels-collapsed]="
+                        showRestoreHandle
                     "
                 >
                     <div class="category-meta">

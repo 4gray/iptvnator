@@ -30,9 +30,11 @@ app-dialog-shell {
     );
 }
 
+// The icon tile centres on the heading block, one or two lines of title
+// over the subtitle; `dialog-shell.e2e.ts` measures the alignment.
 .app-dialog__header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 14px;
     padding: 20px 56px 16px 20px;
     border-bottom: 1px solid var(--app-widget-header-border);
@@ -61,8 +63,11 @@ app-dialog-shell {
     }
 }
 
+// A zero basis keeps the heading beside the tile when the narrow-window
+// header wraps: an `auto` basis is the title's unwrapped width, which
+// sends a long title to a line of its own under the tile.
 .app-dialog__heading {
-    flex: 1 1 auto;
+    flex: 1 1 0;
     min-width: 0;
 }
 

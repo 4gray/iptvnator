@@ -3,8 +3,8 @@ import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { TranslatePipe } from '@ngx-translate/core';
-import { DialogShellComponent } from '../dialog-shell/dialog-shell.component';
-import { DialogFooterDirective } from '../dialog-shell/dialog-shell.directives';
+import { DialogShellComponent } from '@iptvnator/ui/dialog';
+import { DialogFooterDirective } from '@iptvnator/ui/dialog';
 
 export interface TrailerDialogData {
     /** A `youtube-nocookie.com/embed/...` URL, see `youtubeEmbedUrl`. */
@@ -28,9 +28,11 @@ export interface TrailerDialogData {
     ],
     template: `
         <app-dialog-shell
+            icon="smart_display"
             [heading]="
                 'PORTALS.DETAIL.TRAILER_OF' | translate: { title: data.title }
             "
+            [subtitle]="'DIALOGS.TRAILER' | translate"
         >
             <div class="trailer__frame">
                 <iframe

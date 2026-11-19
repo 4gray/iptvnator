@@ -10,6 +10,7 @@ import { firstValueFrom } from 'rxjs';
 
 const logger = createLogger('PwaService');
 
+/** Resolves whether the playlist was loaded; a failed download is reported. */
 export async function refreshPwaPlaylist(
     injector: Injector,
     playlistId: string,
@@ -17,7 +18,7 @@ export async function refreshPwaPlaylist(
     savedUserAgent: string | undefined,
     download: (userAgent: string | undefined) => Promise<Playlist>,
     describeDownloadError: (error: unknown) => string
-): Promise<void> {
+): Promise<boolean> {
     const userAgent = savedUserAgent?.trim() || undefined;
     const snackBar = injector.get(LazySnackBar);
     const translate = injector.get(TranslateService);
@@ -33,7 +34,7 @@ export async function refreshPwaPlaylist(
                 duration: 5000,
             }
         );
-        return;
+        return false;
     }
 
     // The matching DataService is already constructed when a refresh runs.
@@ -59,4 +60,5 @@ export async function refreshPwaPlaylist(
         undefined,
         { duration: 2000 }
     );
+    return true;
 }

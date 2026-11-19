@@ -9,10 +9,11 @@ import {
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
+import { UP_NEXT_COLLAPSE_DELAY_MS } from '@iptvnator/shared/interfaces';
 import type { PlayerUpNextItem } from './player-controls.model';
 
-/** How long the full card shows before it shrinks to a pill. */
-export const UP_NEXT_COLLAPSE_DELAY_MS = 10_000;
+/** How long the full card shows before it shrinks to a pill (all clients). */
+export { UP_NEXT_COLLAPSE_DELAY_MS };
 
 /**
  * The "Up next" card in the player's bottom-right corner: thumbnail, the
@@ -39,6 +40,8 @@ export const UP_NEXT_COLLAPSE_DELAY_MS = 10_000;
 export class PlayerUpNextCardComponent {
     readonly item = input.required<PlayerUpNextItem>();
     readonly remainingSeconds = input.required<number>();
+    /** Remaining time at which the card appeared; the ring empties from it. */
+    readonly leadSeconds = input<number | null>(null);
     readonly compact = input(false);
     readonly collapsed = input(false);
     readonly selected = output<void>();
@@ -63,6 +66,15 @@ export class PlayerUpNextCardComponent {
                   key: 'EMBEDDED_MPV.PLAYER.UP_NEXT_IN',
                   params: { minutes: Math.ceil(seconds / 60) },
               };
+    });
+
+    /** Share of the lead still to run, 1 → 0, for the countdown ring. */
+    readonly ring = computed(() => {
+        const lead = this.leadSeconds();
+        if (lead === null || !Number.isFinite(lead) || lead <= 0) {
+            return null;
+        }
+        return Math.min(1, Math.max(0, this.remainingSeconds() / lead));
     });
 
     /** The still that failed to load; a new URL gets its own attempt. */
@@ -103,6 +115,7 @@ export class PlayerUpNextCardComponent {
 
     /** Escape on the card closes it rather than reaching the player. */
     onEscape(event: Event): void {
+        if (event.defaultPrevented) return;
         event.preventDefault();
         event.stopPropagation();
         this.dismissed.emit();

@@ -33,6 +33,7 @@ describe('DialogService', () => {
 
         await service.openConfirmDialog({
             title: 'Remove',
+            subtitle: 'Synthetic subtitle',
             message: 'Confirm removal?',
             confirmLabel: 'Remove playlist',
             onConfirm: jest.fn(),
@@ -43,6 +44,7 @@ describe('DialogService', () => {
             expect.objectContaining({
                 data: expect.objectContaining({
                     title: 'Remove',
+                    subtitle: 'Synthetic subtitle',
                     message: 'Confirm removal?',
                 }),
                 width: '440px',
@@ -59,6 +61,7 @@ describe('DialogService', () => {
 
         await service.openConfirmDialog({
             title: 'Refresh Xtream Playlist',
+            subtitle: 'Synthetic subtitle',
             message: 'Confirm refresh?',
             confirmLabel: 'Refresh playlist',
             width: '400px',
@@ -81,6 +84,7 @@ describe('DialogService', () => {
 
         await service.openConfirmDialog({
             title: 'Remove',
+            subtitle: 'Synthetic subtitle',
             message: 'Confirm removal?',
             confirmLabel: 'Remove playlist',
             onConfirm,
@@ -93,6 +97,7 @@ describe('DialogService', () => {
         dialog.open.mockReturnValue({ afterClosed: () => of(true) });
         await service.openConfirmDialog({
             title: 'Recovery',
+            subtitle: 'Synthetic subtitle',
             message: 'Path',
             confirmLabel: 'Copy path',
             keepOpenOnConfirm: true,
@@ -111,6 +116,7 @@ describe('DialogService', () => {
 
         await service.openConfirmDialog({
             title: 'Remove',
+            subtitle: 'Synthetic subtitle',
             message: 'Confirm removal?',
             confirmLabel: 'Remove playlist',
             onConfirm,

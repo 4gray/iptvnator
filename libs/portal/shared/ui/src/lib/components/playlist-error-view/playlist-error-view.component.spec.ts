@@ -110,6 +110,9 @@ describe('PlaylistErrorViewComponent removal', () => {
         expect(dialogService.openConfirmDialog).toHaveBeenCalledWith(
             expect.objectContaining({
                 confirmLabel: 'HOME.PLAYLISTS.REMOVE',
+                subtitle: expect.stringMatching(
+                    /^Portal · DIALOGS\.SOURCE_KIND\./
+                ),
                 tone: 'destructive',
             })
         );

@@ -686,6 +686,34 @@ describe('PlayerControlsComponent dock', () => {
             ).toBeNull();
         });
 
+        it('dismisses on Escape wherever focus is', () => {
+            nearTheEnd();
+            fixture.detectChanges();
+            expect(
+                query('[data-test-id="player-controls-up-next"]')
+            ).not.toBeNull();
+
+            const escape = new KeyboardEvent('keydown', {
+                key: 'Escape',
+                bubbles: true,
+                cancelable: true,
+            });
+            document.body.dispatchEvent(escape);
+            fixture.detectChanges();
+            expect(escape.defaultPrevented).toBe(true);
+            expect(
+                query('[data-test-id="player-controls-up-next"]')
+            ).toBeNull();
+
+            const again = new KeyboardEvent('keydown', {
+                key: 'Escape',
+                bubbles: true,
+                cancelable: true,
+            });
+            document.body.dispatchEvent(again);
+            expect(again.defaultPrevented).toBe(false);
+        });
+
         it('stays closed for this episode once dismissed', () => {
             nearTheEnd();
             fixture.detectChanges();

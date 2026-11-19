@@ -10,7 +10,7 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { VodMoreMenuComponent } from './vod-more-menu.component';
 import type { VodMoreMenuSection } from './vod-more-menu.model';
 import { LazyMatDialog } from '../lazy-dialog/lazy-mat-dialog';
-import { dialogSize } from '../dialog-shell/dialog-size';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 
 const SECTIONS: VodMoreMenuSection[] = [
     {

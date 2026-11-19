@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { EMPTY, finalize, Observable } from 'rxjs';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 import {
     EpgItemDescriptionComponent,
     EpgItemDialogAction,
@@ -8,13 +9,11 @@ import {
 } from './epg-item-description/epg-item-description.component';
 
 /**
- * The one open config for the programme dialog. The panel class scopes the
- * dialog's surface overrides, so they never leak into another open dialog.
+ * The one open config for the programme dialog: the dialog shell's `md`
+ * preset, and a panel class that names the dialog's overlay pane.
  */
 export const EPG_PROGRAMME_DIALOG_CONFIG = {
-    width: '540px',
-    maxWidth: 'calc(100vw - 32px)',
-    maxHeight: 'calc(100dvh - 32px)',
+    ...dialogSize('md'),
     panelClass: 'epg-programme-dialog-panel',
 } as const satisfies MatDialogConfig;
 const OWNED_PANEL = 'epg-owned-programme-dialog';

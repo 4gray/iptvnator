@@ -1,4 +1,6 @@
 import { app, ipcMain } from 'electron';
+import { Agent } from 'node:https';
+import { getCACertificates } from 'node:tls';
 import {
     SOURCE_SYNC_CONFIGURE,
     SOURCE_SYNC_CONNECTION,
@@ -492,6 +494,26 @@ describe('native source transport and connection IPC', () => {
             (requestWithValidatedRedirects as jest.Mock).mock.calls[0][1]
                 .headers
         ).not.toHaveProperty('Authorization');
+    });
+
+    it('adds system CAs to the default trust roots on the pinned HTTPS agent', async () => {
+        await sourceServerRequest(connection.apiUrl, '', {
+            operation: 'instance',
+        });
+        const config = jest.mocked(requestWithValidatedRedirects).mock
+            .calls[0][1];
+        const lookup = jest.fn();
+        const agent = config?.agentFactory?.createHttpsAgent?.(lookup);
+        expect(agent).toBeInstanceOf(Agent);
+        expect(agent).toMatchObject({
+            options: {
+                lookup,
+                ca: [
+                    ...getCACertificates('default'),
+                    ...getCACertificates('system'),
+                ],
+            },
+        });
     });
 
     it('validates the server and access token before persisting and restarting', async () => {

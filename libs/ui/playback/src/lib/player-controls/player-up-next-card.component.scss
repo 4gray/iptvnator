@@ -124,6 +124,39 @@
     white-space: nowrap;
 }
 
+// Countdown ring: empties from the moment the card appears to the end.
+.player-up-next__ring {
+    display: inline-block;
+    width: 1.3em;
+    height: 1.3em;
+    margin-left: 4px;
+    vertical-align: -0.3em;
+    transform: rotate(-90deg);
+}
+
+.player-up-next__ring-track,
+.player-up-next__ring-fill {
+    fill: none;
+    stroke-width: 2.5;
+}
+
+.player-up-next__ring-track {
+    stroke: rgba(255, 255, 255, 0.2);
+}
+
+.player-up-next__ring-fill {
+    stroke: var(--pc-progress);
+    stroke-dasharray: 100;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .player-up-next__ring-fill {
+        transition: none;
+    }
+}
+
 .player-up-next__title {
     overflow: hidden;
     font-size: 14px;
