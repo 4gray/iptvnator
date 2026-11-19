@@ -143,6 +143,9 @@ describe('hosted device settings', () => {
             'HOSTED_SERVER.REVOKE_DEVICE'
         );
         clickButton('.device-row .app-destructive-button');
+        expect(confirm).toHaveBeenCalledWith(
+            expect.objectContaining({ subtitle: device.name })
+        );
         expect(control).not.toHaveBeenCalledWith(
             expect.objectContaining({ action: 'revoke' })
         );
@@ -312,6 +315,11 @@ describe('hosted device settings', () => {
         }
 
         clickButton(clearSelector);
+        expect(confirm).toHaveBeenCalledWith(
+            expect.objectContaining({
+                subtitle: 'HOSTED_SERVER.PHONE_PASSWORD_LABEL',
+            })
+        );
         expect(control).not.toHaveBeenCalledWith({
             action: 'set-browser-password',
             password: null,

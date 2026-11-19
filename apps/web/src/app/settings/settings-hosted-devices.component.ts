@@ -174,6 +174,7 @@ export class SettingsHostedDevicesComponent {
     confirmRevoke(device: HostedDeviceList['devices'][number]): void {
         void this.dialog.openConfirmDialog({
             title: this.translate.instant('HOSTED_SERVER.REVOKE_DEVICE'),
+            subtitle: device.name,
             message: this.translate.instant('HOSTED_SERVER.REVOKE_CONFIRM', {
                 name: device.name,
             }),
@@ -198,6 +199,9 @@ export class SettingsHostedDevicesComponent {
     confirmClearPassword(): void {
         void this.dialog.openConfirmDialog({
             title: this.translate.instant('HOSTED_SERVER.PHONE_PASSWORD_CLEAR'),
+            subtitle: this.translate.instant(
+                'HOSTED_SERVER.PHONE_PASSWORD_LABEL'
+            ),
             message: this.translate.instant(
                 'HOSTED_SERVER.PHONE_PASSWORD_CLEAR_CONFIRM'
             ),
