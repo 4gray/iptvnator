@@ -312,16 +312,9 @@ export class PlayerControlsComponent implements OnDestroy {
         });
         effect((onCleanup) => {
             const surface = this.playerSurface();
-            if (!surface || !this.hideCursor()) {
-                return;
+            if (surface && this.hideCursor()) {
+                onCleanup(this.surface.hideCursor(surface));
             }
-            const previousCursor = surface.style.cursor;
-            surface.style.cursor = 'none';
-            onCleanup(() => {
-                if (surface.style.cursor === 'none') {
-                    surface.style.cursor = previousCursor;
-                }
-            });
         });
         effect(() => {
             const state = this.state();

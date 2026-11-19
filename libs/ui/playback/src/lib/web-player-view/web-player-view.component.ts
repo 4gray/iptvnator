@@ -67,11 +67,9 @@ import {
 } from './playback-recovery-session';
 import { WebPlayerApplicationHandoffCoordinator } from './web-player-application-handoff';
 import { bindWebPlayerApplication } from './web-player-application-effect';
-import {
-    createWebPlayerApplicationOwnership,
-    type PlaybackApplicationOwnership as PlaybackOwnership,
-} from './web-player-application-ownership';
+import { createWebPlayerApplicationOwnership } from './web-player-application-ownership';
 import { createWebPlayerApplicationState } from './web-player-application-state';
+import { WebPlayerPlaybackEvents } from './web-player-playback-events';
 import { resolveWebPlayerMediaTitle } from './web-player-playback-state';
 import { createChannelPanelAvailability } from './web-player-channel-panel-state';
 import { WebPlayerLiveAutoFormat } from './web-player-live-auto-format';
@@ -275,20 +273,11 @@ export class WebPlayerViewComponent implements OnDestroy {
         this.playbackSessionKey,
         this.applicationState.token,
         this.volume,
-        (seconds, confirm) => {
-            this.historyConfirmation.recordPlayedTime(seconds);
-            if (confirm && this.recovery.confirmAndroidStart())
-                this.emitPlaybackStarted();
-        },
-        (update, replayTime) => {
-            this.activity.record(this.playback(), update);
-            this.recoverySession.recordTimeUpdate(
-                { ...update, currentTime: replayTime },
-                this.resolvedIsLive()
-            );
-            this.timeUpdate.emit(update);
-        },
-        () => this.emitPlaybackEnded(this.resolvedIsLive()),
+        (seconds, confirm) =>
+            this.playbackEvents.androidStarted(seconds, confirm),
+        (update, replayTime) =>
+            this.playbackEvents.androidPosition(update, replayTime),
+        () => this.playbackEvents.end(this.resolvedIsLive()),
         () => this.reloadToken.update((value) => value + 1),
         (sessionId) => this.activity.waitForBegin(sessionId)
     );
@@ -367,6 +356,24 @@ export class WebPlayerViewComponent implements OnDestroy {
         inject(PLAYBACK_ACTIVITY_EVENTS, { optional: true })
     );
 
+    private readonly playbackEvents = new WebPlayerPlaybackEvents({
+        recovery: this.recovery,
+        recoverySession: this.recoverySession,
+        activity: this.activity,
+        history: this.historyConfirmation,
+        owns: this.ownership.owns,
+        playback: this.playback,
+        resolvedPlayback: this.resolvedPlayback,
+        isLive: this.resolvedIsLive,
+        startTime: this.startTime,
+        token: this.playbackApplicationToken,
+        timeUpdate: this.timeUpdate,
+        started: this.playbackStarted,
+        ended: this.playbackEnded,
+    });
+    readonly handleTimeUpdate = this.playbackEvents.webPosition;
+    readonly handleActivityEnded = this.playbackEvents.webEnded;
+
     constructor() {
         effect(() => this.activity.begin(this.playback()));
         effect(() => {
@@ -406,42 +413,6 @@ export class WebPlayerViewComponent implements OnDestroy {
         this.recovery.syncSession();
         if (this.ownsBinding(binding) && !this.liveAutoFormat.pending())
             this.liveAutoFormat.started();
-    }
-
-    handleTimeUpdate(
-        event: PlayerTimeUpdate,
-        ownership: PlaybackOwnership
-    ): void {
-        if (!this.ownership.owns(ownership)) return;
-        const { isLive, token } = ownership;
-        if (this.recovery.recordTimeUpdate(token, event.playing))
-            this.emitPlaybackStarted();
-        this.historyConfirmation.record(event.currentTime, event.playing);
-        if (
-            !this.recoverySession.recordTimeUpdate(
-                event,
-                isLive,
-                this.startTime()
-            )
-        )
-            return;
-        if (!isLive && !this.activity.record(this.playback(), event)) return;
-        this.timeUpdate.emit(event);
-    }
-
-    handleActivityEnded(ownership: PlaybackOwnership, notify = true): void {
-        if (this.ownership.owns(ownership))
-            this.emitPlaybackEnded(ownership.isLive, notify);
-    }
-
-    private emitPlaybackStarted(): void {
-        this.playbackStarted.emit(this.playback() ?? this.resolvedPlayback());
-    }
-
-    private emitPlaybackEnded(isLive: boolean, notify = true): void {
-        if (!isLive) this.activity.finish();
-        this.recovery.recordEnd(this.playbackApplicationToken());
-        if (notify) this.playbackEnded.emit();
     }
 
     readonly requestRecommendedPlayer =
