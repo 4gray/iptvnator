@@ -436,7 +436,8 @@ Important store responsibilities:
 - ITV channel list + pagination (full-list session cache when the portal
   supports it, legacy 14-per-page lazy loading otherwise)
 - Radio category/station list + pagination
-- Regular series seasons resource
+- Regular series seasons load all portal pages before populating the picker.
+  If any page fails, the detail view renders the existing empty state.
 - VOD-series (`is_series=1`) seasons + episodes resources
 - Playback link creation (`create_link` flow)
 - Favorites and recently viewed persistence helpers

@@ -188,6 +188,41 @@ describe('withStalkerSeries serialSeasonsResource gating', () => {
         expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
     });
 
+    it('reads an empty list when a regular-series reply is malformed', async () => {
+        dataService.sendIpcEvent.mockResolvedValue({ js: null });
+        store.setSelectedContentType('series');
+        store.setSelectedItem({ id: '42', name: 'Regular series' });
+
+        await waitForCondition(
+            () =>
+                seriesRequestCalls(dataService.sendIpcEvent).length === 1 &&
+                !store.isSerialSeasonsLoading()
+        );
+
+        expect(store.getSerialSeasonsResource()).toEqual([]);
+    });
+
+    it('reads an empty list when a later regular-series page fails', async () => {
+        dataService.sendIpcEvent
+            .mockResolvedValueOnce({
+                js: {
+                    total_items: 2,
+                    data: [{ id: '42:1', name: 'Season 1', series: [1] }],
+                },
+            })
+            .mockRejectedValueOnce(new Error('Season page unavailable'));
+        store.setSelectedContentType('series');
+        store.setSelectedItem({ id: '42', name: 'Regular series' });
+
+        await waitForCondition(
+            () =>
+                seriesRequestCalls(dataService.sendIpcEvent).length === 2 &&
+                !store.isSerialSeasonsLoading()
+        );
+
+        expect(store.getSerialSeasonsResource()).toEqual([]);
+    });
+
     it('does not fire a series request for an item with embedded series episodes', async () => {
         // vclub items carry their episodes inline and are always opened
         // under the VOD content type, where the seasons API is not the

@@ -186,13 +186,16 @@ export function withStalkerSeries() {
         withComputed((store) => {
             const storeContext = store as typeof store &
                 StalkerSeriesStoreContext;
+            const { serialSeasonsResource } = storeContext;
 
             return {
                 getSerialSeasonsResource: computed(() =>
-                    storeContext.serialSeasonsResource.value()
+                    serialSeasonsResource.error()
+                        ? []
+                        : serialSeasonsResource.value()
                 ),
                 isSerialSeasonsLoading: computed(() =>
-                    storeContext.serialSeasonsResource.isLoading()
+                    serialSeasonsResource.isLoading()
                 ),
                 getVodSeriesSeasonsResource: computed(() =>
                     storeContext.vodSeriesSeasonsResource.value()
