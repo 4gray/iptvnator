@@ -1,5 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { SettingsStore } from '@iptvnator/services';
+import { EpgPreferencesService, EpgSourceSettingsService } from '@iptvnator/services';
+import { signal } from '@angular/core';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
 
@@ -24,10 +26,12 @@ describe('XtreamXmltvFallbackService', () => {
 
     let bridge: Bridge;
     let epgOffsetMinutes = 0;
+    let sourceRevision: ReturnType<typeof signal<number>>;
     const originalElectron = (window as { electron?: unknown }).electron;
 
     beforeEach(() => {
         epgOffsetMinutes = 0;
+        sourceRevision = signal(0);
         bridge = {
             getChannelPrograms: jest.fn(),
             getCurrentProgramsBatch: jest.fn(),
@@ -54,6 +58,11 @@ describe('XtreamXmltvFallbackService', () => {
                     useValue: {
                         resolvedEpgOffsetMinutes: () => epgOffsetMinutes,
                     },
+                },
+                { provide: EpgPreferencesService, useValue: { enabled: () => true } },
+                {
+                    provide: EpgSourceSettingsService,
+                    useValue: { revision: sourceRevision },
                 },
             ],
         });
@@ -319,5 +328,44 @@ describe('XtreamXmltvFallbackService', () => {
             'dazn laliga 2': 'xml.five',
         });
         expect(bridge.getEpgChannels).toHaveBeenCalledTimes(1);
+    });
+
+    it('shares the pending name-index read and caches the normalized index for a source revision', async () => {
+        const service = makeService();
+        let finish!: (value: { channels: Array<{ id: string; displayName: string }> }) => void;
+        bridge.getEpgChannels.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+
+        const first = service.findChannelIdsByName(['Channel One']);
+        const second = service.findChannelIdsByName(['Channel Two']);
+        expect(bridge.getEpgChannels).toHaveBeenCalledTimes(1);
+
+        finish({ channels: [
+            { id: 'guide.one', displayName: 'Channel One HD' },
+            { id: 'guide.two', displayName: 'Channel Two' },
+        ] });
+        await expect(Promise.all([first, second])).resolves.toEqual([
+            { 'channel one': 'guide.one' },
+            { 'channel two': 'guide.two' },
+        ]);
+        await expect(service.findChannelIdsByName(['Channel One FHD'])).resolves.toEqual({
+            'channel one': 'guide.one',
+        });
+        expect(bridge.getEpgChannels).toHaveBeenCalledTimes(1);
+    });
+
+    it('reloads the name index after the EPG source revision changes', async () => {
+        const service = makeService();
+        bridge.getEpgChannels
+            .mockResolvedValueOnce({ channels: [{ id: 'old.guide', displayName: 'Channel One' }] })
+            .mockResolvedValueOnce({ channels: [{ id: 'new.guide', displayName: 'Channel One' }] });
+
+        await expect(service.findChannelIdsByName(['Channel One'])).resolves.toEqual({
+            'channel one': 'old.guide',
+        });
+        sourceRevision.update((revision) => revision + 1);
+        await expect(service.findChannelIdsByName(['Channel One'])).resolves.toEqual({
+            'channel one': 'new.guide',
+        });
+        expect(bridge.getEpgChannels).toHaveBeenCalledTimes(2);
     });
 });

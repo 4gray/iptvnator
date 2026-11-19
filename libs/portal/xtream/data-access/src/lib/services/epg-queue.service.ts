@@ -1,7 +1,6 @@
 import { inject, Injectable, OnDestroy } from '@angular/core';
 import { Subject } from 'rxjs';
 import {
-    buildXtreamEpgMappingKey,
     EpgItem,
     windowEpgItemsAtProviderClock,
 } from '@iptvnator/shared/interfaces';
@@ -13,6 +12,7 @@ import {
 import { XtreamApiService, XtreamCredentials } from './xtream-api.service';
 import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
 import { createLogger } from '@iptvnator/portal/shared/util/logger';
+import { resolveManualEpgMappings } from './epg-queue-manual-mappings';
 
 interface CacheEntry {
     data: EpgItem[];
@@ -30,6 +30,8 @@ export interface EpgQueueEntry {
     channelName?: string | null;
     /** Owning playlist — required to resolve manual EPG mappings. */
     playlistId?: string | null;
+    /** Set when epgChannelId came from the user's explicit mapping. */
+    manualEpgMapping?: boolean;
 }
 
 function normalizeEpgName(value: string): string {
@@ -242,7 +244,11 @@ export class EpgQueueService implements OnDestroy {
         // one stream's programme to be reused by its siblings.
         const missingNameEntries = normalized.filter((entry) => {
             const id = entry.epgChannelId?.trim();
-            return !!entry.channelName?.trim() && (!id || !batchResult[id]);
+            return (
+                !entry.manualEpgMapping &&
+                !!entry.channelName?.trim() &&
+                (!id || !batchResult[id])
+            );
         });
 
         if (generation !== this.enqueueGeneration) return;
@@ -348,46 +354,13 @@ export class EpgQueueService implements OnDestroy {
     private async resolveManualMappings(
         entries: EpgQueueEntry[]
     ): Promise<void> {
-        const getEpgMappingsBatch =
+        await resolveManualEpgMappings(
+            entries,
             typeof window.electron?.getEpgMappingsBatch === 'function'
                 ? window.electron.getEpgMappingsBatch
-                : null;
-        if (!getEpgMappingsBatch) {
-            return;
-        }
-
-        const keyByStreamId = new Map<number, string>();
-        for (const entry of entries) {
-            if (!entry.playlistId) continue;
-            keyByStreamId.set(
-                entry.streamId,
-                buildXtreamEpgMappingKey(entry.playlistId, entry.streamId)
-            );
-        }
-        if (keyByStreamId.size === 0) {
-            return;
-        }
-
-        try {
-            // One IPC round-trip for the whole viewport — a per-entry
-            // lookup would put O(N) IPC calls on every scroll event.
-            const mappings = await getEpgMappingsBatch([
-                ...keyByStreamId.values(),
-            ]);
-            for (const entry of entries) {
-                const key = keyByStreamId.get(entry.streamId);
-                const mapped = key ? mappings[key]?.trim() : undefined;
-                if (mapped) {
-                    this.logger.info(
-                        `Mapped stream ${entry.streamId}: ${entry.epgChannelId ?? '(none)'} → ${mapped}`
-                    );
-                    entry.epgChannelId = mapped;
-                }
-            }
-        } catch {
-            // Mapping lookup failure is non-fatal; keep the original
-            // epgChannelId values and proceed.
-        }
+                : null,
+            (message) => this.logger.info(message)
+        );
     }
 
     private pruneEphemeralMaps(visibleIds: Set<number>): void {
@@ -396,6 +369,11 @@ export class EpgQueueService implements OnDestroy {
             // a raw cache.has() would keep stale previews alive forever.
             if (!visibleIds.has(id) && this.getCached(id) === null) {
                 this.epgChannelByStreamId.delete(id);
+                this.xmltvPreviewByStreamId.delete(id);
+            }
+        }
+        for (const id of [...this.xmltvPreviewByStreamId.keys()]) {
+            if (!this.epgChannelByStreamId.has(id)) {
                 this.xmltvPreviewByStreamId.delete(id);
             }
         }

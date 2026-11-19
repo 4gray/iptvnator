@@ -34,6 +34,11 @@ export class XtreamXmltvFallbackService {
     private readonly settingsStore = inject(SettingsStore);
     private readonly sources = inject(EpgSourceSettingsService);
     private readonly preferences = inject(EpgPreferencesService);
+    private channelNameIndexRevision = -1;
+    private channelNameIndex: Map<string, Set<string>> | null = null;
+    private pendingChannelNameIndex:
+        | { revision: number; promise: Promise<Map<string, Set<string>>> }
+        | null = null;
 
     /**
      * `DataService.isElectron` is intentionally not consulted here: it
@@ -138,19 +143,11 @@ export class XtreamXmltvFallbackService {
         const keys = [...new Set(rawNames.map(normalizeEpgName).filter(Boolean))];
         if (!keys.length) return {};
         try {
-            const rows = await fn.call(this.bridge);
+            const index = await this.getChannelNameIndex(revision, fn);
             if (revision !== this.sources.revision()) return {};
-            const candidates = new Map<string, Set<string>>();
-            for (const row of rows?.channels ?? []) {
-                const key = normalizeEpgName(row.displayName);
-                if (!key) continue;
-                const ids = candidates.get(key) ?? new Set<string>();
-                ids.add(row.id);
-                candidates.set(key, ids);
-            }
             const result: Record<string, string | null> = {};
             for (const key of keys) {
-                const ids = candidates.get(key);
+                const ids = index.get(key);
                 result[key] = ids?.size === 1 ? [...ids][0] : null;
             }
             return result;
@@ -158,6 +155,45 @@ export class XtreamXmltvFallbackService {
             this.logger.error('Failed to resolve XMLTV channel names', error);
             return {};
         }
+    }
+
+    private getChannelNameIndex(
+        revision: number,
+        fn: NonNullable<ElectronEpgBridge['getEpgChannels']>
+    ): Promise<Map<string, Set<string>>> {
+        if (
+            this.channelNameIndexRevision === revision &&
+            this.channelNameIndex
+        ) {
+            return Promise.resolve(this.channelNameIndex);
+        }
+        if (this.pendingChannelNameIndex?.revision === revision) {
+            return this.pendingChannelNameIndex.promise;
+        }
+
+        const pending = fn.call(this.bridge).then((rows) => {
+            const index = new Map<string, Set<string>>();
+            for (const row of rows?.channels ?? []) {
+                const key = normalizeEpgName(row.displayName);
+                if (!key) continue;
+                const ids = index.get(key) ?? new Set<string>();
+                ids.add(row.id);
+                index.set(key, ids);
+            }
+            if (revision === this.sources.revision()) {
+                this.channelNameIndex = index;
+                this.channelNameIndexRevision = revision;
+            }
+            return index;
+        });
+        this.pendingChannelNameIndex = { revision, promise: pending };
+        const clearPending = () => {
+            if (this.pendingChannelNameIndex?.promise === pending) {
+                this.pendingChannelNameIndex = null;
+            }
+        };
+        void pending.then(clearPending, clearPending);
+        return pending;
     }
 
     /**

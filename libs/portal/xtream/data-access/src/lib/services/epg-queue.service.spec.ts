@@ -414,6 +414,45 @@ describe('EpgQueueService', () => {
         expect(fallback.findChannelIdsByName).not.toHaveBeenCalled();
     });
 
+    it('does not use name recovery when a manual EPG mapping has no programmes', async () => {
+        const mappings = jest.fn().mockResolvedValue({
+            [buildXtreamEpgMappingKey('playlist', 23)]: 'manual.empty',
+        });
+        const originalElectron = window.electron;
+        window.electron = { getEpgMappingsBatch: mappings } as unknown as typeof window.electron;
+        settings.preferUploadedEpgOverXtream.mockReturnValue(true);
+        fallback.getCurrentProgramsBatch.mockResolvedValue({});
+        xtreamApi.getShortEpg.mockResolvedValue([]);
+        try {
+            await service.enqueue(
+                [{
+                    streamId: 23,
+                    epgChannelId: 'provider.id',
+                    channelName: 'A plausible name match',
+                    playlistId: 'playlist',
+                }],
+                new Set([23]),
+                credentials
+            );
+        } finally {
+            window.electron = originalElectron;
+        }
+
+        expect(mappings).toHaveBeenCalledTimes(1);
+        expect(fallback.getCurrentProgramsBatch).toHaveBeenCalledWith([
+            'manual.empty',
+        ]);
+        expect(fallback.findChannelIdsByName).not.toHaveBeenCalled();
+        await jest.advanceTimersByTimeAsync(201);
+        expect(xtreamApi.getShortEpg).toHaveBeenCalledWith(
+            credentials,
+            23,
+            3,
+            { suppressErrorLog: true }
+        );
+        expect(service.getCached(23)).toEqual([]);
+    });
+
     it('only the latest enqueue commits queue state when prefetches overlap', async () => {
         // Defer batch resolutions so we can interleave them.
         let resolveA!: (v: Record<string, EpgItem>) => void;
@@ -628,6 +667,14 @@ describe('EpgQueueService', () => {
 
         expect(priv().xmltvPreviewByStreamId.has(100)).toBe(false);
         expect(priv().epgChannelByStreamId.has(100)).toBe(false);
+    });
+
+    it('prunes XMLTV previews with no corresponding EPG channel entry', async () => {
+        seedXmltvPreview(999, 'orphan.xml');
+
+        await service.enqueue([], new Set(), credentials);
+
+        expect(priv().xmltvPreviewByStreamId.has(999)).toBe(false);
     });
 
     it('does not re-emit on empty→empty transitions', async () => {
