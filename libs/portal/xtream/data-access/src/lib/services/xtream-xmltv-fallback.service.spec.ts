@@ -19,6 +19,7 @@ describe('XtreamXmltvFallbackService', () => {
             Promise<Record<string, EpgProgram | null>>,
             [string[], { nowMs?: number }?]
         >;
+        getEpgChannels: jest.Mock<Promise<{ channels: Array<{ id: string; displayName: string }> }>, []>;
     };
 
     let bridge: Bridge;
@@ -30,6 +31,7 @@ describe('XtreamXmltvFallbackService', () => {
         bridge = {
             getChannelPrograms: jest.fn(),
             getCurrentProgramsBatch: jest.fn(),
+            getEpgChannels: jest.fn(),
         };
         (window as { electron?: unknown }).electron = bridge;
     });
@@ -296,5 +298,26 @@ describe('XtreamXmltvFallbackService', () => {
 
         expect(items).toEqual([]);
         expect(Object.keys(batch)).toEqual(['rtl.de']);
+    });
+
+    it('matches normalized channel names and rejects duplicate normalized names', async () => {
+        const service = makeService();
+        bridge.getEpgChannels.mockResolvedValue({ channels: [
+            { id: 'xml.one', displayName: 'Bétá News HD' },
+            { id: 'xml.two', displayName: 'Ambiguous Channel' },
+            { id: 'xml.three', displayName: 'Ambiguous-Channel FHD' },
+            { id: 'xml.four', displayName: 'DAZN LaLiga 1' },
+            { id: 'xml.five', displayName: 'DAZN LaLiga 2' },
+        ] });
+
+        await expect(service.findChannelIdsByName([
+            'Beta-News 4K', 'Ambiguous Channel', 'DAZN LaLiga 1 UHD', 'DAZN LaLiga 2 HD',
+        ])).resolves.toEqual({
+            'beta news': 'xml.one',
+            'ambiguous channel': null,
+            'dazn laliga 1': 'xml.four',
+            'dazn laliga 2': 'xml.five',
+        });
+        expect(bridge.getEpgChannels).toHaveBeenCalledTimes(1);
     });
 });

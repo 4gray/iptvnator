@@ -27,8 +27,20 @@ interface CacheEntry {
 export interface EpgQueueEntry {
     streamId: number;
     epgChannelId?: string | null;
+    channelName?: string | null;
     /** Owning playlist — required to resolve manual EPG mappings. */
     playlistId?: string | null;
+}
+
+function normalizeEpgName(value: string): string {
+    return value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLocaleLowerCase()
+        .replace(/\b(?:hd|fhd|uhd|4k)\b/gi, ' ')
+        .replace(/[^\p{L}\p{N}]+/gu, ' ')
+        .trim()
+        .replace(/\s+/g, ' ');
 }
 
 /**
@@ -188,6 +200,10 @@ export class EpgQueueService implements OnDestroy {
         if (!this.epgPreferences.enabled()) return;
         this.retireStateOfPreviousOffset();
         const generation = ++this.enqueueGeneration;
+        // A pending prefetch owns the latest viewport immediately. This lets
+        // the worker drop stale queued IDs while the new XMLTV reads settle.
+        this.visibleSet = new Set(visibleIds);
+        this.queue = [];
 
         const normalized: EpgQueueEntry[] = streams.map((entry) =>
             typeof entry === 'number' ? { streamId: entry } : { ...entry }
@@ -204,6 +220,10 @@ export class EpgQueueService implements OnDestroy {
             await this.resolveManualMappings(normalized);
         }
 
+        // Mapping resolution is asynchronous too. Do not let a superseded
+        // enqueue prepare or publish any shared queue state.
+        if (generation !== this.enqueueGeneration) return;
+
         const streamsByEpgId = new Map<string, number[]>();
         for (const entry of normalized) {
             const id = entry.epgChannelId?.trim();
@@ -213,37 +233,69 @@ export class EpgQueueService implements OnDestroy {
             streamsByEpgId.set(id, list);
         }
 
-        // Make the latest viewport visible to any currently running queue
-        // before the async XMLTV prefetch returns, so stale queued provider
-        // requests are dropped immediately on fast scroll.
-        this.visibleSet = new Set(visibleIds);
-        this.queue = [];
-
         const batchResult = await this.fetchXmltvCurrentPure(
             Array.from(streamsByEpgId.keys())
         );
 
+        // Name recovery only applies when the provider ID has no XMLTV hit.
+        // Resolve names per stream afterwards so a bad shared ID cannot cause
+        // one stream's programme to be reused by its siblings.
+        const missingNameEntries = normalized.filter((entry) => {
+            const id = entry.epgChannelId?.trim();
+            return !!entry.channelName?.trim() && (!id || !batchResult[id]);
+        });
+
         if (generation !== this.enqueueGeneration) return;
 
-        // Atomic commit block — no awaits below.
+        // Name recovery is pure preparation too: keep the old preview visible
+        // until the whole result is ready to commit atomically.
+        let namePreviews: Array<{ streamId: number; item: EpgItem }> = [];
+        if (missingNameEntries.length) {
+            const normalizedNameByStream = new Map(
+                missingNameEntries.map((entry) => [
+                    entry.streamId,
+                    normalizeEpgName(entry.channelName ?? ''),
+                ])
+            );
+            const names = [...new Set(normalizedNameByStream.values())];
+            const idsByName = await this.fallbackService.findChannelIdsByName(names);
+            if (generation !== this.enqueueGeneration) return;
+            const resolved = missingNameEntries.map((entry) => ({
+                entry,
+                epgId: idsByName[normalizedNameByStream.get(entry.streamId) ?? ''] ?? null,
+            }));
+            const uniqueIds = [...new Set(resolved.map(({ epgId }) => epgId).filter((id): id is string => !!id))];
+            const nameBatch = await this.fetchXmltvCurrentPure(uniqueIds);
+            if (generation !== this.enqueueGeneration) return;
+            namePreviews = [];
+            for (const { entry, epgId } of resolved) {
+                const item = epgId ? nameBatch[epgId] : null;
+                if (item) namePreviews.push({ streamId: entry.streamId, item });
+            }
+        }
+
+        // Commit all shared viewport state synchronously after every async
+        // lookup has completed and this call still owns the latest generation.
+        this.visibleSet = new Set(visibleIds);
+        this.queue = [];
+        for (const entry of normalized) {
+            const id = entry.epgChannelId?.trim();
+            if (id) this.epgChannelByStreamId.set(entry.streamId, id);
+            else this.epgChannelByStreamId.delete(entry.streamId);
+        }
         this.pruneEphemeralMaps(this.visibleSet);
 
         for (const entry of normalized) {
             const id = entry.epgChannelId?.trim();
-            if (id) {
-                this.epgChannelByStreamId.set(entry.streamId, id);
-            } else {
-                this.epgChannelByStreamId.delete(entry.streamId);
-            }
             this.xmltvPreviewByStreamId.delete(entry.streamId);
+            if (id && batchResult[id]) this.xmltvPreviewByStreamId.set(entry.streamId, batchResult[id]);
         }
-        for (const [epgChannelId, item] of Object.entries(batchResult)) {
-            const streams = streamsByEpgId.get(epgChannelId) ?? [];
-            for (const streamId of streams) {
+        // Exact provider IDs above retain priority over name-derived results.
+        for (const { streamId, item } of namePreviews) {
+            if (!batchResult[normalized.find((entry) => entry.streamId === streamId)?.epgChannelId?.trim() ?? '']) {
                 this.xmltvPreviewByStreamId.set(streamId, item);
             }
         }
-
         const preferUploaded =
             this.settingsStore.preferUploadedEpgOverXtream?.() ?? false;
 
@@ -351,8 +403,18 @@ export class EpgQueueService implements OnDestroy {
 
     private async processQueue(credentials: XtreamCredentials): Promise<void> {
         this.processing = true;
+        let generation = this.enqueueGeneration;
 
         while (this.queue.length > 0) {
+            if (generation !== this.enqueueGeneration) {
+                generation = this.enqueueGeneration;
+                // The latest enqueue is still preparing its XMLTV previews;
+                // do not consume a partially replaced queue in the meantime.
+                if (this.queue.length === 0) {
+                    await this.delay(this.delayMs);
+                    continue;
+                }
+            }
             if (this.inFlight.size >= this.maxConcurrency) {
                 await this.delay(this.delayMs);
                 continue;

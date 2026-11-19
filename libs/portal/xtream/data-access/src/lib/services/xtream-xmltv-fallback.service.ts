@@ -21,6 +21,11 @@ type ElectronEpgBridge = {
         channelIds: string[],
         options?: { nowMs?: number }
     ) => Promise<Record<string, EpgProgram | null>>;
+    getEpgChannelMetadata?: (
+        ids: string[],
+        options?: { sourceUrls?: string[] }
+    ) => Promise<Record<string, { id: string; displayName: string } | null>>;
+    getEpgChannels?: () => Promise<{ channels: Array<{ id: string; displayName: string }> }>;
 };
 
 @Injectable({ providedIn: 'root' })
@@ -121,6 +126,40 @@ export class XtreamXmltvFallbackService {
         }
     }
 
+    /** Resolve candidate XMLTV IDs using the existing channel metadata index. */
+    async findChannelIdsByName(
+        names: ReadonlyArray<string | null | undefined>
+    ): Promise<Record<string, string | null>> {
+        if (!this.preferences.enabled()) return {};
+        const revision = this.sources.revision();
+        const fn = this.bridge?.getEpgChannels;
+        if (typeof fn !== 'function') return {};
+        const rawNames = [...new Set(names.map((name) => (name ?? '').trim()).filter(Boolean))];
+        const keys = [...new Set(rawNames.map(normalizeEpgName).filter(Boolean))];
+        if (!keys.length) return {};
+        try {
+            const rows = await fn.call(this.bridge);
+            if (revision !== this.sources.revision()) return {};
+            const candidates = new Map<string, Set<string>>();
+            for (const row of rows?.channels ?? []) {
+                const key = normalizeEpgName(row.displayName);
+                if (!key) continue;
+                const ids = candidates.get(key) ?? new Set<string>();
+                ids.add(row.id);
+                candidates.set(key, ids);
+            }
+            const result: Record<string, string | null> = {};
+            for (const key of keys) {
+                const ids = candidates.get(key);
+                result[key] = ids?.size === 1 ? [...ids][0] : null;
+            }
+            return result;
+        } catch (error) {
+            this.logger.error('Failed to resolve XMLTV channel names', error);
+            return {};
+        }
+    }
+
     /**
      * Resolve EPG for a single channel under the user's source-priority
      * setting. The Xtream provider's call is supplied by the caller via
@@ -159,4 +198,15 @@ export class XtreamXmltvFallbackService {
         }
         return fallback();
     }
+}
+
+function normalizeEpgName(value: string): string {
+    return value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLocaleLowerCase()
+        .replace(/\b(?:hd|fhd|uhd|4k)\b/gi, ' ')
+        .replace(/[^\p{L}\p{N}]+/gu, ' ')
+        .trim()
+        .replace(/\s+/g, ' ');
 }

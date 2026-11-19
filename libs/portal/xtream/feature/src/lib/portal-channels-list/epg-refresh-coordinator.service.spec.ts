@@ -4,6 +4,7 @@ import {
     EPG_REFRESH_INTERVAL_MS,
     EpgRefreshContribution,
     EpgRefreshCoordinator,
+    epgQueueEntryFor,
     xtreamCredentialsOf,
 } from './epg-refresh-coordinator.service';
 
@@ -39,6 +40,15 @@ describe('xtreamCredentialsOf', () => {
                     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             })
         );
+    });
+});
+
+describe('epgQueueEntryFor', () => {
+    it('passes the Xtream channel name, falling back to its title', () => {
+        expect(epgQueueEntryFor({ xtream_id: 7, name: 'Channel name' }, 'p'))
+            .toMatchObject({ streamId: 7, channelName: 'Channel name' });
+        expect(epgQueueEntryFor({ xtream_id: 8, title: 'Channel title' }, 'p'))
+            .toMatchObject({ streamId: 8, channelName: 'Channel title' });
     });
 });
 

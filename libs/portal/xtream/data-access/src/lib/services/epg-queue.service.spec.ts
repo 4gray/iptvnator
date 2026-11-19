@@ -1,9 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { SettingsStore } from '@iptvnator/services';
+import { EpgSourceSettingsService } from '@iptvnator/services';
+import { Subject } from 'rxjs';
 import { EpgQueueService } from './epg-queue.service';
 import { XtreamApiService } from './xtream-api.service';
 import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
 import type { EpgItem } from '@iptvnator/shared/interfaces';
+import { buildXtreamEpgMappingKey } from '@iptvnator/shared/interfaces';
 
 describe('EpgQueueService', () => {
     let service: EpgQueueService;
@@ -11,6 +14,7 @@ describe('EpgQueueService', () => {
     let fallback: {
         getProgramsForChannel: jest.Mock;
         getCurrentProgramsBatch: jest.Mock;
+        findChannelIdsByName: jest.Mock;
     };
     let settings: {
         preferUploadedEpgOverXtream: jest.Mock;
@@ -43,6 +47,7 @@ describe('EpgQueueService', () => {
         fallback = {
             getProgramsForChannel: jest.fn().mockResolvedValue([]),
             getCurrentProgramsBatch: jest.fn().mockResolvedValue({}),
+            findChannelIdsByName: jest.fn().mockResolvedValue({}),
         };
         settings = {
             preferUploadedEpgOverXtream: jest.fn(() => false),
@@ -55,6 +60,10 @@ describe('EpgQueueService', () => {
                 { provide: XtreamApiService, useValue: xtreamApi },
                 { provide: XtreamXmltvFallbackService, useValue: fallback },
                 { provide: SettingsStore, useValue: settings },
+                {
+                    provide: EpgSourceSettingsService,
+                    useValue: { changed$: new Subject<void>() },
+                },
             ],
         });
 
@@ -331,6 +340,80 @@ describe('EpgQueueService', () => {
         expect(cached?.[0].title).toBe('Tagesschau (XMLTV)');
     });
 
+    it('resolves same missing provider ID by each stream name without sharing matches', async () => {
+        fallback.findChannelIdsByName.mockResolvedValue({
+            'alpha one': 'xml.alpha',
+            'beta two': 'xml.beta',
+            'gamma three': 'xml.gamma',
+        });
+        fallback.getCurrentProgramsBatch
+            .mockResolvedValueOnce({})
+            .mockImplementation((ids: string[]) => Promise.resolve(
+                Object.fromEntries(ids.map((id) => [id, makeEpgItem(id, `${id} programme`)]))
+            ));
+        settings.preferUploadedEpgOverXtream.mockReturnValue(true);
+
+        await service.enqueue([
+            { streamId: 1, epgChannelId: 'missing', channelName: 'Alpha One HD' },
+            { streamId: 2, epgChannelId: 'missing', channelName: 'Béta-Two FHD' },
+            { streamId: 3, epgChannelId: 'missing', channelName: 'Gamma Three 4K' },
+        ], new Set([1, 2, 3]), credentials);
+
+        expect(service.getCached(1)?.[0].channel_id).toBe('xml.alpha');
+        expect(service.getCached(2)?.[0].channel_id).toBe('xml.beta');
+        expect(service.getCached(3)?.[0].channel_id).toBe('xml.gamma');
+    });
+
+    it('keeps numbered sports channels distinct and leaves ambiguous names unmapped', async () => {
+        fallback.findChannelIdsByName.mockResolvedValue({
+            'dazn laliga 1': 'xml.one',
+            'dazn laliga 2': 'xml.two',
+            'ambiguous channel': null,
+        });
+        fallback.getCurrentProgramsBatch
+            .mockResolvedValueOnce({})
+            .mockImplementation((ids: string[]) => Promise.resolve(
+                Object.fromEntries(ids.map((id) => [id, makeEpgItem(id, `${id} programme`)]))
+            ));
+        settings.preferUploadedEpgOverXtream.mockReturnValue(true);
+
+        await service.enqueue([
+            { streamId: 10, epgChannelId: 'missing', channelName: 'DAZN LaLiga 1 HD' },
+            { streamId: 11, epgChannelId: 'missing', channelName: 'DAZN LaLiga 2 UHD' },
+            { streamId: 12, epgChannelId: 'missing', channelName: 'Ambiguous Channel' },
+        ], new Set([10, 11, 12]), credentials);
+
+        expect(service.getCached(10)?.[0].channel_id).toBe('xml.one');
+        expect(service.getCached(11)?.[0].channel_id).toBe('xml.two');
+        expect(service.getCached(12)).toBeNull();
+        expect(xtreamApi.getShortEpg).toHaveBeenCalledWith(credentials, 12, 3, { suppressErrorLog: true });
+    });
+
+    it('keeps exact valid shared IDs and manual mappings ahead of name recovery', async () => {
+        fallback.getCurrentProgramsBatch.mockResolvedValue({
+            'valid.epg': makeEpgItem('valid.epg', 'Exact guide'),
+            'manual.epg': makeEpgItem('manual.epg', 'Manual guide'),
+        });
+        settings.preferUploadedEpgOverXtream.mockReturnValue(true);
+        const originalElectron = window.electron;
+        window.electron = { getEpgMappingsBatch: jest.fn().mockResolvedValue({
+            [buildXtreamEpgMappingKey('playlist', 21)]: 'manual.epg',
+        }) } as unknown as typeof window.electron;
+        try {
+            await service.enqueue([
+                { streamId: 20, epgChannelId: 'valid.epg', channelName: 'Other Name' },
+                { streamId: 21, epgChannelId: 'missing', channelName: 'Other Name', playlistId: 'playlist' },
+                { streamId: 22, epgChannelId: 'valid.epg', channelName: 'Different Name' },
+            ], new Set([20, 21, 22]), credentials);
+        } finally {
+            window.electron = originalElectron;
+        }
+        expect(service.getCached(20)?.[0].channel_id).toBe('valid.epg');
+        expect(service.getCached(21)?.[0].channel_id).toBe('manual.epg');
+        expect(service.getCached(22)?.[0].channel_id).toBe('valid.epg');
+        expect(fallback.findChannelIdsByName).not.toHaveBeenCalled();
+    });
+
     it('only the latest enqueue commits queue state when prefetches overlap', async () => {
         // Defer batch resolutions so we can interleave them.
         let resolveA!: (v: Record<string, EpgItem>) => void;
@@ -395,6 +478,45 @@ describe('EpgQueueService', () => {
         expect(priv().xmltvPreviewByStreamId.has(12)).toBe(false);
 
         sub.unsubscribe();
+    });
+
+    it('does not let an older name lookup overwrite the latest XMLTV preview', async () => {
+        let resolveOldName!: (matches: Record<string, string | null>) => void;
+        let resolveLatestBatch!: (items: Record<string, EpgItem>) => void;
+        fallback.findChannelIdsByName.mockImplementationOnce(
+            () => new Promise((resolve) => { resolveOldName = resolve; })
+        );
+        fallback.getCurrentProgramsBatch.mockImplementation((ids: string[]) => {
+            if (ids.includes('new.xml')) {
+                return new Promise((resolve) => { resolveLatestBatch = resolve; });
+            }
+            return Promise.resolve({});
+        });
+        settings.preferUploadedEpgOverXtream.mockReturnValue(true);
+
+        const oldEnqueue = service.enqueue(
+            [{ streamId: 50, channelName: 'Old name' }],
+            new Set([50]),
+            credentials
+        );
+        await Promise.resolve();
+        await Promise.resolve();
+
+        const latestEnqueue = service.enqueue(
+            [{ streamId: 50, epgChannelId: 'new.xml' }],
+            new Set([50]),
+            credentials
+        );
+        resolveLatestBatch({ 'new.xml': makeEpgItem('new.xml', 'Latest') });
+        await latestEnqueue;
+        await jest.advanceTimersByTimeAsync(201);
+        expect(service.getCached(50)?.[0].title).toBe('Latest');
+
+        resolveOldName({ 'old name': 'old.xml' });
+        await oldEnqueue;
+
+        expect(priv().xmltvPreviewByStreamId.get(50)?.title).toBe('Latest');
+        expect(service.getCached(50)?.[0].title).toBe('Latest');
     });
 
     it('drops stale queued provider fetches while a newer XMLTV prefetch is pending', async () => {
