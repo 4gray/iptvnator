@@ -1,18 +1,14 @@
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import { InlinePlaybackPlayer } from '@iptvnator/playback/util';
 import type { PlaybackActivityEvents } from '@iptvnator/services/activity-events';
-import type { WebPlayerViewComponent as WebPlayerViewInstance } from './web-player-view.component';
-let WebPlayerViewComponent: typeof import('./web-player-view.component').WebPlayerViewComponent;
-jest.unstable_mockModule('video.js', () => ({ default: jest.fn() }));
-jest.unstable_mockModule('@yangkghjh/videojs-aspect-ratio-panel', () => ({}));
-jest.unstable_mockModule('videojs-contrib-quality-levels', () => ({}));
-jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
-beforeAll(async () => {
-    ({ WebPlayerViewComponent } = await import('./web-player-view.component'));
-});
 import { PlaybackRecoverySession } from './playback-recovery-session';
 import { WebPlayerActivity } from './web-player-activity';
 import type { PlaybackApplicationOwnership } from './web-player-application-ownership';
+import { WebPlayerPlaybackEvents } from './web-player-playback-events';
+
+type PlaybackEventDeps = ConstructorParameters<
+    typeof WebPlayerPlaybackEvents
+>[0];
 
 function harness(enabled = true, startTime = 60) {
     const playback: ResolvedPortalPlayback = {
@@ -39,21 +35,37 @@ function harness(enabled = true, startTime = 60) {
     const emit = jest.fn();
     const recordHistory = jest.fn();
     const recoverySession = new PlaybackRecoverySession();
-    const view = {
-        ownership: { owns: () => true },
+    const token = Symbol();
+    const playbackEvents = new WebPlayerPlaybackEvents({
+        owns: () => true,
         activity,
         playback: () => playback,
-        startTime: () => playback.startTime,
-        recovery: { recordTimeUpdate: () => false },
+        resolvedPlayback: () => playback,
+        isLive: () => false,
+        startTime: () => startTime,
+        token: () => token,
+        recovery: {
+            recordTimeUpdate: () => false,
+        } as unknown as PlaybackEventDeps['recovery'],
         recoverySession,
-        historyConfirmation: { record: recordHistory },
-        timeUpdate: { emit },
-    } as unknown as WebPlayerViewInstance;
+        history: {
+            record: recordHistory,
+        } as unknown as PlaybackEventDeps['history'],
+        timeUpdate: { emit } as unknown as PlaybackEventDeps['timeUpdate'],
+        started: { emit: jest.fn() } as unknown as PlaybackEventDeps['started'],
+        ended: { emit: jest.fn() } as unknown as PlaybackEventDeps['ended'],
+    });
+    const ownership: PlaybackApplicationOwnership = {
+        binding: null,
+        embeddedMpv: false,
+        isLive: false,
+        sourceRevision: Symbol(),
+        token,
+    };
     const tick = (currentTime: number, playing = false) =>
-        WebPlayerViewComponent.prototype.handleTimeUpdate.call(
-            view,
+        playbackEvents.webPosition(
             { currentTime, duration: 100, playing },
-            { isLive: false } as PlaybackApplicationOwnership
+            ownership
         );
     return {
         tick,
