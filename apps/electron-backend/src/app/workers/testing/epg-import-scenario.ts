@@ -20,7 +20,8 @@ export type EpgImportScenario =
     | 'cancelled'
     | 'cancelled-publish'
     | 'retry'
-    | 'empty';
+    | 'empty'
+    | 'aliases';
 
 export async function runEpgImportScenario(
     scenario: EpgImportScenario,
@@ -63,9 +64,9 @@ export async function runEpgImportScenario(
         }
     }
     const seed = new EpgDatabase(SharedDatabase as unknown as typeof Database);
-    const channel = (name: string) => ({
+    const channel = (...names: string[]) => ({
         id: 'shared',
-        displayName: [{ lang: '', value: name }],
+        displayName: names.map((value) => ({ lang: '', value })),
         icon: [],
         url: [],
     });
@@ -85,7 +86,10 @@ export async function runEpgImportScenario(
     previousDay.setUTCDate(previousDay.getUTCDate() - 1);
     const expiredDay = new Date();
     expiredDay.setUTCDate(expiredDay.getUTCDate() - 8);
-    seed.insertChannels([channel('Previous source')], source);
+    seed.insertChannels(
+        [channel('Previous source', 'Obsolete alias', 'Repeated alias', 'Repeated alias')],
+        source
+    );
     seed.insertPrograms(
         [
             programme('Previous programme'),
@@ -94,7 +98,10 @@ export async function runEpgImportScenario(
         ],
         source
     );
-    seed.insertChannels([channel('Other source')], 'other-source');
+    seed.insertChannels(
+        [channel('Other source', 'Other-source alias')],
+        'other-source'
+    );
     seed.insertPrograms([programme('Other programme')], 'other-source');
     sqlite.exec(`
         UPDATE epg_channels SET updated_at = '2000-01-01T00:00:00Z';
@@ -113,6 +120,11 @@ export async function runEpgImportScenario(
                 'SELECT * FROM epg_channel_sources ORDER BY channel_id, source_url'
             )
             .all(),
+        aliases: sqlite
+            .prepare(
+                'SELECT channel_id, source_url, display_name FROM epg_channel_names ORDER BY channel_id, source_url, display_name'
+            )
+            .all(),
         programmes:
             programmeCount > 1001
                 ? []
@@ -124,11 +136,14 @@ export async function runEpgImportScenario(
             .all(),
     });
     const before = snapshot();
-    const channels = Array.from(
-        { length: 100 },
-        (_, index) =>
-            `<channel id="${index === 0 ? 'shared' : `new-${index}`}"><display-name>Updated ${index}</display-name></channel>`
-    ).join('');
+    const channels =
+        scenario === 'aliases'
+            ? '<channel id="shared"><display-name>Current primary</display-name><display-name>Current alias</display-name><display-name>Current alias</display-name><display-name>   </display-name></channel>'
+            : Array.from(
+                  { length: 100 },
+                  (_, index) =>
+                      `<channel id="${index === 0 ? 'shared' : `new-${index}`}"><display-name>Updated ${index}</display-name></channel>`
+              ).join('');
     const programmes = Array.from(
         { length: programmeCount },
         (_, index) =>

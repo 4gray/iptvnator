@@ -11,15 +11,15 @@ import {
     EpgSourceSettingsService,
     SettingsStore,
 } from '@iptvnator/services';
+import { normalizeEpgName } from './epg-name-normalization';
 import {
-    normalizeEpgName,
-    normalizeEpgNameFlexibly,
-} from './epg-name-normalization';
+    type ChannelNameIndex,
+    createChannelNameIndex,
+    findChannelNameCandidates,
+    getChannelNameCandidateIdsForProgramCheck,
+    selectChannelNameCandidates,
+} from './epg-channel-name-index';
 
-interface ChannelNameIndex {
-    normalized: Map<string, Set<string>>;
-    flexible: Map<string, Set<string>>;
-}
 type ElectronEpgBridge = {
     getChannelPrograms?: (
         channelId: string,
@@ -160,27 +160,23 @@ export class XtreamXmltvFallbackService {
         try {
             const index = await this.getChannelNameIndex(revision, fn);
             if (revision !== this.sources.revision()) return {};
-            const result: Record<string, string | null> = {};
-            for (const [key, originals] of namesByKey) {
-                const exactIds = index.normalized.get(key);
-                if (exactIds) {
-                    result[key] = exactIds.size === 1 ? [...exactIds][0] : null;
-                    continue;
-                }
-                const candidates = originals.map((name) => {
-                    const flexibleKey = normalizeEpgNameFlexibly(name);
-                    const ids = flexibleKey
-                        ? index.flexible.get(flexibleKey)
-                        : undefined;
-                    return ids?.size === 1 ? [...ids][0] : null;
-                });
-                const uniqueCandidates = new Set(candidates);
-                result[key] =
-                    !candidates.includes(null) && uniqueCandidates.size === 1
-                        ? candidates[0]
-                        : null;
+            const candidateGroups = findChannelNameCandidates(
+                namesByKey,
+                index
+            );
+            const ambiguousIds =
+                getChannelNameCandidateIdsForProgramCheck(candidateGroups);
+            let idsWithPrograms: Set<string> | null = null;
+            if (ambiguousIds.length) {
+                const programs = await this.getCurrentProgramsBatch(ambiguousIds);
+                if (revision !== this.sources.revision()) return {};
+                idsWithPrograms = new Set(Object.keys(programs));
             }
-            return result;
+            return selectChannelNameCandidates(
+                namesByKey.keys(),
+                candidateGroups,
+                idsWithPrograms
+            );
         } catch (error) {
             this.logger.error('Failed to resolve XMLTV channel names', error);
             return {};
@@ -202,23 +198,7 @@ export class XtreamXmltvFallbackService {
         }
 
         const pending = fn.call(this.bridge).then((rows) => {
-            const index: ChannelNameIndex = {
-                normalized: new Map(),
-                flexible: new Map(),
-            };
-            for (const row of rows?.channels ?? []) {
-                const key = normalizeEpgName(row.displayName);
-                if (key) {
-                    const ids = index.normalized.get(key) ?? new Set<string>();
-                    ids.add(row.id);
-                    index.normalized.set(key, ids);
-                }
-                const flexibleKey = normalizeEpgNameFlexibly(row.displayName);
-                if (!flexibleKey) continue;
-                const ids = index.flexible.get(flexibleKey) ?? new Set<string>();
-                ids.add(row.id);
-                index.flexible.set(flexibleKey, ids);
-            }
+            const index = createChannelNameIndex(rows?.channels ?? []);
             if (revision === this.sources.revision()) {
                 this.channelNameIndex = index;
                 this.channelNameIndexRevision = revision;

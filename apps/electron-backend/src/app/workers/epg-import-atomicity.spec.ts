@@ -95,6 +95,43 @@ describe('atomic XMLTV import through the real Electron parser worker', () => {
         expect(result.titles).toEqual(['Other programme', 'Previous archive']);
         expect(result.fts).toEqual({ count: 0 });
     }, 30000);
+    it('persists current XMLTV aliases, removes stale source aliases, and isolates shared IDs', () => {
+        const result = runScenario('aliases', 0);
+        expect(result.outcome).toBe('EPG_COMPLETE');
+        expect(result.after.aliases).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    channel_id: 'shared',
+                    display_name: 'Current primary',
+                }),
+                expect.objectContaining({
+                    channel_id: 'shared',
+                    display_name: 'Current alias',
+                }),
+                expect.objectContaining({
+                    channel_id: 'shared',
+                    source_url: 'other-source',
+                    display_name: 'Other source',
+                }),
+                expect.objectContaining({
+                    channel_id: 'shared',
+                    source_url: 'other-source',
+                    display_name: 'Other-source alias',
+                }),
+            ])
+        );
+        expect(result.after.aliases).toHaveLength(4);
+        expect(
+            result.after.aliases.map(
+                (row: { display_name: string }) => row.display_name
+            )
+        ).not.toContain('Obsolete alias');
+        expect(
+            result.after.aliases.map(
+                (row: { display_name: string }) => row.display_name
+            )
+        ).not.toContain('');
+    }, 30000);
     it('preserves the live guide when a worker is terminated during a download', () => {
         const result = runScenario('cancelled');
         expect(result.outcome).toBe('CANCELLED');

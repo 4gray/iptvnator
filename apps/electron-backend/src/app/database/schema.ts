@@ -12,6 +12,7 @@ export {
     favorites,
     epgChannels,
     epgChannelSources,
+    epgChannelNames,
     epgChannelMappings,
     epgPrograms,
     playbackPositions,

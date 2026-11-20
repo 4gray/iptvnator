@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 import { getTableColumns } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/sqlite-core';
 import { __databaseConnectionTestHooks } from './connection';
-import { categories, downloads } from './schema';
+import { categories, downloads, epgChannelNames } from './schema';
 
 function compactSql(statement: string): string {
     return statement.replace(/\s+/g, ' ').trim();
@@ -220,11 +220,14 @@ describe('database schema statements', () => {
         );
         const categoryForeignKeys = getTableConfig(categories).foreignKeys;
         const downloadForeignKeys = getTableConfig(downloads).foreignKeys;
+        const epgChannelNameForeignKeys =
+            getTableConfig(epgChannelNames).foreignKeys;
 
         expect(schemaSql).toContain('CREATE TABLE IF NOT EXISTS playlists');
         expect(schemaSql).toContain('CREATE TABLE IF NOT EXISTS categories');
         expect(schemaSql).toContain('CREATE TABLE IF NOT EXISTS content');
         expect(schemaSql).toContain('CREATE TABLE IF NOT EXISTS epg_channels');
+        expect(schemaSql).toContain('CREATE TABLE IF NOT EXISTS epg_channel_names');
         expect(schemaSql).toContain('CREATE TABLE IF NOT EXISTS epg_programs');
         expect(schemaSql).toContain(
             'CREATE VIRTUAL TABLE IF NOT EXISTS epg_programs_fts USING fts5'
@@ -242,6 +245,7 @@ describe('database schema statements', () => {
         );
         expect(categoryForeignKeys).toHaveLength(1);
         expect(downloadForeignKeys).toHaveLength(0);
+        expect(epgChannelNameForeignKeys).toHaveLength(1);
         expect(schemaSql).toContain('request_headers TEXT');
         expect(schemaSql).toContain('resume_validator TEXT');
         expect(schemaSql).toContain('metadata_snapshot TEXT');

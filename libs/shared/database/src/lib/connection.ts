@@ -255,6 +255,16 @@ const CREATE_TABLE_STATEMENTS = [
       FOREIGN KEY (channel_id) REFERENCES epg_channels(id) ON DELETE CASCADE
   )`,
     `CREATE INDEX IF NOT EXISTS idx_epg_channel_sources_source ON epg_channel_sources(source_url)`,
+    `CREATE TABLE IF NOT EXISTS epg_channel_names (
+      channel_id TEXT NOT NULL,
+      source_url TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      PRIMARY KEY (channel_id, source_url, display_name),
+      FOREIGN KEY (channel_id, source_url)
+        REFERENCES epg_channel_sources(channel_id, source_url) ON DELETE CASCADE
+  )`,
+    `CREATE INDEX IF NOT EXISTS idx_epg_channel_names_source ON epg_channel_names(source_url)`,
+    `CREATE INDEX IF NOT EXISTS idx_epg_channel_names_display_name ON epg_channel_names(display_name)`,
     `CREATE TABLE IF NOT EXISTS epg_programs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       channel_id TEXT NOT NULL,

@@ -253,7 +253,13 @@ export class EpgQueueService implements OnDestroy {
                     normalizeEpgName(entry.channelName ?? ''),
                 ])
             );
-            const names = [...new Set(normalizedNameByStream.values())];
+            const names = [
+                ...new Set(
+                    missingNameEntries.map(
+                        (entry) => entry.channelName?.trim() ?? ''
+                    )
+                ),
+            ];
             const idsByName = await this.fallbackService.findChannelIdsByName(names);
             if (generation !== this.enqueueGeneration) return;
             const resolved = missingNameEntries.map((entry) => ({

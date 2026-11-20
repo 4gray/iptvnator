@@ -364,6 +364,29 @@ describe('EpgQueueService', () => {
         expect(service.getCached(3)?.[0].channel_id).toBe('xml.gamma');
     });
 
+    it('passes the original channel name to fallback matching', async () => {
+        fallback.findChannelIdsByName.mockResolvedValue({
+            'm laligatvhd': 'xml.laliga',
+        });
+        fallback.getCurrentProgramsBatch
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({
+                'xml.laliga': makeEpgItem('xml.laliga', 'Football'),
+            });
+        settings.preferUploadedEpgOverXtream.mockReturnValue(true);
+
+        await service.enqueue([{
+            streamId: 31,
+            epgChannelId: 'missing',
+            channelName: 'M+ LaLigaTVHD+',
+        }], new Set([31]), credentials);
+
+        expect(fallback.findChannelIdsByName).toHaveBeenCalledWith([
+            'M+ LaLigaTVHD+',
+        ]);
+        expect(service.getCached(31)?.[0].channel_id).toBe('xml.laliga');
+    });
+
     it('keeps numbered sports channels distinct and leaves ambiguous names unmapped', async () => {
         fallback.findChannelIdsByName.mockResolvedValue({
             'dazn laliga 1': 'xml.one',
