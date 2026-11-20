@@ -340,20 +340,21 @@ drawn in the player's `--pc-progress` like the dock's Up next card.
 
 Season navigation inside `SeasonContainerComponent` uses season tabs
 (`SeasonTabsComponent`; a dropdown beyond 6 seasons) instead of the old
-seasons-grid + "Back to seasons" level. A season is auto-selected
-(inline-playing episode's season → most recently updated in-progress
-episode's season → earliest season with unwatched episodes → latest
-non-empty season; Stalker lazy-VOD series with unhydrated seasons pin
-the fallback to the first season still to load or holding episodes
-(`unloadedSeasonKeys`: a season the portal answered empty is passed over)
-because a pending season's watched state is unknown,
-and the empty→loaded positions flip caused by the session's own watched
-toggles never re-resolves the selection). Extras (season 0, by the
-episodes' season or, unloaded, the key: `isExtrasSeason`) steer none of
-the last three while the series' other seasons hold, or may still hold,
-episodes, as with its next episode, so the page does not open on Specials;
-only a playing extra opens its season. The
-auto-selection emits `seasonSelected`,
+seasons-grid + "Back to seasons" level. The picker opens the inline-playing
+episode's season first. If the latest activity is an unfinished episode, the
+picker opens its season, including after a short launch. It then tries the most
+recent in-progress episode's season, followed by the first season with an
+unwatched episode or pending list after the last watched episode. The picker
+and quick start both use natural season order,
+including named seasons such as Season 2 and Season 10. The picker falls back
+to the earliest unwatched season or the latest non-empty season when the
+series is watched. With pending regular seasons and
+no next season derived from progress, Stalker opens the first season still to
+load or holding episodes. A manual pick or local watched toggle holds the
+selection while progress arrives for the current series. Extras (season 0)
+stay outside auto-selection while regular seasons have episodes or are still
+pending. The currently playing episode can still open its Extras season.
+Auto-selection emits `seasonSelected`,
 so host lazy-load/enrichment hooks (Stalker VOD-series episode fetch,
 TMDB season fetch, Xtream `enrichSelectedSerialSeason`) fire on open
 without a click. Switching tabs never stops playback; a "back to playing
@@ -1472,8 +1473,19 @@ player dialog.
 The new contract is:
 
 - inline detail hosts listen to `timeUpdate`
-- each host throttles saves
-- each host persists via existing playback-position infrastructure
+- every inline host (Xtream VOD and series, the Stalker catalog detail,
+  `StalkerVodPlaybackController` and series view, second-stream slots) saves
+  through the shared `createInlinePlaybackPositionWriter`
+  (`@iptvnator/portal/shared/util`), which persists via existing
+  playback-position infrastructure
+- the writer throttles timeupdate writes to one per 15 s but never drops the
+  newest position: it writes at once on a `playing: false` report (pause,
+  seek), on `reset()` (the player closes or a new playback supersedes it) and
+  on `pagehide`. A held position is written under its own media key; its
+  `onSaved` local resume state is skipped once the host's `ownerKey` shows
+  another item. Nothing is written before the resume latch reaches
+  `startTime`. On app quit the `pagehide` write is best effort: nothing in
+  the main process waits for it
 
 This avoids coupling inline UI state to a global dialog.
 

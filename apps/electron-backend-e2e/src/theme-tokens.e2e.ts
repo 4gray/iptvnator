@@ -245,7 +245,7 @@ test.describe('Theme tokens', () => {
                     }),
                     `label-small typography in ${theme} theme`
                 ).toEqual({
-                    family: expect.stringMatching(/^"?DM Sans"?,/),
+                    family: expect.stringMatching(/^"?Inter Variable"?,/),
                     size: 11,
                     weight: '500',
                 });

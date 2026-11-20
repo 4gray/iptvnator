@@ -26,12 +26,12 @@ import {
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { catchError, debounceTime, defer, of, Subject, switchMap } from 'rxjs';
 import { provideFormFieldDefaults } from '../../form-field-defaults/form-field-defaults';
-import { DialogShellComponent } from '../../dialog-shell/dialog-shell.component';
+import { DialogShellComponent } from '@iptvnator/ui/dialog';
 import {
     DialogFooterDirective,
     DialogFooterStartDirective,
-} from '../../dialog-shell/dialog-shell.directives';
-import { dialogSize } from '../../dialog-shell/dialog-size';
+} from '@iptvnator/ui/dialog';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 
 export interface EpgMappingDialogData {
     channelKey: string;
@@ -165,7 +165,7 @@ export class EpgMappingDialogComponent {
                     this.notify('EPG_MAPPING_DIALOG.SAVE_FAILED');
                     return;
                 }
-                this.epgService.clearCache();
+                this.epgService.refreshEpgData();
                 this.notify('EPG_MAPPING_DIALOG.SAVED');
                 this.dialogRef.close({
                     channelKey: this.data.channelKey,
@@ -180,7 +180,7 @@ export class EpgMappingDialogComponent {
                 this.notify('EPG_MAPPING_DIALOG.SAVE_FAILED');
                 return;
             }
-            this.epgService.clearCache();
+            this.epgService.refreshEpgData();
             this.notify('EPG_MAPPING_DIALOG.REMOVED');
             this.dialogRef.close();
         });

@@ -36,6 +36,7 @@ import {
     DatabaseService,
     DataService,
     PlaylistsService,
+    type SettingsUpdateOptions,
 } from '@iptvnator/services';
 import { PlaylistBackupService } from '@iptvnator/services/playlist-backup';
 import {
@@ -46,6 +47,7 @@ import {
     StartupBehavior,
     StreamFormat,
     Theme,
+    type TmdbSettings,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import { DialogService } from '@iptvnator/ui/components';
@@ -193,10 +195,15 @@ export function setSettingsSearchQuery(query: string): void {
     );
 }
 
+type MockSettings = Omit<typeof DEFAULT_SETTINGS, 'tmdb'> & {
+    tmdb: TmdbSettings;
+};
+
 export class MockSettingsStore {
-    private _settings = signal(DEFAULT_SETTINGS);
+    private _settings = signal<MockSettings>(DEFAULT_SETTINGS);
 
     getSettings = () => this._settings();
+    getCommittedEpgUrls = () => this._settings().epgUrl;
     language = () => this._settings().language;
     ageRatingCountry = () => this._settings().ageRatingCountry;
     readonly savedTmdbApiKey = signal<string | undefined>(undefined);
@@ -218,12 +225,47 @@ export class MockSettingsStore {
 
     loadSettings = jest.fn().mockResolvedValue(undefined);
 
-    updateSettings = jest.fn().mockResolvedValue(undefined);
+    /**
+     * Applies the patch like the real store: in memory first (merging the
+     * TMDB group), so Save mirrors and re-reads the merged settings.
+     */
+    updateSettings = jest.fn<
+        Promise<void>,
+        [
+            patch: Record<string, unknown>,
+            options?: SettingsUpdateOptions,
+            onPersisted?: () => void,
+        ]
+    >(async (patch, _options, onPersisted) => {
+        this.applyPatch(patch);
+        onPersisted?.();
+    });
+
+    /**
+     * The next update persists its patch before awaiting runtime side effects.
+     */
+    applyNextUpdateThen(settle: () => Promise<void>): void {
+        this.updateSettings.mockImplementationOnce(
+            async (patch, _options, onPersisted) => {
+                this.applyPatch(patch);
+                onPersisted?.();
+                await settle();
+            }
+        );
+    }
+
+    private applyPatch(patch: Record<string, unknown>): void {
+        const tmdb = patch['tmdb'] as object | undefined;
+        this._setSettings({
+            ...patch,
+            ...(tmdb && { tmdb: { ...this._settings().tmdb, ...tmdb } }),
+        } as Partial<MockSettings>);
+    }
 
     storageFailure = signal<SettingsStorageFailure | null>(null);
 
     // Helper method for tests to modify settings
-    _setSettings(newSettings: Partial<typeof DEFAULT_SETTINGS>) {
+    _setSettings(newSettings: Partial<MockSettings>) {
         this._settings.set({
             ...this._settings(),
             ...newSettings,

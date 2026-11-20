@@ -41,7 +41,7 @@ export class SettingsEpgFacade {
             return;
         }
         const filePath = await this.epgBridge.pickEpgFile();
-        if (!filePath) {
+        if (!filePath || !this.formFacade.epgUrl.controls.includes(control)) {
             return;
         }
         control.setValue(filePath);
@@ -96,6 +96,7 @@ export class SettingsEpgFacade {
     clear(): void {
         this.dialogService.openConfirmDialog({
             title: this.translate.instant('SETTINGS.CLEAR_EPG_DIALOG.TITLE'),
+            subtitle: this.translate.instant('DIALOGS.CLEAR_EPG'),
             message: this.translate.instant(
                 'SETTINGS.CLEAR_EPG_DIALOG.MESSAGE'
             ),

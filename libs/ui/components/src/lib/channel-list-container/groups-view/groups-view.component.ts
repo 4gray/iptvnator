@@ -56,7 +56,7 @@ import {
     GroupManagementDialogComponent,
     GroupManagementDialogGroup,
 } from './group-management-dialog/group-management-dialog.component';
-import { dialogSize } from '../../dialog-shell/dialog-size';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 import { createGroupsRailReveal } from './groups-rail-reveal';
 
 const GROUP_CHANNEL_SORT_STORAGE_KEY = 'm3u-groups-channel-sort-mode';

@@ -173,10 +173,20 @@ export class DashboardHeroSlidesPresenter {
             const requests = this.sources()
                 .map((source) => source.item)
                 .filter((item) => item.type !== 'live')
-                .map((item) => ({ item, key: this.heroTmdb.keyFor(item) }));
+                .map((item) => {
+                    const position =
+                        'viewed_at' in item
+                            ? this.data.getPlaybackPositionForItem(item)
+                            : null;
+                    return {
+                        item,
+                        position,
+                        key: this.heroTmdb.keyFor(item, position),
+                    };
+                });
             untracked(() =>
-                requests.forEach(({ item, key }) =>
-                    this.loadTmdbExtras(item, key)
+                requests.forEach(({ item, key, position }) =>
+                    this.loadTmdbExtras(item, key, position)
                 )
             );
         });
@@ -188,12 +198,16 @@ export class DashboardHeroSlidesPresenter {
         );
     }
 
-    private loadTmdbExtras(item: PortalActivityItem, key: string): void {
+    private loadTmdbExtras(
+        item: PortalActivityItem,
+        key: string,
+        position: PlaybackPositionData | null
+    ): void {
         if (this.requestedTmdbKeys.has(key)) {
             return;
         }
         this.requestedTmdbKeys.add(key);
-        void this.heroTmdb.getExtras(item).then((extras) => {
+        void this.heroTmdb.getExtras(item, position).then((extras) => {
             this.tmdbExtras.update((state) => new Map(state).set(key, extras));
         });
     }
@@ -204,10 +218,16 @@ export class DashboardHeroSlidesPresenter {
     ): DashboardHeroSlide {
         const item = source.item;
         const isLive = item.type === 'live';
+        const position = isLive
+            ? null
+            : this.data.getPlaybackPositionForItem(item);
+        const matchPosition = 'viewed_at' in item ? position : null;
         // Single reactive read, gated on the TMDB opt-in
         const extras =
             !isLive && this.heroTmdb.isEnabled()
-                ? (this.tmdbExtras().get(this.heroTmdb.keyFor(item)) ?? null)
+                ? (this.tmdbExtras().get(
+                      this.heroTmdb.keyFor(item, matchPosition)
+                  ) ?? null)
                 : null;
         const details =
             source.kind === 'live'
@@ -215,9 +235,6 @@ export class DashboardHeroSlidesPresenter {
                 : isLive
                   ? this.liveEpg.heroDetailsFor(item)
                   : null;
-        const position = isLive
-            ? null
-            : this.data.getPlaybackPositionForItem(item);
         const artwork = resolveDashboardHeroArtwork(
             {
                 backdropUrl: item.backdrop_url || extras?.backdropUrl || null,

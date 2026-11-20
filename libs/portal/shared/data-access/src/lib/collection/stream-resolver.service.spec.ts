@@ -132,7 +132,7 @@ describe('StreamResolverService', () => {
                                 name: 'News',
                                 url: '',
                                 logo: 'news.png',
-                                rec: '',
+                                rec: '7',
                             },
                             http: {
                                 referrer: 'https://ref.example.com',
@@ -184,7 +184,10 @@ describe('StreamResolverService', () => {
             }),
         });
         expect(detail.epgPrograms).toHaveLength(1);
-        expect(epgBridge.getChannelPrograms).toHaveBeenCalledWith('news-id');
+        expect(epgBridge.getChannelPrograms).toHaveBeenCalledWith('news-id', {
+            nowMs: expect.any(Number),
+            archiveDays: 7,
+        });
     });
 
     it('resolves M3U playback detail without blocking on channel-program lookup', async () => {

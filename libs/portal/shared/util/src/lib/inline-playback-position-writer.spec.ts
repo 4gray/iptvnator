@@ -85,7 +85,7 @@ describe('createInlinePlaybackPositionWriter', () => {
         expect(save).toHaveBeenCalledTimes(2);
     });
 
-    it('reset makes the next update write immediately', () => {
+    it('reset persists the held position, then the next update writes immediately', () => {
         jest.useFakeTimers();
         const { writer, save } = setup();
 
@@ -95,8 +95,190 @@ describe('createInlinePlaybackPositionWriter', () => {
         expect(save).toHaveBeenCalledTimes(1);
 
         writer.reset();
-        writer.handleTimeUpdate({ currentTime: 3, duration: 100 });
         expect(save).toHaveBeenCalledTimes(2);
+        expect(save).toHaveBeenLastCalledWith(
+            'playlist-1',
+            expect.objectContaining({ positionSeconds: 2 })
+        );
+
+        writer.handleTimeUpdate({ currentTime: 3, duration: 100 });
+        expect(save).toHaveBeenCalledTimes(3);
+    });
+
+    describe('closing the player', () => {
+        it('persists the last position the throttle held back', () => {
+            // The audit reproduction: one tick per second from 600 s, then
+            // the player closes. Only 600 reached storage, so Resume went
+            // back 14 seconds.
+            jest.useFakeTimers();
+            const { playback, writer, save } = setup();
+            for (let second = 600; second <= 614; second++) {
+                writer.handleTimeUpdate({ currentTime: second, duration: 7200 });
+                jest.advanceTimersByTime(1000);
+            }
+            playback.set(null);
+
+            writer.reset();
+
+            expect(save.mock.calls.map(([, p]) => p.positionSeconds)).toEqual([
+                600, 614,
+            ]);
+        });
+
+        it('writes the held position under the media that produced it', () => {
+            const { playback, writer, save } = setup();
+            writer.handleTimeUpdate({ currentTime: 10, duration: 100 });
+            writer.handleTimeUpdate({ currentTime: 11, duration: 100 });
+            // The next playback is already mounted when the host resets.
+            playback.set({
+                ...playbackWithInfo(),
+                contentInfo: {
+                    playlistId: 'playlist-2',
+                    contentXtreamId: 7,
+                    contentType: 'vod',
+                },
+                startTime: 300,
+            });
+
+            writer.reset();
+
+            expect(save).toHaveBeenLastCalledWith(
+                'playlist-1',
+                expect.objectContaining({
+                    contentXtreamId: 42,
+                    positionSeconds: 11,
+                })
+            );
+            // The new playback's resume point is untouched: its latch is
+            // closed again and drops the engine's ~0 tick.
+            expect(
+                writer.handleTimeUpdate({ currentTime: 0, duration: 900 })
+            ).toBe(false);
+            expect(save).toHaveBeenCalledTimes(2);
+        });
+
+        it('writes nothing for a playback that never reached its resume point', () => {
+            const { writer, save } = setup({
+                ...playbackWithInfo(),
+                startTime: 2538,
+            });
+            writer.handleTimeUpdate({ currentTime: 3, duration: 7744 });
+
+            writer.reset();
+
+            expect(save).not.toHaveBeenCalled();
+        });
+
+        it('skips onSaved once the page shows another owner, but still saves', () => {
+            const owner = signal('movie-42');
+            const save = jest.fn();
+            const onSaved = jest.fn();
+            const writer = createInlinePlaybackPositionWriter({
+                playback: signal(playbackWithInfo()),
+                save,
+                onSaved,
+                ownerKey: owner,
+            });
+            writer.handleTimeUpdate({ currentTime: 10, duration: 100 });
+            writer.handleTimeUpdate({ currentTime: 11, duration: 100 });
+            owner.set('movie-7');
+
+            writer.reset();
+
+            expect(save).toHaveBeenLastCalledWith(
+                'playlist-1',
+                expect.objectContaining({ positionSeconds: 11 })
+            );
+            expect(onSaved).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    it('flushes a writer without onSaved, as second-stream slots use it', () => {
+        const save = jest.fn();
+        const writer = createInlinePlaybackPositionWriter({
+            playback: signal(playbackWithInfo()),
+            save,
+        });
+        writer.handleTimeUpdate({ currentTime: 10, duration: 100 });
+        writer.handleTimeUpdate({ currentTime: 11, duration: 100 });
+
+        writer.reset();
+
+        expect(save).toHaveBeenLastCalledWith(
+            'playlist-1',
+            expect.objectContaining({ positionSeconds: 11 })
+        );
+    });
+
+    describe('pause and page hide', () => {
+        it('persists a paused position at once, and only once', () => {
+            jest.useFakeTimers();
+            const { writer, save } = setup();
+            writer.handleTimeUpdate({ currentTime: 600, duration: 7200 });
+            jest.advanceTimersByTime(4000);
+            writer.handleTimeUpdate({
+                currentTime: 604,
+                duration: 7200,
+                playing: true,
+            });
+
+            writer.handleTimeUpdate({
+                currentTime: 604.4,
+                duration: 7200,
+                playing: false,
+            });
+            writer.handleTimeUpdate({
+                currentTime: 604.4,
+                duration: 7200,
+                playing: false,
+            });
+
+            expect(save.mock.calls.map(([, p]) => p.positionSeconds)).toEqual([
+                600, 604,
+            ]);
+        });
+
+        it('persists a seek made while paused', () => {
+            jest.useFakeTimers();
+            const { writer, save } = setup();
+            writer.handleTimeUpdate({
+                currentTime: 600,
+                duration: 7200,
+                playing: false,
+            });
+            writer.handleTimeUpdate({
+                currentTime: 900,
+                duration: 7200,
+                playing: false,
+            });
+
+            expect(save).toHaveBeenLastCalledWith(
+                'playlist-1',
+                expect.objectContaining({ positionSeconds: 900 })
+            );
+        });
+
+        it('persists every held position when the page is hidden', () => {
+            jest.useFakeTimers();
+            const first = setup();
+            const second = setup();
+            for (const { writer } of [first, second]) {
+                writer.handleTimeUpdate({ currentTime: 600, duration: 7200 });
+                writer.handleTimeUpdate({ currentTime: 610, duration: 7200 });
+            }
+
+            window.dispatchEvent(new Event('pagehide'));
+
+            for (const { save } of [first, second]) {
+                expect(save).toHaveBeenLastCalledWith(
+                    'playlist-1',
+                    expect.objectContaining({ positionSeconds: 610 })
+                );
+            }
+            // Flushed writers leave the page-hide set: nothing is written twice.
+            window.dispatchEvent(new Event('pagehide'));
+            expect(first.save).toHaveBeenCalledTimes(2);
+        });
     });
 
     it('writes nothing without a playback', () => {

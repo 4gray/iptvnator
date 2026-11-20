@@ -19,8 +19,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ParentalLockService } from '@iptvnator/services';
 import { foldSearchText } from '@iptvnator/shared/interfaces';
-import { DialogShellComponent } from '../../../dialog-shell/dialog-shell.component';
-import { DialogFooterDirective } from '../../../dialog-shell/dialog-shell.directives';
+import { DialogShellComponent } from '@iptvnator/ui/dialog';
+import { DialogFooterDirective } from '@iptvnator/ui/dialog';
 
 export interface GroupManagementDialogGroup {
     readonly count: number;

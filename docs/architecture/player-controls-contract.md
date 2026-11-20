@@ -584,11 +584,28 @@ episode: `upNextThresholdSeconds` is 4% of the duration clamped to
 `timelineSegments` carry a closing-credits chapter in the last third
 (`creditsStartSeconds`: "Credits", "Outro", "Ending", an anime `ED`, and a
 few localized names), the card appears when it starts instead, at most
-5 min before the end. Embedded MPV under the frame-copy engine supplies
+5 min before the end. A credits start supplied through the optional `creditsStart`
+dependency (a metadata source such as TheIntroDB, #2239) wins over chapters.
+The timing lives in `upNextLeadSeconds` (`@iptvnator/shared/interfaces`,
+`up-next-timing.util.ts`), so the TV client uses the same adaptive timing when chapter data is unavailable.
+Embedded MPV under the frame-copy engine supplies
 file chapters (see the chapter producer above); every other engine, and a
 file without a credits chapter, uses the adaptive lead. The countdown shows
-whole minutes and switches to seconds in the last minute. It appears only when
-series autoplay is enabled and the next episode is in the current season.
+whole minutes and switches to seconds in the last minute, beside a ring that
+empties from the moment the card appears (`leadSeconds`). Both appear only when
+series autoplay is enabled. At a season's last episode autoplay continues into
+the next season: `PortalInlinePlayerComponent.onPlaybackEnded` emits
+`upNextEpisodeSelected` for the next rail entry instead of `playbackEnded`.
+The Stalker rail stops at the first season waiting for episode data. If an
+in-flight list arrives after playback ends, autoplay resumes the sequence while
+the same session is still at the end. Automatic rail selections carry a
+request-scoped `autoplaySignal`. Rewind, resume, manual episode choices and
+Close cancel that signal before a pending Stalker link can replace playback.
+Committed successors keep their autoplay count.
+Escape dismisses a visible card for the episode after any open menu closes
+(`ControlsUpNext.dismissIfVisible`). With the inline controls active, the card
+dismisses before Escape reaches the detail shell. Another Escape closes the
+inline player.
 A still that fails to load falls back to the label tile. A click emits
 `nextEpisodeRequested` directly — not through the
 transport's `canNextEpisode` guard, which is season-local — so the card
@@ -1092,7 +1109,11 @@ keyboard. `EmbeddedMpvShortcutHandlers` (the native-view legacy dock) and
 the radio audio player's document-level volume/mute keys apply the same
 rule. Shared and native-view player controls also yield every shortcut while
 an ancestor carries `data-player-shortcuts-suspended`, used by the programme
-guide while the player is docked.
+guide while the player is docked. Gaining that attribute also closes the
+shared controls' open popovers, as Escape would (`watchPlayerSuspension` in
+`controls-suspension.ts`, started by `ControlsShortcuts.attach`): the docked
+mini player shows only play/pause, and a settings sheet left open would keep
+the controls bar `inert` behind hidden chrome.
 
 Action-specific keys are prevented only when the active controller can handle
 them: seek requires both capability and current seekability, volume/mute

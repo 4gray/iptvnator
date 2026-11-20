@@ -31,5 +31,5 @@ export function usePlayerControls(fullscreen: boolean, paused: boolean) {
             document.removeEventListener('mousemove', reveal);
         };
     }, [fullscreen, paused]);
-    return visible;
+    return { visible, reveal };
 }

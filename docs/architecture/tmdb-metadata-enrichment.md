@@ -62,8 +62,15 @@ copy. The receiving device needs writable IndexedDB. It compares the previous
 key and saves the replacement in one transaction. A failed local write can be
 retried in the same open dialog before expiry.
 Ordinary settings saves preserve the key already in IndexedDB unless the user
-edits that field. Other tabs reread the key after a save notification. The
-notification contains no key, and a tab keeps any unsaved key edit.
+edits that field. Save accepts a whitespace-only edit and displays the stored
+key. Backup import retains the last confirmed key and any draft key edit,
+including an edit whose write failed.
+Other tabs reread the key after a save notification. The
+notification contains no key, and a tab keeps any unsaved key edit. A key edit
+reverted after a failed storage write lets the form adopt the latest saved
+key. After storage succeeds, a newer key from another tab supersedes the
+submitted key. A key edited again before Save acknowledges the earlier
+submission stays staged.
 If the claim response is lost, start a new transfer. The sender reads the local
 saved key directly, so a draft or embedded build key is never sent. Neither the
 session nor the key is saved in the server library or shared user state.
@@ -912,7 +919,13 @@ since shipped.)
   prefilled. Requires both the TMDB opt-in and the Electron DB worker
   (the rail is hidden in the PWA). The load fires only after the
   dashboard's own recent/favorites data is in, so it never competes for
-  the worker at startup, and runs once per app session.
+  the worker at startup, and latches per TMDB language and imported-playlist
+  id set: a language change re-localizes the titles, and importing or
+  deleting a playlist re-runs the matching (a deleted one would leave cards
+  linking nowhere). An empty or failed load does not latch. If the inputs
+  change during a request, the pending inputs load after it settles,
+  even when that request returned no entries. Cached cards stop linking
+  to deleted playlists even while TMDB is unreachable.
 - **Recommendations rail** ("Because you watched",
   `dashboardRails.tmdbRecommendations` toggle): TMDB has no account-free
   "recommendations for you" endpoint, so `DashboardRecommendationsService`
@@ -992,15 +1005,47 @@ since shipped.)
   clears the rail (the service is root-provided and outlives the
   dashboard); a load requested while one is in flight is queued and
   re-run afterwards; a load where no seed resolved (TMDB unreachable)
-  does not latch and retries instead. Same gating as trending: TMDB
+  does not latch and retries instead. Offline, changing a seed's choice
+  removes the attribution to its previous match. A card recommended by
+  multiple seeds stays visible while another contributor's match is
+  unchanged, and the card takes its attribution from the first remaining
+  contributor. Same gating as trending: TMDB
   opt-in + Electron DB worker, deferred behind the dashboard's own data.
+- **The viewer's match choice** (`TmdbMatchService`, set in a detail view's
+  "Match on TMDB" dialog) holds on the dashboard too. Both the hero and
+  the recommendations rail resolve a row through
+  `resolveDashboardTmdbDetails` (`dashboard-tmdb-match.util.ts`), which
+  builds the row's match identity the way the detail views do (Xtream:
+  catalog type and stream/series id, using the parent from playback
+  progress for episode-keyed history; the rail rechecks those identities
+  when playback positions arrive. Stalker uses the stored entry's id,
+  media type and catalog) and reads the choice first. A manual match is
+  loaded by its media type and TMDB id, including for rows with no
+  searchable provider title. "Use the provider's data"
+  resolves to no TMDB data at all, so the automatic attempts (and their
+  movie→tv retry) cannot find another title; rows without a choice run
+  the automatic attempts. The choice is part of the hero's memo key and
+  the recommendations load key and seed de-duplication
+  (`dashboardTmdbMatchToken`), so re-matching a title reloads both. The
+  match store loads on first use with TMDB on, off the startup path: the
+  hero uses an activity-specific key while the store loads. Waiting
+  callers share one enrichment request keyed by the resolved choice. The recommendations rail waits for the store before
+  deduplicating and keying seeds. Rows with the same lookup and match
+  choice share one request and keep their separate match identities for
+  offline pruning. A row with a match identity skips TMDB when the store
+  cannot be read. Rows whose viewers chose provider data leave room for
+  older usable seeds and lose any cached recommendations from the old match.
 - **Hero extras**: `DashboardHeroTmdbService`
   (`libs/workspace/dashboard/feature`) patches each movie/series hero slide
   with a TMDB backdrop (when the activity row has none), a rating badge, up
   to two genre chips, the overview and the release/first-air year — resolved
   through the enrichment facade, so items already opened in a detail view
-  come from the SQLite cache without network. Results are memoized per
-  lookup identity for the session. Slides render immediately from provider
+  come from the SQLite cache without network. Found extras are memoized per
+  lookup identity (TMDB language and match choice included) for the
+  session once the match store has loaded; a lookup that found nothing
+  is not memoized, since it may have failed
+  offline — a lasting miss is the enrichment layer's own negative cache.
+  Slides render immediately from provider
   data; extras appear when resolved and disappear when TMDB is turned off.
   Series slides additionally show the tracked "S{n}·E{n}" badge from the
   playback position (no TMDB involved). Live slides never query TMDB.

@@ -19,7 +19,7 @@ export const DIALOG_WIDTHS: Readonly<Record<DialogSize, string>> = {
  * The part of a `MatDialogConfig` a size preset owns. Spread it before the
  * call site's own options, so `data`, `autoFocus` or a tighter `maxHeight`
  * still win. The import is type-only, and a service created with the app
- * imports this file through `@iptvnator/ui/components/dialog-size`: the
+ * imports this file through `@iptvnator/ui/dialog/dialog-size`: the
  * library barrel would carry its components onto the startup path.
  */
 export function dialogSize(

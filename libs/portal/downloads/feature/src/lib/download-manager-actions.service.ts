@@ -55,6 +55,9 @@ export class DownloadManagerActionsService {
             title: this.translate.instant(
                 'DOWNLOADS.CLEAR_FINISHED_DIALOG.TITLE'
             ),
+            subtitle: this.translate.instant(
+                'DIALOGS.CLEAR_FINISHED_DOWNLOADS'
+            ),
             message: this.translate.instant(
                 'DOWNLOADS.CLEAR_FINISHED_DIALOG.MESSAGE'
             ),
@@ -84,6 +87,7 @@ export class DownloadManagerActionsService {
                 : 'DOWNLOADS.REMOVE_PARTIAL_DIALOG';
         this.dialogs.openConfirmDialog({
             title: this.translate.instant(`${dialogKey}.TITLE`),
+            subtitle: item.title,
             message: this.translate.instant(`${dialogKey}.MESSAGE`),
             confirmLabel: this.translate.instant(
                 'DOWNLOADS.REMOVE_FROM_MANAGER'
@@ -209,6 +213,7 @@ export class DownloadManagerActionsService {
     private showRecovery(path: string): void {
         this.dialogs.openConfirmDialog({
             title: this.translate.instant('DOWNLOADS.RECOVERY.TITLE'),
+            subtitle: this.translate.instant('DIALOGS.DOWNLOAD_RECOVERY'),
             keepOpenOnConfirm: true,
             cancelLabel: this.translate.instant('CLOSE'),
             width: '600px',

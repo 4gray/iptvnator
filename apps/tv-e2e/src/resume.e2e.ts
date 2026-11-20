@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { addSource, nav, start, cardAction } from './helpers';
+import { addSource, nav, start, cardAction, backFromPlayback } from './helpers';
 
 for (const mode of ['movie', 'episode', 'unknown-duration'] as const) {
     test(`resume ${mode} survives delayed metadata and an ignored seek without overwriting progress`, async ({
@@ -24,7 +24,7 @@ for (const mode of ['movie', 'episode', 'unknown-duration'] as const) {
             )
             .toBe(true);
         await page.getByRole('button', { name: 'Pause', exact: false }).click();
-        await page.keyboard.press('Escape');
+        await backFromPlayback(page);
         await nav(page, 'Home');
         await expect(page.locator('.resume-card progress')).toHaveAttribute(
             'value',
@@ -103,7 +103,7 @@ for (const mode of ['movie', 'episode', 'unknown-duration'] as const) {
             .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime))
             .toBeGreaterThan(7);
         await expect(video).toHaveAttribute('data-seek-attempts', '2');
-        await page.keyboard.press('Escape');
+        await backFromPlayback(page);
         await page.reload();
         await expect
             .poll(() =>

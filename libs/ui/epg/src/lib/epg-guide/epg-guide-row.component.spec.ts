@@ -270,4 +270,29 @@ describe('EpgGuideRowComponent', () => {
             fixture.debugElement.queryAll(By.css('[data-epg-guide-grid]'))
         ).toHaveLength(2);
     });
+    it('keeps the ON NOW tag on the time line and marks catch-up blocks', () => {
+        render([program('Earlier', -60, -30), program('Current', -10, 20)], {
+            catchUpAvailable: true,
+        });
+        const blocks = fixture.debugElement
+            .queryAll(By.css('.epg-guide-row__block'))
+            .map((block) => block.nativeElement as HTMLElement);
+        const now = blocks.find((block) => block.classList.contains('is-now'));
+        const past = blocks.find((block) =>
+            block.classList.contains('is-past')
+        );
+
+        // The tag shares the time's line (never an absolute overlay on it),
+        // and the title is a separate line below.
+        const meta = now?.querySelector('.epg-guide-row__meta');
+        expect(
+            [...(meta?.children ?? [])].map((child) => child.className)
+        ).toEqual(['epg-guide-row__time', 'epg-guide-row__tag']);
+        expect(meta?.nextElementSibling?.className).toBe(
+            'epg-guide-row__title'
+        );
+        // Past blocks with the catch-up button reserve room for it.
+        expect(past?.classList.contains('has-watch')).toBe(true);
+        expect(now?.classList.contains('has-watch')).toBe(false);
+    });
 });

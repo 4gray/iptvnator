@@ -300,15 +300,30 @@
     color: var(--mat-sys-primary);
 }
 
-.header-actions--leading {
-    margin-left: -4px;
+// Both groups sit at the trailing edge, so the divider between them always
+// separates the page's own actions from the global ones.
+.header-actions-cluster {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: 8px;
+    margin-inline-start: auto;
+    app-region: no-drag;
 }
 
-.header-actions--trailing {
-    margin-left: auto;
-    padding-left: 8px;
-    border-left: 1px solid var(--mat-sys-outline-variant);
-    app-region: no-drag;
+.header-actions--divided {
+    padding-inline-start: 8px;
+    border-inline-start: 1px solid var(--mat-sys-outline-variant);
+}
+
+// The overflow menu renders in the overlay, but its rows come from this
+// template and keep the component's styles.
+.header-overflow-item--active {
+    color: var(--app-selection-color);
+
+    mat-icon {
+        color: inherit;
+    }
 }
 
 // ─── Download Activity Indicator ─────────────────────────────────────────────
@@ -460,6 +475,12 @@
         gap: 8px;
     }
 
+    // The frameless window controls sit over the rail's top band here (see
+    // the rail), so the header drops the inset the global styles reserve.
+    :host-context(body.frameless-platform) .workspace-header {
+        padding-right: 8px;
+    }
+
     .context-drawer-toggle {
         display: inline-flex;
         flex-shrink: 0;
@@ -512,13 +533,15 @@
         }
     }
 
-    .header-actions--leading {
-        margin-left: 0;
+    .header-actions-cluster {
+        gap: 4px;
+    }
 
-        .shortcuts-trigger {
-            display: none;
-        }
+    .header-actions--divided {
+        padding-inline-start: 4px;
+    }
 
+    .header-actions--contextual {
         // At the phone breakpoint the live rail is a bottom drawer with its
         // own toggle, and the header has no room left for another permanent
         // icon: it already holds the drawer toggle, switcher, search and Add.

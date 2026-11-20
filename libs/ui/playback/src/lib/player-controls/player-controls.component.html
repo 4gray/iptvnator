@@ -638,6 +638,7 @@
             [class.player-controls__up-next--compact]="isCompact()"
             [item]="item"
             [remainingSeconds]="upNextCard.remainingSeconds() ?? 0"
+            [leadSeconds]="upNextCard.thresholdSeconds()"
             [compact]="isCompact()"
             [collapsed]="upNextCard.collapsed()"
             (selected)="reveal(); nextEpisodeRequested.emit()"

@@ -174,6 +174,8 @@
                 "ORIGINAL_FILENAME": "اسم الملف الأصلي",
                 "FILE_PATH": "مسار الملف",
                 "UPDATE_FAILED": "فشل تحديث القائمة الأخيرة",
+                "SOURCE_LOADING": "جارٍ تحميل القنوات…",
+                "SOURCE_LOAD_FAILED": "تم حفظ المصدر الجديد، لكن تعذّر تحميل قنواته، لذا لا تزال قائمة التشغيل تعرض قنوات المصدر السابق. تحقق من المصدر واحفظ مرة أخرى لإعادة المحاولة.",
                 "AUTO_UPDATE": "التحديث التلقائي",
                 "AUTO_UPDATE_DESCRIPTION": "إذا تم تفعيل التحديث التلقائي، ستُحدَّث القائمة تلقائيًا عند كل تشغيل للتطبيق.",
                 "CUSTOM_USER_AGENT": "قد تتطلب بعض خدمات IPTV وكيل مستخدم محدد لتشغيل قوائم التشغيل.",
@@ -227,6 +229,7 @@
             "PLAYLIST_UPDATE_ERROR": "خطأ في تحديث تفاصيل القائمة.",
             "PLAYLIST_UPDATE_FAILED": "تعذّر تحديث قائمة التشغيل.",
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "فشل تحديث قائمة التشغيل. الملف المحلي لم يعد متاحًا. تحقق من مسار الملف أو أعد استيراد قائمة التشغيل.",
+            "SOURCE_SAVED_NOT_LOADED": "تم حفظ المصدر. حدّث قائمة التشغيل لتحميل قنواته.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "فشل تحديث قائمة التشغيل. لم يعد بإمكان التطبيق الوصول إلى الملف المحلي.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "نجاح! تم تحديث قوائم التشغيل بنجاح",
             "AUTO_REFRESH_UPDATE_PARTIAL": "التحديث التلقائي غير مكتمل: تم تحديث {{updated}} من {{total}} من قوائم التشغيل، وفشل {{failed}}.",
@@ -824,7 +827,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "بلد التصنيف العمري",
         "AGE_RATING_COUNTRY_DESCRIPTION": "اختر بلد التصنيف. عند غياب البيانات المحلية، يمكن استخدام بيانات الولايات المتحدة أو المزوّد.",
-        "AGE_RATING_COUNTRY_AUTO": "تلقائي — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "تلقائي — {{country}}",
+        "CARD_HELP": "مساعدة",
+        "KEYBOARD_SHORTCUTS": "اختصارات لوحة المفاتيح",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "اختصارات للتنقل والتشغيل ومربعات الحوار. اضغط ? خارج أي حقل نص لفتحها.",
+        "KEYBOARD_SHORTCUTS_OPEN": "عرض الاختصارات"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "تعذّر الحفظ على الخادم. تحقق من الاتصال وحاول مرة أخرى.",
@@ -1368,6 +1375,7 @@
         "TWITTER_TOOLTIP": "مشاركة على Twitter"
     },
     "UPDATE_AVAILABLE": "تحديث متاح",
+    "PWA_UPDATE_NONE": "لم يتم العثور على إصدار أحدث على هذا الخادم.",
     "PWA_UPDATE_READY": "التحديث جاهز. ستؤدي إعادة التحميل إلى إيقاف التشغيل.",
     "PWA_UPDATE_FAILED": "تعذّر تنزيل تحديث التطبيق. يمكنك الاستمرار باستخدام هذا الإصدار.",
     "PWA_RELOAD_REQUIRED": "ملفات التطبيق غير متاحة. أعد التحميل عند الاتصال بالإنترنت للاستعادة. سيتوقف التشغيل.",
@@ -2180,7 +2188,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "جارٍ إزالة الفئات المخزّنة مؤقتًا...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "نحتفظ بالمفضلة وسجل المشاهدة والفئات المخفية وتقدم التشغيل لاستعادتها بعد المزامنة.",
             "XTREAM_REFRESH_PROGRESS": "السجلات المحلية المعالجة: {{current}} / {{total}}",
-            "RAIL_RADIO": "راديو"
+            "RAIL_RADIO": "راديو",
+            "MORE_ACTIONS": "إجراءات إضافية"
         },
         "SOURCES": {
             "TITLE": "المصادر",
@@ -2251,8 +2260,6 @@
         "SHORTCUTS": {
             "TITLE": "اختصارات لوحة المفاتيح",
             "SUBTITLE": "اختصارات مساحة العمل والتنقل والتشغيل ومربعات الحوار المتاحة في IPTVnator.",
-            "OPEN_TOOLTIP": "اختصارات لوحة المفاتيح (?)",
-            "OPEN_ARIA": "فتح اختصارات لوحة المفاتيح",
             "PLATFORM": {
                 "MAC": "تخطيط macOS",
                 "OTHER": "تخطيط Windows/Linux"
@@ -2620,5 +2627,37 @@
         "STATE_offline": "حُفظ السجل محلياً؛ الخادم غير متاح",
         "STATE_incompatible": "لا يدعم هذا الخادم مزامنة السجل",
         "PENDING": "تغييرات السجل في الانتظار: {{count}}"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "قائمة تشغيل M3U",
+            "XTREAM": "حساب Xtream",
+            "STALKER": "بوابة Stalker"
+        },
+        "ADD_SOURCE": "أضف قائمة تشغيل M3U أو حساب Xtream أو بوابة Stalker",
+        "XTREAM_SYNC": "جارٍ تحميل الفئات التي اخترتها لحساب Xtream هذا",
+        "XTREAM_CATEGORIES": "اختر الفئات التي يعرضها حساب Xtream هذا",
+        "GROUPS": "اختر المجموعات التي تعرضها قائمة القنوات",
+        "DELETE_ALL_SOURCES": "يزيل كل المصادر وبياناتها المحفوظة",
+        "SERVER_SYNC_ABOUT": "شارك المصادر بين الأجهزة عبر خادمك الخاص",
+        "TMDB_TRANSFER": "انسخ مفتاح TMDB محفوظًا إلى جهاز آخر",
+        "UNSAVED_SETTINGS": "احفظ تعديلاتك أو تجاهلها قبل المغادرة",
+        "RELEASE_NOTES": "التغييرات في كل إصدار من IPTVnator",
+        "RELEASE_NOTES_VERSION": "التغييرات في الإصدار {{version}}",
+        "SERVER_MIGRATION": "انقلها إلى الخادم لاستخدامها على كل جهاز",
+        "EXTERNAL_PLAYER_TITLE": "التشغيل في مشغل خارجي",
+        "EXTERNAL_PLAYER": "يُشغَّل البث في MPV أو VLC في نافذة مستقلة",
+        "EPISODE_SEASON": "الموسم {{season}} · الحلقة {{episode}}",
+        "EPISODE": "الحلقة {{episode}}",
+        "TRAILER": "يُشغَّل من YouTube",
+        "PROGRAMME": "برنامج من دليل التلفزيون",
+        "SOURCE_CLEANUP_TITLE": "تنظيف المصادر غير النشطة",
+        "SOURCE_CLEANUP": "اعثر على المصادر التي لم تعد تستجيب واحذفها",
+        "CLEAR_EPG": "يزيل جداول البرامج المحفوظة من هذا الجهاز",
+        "TLS_HOST": "شهادة {{host}}",
+        "CANCEL_DOWNLOAD": "يوقف التنزيل الجاري",
+        "CLEAR_COLLECTION": "تتغير هذه القائمة فقط؛ تبقى مصادرك كما هي",
+        "CLEAR_FINISHED_DOWNLOADS": "يزيل الإدخالات المكتملة من القائمة",
+        "DOWNLOAD_RECOVERY": "ملف في مجلد التنزيلات يحتاج إلى انتباهك"
     }
 }

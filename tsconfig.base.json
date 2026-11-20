@@ -134,11 +134,15 @@
                 "libs/ui/pipes/src/lib/date-format.util.ts"
             ],
             "@iptvnator/ui/components": ["libs/ui/components/src/index.ts"],
+            "@iptvnator/ui/components/app-icons": [
+                "libs/ui/components/src/lib/app-icons/app-icons.ts"
+            ],
             "@iptvnator/ui/components/confirm-dialog": [
                 "libs/ui/components/src/lib/confirm-dialog/dialog.service.ts"
             ],
-            "@iptvnator/ui/components/dialog-size": [
-                "libs/ui/components/src/lib/dialog-shell/dialog-size.ts"
+            "@iptvnator/ui/dialog": ["libs/ui/dialog/src/index.ts"],
+            "@iptvnator/ui/dialog/dialog-size": [
+                "libs/ui/dialog/src/lib/dialog-shell/dialog-size.ts"
             ],
             "@iptvnator/ui/components/form-field-defaults": [
                 "libs/ui/components/src/lib/form-field-defaults/form-field-defaults.ts"

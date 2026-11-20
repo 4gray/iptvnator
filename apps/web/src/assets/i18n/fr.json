@@ -174,6 +174,8 @@
                 "ORIGINAL_FILENAME": "Nom du fichier d'origine",
                 "FILE_PATH": "Chemin du fichier",
                 "UPDATE_FAILED": "Échec de la dernière mise à jour de liste de lecture",
+                "SOURCE_LOADING": "Chargement des chaînes…",
+                "SOURCE_LOAD_FAILED": "La nouvelle source est enregistrée, mais ses chaînes n'ont pas pu être chargées : la liste de lecture affiche toujours les chaînes de la source précédente. Vérifiez la source et enregistrez à nouveau pour réessayer.",
                 "AUTO_UPDATE": "Mise à jour automatique",
                 "AUTO_UPDATE_DESCRIPTION": "Si la fonction de mise à jour automatique est activée, la liste de lecture sera mise à jour automatiquement à chaque fois que l'app est lancée.",
                 "CUSTOM_USER_AGENT": "Certains fournisseurs d'IPTV requièrent un agent utilisateur spécifique afin de lire leur liste de lecture.",
@@ -227,6 +229,7 @@
             "PLAYLIST_UPDATE_ERROR": "Erreur lors de la mise à jour des détails de la liste.",
             "PLAYLIST_UPDATE_FAILED": "Impossible de mettre à jour la liste de lecture.",
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Échec de l'actualisation de la liste de lecture. Le fichier local n'est plus disponible. Vérifiez le chemin du fichier ou réimportez la liste de lecture.",
+            "SOURCE_SAVED_NOT_LOADED": "Source enregistrée. Actualisez la liste de lecture pour charger ses chaînes.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Échec de l'actualisation de la liste de lecture. L'application ne peut plus accéder au fichier local.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Succès ! Les listes de lecture ont été mises à jour avec succès",
             "AUTO_REFRESH_UPDATE_PARTIAL": "Actualisation automatique incomplète : {{updated}} listes de lecture sur {{total}} mises à jour, {{failed}} en échec.",
@@ -824,7 +827,11 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Pays de classification par âge",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Choisissez le pays de classification. Sans donnée locale, les données américaines ou du fournisseur peuvent être utilisées.",
-        "AGE_RATING_COUNTRY_AUTO": "Automatique — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automatique — {{country}}",
+        "CARD_HELP": "Aide",
+        "KEYBOARD_SHORTCUTS": "Raccourcis clavier",
+        "KEYBOARD_SHORTCUTS_DESCRIPTION": "Raccourcis pour la navigation, la lecture et les boîtes de dialogue. Appuyez sur ? hors d’un champ de texte pour les afficher.",
+        "KEYBOARD_SHORTCUTS_OPEN": "Afficher les raccourcis"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Impossible d’enregistrer sur le serveur. Vérifiez la connexion et réessayez.",
@@ -1368,6 +1375,7 @@
         "TWITTER_TOOLTIP": "Partager sur Twitter"
     },
     "UPDATE_AVAILABLE": "Mise à jour disponible",
+    "PWA_UPDATE_NONE": "Aucune version plus récente n’a été trouvée sur ce serveur.",
     "PWA_UPDATE_READY": "Une mise à jour est prête. Le rechargement arrête la lecture.",
     "PWA_UPDATE_FAILED": "La mise à jour n’a pas pu être téléchargée. Vous pouvez continuer à utiliser cette version.",
     "PWA_RELOAD_REQUIRED": "Les fichiers de l’application sont indisponibles. Rechargez une fois la connexion rétablie. La lecture s’arrêtera.",
@@ -2180,7 +2188,8 @@
             "XTREAM_REFRESH_DELETING_CATEGORIES": "Suppression des catégories en cache...",
             "XTREAM_REFRESH_DETAIL_LOCAL": "Les favoris, l’historique de lecture, les catégories masquées et la progression sont préparés pour être restaurés après la synchronisation.",
             "XTREAM_REFRESH_PROGRESS": "Enregistrements locaux traités : {{current}} / {{total}}",
-            "RAIL_RADIO": "Radios en direct"
+            "RAIL_RADIO": "Radios en direct",
+            "MORE_ACTIONS": "Plus d’actions"
         },
         "SOURCES": {
             "TITLE": "Sources",
@@ -2251,8 +2260,6 @@
         "SHORTCUTS": {
             "TITLE": "Raccourcis clavier",
             "SUBTITLE": "Raccourcis disponibles dans IPTVnator pour l’espace de travail, la navigation, la lecture et les boîtes de dialogue.",
-            "OPEN_TOOLTIP": "Raccourcis clavier (?)",
-            "OPEN_ARIA": "Ouvrir les raccourcis clavier",
             "PLATFORM": {
                 "MAC": "Disposition macOS",
                 "OTHER": "Disposition Windows/Linux"
@@ -2620,5 +2627,37 @@
         "STATE_offline": "Historique enregistré localement ; serveur indisponible",
         "STATE_incompatible": "Ce serveur ne prend pas en charge la synchronisation de l’historique",
         "PENDING": "Modifications de l’historique en attente : {{count}}"
+    },
+    "DIALOGS": {
+        "SOURCE_KIND": {
+            "M3U": "Playlist M3U",
+            "XTREAM": "Compte Xtream",
+            "STALKER": "Portail Stalker"
+        },
+        "ADD_SOURCE": "Ajouter une playlist M3U, un compte Xtream ou un portail Stalker",
+        "XTREAM_SYNC": "Chargement des catégories choisies pour ce compte Xtream",
+        "XTREAM_CATEGORIES": "Choisissez les catégories affichées par ce compte Xtream",
+        "GROUPS": "Choisissez les groupes affichés dans la liste des chaînes",
+        "DELETE_ALL_SOURCES": "Supprime toutes les sources et leurs données enregistrées",
+        "SERVER_SYNC_ABOUT": "Partagez vos sources entre appareils via votre propre serveur",
+        "TMDB_TRANSFER": "Copier une clé TMDB enregistrée vers un autre appareil",
+        "UNSAVED_SETTINGS": "Enregistrez ou annulez vos modifications avant de quitter",
+        "RELEASE_NOTES": "Les changements de chaque version d’IPTVnator",
+        "RELEASE_NOTES_VERSION": "Changements de la version {{version}}",
+        "SERVER_MIGRATION": "Déplacez-les sur le serveur pour les utiliser sur chaque appareil",
+        "EXTERNAL_PLAYER_TITLE": "Lecture dans le lecteur externe",
+        "EXTERNAL_PLAYER": "Le flux est lu dans MPV ou VLC, dans sa propre fenêtre",
+        "EPISODE_SEASON": "Saison {{season}} · Épisode {{episode}}",
+        "EPISODE": "Épisode {{episode}}",
+        "TRAILER": "Lu depuis YouTube",
+        "PROGRAMME": "Programme du guide TV",
+        "SOURCE_CLEANUP_TITLE": "Nettoyer les sources inactives",
+        "SOURCE_CLEANUP": "Trouver les sources qui ne répondent plus et les supprimer",
+        "CLEAR_EPG": "Supprime les programmes enregistrés de cet appareil",
+        "TLS_HOST": "Certificat de {{host}}",
+        "CANCEL_DOWNLOAD": "Arrête le téléchargement en cours",
+        "CLEAR_COLLECTION": "Seule cette liste change ; vos sources restent",
+        "CLEAR_FINISHED_DOWNLOADS": "Retire les entrées terminées de la liste",
+        "DOWNLOAD_RECOVERY": "Un fichier du dossier de téléchargement demande votre attention"
     }
 }

@@ -105,8 +105,8 @@ the subsystem's document.
   `libs/ui/epg/src/lib/epg-list-view/epg-list-view.component.scss`
 - Shared list selection style:
   `libs/ui/styles/_nav-list.scss`
-- Dialog shell and size presets:
-  `libs/ui/components/src/lib/dialog-shell/`
+- Dialog shell and size presets (`ui-dialog`, `@iptvnator/ui/dialog`):
+  `libs/ui/dialog/src/lib/dialog-shell/`
 - Source row (Sources page and playlist switcher):
   `libs/playlist/shared/ui/src/lib/source-row/source-row.component.html`
 - UI-kit buttons, menus, segmented control and floating panels:
@@ -1024,6 +1024,9 @@ remain local when the meaning is explicit.
   lockstep. The dropdown reuses the static heading's type so folding the rail
   does not move the title; the caret is the only added ink
   (`_portal-sidebar.scss`).
+- The Xtream Live TV All Items header reserves room for the floating
+  show-categories button when the category rail is folded and for the
+  restore button when both panels are hidden, including at phone widths.
 - At the phone breakpoint the M3U layout's bottom-drawer rule overrides the
   desktop collapse to `height: 0` instead of `width: 0`. The floating restore
   handle stays visible there: the collapse toggle is reachable by touch, so
@@ -1361,6 +1364,31 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   the change count, Discard and Save (Cmd/Ctrl+S); the sidebar marks pages
   with staged edits. A saved change that waits for a restart shows a sticky
   notice at the top of the page.
+- Save writes only the paths that differ from the form's saved baseline
+  (`pickChangedSettings` in `settings-form-rebase.ts`); a changed dashboard
+  rail goes out over the rails as stored now. Settings another surface wrote
+  while the page was open (the command palette's player switch, or any
+  other store writer) keep their value, and after Save the untouched
+  controls show the stored values. A staged edit wins over an outside
+  change to the same setting. A staged EPG source list is saved together
+  with sources added elsewhere since the page loaded, but it also keeps a
+  source removed elsewhere meanwhile (the list on the page wins). A setting
+  already submitted by a Save awaiting acknowledgement is written again by
+  the next Save, so an edit reverted to its saved value still takes effect.
+  An EPG retry keeps sources added elsewhere, including ones merged by the
+  earlier Save. Outside EPG additions are merged from the saved record in the
+  write transaction, so a failed import cannot contribute sources. Saves
+  without EPG edits also reuse the committed source list. Desktop receives
+  the merged settings except the parental-lock switch, whose dedicated
+  writer owns its native mirror and rollback.
+- A backup import brings in restored EPG URLs and keeps staged edits.
+  Save acknowledgements adopt committed EPG sources, so an unfinished import
+  cannot make its sources appear saved in the form.
+  If overlapping settings writes fail, the EPG list falls back to the last
+  list that reached storage. A playlist-only restore during a pending removal
+  keeps the removal staged for retry if storage fails.
+  The form becomes pristine when it has no edits or pending Save failures.
+  Discard reloads stored values.
 
 ### Light Theme
 
@@ -1400,17 +1428,33 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   disclosure with “Enable for this playlist”; after an action removes or disables
   its button, move focus to a remaining source action or the add-row action.
 - **Shell.** A dialog's markup is `app-dialog-shell`
-  (`@iptvnator/ui/components`): the heading (its `mat-dialog-title`, so
-  the container is named by it), an optional subtitle and 40px icon tile
-  (`iconTone="warn"` for a destructive question), the body as default
-  content, and a footer rendered only when an element with
+  (`@iptvnator/ui/dialog`, re-exported from `@iptvnator/ui/components`; its
+  own project so `ui-epg`, which `ui-components` depends on, can use it):
+  the heading (its `mat-dialog-title`, so the container is named by it), a
+  required one-line subtitle and a 40px icon tile (`iconTone="warn"` for a
+  destructive question), the body as default content, and a footer
+  rendered only when an element with
   `appDialogFooter` wraps the actions (`appDialogFooterStart` wraps a Clear
   action or a notice at the footer's start, `appDialogHeaderEnd` a chip
   before the close button); a conditional action sits inside the wrapper,
   since a control-flow block at the top level is projected into the body.
-  Every dialog uses it, apart from three that draw their own surface by
-  design: the command palette, the programme dialog and the EPG import
-  panel (a floating panel, not a dialog). A dialog with a hero band (the
+  Every dialog uses it, the programme dialog and the EPG trust prompts
+  included; only the command palette draws its own surface (its search
+  field is its header), and the EPG import panel is a floating panel, not a
+  dialog. `dialog-subtitle-guard.spec.ts` in `ui-dialog` fails on a dialog
+  component outside the shell or a shell without a subtitle.
+- **Header.** Every header has an icon, a title and a subtitle; the tile
+  centres on the heading block (`align-items: center`), so a one-line and a
+  wrapped title both sit level with it, and `dialog-shell.e2e.ts` measures
+  it. The subtitle is one short sentence fragment in sentence case that
+  says what the dialog is for, or the data that explains it best: the
+  source and its type through `sourceDialogSubtitle()` ("Living room ·
+  Xtream account"), a version, a season and episode, a host, a channel.
+  Type nouns follow decision D6 ("source" generic; "M3U playlist", "Xtream
+  account", "Stalker portal"; "provider" only for the content company).
+  `ConfirmDialogData.subtitle` is required for the same reason; the message
+  stays in the body. A dialog title drops a menu label's ellipsis.
+  A dialog with a hero band (the
   account info and channel details dialogs) keeps the band as the body's
   first block, edge to edge through negative margins, with its title and
   subtitle in the shell's header and its status pills in
@@ -1430,7 +1474,7 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   (16px panel on the widget surface, hairline border, popover shadow,
   tinted blurred backdrop) is global in `m3-theme.scss` and reaches every
   dialog; a dialog that draws its own surface strips it through its panel
-  class, as the command palette and the programme dialog do.
+  class, as the command palette does.
   The shell sizes from the surface, so an opener's tighter `maxHeight`
   holds, caps itself at the viewport minus the preset's margins otherwise, and
   lets only the body scroll; under 600px of height the cap comes off and the
@@ -1439,10 +1483,10 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   there: its header × is its only in-dialog dismissal and stays in place.
   Read-only account and shortcuts dialogs opt into `bodyFocusable`: the
   named content region is the first keyboard stop, so PageDown and arrow
-  keys scroll the information without moving the header. Forms keep their
-  first control as the initial stop. The programme dialog's own frame caps
-  its height to the viewport and scrolls its named body, including archive
-  tools and actions; its hero stays outside that scroll region.
+  keys scroll the information without moving the header, as the programme
+  dialog does: its channel logo is the body's first block, its archive
+  tools sit in the body and its Close and watch actions in the footer.
+  Forms keep their first control as the initial stop.
   Account dialogs use a 960px cap, a neutral statistics band and flat detail
   sections. Phone statistics use two columns while detail rows stack; an
   unpaired Stalker statistic spans the row. Status text uses the theme's
@@ -1463,8 +1507,8 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   button per row, in DOM order (dismiss on top, primary at the bottom). The
   settings unsaved-changes dialog is the reference;
   `settings-unsaved-dialog-layout.e2e.ts` in `web-e2e` measures it in six
-  locales. The programme dialog stacks its archive tools and footer the same
-  way, letting a long label wrap inside its button; the Electron
+  locales. The programme dialog stacks its archive tools the same way under
+  640px, letting a long label wrap inside its button; the Electron
   `epg-timeline-interaction.e2e.ts` measures it in French at 360px.
 - **Width.** An opener spreads a size preset first, `...dialogSize('sm' |
   'md' | 'lg')` (440, 560 and 760px with the viewport limits), then its own
@@ -1475,8 +1519,8 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   is never provided at the root for that reason. A dialog with several
   openers is opened through one helper that owns its config, so its width
   never depends on the entry point: `EpgProgrammeDialogService` opens the
-  programme dialog at 540px from the timeline, list, guide and channel rows,
-  with a panel class that scopes its surface overrides.
+  programme dialog at the `md` preset from the timeline, list, guide and
+  channel rows, with a panel class that names its pane.
   Playlist editors use `playlistInfoDialogConfig()` from every entry point:
   its `md` preset supplies both width and the explicit viewport height cap that
   the short-window surface scroller needs. EPG rows keep their action buttons in
@@ -1663,6 +1707,19 @@ the string results of its bindings, `icon` / `*Icon` inputs, and TypeScript
 values named `icon`, `*Icon`, `*_ICON`, `*Icons` or `*_ICONS`. Name a member
 that feeds an icon that way, so the check can see its values.
 
+## Favourite And Rating Glyphs
+
+The heart means favourite and the star means rating, everywhere. Take both
+from `APP_ICONS` in `@iptvnator/ui/components/app-icons` (also exported from
+`@iptvnator/ui/components`): `favorite` / `favoriteOutline` for favourite
+toggles, rail and command entries, collection headers and empty states;
+`rating` / `ratingOutline` for TMDB and provider scores and the rating filter.
+A toggle shows the filled heart when on and the outline when off; use
+`favoriteIcon(isFavorite)` rather than repeating the ternary.
+`pnpm run ui:favorite-glyph:validate` (CI) rejects star and heart ligatures
+written anywhere else and checks that the registry keeps each meaning on its
+glyph family. It reads the same static names as the icon-name check above.
+
 ## Icon-Only Buttons
 
 A `<button>` whose only content is a `<mat-icon>` needs an accessible name:
@@ -1670,7 +1727,7 @@ the ligature text is hidden from assistive technology, and a `matTooltip`
 only adds a description that appears on hover or focus. Give it a translated
 `aria-label`, usually `[attr.aria-label]` bound to the same key as its
 tooltip, or `aria-labelledby`. A toggle keeps one label and reports its state
-with `aria-pressed` (the channel row's star is "Favorite", pressed or not),
+with `aria-pressed` (the channel row's heart is "Favorite", pressed or not),
 as the password visibility toggle does; its tooltip may still name the next
 action. `pnpm run a11y:icon-buttons:validate` (CI) checks `.html` and inline
 templates, looking through control flow, `ng-container` and spinners; content
@@ -1779,16 +1836,21 @@ whose list shows the toggle again, takes the toggle's slot.
 
 ## Typography
 
-The app stack is DM Sans with Roboto behind it (`$app-font-stack` in
-`apps/web/src/m3-theme.scss`). DM Sans covers Latin only, so Cyrillic and Greek
-UI text (ru, by, el) renders in Roboto. `apps/web/src/styles.scss` bundles both
-families in 400, 500, 600 and 700, and JetBrains Mono in 400 and 500 (its
-heavier faces would exceed the initial-bytes ratchet).
+The app stack is `'Inter Variable', Inter, system-ui, sans-serif`
+(`$app-font-stack` in `apps/web/src/m3-theme.scss`, read everywhere through
+`--app-font-family`). Inter Variable covers Latin, Cyrillic and Greek, so a
+channel name that mixes scripts renders in one face. `apps/web/src/styles.scss`
+bundles it from `@fontsource-variable/inter` (one weight axis, 100–900), and
+JetBrains Mono in 400 and 500 (its heavier faces would exceed the
+initial-bytes ratchet). Font files never count toward initial bytes: the
+browser fetches only the subsets the text on screen needs.
 
-- Use only those four weights: in `font-weight`, in the `font` shorthand, and in
-  any custom property, Sass variable or token map that feeds one. A weight
-  between faces snaps to a neighbour (650 renders as 700), and 600 or more with
-  no face of at least 600 gets Chromium's synthetic bold. CI runs
+- Use only the weights 400, 500, 600 and 700: in `font-weight`, in the `font`
+  shorthand, and in any custom property, Sass variable or token map that feeds
+  one. Inter Variable can render any weight on its axis; the limit keeps the
+  type scale to four steps. In a family with static faces (JetBrains Mono, or
+  a local fallback) a weight between faces snaps to a neighbour, and 600 or
+  more with no face of at least 600 gets Chromium's synthetic bold. CI runs
   `pnpm run styles:font-weights:validate`, which rejects any other value.
 - JetBrains Mono text stays at 500 or lighter, also where it is a fallback
   behind `ui-monospace` (only macOS resolves that). The check enforces this in
@@ -1797,10 +1859,12 @@ heavier faces would exceed the initial-bytes ratchet).
   included, from its own stylesheet module or another one. It cannot see what
   a mono modifier class inherits from its base rule; set `font-weight: 500`
   there.
-- Import whole `@fontsource/<family>/<weight>.css` files. The single-script
-  files such as `cyrillic-600.css` have no `unicode-range`, so a Cyrillic-only
-  face wins the weight match for Latin text in `Roboto, …` stacks and sends it
-  to the next family.
+- Import a package's index or whole-weight CSS (`@fontsource-variable/inter/index.css`,
+  `@fontsource/<family>/<weight>.css`). The single-script files such as
+  `cyrillic-600.css` have no `unicode-range`, so a Cyrillic-only face would
+  claim Latin glyphs too and send them to the next family.
+- Set `font-family: var(--app-font-family)` rather than naming a face, so the
+  stack changes in one place.
 - `<html lang>` follows the UI language (`syncDocumentLanguage()` maps `by` to
   `be` and `zhtw` to `zh-TW`), so `hyphens`, `text-transform` (Turkish İ) and
   Han glyph fallback use the right locale.

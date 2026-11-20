@@ -142,10 +142,32 @@ The shell is intentionally split into four persistent regions:
        Back button, Alt+← / Cmd+[ and the Electron window gestures run it.
        See [Header Back](#header-back).
     2. Playlist switcher.
-    3. Route-aware search input and command palette trigger.
-    4. Add source action.
-    5. Optional playlist refresh and route-specific shortcut actions.
-    6. Downloads shortcut in Electron.
+    3. Route-aware search input and command palette trigger. Where search
+       cannot run the field is left out, never shown disabled, and a
+       standalone palette button keeps the pointer way into the palette.
+    4. Contextual actions: the route's layout action (such as the guide),
+       the live rail toggle and the parental lock.
+    5. Global actions: Add source, the Downloads shortcut in Electron and
+       the "More actions" overflow menu. A divider separates them from the
+       contextual group and disappears when that group is empty.
+
+    Keyboard shortcuts have no header button: the `?` key, the command
+    palette entry and Settings → General → Help open the dialog of the
+    shell-provided `WorkspaceKeyboardShortcutsService`. Settings reaches it
+    with a dynamic import of the already-loaded shell chunk: a root service
+    shared by the two lazy chunks would land in the startup bundle
+    (`renderer.initialBytes`).
+
+    When the header runs short of room, actions move into "More actions"
+    (priority+). `workspace-shell-header-overflow.ts` holds the rules. The
+    hide order is layout, rail toggle, parental lock, then Add source. Back,
+    the switcher, search and downloads never move. The menu never holds a
+    single action: one action and the menu trigger take the same room, so
+    below two the action stays inline. A `ResizeObserver` on the header and
+    its regions measures the room, so this works in any container, not only
+    at a viewport breakpoint. The search field counts at a usable width:
+    220px, or 120px in a header of 640px or less. Rows keep their icon,
+    label, disabled state and checked state.
 3. Main body:
     1. Optional left context panel.
     2. Main router outlet content. In server storage mode an offline banner
@@ -203,7 +225,8 @@ navigation (Back, drawer toggle) changes.
 1. **Previous positions.** `offsetLeft` values, which ignore transforms, are
    recorded after every render in which the slide key or the record key
    changed (the header's record key covers the other inputs that move its
-   controls: settings route, no playlists, parental lock, shortcuts) and
+   controls: settings route, no playlists, parental lock, shortcuts,
+   overflowed actions, search visibility) and
    when the host or a target resizes (window resize, a context panel folding
    or being dragged wider). A slide therefore starts where the target was
    last laid out, and a target that has no recorded position or did not move
@@ -520,6 +543,11 @@ Search is shell-owned and route-aware:
 
 1. On settings routes, searches the settings themselves (see
    [Settings search](#settings-search)).
+1. On the dashboard, an active Xtream source keeps its advanced search
+   (Enter opens that source's search page). Otherwise the desktop app makes
+   the field a launcher for global search ("Search all playlists...", Enter
+   opens `/workspace/search?q=`). Without global search (the PWA, or no
+   searchable source) the field is left out.
 2. Enabled on sources routes.
 3. Enabled for `/workspace/search`, which is the Electron-only routed
    global-search view. `Ctrl/Cmd+F` in Electron opens this route and
@@ -1057,7 +1085,14 @@ Layout integration:
    also reach cdk-overlay content rendered outside `app-root`.
 2. `apps/web/src/styles.scss` reserves `padding-right: 196px` in
    the top-aligned drag region (`.workspace-header`) for the 4 × 46px
-   menu and window-control button strip.
+   menu and window-control button strip. At ≤640px the rail is the top band
+   (a zoomed-in window reaches it: 900px at 144% is 625 CSS px), so the
+   rail's host reserves the 196px instead (`workspace-shell-rail.component.scss`,
+   outside the rail's sideways scroller, so no link scrolls under the
+   controls) and the header drops it. Component styles, not `styles.scss`,
+   keep this out of the initial bytes. `window-controls.e2e.ts` ("controls
+   never cover rail or header buttons in the phone layout") sizes the
+   viewport, not the window, so a window manager cannot skip it.
 3. Button colors follow the theme via CSS variables (`--app-on-surface`,
    `--app-hover-overlay`); the close button uses the Windows-style red
    hover (`#e81123`). No theme IPC is involved.

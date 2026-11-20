@@ -13,7 +13,11 @@ import {
 
 @Component({
     template: `
-        <app-dialog-shell icon="live_tv" [heading]="'INFORMATION' | translate">
+        <app-dialog-shell
+            icon="open_in_new"
+            [heading]="'DIALOGS.EXTERNAL_PLAYER_TITLE' | translate"
+            [subtitle]="'DIALOGS.EXTERNAL_PLAYER' | translate"
+        >
             <p class="external-player-info">
                 {{ 'EXTERNAL_PLAYER.INFO_DIALOG.PLAYING' | translate }}<br />
                 {{ 'EXTERNAL_PLAYER.INFO_DIALOG.INSTALL_HINT' | translate

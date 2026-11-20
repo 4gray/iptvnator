@@ -4,7 +4,7 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom, take } from 'rxjs';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
-import { dialogSize } from '@iptvnator/ui/components/dialog-size';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 import {
     ParentalLockService,
     DatabaseService,
