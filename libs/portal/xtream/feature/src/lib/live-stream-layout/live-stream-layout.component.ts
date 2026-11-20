@@ -214,7 +214,17 @@ export class LiveStreamLayoutComponent
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
     readonly categoryItemCounts = this.xtreamStore.getCategoryItemCounts;
     readonly epgItems = this.xtreamStore.epgItems;
-    readonly currentEpgItem = this.xtreamStore.currentEpgItem;
+    /**
+     * The programme on air, re-selected on the 30 s tick: the store's
+     * `currentEpgItem` caches its Date.now() verdict until epgItems changes,
+     * so the panel summary and remote status would keep a finished show.
+     */
+    readonly currentEpgItem = computed(() =>
+        findCurrentEpgItem(
+            this.epgItems(),
+            epgProviderClockMs(this.currentTimeMs(), this.epgOffsetMinutes())
+        )
+    );
     readonly isSelectedTypeContentLoading =
         this.xtreamStore.selectedTypeContentLoading;
     readonly isLoadingEpg = this.xtreamStore.isLoadingEpg;
@@ -283,14 +293,9 @@ export class LiveStreamLayoutComponent
             return null;
         }
         const playlist = this.xtreamStore.currentPlaylist();
-        // Re-select against the 30 s tick: the store's `currentEpgItem`
-        // caches its Date.now() verdict until epgItems changes, so a
-        // recording started after an EPG boundary would snapshot the
-        // previous show.
-        const program = findCurrentEpgItem(
-            this.epgItems(),
-            epgProviderClockMs(this.currentTimeMs(), this.epgOffsetMinutes())
-        );
+        // Ticking, so a recording started after an EPG boundary does not
+        // snapshot the previous show.
+        const program = this.currentEpgItem();
         return {
             channelName: item.title?.trim() || item.name?.trim() || 'Live TV',
             channelLogoUrl:
