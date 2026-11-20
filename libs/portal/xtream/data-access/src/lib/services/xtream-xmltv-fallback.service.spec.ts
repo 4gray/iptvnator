@@ -330,6 +330,81 @@ describe('XtreamXmltvFallbackService', () => {
         expect(bridge.getEpgChannels).toHaveBeenCalledTimes(1);
     });
 
+    it('matches attached separators and terminal quality suffixes flexibly', async () => {
+        const service = makeService();
+        bridge.getEpgChannels.mockResolvedValue({ channels: [
+            { id: 'euro.unique', displayName: 'Eurosport 2' },
+            { id: 'dazn.basket', displayName: 'DAZN Baloncesto 2' },
+            { id: 'dazn.motogp', displayName: 'DAZN MotoGP' },
+            { id: 'movistar.plus', displayName: 'Movistar Plus+' },
+        ] });
+
+        await expect(service.findChannelIdsByName([
+            'DAZNBaloncesto2',
+            'DAZN MOTO GP FULL HD',
+            'Movistar Plus+ FULL HD',
+            'EUROSPORT2HD',
+        ])).resolves.toEqual({
+            'daznbaloncesto2': 'dazn.basket',
+            'dazn moto gp full': 'dazn.motogp',
+            'movistar plus full': 'movistar.plus',
+            'eurosport2hd': 'euro.unique',
+        });
+        expect(bridge.getEpgChannels).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects flexible matches with multiple IDs and keeps channel numbers distinct', async () => {
+        const service = makeService();
+        bridge.getEpgChannels.mockResolvedValue({ channels: [
+            { id: 'euro.one', displayName: 'Eurosport 2' },
+            { id: 'euro.two', displayName: 'Eurosport 2 HD' },
+            { id: 'laliga.one', displayName: 'M+ LALIGA TV' },
+            { id: 'laliga.two', displayName: 'M+ LaLiga TV HD' },
+            { id: 'dazn.two', displayName: 'DAZN 2' },
+        ] });
+
+        await expect(service.findChannelIdsByName([
+            'EUROSPORT2HD',
+            'M+ LaLigaTVHD+',
+            'DAZN1HD',
+        ])).resolves.toEqual({
+            'eurosport2hd': null,
+            'm laligatvhd': null,
+            'dazn1hd': null,
+        });
+        expect(bridge.getEpgChannels).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+        ['SPORT HD PLUS', 'SPORT PLUS'],
+        ['SPORT PLUS', 'SPORT HD PLUS'],
+    ])('rejects strict-key collisions with incompatible flexible candidates (%s first)', async (...names) => {
+        const service = makeService();
+        bridge.getEpgChannels.mockResolvedValue({ channels: [
+            { id: 'sport.hd', displayName: 'SPORTHDPLUS' },
+            { id: 'sport.base', displayName: 'SPORTPLUS' },
+        ] });
+
+        await expect(service.findChannelIdsByName(names)).resolves.toEqual({
+            'sport plus': null,
+        });
+        expect(bridge.getEpgChannels).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+        ['EUROSPORT2HD', 'EUROSPORT2HD+'],
+        ['EUROSPORT2HD+', 'EUROSPORT2HD'],
+    ])('keeps the EUROSPORT2HD collision order-independent (%s first)', async (...names) => {
+        const service = makeService();
+        bridge.getEpgChannels.mockResolvedValue({ channels: [
+            { id: 'euro.unique', displayName: 'Eurosport 2' },
+        ] });
+
+        await expect(service.findChannelIdsByName(names)).resolves.toEqual({
+            'eurosport2hd': 'euro.unique',
+        });
+    });
+
     it('shares the pending name-index read and caches the normalized index for a source revision', async () => {
         const service = makeService();
         let finish!: (value: { channels: Array<{ id: string; displayName: string }> }) => void;

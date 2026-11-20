@@ -12,6 +12,7 @@ import {
 import { XtreamApiService, XtreamCredentials } from './xtream-api.service';
 import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
 import { createLogger } from '@iptvnator/portal/shared/util/logger';
+import { normalizeEpgName } from './epg-name-normalization';
 import { resolveManualEpgMappings } from './epg-queue-manual-mappings';
 
 interface CacheEntry {
@@ -32,17 +33,6 @@ export interface EpgQueueEntry {
     playlistId?: string | null;
     /** Set when epgChannelId came from the user's explicit mapping. */
     manualEpgMapping?: boolean;
-}
-
-function normalizeEpgName(value: string): string {
-    return value
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLocaleLowerCase()
-        .replace(/\b(?:hd|fhd|uhd|4k)\b/gi, ' ')
-        .replace(/[^\p{L}\p{N}]+/gu, ' ')
-        .trim()
-        .replace(/\s+/g, ' ');
 }
 
 /**

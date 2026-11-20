@@ -11,7 +11,15 @@ import {
     EpgSourceSettingsService,
     SettingsStore,
 } from '@iptvnator/services';
+import {
+    normalizeEpgName,
+    normalizeEpgNameFlexibly,
+} from './epg-name-normalization';
 
+interface ChannelNameIndex {
+    normalized: Map<string, Set<string>>;
+    flexible: Map<string, Set<string>>;
+}
 type ElectronEpgBridge = {
     getChannelPrograms?: (
         channelId: string,
@@ -35,9 +43,9 @@ export class XtreamXmltvFallbackService {
     private readonly sources = inject(EpgSourceSettingsService);
     private readonly preferences = inject(EpgPreferencesService);
     private channelNameIndexRevision = -1;
-    private channelNameIndex: Map<string, Set<string>> | null = null;
+    private channelNameIndex: ChannelNameIndex | null = null;
     private pendingChannelNameIndex:
-        | { revision: number; promise: Promise<Map<string, Set<string>>> }
+        | { revision: number; promise: Promise<ChannelNameIndex> }
         | null = null;
 
     /**
@@ -140,15 +148,37 @@ export class XtreamXmltvFallbackService {
         const fn = this.bridge?.getEpgChannels;
         if (typeof fn !== 'function') return {};
         const rawNames = [...new Set(names.map((name) => (name ?? '').trim()).filter(Boolean))];
-        const keys = [...new Set(rawNames.map(normalizeEpgName).filter(Boolean))];
-        if (!keys.length) return {};
+        const namesByKey = new Map<string, string[]>();
+        for (const name of rawNames) {
+            const key = normalizeEpgName(name);
+            if (!key) continue;
+            const group = namesByKey.get(key) ?? [];
+            group.push(name);
+            namesByKey.set(key, group);
+        }
+        if (!namesByKey.size) return {};
         try {
             const index = await this.getChannelNameIndex(revision, fn);
             if (revision !== this.sources.revision()) return {};
             const result: Record<string, string | null> = {};
-            for (const key of keys) {
-                const ids = index.get(key);
-                result[key] = ids?.size === 1 ? [...ids][0] : null;
+            for (const [key, originals] of namesByKey) {
+                const exactIds = index.normalized.get(key);
+                if (exactIds) {
+                    result[key] = exactIds.size === 1 ? [...exactIds][0] : null;
+                    continue;
+                }
+                const candidates = originals.map((name) => {
+                    const flexibleKey = normalizeEpgNameFlexibly(name);
+                    const ids = flexibleKey
+                        ? index.flexible.get(flexibleKey)
+                        : undefined;
+                    return ids?.size === 1 ? [...ids][0] : null;
+                });
+                const uniqueCandidates = new Set(candidates);
+                result[key] =
+                    !candidates.includes(null) && uniqueCandidates.size === 1
+                        ? candidates[0]
+                        : null;
             }
             return result;
         } catch (error) {
@@ -160,7 +190,7 @@ export class XtreamXmltvFallbackService {
     private getChannelNameIndex(
         revision: number,
         fn: NonNullable<ElectronEpgBridge['getEpgChannels']>
-    ): Promise<Map<string, Set<string>>> {
+    ): Promise<ChannelNameIndex> {
         if (
             this.channelNameIndexRevision === revision &&
             this.channelNameIndex
@@ -172,13 +202,22 @@ export class XtreamXmltvFallbackService {
         }
 
         const pending = fn.call(this.bridge).then((rows) => {
-            const index = new Map<string, Set<string>>();
+            const index: ChannelNameIndex = {
+                normalized: new Map(),
+                flexible: new Map(),
+            };
             for (const row of rows?.channels ?? []) {
                 const key = normalizeEpgName(row.displayName);
-                if (!key) continue;
-                const ids = index.get(key) ?? new Set<string>();
+                if (key) {
+                    const ids = index.normalized.get(key) ?? new Set<string>();
+                    ids.add(row.id);
+                    index.normalized.set(key, ids);
+                }
+                const flexibleKey = normalizeEpgNameFlexibly(row.displayName);
+                if (!flexibleKey) continue;
+                const ids = index.flexible.get(flexibleKey) ?? new Set<string>();
                 ids.add(row.id);
-                index.set(key, ids);
+                index.flexible.set(flexibleKey, ids);
             }
             if (revision === this.sources.revision()) {
                 this.channelNameIndex = index;
@@ -234,15 +273,4 @@ export class XtreamXmltvFallbackService {
         }
         return fallback();
     }
-}
-
-function normalizeEpgName(value: string): string {
-    return value
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLocaleLowerCase()
-        .replace(/\b(?:hd|fhd|uhd|4k)\b/gi, ' ')
-        .replace(/[^\p{L}\p{N}]+/gu, ' ')
-        .trim()
-        .replace(/\s+/g, ' ');
 }
