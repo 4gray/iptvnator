@@ -2,7 +2,11 @@ import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom, from, of } from 'rxjs';
-import { DatabaseService, PlaylistsService } from '@iptvnator/services';
+import {
+    DatabaseService,
+    PlaylistsService,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import {
     Channel,
     Playlist,
@@ -694,6 +698,43 @@ describe('UnifiedFavoritesDataService', () => {
             42,
             'xtream-1',
             'live.png'
+        );
+    });
+
+    it('adds a refreshed live favorite from the selected SQLite category', async () => {
+        jest.spyOn(
+            TestBed.inject(RuntimeCapabilitiesService),
+            'supportsXtreamSqliteDataSource',
+            'get'
+        ).mockReturnValue(true);
+        databaseService.getContentByXtreamId.mockImplementation(
+            async (
+                _id,
+                _source,
+                _type,
+                _identity,
+                categoryId,
+                _locked,
+                allowFallback
+            ) => (categoryId === 19 && allowFallback ? { id: 502 } : null)
+        );
+
+        await service.addFavorite({
+            uid: 'xtream::synthetic-source::live:42',
+            name: 'Synthetic live item',
+            contentType: 'live',
+            sourceType: 'xtream',
+            playlistId: 'synthetic-source',
+            playlistName: 'Synthetic source',
+            contentId: 501,
+            categoryId: 19,
+            xtreamId: 42,
+        });
+
+        expect(electronApi.dbAddFavorite).toHaveBeenCalledWith(
+            502,
+            'synthetic-source',
+            undefined
         );
     });
 

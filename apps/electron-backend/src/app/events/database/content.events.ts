@@ -83,7 +83,8 @@ handleWorkerRequest(
         contentType?: 'live' | 'movie' | 'series',
         identity?: ContentMetadataPatch,
         categoryId?: number,
-        excludeLocked?: boolean
+        excludeLocked?: boolean,
+        fallbackToUniqueCategory?: boolean
     ) => ({
         xtreamId,
         playlistId,
@@ -91,6 +92,9 @@ handleWorkerRequest(
         ...(identity ? { identity } : {}),
         ...(categoryId !== undefined ? { categoryId } : {}),
         ...(excludeLocked === true ? { excludeLocked: true } : {}),
+        ...(fallbackToUniqueCategory === true
+            ? { fallbackToUniqueCategory: true }
+            : {}),
     })
 );
 

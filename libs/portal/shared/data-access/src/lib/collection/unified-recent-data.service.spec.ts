@@ -5,6 +5,7 @@ import {
     DatabaseService,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    SourceActivityService,
 } from '@iptvnator/services';
 import { HISTORY_PLAYLIST_BRIDGE } from '@iptvnator/services/history-events';
 import {
@@ -809,6 +810,85 @@ describe('UnifiedRecentDataService', () => {
             playlistsService.removeFromPlaylistRecentlyViewedBatch
         ).toHaveBeenCalledWith('stalker-1', ['42', '43']);
     });
+
+    it.each([
+        { kind: 'single', refreshed: false, rowId: 501 },
+        { kind: 'batch', refreshed: false, rowId: 501 },
+        { kind: 'single', refreshed: true, rowId: 502 },
+        { kind: 'batch', refreshed: true, rowId: 502 },
+    ])(
+        'removes the selected category on a $kind live history removal (refreshed: $refreshed)',
+        async ({ kind, refreshed, rowId }) => {
+            jest.spyOn(
+                TestBed.inject(RuntimeCapabilitiesService),
+                'supportsXtreamSqliteDataSource',
+                'get'
+            ).mockReturnValue(true);
+            const activity = TestBed.inject(SourceActivityService);
+            const playlistId = 'synthetic-source';
+            const selectedCategory = 19;
+            const finishReplacement = refreshed
+                ? activity.begin([playlistId])
+                : undefined;
+            const item: UnifiedCollectionItem = {
+                uid: 'xtream::synthetic-source::live:42',
+                name: 'Synthetic live item',
+                contentType: 'live',
+                sourceType: 'xtream',
+                playlistId,
+                playlistName: 'Synthetic source',
+                contentId: 501,
+                categoryId: selectedCategory,
+                xtreamId: 42,
+            };
+            dbService.getContentByXtreamId.mockImplementation(
+                async (_id, _source, _type, _identity, categoryId) =>
+                    categoryId === selectedCategory
+                        ? { id: rowId }
+                        : { id: 200 }
+            );
+
+            const result =
+                kind === 'single'
+                    ? service.removeRecentItem(item)
+                    : service.removeRecentItemsBatch([item]);
+            try {
+                if (refreshed) {
+                    await Promise.resolve();
+                    expect(
+                        dbService.getContentByXtreamId
+                    ).not.toHaveBeenCalled();
+                    expect(dbService.removeRecentItem).not.toHaveBeenCalled();
+                    expect(
+                        dbService.removeRecentItemsBatch
+                    ).not.toHaveBeenCalled();
+                }
+            } finally {
+                finishReplacement?.();
+            }
+
+            await result;
+            expect(dbService.getContentByXtreamId).toHaveBeenCalledWith(
+                42,
+                playlistId,
+                'live',
+                undefined,
+                selectedCategory,
+                undefined,
+                true
+            );
+            if (kind === 'single')
+                expect(dbService.removeRecentItem).toHaveBeenCalledWith(
+                    rowId,
+                    playlistId
+                );
+            else
+                expect(dbService.removeRecentItemsBatch).toHaveBeenCalledWith([
+                    { contentId: rowId, playlistId },
+                ]);
+            expect(activity.isBusy(playlistId)).toBe(false);
+        }
+    );
 
     it('routes Xtream items through dbService and m3u items through the batch helper', async () => {
         const items: UnifiedCollectionItem[] = [

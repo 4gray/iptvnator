@@ -50,6 +50,14 @@ it('keeps a typed duplicate inside the requested category and source on SQLite',
         results.push((await lookup(db, 42, 'synthetic-a', 'movie', undefined, undefined, true))?.id ?? null);
         setParentalLockActive(false);
         results.push((await lookup(db, 42, 'synthetic-a', 'movie', undefined, undefined, true))?.id ?? null);
+        db.insert(schema.content).values([
+            { id: 83, categoryId: 8, xtreamId: 42, title: 'Synthetic Live', type: 'live' },
+            { id: 93, categoryId: 9, xtreamId: 42, title: 'Synthetic Other Source Live', type: 'live' },
+            { id: 74, categoryId: 7, xtreamId: 44, title: 'Synthetic First Copy', type: 'live' },
+            { id: 84, categoryId: 8, xtreamId: 44, title: 'Synthetic Second Copy', type: 'live' },
+        ]).run();
+        for (const [id, category] of [[42, 7], [44, 7], [44, 9]])
+            results.push((await lookup(db, id, 'synthetic-a', 'live', undefined, category, undefined, true))?.id ?? null);
         console.log(JSON.stringify(results));
         sqlite.close();
     `;
@@ -71,5 +79,19 @@ it('keeps a typed duplicate inside the requested category and source on SQLite',
             }
         )
     );
-    expect(results).toEqual([81, null, null, null, 71, null, 81, 71, null, 71]);
+    expect(results).toEqual([
+        81,
+        null,
+        null,
+        null,
+        71,
+        null,
+        81,
+        71,
+        null,
+        71,
+        83,
+        74,
+        null,
+    ]);
 });

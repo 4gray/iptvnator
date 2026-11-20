@@ -1,14 +1,11 @@
 import { inject, Injectable, signal } from '@angular/core';
 import {
-    normalizeXtreamServerUrl,
+    normalizeXtreamContentTypes,
     PlaylistMeta,
-    XtreamCategory,
     XtreamContentType,
-    XTREAM_REQUEST,
     XTREAM_CONTENT_TYPES,
     xtreamHistoryRecoveryKey,
 } from '@iptvnator/shared/interfaces';
-import { DataService } from './data.service';
 import { DatabaseService } from './database-electron.service';
 import { ParentalLockService } from './parental-lock';
 import { SourceActivityService } from './source-activity.service';
@@ -28,12 +25,10 @@ import {
     completeCatalogHistoryRecovery,
     captureCatalogCacheRecoveryState,
 } from './xtream-catalog-history-recovery';
-
-const actions = {
-    live: ['get_live_categories', 'get_live_streams'],
-    movie: ['get_vod_categories', 'get_vod_streams'],
-    series: ['get_series_categories', 'get_series'],
-} as const;
+import {
+    XtreamCatalogFetchService,
+    type FetchedXtreamCatalog,
+} from './xtream-catalog-fetch.service';
 
 export interface XtreamSelectedCatalogProgress {
     playlistId: string;
@@ -49,10 +44,10 @@ export interface XtreamSelectedCatalogProgress {
     total: number;
 }
 
-/** Desktop edit-time refresh. Unchanged/disabled catalogs are never requested or deleted. */
+/** Replaces selected desktop Xtream catalogs and preserves their user state. */
 @Injectable({ providedIn: 'root' })
 export class XtreamSelectedCatalogRefreshService {
-    private readonly data = inject(DataService);
+    private readonly fetcher = inject(XtreamCatalogFetchService);
     private readonly db = inject(DatabaseService);
     private readonly locks = inject(ParentalLockService);
     private readonly pending = inject(XtreamPendingRestoreService);
@@ -68,11 +63,36 @@ export class XtreamSelectedCatalogRefreshService {
         types: XtreamContentType[],
         beforeReplace?: () => Promise<PlaylistMeta | void>
     ): Promise<void> {
-        if (!types.length) return;
+        await this.replace(playlist, types, beforeReplace);
+    }
+
+    refreshLiveOnStartup(
+        playlist: PlaylistMeta,
+        catalog: FetchedXtreamCatalog,
+        readRetainedCategoryIds?: () => Promise<[number, number][]>
+    ): Promise<boolean> {
+        return this.replace(playlist, ['live'], undefined, {
+            catalog,
+            readRetainedCategoryIds,
+        });
+    }
+
+    private async replace(
+        playlist: PlaylistMeta,
+        types: XtreamContentType[],
+        beforeReplace?: () => Promise<PlaylistMeta | void>,
+        startup?: {
+            catalog: FetchedXtreamCatalog;
+            readRetainedCategoryIds?: () => Promise<[number, number][]>;
+        }
+    ): Promise<boolean> {
+        if (!types.length) return false;
+        const pendingRestore = this.pending.getOrThrow(playlist._id);
+        if (startup && pendingRestore) return false;
         if (
             this.progressState() ||
             this.activity.isBusy(playlist._id) ||
-            this.pending.getOrThrow(playlist._id)
+            pendingRestore
         ) {
             throw new Error(
                 'Finish or retry the current source import before changing the loaded catalogs.'
@@ -89,6 +109,7 @@ export class XtreamSelectedCatalogRefreshService {
         let markersStaged = false;
         let metadataAccepted = false;
         let keepPreparedRecovery = false;
+        let retainedCategoryIds: [number, number][] | undefined;
         const priorStatuses = new Map<XtreamContentType, string | null>();
         const publish = (
             type: XtreamContentType | null,
@@ -104,19 +125,31 @@ export class XtreamSelectedCatalogRefreshService {
                 total,
             });
         try {
+            if (startup) {
+                const current = await this.commit.readCurrent(playlist._id);
+                if (
+                    !current.autoRefresh ||
+                    current.updateDate !== playlist.updateDate ||
+                    !normalizeXtreamContentTypes(
+                        current.xtreamContentTypes
+                    ).includes('live') ||
+                    !sameXtreamCatalogConnection(playlist, current)
+                )
+                    return false;
+                retainedCategoryIds = await startup.readRetainedCategoryIds?.();
+            }
             // Fetch before deleting any cache. A provider failure leaves the saved catalog intact.
-            const catalogs = [];
-            for (const type of types) {
+            const catalogs: FetchedXtreamCatalog[] = startup
+                ? [startup.catalog]
+                : [];
+            for (const type of startup ? [] : types) {
                 publish(type, 'loading-categories');
-                const categories = await this.request<XtreamCategory>(
+                const categories = await this.fetcher.categories(
                     playlist,
-                    actions[type][0]
+                    type
                 );
                 publish(type, 'loading-content');
-                const content = await this.request<Record<string, unknown>>(
-                    playlist,
-                    actions[type][1]
-                );
+                const content = await this.fetcher.content(playlist, type);
                 catalogs.push({ type, categories, content });
             }
             publish(null, 'preparing');
@@ -164,6 +197,7 @@ export class XtreamSelectedCatalogRefreshService {
                 acceptedConnectionChanged = true;
                 throw new XtreamCatalogConnectionChangedError();
             }
+            if (startup) await this.commit.assertCurrent(playlist);
             replacementStarted = true;
             if (markersStaged) types.forEach((type) => incomplete.add(type));
             const invalidated = await this.db.deleteXtreamPlaylistContent(
@@ -196,7 +230,10 @@ export class XtreamSelectedCatalogRefreshService {
                             (category) => category.categoryType === categoryType
                         )
                         .map((category) => category.xtreamId),
-                    this.locks.lockedXtreamIds(playlist._id, categoryType)
+                    this.locks.lockedXtreamIds(playlist._id, categoryType),
+                    ...(retainedCategoryIds
+                        ? ([retainedCategoryIds] as const)
+                        : [])
                 );
                 publish(type, 'saving-content', 0, content.length);
                 const count = await this.db.saveXtreamContent(
@@ -252,6 +289,7 @@ export class XtreamSelectedCatalogRefreshService {
             );
             if (result === 'consume-failed')
                 throw new Error('Could not finish source restore.');
+            return true;
         } catch (error) {
             let rollbackSucceeded = false;
             if (
@@ -376,29 +414,5 @@ export class XtreamSelectedCatalogRefreshService {
             ))
         )
             throw new Error('Could not retain unfinished catalog state.');
-    }
-
-    private async request<T>(
-        playlist: PlaylistMeta,
-        action: string
-    ): Promise<T[]> {
-        const response = await this.data.sendIpcEvent<{
-            type?: string;
-            payload?: unknown;
-        }>(XTREAM_REQUEST, {
-            url: normalizeXtreamServerUrl(playlist.serverUrl ?? ''),
-            ...(playlist.userAgent?.trim()
-                ? { userAgent: playlist.userAgent.trim() }
-                : {}),
-            params: {
-                username: playlist.username?.trim(),
-                password: playlist.password?.trim(),
-                action,
-            },
-        });
-        if (response?.type === 'ERROR' || !Array.isArray(response?.payload)) {
-            throw new Error('The source did not return a valid catalog.');
-        }
-        return response.payload as T[];
     }
 }

@@ -7,6 +7,7 @@ import {
 } from '@iptvnator/portal/shared/data-access';
 import { signal } from '@angular/core';
 import { of } from 'rxjs';
+import { SourceActivityService } from '@iptvnator/services';
 import { HistorySyncClient } from '@iptvnator/services/history-sync';
 import {
     emptyHistoryRecord,
@@ -401,10 +402,12 @@ describe('history provider projections', () => {
                 supportsPortalActivityStorage: true,
                 supportsXtreamSqliteDataSource: true,
             };
+            const activity = new SourceActivityService();
             const recent = Object.assign(
                 Object.create(UnifiedRecentDataService.prototype),
                 {
                     runtime,
+                    activity,
                     history: { active: () => true },
                     xtreamDataSource: dataSource,
                     getPlaylistMeta: async () => ({
@@ -443,6 +446,7 @@ describe('history provider projections', () => {
                     Object.create(UnifiedFavoritesDataService.prototype),
                     {
                         runtime,
+                        activity,
                         xtreamDataSource: dataSource,
                         dbService: { getContentByXtreamId: lookup },
                     }

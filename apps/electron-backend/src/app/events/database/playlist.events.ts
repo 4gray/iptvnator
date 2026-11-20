@@ -64,6 +64,7 @@ handleWorkerRequest(
             userAgent?: string;
             serverUrl?: string;
             lastUpdated?: string;
+            autoRefresh?: boolean;
         }
     ) => ({
         playlistId,

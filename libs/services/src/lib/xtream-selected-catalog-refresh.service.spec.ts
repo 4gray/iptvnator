@@ -162,6 +162,21 @@ describe('edit-time Xtream catalog refresh', () => {
         service = TestBed.inject(XtreamSelectedCatalogRefreshService);
     });
 
+    it('skips replacing startup rows if the option was turned off during the fetch', async () => {
+        const optedIn = { ...playlist, autoRefresh: true };
+        readCurrent.mockResolvedValue({ ...optedIn, autoRefresh: false });
+
+        await expect(
+            service.refreshLiveOnStartup(optedIn, {
+                type: 'live',
+                categories: [],
+                content: [],
+            })
+        ).resolves.toBe(false);
+        expect(db.deleteXtreamPlaylistContent).not.toHaveBeenCalled();
+        expect(release).toHaveBeenCalledTimes(1);
+    });
+
     it('immediately refreshes Movies only and restores history including other types', async () => {
         await service.refresh(playlist, ['movie']);
         expect(

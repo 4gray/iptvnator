@@ -378,10 +378,39 @@ atomic restore is unsupported; exports with no pending favorites remain availabl
 
 Records already deleted by an older build cannot be recovered without a
 surviving pending state or backup. Opening an Xtream section may initialize
-content when its cache is not ready; startup imports and explicit refresh use
-the same durable persistence invariant. This does not add a refresh scheduler.
+content when its cache is not ready. Startup imports, automatic live refresh
+and explicit refresh use the same durable persistence invariant.
 
 ## Desktop catalog selection
+
+### Refresh live channels on startup
+
+The desktop source editor reuses the per-source `autoRefresh` preference for
+Xtream Live TV. On launch, the renderer runs opted-in live refreshes in sequence.
+The app can read the saved catalog while the provider responds. Empty replies
+and replies with missing or invalid live stream IDs leave the cache in place.
+Before replacing live rows, the selected-catalog service waits for source
+activity to finish and rechecks the saved connection, preference and catalog
+selection. A successful refresh
+publishes the saved timestamp so an open Xtream view can reread live rows and
+refresh its search without resetting playback. Open Favorites and Recently
+Viewed reload their rows after the commit. SQLite live favorite toggles,
+playback history writes and item removals wait for in-flight source work.
+They hold the source from channel lookup through the write and resolve the
+current row by provider identity. Collection actions also use the row's SQLite
+category, including removals from the Dashboard. If the channel moves, the
+lookup accepts a single typed match. History recovery also prefers the original
+live category and keeps ambiguous moves pending. Delayed history writes update
+the visible list only when it still belongs to their source.
+The selected live channel is rebound by provider identity to its new SQLite row.
+Retained categories keep their SQLite IDs so playback queues, the guide and
+category history links still point to the same categories. During the launch
+session, a removed category falls back to Live TV. The app replaces that
+history entry after navigation settles and preserves its query parameters.
+Movies and series use their existing catalog
+lifecycle.
+
+### Catalog preferences
 
 Desktop source metadata optionally carries `xtreamContentTypes` using `live`,
 `movie`, and `series`. Missing means all types (legacy behavior); `[]` means

@@ -167,6 +167,7 @@ describe('shared source editor', () => {
             username: 'new-user',
             password: 'new-password',
             userAgent: 'Fixture agent',
+            autoRefresh: false,
             xtreamContentTypes: undefined,
         });
         expect(sqliteUpdate).toHaveBeenCalledTimes(1);

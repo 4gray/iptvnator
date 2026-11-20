@@ -212,13 +212,14 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
     },
     {
         operation: 'DB_SAVE_CATEGORIES',
-        args: [playlistId, categories, 'live', categoryIds, categoryIds],
+        args: [playlistId, categories, 'live', categoryIds, categoryIds, [[17, 42]]],
         payload: {
             playlistId,
             categories,
             type: 'live',
             hiddenCategoryXtreamIds: categoryIds,
             lockedCategoryXtreamIds: categoryIds,
+            retainedCategoryIds: [[17, 42]],
         },
     },
     {
@@ -300,6 +301,17 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
             playlistId,
             contentType: 'movie',
             excludeLocked: true,
+        },
+    },
+    {
+        operation: 'DB_GET_CONTENT_BY_XTREAM_ID',
+        args: [42, playlistId, 'live', undefined, 8, undefined, true],
+        payload: {
+            xtreamId: 42,
+            playlistId,
+            contentType: 'live',
+            categoryId: 8,
+            fallbackToUniqueCategory: true,
         },
     },
     {

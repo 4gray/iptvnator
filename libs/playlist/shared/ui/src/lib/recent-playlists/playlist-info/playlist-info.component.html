@@ -214,6 +214,15 @@
                                 playlistDetails.markAsDirty()
                             "
                         />
+                        <mat-checkbox
+                            class="w-full"
+                            formControlName="autoRefresh"
+                        >
+                            {{
+                                'HOME.PLAYLISTS.INFO_DIALOG.XTREAM_REFRESH_LIVE_ON_STARTUP'
+                                    | translate
+                            }}
+                        </mat-checkbox>
                     }
                     @if (playlist.serverUrl) {
                         <mat-form-field class="w-full">
@@ -712,7 +721,12 @@
                             </div>
                         </section>
                     }
-                    @if (isDesktop && (playlist.url || playlist.filePath)) {
+                    @if (
+                        isDesktop &&
+                        !playlist.serverUrl &&
+                        !playlist.portalUrl &&
+                        (playlist.url || playlist.filePath)
+                    ) {
                         <mat-checkbox
                             class="w-full"
                             formControlName="autoRefresh"

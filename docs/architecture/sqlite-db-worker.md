@@ -317,9 +317,12 @@ and newly available archived entries. Native history mutations update that journ
 in their own transactions, including removal tombstones and explicit clears.
 `DB_RESTORE_XTREAM_USER_DATA` replays the current journal in one transaction so a
 watch or removal cannot be overwritten between replay chunks. This transaction
-contains saved history only; catalog writes keep the row budgets below. The
-renderer acknowledges the journal after deferred state completes, and source
-deletion removes its journal. Explicit backup import resets it before replay.
+contains saved history only; catalog writes keep the row budgets below. For live
+entries the journal remembers the provider category so replay can prefer the
+original copy of a channel listed in multiple categories. If that copy is gone,
+a single match can take its place. The renderer acknowledges the journal after
+deferred state completes, and source deletion removes its journal. Explicit
+backup import resets it before replay.
 
 ### Catalog write batching
 
@@ -358,6 +361,10 @@ the main-process and EPG-worker connections give up after their 5 s
 - Category imports use at most 1,000 rows per `INSERT` to stay below SQLite's
   bound-parameter limit. All statements remain in one transaction, preserving
   provider order and rolling back earlier batches if a later batch fails.
+  Startup live refresh reuses the prior row ID of each retained provider
+  category from that source. New categories use the SQLite sequence. Startup
+  refresh persists the current provider position so sorting by server order
+  continues to match the response. Older rows use the insertion order.
 - A cold content save persists its type's `importing` marker before committing
   any content rows. Failure to persist the marker prevents all content writes;
   only the import owner records completion after the save succeeds.

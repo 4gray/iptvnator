@@ -94,10 +94,43 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
         const deleted = await getAppState(db, key('p'));
         const qJournal = await getAppState(db, key('q'));
         await setAppState(db, 'unrelated-setting', 'kept');
+        db.insert(schema.playlists).values({ id: 'duplicates', name: 'Synthetic duplicates', type: 'xtream' }).run();
+        db.insert(schema.categories).values([
+            { id: 10, playlistId: 'duplicates', xtreamId: 110, name: 'Synthetic first category', type: 'live' },
+            { id: 11, playlistId: 'duplicates', xtreamId: 111, name: 'Synthetic second category', type: 'live' },
+        ]).run();
+        const insertCopies = (firstId, secondId) => db.insert(schema.content).values([
+            { id: firstId, categoryId: 10, xtreamId: 42, title: 'Synthetic first copy', type: 'live' },
+            { id: secondId, categoryId: 11, xtreamId: 42, title: 'Synthetic second copy', type: 'live' },
+        ]).run();
+        insertCopies(51000, 51001);
+        await addRecentItem(db, 51000, 'duplicates');
+        await setAppState(db, key('duplicates'), journal());
+        sqlite.prepare('DELETE FROM content WHERE id IN (51000, 51001)').run();
+        insertCopies(51002, 51003);
+        await restoreXtreamUserData(db, 'duplicates', [], []);
+        const restoredCopy = (await getRecentItems(db, 'duplicates', true)).map(row => row.id);
+        await removeRecentItem(db, 51002, 'duplicates');
+        await restoreXtreamUserData(db, 'duplicates', [], []);
+        const removedCopy = (await getRecentItems(db, 'duplicates', true)).length;
+        await setAppState(db, key('duplicates'), '');
+        db.insert(schema.categories).values({ id: 12, playlistId: 'duplicates', xtreamId: 112, name: 'Synthetic third category', type: 'live' }).run();
+        const liveCopies = entries => db.insert(schema.content).values(entries.map(([id, categoryId, xtreamId]) => ({
+            id, categoryId, xtreamId, title: 'Synthetic live channel', type: 'live'
+        }))).run();
+        liveCopies([[51004, 10, 49], [51005, 10, 50]]);
+        await addRecentItem(db, 51004, 'duplicates');
+        await addRecentItem(db, 51005, 'duplicates');
+        await setAppState(db, key('duplicates'), journal());
+        sqlite.prepare('DELETE FROM content WHERE id IN (51004, 51005)').run();
+        liveCopies([[51006, 11, 49], [51007, 11, 50], [51008, 12, 50]]);
+        await restoreXtreamUserData(db, 'duplicates', [], []);
+        const movedCopy = (await getRecentItems(db, 'duplicates', true)).map(row => row.id);
+        const movedJournal = JSON.parse(await getAppState(db, key('duplicates')));
         await deleteAllPlaylists(db);
         const allDeleted = await getAppState(db, key('q'));
         const setting = await getAppState(db, 'unrelated-setting');
-        console.log(JSON.stringify({ kept, currentTimestamp, returned, resolvedReplay, rejected, rollback, cleared, other, explicit, largeExplicit, lookupRejected, lookupPreserved, globalClear, deleted, qJournal: !!qJournal, allDeleted, setting }));
+        console.log(JSON.stringify({ kept, currentTimestamp, returned, resolvedReplay, rejected, rollback, cleared, other, explicit, largeExplicit, lookupRejected, lookupPreserved, globalClear, deleted, qJournal: !!qJournal, restoredCopy, removedCopy, movedCopy, resolvedMoves: movedJournal.resolved.map(row => row.xtreamId), allDeleted, setting }));
         sqlite.close();
     `;
     const result = JSON.parse(
@@ -134,6 +167,10 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
         globalClear: 0,
         deleted: null,
         qJournal: true,
+        restoredCopy: [51002],
+        removedCopy: 0,
+        movedCopy: [51006],
+        resolvedMoves: [49],
         allDeleted: null,
         setting: 'kept',
     });

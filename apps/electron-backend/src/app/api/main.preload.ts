@@ -936,7 +936,8 @@ const electronApi: ElectronBridgeApi = {
         categories: XtreamCategory[],
         type: string,
         hiddenCategoryXtreamIds?: number[],
-        lockedCategoryXtreamIds?: number[]
+        lockedCategoryXtreamIds?: number[],
+        retainedCategoryIds?: [number, number][]
     ) =>
         ipcRenderer.invoke(
             'DB_SAVE_CATEGORIES',
@@ -944,7 +945,8 @@ const electronApi: ElectronBridgeApi = {
             categories,
             type,
             hiddenCategoryXtreamIds,
-            lockedCategoryXtreamIds
+            lockedCategoryXtreamIds,
+            ...(retainedCategoryIds ? [retainedCategoryIds] as const : [])
         ),
     dbGetAllCategories: (playlistId: string, type: string) =>
         ipcRenderer.invoke('DB_GET_ALL_CATEGORIES', playlistId, type),
@@ -1102,20 +1104,23 @@ const electronApi: ElectronBridgeApi = {
         contentType?: 'live' | 'movie' | 'series',
         identity?: ContentMetadataPatch,
         categoryId?: number,
-        excludeLocked?: boolean
+        excludeLocked?: boolean,
+        fallbackToUniqueCategory?: boolean
     ) =>
         ipcRenderer.invoke(
             'DB_GET_CONTENT_BY_XTREAM_ID',
             xtreamId,
             playlistId,
             contentType,
-            ...(excludeLocked
-                ? [identity, categoryId, true]
-                : categoryId !== undefined
-                  ? [identity, categoryId]
-                  : identity
-                    ? [identity]
-                    : [])
+            ...(fallbackToUniqueCategory
+                ? [identity, categoryId, excludeLocked, true]
+                : excludeLocked
+                  ? [identity, categoryId, true]
+                  : categoryId !== undefined
+                    ? [identity, categoryId]
+                    : identity
+                      ? [identity]
+                      : [])
         ),
     dbSetContentMetadataIfMissing: (
         contentId: number,

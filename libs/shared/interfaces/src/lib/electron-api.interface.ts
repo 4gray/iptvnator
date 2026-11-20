@@ -1150,7 +1150,8 @@ export interface ElectronBridgeApi {
         categories: XtreamCategory[],
         type: string,
         hiddenCategoryXtreamIds?: number[],
-        lockedCategoryXtreamIds?: number[]
+        lockedCategoryXtreamIds?: number[],
+        retainedCategoryIds?: [number, number][]
     ) => Promise<ElectronBridgeResult>;
     dbGetAllCategories: (
         playlistId: string,
@@ -1254,7 +1255,8 @@ export interface ElectronBridgeApi {
         contentType?: ElectronBridgePortalContentType,
         identity?: ContentMetadataPatch,
         categoryId?: number,
-        excludeLocked?: boolean
+        excludeLocked?: boolean,
+        fallbackToUniqueCategory?: boolean
     ) => Promise<ElectronBridgeXtreamContent | null>;
     dbSetContentMetadataIfMissing: (
         contentId: number,

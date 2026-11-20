@@ -4,12 +4,16 @@ import { DestroyRef, inject, Signal } from '@angular/core';
 import {
     patchState,
     signalStoreFeature,
+    type,
     withMethods,
     withState,
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { pipe, switchMap, tap } from 'rxjs';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    SourceActivityService,
+} from '@iptvnator/services';
 import {
     ContentMetadataPatch,
     PortalRecentItem,
@@ -34,6 +38,7 @@ const captureRecentOwner = (playlistId: string) =>
 
 export const withRecentItems = function () {
     return signalStoreFeature(
+        { state: type<{ playlistId: string | null }>() },
         withState<{ recentItems: RecentlyViewedItem[] }>({
             recentItems: [],
         }),
@@ -51,14 +56,16 @@ export const withRecentItems = function () {
                     switchMap(async (playlist) => {
                         const current = captureRecentOwner(playlist.id);
                         refresh = () => {
-                            if (current()) loadRecentItems(playlist);
+                            if (current() && store.playlistId() === playlist.id)
+                                loadRecentItems(playlist);
                         };
                         const { loadXtreamRecent } = await recentOperations();
                         const items = await loadXtreamRecent(
                             dataSource,
                             playlist.id
                         );
-                        if (!current()) return null;
+                        if (!current() || store.playlistId() !== playlist.id)
+                            return null;
                         return items;
                     }),
                     tap((items) => {
@@ -77,7 +84,8 @@ export const withRecentItems = function () {
             (
                 store,
                 dataSource = inject(XTREAM_DATA_SOURCE),
-                runtime = inject(RuntimeCapabilitiesService)
+                runtime = inject(RuntimeCapabilitiesService),
+                activity = inject(SourceActivityService)
             ) => ({
                 addRecentItem: rxMethod<{
                     xtreamId: number | string;
@@ -93,14 +101,23 @@ export const withRecentItems = function () {
                             const current = captureRecentOwner(playlistId);
                             const { recordXtreamRecent } =
                                 await recentOperations();
-                            if (!current()) return;
-                            const items = await recordXtreamRecent(
-                                dataSource,
-                                runtime.supportsXtreamSqliteDataSource,
-                                { ...item, playlistId },
-                                current
-                            );
-                            if (items)
+                            const sqlite =
+                                runtime.supportsXtreamSqliteDataSource;
+                            const write = () =>
+                                recordXtreamRecent(
+                                    dataSource,
+                                    sqlite,
+                                    { ...item, playlistId },
+                                    current
+                                );
+                            const items =
+                                sqlite && item.contentType === 'live'
+                                    ? await activity.runWhenIdle(
+                                          playlistId,
+                                          write
+                                      )
+                                    : await write();
+                            if (items && store.playlistId() === playlistId)
                                 patchState(store, {
                                     recentItems: items,
                                 });
@@ -140,7 +157,8 @@ export const withRecentItems = function () {
                     pipe(
                         switchMap(async (playlist) => {
                             await dataSource.clearRecentItems(playlist.id);
-                            patchState(store, { recentItems: [] });
+                            if (store.playlistId() === playlist.id)
+                                patchState(store, { recentItems: [] });
                         })
                     )
                 ),
@@ -157,7 +175,8 @@ export const withRecentItems = function () {
                                 dataSource,
                                 item
                             );
-                            patchState(store, { recentItems: items });
+                            if (store.playlistId() === item.playlistId)
+                                patchState(store, { recentItems: items });
                         })
                     )
                 ),
