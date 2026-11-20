@@ -357,8 +357,29 @@ export class EpgQueryService {
                 })
                 .from(schema.epgChannels)
                 .orderBy(schema.epgChannels.displayName);
+            const aliases = await db
+                .select({
+                    id: schema.epgChannelNames.channelId,
+                    displayName: schema.epgChannelNames.displayName,
+                })
+                .from(schema.epgChannelNames)
+                .orderBy(schema.epgChannelNames.displayName);
+            const namesById = new Map<string, Set<string>>();
+            for (const channel of [...channels, ...aliases]) {
+                const names = namesById.get(channel.id) ?? new Set<string>();
+                names.add(channel.displayName);
+                namesById.set(channel.id, names);
+            }
+            const indexedChannels = [...namesById].flatMap(([id, names]) =>
+                [...names].map((displayName) => ({ id, displayName }))
+            );
+            indexedChannels.sort(
+                (left, right) =>
+                    left.displayName.localeCompare(right.displayName) ||
+                    left.id.localeCompare(right.id)
+            );
 
-            return { channels, programs: [] };
+            return { channels: indexedChannels, programs: [] };
         } catch (error) {
             epgLogger.error(
                 this.loggerLabel,

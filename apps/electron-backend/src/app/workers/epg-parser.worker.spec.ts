@@ -51,8 +51,9 @@ const channelId = 'café-東京-📺';
 const channelName = 'Новости café 東京 📺';
 const title = 'Été 日本 🎬';
 const description = 'Программа café 東京 📻';
+const channelAlias = 'Synthetic Alternate Name';
 const xml = `<?xml version="1.0" encoding="UTF-8"?><tv>
-<channel id="${channelId}"><display-name>${channelName}</display-name></channel>
+<channel id="${channelId}"><display-name>${channelName}</display-name><display-name lang="es">${channelAlias}</display-name></channel>
 <programme start="20261015080000 +0000" stop="20261015090000 +0000" channel="${channelId}"><title>${title}</title><desc>${description}</desc></programme>
 </tv>`;
 
@@ -82,7 +83,10 @@ describe('EPG worker UTF-8 input', () => {
             expect(storedChannels()).toEqual([
                 expect.objectContaining({
                     id: channelId,
-                    displayName: [{ lang: '', value: channelName }],
+                    displayName: [
+                        { lang: '', value: channelName },
+                        { lang: 'es', value: channelAlias },
+                    ],
                 }),
             ]);
             expect(storedPrograms()).toEqual([

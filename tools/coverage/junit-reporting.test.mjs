@@ -19,7 +19,7 @@ import { JSDOM } from 'jsdom';
 const workspaceRoot = fileURLToPath(new URL('../../', import.meta.url));
 
 it('collects coverage and separate JUnit failures for inferred Jest and explicit commands', () => {
-    const root = realpathSync(
+    const root = realpathSync.native(
         mkdtempSync(path.join(tmpdir(), 'iptvnator-junit-'))
     );
     const projects = [
@@ -89,7 +89,9 @@ it('collects coverage and separate JUnit failures for inferred Jest and explicit
                 `module.exports = ${JSON.stringify({
                     rootDir: project.jestRootMode === 'workspace' ? root : '.',
                     testMatch: [
-                        path.join(root, project.sourceRoot, '*.spec.ts'),
+                        project.jestRootMode === 'workspace'
+                            ? '<rootDir>/apps/commands/src/*.spec.ts'
+                            : '<rootDir>/src/*.spec.ts',
                     ],
                     transform: {},
                     coverageReporters: ['json', 'json-summary'],

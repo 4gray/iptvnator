@@ -85,6 +85,8 @@ export function withEpg() {
             xtream_id?: number | null;
             epg_channel_id?: string | null;
             tv_archive_duration?: number | string | null;
+            name?: string | null;
+            title?: string | null;
         } | null;
     };
 
@@ -212,6 +214,10 @@ export function withEpg() {
                                 {
                                     archiveDays:
                                         selectedItem?.tv_archive_duration,
+                                    channelName:
+                                        selectedItem?.name ??
+                                        selectedItem?.title ??
+                                        null,
                                 }
                             ));
 

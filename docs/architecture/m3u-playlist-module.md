@@ -2057,6 +2057,13 @@ before publication leaves the previous guide available. Temporary rows disappear
 when the worker connection closes. Downloads do not hold the live database write lock, and the
 final commit reads bounded batches instead of loading the whole feed into JS
 memory. The existing source isolation and seven-day archive policy still apply.
+Every XMLTV `<display-name>` is stored as a source-scoped channel alias in
+`epg_channel_names`; `epg_channels.display_name` remains the primary name. The
+alias table is created by the normal additive database initialization, and each
+successful source replacement replaces only that source's aliases. A guide
+already imported before this table existed must be refreshed or reimported to
+recover its alternate names. Name-based EPG lookup indexes both primary names
+and aliases and retains distinct XMLTV IDs when an alias is shared.
 UTF-8 decoding retains partial code points across decoded stream chunks. Progress
 counts describe staged rows, not visible rows; success is sent only after commit
 and connection close. An empty feed remains an error. Channel-only feeds keep

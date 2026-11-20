@@ -61,6 +61,54 @@ function createEpgDatabaseMock(
 }
 
 describe('EpgDatabase', () => {
+    it('stores distinct nonempty display names and keeps the first as primary', () => {
+        const sourceUrl = 'https://example.com/guide.xml';
+        const { Database, database, statements } = createEpgDatabaseMock();
+        const epgDb = new EpgDatabase(Database);
+        epgDb.insertChannels(
+            [{
+                id: 'aliases.channel',
+                displayName: [
+                    { lang: '', value: 'Primary Name' },
+                    { lang: 'es', value: 'Alias Name' },
+                    { lang: 'en', value: 'Alias Name' },
+                    { lang: '', value: '   ' },
+                ],
+                icon: [],
+                url: [],
+            }],
+            sourceUrl
+        );
+
+        const primarySql = database.prepare.mock.calls
+            .map(([sql]) => normalizeSql(sql))
+            .find((sql) => sql.startsWith('INSERT INTO epg_channels'));
+        const aliasSql =
+            'INSERT OR IGNORE INTO epg_channel_names (channel_id, source_url, display_name) VALUES (?, ?, ?)';
+
+        if (!primarySql) throw new Error('Primary channel insert was not prepared');
+        expect(statements.get(primarySql)).toHaveBeenCalledWith(
+            'aliases.channel',
+            'Primary Name',
+            null,
+            null,
+            sourceUrl
+        );
+        expect(statements.get(aliasSql)).toHaveBeenCalledTimes(2);
+        expect(statements.get(aliasSql)).toHaveBeenNthCalledWith(
+            1,
+            'aliases.channel',
+            sourceUrl,
+            'Primary Name'
+        );
+        expect(statements.get(aliasSql)).toHaveBeenNthCalledWith(
+            2,
+            'aliases.channel',
+            sourceUrl,
+            'Alias Name'
+        );
+    });
+
     it('refreshes a source selectively, keeping the recent past-programme archive', () => {
         const sourceUrl = 'https://example.com/playlist-guide.xml';
         const { Database, database, statements } = createEpgDatabaseMock();
@@ -234,6 +282,7 @@ describe('EpgDatabaseClearOperation', () => {
         expect(exec.mock.calls.map(([statement]) => statement)).toEqual([
             'BEGIN',
             'DELETE FROM epg_programs',
+            'DELETE FROM epg_channel_names',
             'DELETE FROM epg_channel_sources',
             'DELETE FROM epg_channels',
             'COMMIT',
@@ -255,6 +304,7 @@ describe('EpgDatabaseClearOperation', () => {
         expect(exec.mock.calls.map(([statement]) => statement)).toEqual([
             'BEGIN',
             'DELETE FROM epg_programs',
+            'DELETE FROM epg_channel_names',
             'DELETE FROM epg_channel_sources',
             'DELETE FROM epg_channels',
             'ROLLBACK',
@@ -274,6 +324,8 @@ describe('EpgDatabaseSourceClearOperation', () => {
         );
         const deleteProgramsSql =
             'DELETE FROM epg_programs WHERE source_url = ?';
+        const deleteAliasesSql =
+            'DELETE FROM epg_channel_names WHERE source_url = ?';
         const deleteOrphanChannelsSql = normalizeSql(`
             DELETE FROM epg_channels
             WHERE source_url = ?
@@ -289,11 +341,15 @@ describe('EpgDatabaseSourceClearOperation', () => {
         `);
 
         expect(preparedSql).toContain(deleteProgramsSql);
+        expect(preparedSql).toContain(deleteAliasesSql);
         expect(preparedSql).toContain(deleteOrphanChannelsSql);
         expect(preparedSql).not.toContain(
             'DELETE FROM epg_channels WHERE source_url = ?'
         );
         expect(statements.get(deleteProgramsSql)).toHaveBeenCalledWith(
+            sourceUrl
+        );
+        expect(statements.get(deleteAliasesSql)).toHaveBeenCalledWith(
             sourceUrl
         );
         expect(statements.get(deleteOrphanChannelsSql)).toHaveBeenCalledWith(

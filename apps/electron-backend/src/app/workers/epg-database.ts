@@ -13,7 +13,9 @@ export class EpgDatabase {
     private readonly knownChannelIds = new Set<string>();
     private readonly insertChannelStmt: BetterSqlite3.Statement;
     private readonly insertChannelSourceStmt: BetterSqlite3.Statement;
+    private readonly insertChannelNameStmt: BetterSqlite3.Statement;
     private readonly deleteChannelSourcesStmt: BetterSqlite3.Statement;
+    private readonly deleteChannelNamesStmt: BetterSqlite3.Statement;
     private readonly insertProgramStmt: BetterSqlite3.Statement;
     private readonly deleteOrphanChannelsForSourceStmt: BetterSqlite3.Statement;
     private readonly deleteTodayAndFutureStmt: BetterSqlite3.Statement;
@@ -49,8 +51,16 @@ export class EpgDatabase {
                 updated_at = excluded.updated_at,
                 write_order = excluded.write_order
         `);
+        this.insertChannelNameStmt = this.db.prepare(`
+            INSERT OR IGNORE INTO epg_channel_names
+                (channel_id, source_url, display_name)
+            VALUES (?, ?, ?)
+        `);
         this.deleteChannelSourcesStmt = this.db.prepare(
             'DELETE FROM epg_channel_sources WHERE source_url = ?'
+        );
+        this.deleteChannelNamesStmt = this.db.prepare(
+            'DELETE FROM epg_channel_names WHERE source_url = ?'
         );
 
         // Guard against duplicate entries when the clearFirst logic misses old
@@ -117,6 +127,7 @@ export class EpgDatabase {
             if (clearTodayAndFuture) {
                 restoreSurvivingChannelMetadata(this.db, sourceUrl);
                 this.deleteTodayAndFutureStmt.run(sourceUrl);
+                this.deleteChannelNamesStmt.run(sourceUrl);
                 this.deleteChannelSourcesStmt.run(sourceUrl);
                 this.deleteOrphanChannelsForSourceStmt.run(sourceUrl);
                 this.knownChannelIds.clear();
@@ -143,6 +154,21 @@ export class EpgDatabase {
                     sourceUrl,
                     channel.id
                 );
+                const displayNames = new Set(
+                    (channel.displayName ?? [])
+                        .map(({ value }) => value.trim())
+                        .filter(Boolean)
+                );
+                if (!displayNames.size) displayNames.add(displayName.trim());
+                for (const name of displayNames) {
+                    if (name) {
+                        this.insertChannelNameStmt.run(
+                            channel.id,
+                            sourceUrl,
+                            name
+                        );
+                    }
+                }
                 this.knownChannelIds.add(channel.id);
             }
         });
@@ -275,6 +301,7 @@ export class EpgDatabaseClearOperation {
         this.db.exec('BEGIN');
         try {
             this.db.exec('DELETE FROM epg_programs');
+            this.db.exec('DELETE FROM epg_channel_names');
             this.db.exec('DELETE FROM epg_channel_sources');
             this.db.exec('DELETE FROM epg_channels');
             this.db.exec('COMMIT');
@@ -296,6 +323,7 @@ export class EpgDatabaseSourceClearOperation {
 
     constructor(Database: typeof BetterSqlite3) {
         this.db = new Database(getIptvnatorDatabasePath());
+        this.db.pragma('foreign_keys = ON');
         this.db.pragma('busy_timeout = 5000');
 
         this.deleteProgramsForSourceStmt = this.db.prepare(`
@@ -327,6 +355,9 @@ export class EpgDatabaseSourceClearOperation {
             // Capture affected IDs while removed-source provenance still exists.
             restoreSurvivingChannelMetadata(this.db, url);
             this.deleteProgramsForSourceStmt.run(url);
+            this.db
+                .prepare('DELETE FROM epg_channel_names WHERE source_url = ?')
+                .run(url);
             this.db
                 .prepare('DELETE FROM epg_channel_sources WHERE source_url = ?')
                 .run(url);

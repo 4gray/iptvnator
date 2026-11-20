@@ -9,6 +9,7 @@
 
 import { sql } from 'drizzle-orm';
 import {
+    foreignKey,
     index,
     integer,
     primaryKey,
@@ -246,6 +247,30 @@ export const epgChannelSources = sqliteTable(
     (table) => [
         primaryKey({ columns: [table.channelId, table.sourceUrl] }),
         index('idx_epg_channel_sources_source').on(table.sourceUrl),
+    ]
+);
+
+/** Every XMLTV display-name, scoped to the source that declared the alias. */
+export const epgChannelNames = sqliteTable(
+    'epg_channel_names',
+    {
+        channelId: text('channel_id').notNull(),
+        sourceUrl: text('source_url').notNull(),
+        displayName: text('display_name').notNull(),
+    },
+    (table) => [
+        primaryKey({
+            columns: [table.channelId, table.sourceUrl, table.displayName],
+        }),
+        foreignKey({
+            columns: [table.channelId, table.sourceUrl],
+            foreignColumns: [
+                epgChannelSources.channelId,
+                epgChannelSources.sourceUrl,
+            ],
+        }).onDelete('cascade'),
+        index('idx_epg_channel_names_source').on(table.sourceUrl),
+        index('idx_epg_channel_names_display_name').on(table.displayName),
     ]
 );
 

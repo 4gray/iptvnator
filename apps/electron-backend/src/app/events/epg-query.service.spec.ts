@@ -122,6 +122,41 @@ describe('EpgQueryService', () => {
         ).rejects.toThrow('XMLTV schedule unavailable');
     });
 
+    it('returns each primary XMLTV name and each distinct source alias to the renderer', async () => {
+        const primaryRows = [
+            { id: 'chap1', displayName: 'M+ Liga de Campeones 2' },
+            { id: 'single.name', displayName: 'Single Name' },
+        ];
+        const aliasRows = [
+            { id: 'chap1', displayName: 'M+ LCAMPEONES 2 HD' },
+            { id: 'chap1', displayName: 'M+ Liga de Campeones 2' },
+            { id: 'chap2', displayName: 'M+ LCAMPEONES 2 HD' },
+        ];
+        const select = jest
+            .fn()
+            .mockReturnValueOnce({
+                from: jest.fn(() => ({
+                    orderBy: jest.fn().mockResolvedValue(primaryRows),
+                })),
+            })
+            .mockReturnValueOnce({
+                from: jest.fn(() => ({
+                    orderBy: jest.fn().mockResolvedValue(aliasRows),
+                })),
+            });
+        getDatabase.mockResolvedValue({ select });
+
+        await expect(service.getAllChannels()).resolves.toEqual({
+            channels: [
+                { id: 'chap1', displayName: 'M+ LCAMPEONES 2 HD' },
+                { id: 'chap2', displayName: 'M+ LCAMPEONES 2 HD' },
+                { id: 'chap1', displayName: 'M+ Liga de Campeones 2' },
+                { id: 'single.name', displayName: 'Single Name' },
+            ],
+            programs: [],
+        });
+    });
+
     it('scopes display-name current program fallback by program source ownership for shared channels', async () => {
         const whereCalls: unknown[] = [];
         const select = jest

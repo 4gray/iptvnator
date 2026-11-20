@@ -411,6 +411,55 @@ describe('XtreamEpgGuideSourceService', () => {
         expect(load).toHaveBeenCalledTimes(1);
     });
 
+    it('passes the same display name used by row fallback into the full guide lookup', async () => {
+        const channel = {
+            ...one,
+            name: 'Synthetic XMLTV Alias',
+            title: 'Synthetic Provider Title',
+        };
+
+        await service.playbackSchedule(channel);
+
+        expect(load).toHaveBeenCalledWith(
+            playlist,
+            channel.xtream_id,
+            channel.epg_channel_id,
+            expect.objectContaining({
+                archiveDays: 7,
+                channelName: 'Synthetic XMLTV Alias',
+            })
+        );
+    });
+
+    it('does not return a previous channel schedule after switching channels mid-request', async () => {
+        const finishByStream = new Map<
+            number,
+            (items: EpgItem[]) => void
+        >();
+        load.mockImplementation(
+            async (...args) => {
+                const streamId = args[1] as number;
+                return new Promise((resolve) =>
+                    finishByStream.set(streamId, resolve)
+                );
+            }
+        );
+        const previousSignal = new AbortController();
+        const previous = service.playbackSchedule(one, previousSignal.signal);
+        expect(finishByStream.has(one.xtream_id)).toBe(true);
+
+        previousSignal.abort();
+        const next = service.playbackSchedule(two);
+        const nextSchedule = [program(two.xtream_id)];
+        finishByStream.get(two.xtream_id)?.(nextSchedule);
+        await expect(next).resolves.toBe(nextSchedule);
+
+        const staleSchedule = [program(one.xtream_id)];
+        finishByStream.get(one.xtream_id)?.(staleSchedule);
+        await expect(previous).rejects.toMatchObject({ name: 'AbortError' });
+        expect(service.playingScheduleItems()).not.toBe(staleSchedule);
+    });
+
     it('refreshes the playing copy when a catalogue recheck changes its EPG ID', async () => {
         service.setPlayback(one, true);
         const initial = [program(1)];

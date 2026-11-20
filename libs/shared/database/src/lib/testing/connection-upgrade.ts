@@ -226,6 +226,40 @@ async function main() {
             VALUES (43, 1, 'deleted-playlist', '2024-01-01')`);
         legacy.pragma('foreign_keys = ON');
     }
+    if (process.argv[3] === 'epg-alias-preserve') {
+        legacy.exec(`
+            INSERT INTO epg_channels (id, display_name, source_url)
+            VALUES ('legacy.epg', 'Legacy primary name', 'legacy-source');
+            INSERT INTO epg_channel_sources
+                (channel_id, source_url, display_name)
+            VALUES ('legacy.epg', 'legacy-source', 'Legacy primary name');
+            INSERT INTO epg_programs
+                (channel_id, start, stop, title, source_url)
+            VALUES (
+                'legacy.epg',
+                '2026-01-01T10:00:00.000Z',
+                '2026-01-01T11:00:00.000Z',
+                'Legacy guide programme',
+                'legacy-source'
+            );
+        `);
+    }
+    const existingEpgRows =
+        process.argv[3] === 'epg-alias-preserve'
+            ? {
+                  channels: legacy
+                      .prepare('SELECT * FROM epg_channels ORDER BY id')
+                      .all(),
+                  sources: legacy
+                      .prepare(
+                          'SELECT * FROM epg_channel_sources ORDER BY channel_id, source_url'
+                      )
+                      .all(),
+                  programmes: legacy
+                      .prepare('SELECT * FROM epg_programs ORDER BY id')
+                      .all(),
+              }
+            : null;
     const before = snapshot(legacy);
     const originalViolations = foreignKeyViolations(legacy);
     if (process.argv[3] === 'deduplicate') {
@@ -245,6 +279,34 @@ async function main() {
             const sqlite = new Database(databasePath);
             try {
                 verifyCurrentSchema(sqlite);
+                if (existingEpgRows) {
+                    assert.deepEqual(
+                        {
+                            channels: sqlite
+                                .prepare('SELECT * FROM epg_channels ORDER BY id')
+                                .all(),
+                            sources: sqlite
+                                .prepare(
+                                    'SELECT * FROM epg_channel_sources ORDER BY channel_id, source_url'
+                                )
+                                .all(),
+                            programmes: sqlite
+                                .prepare('SELECT * FROM epg_programs ORDER BY id')
+                                .all(),
+                        },
+                        existingEpgRows,
+                        'adding the alias table must preserve existing guide rows'
+                    );
+                    assert.equal(
+                        (
+                            sqlite
+                                .prepare('SELECT COUNT(*) AS count FROM epg_channel_names')
+                                .get() as { count: number }
+                        ).count,
+                        0,
+                        'an upgrade creates the alias table without inventing aliases'
+                    );
+                }
                 const policy = sqlite
                     .prepare(
                         "SELECT auto_import_epg AS value FROM playlists WHERE id = 'saved'"
