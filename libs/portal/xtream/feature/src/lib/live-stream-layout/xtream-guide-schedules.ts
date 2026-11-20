@@ -107,7 +107,11 @@ export function injectXtreamGuideSchedules(
                         playlist,
                         item.xtream_id,
                         item.epg_channel_id ?? null,
-                        { ...options, archiveDays: getXtreamCatchupDays(item) }
+                        {
+                            ...options,
+                            archiveDays: getXtreamCatchupDays(item),
+                            channelName: item.name ?? item.title ?? null,
+                        }
                     );
                     return { items, programs: items.map(toSharedEpgProgram) };
                 },

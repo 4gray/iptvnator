@@ -24,18 +24,24 @@ export class XtreamFullEpgService {
         epgChannelId: string | null,
         options?: Pick<XtreamRequestOptions, 'signal' | 'sessionId'> & {
             archiveDays?: number | string | null;
+            channelName?: string | null;
         }
     ): Promise<EpgItem[]> {
         const { archiveDays, ...requestOptions } = options ?? {};
         requestOptions.signal?.throwIfAborted();
         const preferUploaded =
             this.settings.preferUploadedEpgOverXtream?.() ?? false;
+        let manualEpgMapping = false;
         if (this.runtime.supportsEpgMapping && id) {
             try {
                 const mapping = await window.electron?.getEpgMapping?.(
                     buildXtreamEpgMappingKey(id, streamId)
                 );
-                epgChannelId = mapping?.epgChannelId?.trim() || epgChannelId;
+                const mappedId = mapping?.epgChannelId?.trim();
+                if (mappedId) {
+                    epgChannelId = mappedId;
+                    manualEpgMapping = true;
+                }
             } catch {
                 // Keep the provider's EPG identifier if mapping lookup fails.
             }
@@ -43,6 +49,8 @@ export class XtreamFullEpgService {
 
         return this.xmltv.resolveCurrentEpg({
             epgChannelId,
+            channelName: options?.channelName,
+            manualEpgMapping,
             preferUploaded,
             signal: requestOptions.signal,
             archiveDays: Math.max(0, Number(archiveDays) || 0),

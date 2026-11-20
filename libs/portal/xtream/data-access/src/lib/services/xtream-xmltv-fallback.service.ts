@@ -224,33 +224,87 @@ export class XtreamXmltvFallbackService {
      */
     async resolveCurrentEpg(args: {
         epgChannelId: string | null | undefined;
+        channelName?: string | null;
+        /** Explicit user mappings are authoritative, even when empty. */
+        manualEpgMapping?: boolean;
         preferUploaded: boolean;
         archiveDays?: number;
         fetchProvider: () => Promise<EpgItem[]>;
         signal?: AbortSignal;
     }): Promise<EpgItem[]> {
         args.signal?.throwIfAborted();
-        const id = (args.epgChannelId ?? '').trim();
-
-        if (!id) return args.fetchProvider();
-        const readXmltv = () => {
-            args.signal?.throwIfAborted();
-            return this.getProgramsForChannel(id, args.archiveDays);
-        };
-
-        const primary = args.preferUploaded ? readXmltv : args.fetchProvider;
-        const fallback = args.preferUploaded ? args.fetchProvider : readXmltv;
-
+        const id = normalizeEpgChannelId(args.epgChannelId);
+        let programs: EpgItem[] = [];
+        let initialError: unknown;
+        let hasInitialError = false;
         try {
-            const programs = await primary();
-            if (programs.length) return programs;
+            if (!id) {
+                programs = await args.fetchProvider();
+            } else {
+                const readXmltv = () => {
+                    args.signal?.throwIfAborted();
+                    return this.getProgramsForChannel(id, args.archiveDays);
+                };
+                const primary = args.preferUploaded
+                    ? readXmltv
+                    : args.fetchProvider;
+                const fallback = args.preferUploaded
+                    ? args.fetchProvider
+                    : readXmltv;
+                try {
+                    programs = await primary();
+                } catch (error) {
+                    if (error instanceof Error && error.name === 'AbortError')
+                        throw error;
+                    programs = await fallback();
+                    if (!programs.length) throw error;
+                }
+                if (!programs.length) programs = await fallback();
+            }
+            args.signal?.throwIfAborted();
         } catch (error) {
             if (error instanceof Error && error.name === 'AbortError')
                 throw error;
-            const programs = await fallback();
-            if (!programs.length) throw error;
+            initialError = error;
+            hasInitialError = true;
+        }
+
+        if (programs.length || args.manualEpgMapping || !args.channelName?.trim()) {
+            if (hasInitialError) throw initialError;
             return programs;
         }
-        return fallback();
+
+        const namePrograms = await this.getProgramsByName(
+            args.channelName,
+            id,
+            args.archiveDays,
+            args.signal
+        );
+        if (namePrograms?.length) return namePrograms;
+        if (hasInitialError) throw initialError;
+        return programs;
     }
+
+    private async getProgramsByName(
+        channelName: string,
+        currentId: string,
+        archiveDays?: number,
+        signal?: AbortSignal
+    ): Promise<EpgItem[] | null> {
+        signal?.throwIfAborted();
+        const name = channelName.trim();
+        if (!name) return null;
+        const idsByName = await this.findChannelIdsByName([name]);
+        signal?.throwIfAborted();
+        const id = idsByName[normalizeEpgName(name)]?.trim();
+        if (!id || id === currentId) return null;
+        const programs = await this.getProgramsForChannel(id, archiveDays);
+        signal?.throwIfAborted();
+        return programs;
+    }
+}
+
+function normalizeEpgChannelId(value: string | null | undefined): string {
+    const id = (value ?? '').trim();
+    return id.toUpperCase() === 'NULL' ? '' : id;
 }
