@@ -1,15 +1,10 @@
 /**
- * Real-SQLite scenarios for content-title-fts.ts, one per process. Run under
- * Electron as Node (better-sqlite3 is built for Electron's ABI) by
- * content-title-fts.spec.ts:
- *
- *   electron --import tsx content-title-fts-scenarios.ts <scenario> <dir>
- *
- * Prints `verified` on success. Synthetic titles only.
+ * Real-SQLite scenarios for content-title-fts.ts, run one per process by
+ * content-title-fts-scenarios-cli.ts. `open` returns a new connection to the
+ * same WAL database on every call. Synthetic titles only.
  */
 import assert from 'node:assert/strict';
-import { join } from 'node:path';
-import Database from 'better-sqlite3';
+import type Database from 'better-sqlite3';
 import {
     buildContentTitleFtsBatch,
     CONTENT_TITLE_FTS_BUILD_CURSOR_KEY,
@@ -25,11 +20,7 @@ type Sqlite = Database.Database;
 const ROWS = 120;
 const LIMIT = { startupRebuildLimit: 50 };
 
-function open(dir: string): Sqlite {
-    const sqlite = new Database(join(dir, 'fts.db'));
-    sqlite.pragma('journal_mode = WAL');
-    return sqlite;
-}
+export type OpenScenarioDatabase = () => Sqlite;
 
 /** A catalog as 0.22 (`indexed`) or 0.21 (`unindexed`) left it. */
 function legacyProfile(sqlite: Sqlite, kind: 'indexed' | 'unindexed') {
@@ -140,6 +131,20 @@ function verifyFinished(sqlite: Sqlite, folded = true) {
     assert.equal(prepareContentTitleFts(sqlite, LIMIT), 'current');
 }
 
+/** Makes `exec` throw for SQL containing `fragment`; returns the undo. */
+function failExec(sqlite: Sqlite, fragment: string): () => void {
+    const exec = sqlite.exec;
+    sqlite.exec = ((sql: string) => {
+        if (sql.includes(fragment)) {
+            throw new Error('parse error in tokenize directive');
+        }
+        return exec.call(sqlite, sql);
+    }) as typeof sqlite.exec;
+    return () => {
+        sqlite.exec = exec;
+    };
+}
+
 /** Writes on both sides of the cursor, from another connection. */
 function writeDuringBuild(writer: Sqlite) {
     writer.exec(`UPDATE content SET title = 'Amélie renamed' WHERE id = 1`);
@@ -150,15 +155,18 @@ function writeDuringBuild(writer: Sqlite) {
     writer.exec(`INSERT INTO content (title) VALUES ('Amélie appended')`);
 }
 
-const scenarios: Record<string, (dir: string) => void> = {
-    'small catalog rebuilds at startup': (dir) => {
-        const sqlite = open(dir);
+export const contentTitleFtsScenarios: Record<
+    string,
+    (open: OpenScenarioDatabase) => void
+> = {
+    'small catalog rebuilds at startup': (open) => {
+        const sqlite = open();
         legacyProfile(sqlite, 'indexed');
         assert.equal(prepareContentTitleFts(sqlite), 'rebuilt');
         verifyFinished(sqlite);
     },
-    'kill switch rebuilds a large catalog at startup': (dir) => {
-        const sqlite = open(dir);
+    'kill switch rebuilds a large catalog at startup': (open) => {
+        const sqlite = open();
         legacyProfile(sqlite, 'indexed');
         assert.equal(
             prepareContentTitleFts(sqlite, { startupRebuildLimit: Infinity }),
@@ -166,15 +174,15 @@ const scenarios: Record<string, (dir: string) => void> = {
         );
         verifyFinished(sqlite);
     },
-    'large 0.22 catalog builds in batches beside the live index': (dir) => {
-        const sqlite = open(dir);
+    'large 0.22 catalog builds in batches beside the live index': (open) => {
+        const sqlite = open();
         legacyProfile(sqlite, 'indexed');
         assert.equal(prepareContentTitleFts(sqlite, LIMIT), 'deferred');
         // Search keeps the live, unfolded index meanwhile.
         assert.equal(liveSql(sqlite).includes('remove_diacritics'), false);
         assert.deepEqual(match(sqlite, 'Amélie'), expected(sqlite, /Amélie/));
         assert.deepEqual(match(sqlite, 'amelie'), []);
-        const writer = open(dir);
+        const writer = open();
         buildToEnd(sqlite, (batch) => {
             if (batch === 2) writeDuringBuild(writer);
             // The live index stays complete through the build.
@@ -186,8 +194,8 @@ const scenarios: Record<string, (dir: string) => void> = {
         writer.close();
         verifyFinished(sqlite);
     },
-    'interrupted build keeps the live index and resumes': (dir) => {
-        let sqlite = open(dir);
+    'interrupted build keeps the live index and resumes': (open) => {
+        let sqlite = open();
         legacyProfile(sqlite, 'indexed');
         prepareContentTitleFts(sqlite, LIMIT);
         buildContentTitleFtsBatch(sqlite, 25);
@@ -200,7 +208,7 @@ const scenarios: Record<string, (dir: string) => void> = {
         );
         sqlite.close();
 
-        sqlite = open(dir);
+        sqlite = open();
         assert.equal(state(sqlite, CONTENT_TITLE_FTS_BUILD_CURSOR_KEY), '50');
         assert.deepEqual(match(sqlite, 'Amélie'), expected(sqlite, /Amélie/));
         sqlite.exec(`UPDATE content SET title = 'Amélie between' WHERE id = 2`);
@@ -209,8 +217,8 @@ const scenarios: Record<string, (dir: string) => void> = {
         assert.equal(buildToEnd(sqlite), 3);
         verifyFinished(sqlite);
     },
-    'large 0.21 catalog without an index stays consistent': (dir) => {
-        const sqlite = open(dir);
+    'large 0.21 catalog without an index stays consistent': (open) => {
+        const sqlite = open();
         legacyProfile(sqlite, 'unindexed');
         assert.equal(prepareContentTitleFts(sqlite, LIMIT), 'deferred');
         // The never-built live index takes no deletes it cannot verify.
@@ -221,29 +229,23 @@ const scenarios: Record<string, (dir: string) => void> = {
             )
             .get() as { n: number };
         assert.equal(live.n, 0);
-        const writer = open(dir);
+        const writer = open();
         buildToEnd(sqlite, (batch) => {
             if (batch === 1) writeDuringBuild(writer);
         });
         writer.close();
         verifyFinished(sqlite);
     },
-    'runtime without diacritic folding builds the plain index': (dir) => {
-        const sqlite = open(dir);
+    'runtime without diacritic folding builds the plain index': (open) => {
+        const sqlite = open();
         legacyProfile(sqlite, 'unindexed');
-        const exec = sqlite.exec.bind(sqlite);
-        sqlite.exec = ((sql: string) => {
-            if (sql.includes('remove_diacritics')) {
-                throw new Error('parse error in tokenize directive');
-            }
-            return exec(sql);
-        }) as typeof sqlite.exec;
+        failExec(sqlite, 'remove_diacritics');
         assert.equal(prepareContentTitleFts(sqlite, LIMIT), 'deferred');
         buildToEnd(sqlite);
         verifyFinished(sqlite, false);
     },
-    'a done marker over an unfolded live index is not trusted': (dir) => {
-        const sqlite = open(dir);
+    'a done marker over an unfolded live index is not trusted': (open) => {
+        const sqlite = open();
         legacyProfile(sqlite, 'indexed');
         sqlite
             .prepare(`INSERT INTO app_state (key, value) VALUES (?, 'done')`)
@@ -252,9 +254,74 @@ const scenarios: Record<string, (dir: string) => void> = {
         buildToEnd(sqlite);
         verifyFinished(sqlite);
     },
+    'a leftover build beside a current index is discarded': (open) => {
+        const sqlite = open();
+        legacyProfile(sqlite, 'indexed');
+        assert.equal(prepareContentTitleFts(sqlite), 'rebuilt');
+        sqlite.exec(contentTitleFtsStatement(true, 'content_title_fts_next'));
+        assert.equal(isContentTitleFtsBuildPending(sqlite), true);
+        assert.equal(prepareContentTitleFts(sqlite, LIMIT), 'current');
+        assert.equal(isContentTitleFtsBuildPending(sqlite), false);
+        assert.equal(buildContentTitleFtsBatch(sqlite, 25), 'idle');
+        verifyFinished(sqlite);
+    },
+    'a build that lost its cursor starts over': (open) => {
+        const sqlite = open();
+        legacyProfile(sqlite, 'indexed');
+        assert.equal(prepareContentTitleFts(sqlite, LIMIT), 'deferred');
+        buildContentTitleFtsBatch(sqlite, 25);
+        sqlite
+            .prepare(`DELETE FROM app_state WHERE key = ?`)
+            .run(CONTENT_TITLE_FTS_BUILD_CURSOR_KEY);
+        // Never swapped in: the partial index is dropped, the live one stays.
+        assert.equal(buildContentTitleFtsBatch(sqlite, 25), 'idle');
+        assert.equal(isContentTitleFtsBuildPending(sqlite), false);
+        assert.equal(liveSql(sqlite).includes('remove_diacritics'), false);
+        assert.deepEqual(match(sqlite, 'Amélie'), expected(sqlite, /Amélie/));
+        assert.equal(prepareContentTitleFts(sqlite, LIMIT), 'deferred');
+        assert.equal(state(sqlite, CONTENT_TITLE_FTS_BUILD_CURSOR_KEY), '0');
+        buildToEnd(sqlite);
+        verifyFinished(sqlite);
+    },
+    'a plain build left by an older runtime restarts folded': (open) => {
+        const sqlite = open();
+        legacyProfile(sqlite, 'unindexed');
+        const restore = failExec(sqlite, 'remove_diacritics');
+        assert.equal(prepareContentTitleFts(sqlite, LIMIT), 'deferred');
+        buildContentTitleFtsBatch(sqlite, 25);
+        restore();
+        // The runtime can fold now: the plain half-build is not resumed.
+        assert.equal(prepareContentTitleFts(sqlite, LIMIT), 'deferred');
+        assert.equal(state(sqlite, CONTENT_TITLE_FTS_BUILD_CURSOR_KEY), '0');
+        buildToEnd(sqlite);
+        verifyFinished(sqlite);
+    },
+    'a failed upgrade leaves the live index untouched': (open) => {
+        const sqlite = open();
+        legacyProfile(sqlite, 'indexed');
+        const warn = console.warn;
+        const warnings: unknown[] = [];
+        console.warn = (message: unknown) => warnings.push(message);
+        try {
+            failExec(
+                sqlite,
+                'CREATE TRIGGER IF NOT EXISTS content_title_fts_next_au'
+            );
+            assert.equal(prepareContentTitleFts(sqlite, LIMIT), 'failed');
+        } finally {
+            console.warn = warn;
+        }
+        assert.equal(warnings.length, 1);
+        // The transaction rolled back: no half-created build or cursor.
+        assert.equal(isContentTitleFtsBuildPending(sqlite), false);
+        assert.equal(
+            state(sqlite, CONTENT_TITLE_FTS_BUILD_CURSOR_KEY),
+            undefined
+        );
+        assert.equal(
+            state(sqlite, CONTENT_TITLE_FTS_DIACRITICS_MIGRATION_KEY),
+            undefined
+        );
+        assert.deepEqual(match(sqlite, 'Amélie'), expected(sqlite, /Amélie/));
+    },
 };
-
-const run = scenarios[process.argv[2]];
-assert(run, `Unknown scenario: ${process.argv[2]}`);
-run(process.argv[3]);
-process.stdout.write('verified');

@@ -243,7 +243,10 @@ or window close for about 15 s. `prepareContentTitleFts()` runs in
   three times, then left to the next launch.
 
 `src/lib/content-title-fts.spec.ts` runs the build on real SQLite with
-concurrent writes, an interrupted batch, an old runtime and a distrusted
-marker; `connection-upgrades.spec.ts` takes populated 0.21 and 0.22 catalogs
+concurrent writes, an interrupted batch, an old runtime, a distrusted marker,
+a lost cursor and a failed startup half. Each scenario runs in the Jest
+process on `node:sqlite` (through `testing/node-sqlite-connection.ts`, which
+is what coverage counts) and under Electron on better-sqlite3;
+`connection-upgrades.spec.ts` takes populated 0.21 and 0.22 catalogs
 through `initDatabase()`; `apps/electron-backend/src/app/workers/content-title-fts-build.spec.ts`
 runs the real worker bundle on a deferred profile.

@@ -2,7 +2,7 @@
  * A populated 0.21/0.22 profile through the real `initDatabase()`: startup
  * must not re-index the catalog, the build the worker runs afterwards must
  * produce the folded index, and repeated startups must be stable. Run under
- * Electron as Node by connection-upgrades.spec.ts:
+ * Electron as Node by connection-upgrades.spec.ts, through run-electron-harness.ts:
  *
  *   electron --import tsx content-title-fts-upgrade.ts <schema.sql> <indexed|unindexed>
  *
