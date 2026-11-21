@@ -187,6 +187,96 @@ describe('desktop hosted server lifecycle', () => {
         });
     });
 
+    it.each(['open', 'paired', 'legacy-address'])(
+        'restores a missing %s Home network interface on loopback and remembers it for the next launch',
+        async (access) => {
+            addAssets(
+                join(directory, 'hosted-backend/main.cjs'),
+                join(directory, 'hosted-pwa')
+            );
+            const address = '10.0.0.24';
+            const paired = { mode: 'lan', address, access: 'paired' };
+            const https = {
+                mode: 'https',
+                address: '',
+                origin: 'https://library.example.test',
+                certificatePath: join(directory, 'cert.pem'),
+                keyPath: join(directory, 'key.pem'),
+            };
+            settings.set(HOSTED_SERVER_LAN_ADDRESS, address);
+            settings.set(HOSTED_SERVER_CONFIGURATIONS, { https });
+            if (access !== 'legacy-address')
+                settings.set(HOSTED_SERVER_MODE, { ...paired, access });
+
+            nextWorker(ready);
+            expect(await restoreHostedServer()).toMatchObject({
+                state: 'running',
+                localUrl,
+                endpoint: undefined,
+                lanUrl: undefined,
+                lanAddress: address,
+                configuration: paired,
+                savedConfigurations: { lan: paired, https },
+            });
+            const workerEnvironment = () =>
+                jest.mocked(utilityProcess.fork).mock.lastCall?.[2]?.env;
+            expect(workerEnvironment()).toMatchObject({
+                IPTVNATOR_HOSTED_LAN: '',
+                IPTVNATOR_HOSTED_MODE: JSON.stringify({
+                    ...paired,
+                    address: '',
+                }),
+            });
+            expect(() =>
+                control({ start: true, configuration: paired })
+            ).toThrow('Invalid Home network');
+            await stopHostedServerForRestart();
+
+            jest.mocked(networkInterfaces).mockReturnValue({
+                fixture: [
+                    {
+                        family: 'IPv4',
+                        internal: false,
+                        address,
+                        cidr: address + '/24',
+                        mac: '00:00:00:00:00:00',
+                        netmask: '255.255.255.0',
+                    },
+                ],
+            });
+            nextWorker(ready);
+            expect(await restoreHostedServer()).toMatchObject({
+                state: 'running',
+                endpoint: `http://${address}:${HOSTED_SERVER_PORT}`,
+                savedConfigurations: { lan: paired, https },
+            });
+            expect(workerEnvironment()).toMatchObject({
+                IPTVNATOR_HOSTED_LAN: address,
+                IPTVNATOR_HOSTED_MODE: JSON.stringify(paired),
+            });
+        }
+    );
+
+    it.each(['10.256.0.1', '203.0.113.18'])(
+        'refuses a saved LAN profile with invalid private address %s',
+        async (address) => {
+            addAssets(
+                join(directory, 'hosted-backend/main.cjs'),
+                join(directory, 'hosted-pwa')
+            );
+            settings.set(HOSTED_SERVER_MODE, {
+                mode: 'lan',
+                address,
+                access: 'open',
+            });
+            expect(await restoreHostedServer()).toMatchObject({
+                state: 'error',
+                error: 'startup',
+            });
+            expect(utilityProcess.fork).not.toHaveBeenCalled();
+        }
+    );
+
     it('keeps separate mode profiles and the legacy LAN address across starts and restore', async () => {
         addAssets(
             join(directory, 'hosted-backend/main.cjs'),

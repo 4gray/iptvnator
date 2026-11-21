@@ -37,6 +37,8 @@ device records and SQLite database at `hosted-server/databases/iptvnator.db`.
 Each mode retains the configuration used the last time it started successfully.
 Switching modes also retains unsaved edits for the current app session. Custom
 HTTPS has its own network interface selection, which defaults to loopback.
+If the saved Home network address is unavailable at startup, the library runs
+on this computer only. The app retries the saved address on its next launch.
 
 | Mode | Listener | Client address |
 | --- | --- | --- |

@@ -1,5 +1,4 @@
 import { existsSync } from 'node:fs';
-import { networkInterfaces } from 'node:os';
 import { join } from 'node:path';
 import {
     ipcMain,
@@ -40,6 +39,8 @@ import { registerHostedDeviceEvents } from './hosted-device-control';
 import { createHostedWorkerClient } from './hosted-worker-client';
 import {
     checkHostedPublicRoute,
+    isPrivateLanAddress,
+    privateLanAddresses,
     validateHostedMode,
     validateHostedTunnelToken,
 } from './hosted-mode-config';
@@ -56,31 +57,11 @@ let state: HostedServerStatus = { state: 'stopped' };
 let transition = Promise.resolve();
 let checkingRoute = false;
 
-function privateAddresses(): string[] {
-    return [
-        ...new Set(
-            Object.values(networkInterfaces()).flatMap((entries) =>
-                (entries ?? [])
-                    .filter(
-                        ({ family, internal, address, cidr }) =>
-                            family === 'IPv4' &&
-                            !internal &&
-                            cidr &&
-                            /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(
-                                address
-                            )
-                    )
-                    .map(({ address }) => address)
-            )
-        ),
-    ];
-}
-
 function status(): HostedServerStatus {
     const { entry, assets } = hostedWorkerPaths();
     if (!existsSync(entry) || !existsSync(join(assets, 'index.html')))
         return { state: 'unavailable' };
-    const availableAddresses = privateAddresses();
+    const availableAddresses = privateLanAddresses();
     const lanAddress = store.get(HOSTED_SERVER_LAN_ADDRESS, '') || undefined;
     const lanUrl =
         lanAddress && availableAddresses.includes(lanAddress)
@@ -105,7 +86,11 @@ async function start(
 ): Promise<void> {
     if (child || status().state === 'unavailable') return;
     state = { state: 'starting' };
-    const lanHost = privateAddresses().includes(lanAddress) ? lanAddress : '';
+    const lanHost = privateLanAddresses().includes(lanAddress) ? lanAddress : '';
+    const listener =
+        configuration?.mode === 'lan'
+            ? { ...configuration, address: lanHost }
+            : configuration;
     let failure: HostedServerStatus['error'] = 'startup';
     try {
         const { entry, assets } = hostedWorkerPaths();
@@ -121,8 +106,8 @@ async function start(
                 IPTVNATOR_ACCESS_TOKEN: code,
                 IPTVNATOR_HOSTED_ASSETS: assets,
                 IPTVNATOR_HOSTED_LAN: lanHost,
-                IPTVNATOR_HOSTED_MODE: configuration
-                    ? JSON.stringify(configuration)
+                IPTVNATOR_HOSTED_MODE: listener
+                    ? JSON.stringify(listener)
                     : '',
                 ...(configuration?.mode === 'cloudflare'
                     ? {
@@ -304,11 +289,17 @@ export function restoreHostedServer(): Promise<HostedServerStatus> {
         }
         const configuration = saved ?? {
             mode: 'lan' as const,
-            address: privateAddresses().includes(address) ? address : '',
+            address: isPrivateLanAddress(address) ? address : '',
             access: 'paired' as const,
         };
         try {
-            const mode = validateHostedMode(configuration, privateAddresses());
+            // A saved LAN preference can outlive its interface; start binds only an assigned address.
+            const addresses =
+                configuration.mode === 'lan' &&
+                isPrivateLanAddress(configuration.address)
+                    ? [configuration.address]
+                    : privateLanAddresses();
+            const mode = validateHostedMode(configuration, addresses);
             await start(mode.mode === 'lan' ? mode.address : '', mode);
         } catch {
             state = { state: 'error', error: 'startup' };
@@ -365,7 +356,7 @@ export function registerHostedServerEvents(
             if ('configuration' in command) {
                 const mode = validateHostedMode(
                     command.configuration,
-                    privateAddresses()
+                    privateLanAddresses()
                 );
                 const token = validateHostedTunnelToken(command, mode);
                 return run(async () => {
@@ -380,7 +371,7 @@ export function registerHostedServerEvents(
             const address = 'lanAddress' in command ? command.lanAddress : '';
             if (
                 typeof address !== 'string' ||
-                (address && !privateAddresses().includes(address))
+                (address && !privateLanAddresses().includes(address))
             )
                 throw new Error('Invalid hosted server address');
             return run(() => start(address));
@@ -391,7 +382,7 @@ export function registerHostedServerEvents(
                 state = value;
             },
             worker: () => child,
-            availableAddresses: privateAddresses,
+            availableAddresses: privateLanAddresses,
             savedAddress: () => store.get(HOSTED_SERVER_LAN_ADDRESS, ''),
             stop: shutdownWorker,
             start,

@@ -1,8 +1,36 @@
+import { isIPv4 } from 'node:net';
+import { networkInterfaces } from 'node:os';
 import { isAbsolute } from 'node:path';
 import {
     parseHostedHttpsOrigin,
     type HostedServerMode,
 } from '@iptvnator/shared/interfaces';
+
+export function isPrivateLanAddress(address: unknown): address is string {
+    return (
+        typeof address === 'string' &&
+        isIPv4(address) &&
+        /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(address)
+    );
+}
+
+export function privateLanAddresses(): string[] {
+    return [
+        ...new Set(
+            Object.values(networkInterfaces()).flatMap((entries) =>
+                (entries ?? [])
+                    .filter(
+                        ({ family, internal, address, cidr }) =>
+                            family === 'IPv4' &&
+                            !internal &&
+                            cidr &&
+                            isPrivateLanAddress(address)
+                    )
+                    .map(({ address }) => address)
+            )
+        ),
+    ];
+}
 
 export function validateHostedMode(
     value: unknown,
