@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 // Backup & data page: the playlist reset row with its summary pills.
 app-settings-backup-section {
     display: contents;
@@ -46,7 +47,14 @@ app-settings-backup-section {
 }
 
 .danger-zone__button--busy {
-    background: color-mix(in srgb, var(--mat-sys-error) 12%, transparent);
+    // Busy is also disabled: tint both fills through the button's tokens.
+    $busy-fill: color-mix(in srgb, var(--mat-sys-error) 12%, transparent);
+    @include mat.button-overrides(
+        (
+            filled-container-color: $busy-fill,
+            filled-disabled-container-color: $busy-fill,
+        )
+    );
 }
 
 app-settings-backup-section .backup-result {

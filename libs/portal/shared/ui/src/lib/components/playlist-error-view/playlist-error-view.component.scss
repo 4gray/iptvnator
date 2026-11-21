@@ -86,7 +86,7 @@
 }
 
 .error-view__actions {
-    .mat-mdc-unelevated-button {
+    .mat-mdc-unelevated-button:not(.app-destructive-button) {
         @include controls.secondary-button;
     }
 

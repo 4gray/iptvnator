@@ -282,8 +282,8 @@ test.describe('Theme tokens', () => {
                 });
                 // The `warn` color input was a no-op with M3: the trigger
                 // rendered in the primary color. The kit draws a destructive
-                // button as a red tint, never a solid error fill, and the
-                // outlined trigger carries the same tint as a filled one.
+                // button as a red tint on a flat button, never a solid
+                // error fill.
                 await expect
                     .poll(() =>
                         trigger.evaluate((el) => getComputedStyle(el).color)

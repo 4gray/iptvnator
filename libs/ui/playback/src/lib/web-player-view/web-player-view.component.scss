@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+@use '../../../../styles/app-controls' as controls;
 @use '../second-stream/floating-surface';
 
 .web-player-view {
@@ -44,9 +46,20 @@ app-html-video-player {
     gap: 8px;
     pointer-events: none;
 
+    // Kit secondary buttons on an opaque fill, so the video under them
+    // cannot drop the label's contrast.
     button {
         pointer-events: auto;
-        background: var(--mat-sys-surface);
+        @include controls.secondary-button(md);
+        @include mat.button-overrides(
+            (
+                filled-container-color: color-mix(
+                        in srgb,
+                        var(--app-on-surface) 10%,
+                        var(--mat-sys-surface)
+                    ),
+            )
+        );
     }
 }
 
