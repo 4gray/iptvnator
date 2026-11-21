@@ -264,7 +264,8 @@ mat-card {
     }
 }
 
-.grid-list__tail--error button {
+// Load more and its retry after an error: the kit's secondary button.
+.grid-list__tail .mat-mdc-unelevated-button {
     @include controls.secondary-button;
 }
 

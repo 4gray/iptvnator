@@ -79,23 +79,12 @@
     gap: 4px;
 }
 
-.groups-nav-action,
 .groups-nav-search {
     @include mat.form-field-density(-5);
 }
 
 .groups-nav-action {
-    width: 28px;
-    height: 28px;
-    min-width: 28px;
-    padding: 0;
-    line-height: 28px;
-
-    mat-icon {
-        width: 18px;
-        height: 18px;
-        font-size: 18px;
-    }
+    @include layout.list-header-action(layout.$groups-nav-action-size);
 }
 
 .groups-nav-search {
@@ -163,8 +152,8 @@
     }
 }
 
-.groups-content-header button {
-    @include mat.form-field-density(-5);
+.groups-content-header__action {
+    @include layout.list-header-action;
 }
 
 .category-meta {

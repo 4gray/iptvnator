@@ -221,6 +221,7 @@
                         </div>
                         <button
                             mat-icon-button
+                            class="groups-content-header__action"
                             [matMenuTriggerFor]="channelSortMenu"
                             [matTooltip]="
                                 ('WORKSPACE.SORT_LABEL' | translate) +
@@ -235,7 +236,7 @@
                         <button
                             mat-icon-button
                             type="button"
-                            class="groups-sidebar-toggle"
+                            class="groups-content-header__action groups-sidebar-toggle"
                             [attr.aria-label]="
                                 'LAYOUT.HIDE_CHANNELS_LIST' | translate
                             "
