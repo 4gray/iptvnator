@@ -49,7 +49,10 @@
                         : 'PORTALS.REMOVE_FROM_RECENT'
                     ) | translate
                 "
+                [showFavoriteButton]="canToggleFavorite(item)"
+                [favorite]="favoriteUids().has(item.uid)"
                 (cardClick)="onCardClick(item)"
+                (favoriteToggle)="favoriteToggled.emit(item)"
                 (remove)="onRemove(item)"
             />
         }

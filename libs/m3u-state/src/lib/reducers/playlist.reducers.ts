@@ -106,6 +106,9 @@ export const playlistReducers = [
                 channels: isActivePlaylist
                     ? (action.playlist.playlist.items as Channel[])
                     : state.channels,
+                channelsPlaylistId: isActivePlaylist
+                    ? action.playlistId
+                    : state.channelsPlaylistId,
                 channelsLoading: isActivePlaylist
                     ? false
                     : state.channelsLoading,
@@ -317,6 +320,7 @@ export const playlistReducers = [
                     ...state,
                     channelsLoading: false,
                     channels: action.playlist.playlist.items as Channel[],
+                    channelsPlaylistId: action.playlist._id,
                 };
             } else {
                 return {

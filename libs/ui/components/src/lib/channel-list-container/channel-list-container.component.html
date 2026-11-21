@@ -115,5 +115,8 @@
         <h3 class="empty-source-state__title">
             {{ 'CHANNELS.NO_CHANNELS_FOUND' | translate }}
         </h3>
+        @if (emptyHint(); as hint) {
+            <p class="empty-source-state__hint">{{ hint }}</p>
+        }
     </div>
 }

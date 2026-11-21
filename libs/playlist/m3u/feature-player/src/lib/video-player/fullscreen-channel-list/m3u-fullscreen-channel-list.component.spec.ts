@@ -17,6 +17,7 @@ import { M3uFullscreenChannelListComponent } from './m3u-fullscreen-channel-list
 })
 class StubChannelListContainerComponent {
     @Input() channelList: Channel[] = [];
+    readonly managementChannels = input<Channel[] | null>(null);
     readonly channelsLoading = input(false);
     readonly activeView = input<string>('all');
     readonly recentItems = input<PlaylistRecentlyViewedItem[]>([]);
@@ -83,6 +84,24 @@ describe('M3uFullscreenChannelListComponent', () => {
         expect(container().resetActiveChannelOnDestroy()).toBe(false);
     });
 
+    it('hands the list every row of the playlist for group management', () => {
+        // The panel lists the live split; a Save in Manage groups built
+        // from that alone would drop the film groups' hides and locks.
+        const live = [{ id: 'live', url: 'http://h.example/live' } as Channel];
+        const everyRow = [
+            ...live,
+            { id: 'film', url: 'http://h.example/movie/1.mp4' } as Channel,
+        ];
+        fixture.componentRef.setInput('channels', live);
+        fixture.componentRef.setInput('liveChannels', live);
+        fixture.componentRef.setInput('managementChannels', everyRow);
+        fixture.componentRef.setInput('initialView', 'groups');
+        fixture.detectChanges();
+
+        expect(container().channelList).toBe(live);
+        expect(container().managementChannels()).toBe(everyRow);
+    });
+
     it('labels the icon-only view segments for assistive tech and tooltips', () => {
         fixture.detectChanges();
 
@@ -114,6 +133,44 @@ describe('M3uFullscreenChannelListComponent', () => {
         expect(container().activeView()).toBe('groups');
         expect(chip('all')?.getAttribute('aria-selected')).toBe('false');
         expect(chip('groups')?.getAttribute('aria-selected')).toBe('true');
+    });
+
+    it('lists the live split in All and Groups but the whole set in the collection views', () => {
+        // Favorites and Recently viewed resolve their stored rows against
+        // the list they are handed, so handing them the live split makes a
+        // favourited film vanish from the one place the viewer put it.
+        const live = [{ id: 'live', url: 'http://h.example/live' } as Channel];
+        const all = [
+            ...live,
+            { id: 'movie', url: 'http://h.example/movie.mkv' } as Channel,
+        ];
+        fixture.componentRef.setInput('channels', all);
+        fixture.componentRef.setInput('liveChannels', live);
+        fixture.detectChanges();
+
+        expect(container().channelList).toBe(live);
+
+        chip('favorites')?.click();
+        fixture.detectChanges();
+        expect(container().channelList).toBe(all);
+
+        chip('recent')?.click();
+        fixture.detectChanges();
+        expect(container().channelList).toBe(all);
+
+        chip('groups')?.click();
+        fixture.detectChanges();
+        expect(container().channelList).toBe(live);
+    });
+
+    it('keeps the whole set when no split is supplied', () => {
+        // A host with the setting off, or one that supplies no split at
+        // all, must behave exactly as it did before.
+        const all = [{ id: 'one', url: 'http://h.example/one' } as Channel];
+        fixture.componentRef.setInput('channels', all);
+        fixture.detectChanges();
+
+        expect(container().channelList).toBe(all);
     });
 
     it("turns the list's hide-sidebar request into a close request", () => {

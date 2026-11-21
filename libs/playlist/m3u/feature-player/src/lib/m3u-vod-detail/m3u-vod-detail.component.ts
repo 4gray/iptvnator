@@ -12,7 +12,9 @@ import {
     untracked,
     ChangeDetectionStrategy,
 } from '@angular/core';
+import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { FavoritesActions, selectFavorites } from '@iptvnator/m3u-state';
 import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import {
     tmdbBackdropUrl,
@@ -30,11 +32,13 @@ import {
     DetailActionButtonComponent,
     DetailActionsTemplateDirective,
     DetailCreditsComponent,
+    DetailIconButtonComponent,
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
     MetaChipComponent,
     PortalDetailShellComponent,
     castMembersFromNames,
+    favoriteIcon,
 } from '@iptvnator/ui/components';
 import { formatDurationLabel } from '@iptvnator/portal/shared/util';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
@@ -67,6 +71,7 @@ import {
         DetailActionButtonComponent,
         DetailActionsTemplateDirective,
         DetailCreditsComponent,
+        DetailIconButtonComponent,
         DetailMetaTemplateDirective,
         DetailTagsTemplateDirective,
         MetaChipComponent,
@@ -79,7 +84,9 @@ import {
     styleUrls: ['./m3u-vod-detail.component.scss'],
 })
 export class M3uVodDetailComponent {
+    protected readonly favoriteIcon = favoriteIcon;
     private readonly metadata = inject(M3uVodMetadataService);
+    private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
     /** Read by the worded labels below, so a language switch re-words them. */
     private readonly languageTick = injectTranslationTick();
@@ -218,6 +225,22 @@ export class M3uVodDetailComponent {
     readonly canPlayInline = computed(
         () => this.inlinePlayerAvailable() && this.playback() !== null
     );
+
+    /**
+     * The split keeps films out of the channel list, whose star was the
+     * only way to favourite one — so the detail view carries the toggle.
+     * Favourites are keyed by stream URL, as that star keys them.
+     */
+    private readonly favorites = this.store.selectSignal(selectFavorites);
+    readonly isFavorite = computed(() =>
+        this.favorites().includes(this.channel().url)
+    );
+
+    toggleFavorite(): void {
+        this.store.dispatch(
+            FavoritesActions.updateFavorites({ channel: this.channel() })
+        );
+    }
 
     closeInlinePlayback(): void {
         this.playerDismissed.set(true);

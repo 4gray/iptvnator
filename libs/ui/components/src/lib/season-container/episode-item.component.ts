@@ -83,6 +83,11 @@ export class EpisodeItemComponent {
      * thumbnail or description, the watched check or progress inline.
      */
     readonly bare = input(false);
+    /**
+     * Whether the watched toggle is offered. A host whose runtime cannot
+     * persist positions hides it: a mark would vanish on the next load.
+     */
+    readonly watchControl = input(true);
 
     readonly played = output<void>();
     readonly restartRequested = output<void>();

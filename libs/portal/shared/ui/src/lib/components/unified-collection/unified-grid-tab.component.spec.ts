@@ -6,6 +6,7 @@ import { MockPipe } from 'ng-mocks';
 import { EMPTY, of } from 'rxjs';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import { SettingsStore } from '@iptvnator/services';
+import { ContentCardComponent } from '../content-card/content-card.component';
 import { UnifiedGridTabComponent } from './unified-grid-tab.component';
 
 const ITEMS: UnifiedCollectionItem[] = [
@@ -57,10 +58,66 @@ describe('UnifiedGridTabComponent posters-only wall', () => {
                     ],
                 },
             })
+            // The card's favourite toggle translates its own label.
+            .overrideComponent(ContentCardComponent, {
+                remove: { imports: [TranslatePipe] },
+                add: {
+                    imports: [
+                        MockPipe(
+                            TranslatePipe,
+                            (value: string | null | undefined) => value ?? ''
+                        ),
+                    ],
+                },
+            })
             .compileComponents();
 
         fixture = TestBed.createComponent(UnifiedGridTabComponent);
         fixture.componentRef.setInput('items', ITEMS);
+    });
+
+    it('offers the favourite toggle only on recent M3U cards', () => {
+        const film = {
+            uid: 'm3u::pl-1::http://h.example/movie/u/p/1.mkv',
+            name: 'Sandline',
+            contentType: 'movie',
+            sourceType: 'm3u',
+            streamUrl: 'http://h.example/movie/u/p/1.mkv',
+        } as UnifiedCollectionItem;
+        const portalFilm = { ...ITEMS[0], sourceType: 'xtream' };
+        const toggles = () =>
+            fixture.debugElement.queryAll(
+                By.css('[data-testid="content-card-favorite-toggle"]')
+            );
+        fixture.componentRef.setInput('items', [film, portalFilm]);
+        fixture.detectChanges();
+        // Favorites mode already has Remove; a second control would be noise.
+        expect(toggles()).toHaveLength(0);
+
+        fixture.componentRef.setInput('mode', 'recent');
+        fixture.detectChanges();
+        const toggled = jest.fn();
+        const selected = jest.fn();
+        fixture.componentInstance.favoriteToggled.subscribe(toggled);
+        fixture.componentInstance.itemSelected.subscribe(selected);
+
+        expect(toggles()).toHaveLength(1);
+        const button = toggles()[0].nativeElement as HTMLButtonElement;
+        expect(button.getAttribute('aria-pressed')).toBe('false');
+        expect(button.getAttribute('aria-label')).toBe(
+            'PORTALS.ADD_TO_FAVORITES'
+        );
+        button.click();
+        expect(toggled).toHaveBeenCalledWith(film);
+        // The toggle must not double as opening the card.
+        expect(selected).not.toHaveBeenCalled();
+
+        fixture.componentRef.setInput('favoriteUids', new Set([film.uid]));
+        fixture.detectChanges();
+        expect(button.getAttribute('aria-pressed')).toBe('true');
+        expect(button.getAttribute('aria-label')).toBe(
+            'PORTALS.REMOVE_FROM_FAVORITES'
+        );
     });
 
     it('retains the title and removal action while blocking an unavailable favorite', () => {

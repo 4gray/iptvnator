@@ -16,7 +16,7 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import { EpgProgram, foldSearchText } from '@iptvnator/shared/interfaces';
-import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
+import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils/name-strip';
 import type {
     EpgGuideChannel,
     EpgGuideScope,

@@ -64,6 +64,12 @@
     letter-spacing: -0.01em;
 }
 
+.empty-source-state__hint {
+    margin: 0;
+    font-size: 0.875rem;
+    opacity: 0.75;
+}
+
 @media only screen and (max-width: 599px) {
     .tab-title {
         display: none;

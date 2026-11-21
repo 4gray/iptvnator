@@ -8,8 +8,7 @@
     data-testid="episode-play-target"
     [attr.aria-label]="
         ('XTREAM.PLAY_EPISODE' | translate: { episode: item.episode_num }) +
-        ': ' +
-        item.title
+        (item.title ? ': ' + item.title : '')
     "
     [attr.aria-disabled]="launching() || null"
     (click)="play()"
@@ -107,27 +106,29 @@
 </div>
 
 <div class="episode-item__actions">
-    <button
-        type="button"
-        class="episode-item__action episode-item__watched-toggle"
-        data-testid="episode-watched-toggle"
-        [class.episode-item__watched-toggle--watched]="watched()"
-        [class.episode-card__watched-toggle--watched]="watched()"
-        [attr.aria-pressed]="watched()"
-        [attr.aria-label]="
-            (watched() ? 'XTREAM.MARK_UNWATCHED' : 'XTREAM.MARK_WATCHED')
-                | translate
-        "
-        [matTooltip]="
-            (watched() ? 'XTREAM.MARK_UNWATCHED' : 'XTREAM.MARK_WATCHED')
-                | translate
-        "
-        (click)="watchedToggled.emit($event)"
-    >
-        <mat-icon>{{
-            watched() ? 'check_circle' : 'check_circle_outline'
-        }}</mat-icon>
-    </button>
+    @if (watchControl()) {
+        <button
+            type="button"
+            class="episode-item__action episode-item__watched-toggle"
+            data-testid="episode-watched-toggle"
+            [class.episode-item__watched-toggle--watched]="watched()"
+            [class.episode-card__watched-toggle--watched]="watched()"
+            [attr.aria-pressed]="watched()"
+            [attr.aria-label]="
+                (watched() ? 'XTREAM.MARK_UNWATCHED' : 'XTREAM.MARK_WATCHED')
+                    | translate
+            "
+            [matTooltip]="
+                (watched() ? 'XTREAM.MARK_UNWATCHED' : 'XTREAM.MARK_WATCHED')
+                    | translate
+            "
+            (click)="watchedToggled.emit($event)"
+        >
+            <mat-icon>{{
+                watched() ? 'check_circle' : 'check_circle_outline'
+            }}</mat-icon>
+        </button>
+    }
     @if (downloadPresenter.presentationVisible()) {
         @let download = downloadPresenter.rowFor(item).presentation;
         @let downloadLabel =

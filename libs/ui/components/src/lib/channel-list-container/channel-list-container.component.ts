@@ -189,6 +189,19 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     /** Active view (all, groups, favorites, recent) */
     readonly activeView = input<string>('all');
     readonly channelsLoading = input(false);
+    /**
+     * Every row of the playlist, when the list is handed only part of it.
+     * An M3U playlist split into Movies and Series gives the list its live
+     * rows only, yet group management (hide, lock) and the locked-group
+     * count cover every group the playlist has. Null means the list itself.
+     */
+    readonly managementChannels = input<Channel[] | null>(null);
+    /**
+     * Already translated line under the "no channels" title. A host whose
+     * list is empty on purpose (a split M3U playlist with no live rows) says
+     * where the content went, so the page does not read as a failed import.
+     */
+    readonly emptyHint = input<string | null>(null);
     readonly recentItems = input<PlaylistRecentlyViewedItem[]>([]);
     readonly sidebarWidth = input<number | null>(null);
     /**
@@ -353,12 +366,18 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
      * Whether the channel views render instead of the generic empty state.
      * With every M3U group locked the filtered list is empty, yet the groups
      * view must still render: it carries the "N locked · Enter PIN to show"
-     * row, the only in-context way back.
+     * row, the only in-context way back. A host that lists only part of the
+     * playlist (`managementChannels`) keeps the groups view as well while
+     * the playlist has any group: a film-only M3U playlist lists no live
+     * row, and the manage action there is the only way to lock or hide.
      */
     readonly showChannelViews = computed(
         () =>
             this.displayedChannels().length > 0 ||
-            (this.activeView() === 'groups' && this.withheldGroupCount() > 0)
+            (this.activeView() === 'groups' &&
+                (this.withheldGroupCount() > 0 ||
+                    (this.managementChannels() !== null &&
+                        this.managementGroups().length > 0)))
     );
     /** Group titles currently withheld: locked AND the lock is active. */
     private readonly withheldGroupTitles = computed(() => {
@@ -392,9 +411,11 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     );
     /** Every group with its size, locked ones included, for the management dialog. */
     readonly managementGroups = computed<GroupManagementDialogGroup[]>(() =>
-        Object.entries(groupChannelsByTitle(this.channelListSignal())).map(
-            ([key, channels]) => ({ key, count: channels.length })
-        )
+        Object.entries(
+            groupChannelsByTitle(
+                this.managementChannels() ?? this.channelListSignal()
+            )
+        ).map(([key, channels]) => ({ key, count: channels.length }))
     );
 
     /** Displayed channels - the playlist minus the parental lock's withheld groups */

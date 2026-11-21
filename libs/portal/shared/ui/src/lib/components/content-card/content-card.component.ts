@@ -12,6 +12,7 @@ import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { normalizeDateLocale } from '@iptvnator/pipes';
+import { favoriteIcon } from '@iptvnator/ui/components/app-icons';
 import { injectTranslationTick } from '@iptvnator/services';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { CoverTitlesService } from '../../cover-titles/cover-titles.service';
@@ -29,6 +30,7 @@ const LABELLED_CONTENT_TYPES: ReadonlySet<string> = new Set(['live', 'radio']);
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ContentCardComponent {
+    protected readonly favoriteIcon = favoriteIcon;
     private readonly translate = inject(TranslateService);
     private readonly coverTitles = inject(CoverTitlesService);
     private readonly languageTick = injectTranslationTick();
@@ -53,6 +55,12 @@ export class ContentCardComponent {
     /** Tooltip text for the remove button; empty means the generic "Remove" */
     readonly removeTooltip = input<string>('');
 
+    /** Whether to show the favourite toggle; off for every host by default */
+    readonly showFavoriteButton = input<boolean>(false);
+
+    /** Whether the item is currently a favourite (toggle pressed state) */
+    readonly favorite = input<boolean>(false);
+
     /** Whether to show placeholder when no poster */
     readonly showPlaceholder = input<boolean>(true);
 
@@ -72,6 +80,9 @@ export class ContentCardComponent {
 
     /** Emitted when the remove button is clicked */
     readonly remove = output<void>();
+
+    /** Emitted when the favourite toggle is clicked */
+    readonly favoriteToggle = output<void>();
     /** A failed poster URL falls back per card; a new URL gets a fresh try. */
     protected readonly artworkFailed = linkedSignal({
         source: this.posterUrl,
@@ -124,6 +135,11 @@ export class ContentCardComponent {
     onRemoveClick(event: Event): void {
         event.stopPropagation();
         this.remove.emit();
+    }
+
+    onFavoriteClick(event: Event): void {
+        event.stopPropagation();
+        this.favoriteToggle.emit();
     }
 
     onImageError(): void {

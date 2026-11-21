@@ -17,6 +17,10 @@ import { ChannelListContainerComponent } from '@iptvnator/ui/components';
 })
 export class SidebarComponent {
     readonly channels = input<Channel[]>([]);
+    /** Every row, when `channels` is only part of the playlist; see the list's input. */
+    readonly managementChannels = input<Channel[] | null>(null);
+    /** Translated line for the list's empty state; see the list's input. */
+    readonly emptyHint = input<string | null>(null);
     readonly channelsLoading = input(false);
     readonly activeView = input<string>('all');
     readonly sidebarWidth = input<number | null>(null);

@@ -66,6 +66,8 @@ export class StubChannelListLoadingStateComponent {
 })
 export class StubSidebarComponent {
     readonly channels = input<Channel[]>([]);
+    readonly managementChannels = input<Channel[] | null>(null);
+    readonly emptyHint = input<string | null>(null);
     readonly channelsLoading = input(false);
     readonly showPlaylistHeader = input(false);
     readonly activeView = input('');
