@@ -106,6 +106,38 @@ export function buildStalkerEndpointCandidates(rawUrl: string): string[] {
 }
 
 /**
+ * Candidates derived from the HTML portal page a probe was redirected to
+ * (`…/c/`, see `StalkerPortalPageMarker`). Some hosts send every API path to
+ * the site root, which redirects to the portal page — sometimes on another
+ * host — so the address the user entered never leads to the API. The page's
+ * own scripts call `../server/load.php`, which is probed first; the usual
+ * candidates for that `…/c` address follow. Returns an empty list for any
+ * address that is not a portal page.
+ */
+export function buildStalkerPortalPageCandidates(pageUrl: string): string[] {
+    const normalized = normalizeStalkerPortalInputUrl(pageUrl);
+    if (normalized === null) {
+        return [];
+    }
+
+    const parsed = new URL(normalized);
+    const pageDir = parsed.pathname.replace(/\/index\.html?$/i, '');
+    if (!/\/c$/i.test(pageDir)) {
+        return [];
+    }
+
+    parsed.pathname = pageDir;
+    const sibling = new URL(parsed.href);
+    sibling.pathname = pageDir.replace(/\/c$/i, '/server/load.php');
+    return [
+        ...new Set([
+            sibling.href,
+            ...buildStalkerEndpointCandidates(parsed.href),
+        ]),
+    ];
+}
+
+/**
  * Auth-failure detection lives in `@iptvnator/shared/interfaces` so the
  * Electron main process — where these bodies actually arrive — and the
  * renderer classify identically. Re-exported here because discovery,

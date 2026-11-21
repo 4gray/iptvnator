@@ -205,6 +205,18 @@ plain-text body). Status-less TIMEOUTS also continue (a single handler can
 hang); only connection-level failures (refused, unresolvable host) abort
 discovery, since every candidate shares the host.
 
+Some hosts redirect every API path to the site root, and the root redirects to
+the HTML portal page (`…/stalker_portal/c/`), sometimes on another host. Both
+transports (Electron main and the PWA `/stalker` proxy) answer an HTML body
+whose final address after redirects is such a page (`…/c`, `…/c/`,
+`…/c/index.html`) with a `StalkerPortalPageMarker` carrying that address
+(`libs/shared/interfaces/src/lib/stalker-portal-page.util.ts`; no query or
+credentials). Discovery still classifies it as not-a-portal, but the first such
+page appends `buildStalkerPortalPageCandidates()` to the queue: the page's
+sibling `server/load.php` first, then the usual candidates for that `…/c`
+address. The entered address keeps priority, and derivation happens once, so a
+page that leads to another page cannot extend discovery.
+
 For a new source, the Add dialog owns the discovery result. Cancel, dismissal,
 navigation or destroying its import form aborts further discovery/authentication
 steps and suppresses persistence and feedback from late completions. An HTTP
