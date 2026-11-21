@@ -446,7 +446,28 @@ describe('DatabaseWorkerClient', () => {
         await result;
     });
 
-    it.each(['request', 'cancel', 'parental-lock'] as const)(
+    it('posts the deferred title index build once the worker is ready', async () => {
+        const client = createClient();
+        const started = client.startContentTitleFtsBuild();
+        const worker = mockWorkerInstances[0];
+
+        await flushPromises();
+        expect(worker.postMessage).not.toHaveBeenCalled();
+        worker.emit('message', { type: 'ready' });
+        await started;
+
+        // A control message, not a request: quitting never waits for it.
+        expect(worker.postMessage).toHaveBeenCalledWith({
+            type: 'content-title-fts-build',
+        });
+    });
+
+    it.each([
+        'request',
+        'cancel',
+        'parental-lock',
+        'content-title-fts-build',
+    ] as const)(
         'rejects a ready %s dispatch when its worker is replaced before the continuation',
         async (kind) => {
             const client = createClient();
@@ -454,6 +475,8 @@ describe('DatabaseWorkerClient', () => {
                 if (kind === 'cancel') return client.cancel('operation-1');
                 if (kind === 'parental-lock')
                     return client.setParentalLockState(true);
+                if (kind === 'content-title-fts-build')
+                    return client.startContentTitleFtsBuild();
                 return client.request('DB_GLOBAL_SEARCH', {});
             };
             let outcome: unknown = 'pending';
