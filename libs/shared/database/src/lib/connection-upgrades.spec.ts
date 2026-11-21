@@ -69,3 +69,57 @@ describe('database initialization across skipped releases (#1580)', () => {
         35_000
     );
 });
+
+describe('title index upgrade on a populated catalog', () => {
+    it.each([
+        ['0.21.0', 'unindexed'],
+        ['0.22.0', 'indexed'],
+    ])(
+        'defers the %s catalog rebuild to the worker and finishes it',
+        (version, kind) => {
+            const dataDir = mkdtempSync(
+                join(tmpdir(), 'iptvnator-fts-upgrade-')
+            );
+            const electronPath = createRequire(__filename)(
+                'electron'
+            ) as string;
+            try {
+                const output = execFileSync(
+                    electronPath,
+                    [
+                        '--import',
+                        'tsx',
+                        resolve(
+                            __dirname,
+                            'testing/content-title-fts-upgrade.ts'
+                        ),
+                        resolve(
+                            __dirname,
+                            'testing/fixtures',
+                            `v${version}-schema.sql`
+                        ),
+                        kind,
+                    ],
+                    {
+                        cwd: process.cwd(),
+                        encoding: 'utf8',
+                        timeout: 60_000,
+                        env: {
+                            ...process.env,
+                            ELECTRON_RUN_AS_NODE: '1',
+                            IPTVNATOR_E2E_DATA_DIR: dataDir,
+                            TSX_TSCONFIG_PATH: resolve(
+                                process.cwd(),
+                                'tsconfig.base.json'
+                            ),
+                        },
+                    }
+                );
+                expect(output).toBe('upgrade verified');
+            } finally {
+                rmSync(dataDir, { recursive: true, force: true });
+            }
+        },
+        65_000
+    );
+});
