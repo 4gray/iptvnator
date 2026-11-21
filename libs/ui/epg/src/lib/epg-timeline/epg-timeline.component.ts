@@ -317,8 +317,8 @@ export class EpgTimelineComponent {
             const scroller = this.ribbon()?.nativeElement;
             const programs = this.programs();
             untracked(() => {
-                // Refresh the EPG clock on focus, not just every 30 seconds.
-                if (scroller && programs.length) this.nowMs.set(Date.now());
+                // Refresh even if the ribbon is not mounted yet.
+                if (programs.length) this.nowMs.set(Date.now());
                 this.scroll.maybeAutoFocus(scroller, programs);
             });
         });
@@ -434,6 +434,7 @@ export class EpgTimelineComponent {
     }
 
     jumpToNow(): void {
+        this.nowMs.set(Date.now());
         this.commitDay(getTodayEpgDateKey());
         // Deliberate user action → animate so the movement reads.
         this.scroll.focusCurrentProgram(true);
