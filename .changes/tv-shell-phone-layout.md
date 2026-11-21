@@ -3,4 +3,4 @@ type: fix
 area: tv-shell
 ---
 
-On Android phones and tablets, IPTVnator fits the screen and adds a Settings button below the player. Android TV and Fire TV keep their remote navigation and TV layout settings.
+On Android phones and tablets, the player fills the available screen. Open the settings gear and choose Playback → External player settings to enable the experimental built-in player.

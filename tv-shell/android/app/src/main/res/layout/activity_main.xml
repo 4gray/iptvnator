@@ -8,14 +8,6 @@
     <!-- The WebView is created in code and inserted first (MainActivity.onCreate): inflating one
          while the system WebView is being updated would throw before the error panel can show. -->
 
-    <Button
-        android:id="@+id/touch_settings"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:layout_gravity="bottom"
-        android:text="@string/settings_title"
-        android:visibility="gone" />
-
     <!-- Cover WebView startup until the app reports its first render. -->
     <LinearLayout
         android:id="@+id/splash"

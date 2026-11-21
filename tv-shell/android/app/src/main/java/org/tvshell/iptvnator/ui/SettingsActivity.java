@@ -13,7 +13,6 @@ import android.webkit.WebSettings;
 import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 
@@ -176,7 +175,7 @@ public class SettingsActivity extends Activity {
             }
         });
 
-        CheckBox nativePlayback = findViewById(R.id.native_playback);
+        CompoundButton nativePlayback = findViewById(R.id.native_playback);
         nativePlayback.setChecked(prefs.nativePlayback());
         nativePlayback.setOnCheckedChangeListener((button, checked) -> prefs.setNativePlayback(checked));
 

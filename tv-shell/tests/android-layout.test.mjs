@@ -7,6 +7,15 @@ const script = readFileSync(new URL(
     '../android/app/src/main/assets/tvshell/tv.js', import.meta.url
 ), 'utf8');
 
+for (const [layout, widget] of [['activity_settings', 'CheckBox'], ['activity_settings_phone', 'Switch']]) {
+    test(`${layout} provides the native playback setting bound on startup`, () => {
+        const xml = readFileSync(new URL(
+            `../android/app/src/main/res/layout/${layout}.xml`, import.meta.url
+        ), 'utf8');
+        assert.match(xml, new RegExp(`<${widget}\\b[^>]*android:id="@\\+id/native_playback"`));
+    });
+}
+
 for (const layout of ['touch', 'tv', 'hosted-touch', 'hosted-tv']) {
   for (const android of [true, false]) {
     test(`${layout} layout starts with appropriate navigation and ${android ? 'Android' : 'browser'} bridge`, () => {

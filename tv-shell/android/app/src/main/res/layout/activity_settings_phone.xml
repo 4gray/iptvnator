@@ -180,6 +180,13 @@
                     android:accessibilityHeading="true" />
 
                 <Switch
+                    android:id="@+id/native_playback"
+                    style="@style/PhoneSettingsChoice"
+                    android:layout_marginTop="4dp"
+                    android:switchPadding="16dp"
+                    android:text="@string/setting_native_playback" />
+
+                <Switch
                     android:id="@+id/prompt_external"
                     style="@style/PhoneSettingsChoice"
                     android:layout_marginTop="4dp"

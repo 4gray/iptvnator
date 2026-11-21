@@ -79,9 +79,6 @@ keeps tokens in Android Keystore-backed storage and runs the bundled UI with
 a native bridge for the selected server's API. A manually entered Access URL
 can still open the web player in the system browser.
 
-For open Home network access, use **Connect device** on the PC to show an
-address-only QR, or enter the LAN address in Android **Library connection**.
-
 Run the origin, redirect and QR checks with
 `cd tv-shell/android` then `./gradlew :app:hostedConnectionTests`.
 Verify native sign-in, cancel/retry, restart, token expiry and playback on a
@@ -183,13 +180,12 @@ from the configured `--www` directory, with symbolic links confined to that dire
   connection, optional HTTPS approval address and **Remove pairing** are under
   **Connection options**. To sync sources while using the embedded app, expand
   **Connection options** and choose **Source sync connection options**.
-  Choose **Playback → External player settings** for Android player preferences,
+  Choose **Playback → External player settings** for the experimental built-in
+  player and Android external-player preferences,
   or **Android device → Open settings** for diagnostics, data reset
   and layout options on wider screens. The Android launcher also offers a
   **Device settings** shortcut when you hold the app icon, including for older
-  hosted libraries. The native **Settings** button at the bottom of the player
-  also opens Android settings on handheld layouts. On a TV remote, hold Menu
-  or Back to open the TV settings.
+  hosted libraries. On a TV remote, hold Menu or Back to open the TV settings.
 - During playback on a phone or tablet, use **Open in another player** from the
   player controls to hand the current stream to an installed Android player.
 - Data (playlists, favourites, positions) is stored by the PWA in the WebView
@@ -202,7 +198,8 @@ features in IPTVnator).
 
 ## Trying the built-in player
 
-Go to **Settings → General → Open Android app settings** and turn on
+On a phone or tablet, open the gear and choose **Playback → External player
+settings**. On a TV remote, hold Menu or Back. Turn on
 **Enable built-in player (experimental)**. Open a channel or start a
 video, then select **Try built-in player** in the video area. It is also
 available when the web engine reports an error. The built-in player starts at
@@ -401,7 +398,7 @@ from a channel goes through its available row actions on the way to the preview.
   reopens on the route it was showing (saved instance state; the server's SPA
   fallback serves any route). A display change that alters the scale reloads
   the same route.
-- Compact handheld windows use the touch layout, including after rotation, while preserving the saved layout choice for wider windows. Automatic layout uses device width on phones and tablets. Use the touch **Settings** button to switch layout modes. Android TV and Fire TV use the TV layout by default and retain D-pad navigation.
+- Compact handheld windows use the touch layout, including after rotation, while preserving the saved layout choice for wider windows. Automatic layout uses device width on phones and tablets. On wider handheld screens, change layout modes under **Android device → Open settings**. Android TV and Fire TV use the TV layout by default and retain D-pad navigation.
 - TV layout width 1280 CSS px (960 / 1600 selectable) with the page scale pinned
   from the measured screen width (`DisplayMetrics`; a 1080p Fire TV is 960 CSS
   px wide, so the scale is 0.75): the WebView's own overview-mode fit proved

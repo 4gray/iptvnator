@@ -163,7 +163,11 @@ try {
     page.setDefaultTimeout(20000);
     await page.waitForFunction(() => window.__tvShell && !document.getElementById('initial-splash'));
     async function setExperiment(enabled) {
-        await page.evaluate(() => window.TvShell.postMessage('["openSettings"]'));
+        await page.evaluate(() => {
+            if (!window.__tvShell.openSettingsSection('playback')) {
+                window.TvShell.postMessage('["openSettings"]');
+            }
+        });
         settingsOpen = true;
         await expect.poll(topActivity).toContain('.ui.SettingsActivity');
         let checkbox;
