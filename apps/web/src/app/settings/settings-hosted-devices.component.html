@@ -20,7 +20,7 @@
             >
                 <mat-icon aria-hidden="true">qr_code_2</mat-icon>
                 {{
-                    (addressOnly() || cloudflare()
+                    (cloudflare()
                         ? 'HOSTED_SERVER.CONNECT_DEVICE'
                         : 'HOSTED_SERVER.PAIR_DEVICE'
                     ) | translate

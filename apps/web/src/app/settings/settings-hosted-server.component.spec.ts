@@ -79,7 +79,6 @@ describe('hosted server settings', () => {
 
     it('starts Home network with required pairing and leaves the QR closed', async () => {
         expect(component.mode()).toBe('lan');
-        expect(component.openLan()).toBe(false);
         const running = { state: 'running', mode: 'lan', endpoint: lanUrl };
         control.mockResolvedValue(running);
         await Promise.all([component.start(), component.start()]);
@@ -204,15 +203,12 @@ describe('hosted server settings', () => {
         expect(component.certificate()).toBe(tls.certificatePath);
     });
 
-    it('allows open access only with a selected LAN address', async () => {
-        component.openLan.set(true);
-        component.address.set('');
-        expect(component.canSubmit()).toBe(false);
+    it('always requires pairing when serving on a LAN address', async () => {
         component.address.set(address);
         await component.start();
         expect(control).toHaveBeenCalledWith({
             start: true,
-            configuration: { mode: 'lan', address, access: 'open' },
+            configuration: { mode: 'lan', address, access: 'paired' },
         });
     });
 
@@ -319,7 +315,6 @@ describe('hosted server settings', () => {
         );
 
         component.lanShareAddress.set(address);
-        component.openLan.set(true);
         fixture.detectChanges();
         expect(restart.disabled).toBe(false);
         control.mockResolvedValue({
@@ -335,7 +330,6 @@ describe('hosted server settings', () => {
             start: true,
             configuration: { mode: 'lan', address, access: 'paired' },
         });
-        expect(component.openLan()).toBe(false);
         expect(
             root.querySelector('[data-test-id="hosted-device-pair"]')
         ).not.toBeNull();

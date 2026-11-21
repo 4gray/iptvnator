@@ -36,7 +36,7 @@ describe('hosted mode configuration', () => {
             )
     );
 
-    it('allows open sharing only on an available interface', () => {
+    it('upgrades old open-sharing profiles to paired access on their saved interface', () => {
         expect(
             validateHostedMode({ mode: 'lan', address, access: 'open' }, [
                 address,
@@ -44,7 +44,7 @@ describe('hosted mode configuration', () => {
         ).toEqual({
             mode: 'lan',
             address,
-            access: 'open',
+            access: 'paired',
         });
         for (const value of [
             { address: '', access: 'open' },

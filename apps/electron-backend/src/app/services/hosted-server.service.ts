@@ -200,10 +200,6 @@ async function start(
                 ? {
                       endpoint,
                       mode: configuration.mode,
-                      lanAccess:
-                          configuration.mode === 'lan'
-                              ? configuration.access
-                              : undefined,
                       httpsOrigin:
                           'origin' in configuration
                               ? configuration.origin

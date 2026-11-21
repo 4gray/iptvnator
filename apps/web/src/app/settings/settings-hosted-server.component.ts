@@ -55,7 +55,6 @@ const SERVER_ERROR_LABELS = {
 
 type ServerDraft = {
     address: string;
-    openLan: boolean;
     origin: string;
     certificate: string;
     key: string;
@@ -119,7 +118,6 @@ export class SettingsHostedServerComponent {
     readonly mode = signal<Mode>('lan');
     readonly address = signal('');
     readonly lanShareAddress = signal('');
-    readonly openLan = signal(false);
     readonly origin = signal('');
     readonly certificate = signal('');
     readonly key = signal('');
@@ -160,22 +158,20 @@ export class SettingsHostedServerComponent {
             !this.endpoint() &&
             !!this.status().availableAddresses?.includes(this.lanShareAddress())
     );
-    readonly canSubmit = computed(
-        () =>
-            !this.busy() &&
-            (this.mode() === 'lan'
-                ? !this.openLan() || !!this.address()
-                : !!this.origin().trim() &&
-                  (this.mode() !== 'https' ||
-                      (!!this.certificate().trim() && !!this.key().trim())) &&
-                  (this.mode() !== 'cloudflare' ||
-                      (!!this.team().trim() &&
-                          !!this.audience().trim() &&
-                          (!this.managed() ||
-                              (this.connector()?.secureStorage &&
-                                  (!!this.token().trim() ||
-                                      this.connector()?.savedToken))))))
-    );
+    readonly canSubmit = computed(() => {
+        if (this.busy()) return false;
+        if (this.mode() === 'lan') return true;
+        if (!this.origin().trim()) return false;
+        if (this.mode() === 'https')
+            return !!this.certificate().trim() && !!this.key().trim();
+        return !!(
+            this.team().trim() &&
+            this.audience().trim() &&
+            (!this.managed() ||
+                (this.connector()?.secureStorage &&
+                    (this.token().trim() || this.connector()?.savedToken)))
+        );
+    });
 
     private readonly clipboard = inject(Clipboard);
     private readonly destroyRef = inject(DestroyRef);
@@ -211,7 +207,7 @@ export class SettingsHostedServerComponent {
                 configuration = {
                     mode,
                     address,
-                    access: this.openLan() ? 'open' : 'paired',
+                    access: 'paired',
                 };
             } else {
                 const origin = parseHostedHttpsOrigin(
@@ -256,7 +252,6 @@ export class SettingsHostedServerComponent {
         const address = this.lanShareAddress();
         this.selectMode('lan');
         this.address.set(address);
-        this.openLan.set(false);
         await this.start();
         if (this.endpoint()) this.lanShareAddress.set('');
     }
@@ -328,7 +323,6 @@ export class SettingsHostedServerComponent {
         this.drafts.mode = mode;
         this.drafts.values.set(mode, {
             address: this.address(),
-            openLan: this.openLan(),
             origin: this.origin(),
             certificate: this.certificate(),
             key: this.key(),
@@ -353,7 +347,6 @@ export class SettingsHostedServerComponent {
         this.address.set(draft?.address ?? (config && 'address' in config
             ? config.address
             : defaultAddress));
-        this.openLan.set(draft?.openLan ?? (config?.mode === 'lan' && config.access === 'open'));
         this.origin.set(draft?.origin ?? tls?.origin ?? '');
         this.certificate.set(draft?.certificate ?? tls?.certificatePath ?? '');
         this.key.set(draft?.key ?? tls?.keyPath ?? '');

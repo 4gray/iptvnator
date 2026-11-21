@@ -132,20 +132,10 @@
                         }
                     }
                 }
-                @if (status().mode === 'lan' && endpoint()) {
-                    <mat-checkbox
-                        [checked]="openLan()"
-                        [disabled]="busy()"
-                        (change)="openLan.set($event.checked); start()"
-                    >
-                        {{ 'HOSTED_SERVER.OPEN_LAN' | translate }}
-                    </mat-checkbox>
-                }
                 <app-settings-hosted-devices
                     [lanAvailable]="canPair()"
                     [pairingUnavailableReason]="pairingUnavailableReason()"
                     [deviceEndpoint]="endpoint()"
-                    [addressOnly]="status().lanAccess === 'open'"
                     [cloudflare]="status().mode === 'cloudflare'"
                     [httpsOrigin]="
                         status().mode === 'cloudflare'
@@ -196,9 +186,7 @@
                         }}</mat-label>
                         <mat-select
                             [value]="address()"
-                            (selectionChange)="
-                                address.set($event.value); openLan.set(false)
-                            "
+                            (selectionChange)="address.set($event.value)"
                             [disabled]="busy()"
                             data-test-id="hosted-network-address"
                         >
@@ -217,13 +205,6 @@
                     </mat-form-field>
                 }
                 @if (mode() === 'lan') {
-                    <mat-checkbox
-                        [checked]="openLan()"
-                        (change)="openLan.set($event.checked)"
-                        [disabled]="busy() || !address()"
-                    >
-                        {{ 'HOSTED_SERVER.OPEN_LAN' | translate }}
-                    </mat-checkbox>
                     <p class="server-message">
                         {{ 'HOSTED_SERVER.LAN_WARNING' | translate }}
                     </p>

@@ -196,7 +196,7 @@ describe('desktop hosted server lifecycle', () => {
             status: 401,
             headers: { 'WWW-Authenticate': 'Bearer resource_metadata="https://tunnel.example.test"' },
         }));
-        const lan = { mode: 'lan', address: lanAddress, access: 'open' };
+        const lan = { mode: 'lan', address: lanAddress, access: 'paired' };
         const tunnel = {
             mode: 'cloudflare',
             origin: 'https://tunnel.example.test',

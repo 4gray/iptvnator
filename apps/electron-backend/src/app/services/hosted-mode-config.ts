@@ -22,7 +22,8 @@ export function validateHostedMode(
             (!address && access === 'open')
         )
             throw new Error('Invalid Home network settings');
-        return { mode: 'lan', address, access };
+        // Upgrade saved open-LAN profiles without exposing the library.
+        return { mode: 'lan', address, access: 'paired' };
     }
     if (configuration.mode !== 'https' && configuration.mode !== 'cloudflare')
         throw new Error('Invalid hosted server mode');

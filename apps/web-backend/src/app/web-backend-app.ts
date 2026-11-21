@@ -85,7 +85,6 @@ export interface WebBackendAppOptions {
     readonly hostedIngress?: HostedIngressState;
     readonly cloudflareAccess?: import('./cloudflare-access').CloudflareAccessCheck;
     readonly hostedMode?: 'lan' | 'https' | 'proxy' | 'cloudflare';
-    readonly openLan?: boolean;
     /** Largest accepted playlist document in bytes. */
     readonly maxDocumentBytes?: number;
     readonly maxProviderResponseBytes?: number;
@@ -166,7 +165,6 @@ export function createWebBackendApp(
         hostedIngress: options.hostedIngress,
         cloudflareAccess: options.cloudflareAccess,
         hostedMode: options.hostedMode,
-        openLan: options.openLan,
         maxDocumentBytes:
             options.maxDocumentBytes ?? DEFAULT_MAX_DOCUMENT_BYTES,
     });

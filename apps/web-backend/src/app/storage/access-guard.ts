@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import type { RequestHandler } from 'express';
 import { SERVER_ACCESS_CHALLENGE } from '@iptvnator/shared/interfaces';
-import { hostedLanOrigin, isHostedWorkerRequest } from '../hosted-ingress';
+import { isHostedWorkerRequest } from '../hosted-ingress';
 
 /** Routes a browser must reach before it has a token. */
 const PUBLIC_PATHS = new Set(['/', '/health', '/config.js', '/v1/instance']);
@@ -15,8 +15,7 @@ export function createAccessGuard(
     token: string,
     acceptsDevice?: (token: string) => boolean,
     cloudflareAccess?: import('../cloudflare-access').CloudflareAccessCheck,
-    hostedMode?: 'lan' | 'https' | 'proxy' | 'cloudflare',
-    openLan = false
+    hostedMode?: 'lan' | 'https' | 'proxy' | 'cloudflare'
 ): RequestHandler {
     const expected = digest(token);
 
@@ -35,13 +34,7 @@ export function createAccessGuard(
             return;
         }
 
-        if (
-            isHostedWorkerRequest(req) ||
-            (openLan &&
-                hostedLanOrigin(req) &&
-                isViewerRequest(req.method, req.path)) ||
-            (await cloudflareAccess?.(req))
-        ) {
+        if (isHostedWorkerRequest(req) || (await cloudflareAccess?.(req))) {
             next();
             return;
         }
@@ -55,24 +48,6 @@ export function createAccessGuard(
                 code: 'unauthorized',
             });
     };
-}
-
-function isViewerRequest(method: string, path: string): boolean {
-    if (method === 'GET' || method === 'HEAD') {
-        return (
-            /^\/v1\/(sources|playlists|favorites|history|activity|user-state|app-state)(\/|$)/.test(
-                path
-            ) || ['/xtream', '/stalker', '/parse', '/parse-xml'].includes(path)
-        );
-    }
-    return (
-        method === 'POST' &&
-        [
-            '/provider-targets',
-            '/v1/favorites/read',
-            '/v1/activity/read',
-        ].includes(path)
-    );
 }
 
 /**

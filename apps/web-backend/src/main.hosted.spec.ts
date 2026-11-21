@@ -268,6 +268,39 @@ describe('hosted web backend worker', () => {
             reply: 'synthetic-list',
             response: { status: 200, body: { pending: [], devices: [] } },
         });
+
+        const sourcePath = '/v1/sources/synthetic';
+        const created = once(parent, 'reply');
+        parent.emit('message', {
+            data: {
+                requestId: 'synthetic-create',
+                workerRequest: {
+                    method: 'PUT',
+                    path: sourcePath,
+                    headers: { 'if-none-match': '*' },
+                    body: {
+                        id: 'synthetic',
+                        title: 'Synthetic source',
+                        kind: 'xtream',
+                        serverUrl: 'https://provider.example.test',
+                        username: 'synthetic-user',
+                        password: 'synthetic-secret',
+                    },
+                },
+            },
+        });
+        expect((await created)[0]).toMatchObject({ response: { status: 201 } });
+        const server = servers[0];
+        const api = serverOrigin(server) + '/api';
+        const fetch = fetchTestServer(server);
+        const info = await fetch(api + '/v1/instance');
+        expect(await info.json()).toMatchObject({
+            auth: 'token',
+            capabilities: expect.arrayContaining(['browser-pairing-v1']),
+        });
+        const guest = await fetch(api + sourcePath);
+        expect(guest.status).toBe(401);
+        expect(await guest.json()).toMatchObject({ code: 'unauthorized' });
         parent.emit('message', { data: 'stop' });
         expect(await exited).toBe(0);
     });

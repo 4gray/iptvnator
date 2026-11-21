@@ -242,19 +242,14 @@ describe('hosted device settings', () => {
     it('clears a displayed QR when the pairing mode or device address changes', async () => {
         const qr = '[data-test-id="hosted-device-pair-qr"]';
         const pair = '[data-test-id="hosted-device-pair"]';
-        fixture.componentRef.setInput('addressOnly', true);
         fixture.componentRef.setInput('deviceEndpoint', 'http://192.168.40.5:4334');
         fixture.detectChanges();
-        control.mockResolvedValueOnce({
-            url: 'http://192.168.40.5:4334',
-            expiresAt: null,
-        });
         clickButton(pair);
         await jest.advanceTimersByTimeAsync(0);
         fixture.detectChanges();
         expect(root.querySelector(qr)).not.toBeNull();
 
-        fixture.componentRef.setInput('addressOnly', false);
+        fixture.componentRef.setInput('cloudflare', true);
         fixture.detectChanges();
         expect(root.querySelector(qr)).toBeNull();
         clickButton(pair);

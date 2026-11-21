@@ -33,7 +33,6 @@ export interface ServerStorageMountOptions {
     readonly hostedIngress?: HostedIngressState;
     readonly cloudflareAccess?: import('../cloudflare-access').CloudflareAccessCheck;
     readonly hostedMode?: 'lan' | 'https' | 'proxy' | 'cloudflare';
-    readonly openLan?: boolean;
 }
 
 /**
@@ -101,8 +100,7 @@ export function mountServerStorage(
                 cloudflare && pairing
                     ? async (req) => enrolledRequests.has(req)
                     : options.cloudflareAccess,
-                options.hostedMode,
-                options.openLan
+                options.hostedMode
             )
         );
     }
@@ -114,7 +112,9 @@ export function mountServerStorage(
             accessTokenRequired: !!options.accessToken,
             cloudflareAccess: options.cloudflareAccess,
             cloudflareDeviceRegistration: !!cloudflare && !!pairing,
-            openLan: options.openLan,
+            browserPairing:
+                !!pairing &&
+                (options.hostedMode === 'lan' || options.hostedMode === 'https'),
             workerOnlyStatus: !!options.hostedMode,
         })
     );

@@ -14,10 +14,10 @@ function createApp() {
 }
 
 describe('createAccessGuard', () => {
-    it('grants read-only access on the LAN and keeps desktop worker access private', async () => {
+    it('requires pairing for LAN library access and keeps desktop worker access private', async () => {
         const app = express();
         app.use(
-            createAccessGuard('desktop-code', undefined, undefined, 'lan', true)
+            createAccessGuard('desktop-code', undefined, undefined, 'lan')
         );
         app.use((_req, res) => res.sendStatus(204));
         const send = createHostedWorkerTransport(app);
@@ -29,7 +29,6 @@ describe('createAccessGuard', () => {
         ).resolves.toMatchObject({ status: 204 });
 
         const check = async (
-            openLan: boolean,
             method: string,
             path: string,
             token?: string
@@ -38,8 +37,7 @@ describe('createAccessGuard', () => {
                 'desktop-code',
                 (candidate) => candidate === 'paired',
                 undefined,
-                'lan',
-                openLan
+                'lan'
             );
             const req = {
                 method,
@@ -68,17 +66,14 @@ describe('createAccessGuard', () => {
                 : (res.sendStatus.mock.calls[0]?.[0] ??
                       res.status.mock.calls[0]?.[0]);
         };
-        expect(await check(true, 'GET', '/v1/sources')).toBe(204);
-        expect(await check(true, 'POST', '/v1/favorites/read')).toBe(204);
-        expect(await check(true, 'POST', '/v1/favorites/operations')).toBe(401);
-        expect(await check(true, 'GET', '/v1/sources', 'desktop-code')).toBe(
-            204
-        );
-        expect(await check(false, 'GET', '/v1/sources', 'desktop-code')).toBe(
+        expect(await check('GET', '/v1/sources/synthetic')).toBe(401);
+        expect(await check('POST', '/v1/favorites/read')).toBe(401);
+        expect(await check('POST', '/v1/favorites/operations')).toBe(401);
+        expect(await check('GET', '/v1/sources', 'desktop-code')).toBe(
             401
         );
-        expect(await check(false, 'GET', '/v1/sources')).toBe(401);
-        expect(await check(false, 'GET', '/v1/sources', 'paired')).toBe(204);
+        expect(await check('GET', '/v1/sources')).toBe(401);
+        expect(await check('GET', '/v1/sources', 'paired')).toBe(204);
     });
     it('lets public routes through', () =>
         withServer(createApp(), async (baseUrl) => {

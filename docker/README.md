@@ -21,7 +21,7 @@ That means:
 - With server storage enabled, source definitions are shared by connected PWA
   and Electron clients. Each browser retains a local IndexedDB projection and
   its own Xtream user data. Progress and watched marks synchronize only after
-  enabling **Settings → Server → Viewing activity synchronization** on each
+  enabling **Settings → Connectivity → Viewing activity synchronization** on each
   client. Favorites have a separate **Sync favorites with this server** opt-in,
   initially off. Everyone with server access shares the consented collections.
 - Docker cannot launch local desktop players or Embedded MPV. If a stream does
@@ -153,7 +153,7 @@ If a separate nginx reverse proxy terminates HTTP/2, update that proxy too.
 
 ## Run the server from the desktop app
 
-Open **Settings → Server**. Under **Server on this computer**, choose
+Open **Settings → Connectivity**. Under **Server on this computer**, choose
 **Home network**, **Custom HTTPS**, or **Cloudflare Tunnel**, enter the
 settings, and click **Start server**. The app remembers the successful mode
 for autostart. Choose **Stop server** to stop hosting or **Disable automatic
@@ -162,9 +162,9 @@ must stay running to serve other devices.
 
 For **Home network**, select your private network interface. Use **Pair a
 device** to open a short-lived QR, scan it in IPTVnator on Android, and
-approve the request on the PC. For read-only sharing on trusted Wi-Fi, enable
-**Allow anyone on the local network** and choose **Connect device** to display
-the address QR. Devices may also open the LAN address manually.
+approve the matching code on the PC. To enroll a browser, open the invitation
+in that browser, choose **Pair this browser**, and approve its code on the PC.
+Each browser or Android device has its own revocable credential.
 
 Under **Connection on this device**, choose **Use this server** to connect
 the desktop to its hosted library and preview or import its local sources.
@@ -201,10 +201,10 @@ and uploaded M3U text synchronize. Favorites and progress have separate opt-ins;
 Recently Viewed has a separate opt-in with explicit local-history import; EPG remains local. Visible source inventories refresh within a
 15-second polling interval.
 
-Settings → Server can preview and import the device's original local sources.
+Settings → Connectivity can preview and import the device's original local sources.
 Matching connections are deduplicated; the original library is retained.
 Disconnecting returns to that library without removing sources from NAS.
-Use **Reconnect** in Settings → Server to reuse the saved address and any
+Use **Reconnect** in Settings → Connectivity to reuse the saved address and any
 available token, or **Forget server** to clear them. The desktop app keeps the
 token across restarts when protected storage is available. In the browser,
 the token is kept in the current tab.
@@ -245,14 +245,14 @@ on a NAS or home server. The steps below use Docker.
    else runs the server, ask them for its address and token. This is not your
    IPTV provider's password. Changing the environment requires recreating the
    container with `docker compose -f docker/docker-compose.yml up -d`.
-4. In Electron, open **Settings → Server**, enter the app address and token,
+4. In Electron, open **Settings → Connectivity**, enter the app address and token,
    then choose **Connect**. Use the address from step 2, not the container's
    internal backend port, `/api/v1`, a provider login URL or an address with
    query parameters. The client adds `/api` automatically; an existing `/api`
    suffix is also accepted. Connection changes restart/reload the application.
 5. On a phone or another browser, open the same server address. The bundled
    PWA discovers its server automatically. If it asks for a token, open
-   **Settings → Server** and enter the same token there. A standalone PWA can
+   **Settings → Connectivity** and enter the same token there. A standalone PWA can
    also connect manually through that page.
 6. After connecting, the page shows **Connected** and the last synchronization
    time. To copy the device's original sources, choose **Import local sources**,

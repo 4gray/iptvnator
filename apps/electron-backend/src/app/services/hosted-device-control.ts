@@ -75,8 +75,6 @@ export function registerHostedDeviceEvents(
                     const instanceId = getHostedServerInstanceId();
                     if (cloudflare && (current.publicRoute !== 'access-protected' || !instanceId))
                         throw new Error('Cloudflare Access route is unavailable');
-                    if (current.lanAccess === 'open')
-                        return { url: endpoint, expiresAt: null };
                     const { inviteId, expiresAt } = await request<{
                         inviteId: unknown;
                         expiresAt: unknown;

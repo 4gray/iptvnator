@@ -66,13 +66,11 @@ export class SettingsHostedDevicesComponent {
     readonly pairingUnavailableReason = input<string>();
     readonly deviceEndpoint = input<string>();
     readonly httpsOrigin = input<string>();
-    readonly addressOnly = input(false);
     readonly cloudflare = input(false);
     private readonly pairingTarget = computed(() =>
         this.lanAvailable()
             ? {
                   endpoint: this.deviceEndpoint(),
-                  addressOnly: this.addressOnly(),
                   cloudflare: this.cloudflare(),
               }
             : null
@@ -113,7 +111,7 @@ export class SettingsHostedDevicesComponent {
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe(() => {
                 const invite = this.invite();
-                if (invite?.expiresAt && Date.parse(invite.expiresAt) <= Date.now()) {
+                if (invite && Date.parse(invite.expiresAt) <= Date.now()) {
                     this.invite.set(null);
                     this.inviteExpired.set(true);
                 }
@@ -137,7 +135,7 @@ export class SettingsHostedDevicesComponent {
             if (this.destroyRef.destroyed || this.pairingTarget() !== target)
                 return;
             this.invite.set(invite);
-            if (invite.expiresAt) this.expanded.set(true);
+            this.expanded.set(true);
         });
     }
 
@@ -163,7 +161,7 @@ export class SettingsHostedDevicesComponent {
 
     copyPairingLink(): void {
         const invite = this.invite();
-        if (!invite || (invite.expiresAt && Date.parse(invite.expiresAt) <= Date.now())) return;
+        if (!invite || Date.parse(invite.expiresAt) <= Date.now()) return;
         this.message.set(
             this.clipboard.copy(invite.url)
                 ? 'HOSTED_SERVER.PAIR_LINK_COPIED'

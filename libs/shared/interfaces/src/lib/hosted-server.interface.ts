@@ -15,7 +15,7 @@ export type HostedDeviceCommand =
 
 export interface HostedDeviceInvite {
     url: string;
-    expiresAt: string | null;
+    expiresAt: string;
 }
 
 export interface HostedDeviceList {
@@ -116,7 +116,6 @@ export interface HostedServerStatus {
     configuration?: HostedServerMode;
     savedConfigurations?: Partial<Record<HostedServerMode['mode'], HostedServerMode>>;
     mode?: HostedServerMode['mode'];
-    lanAccess?: 'paired' | 'open';
     endpoint?: string;
     publicRoute?: 'unchecked' | 'access-protected' | 'unverified';
     /** Separately enabled local origin for an externally managed HTTPS proxy. */

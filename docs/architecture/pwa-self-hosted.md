@@ -30,7 +30,7 @@ a patched base rather than reusing the older published digest.
 
 ## Desktop-hosted server
 
-In **Settings → Server**, choose a mode, enter its settings, then click
+In **Settings → Connectivity**, choose a mode, enter its settings, then click
 **Start server**. Each mode serves the bundled browser app and API under
 `/api` from one Electron utility process. They share the same instance ID,
 device records and SQLite database at `hosted-server/databases/iptvnator.db`.
@@ -61,11 +61,11 @@ address, and choose **Restart and share** to require pairing on that network. Us
 On Android, open **Settings → Connectivity → Scan QR code**, then compare the
 matching code after the request appears and approve on the PC. The invitation
 expires and the hosted database retains only the digest of each issued device
-credential. **Revoke access** removes that device's credential. Home network
-defaults to requiring pairing. **Allow anyone on the local network** enables
-an address-only **Connect device** QR and permits unpaired library reads and
-playback over trusted Wi-Fi. Shared favorites and watch history writes still
-require pairing. Turning the setting off restores the pairing requirement.
+credential. In a regular browser, open the invitation, choose **Pair this
+browser**, and compare and approve the code on the PC. The browser remembers
+its own device credential. **Revoke access** removes that device's access.
+Home network requires pairing, including for hosts upgraded from open LAN
+access.
 
 For a TV without a camera, open **Pair with server** in the Android library
 settings. Approve on the PC, or pair a phone and enable **Allow this device
@@ -383,7 +383,7 @@ Confirmed source-server profiles never use the stateless fallback.
 Once a server is selected, network/authentication/compatibility errors do not
 silently select local storage. The recovery banner remains available even when
 the initial source inventory cannot load. When the server rejects credentials,
-the banner links to Settings → Server to update the access token. If a new
+the banner links to Settings → Connectivity to update the access token. If a new
 probe fails because the server is unavailable, the banner offers **Retry
 connection**, even after an earlier credential rejection. Malformed saved
 connection data or unavailable browser storage does not prevent Angular
@@ -395,7 +395,7 @@ allow explicit reconnection or disconnection; the standalone library and prior
 server projections remain intact. Native configuration saves use a flushed
 private temporary file followed by an atomic rename.
 
-Settings → Server connects a desktop or browser client, refreshes the
+Settings → Connectivity connects a desktop or browser client, refreshes the
 library, previews/imports original local sources, and disconnects. Connection
 help links to the [client connection guide](../../docker/README.md#connect-your-clients).
 Rechecking the selected endpoint keeps its saved token when the password field
@@ -451,7 +451,7 @@ error instead of exposing a false empty library. Server
 settings bypass the source-loading screen and remain reachable through the
 connection banner. Once a local source inventory is ready, a connectivity
 notice can be hidden for the current app session without changing profiles or
-stopping background retries. Settings → Server can still check the connection
+stopping background retries. Settings → Connectivity can still check the connection
 and shows the result there. A missing inventory, rejected token, or server
 identity error keeps its recovery controls visible. The status panel uses
 **Retry connection** as a secondary action and offers an icon-only dismiss
@@ -885,7 +885,7 @@ settings and guards read them in every build.
   browser backup import that could not finish) is copied to the server
   playlist id it merged into, unless that one has its own. Browser data is never
   deleted, the move does not start while user-data writes are unsent, and
-  the marker is written only when nothing failed, so Settings → Server
+  the marker is written only when nothing failed, so Settings → Connectivity
   keeps offering a partial move.
 
 What stays per device: settings, parental lock PINs and locked groups,
@@ -1150,7 +1150,7 @@ and Stalker live channels show their provider's programme guide.
 
 ## Viewing activity synchronization
 
-Connecting a source server synchronizes sources only. Settings → Server offers
+Connecting a source server synchronizes sources only. Settings → Connectivity offers
 an independent, disabled-by-default consent for progress and watched marks.
 The UI explains that the server holds **one shared household activity**: anyone
 with access sees and changes the same activity. Favorites and Recently Viewed each have an independent opt-in. EPG stays
@@ -1416,7 +1416,7 @@ the index base. Do not ship the Electron frontend build as a PWA deployment.
 
 ## Favorites synchronization
 
-Settings → Server provides an independent, disabled-by-default favorites consent.
+Settings → Connectivity provides an independent, disabled-by-default favorites consent.
 Connecting a server or enabling progress does not read/upload favorites. One shared
 library belongs to the server; there are no personal accounts or cross-provider
 matches. Membership is scoped by instance, source ID, persisted source incarnation
@@ -1603,7 +1603,7 @@ The same identity-compatibility helper guards both visible projection and export
 
 ## Recently Viewed synchronization
 
-Settings → Server → Recently viewed enables `history-v1` separately from sources,
+Settings → Connectivity → Recently viewed enables `history-v1` separately from sources,
 favorites and progress/watched. All clients of an instance share one history
 within each shared source; there are no household accounts or cross-provider
 matches. Connecting or enabling another domain does not authorize history reads

@@ -84,7 +84,6 @@ async function start(): Promise<void> {
         hostedIngress,
         cloudflareAccess: access,
         hostedMode: mode?.mode,
-        openLan: mode?.mode === 'lan' && mode.access === 'open',
         maxDocumentBytes: config.maxDocumentBytes,
         // Each hosted listener enforces an exact Host/Origin pair before CORS.
         ...(hostedAssets ? { clientOrigins: ['*'] } : {}),

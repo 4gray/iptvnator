@@ -10,23 +10,21 @@ import type { ServerStorage } from './server-storage';
 import { StorageRequestError } from './storage-route-errors';
 import { FAVORITES_SYNC_CAPABILITY } from '@iptvnator/shared/interfaces/favorites-sync';
 import { ACTIVITY_SYNC_CAPABILITY } from '@iptvnator/shared/interfaces/activity-sync';
-import { hostedLanOrigin, isHostedWorkerRequest } from '../hosted-ingress';
+import { isHostedWorkerRequest } from '../hosted-ingress';
 
 export function createInstanceRouter(deps: {
     readonly storage: ServerStorage | null;
     readonly accessTokenRequired: boolean;
     readonly cloudflareAccess?: import('../cloudflare-access').CloudflareAccessCheck;
     readonly cloudflareDeviceRegistration?: boolean;
-    readonly openLan?: boolean;
+    readonly browserPairing?: boolean;
     readonly workerOnlyStatus?: boolean;
 }): Router {
     const router = Router();
 
     router.get('/instance', async (req, res) => {
         const signedIn =
-            isHostedWorkerRequest(req) ||
-            (deps.openLan && !!hostedLanOrigin(req)) ||
-            (await deps.cloudflareAccess?.(req));
+            isHostedWorkerRequest(req) || (await deps.cloudflareAccess?.(req));
         const body: ServerInstanceInfo = {
             ...(deps.storage
                 ? {
@@ -35,6 +33,7 @@ export function createInstanceRouter(deps: {
                           ACTIVITY_SYNC_CAPABILITY,
                           FAVORITES_SYNC_CAPABILITY,
                           HISTORY_SYNC_CAPABILITY,
+                          ...(deps.browserPairing ? ['browser-pairing-v1'] : []),
                           ...(deps.cloudflareDeviceRegistration ? ['cloudflare-device-v1'] : []),
                       ],
                   }
