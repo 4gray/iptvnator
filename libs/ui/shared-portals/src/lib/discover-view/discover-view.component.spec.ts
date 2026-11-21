@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import { DiscoverViewComponent } from './discover-view.component';
@@ -7,6 +8,7 @@ describe('DiscoverViewComponent', () => {
     it('offers its Back in the workspace header instead of its own arrow', () => {
         TestBed.configureTestingModule({
             imports: [DiscoverViewComponent, TranslateModule.forRoot()],
+            providers: [provideRouter([])],
         });
         const fixture = TestBed.createComponent(DiscoverViewComponent);
         fixture.componentRef.setInput('facets', {

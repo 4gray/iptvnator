@@ -2,10 +2,13 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    ElementRef,
     input,
     output,
     signal,
+    viewChild,
 } from '@angular/core';
+import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -22,7 +25,8 @@ export interface TitleResultItem {
     title: string;
     year: number | null;
     posterUrl: string | null;
-    available: boolean;
+    /** Null when the source catalog has not been checked. */
+    available: boolean | null;
     /** Playlist name shown in the badge (All-portals scope) */
     availableIn?: string;
     /** Actor-page extras; absent on Discover results */
@@ -41,7 +45,7 @@ export type TitleResultsScope = 'portal' | 'global';
  */
 @Component({
     selector: 'app-title-results',
-    imports: [MatIcon, MatProgressSpinnerModule, TranslatePipe],
+    imports: [MatButton, MatIcon, MatProgressSpinnerModule, TranslatePipe],
     templateUrl: './title-results.component.html',
     styleUrls: ['./title-results.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -62,6 +66,13 @@ export class TitleResultsComponent<T extends TitleResultItem> {
     readonly scopeChanged = output<TitleResultsScope>();
 
     readonly filterMode = signal<'all' | 'available'>('all');
+    private readonly allResultsButton =
+        viewChild<ElementRef<HTMLButtonElement>>('allResults');
+
+    showAllResults(): void {
+        this.filterMode.set('all');
+        this.allResultsButton()?.nativeElement.focus();
+    }
 
     /** Translated label key for a crew-only credit ("Director"/"Creator") */
     crewJobKey(job: ActorCrewJob): string {
@@ -80,9 +91,13 @@ export class TitleResultsComponent<T extends TitleResultItem> {
         () => this.isMatching() && this.scope() === 'global'
     );
 
+    readonly availableItems = computed(() =>
+        this.items().filter((item) => item.available)
+    );
+    readonly availableOnly = computed(
+        () => this.showAvailabilityFilter() && this.filterMode() === 'available'
+    );
     readonly visibleItems = computed(() =>
-        this.showAvailabilityFilter() && this.filterMode() === 'available'
-            ? this.items().filter((item) => item.available)
-            : this.items()
+        this.availableOnly() ? this.availableItems() : this.items()
     );
 }

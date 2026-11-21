@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
 import {
     WorkspaceBackNavigationService,
     WorkspaceBackParent,
@@ -26,11 +26,12 @@ describe('XtreamDiscoverRouteComponent — catalog readiness', () => {
     const isImporting = signal(false);
     const vodStreams = signal<unknown[]>([]);
     const serialStreams = signal<unknown[]>([]);
+    const tmdbEnabled = signal(true);
 
     let resolveDiscover: (titles: DiscoverTitle[] | null) => void;
     let discoverTitles: jest.Mock;
     const back = jest.fn();
-    let facetParams: Record<string, string>;
+    let facetParams: BehaviorSubject<Record<string, string>>;
 
     /** Creates the component and flushes the effect that starts the load */
     function createComponent(): XtreamDiscoverRouteComponent {
@@ -54,9 +55,10 @@ describe('XtreamDiscoverRouteComponent — catalog readiness', () => {
         isImporting.set(false);
         vodStreams.set([]);
         serialStreams.set([]);
+        tmdbEnabled.set(true);
 
         back.mockReset();
-        facetParams = { type: 'movie', year: '1990' };
+        facetParams = new BehaviorSubject({ type: 'movie', year: '1990' });
         discoverTitles = jest.fn().mockImplementation(
             () =>
                 new Promise<DiscoverTitle[] | null>((resolve) => {
@@ -70,9 +72,9 @@ describe('XtreamDiscoverRouteComponent — catalog readiness', () => {
                 {
                     provide: ActivatedRoute,
                     useFactory: () => ({
-                        queryParams: of(facetParams),
+                        queryParams: facetParams,
                         snapshot: {
-                            queryParams: facetParams,
+                            queryParams: facetParams.value,
                             params: { id: 'pl-1' },
                             pathFromRoot: [],
                         },
@@ -95,7 +97,7 @@ describe('XtreamDiscoverRouteComponent — catalog readiness', () => {
                 },
                 {
                     provide: TmdbEnrichmentService,
-                    useValue: { discoverTitles },
+                    useValue: { discoverTitles, isEnabled: tmdbEnabled },
                 },
                 {
                     provide: CatalogTitleMatchService,
@@ -113,7 +115,7 @@ describe('XtreamDiscoverRouteComponent — catalog readiness', () => {
             {
                 tmdbId: 1,
                 mediaType: 'movie',
-                title: 'Goodfellas',
+                title: 'Synthetic Film Alpha',
                 originalTitle: null,
                 year: 1990,
                 posterUrl: null,
@@ -132,7 +134,7 @@ describe('XtreamDiscoverRouteComponent — catalog readiness', () => {
             {
                 tmdbId: 1,
                 mediaType: 'movie',
-                title: 'Goodfellas',
+                title: 'Synthetic Film Alpha',
                 originalTitle: null,
                 year: 1990,
                 posterUrl: null,
@@ -150,8 +152,8 @@ describe('XtreamDiscoverRouteComponent — catalog readiness', () => {
 
     it('stops marking a title available in another portal once the lock withholds it', async () => {
         const withheld = signal(false);
-        const goodfellas = {
-            queryTitle: 'Goodfellas',
+        const match = {
+            queryTitle: 'Synthetic Film Alpha',
             playlistId: 'pl-2',
             playlistName: 'Other Portal',
             categoryId: 9,
@@ -162,7 +164,7 @@ describe('XtreamDiscoverRouteComponent — catalog readiness', () => {
         TestBed.overrideProvider(CatalogTitleMatchService, {
             useValue: {
                 isAvailable: true,
-                matchTitles: jest.fn().mockResolvedValue([goodfellas]),
+                matchTitles: jest.fn().mockResolvedValue([match]),
                 visibleMatches: (matches: unknown[]) =>
                     withheld() ? [] : matches,
             },
@@ -172,7 +174,7 @@ describe('XtreamDiscoverRouteComponent — catalog readiness', () => {
             {
                 tmdbId: 1,
                 mediaType: 'movie',
-                title: 'Goodfellas',
+                title: 'Synthetic Film Alpha',
                 originalTitle: null,
                 year: 1990,
                 posterUrl: null,
@@ -219,13 +221,69 @@ describe('XtreamDiscoverRouteComponent — catalog readiness', () => {
         expect(component.isLoading()).toBe(true);
     });
 
+    it('retries a failed request for the same selection and accepts an empty result', async () => {
+        const component = createComponent();
+        resolveDiscover(null);
+        await settle();
+        expect(component.loadFailed()).toBe(true);
+
+        discoverTitles.mockResolvedValueOnce([]);
+        await component.loadDiscover();
+
+        expect(discoverTitles).toHaveBeenCalledTimes(2);
+        expect(discoverTitles).toHaveBeenLastCalledWith(
+            ...discoverTitles.mock.calls[0]
+        );
+        expect(component.loadFailed()).toBe(false);
+        expect(component.items()).toEqual([]);
+    });
+
+    it('skips the request while TMDB is disabled', () => {
+        tmdbEnabled.set(false);
+        const component = createComponent();
+
+        expect(component.tmdbEnabled()).toBe(false);
+        expect(component.loadFailed()).toBe(false);
+        expect(discoverTitles).not.toHaveBeenCalled();
+    });
+
+    it('shows an empty selection without waiting for the previous catalog lookup', async () => {
+        const matchTitles = jest.fn(() => new Promise<never>(() => undefined));
+        TestBed.overrideProvider(CatalogTitleMatchService, {
+            useValue: { isAvailable: true, matchTitles },
+        });
+        const component = createComponent();
+        resolveDiscover([
+            {
+                tmdbId: 1,
+                mediaType: 'movie',
+                title: 'Synthetic Film Alpha',
+                originalTitle: null,
+                year: 1990,
+                posterUrl: null,
+            },
+        ]);
+        await settle();
+        component.onScopeChanged('global');
+        expect(component.isMatchingGlobal()).toBe(true);
+
+        facetParams.next({ type: 'movie', year: '1991' });
+        TestBed.tick();
+        resolveDiscover([]);
+        await settle();
+
+        expect(component.items()).toEqual([]);
+        expect(component.isMatchingGlobal()).toBe(false);
+        expect(matchTitles).toHaveBeenCalledTimes(1);
+    });
+
     it.each([
         ['movie', 'vod'],
         ['tv', 'series'],
     ])(
         'leads a %s Discover page that opened the session to the %s list',
         async (type, section) => {
-            facetParams = { type, year: '1990' };
+            facetParams.next({ type, year: '1990' });
             const component = createComponent();
 
             component.goBack();
