@@ -147,6 +147,10 @@ define a health check against `/api/health`. If nginx or the backend exits
 after startup, the entrypoint exits the container so Docker Compose can apply
 the `restart: unless-stopped` policy.
 
+The bundled nginx requires Alpine package `1.30.7-r0` or later for
+CVE-2026-123007 and CVE-2026-123633. The default configuration serves HTTP/1.1.
+If a separate nginx reverse proxy terminates HTTP/2, update that proxy too.
+
 ## Run the server from the desktop app
 
 Open **Settings → Server** in the desktop app. Under **Server on this
