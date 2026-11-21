@@ -643,7 +643,7 @@ public class MainActivity extends ComponentActivity {
         if (session != accessSession || !session.origin.equals(prefs.hostedOrigin())
             || isFinishing() || isDestroyed()) return;
         if ("revoked".equals(status)) {
-            session.forget();
+            if (!session.forget()) return;
             prefs.setHostedOrigin("");
             offlineOrigin = null;
             reloadLibraryFromSettings();
@@ -1107,6 +1107,7 @@ public class MainActivity extends ComponentActivity {
         String accessKey = HostedAccessSession.storageKey(origin);
         if (!credentials.contains(origin) && !credentials.contains(accessKey)) return;
         cancelConnection();
+        accessFlow.cancel();
         libraryQrScanner.cancel();
         pairing.cancel();
         connectionDialog = new AlertDialog.Builder(this)
@@ -1115,7 +1116,8 @@ public class MainActivity extends ComponentActivity {
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(R.string.remove_pairing, (dialog, button) -> {
                 if (!canManageLibrary() || !origin.equals(prefs.hostedOrigin())) return;
-                if (!credentials.remove(origin) || !credentials.remove(accessKey)) {
+                accessFlow.cancel();
+                if (!credentials.remove(origin, accessKey)) {
                     toast(getString(R.string.remove_pairing_failed));
                     return;
                 }

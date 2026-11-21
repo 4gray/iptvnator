@@ -19,12 +19,28 @@ import android.graphics.Bitmap;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.google.zxing.common.BitMatrix;
+import java.lang.ref.WeakReference;
 import org.json.JSONObject;
 import org.tvshell.iptvnator.Prefs;
 import org.tvshell.iptvnator.R;
 
 /** One foreground handoff. Leaving/cancelling never changes the selected library. */
 final class HostedPairingFlow {
+    interface AccessSignIn { void cancel(); }
+
+    // MainActivity owns sign-in, but TV Settings and external invitation links can supersede it.
+    private static WeakReference<AccessSignIn> pendingAccess = new WeakReference<>(null);
+
+    static void registerAccessSignIn(AccessSignIn signIn) {
+        cancelAccessSignIn();
+        pendingAccess = new WeakReference<>(signIn);
+    }
+
+    static void cancelAccessSignIn() {
+        AccessSignIn signIn = pendingAccess.get();
+        if (signIn != null) signIn.cancel();
+    }
+
     private final Activity activity;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final PairingAttempts attempts = new PairingAttempts();
@@ -46,6 +62,7 @@ final class HostedPairingFlow {
     }
 
     void confirmInvite(PairingLink link) {
+        cancelAccessSignIn();
         cancel();
         final long attempt = attempts.begin();
         // No network operation occurs until this explicit, origin-displaying confirmation.
@@ -68,6 +85,7 @@ final class HostedPairingFlow {
         catch (IllegalArgumentException e) {
             Toast.makeText(activity, R.string.connection_invalid, Toast.LENGTH_LONG).show(); return;
         }
+        cancelAccessSignIn();
         cancel();
         final long attempt = attempts.begin();
         startContent = new LinearLayout(activity);

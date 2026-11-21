@@ -3,7 +3,9 @@ package org.tvshell.iptvnator.ui;
 import android.content.Context;
 import android.util.Base64;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import okhttp3.Call;
 import okhttp3.MediaType;
@@ -22,12 +24,18 @@ final class HostedAccessSession {
     final String instance;
     final String uiOrigin;
     private final String deviceKey;
+    private final String pairingId;
     private JSONObject credential;
+    private volatile String encryptedRecord;
 
-    private HostedAccessSession(Context context, String origin, JSONObject credential) {
-        store = new PairedCredentialStore(context);
+    private HostedAccessSession(PairedCredentialStore store, String origin, JSONObject credential, String encryptedRecord) {
+        this.store = store;
         this.origin = origin;
         this.credential = credential;
+        this.encryptedRecord = encryptedRecord;
+        // Older records have no pairing ID. Their original ciphertext identifies that sign-in until refresh.
+        pairingId = credential.has("pairingId") ? credential.optString("pairingId")
+            : UUID.nameUUIDFromBytes(encryptedRecord.getBytes(StandardCharsets.UTF_8)).toString();
         instance = credential.optString("instanceId");
         uiOrigin = HostedOrigin.accessUiOrigin(origin, instance);
         deviceKey = credential.optString("deviceKey");
@@ -37,22 +45,40 @@ final class HostedAccessSession {
 
     static HostedAccessSession load(Context context, String origin) {
         if (!origin.startsWith("https://")) return null;
-        JSONObject record = new PairedCredentialStore(context).readRecord(storageKey(origin));
-        return record == null ? null : new HostedAccessSession(context, origin, record);
+        PairedCredentialStore store = new PairedCredentialStore(context);
+        String key = storageKey(origin);
+        String encrypted = store.encryptedRecord(key);
+        JSONObject record = store.decrypt(key, encrypted);
+        return record == null ? null : new HostedAccessSession(store, origin, record, encrypted);
     }
 
-    synchronized void forget() {
-        credential = null;
-        store.remove(storageKey(origin));
+    boolean forget() {
+        return store.removeIfCurrent(storageKey(origin), stored -> currentCredential(stored) != null);
+    }
+
+    private JSONObject currentCredential(String stored) {
+        if (encryptedRecord.equals(stored)) return credential;
+        JSONObject latest = store.decrypt(storageKey(origin), stored);
+        return latest != null && pairingId.equals(latest.optString("pairingId")) ? latest : null;
+    }
+
+    private void requireCurrentPairing() throws IOException {
+        if (currentCredential(store.encryptedRecord(storageKey(origin))) == null) throw new IOException("Pairing changed");
     }
 
     synchronized String accessToken(String rejected) throws Exception {
-        if (credential == null) throw new HostedAccessOAuth.Denied();
+        String stored = store.encryptedRecord(storageKey(origin));
+        JSONObject latest = currentCredential(stored);
+        if (latest == null) throw new IOException("Pairing changed");
+        credential = latest;
+        encryptedRecord = stored;
         String current = credential.getString("accessToken");
         if (current.equals(rejected) || credential.getLong("expiresAt") <= System.currentTimeMillis() + 5_000) {
             JSONObject updated = HostedAccessOAuth.refresh(credential);
-            store.saveRecord(storageKey(origin), updated);
+            updated.put("pairingId", pairingId);
+            String encrypted = store.replaceRecord(storageKey(origin), stored, updated);
             credential = updated;
+            encryptedRecord = encrypted;
             current = updated.getString("accessToken");
         }
         return current;
@@ -66,9 +92,11 @@ final class HostedAccessSession {
             accessToken(token);
             HostedAccessOAuth.verifyLibrary(origin, instance, credential);
         }
+        requireCurrentPairing();
     }
 
     Call call(JSONObject input, String token) throws Exception {
+        requireCurrentPairing();
         String path = input.getString("path");
         String method = input.getString("method");
         if (!allowed(path, method)) throw new IOException("Unsupported hosted request");

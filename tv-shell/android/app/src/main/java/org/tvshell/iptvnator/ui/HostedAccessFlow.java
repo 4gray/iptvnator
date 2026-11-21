@@ -14,7 +14,7 @@ import org.json.JSONObject;
 import org.tvshell.iptvnator.R;
 import java.util.function.BooleanSupplier;
 
-final class HostedAccessFlow {
+final class HostedAccessFlow implements HostedPairingFlow.AccessSignIn {
     private final MainActivity activity;
     private final ActivityResultLauncher<Intent> launcher;
     private final PairingAttempts attempts = new PairingAttempts();
@@ -24,6 +24,7 @@ final class HostedAccessFlow {
 
     HostedAccessFlow(MainActivity activity) {
         this.activity = activity;
+        HostedPairingFlow.registerAccessSignIn(this);
         launcher = AuthTabIntent.registerActivityResultLauncher(activity, result -> {
             if (result.resultCode == AuthTabIntent.RESULT_OK) callback(result.resultUri);
             else if (active != null) {
@@ -46,7 +47,7 @@ final class HostedAccessFlow {
             .setMessage(activity.getString(R.string.connection_confirm_address, origin))
             .setPositiveButton(R.string.access_sign_in, (dialog, button) -> begin(origin, instance, invite))
             .setNegativeButton(R.string.external_prompt_cancel, null)
-            .setOnDismissListener(dialog -> prompt = null).show();
+            .setOnDismissListener(this::promptDismissed).show();
     }
 
     private void begin(String origin, String instance, String invite) {
@@ -136,7 +137,7 @@ final class HostedAccessFlow {
                             "hosted-access-library").start();
                     })
                     .setNegativeButton(R.string.external_prompt_cancel, null)
-                    .setOnDismissListener(dialog -> prompt = null).show();
+                    .setOnDismissListener(this::promptDismissed).show();
             });
             return;
         }
@@ -192,7 +193,7 @@ final class HostedAccessFlow {
                     }
                     prompt = new AlertDialog.Builder(activity).setTitle(R.string.access_invite_title)
                         .setView(content).setPositiveButton(android.R.string.ok, null)
-                        .setOnDismissListener(dialog -> prompt = null).show();
+                        .setOnDismissListener(this::promptDismissed).show();
                 });
             } catch (Exception failure) {
                 activity.runOnUiThread(() -> {
@@ -209,7 +210,7 @@ final class HostedAccessFlow {
     private void showDeviceError(int message) {
         prompt = new AlertDialog.Builder(activity).setTitle(R.string.access_sign_in)
             .setMessage(message).setPositiveButton(android.R.string.ok, null)
-            .setOnDismissListener(dialog -> prompt = null).show();
+            .setOnDismissListener(this::promptDismissed).show();
     }
 
     private void failed(String origin, String instance, String invite, int message) {
@@ -222,16 +223,21 @@ final class HostedAccessFlow {
             .setMessage(message)
             .setPositiveButton(R.string.access_sign_in, (dialog, button) -> begin(origin, instance, invite))
             .setNegativeButton(R.string.external_prompt_cancel, null)
-            .setOnDismissListener(dialog -> prompt = null).show();
+            .setOnDismissListener(this::promptDismissed).show();
     }
 
     private boolean valid(long attempt) {
         return attempts.active(attempt) && !activity.isFinishing() && !activity.isDestroyed();
     }
 
-    void cancel() {
+    private void promptDismissed(android.content.DialogInterface dialog) {
+        if (prompt == dialog) prompt = null;
+    }
+
+    @Override public void cancel() {
         attempts.cancel();
         active = null;
         if (prompt != null) prompt.dismiss();
+        prompt = null;
     }
 }

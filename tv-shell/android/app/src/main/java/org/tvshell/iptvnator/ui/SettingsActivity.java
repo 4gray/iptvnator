@@ -122,6 +122,7 @@ public class SettingsActivity extends Activity {
             pairing.start(address.getText().toString(), trusted);
         });
         local.setOnClickListener(v -> {
+            HostedPairingFlow.cancelAccessSignIn();
             scanner.cancel();
             prefs.setHostedOrigin("");
             address.setText("");
@@ -133,6 +134,7 @@ public class SettingsActivity extends Activity {
             final String origin;
             try { origin = HostedOrigin.normalize(address.getText().toString()); }
             catch (IllegalArgumentException e) { status.setText(R.string.connection_invalid); return; }
+            HostedPairingFlow.cancelAccessSignIn();
             connect.setEnabled(false);
             local.setEnabled(false);
             if (!tvDevice) {
@@ -377,6 +379,7 @@ public class SettingsActivity extends Activity {
                     }
                     new NativePlaybackCheckpoints(SettingsActivity.this).clear();
                     dataCleared = true;
+                    HostedPairingFlow.cancelAccessSignIn();
                     new PairedCredentialStore(SettingsActivity.this).clear();
                     updateConnectionActions();
                     Toast.makeText(SettingsActivity.this, R.string.reset_done, Toast.LENGTH_SHORT).show();
