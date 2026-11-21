@@ -229,6 +229,30 @@ describe('hosted server settings', () => {
         });
     });
 
+    it.each([
+        { state: 'unavailable', secureStorage: true },
+        { state: 'stopped', secureStorage: false },
+    ] as const)('can disable a saved managed connector when its requirements are unavailable', async (capability) => {
+        setStatus({ state: 'stopped', savedConfigurations: { cloudflare: tunnel } });
+        component.connector.set({ ...capability, savedToken: true });
+        component.selectMode('cloudflare');
+        fixture.detectChanges();
+        const checkbox = root.querySelector<HTMLInputElement>('mat-checkbox input');
+        if (!checkbox) throw new Error('Missing managed connector checkbox');
+        expect(checkbox.checked).toBe(true);
+        expect(checkbox.disabled).toBe(false);
+        expect(component.canSubmit()).toBe(false);
+        checkbox.click();
+        fixture.detectChanges();
+        expect(checkbox.checked).toBe(false);
+        expect(checkbox.disabled).toBe(true);
+        await component.start();
+        expect(control).toHaveBeenCalledWith({
+            start: true,
+            configuration: { ...tunnel, managed: false },
+        });
+    });
+
     it('passes managed tunnel settings with the token in the start action and clears the input', async () => {
         component.mode.set(tunnel.mode);
         component.origin.set(tunnel.origin);

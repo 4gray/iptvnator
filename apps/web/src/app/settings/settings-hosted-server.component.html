@@ -304,11 +304,7 @@
                         <mat-checkbox
                             [checked]="managed()"
                             (change)="managed.set($event.checked)"
-                            [disabled]="
-                                busy() ||
-                                connector()?.state === 'unavailable' ||
-                                !connector()?.secureStorage
-                            "
+                            [disabled]="busy() || (!managed() && !canManageConnector())"
                         >
                             {{ 'HOSTED_SERVER.MANAGE_CONNECTOR' | translate }}
                         </mat-checkbox>

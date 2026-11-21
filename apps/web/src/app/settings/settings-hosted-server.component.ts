@@ -95,6 +95,10 @@ export class SettingsHostedServerComponent {
     readonly guides = SERVER_GUIDES;
     readonly status = signal<HostedServerStatus>({ state: 'unavailable' });
     readonly connector = signal<HostedCloudflareStatus | undefined>(undefined);
+    readonly canManageConnector = computed(() => {
+        const connector = this.connector();
+        return !!connector?.secureStorage && connector.state !== 'unavailable';
+    });
     readonly connectorStatusLabels = {
         unavailable: 'HOSTED_SERVER.CONNECTOR_unavailable',
         stopped: 'HOSTED_SERVER.CONNECTOR_stopped',
@@ -168,7 +172,7 @@ export class SettingsHostedServerComponent {
             this.team().trim() &&
             this.audience().trim() &&
             (!this.managed() ||
-                (this.connector()?.secureStorage &&
+                (this.canManageConnector() &&
                     (this.token().trim() || this.connector()?.savedToken)))
         );
     });
