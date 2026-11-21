@@ -66,6 +66,7 @@ public class SettingsActivity extends Activity {
     private Prefs prefs;
     private HostedPairingFlow pairing;
     private LibraryQrScanner scanner;
+    private final PairingAttempts connectionAttempts = new PairingAttempts();
     private boolean tvDevice;
 
     @Override
@@ -108,12 +109,15 @@ public class SettingsActivity extends Activity {
         scanner = new LibraryQrScanner(this, prefs, pairing);
         View scan = findViewById(R.id.scan_tv);
         scan.setVisibility(LibraryQrScanner.available(this) ? View.VISIBLE : View.GONE);
-        scan.setOnClickListener(v -> scanner.open());
+        scan.setOnClickListener(v -> {
+            cancelConnectionProbe();
+            scanner.open();
+        });
         EditText approvalAddress = findViewById(R.id.approval_address);
         approvalAddress.setText(prefs.approvalOrigin());
         View pair = findViewById(R.id.pair_host);
         pair.setOnClickListener(v -> {
-            scanner.cancel();
+            cancelLibraryActions();
             final String trusted;
             try { trusted = HostedConnection.approvalOrigin(approvalAddress.getText().toString()); }
             catch (IllegalArgumentException e) { status.setText(R.string.approval_address_invalid); return; }
@@ -123,37 +127,27 @@ public class SettingsActivity extends Activity {
         });
         local.setOnClickListener(v -> {
             HostedPairingFlow.cancelAccessSignIn();
-            scanner.cancel();
+            cancelLibraryActions();
             prefs.setHostedOrigin("");
             address.setText("");
             status.setText(R.string.connection_local);
             updateConnectionActions();
         });
         connect.setOnClickListener(v -> {
-            scanner.cancel();
+            cancelLibraryActions();
             final String origin;
             try { origin = HostedOrigin.normalize(address.getText().toString()); }
             catch (IllegalArgumentException e) { status.setText(R.string.connection_invalid); return; }
             HostedPairingFlow.cancelAccessSignIn();
+            long attempt = connectionAttempts.begin();
             connect.setEnabled(false);
-            local.setEnabled(false);
-            if (!tvDevice) {
-                pair.setEnabled(false);
-                scan.setEnabled(false);
-            }
             status.setText(R.string.connection_checking);
             new Thread(() -> {
                 int result = HostedConnection.probeSavedLibrary(this, origin);
                 runOnUiThread(() -> {
-                    if (isFinishing() || isDestroyed()) return;
+                    if (!connectionAttempts.active(attempt) || isFinishing() || isDestroyed()) return;
                     connect.setEnabled(true);
-                    local.setEnabled(true);
-                    if (!tvDevice) {
-                        pair.setEnabled(true);
-                        scan.setEnabled(true);
-                    }
                     if (result == 0) {
-                        scanner.cancel();
                         prefs.setHostedOrigin(origin);
                         address.setText(origin);
                         status.setText(R.string.connection_hosted);
@@ -163,7 +157,7 @@ public class SettingsActivity extends Activity {
                         if (result == R.string.connection_access) HostedConnection.offerAccessQr(this, null);
                     }
                 });
-            }).start();
+            }, "settings-library-probe").start();
         });
 
         // Layout width
@@ -344,15 +338,28 @@ public class SettingsActivity extends Activity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (!scanner.onActivityResult(requestCode, resultCode, data)) {
-            super.onActivityResult(requestCode, resultCode, data);
-        }
+        if (scanner.onActivityResult(requestCode, resultCode, data)) cancelConnectionProbe();
+        else super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    private void cancelConnectionProbe() {
+        connectionAttempts.cancel();
+        View connect = findViewById(R.id.connect_host);
+        if (connect.isEnabled()) return;
+        connect.setEnabled(true);
+        TextView status = findViewById(R.id.connection_status);
+        status.setText(prefs.hostedOrigin().isEmpty() ? R.string.connection_local : R.string.connection_hosted);
+    }
+
+    private void cancelLibraryActions() {
+        cancelConnectionProbe();
+        scanner.cancel();
+        pairing.cancel();
     }
 
     @Override
     protected void onStop() {
-        scanner.cancel();
-        if (pairing != null) pairing.cancel();
+        cancelLibraryActions();
         super.onStop();
     }
 
@@ -369,6 +376,7 @@ public class SettingsActivity extends Activity {
             .setPositiveButton(R.string.reset_confirm, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
+                    cancelLibraryActions();
                     try {
                         WebStorage.getInstance().deleteAllData();
                         CookieManager.getInstance().removeAllCookies(null);

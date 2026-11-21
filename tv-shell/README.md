@@ -24,7 +24,8 @@ APK
 
 Native Settings offers **Local library** and **Connect to hosted library**. Enter
 an HTTP or HTTPS address for a running IPTVnator hosted server; the shell checks
-its instance endpoint before switching. Use the hosted page's sign-in for its
+its instance endpoint before switching. Leaving Settings, starting a pairing or
+scan, or selecting the local library cancels the check. Use the hosted page's sign-in for its
 access code. The web app's Connect action is a separate source-sync setting.
 Local data and the saved hosted address remain available when switching modes.
 HTTP is intended for trusted networks; HTTPS uses normal certificate validation.
