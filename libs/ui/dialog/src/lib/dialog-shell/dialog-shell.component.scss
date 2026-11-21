@@ -247,6 +247,10 @@ app-dialog-shell {
     .app-dialog__ghost {
         @include controls.ghost-button(md);
     }
+
+    .app-dialog__ghost-icon {
+        @include controls.ghost-icon-button(32px, 18px);
+    }
 }
 
 // Native details supplies Enter/Space disclosure and keeps values mounted.

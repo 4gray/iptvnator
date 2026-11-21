@@ -6,6 +6,7 @@
 // depth. No alias is needed because this partial exports no callable members.
 //   @use '../../../../../../ui/styles/portal-sidebar';
 
+@use 'app-controls' as controls;
 @use 'focus-ring';
 
 .sidebar {
@@ -28,6 +29,9 @@
         align-items: center;
         gap: 8px;
         flex-shrink: 0;
+        // The 40px the Material icon buttons used to give the content box,
+        // so the list below does not move with the kit's 28px buttons.
+        min-height: 40px;
 
         h2 {
             margin: 0;
@@ -40,6 +44,13 @@
 
         button {
             app-region: no-drag;
+        }
+
+        // The header's icon actions (sort, hide the panels, show the playing
+        // channel) are the kit's 28px square ghost buttons, the size of the
+        // categories header's actions beside them.
+        .mat-mdc-icon-button {
+            @include controls.ghost-icon-button(28px, 18px);
         }
 
         .manage-categories-btn {

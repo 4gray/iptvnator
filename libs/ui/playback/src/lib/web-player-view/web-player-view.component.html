@@ -214,7 +214,7 @@
 @if (androidPlayback.canOpen(resolvedPlayback())) {
     <div class="web-player-android-actions dark-theme">
         <button
-            mat-stroked-button
+            mat-flat-button
             type="button"
             [attr.data-tv-native-playback]="androidPlayback.attempt()"
             [attr.aria-disabled]="androidPlayback.pending() || null"
@@ -232,7 +232,7 @@
         </button>
         @if (androidPlayback.suspended()) {
             <button
-                mat-stroked-button
+                mat-flat-button
                 type="button"
                 (click)="androidPlayback.returnToWeb()"
             >

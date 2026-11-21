@@ -102,6 +102,7 @@ function decorateReleaseNotesHtml(html: string): string {
                 <div class="release-notes-dialog__toolbar">
                     <button
                         mat-icon-button
+                        class="app-dialog__ghost-icon"
                         type="button"
                         [disabled]="loading() || !notes()?.hasPrevious"
                         [attr.aria-label]="
@@ -125,6 +126,7 @@ function decorateReleaseNotesHtml(html: string): string {
 
                     <button
                         mat-icon-button
+                        class="app-dialog__ghost-icon"
                         type="button"
                         [disabled]="loading() || !notes()?.hasNext"
                         [attr.aria-label]="
@@ -224,7 +226,7 @@ function decorateReleaseNotesHtml(html: string): string {
         `
             .release-notes-dialog__toolbar {
                 display: grid;
-                grid-template-columns: 40px minmax(0, 1fr) 40px;
+                grid-template-columns: 32px minmax(0, 1fr) 32px;
                 align-items: center;
                 gap: 8px;
                 padding: 4px 0 12px;
