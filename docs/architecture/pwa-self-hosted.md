@@ -95,6 +95,10 @@ device**. After Access sign-in, Android registers a device key from its encrypte
 credential store. Open a separate invitation in a browser to register it. The
 host closes the QR panel when that invitation is used.
 
+The host caches Cloudflare signing keys for five minutes. An unfamiliar key ID
+triggers a shared refresh. After the initial download, further refreshes are
+limited to one per 30 seconds. Assertions with unverified keys are rejected.
+
 Cloudflare library API requests require both Access and a registered device.
 The host stores only key digests. Revocation blocks the device until it signs
 in through Cloudflare and uses a fresh invitation from the host. Android

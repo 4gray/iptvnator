@@ -32,9 +32,13 @@ describe('Cloudflare Access for hosted HTTPS', () => {
         const now = Math.floor(Date.now() / 1000);
         const encode = (value: unknown) =>
             Buffer.from(JSON.stringify(value)).toString('base64url');
-        const assertion = (claims: object = {}) => {
+        const assertion = (
+            claims: object = {},
+            kid = 'key',
+            signer = privateKey
+        ) => {
             const message = [
-                encode({ alg: 'RS256', kid: 'key' }),
+                encode({ alg: 'RS256', kid }),
                 encode({
                     iss: issuer,
                     aud: [audience],
@@ -46,7 +50,7 @@ describe('Cloudflare Access for hosted HTTPS', () => {
             return (
                 message +
                 '.' +
-                sign('RSA-SHA256', Buffer.from(message), privateKey).toString(
+                sign('RSA-SHA256', Buffer.from(message), signer).toString(
                     'base64url'
                 )
             );
@@ -105,6 +109,61 @@ describe('Cloudflare Access for hosted HTTPS', () => {
         ]);
         await expect(check(req)).resolves.toBe(true);
         expect(fetchKeys).toHaveBeenCalledTimes(2);
+    });
+
+    it('shares one rotation refresh and verifies only keys in the new set', async () => {
+        const { origin, fetchKeys, check, assertion, mockRequest } = fixture();
+        const original = mockRequest(assertion(), origin);
+        expect(await check(original)).toBe(true);
+        const rotated = generateKeyPairSync('rsa', { modulusLength: 2048 });
+        fetchKeys.mockResolvedValueOnce(
+            Response.json({
+                keys: [
+                    {
+                        ...rotated.publicKey.export({ format: 'jwk' }),
+                        kid: 'next',
+                    },
+                ],
+            })
+        );
+        const next = mockRequest(
+            assertion({}, 'next', rotated.privateKey),
+            origin
+        );
+        const unknown = mockRequest(assertion({}, 'unknown'), origin);
+        expect(
+            await Promise.all([check(next), check(unknown), check(next)])
+        ).toEqual([true, false, true]);
+        expect(await check(original)).toBe(false);
+        expect(await check(mockRequest(assertion({}, 'next'), origin))).toBe(
+            false
+        );
+        expect(fetchKeys).toHaveBeenCalledTimes(2);
+    });
+
+    it('bounds refreshes across unknown IDs even when a key download fails', async () => {
+        const clock = jest.spyOn(Date, 'now');
+        try {
+            const start = Date.now();
+            clock.mockReturnValue(start);
+            const { origin, fetchKeys, check, assertion, mockRequest } =
+                fixture();
+            const original = mockRequest(assertion(), origin);
+            const unknown = (id: string) =>
+                mockRequest(assertion({}, id), origin);
+            expect(await check(original)).toBe(true);
+            fetchKeys.mockRejectedValueOnce(new Error('Synthetic timeout'));
+            expect(await check(unknown('missing'))).toBe(false);
+            expect(await check(unknown('different'))).toBe(false);
+            expect(await check(original)).toBe(true);
+            expect(fetchKeys).toHaveBeenCalledTimes(2);
+            clock.mockReturnValue(start + 30_001);
+            expect(await check(unknown('still-missing'))).toBe(false);
+            expect(await check(unknown('another'))).toBe(false);
+            expect(fetchKeys).toHaveBeenCalledTimes(3);
+        } finally {
+            clock.mockRestore();
+        }
     });
 
     it('uses Access identity on the protected listener only', async () => {

@@ -8,6 +8,7 @@ export type CloudflareAccessCheck = (
 
 type SigningKey = Parameters<typeof createPublicKey>[0];
 const KEY_CACHE_MS = 5 * 60_000;
+const KEY_REFRESH_INTERVAL_MS = 30_000;
 
 export function createCloudflareAccessCheck(
     env = process.env,
@@ -21,44 +22,43 @@ export function createCloudflareAccessCheck(
         return undefined;
 
     const issuer = `https://${team}.cloudflareaccess.com`;
-    let keys: Promise<Map<string, SigningKey>> | undefined;
-    let expires: number | undefined;
+    let keys = new Map<string, SigningKey>();
+    let expires = 0;
+    let nextRefresh: number | undefined;
+    let pending: Promise<void> | undefined;
 
-    function signingKeys() {
-        if (!keys || (expires !== undefined && Date.now() >= expires)) {
-            expires = undefined;
-            keys = fetchKeys(`${issuer}/cdn-cgi/access/certs`, {
-                redirect: 'error',
-                signal: AbortSignal.timeout(3000),
-            })
-                .then(async (response) => {
-                    if (!response.ok)
-                        throw new Error('Access keys unavailable');
-                    const jwks = (await response.json()) as {
-                        keys: Array<{
-                            kid: string;
-                            kty: string;
-                            n: string;
-                            e: string;
-                        }>;
-                    };
-                    const downloaded = new Map(
-                        jwks.keys
-                            .filter((key) => key.kty === 'RSA')
-                            .map((key) => [
-                                key.kid,
-                                { key, format: 'jwk' } as const,
-                            ])
-                    );
-                    expires = Date.now() + KEY_CACHE_MS;
-                    return downloaded;
-                })
-                .catch((error: unknown) => {
-                    keys = undefined;
-                    throw error;
-                });
+    async function downloadKeys() {
+        const response = await fetchKeys(`${issuer}/cdn-cgi/access/certs`, {
+            redirect: 'error',
+            signal: AbortSignal.timeout(3000),
+        });
+        if (!response.ok) throw new Error('Access keys unavailable');
+        const jwks = (await response.json()) as {
+            keys: Array<{ kid: string; kty: string; n: string; e: string }>;
+        };
+        keys = new Map(
+            jwks.keys
+                .filter((key) => key.kty === 'RSA')
+                .map((key) => [key.kid, { key, format: 'jwk' } as const])
+        );
+        expires = Date.now() + KEY_CACHE_MS;
+    }
+
+    async function signingKey(kid: string) {
+        const now = Date.now();
+        const cached = keys.get(kid);
+        if (cached && now < expires) return cached;
+        if (!pending) {
+            if (nextRefresh !== undefined && now < nextRefresh) return;
+            // Permit one immediate retry after bootstrap, then limit refreshes across all key IDs.
+            nextRefresh =
+                nextRefresh === undefined ? now : now + KEY_REFRESH_INTERVAL_MS;
+            pending = downloadKeys().finally(() => {
+                pending = undefined;
+            });
         }
-        return keys;
+        await pending;
+        return keys.get(kid);
     }
 
     return async (request) => {
@@ -83,6 +83,7 @@ export function createCloudflareAccessCheck(
             if (
                 alg !== 'RS256' ||
                 typeof kid !== 'string' ||
+                !kid ||
                 claims.iss !== issuer ||
                 claims.type !== 'app' ||
                 !Array.isArray(claims.aud) ||
@@ -94,7 +95,7 @@ export function createCloudflareAccessCheck(
             )
                 return false;
 
-            const key = (await signingKeys()).get(kid);
+            const key = await signingKey(kid);
             return (
                 !!key &&
                 verify(
