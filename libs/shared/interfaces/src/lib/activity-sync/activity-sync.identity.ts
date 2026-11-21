@@ -2,6 +2,7 @@ import type {
     ActivityAddress,
     ActivityContentIdentity,
 } from './activity-sync.contract';
+import { parsePersonalScope } from '../profiles/profile-scope';
 
 export function assertActivityToken(value: string): void {
     if (
@@ -17,7 +18,11 @@ export function assertActivityToken(value: string): void {
 
 /** Serialize only canonical fields; separators and extra snapshot properties cannot collide. */
 export function activityAddressKey(address: ActivityAddress): string {
-    if (address.scope !== 'shared') throw new Error('Invalid activity scope');
+    try {
+        parsePersonalScope(address.scope);
+    } catch {
+        throw new Error('Invalid activity scope');
+    }
     const fields = [
         address.instanceId,
         address.sourceId,

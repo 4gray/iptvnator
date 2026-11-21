@@ -12,6 +12,7 @@ import type {
 } from '@iptvnator/shared/interfaces/favorites-sync';
 import type { ServerStorage } from './server-storage';
 import { StorageRequestError } from './storage-route-errors';
+import { requireProfileScope } from './profile-scope-guard';
 
 /** Source lifecycle metadata is independent of source revisions, which reset at process startup. */
 export class ServerFavoriteService {
@@ -90,6 +91,7 @@ export class ServerFavoriteService {
     }
 
     private authorize(address: FavoriteAddress): void {
+        requireProfileScope(this.storage, address.scope);
         if (address.instanceId !== this.storage.database.instanceId) {
             throw new StorageRequestError(
                 409,
