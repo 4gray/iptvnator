@@ -3,6 +3,6 @@ type: feature
 area: server
 ---
 
-Set up Home network, HTTPS, or Cloudflare Tunnel before starting the hosted server. Pair Android devices or browsers from a QR invitation, or sign in with Cloudflare Access. Server modes are shown as selectable cards.
+Choose Home network, HTTPS, or Cloudflare Tunnel in the desktop server settings. Pair Android devices or browsers using a QR invitation.
 
-Cloudflare Tunnel can forward to the local HTTP origin without a PEM certificate or private key. You can switch to an external connector if the bundled connector or secure token storage becomes unavailable.
+Cloudflare Tunnel supports a local HTTP origin without a certificate. If the bundled connector or secure storage becomes unavailable, switch to an external connector.
