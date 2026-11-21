@@ -135,7 +135,16 @@ The native fullscreen screen supports play/pause, VOD
 seeking, audio tracks and subtitles. Its mute button restores the last
 audible app volume when unmuting. The Show subtitles setting picks the
 initial subtitle track and the native controls can change it. The player keeps
-the play state and selected tracks through rotation. It saves the VOD position
+the play state and selected tracks through rotation. The top control bar provides
+Back, Audio, Subtitles, Quality, Picture and Mute. The bar scrolls horizontally
+on narrow screens and can be navigated with a remote. Up enters the top bar;
+Down returns to play/pause. Track dialogs keep the
+controls visible until dismissed. Back closes a dialog before leaving playback;
+the on-screen back arrow also returns the playback position to the web app.
+Quality lists the source's supported video variants and an automatic option;
+a single-variant file shows Original. Picture offers Fit, Zoom (crop), Stretch,
+16:9 and 4:3, and preserves the selection through rotation and quality changes.
+The back arrow stays available when playback fails. The player saves the VOD position
 when you leave, including after seeking. Open the web player to use the channel
 and episode lists. You can
 still explicitly open a stream in an installed external player.
