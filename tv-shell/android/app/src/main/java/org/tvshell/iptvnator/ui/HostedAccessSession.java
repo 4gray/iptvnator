@@ -20,6 +20,7 @@ final class HostedAccessSession {
     private final PairedCredentialStore store;
     final String origin;
     final String instance;
+    final String uiOrigin;
     private final String deviceKey;
     private JSONObject credential;
 
@@ -28,6 +29,7 @@ final class HostedAccessSession {
         this.origin = origin;
         this.credential = credential;
         instance = credential.optString("instanceId");
+        uiOrigin = HostedOrigin.accessUiOrigin(origin, instance);
         deviceKey = credential.optString("deviceKey");
     }
 

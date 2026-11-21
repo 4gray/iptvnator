@@ -23,5 +23,14 @@ public class HostedOriginTest {
         if (HostedOrigin.sameOrigin("https://server.example", "https://server.example.evil.test/path")) throw new AssertionError();
         if (HostedOrigin.sameOrigin("https://server.example", "http://server.example/path")) throw new AssertionError();
         if (HostedOrigin.sameOrigin("https://server.example", "https://server.example:444/path")) throw new AssertionError();
+        String server = "https://library.example.test";
+        String profile = HostedOrigin.accessUiOrigin(server, "first");
+        if (!profile.matches("http://[a-f0-9-]{36}\\.iptvnator\\.localhost")) throw new AssertionError(profile);
+        equal(profile, HostedOrigin.accessUiOrigin(server, "first"));
+        if (profile.equals(HostedOrigin.accessUiOrigin(server, "second"))
+            || profile.equals(HostedOrigin.accessUiOrigin("https://other.example.test", "first"))) throw new AssertionError();
+        if (!HostedOrigin.isAccessUiHost(java.net.URI.create(profile).getHost())
+            || !HostedOrigin.isAccessUiHost("old.iptvnator.invalid")
+            || HostedOrigin.isAccessUiHost("iptvnator.localhost.provider.test")) throw new AssertionError();
     }
 }

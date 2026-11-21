@@ -6,9 +6,9 @@ import { runInNewContext } from 'node:vm';
 const bootstrap = readFileSync(new URL(
     '../android/app/src/main/assets/tvshell/hosted-access-api.js', import.meta.url
 ), 'utf8');
-const origin = 'https://app.iptvnator.invalid';
+const origin = 'http://synthetic.iptvnator.localhost';
 
-function connect(onRequest) {
+function connect(onRequest, directFetch = fetch) {
     const bridge = {
         postMessage(data) {
             const request = JSON.parse(data);
@@ -17,7 +17,7 @@ function connect(onRequest) {
             }));
         },
     };
-    const window = { HostedAccessApi: bridge, fetch };
+    const window = { HostedAccessApi: bridge, fetch: directFetch };
     runInNewContext(bootstrap, {
         window,
         location: new URL(origin),
@@ -25,6 +25,21 @@ function connect(onRequest) {
     });
     return window.fetch;
 }
+
+test('HTTP manifests and segments use the browser transport without hosted credentials', async () => {
+    const media = 'http://media.example.test/';
+    const requests = [];
+    const fetchHosted = connect(() => assert.fail('Media used the Access bridge'), async (input, init) => {
+        const request = new Request(input, init);
+        requests.push(request.url);
+        assert.equal(request.headers.has('authorization'), false);
+        assert.equal(request.headers.has('x-iptvnator-device-key'), false);
+        return new Response(request.url.endsWith('.m3u8') ? 'segment.ts' : 'synthetic segment');
+    });
+    const manifest = await fetchHosted(media + 'live.m3u8');
+    await fetchHosted(new URL(await manifest.text(), media));
+    assert.deepEqual(requests, [media + 'live.m3u8', media + 'segment.ts']);
+});
 
 test('streams an Xtream catalog larger than the former 16 MiB limit', async () => {
     const chunk = Buffer.alloc(64 * 1024, 'a').toString('base64');

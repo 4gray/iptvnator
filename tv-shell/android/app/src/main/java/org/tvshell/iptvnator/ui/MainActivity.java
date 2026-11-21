@@ -245,12 +245,17 @@ public class MainActivity extends ComponentActivity {
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                Uri url = request.getUrl();
+                if (!HostedOrigin.isAccessUiHost(url.getHost())) return null;
+                HostedAccessSession session = accessSession;
                 TvShellServer site = bundledAccessSite;
-                if (site != null && HostedOrigin.sameOrigin(activeOrigin, request.getUrl().toString())) {
-                    String path = request.getUrl().getEncodedPath();
-                    return site.bundledResource(path != null && path.startsWith("/api/") ? "/ngsw.json" : path);
+                String path = url.getEncodedPath();
+                if (session == null || site == null || !HostedOrigin.sameOrigin(session.uiOrigin, url.toString())
+                    || "/api".equals(path) || (path != null && path.startsWith("/api/"))) {
+                    return new WebResourceResponse("text/plain", "UTF-8", 404, "Unavailable",
+                        Collections.emptyMap(), null);
                 }
-                return null;
+                return site.bundledResource(path);
             }
 
             @Override
@@ -459,7 +464,7 @@ public class MainActivity extends ComponentActivity {
             showError(getString(loadedConnection.isEmpty() ? R.string.webview_bridge_unavailable : R.string.hosted_webview_upgrade));
             return;
         }
-        activeOrigin = accessSession != null ? accessUiOrigin(accessSession)
+        activeOrigin = accessSession != null ? accessSession.uiOrigin
             : loadedConnection.isEmpty() ? "http://127.0.0.1:" + server.port() : loadedConnection;
         try {
             bindBridge(activeOrigin, !loadedConnection.isEmpty());
@@ -583,12 +588,6 @@ public class MainActivity extends ComponentActivity {
             + ",paired:" + paired
             + ",approvalOrigin:" + JSONObject.quote(hosted ? "" : prefs.approvalOrigin())
             + ",canScanQr:" + LibraryQrScanner.available(this) + "};\n";
-    }
-
-    private static String accessUiOrigin(HostedAccessSession session) {
-        java.util.UUID id = java.util.UUID.nameUUIDFromBytes(
-            (session.origin + "\n" + session.instance).getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        return "https://" + id + ".iptvnator.invalid";
     }
 
     boolean connectScannedLibrary(String scanned) {

@@ -6,7 +6,21 @@ import java.util.Locale;
 
 /** Validated hosted app origin. No credentials, path routing, query or fragment. */
 public final class HostedOrigin {
+    private static final String ACCESS_UI_SUFFIX = ".iptvnator.localhost";
     private HostedOrigin() {}
+
+    static String accessUiOrigin(String server, String instance) {
+        java.util.UUID id = java.util.UUID.nameUUIDFromBytes(
+            (server + "\n" + instance).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        // HTTP permits direct HTTP streams; Chromium treats localhost as a secure context.
+        return "http://" + id + ACCESS_UI_SUFFIX;
+    }
+
+    static boolean isAccessUiHost(String host) {
+        if (host == null) return false;
+        String name = host.toLowerCase(Locale.ROOT);
+        return name.endsWith(ACCESS_UI_SUFFIX) || name.endsWith(".iptvnator.invalid");
+    }
 
     public static String normalize(String input) {
         try {

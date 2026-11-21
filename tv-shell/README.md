@@ -79,6 +79,17 @@ keeps tokens in Android Keystore-backed storage and runs the bundled UI with
 a native bridge for the selected server's API. A manually entered Access URL
 can still open the web player in the system browser.
 
+Each Access library uses its own HTTP `.localhost` origin for the bundled UI.
+The WebView can play plain HTTP streams directly. The native bridge sends Access
+and device credentials only to the selected server's HTTPS API.
+
+Earlier preview APKs used an HTTPS `.iptvnator.invalid` origin. Pairing and
+server-side library data carry over. WebView preferences, cached catalogs and
+unsynced favorites, history or progress stay in the old origin's storage.
+Before updating a preview, let any enabled sync finish. The new profile reads
+the shared library again. You can import an existing playlist backup and
+reapply device-local web preferences. The Android shell supports backup import only.
+
 Run the origin, redirect and QR checks with
 `cd tv-shell/android` then `./gradlew :app:hostedConnectionTests`.
 Verify native sign-in, cancel/retry, restart, token expiry and playback on a
