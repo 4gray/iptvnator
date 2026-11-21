@@ -89,14 +89,16 @@ export class DevicePairingStore {
         const invite = this.invites.get(inviteId);
         if (!invite || invite.cloudflare || (invite.origin && invite.origin !== origin)) return null;
         this.invites.delete(inviteId);
-        const result = this.start(name, inviteId);
-        if (!result) return null;
-        const { claimId, claimSecret, confirmationCode } = result;
+        const { claimId, claimSecret, confirmationCode } = this.createClaim(name, inviteId);
         return { claimId, claimSecret, confirmationCode };
     }
-    start(name: string, inviteId: string | null = null) {
+    start(name: string) {
         this.prune();
-        if (this.invites.size + this.claims.size >= MAX_PENDING) return null;
+        // Keep a slot for a host invitation; its claim takes over that same slot.
+        if (this.invites.size + this.claims.size >= MAX_PENDING - 1) return null;
+        return this.createClaim(name, null);
+    }
+    private createClaim(name: string, inviteId: string | null) {
         const claimId = secret();
         const claimSecret = secret();
         const confirmationCode = String(randomInt(0, 1_000_000)).padStart(
