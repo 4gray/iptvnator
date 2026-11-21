@@ -13,7 +13,10 @@ import {
 import { getPlaybackMediaExtensionFromUrl } from '@iptvnator/playback/util';
 import { ParentalLockService } from '@iptvnator/services';
 import { sourceProfileName } from '@iptvnator/services/source-sync/connection';
-import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
+import {
+    createRandomId,
+    type ResolvedPortalPlayback,
+} from '@iptvnator/shared/interfaces';
 import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 import {
     persistVolume,
@@ -86,7 +89,7 @@ export class AndroidTvPlayback {
         const continued = this.continuedAttempt();
         return continued?.token === token
             ? continued.attempt
-            : crypto.randomUUID();
+            : createRandomId();
     });
     readonly suspended = computed(() => this.ownedSession() !== null);
     readonly pending = computed(() => this.ownedSession()?.pending ?? false);
@@ -261,7 +264,7 @@ export class AndroidTvPlayback {
             previous?.audibleVolume ||
             readLastAudibleVolume() ||
             0.5;
-        const id = crypto.randomUUID();
+        const id = createRandomId();
         const profile = sourceProfileName();
         const attempt = this.attempt();
         this.session.set({
