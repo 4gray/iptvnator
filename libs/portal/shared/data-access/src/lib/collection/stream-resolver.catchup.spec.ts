@@ -41,7 +41,10 @@ describe('StreamResolverService catch-up (issue #1562)', () => {
 
     let service: StreamResolverService;
     let playlistsService: { getPlaylistById: jest.Mock };
-    let xtreamUrl: { resolveCatchupUrl: jest.Mock };
+    let xtreamUrl: {
+        resolveCatchupUrl: jest.Mock;
+        constructLiveUrl: jest.Mock;
+    };
     let dbGetAppPlaylist: jest.Mock;
     const originalElectron = window.electron;
 
@@ -53,6 +56,9 @@ describe('StreamResolverService catch-up (issue #1562)', () => {
                 .mockResolvedValue(
                     'https://xtream.example.com/timeshift/user/pass/60/2026-09-06:20-30/7.ts'
                 ),
+            constructLiveUrl: jest.fn(
+                () => 'https://xtream.example.com/live/7'
+            ),
         };
         dbGetAppPlaylist = jest.fn().mockResolvedValue(storedRow);
         window.electron = {
@@ -65,7 +71,10 @@ describe('StreamResolverService catch-up (issue #1562)', () => {
                 { provide: PlaylistsService, useValue: playlistsService },
                 {
                     provide: XtreamApiService,
-                    useValue: { getShortEpg: jest.fn(), getFullEpg: jest.fn() },
+                    useValue: {
+                        getShortEpg: jest.fn().mockResolvedValue([]),
+                        getFullEpg: jest.fn(),
+                    },
                 },
                 { provide: XtreamUrlService, useValue: xtreamUrl },
                 { provide: DataService, useValue: { sendIpcEvent: jest.fn() } },
@@ -124,6 +133,57 @@ describe('StreamResolverService catch-up (issue #1562)', () => {
             'Europe/London'
         );
         expect(url).toContain('/2026-09-06:20-30/');
+    });
+
+    it("probes the archive with the playlist's User-Agent, Referer and Origin", async () => {
+        dbGetAppPlaylist.mockResolvedValue({
+            ...storedRow,
+            userAgent: 'SyntheticPlayer/1.0',
+            referrer: 'http://referrer.example.test/',
+            origin: 'http://origin.example.test',
+        });
+
+        await service.resolveXtreamCatchupUrl(
+            item,
+            1_788_723_000,
+            1_788_726_600
+        );
+
+        expect(xtreamUrl.resolveCatchupUrl).toHaveBeenCalledWith(
+            'xtream-1',
+            expect.objectContaining({
+                userAgent: 'SyntheticPlayer/1.0',
+                referrer: 'http://referrer.example.test/',
+                origin: 'http://origin.example.test',
+            }),
+            7,
+            1_788_723_000,
+            1_788_726_600,
+            'Europe/London'
+        );
+    });
+
+    it("plays the live channel with the playlist's headers, which catch-up copies", async () => {
+        // Favorites/Recent catch-up spreads this descriptor and swaps in the
+        // archive URL; inline and MPV/VLC playback use it as it is.
+        dbGetAppPlaylist.mockResolvedValue({
+            ...storedRow,
+            userAgent: 'SyntheticPlayer/1.0',
+            referrer: 'http://referrer.example.test/',
+            origin: 'http://origin.example.test',
+        });
+
+        const detail = await service.resolveLiveDetail(item);
+
+        expect(detail.playback).toEqual(
+            expect.objectContaining({
+                streamUrl: 'https://xtream.example.com/live/7',
+                isLive: true,
+                userAgent: 'SyntheticPlayer/1.0',
+                referer: 'http://referrer.example.test/',
+                origin: 'http://origin.example.test',
+            })
+        );
     });
 
     it('reads the same timezone from the IndexedDB row in the PWA', async () => {

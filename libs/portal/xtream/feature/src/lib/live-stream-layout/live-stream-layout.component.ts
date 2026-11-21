@@ -1487,6 +1487,8 @@ export class LiveStreamLayoutComponent
                 username: playlist.username,
                 password: playlist.password,
                 userAgent: playlist.userAgent?.trim() || undefined,
+                referrer: playlist.referrer,
+                origin: playlist.origin,
             },
             item.xtream_id,
             startTimestamp,
@@ -1500,11 +1502,16 @@ export class LiveStreamLayoutComponent
             return;
         }
 
+        // The archive is served by the same panel as the live stream, with
+        // the same header requirements.
         const playback: ResolvedPortalPlayback = {
             streamUrl: catchupUrl,
             title: this.getCatchupPlaybackTitle(item, program),
             thumbnail: item.poster_url ?? item.stream_icon ?? null,
             isLive: false,
+            userAgent: playlist.userAgent,
+            referer: playlist.referrer,
+            origin: playlist.origin,
         };
         const inline = this.usesEmbeddedPlayer();
         if (this.usesSelectionForRemote()) {
