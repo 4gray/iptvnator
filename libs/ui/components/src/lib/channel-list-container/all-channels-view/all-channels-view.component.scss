@@ -52,13 +52,9 @@
     }
 }
 
-.all-channels-sort-button {
-    flex: 0 0 auto;
-}
-
+.all-channels-sort-button,
 .all-channels-sidebar-toggle {
-    flex: 0 0 auto;
-    margin-right: -4px;
+    @include layout.list-header-action;
 }
 
 .all-channels-divider {

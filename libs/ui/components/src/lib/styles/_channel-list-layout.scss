@@ -4,12 +4,22 @@
 // placeholders inside the same boxes, so its headers and first row sit where
 // the loaded list puts them. They had drifted: the M3U list moved down by
 // 19px when a playlist finished loading.
+@use '../../../../styles/app-controls' as controls;
 @use '../../../../styles/panel-header' as panel;
 
-/// Material 3 icon button: the actions in the "All channels" header.
-$header-action-size: 40px;
+/// The kit's header action: the sort and hide-list buttons in the
+/// "All channels" and group headers, as tall as a small button and a header
+/// segmented control.
+$header-action-size: 32px;
 /// The groups rail's compact header actions.
 $groups-nav-action-size: 28px;
+
+/// A list header's icon action: the kit's square ghost icon button, so the
+/// channel lists' headers match the category panel and the dialogs.
+@mixin list-header-action($size: $header-action-size) {
+    flex: 0 0 auto;
+    @include controls.ghost-icon-button($size, 18px);
+}
 
 // ── "All channels" and the favorites/recent context header ─────────────────
 @mixin list-header-box {
