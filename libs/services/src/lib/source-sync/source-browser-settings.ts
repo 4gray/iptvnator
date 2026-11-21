@@ -7,6 +7,8 @@ import {
     DISABLED_KEY,
     assertSourceInstance,
     parseSourceConnection,
+    pairedBrowserTokenKey,
+    readBrowserSourceToken,
     tokenKey,
     markSourceConnectionReadFailed,
 } from './source-connection';
@@ -28,7 +30,7 @@ export function readSavedBrowserSourceConnection(): SavedSourceServerConnection 
         if (!saved) return null;
         let hasToken = false;
         try {
-            hasToken = Boolean(sessionStorage.getItem(tokenKey(saved)));
+            hasToken = Boolean(readBrowserSourceToken(saved));
         } catch {
             /* The address is still available when tab storage is denied. */
         }
@@ -46,6 +48,8 @@ export function forgetSavedBrowserSourceConnection(): void {
 }
 
 function removeBrowserSourceToken(connection: SourceServerConnection): void {
+    const pairedKey = pairedBrowserTokenKey(connection);
+    if (pairedKey) localStorage.removeItem(pairedKey);
     try {
         sessionStorage.removeItem(tokenKey(connection));
     } catch {
@@ -60,7 +64,7 @@ function savedBrowserSourceToken(connection: SourceServerConnection): string {
         saved.instanceId !== connection.instanceId
     )
         throw new Error('SOURCE_SYNC.SAVED_INSTANCE_CHANGED');
-    return sessionStorage.getItem(tokenKey(saved)) ?? '';
+    return readBrowserSourceToken(saved) ?? '';
 }
 
 export function saveBrowserSourceConnection(
@@ -150,6 +154,9 @@ export async function connectBrowserSourceServer(
         (apiUrl !== reuse.apiUrl || instance.instanceId !== reuse.instanceId)
     )
         throw new Error('SOURCE_SYNC.SAVED_INSTANCE_CHANGED');
+    const connection = { apiUrl, instanceId: instance.instanceId };
+    const pairedKey = pairedBrowserTokenKey(connection);
+    const pairedToken = pairedKey && localStorage.getItem(pairedKey);
     const token = reuse ? savedBrowserSourceToken(reuse) : enteredToken;
     const check = await fetch(`${apiUrl}/v1/sources`, {
         headers: {
@@ -167,8 +174,12 @@ export async function connectBrowserSourceServer(
         );
     if (reuse && savedBrowserSourceToken(reuse) !== token)
         throw new Error('SOURCE_SYNC.SAVED_INSTANCE_CHANGED');
-    saveBrowserSourceConnection(
-        { apiUrl, instanceId: instance.instanceId },
-        token
-    );
+    saveBrowserSourceConnection(connection, pairedToken === token ? '' : token);
+    if (
+        pairedKey &&
+        pairedToken &&
+        pairedToken !== token &&
+        localStorage.getItem(pairedKey) === pairedToken
+    )
+        localStorage.removeItem(pairedKey);
 }

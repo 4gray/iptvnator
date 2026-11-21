@@ -69,6 +69,18 @@ describe(SourceSyncStatusViewComponent.name, () => {
         expect(root.querySelector('a')).not.toBeNull();
     });
 
+    it('shows pairing recovery and retry to an unpaired hosted browser', async () => {
+        const { fixture, root, sync } = await setup(false);
+        sync.errorKey.set('SOURCE_SYNC.BROWSER_PAIRING_REQUIRED');
+        sync.state.set('locked');
+        fixture.detectChanges();
+        expect(root.textContent).toContain(
+            'SOURCE_SYNC.BROWSER_PAIRING_REQUIRED'
+        );
+        expect(root.textContent).toContain('SOURCE_SYNC.RETRY_CONNECTION');
+        expect(root.textContent).not.toContain('SOURCE_SYNC.OPEN_SETTINGS');
+    });
+
     it('keeps recovery available when the first inventory has not loaded', async () => {
         const { root } = await setup(false);
         expect(root.querySelector('a')).not.toBeNull();

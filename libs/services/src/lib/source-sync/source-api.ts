@@ -8,9 +8,11 @@ import type {
     SourceServerRequest,
     SourceServerResponse,
 } from '@iptvnator/shared/interfaces';
+import { isServerAccessChallenge } from '../server-access-token';
 import {
     sourceConnection,
     invalidateSourceVerification,
+    pairedBrowserTokenKey,
 } from './source-connection';
 
 export function sourceRequestRoute(request: SourceServerRequest): {
@@ -129,6 +131,8 @@ export async function requestSourceServer(
     const route = sourceRequestRoute(request);
     const url = `${connection.apiUrl}${route.path}`;
     if (request.operation !== 'instance') assertSourceRequestAllowed(url);
+    const authorization =
+        request.operation === 'instance' ? {} : sourceAuthorization(url);
     let discoveryRefusal: number | undefined;
     const payload =
         request.operation === 'tmdb-transfer'
@@ -147,9 +151,7 @@ export async function requestSourceServer(
                     : 15000
             ),
             headers: {
-                ...(request.operation === 'instance'
-                    ? {}
-                    : sourceAuthorization(url)),
+                ...authorization,
                 'Content-Type': 'application/json',
                 'X-IPTVnator-Instance-Id': connection.instanceId,
                 ...(request.operation === 'create'
@@ -167,6 +169,19 @@ export async function requestSourceServer(
         });
         // These routes are server-owned; JSON 5xx responses are outages too.
         if (response.status >= 500) throw new Error('SOURCE_SYNC.OFFLINE');
+        if (
+            response.status === 401 &&
+            authorization.Authorization &&
+            isServerAccessChallenge(response.status, response.headers.get('www-authenticate'))
+        ) {
+            const key = pairedBrowserTokenKey(connection);
+            // A late refusal must keep a newer pairing completed in another tab.
+            if (
+                key &&
+                authorization.Authorization === `Bearer ${localStorage.getItem(key)}`
+            )
+                localStorage.removeItem(key);
+        }
         if (response.status === 401 || response.status === 403)
             rejectSourceInstance(response.status, connection);
         else if (request.operation === 'instance' && response.status >= 400)

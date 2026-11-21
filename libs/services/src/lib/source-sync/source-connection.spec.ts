@@ -14,6 +14,7 @@ import {
     CONNECTION_KEY,
     DISABLED_KEY,
     prepareSourceConnection,
+    pairedBrowserTokenKey,
     sourceConnection,
     sourceProfileName,
     tokenKey,
@@ -107,6 +108,90 @@ describe('source server selection and authorization', () => {
             { action: 'credential', instanceId: instance.instanceId },
             { action: 'forget', instanceId: instance.instanceId },
         ]);
+    });
+
+    it('restores an approved browser after restart only on its verified instance and origin', async () => {
+        const connection = {
+            apiUrl: location.origin + '/api',
+            instanceId: 'paired-host',
+        };
+        const token = 'B'.repeat(43);
+        localStorage.setItem(pairedBrowserTokenKey(connection)!, token);
+        localStorage.setItem(CONNECTION_KEY, JSON.stringify(connection));
+        await prepareSourceConnection('/api');
+        expect(sourceAuthorization('/api/v1/sources')).toEqual({});
+        const instance = {
+            service: 'iptvnator',
+            apiVersion: 1,
+            storage: 'server',
+            capabilities: ['sources-v1'],
+            instanceId: connection.instanceId,
+        };
+        verifySourceInstance(instance);
+        expect(sourceAuthorization('/api/v1/sources')).toEqual({
+            Authorization: 'Bearer ' + token,
+        });
+        expect(
+            sourceAuthorization('https://other.example.test/api/v1/sources')
+        ).toEqual({});
+        expect(() =>
+            verifySourceInstance({ ...instance, instanceId: 'another-host' })
+        ).toThrow();
+        expect(sourceAuthorization('/api/v1/sources')).toEqual({});
+
+        const other = {
+            ...connection,
+            apiUrl: 'https://other.example.test/api',
+        };
+        localStorage.setItem(CONNECTION_KEY, JSON.stringify(other));
+        await prepareSourceConnection('/api');
+        verifySourceInstance(instance);
+        expect(sourceAuthorization(other.apiUrl + '/v1/sources')).toEqual({});
+    });
+
+    it('keeps a browser pairing across disconnect and reconnect, and removes it on Forget', async () => {
+        const connection = {
+            apiUrl: location.origin + '/api',
+            instanceId: 'paired-host',
+        };
+        const token = 'B'.repeat(43);
+        const key = pairedBrowserTokenKey(connection)!;
+        localStorage.setItem(key, token);
+        localStorage.setItem(CONNECTION_KEY, JSON.stringify(connection));
+        expect(disconnectBrowserSourceConnection()).toBe(true);
+        expect(readSavedBrowserSourceConnection()).toEqual({
+            ...connection,
+            hasToken: true,
+        });
+        const probe = {
+            service: 'iptvnator',
+            apiVersion: 1,
+            storage: 'server',
+            capabilities: ['sources-v1'],
+            instanceId: connection.instanceId,
+        };
+        globalThis.fetch = jest
+            .fn()
+            .mockResolvedValue({ ok: true, json: async () => probe });
+        await connectBrowserSourceServer(
+            connection.apiUrl,
+            '',
+            undefined,
+            connection
+        );
+        expect(globalThis.fetch).toHaveBeenLastCalledWith(
+            connection.apiUrl + '/v1/sources',
+            expect.objectContaining({
+                headers: expect.objectContaining({
+                    Authorization: 'Bearer ' + token,
+                }),
+            })
+        );
+        expect(localStorage.getItem(key)).toBe(token);
+        disconnectBrowserSourceConnection();
+        forgetSavedBrowserSourceConnection();
+        expect(localStorage.getItem(key)).toBeNull();
+        expect(sessionStorage.getItem(tokenKey(connection))).toBeNull();
     });
 
     it('keeps the token in the tab while a disconnected browser starts locally', async () => {

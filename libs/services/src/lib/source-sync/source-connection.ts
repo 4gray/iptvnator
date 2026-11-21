@@ -1,11 +1,13 @@
 import {
+    HOSTED_BROWSER_TOKEN_PREFIX,
+    SOURCE_SERVER_CONNECTION_KEY as CONNECTION_KEY,
+    SOURCE_SERVER_DISABLED_KEY as DISABLED_KEY,
     SOURCE_SYNC_CAPABILITY,
     type SourceServerConnection,
     type ServerInstanceInfo,
 } from '@iptvnator/shared/interfaces';
 
-export const CONNECTION_KEY = 'iptvnator:source-server';
-export const DISABLED_KEY = 'iptvnator:source-server-disabled';
+export { CONNECTION_KEY, DISABLED_KEY };
 const INCOMPATIBLE = 'SOURCE_SYNC.INCOMPATIBLE';
 const OFFLINE = 'SOURCE_SYNC.OFFLINE';
 let selected: SourceServerConnection | null = null;
@@ -27,6 +29,25 @@ export const sourceProfileName = () =>
           : 'iptvnator';
 export const tokenKey = ({ apiUrl, instanceId }: SourceServerConnection) =>
     `iptvnator:server-token:${JSON.stringify([apiUrl, instanceId])}`;
+
+export function pairedBrowserTokenKey(
+    connection: SourceServerConnection
+): string | null {
+    return connection.apiUrl === `${location.origin}/api` &&
+        !('HostedPairing' in window || 'HostedAccessApi' in window)
+        ? HOSTED_BROWSER_TOKEN_PREFIX + connection.instanceId
+        : null;
+}
+
+export function readBrowserSourceToken(
+    connection: SourceServerConnection
+): string | null {
+    const pairedKey = pairedBrowserTokenKey(connection);
+    return (
+        (pairedKey && localStorage.getItem(pairedKey)) ||
+        sessionStorage.getItem(tokenKey(connection))
+    );
+}
 
 export function parseSourceConnection(raw: string): SourceServerConnection {
     const connection = JSON.parse(raw) as SourceServerConnection;

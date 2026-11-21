@@ -4,8 +4,9 @@ import {
     sourceConnection,
     sourceVerificationEpoch,
     invalidateSourceVerification,
-    tokenKey,
+    readBrowserSourceToken,
 } from './source-connection';
+import type { ServerInstanceInfo } from '@iptvnator/shared/interfaces';
 
 let verifiedEpoch = -1;
 let refusal:
@@ -31,7 +32,7 @@ export function verifySourceInstance(
     value: unknown,
     expected = sourceConnection(),
     epoch = sourceVerificationEpoch()
-): void {
+): asserts value is ServerInstanceInfo {
     if (epoch !== sourceVerificationEpoch())
         throw new Error('SOURCE_SYNC.OFFLINE');
     verifiedEpoch = -1;
@@ -63,7 +64,7 @@ export function sourceAuthorization(url: string): Record<string, string> {
     )
         return {};
     try {
-        const token = sessionStorage.getItem(tokenKey(sourceConnection()!));
+        const token = readBrowserSourceToken(sourceConnection()!);
         return token ? { Authorization: `Bearer ${token}` } : {};
     } catch {
         return {};
