@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import {
     CLOSE_EXTERNAL_PLAYER_SESSION,
+    LIST_EXTERNAL_PLAYER_SESSIONS,
     type ExternalPlayerName,
     PLAYBACK_SET_KEEP_AWAKE,
     PlayerContentInfo,
@@ -186,6 +187,10 @@ ipcMain.handle(
     async (_event, sessionId: string, exact?: boolean) => {
         return externalPlayerSessions.closeSession(sessionId, exact === true);
     }
+);
+
+ipcMain.handle(LIST_EXTERNAL_PLAYER_SESSIONS, () =>
+    externalPlayerSessions.listOpenSessions()
 );
 
 ipcMain.handle(PLAYBACK_SET_KEEP_AWAKE, (event, active: boolean) => {
