@@ -22,6 +22,7 @@ import { XtreamPendingRestoreService } from './xtream-pending-restore.service';
 import { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-restore.service';
 import { ParentalLockService } from './parental-lock/parental-lock.service';
 import { removesParentalLocks } from './parental-lock/parental-lock-store.util';
+import { mergeBackupEpgUrls } from './playlist-backup-epg';
 import {
     isParentalLockPlaylistLocksEmpty,
     isM3uRecentlyViewedItem,
@@ -55,6 +56,8 @@ import {
     StalkerBackupLockedCategory,
     XtreamBackupHiddenCategory,
 } from '@iptvnator/shared/interfaces';
+
+export { epgSourceReferenceIdentity } from './playlist-backup-epg';
 
 export interface PlaylistBackupExportPayload {
     defaultFileName: string;
@@ -407,6 +410,11 @@ export class PlaylistBackupService {
                 serverUrl: playlist.serverUrl ?? '',
                 username: playlist.username ?? '',
                 ...(playlist.password ? { password: playlist.password } : {}),
+                ...(playlist.userAgent
+                    ? { userAgent: playlist.userAgent }
+                    : {}),
+                ...(playlist.referrer ? { referrer: playlist.referrer } : {}),
+                ...(playlist.origin ? { origin: playlist.origin } : {}),
             },
             userState: {
                 hiddenCategories: [],
@@ -1067,6 +1075,17 @@ export class PlaylistBackupService {
                     : normalizeXtreamContentTypes(entry.xtreamContentTypes),
             username: entry.connection.username,
             password: entry.connection.password,
+            // Archives written before these were exported carry none of them:
+            // a restore over an existing source keeps its own values.
+            ...(entry.connection.userAgent !== undefined
+                ? { userAgent: entry.connection.userAgent }
+                : {}),
+            ...(entry.connection.referrer !== undefined
+                ? { referrer: entry.connection.referrer }
+                : {}),
+            ...(entry.connection.origin !== undefined
+                ? { origin: entry.connection.origin }
+                : {}),
             favorites: [],
             recentlyViewed: [],
         };
@@ -1120,7 +1139,7 @@ export class PlaylistBackupService {
         }
 
         const existingSettings = this.settingsStore.getSettings();
-        const mergedEpgUrls = this.mergeUrls(
+        const mergedEpgUrls = mergeBackupEpgUrls(
             settings.epgUrls,
             existingSettings.epgUrl ?? []
         );
@@ -1577,22 +1596,6 @@ export class PlaylistBackupService {
                 .map((url) => String(url ?? '').trim())
                 .filter((url) => url.length > 0)
         );
-    }
-
-    private mergeUrls(primary: string[], secondary: string[]): string[] {
-        const merged = new Map<string, string>();
-
-        for (const url of [...primary, ...secondary]) {
-            const normalized = this.normalizeUrlIdentity(url);
-
-            if (!normalized || merged.has(normalized)) {
-                continue;
-            }
-
-            merged.set(normalized, url.trim());
-        }
-
-        return [...merged.values()];
     }
 
     private uniqueStrings(values: string[]): string[] {

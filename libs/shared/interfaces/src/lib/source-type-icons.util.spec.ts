@@ -2,6 +2,7 @@ import {
     getPlaylistSourceIcon,
     resolvePlaylistSourceIconKey,
     resolvePlaylistSourceKind,
+    sourceDialogSubtitle,
     SOURCE_TYPE_ICONS,
 } from './source-type-icons.util';
 
@@ -50,5 +51,27 @@ describe('source type icons', () => {
         [{}, 'm3u'],
     ] as const)('puts %o in the %s family', (playlist, expected) => {
         expect(resolvePlaylistSourceKind(playlist)).toBe(expected);
+    });
+});
+
+describe('sourceDialogSubtitle', () => {
+    const translate = (key: string) => key;
+
+    it('names the source and its type noun', () => {
+        expect(
+            sourceDialogSubtitle(
+                { title: ' Living room ', serverUrl: 'http://x.test' },
+                translate
+            )
+        ).toBe('Living room · DIALOGS.SOURCE_KIND.XTREAM');
+    });
+
+    it('falls back to the type noun when the source has no name', () => {
+        expect(
+            sourceDialogSubtitle({ title: '', macAddress: '00:1A' }, translate)
+        ).toBe('DIALOGS.SOURCE_KIND.STALKER');
+        expect(sourceDialogSubtitle({ title: '' }, translate)).toBe(
+            'DIALOGS.SOURCE_KIND.M3U'
+        );
     });
 });

@@ -71,6 +71,11 @@ Browser import preserves the metadata but does not apply desktop catalog filteri
     - `serverUrl`
     - `username`
     - `password`
+    - optional `userAgent`, `referrer`, `origin`, written when set. Archives
+      from before these were exported carry none of them, so a restore over an
+      existing source keeps that source's own values. Without an archive
+      version to tell the two apart, an archive of a source with no headers
+      cannot clear them on such a source either.
 - User state:
     - hidden categories by `{ categoryType, xtreamId }`
     - favorites by `{ contentType, xtreamId, addedAt?, position? }`
@@ -235,6 +240,34 @@ or updated; the next settings write persists that canonical code.
 
 - Exported: `settings.epgUrls`
 - Excluded: cached EPG database content
+
+Backup restore matches remote EPG URLs by their URL identity, preserving
+distinct request paths. Local XMLTV references keep their exact trimmed
+spelling, including path case.
+The settings form and backup service share this comparison through the lazy
+playlist-backup entry point.
+
+An open settings form takes in restored EPG sources alongside the staged
+edits (`SettingsFormFacade.syncWithStore()`). A source restored after its
+removal was persisted becomes an addition even while cleanup or the
+Electron response is pending. A restore during a pending write keeps the
+previous sources in the baseline and leaves unconfirmed additions staged
+until persistence settles. This uses the last committed form list when an
+earlier Save has persisted a removal and still awaits Electron. A source shown
+by that restore remains known across Save retries and rejected writes, so a
+following removal stays staged.
+A guide committed by a restore remains in that baseline even when it also
+appears in a pending Save that later fails.
+When the restore changes the saved list and
+its source identities match the draft, the form adopts the restored spelling
+and order unless the viewer reordered existing sources. A restore during
+Save also preserves reordering of sources in the submitted list. Once the
+write succeeds, this comparison uses its persisted order. The form
+reuses fields for matching sources and keeps unfinished rows editable while
+adopting the restored list. An open file picker still targets the same field.
+The form becomes pristine once all edits are saved and any outstanding Save has
+been acknowledged. The next Save writes the staged paths. Coverage lives
+in `settings.component.outside-changes.spec.ts` and `backup-restore.e2e.ts`.
 
 ## Import Flow
 

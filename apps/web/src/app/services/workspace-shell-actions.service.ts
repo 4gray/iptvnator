@@ -3,7 +3,7 @@ import type { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { PORTAL_SHELL_ACTIONS } from '@iptvnator/portal/shared/util/tokens';
 import { LazyMatDialog } from '@iptvnator/ui/components/lazy-dialog';
-import { dialogSize } from '@iptvnator/ui/components/dialog-size';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 import {
     WORKSPACE_SHELL_ACTIONS,
     WorkspaceAccountInfoData,

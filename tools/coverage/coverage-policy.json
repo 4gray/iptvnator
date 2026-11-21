@@ -258,6 +258,13 @@
                 "e2eTags": ["@m3u", "@search", "@persistence"]
             },
             {
+                "name": "ui-dialog",
+                "root": "libs/ui/dialog",
+                "sourceRoot": "libs/ui/dialog/src",
+                "validationCommand": "pnpm nx test ui-dialog",
+                "e2eTags": ["@settings", "@m3u"]
+            },
+            {
                 "name": "ui-epg",
                 "root": "libs/ui/epg",
                 "sourceRoot": "libs/ui/epg/src",

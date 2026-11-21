@@ -475,6 +475,12 @@
         gap: 8px;
     }
 
+    // The frameless window controls sit over the rail's top band here (see
+    // the rail), so the header drops the inset the global styles reserve.
+    :host-context(body.frameless-platform) .workspace-header {
+        padding-right: 8px;
+    }
+
     .context-drawer-toggle {
         display: inline-flex;
         flex-shrink: 0;

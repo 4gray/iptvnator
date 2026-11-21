@@ -5,6 +5,7 @@ import {
     inject,
     ChangeDetectionStrategy,
 } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { normalizeDateLocale } from '@iptvnator/pipes';
@@ -12,6 +13,10 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { differenceInMinutes } from 'date-fns';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { SettingsStore, injectTranslationTick } from '@iptvnator/services';
+import {
+    DialogFooterDirective,
+    DialogShellComponent,
+} from '@iptvnator/ui/dialog';
 import { getProgramTimeMs } from '../epg-program.utils';
 
 export type EpgItemDialogAction =
@@ -24,7 +29,7 @@ export type EpgItemDialogData = EpgProgram & {
     channelName?: string | null;
     channel_name?: string | null;
     display_name?: string | null;
-    /** Channel logo shown in the hero (falls back to a glyph when absent). */
+    /** Channel logo shown as the body's first block, when there is one. */
     channelLogo?: string | null;
     /** State-aware primary action; closes the dialog with this value. */
     primaryAction?: EpgItemDialogAction | null;
@@ -37,7 +42,15 @@ export type EpgItemDialogData = EpgProgram & {
     templateUrl: './epg-item-description.component.html',
     styleUrls: ['./epg-item-description.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [DatePipe, MatDialogModule, MatIcon, TranslatePipe],
+    imports: [
+        DatePipe,
+        DialogFooterDirective,
+        DialogShellComponent,
+        MatButtonModule,
+        MatDialogModule,
+        MatIcon,
+        TranslatePipe,
+    ],
 })
 export class EpgItemDescriptionComponent {
     dialogData = inject<EpgItemDialogData>(MAT_DIALOG_DATA);
@@ -48,7 +61,7 @@ export class EpgItemDescriptionComponent {
     epgProgram: EpgProgram;
     channelName: string | null = null;
     channelLogo: string | null = null;
-    /** Set when the logo image fails to load → falls back to the glyph. */
+    /** Set when the logo image fails to load; the logo block then goes. */
     logoFailed = false;
     duration: string | null = null;
     primaryAction: EpgItemDialogAction | null = null;

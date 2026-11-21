@@ -162,7 +162,10 @@ describe('PlaylistBackupService', () => {
         };
         const settingsStore = {
             getSettings: jest.fn(() => ({
-                epgUrl: ['https://existing.example.com/epg.xml'],
+                epgUrl: [
+                    'https://existing.example.com/epg.xml',
+                    '/example/Guide.xml',
+                ],
             })),
             updateSettings: jest.fn().mockResolvedValue(undefined),
         };
@@ -180,6 +183,8 @@ describe('PlaylistBackupService', () => {
                 epgUrls: [
                     'https://backup.example.com/epg.xml',
                     'https://existing.example.com/epg.xml',
+                    'https://existing.example.com/epg.xml/',
+                    '/example/guide.xml',
                 ],
             },
             playlists: [
@@ -217,6 +222,9 @@ describe('PlaylistBackupService', () => {
             epgUrl: [
                 'https://backup.example.com/epg.xml',
                 'https://existing.example.com/epg.xml',
+                'https://existing.example.com/epg.xml/',
+                '/example/guide.xml',
+                '/example/Guide.xml',
             ],
         });
         expect(playlistsService.restorePlaylist).toHaveBeenCalledWith(

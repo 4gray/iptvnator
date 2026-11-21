@@ -6,11 +6,7 @@ import {
     ChangeDetectionStrategy,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import {
-    MAT_DIALOG_DATA,
-    MatDialog,
-    MatDialogModule,
-} from '@angular/material/dialog';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -21,36 +17,12 @@ import {
 } from '@iptvnator/epg/data-access';
 import { ELECTRON_BRIDGE_SECURITY_ERROR_CODES } from '@iptvnator/shared/interfaces';
 import { normalizeDateLocale } from '@iptvnator/pipes/date-format';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 import { formatEpgImportDisplayUrl } from './epg-import-display-url';
-
-interface EpgTrustConfirmDialogData {
-    confirmLabel: string;
-    message: string;
-    title: string;
-}
-
-@Component({
-    selector: 'app-epg-trust-confirm-dialog',
-    imports: [MatButtonModule, MatDialogModule, TranslatePipe],
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-        <h2 mat-dialog-title>{{ data.title }}</h2>
-        <mat-dialog-content class="mat-typography">
-            {{ data.message }}
-        </mat-dialog-content>
-        <mat-dialog-actions align="end">
-            <button mat-button mat-dialog-close cdkFocusInitial>
-                {{ 'CANCEL' | translate }}
-            </button>
-            <button mat-flat-button color="primary" [mat-dialog-close]="true">
-                {{ data.confirmLabel }}
-            </button>
-        </mat-dialog-actions>
-    `,
-})
-class EpgTrustConfirmDialogComponent {
-    readonly data = inject<EpgTrustConfirmDialogData>(MAT_DIALOG_DATA);
-}
+import {
+    EpgTrustConfirmDialogComponent,
+    EpgTrustConfirmDialogData,
+} from './epg-trust-confirm-dialog.component';
 
 /**
  * The import progress panel itself. `EpgProgressPanelComponent` defers it
@@ -179,6 +151,7 @@ export class EpgProgressPanelViewComponent {
                     title: this.translate.instant(
                         'EPG.ALLOW_PRIVATE_SOURCE_TITLE'
                     ),
+                    subtitle: this.getDisplayUrl(item.url),
                     message: this.translate.instant(
                         'EPG.ALLOW_PRIVATE_SOURCE_WARNING'
                     ),
@@ -198,6 +171,11 @@ export class EpgProgressPanelViewComponent {
         this.openTrustDialog(
             {
                 title: this.translate.instant('EPG.TRUST_TLS_HOST_TITLE'),
+                subtitle: item.errorHost
+                    ? this.translate.instant('DIALOGS.TLS_HOST', {
+                          host: item.errorHost,
+                      })
+                    : this.getDisplayUrl(item.url),
                 message: this.translate.instant('EPG.TRUST_TLS_HOST_WARNING'),
                 confirmLabel: this.translate.instant('EPG.TRUST_TLS_HOST'),
             },
@@ -217,7 +195,7 @@ export class EpgProgressPanelViewComponent {
         this.dialog
             .open<EpgTrustConfirmDialogComponent, EpgTrustConfirmDialogData>(
                 EpgTrustConfirmDialogComponent,
-                { data, width: '420px' }
+                { ...dialogSize('sm'), data }
             )
             .afterClosed()
             .subscribe((confirmed) => {

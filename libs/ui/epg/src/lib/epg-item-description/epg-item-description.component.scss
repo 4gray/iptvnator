@@ -1,95 +1,26 @@
 @use '../epg-theme' as *;
 
-.epg-dialog {
-    display: flex;
-    flex-direction: column;
-    max-height: calc(100dvh - 32px);
-    box-sizing: border-box;
-    width: 540px;
-    max-width: 100%;
-    background: $surface-1;
-    color: $text-primary;
-    border: 1px solid $line-strong;
-    border-radius: 14px;
-    overflow: hidden;
-    box-shadow: var(--app-widget-shadow);
+// The dialog shell draws the frame, header, scrolling body and footer; these
+// rules style the programme content inside the body.
 
-    * {
-        box-sizing: border-box;
-    }
-}
-
-/* ── hero ── */
+// The channel logo, edge to edge as the body's first block, on an
+// app-owned plate so transparent artwork stays legible.
 .epg-dialog__hero {
-    flex: none;
-    position: relative;
-    height: 132px;
     display: grid;
     place-items: center;
+    height: 112px;
+    margin: -20px -20px 18px;
     border-bottom: 1px solid $line;
     background: $surface-2;
-}
-
-.epg-dialog__hero-glyph {
-    font-size: 40px;
-    width: 40px;
-    height: 40px;
-    color: $text-tertiary;
 }
 
 .epg-dialog__logo {
     max-width: 56%;
     max-height: 76px;
     object-fit: contain;
-    /* Keep transparent channel artwork on an app-owned plate. */
     padding: 8px 12px;
     border-radius: 10px;
     background: $surface-1;
-    backdrop-filter: blur(2px);
-}
-
-.epg-dialog__chan {
-    position: absolute;
-    left: 14px;
-    top: 12px;
-    max-width: calc(100% - 28px);
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 5px 11px;
-    border-radius: 999px;
-    background: $surface-1;
-    border: 1px solid $line;
-    font-size: 12px;
-    color: $text-secondary;
-    backdrop-filter: blur(6px);
-
-    mat-icon {
-        font-size: 15px;
-        width: 15px;
-        height: 15px;
-        color: $accent-text;
-        flex: 0 0 auto;
-    }
-}
-
-.epg-dialog__chan-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* ── body ── */
-.epg-dialog__body {
-    min-height: 0;
-    overflow-y: auto;
-    overflow-wrap: anywhere;
-    padding: 18px 22px 22px;
-
-    &:focus-visible {
-        outline: 2px solid var(--app-focus-ring);
-        outline-offset: -3px;
-    }
 }
 
 .epg-dialog__meta {
@@ -109,24 +40,6 @@
     border-radius: 50%;
     background: currentColor;
     opacity: 0.55;
-}
-
-/* `mat-dialog-title` names the dialog; keep the design's type and spacing
-   instead of Material's headline padding and baseline strut. */
-.epg-dialog__title.mat-mdc-dialog-title {
-    flex: none;
-    margin: 0 0 12px;
-    padding: 0;
-    font-family: inherit;
-    font-size: 21px;
-    font-weight: 600;
-    line-height: 1.25;
-    letter-spacing: -0.01em;
-    color: $text-primary;
-
-    &::before {
-        display: none;
-    }
 }
 
 .epg-dialog__desc {
@@ -187,91 +100,32 @@
     color: $text-tertiary;
 }
 
-/* Dismiss first, primary last, both on the inline end. Wrapping is only a
-   last resort; both buttons fit one row at the 540px width. */
-.epg-dialog__actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 10px;
+.epg-dialog__tools .mat-icon,
+.epg-dialog__primary .mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
 }
 
-.epg-dialog__btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    height: 40px;
-    padding: 0 16px;
-    border-radius: 10px;
-    border: 1px solid transparent;
-    font: inherit;
-    font-size: 13.5px;
-    font-weight: 600;
-    cursor: pointer;
-
-    mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
-    }
-
-    &--primary {
-        background: var(--app-selection-surface);
-        border-color: var(--app-selection-border);
-        color: $text-primary;
-
-        &:hover {
-            filter: brightness(1.06);
-        }
-    }
-
-    &--ghost {
-        background: transparent;
-        color: $text-primary;
-        border-color: $line-strong;
-
-        &:hover {
-            background: $surface-2;
-        }
-    }
-}
-
-/* Phone breakpoint: the viewport caps the dialog, so actions stack one per
-   row at full width, in DOM order (dismiss above the primary). A long
-   translated label wraps inside its button instead of being clipped. */
+// Phone breakpoint: the archive tools stack one per row at full width, in
+// DOM order, as the shell's footer does under 480px. A long translated
+// label wraps inside its button instead of being clipped.
 @media (max-width: 640px) {
-    .epg-dialog__tools,
-    .epg-dialog__actions {
+    .epg-dialog__tools {
         flex-direction: column;
         align-items: stretch;
-    }
 
-    .epg-dialog__btn {
-        justify-content: center;
-        height: auto;
-        min-height: 40px;
-        padding-block: 8px;
-        text-align: center;
+        .mat-mdc-button-base {
+            height: auto;
+            min-height: 40px;
+            padding-block: 8px;
+            white-space: normal;
+        }
     }
 }
 
 @media (max-height: 480px) {
     .epg-dialog__hero {
-        height: 80px;
-    }
-}
-
-/* Let the dialog provide its own surface, border and shadow. Scoped to the
-   panel class from EPG_PROGRAMME_DIALOG_CONFIG so no other dialog loses its
-   surface while this one is open. */
-::ng-deep .epg-programme-dialog-panel .mat-mdc-dialog-container {
-    .mat-mdc-dialog-surface,
-    .mdc-dialog__surface {
-        background: transparent !important;
-        border: 0;
-        box-shadow: none !important;
-        border-radius: 14px !important;
-        overflow: visible;
+        height: 72px;
     }
 }

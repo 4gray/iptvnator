@@ -11,7 +11,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
 import { LazyMatDialog } from '@iptvnator/ui/components/lazy-dialog';
-import { dialogSize } from '@iptvnator/ui/components/dialog-size';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 import { SettingsStore } from './settings-store.service';
 
 @Injectable({

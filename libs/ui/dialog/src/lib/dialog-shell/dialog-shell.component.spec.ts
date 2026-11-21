@@ -46,7 +46,11 @@ class FullHostComponent {
 @Component({
     imports: [DialogShellComponent],
     template: `
-        <app-dialog-shell heading="Keyboard shortcuts" [bodyFocusable]="true">
+        <app-dialog-shell
+            heading="Keyboard shortcuts"
+            subtitle="Keys that work everywhere"
+            [bodyFocusable]="true"
+        >
             <p>Body only</p>
         </app-dialog-shell>
     `,
@@ -56,7 +60,11 @@ class BareHostComponent {}
 @Component({
     imports: [DialogShellComponent],
     template: `
-        <app-dialog-shell heading="Manage groups" bodyLayout="column">
+        <app-dialog-shell
+            heading="Manage groups"
+            subtitle="Show or hide groups"
+            bodyLayout="column"
+        >
             <div>A list that scrolls</div>
         </app-dialog-shell>
     `,
@@ -122,7 +130,7 @@ describe('DialogShellComponent', () => {
         expect(footerTexts).toEqual(['Clear', 'Cancel']);
     });
 
-    it('renders no footer, icon tile or subtitle when nothing is projected or set, and marks itself footer-less', async () => {
+    it('renders no footer or icon tile when nothing is projected or set, and marks itself footer-less', async () => {
         const root = await render(BareHostComponent);
 
         expect(root.querySelector('.app-dialog__footer')).toBeNull();
@@ -134,7 +142,9 @@ describe('DialogShellComponent', () => {
                 ?.classList.contains('app-dialog--footerless')
         ).toBe(true);
         expect(root.querySelector('.app-dialog__icon')).toBeNull();
-        expect(root.querySelector('.app-dialog__subtitle')).toBeNull();
+        expect(
+            root.querySelector('.app-dialog__subtitle')?.textContent?.trim()
+        ).toBe('Keys that work everywhere');
         expect(root.querySelector('.app-dialog__body')?.textContent).toContain(
             'Body only'
         );

@@ -19,7 +19,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { TmdbRuntimeService, type TmdbMatchContext } from '@iptvnator/services';
 import { LazyMatDialog } from '../lazy-dialog/lazy-mat-dialog';
-import { dialogSize } from '../dialog-shell/dialog-size';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 import type {
     VodSourceDescriptor,
     VodSourceMatchKind,

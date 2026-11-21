@@ -91,6 +91,12 @@ function decorateReleaseNotesHtml(html: string): string {
         <app-dialog-shell
             icon="new_releases"
             [heading]="'SETTINGS.APP_UPDATE_RELEASE_NOTES' | translate"
+            [subtitle]="
+                shownVersion()
+                    ? ('DIALOGS.RELEASE_NOTES_VERSION'
+                      | translate: { version: shownVersion() })
+                    : ('DIALOGS.RELEASE_NOTES' | translate)
+            "
         >
             <div class="release-notes-dialog">
                 <div class="release-notes-dialog__toolbar">
@@ -342,15 +348,16 @@ export class AppUpdateReleaseNotesDialogComponent implements OnInit {
     readonly loading = signal(false);
     readonly error = signal<ReleaseNotesLoadError | null>(null);
     readonly notes = signal<ElectronBridgeAppUpdateReleaseNotes | null>(null);
+    /** The version shown, or the one the failed request was about. */
+    readonly shownVersion = computed(
+        () =>
+            this.error()?.version ??
+            this.notes()?.version ??
+            this.data.initialVersion
+    );
     /** Release list of the channel the failed request was about. */
     readonly releasesPageUrl = computed(() =>
-        appUpdateReleasesListUrl(
-            appVersionChannel(
-                this.error()?.version ??
-                    this.notes()?.version ??
-                    this.data.initialVersion
-            )
-        )
+        appUpdateReleasesListUrl(appVersionChannel(this.shownVersion()))
     );
     readonly renderedMarkdown = computed(() => {
         const markdown = this.notes()?.bodyMarkdown ?? '';

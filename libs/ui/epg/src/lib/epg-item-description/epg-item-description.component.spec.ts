@@ -1,9 +1,8 @@
 import { ChangeDetectorRef, signal } from '@angular/core';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { By } from '@angular/platform-browser';
 import { TranslateModule } from '@ngx-translate/core';
-import { MockModule } from 'ng-mocks';
 import { SettingsStore } from '@iptvnator/services';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { EpgItemDescriptionComponent } from './epg-item-description.component';
@@ -14,12 +13,9 @@ describe('EpgItemDescriptionComponent', () => {
 
     beforeEach(waitForAsync(() => {
         TestBed.configureTestingModule({
-            imports: [
-                EpgItemDescriptionComponent,
-                MockModule(MatDialogModule),
-                TranslateModule.forRoot(),
-            ],
+            imports: [EpgItemDescriptionComponent, TranslateModule.forRoot()],
             providers: [
+                { provide: MatDialogRef, useValue: { close: jest.fn() } },
                 {
                     provide: MAT_DIALOG_DATA,
                     useValue: {
@@ -50,21 +46,22 @@ describe('EpgItemDescriptionComponent', () => {
     });
 
     it('starts keyboard reading in the named scroll region rather than jumping to footer actions', () => {
-        const body = fixture.nativeElement.querySelector('.epg-dialog__body');
+        // The shell's header has no tabbable before the body, so Material's
+        // first-tabbable autofocus lands on the named body region.
+        const body = fixture.nativeElement.querySelector('.app-dialog__body');
         expect(body.getAttribute('tabindex')).toBe('0');
+        expect(body.getAttribute('role')).toBe('region');
         expect(body.getAttribute('aria-label')).toBe('TV Show 1');
-        expect(body.hasAttribute('cdkFocusInitial')).toBe(true);
-        expect(
-            fixture.nativeElement
-                .querySelector('.epg-dialog__close')
-                .hasAttribute('cdkFocusInitial')
-        ).toBe(false);
+        const header = fixture.nativeElement.querySelector(
+            '.app-dialog__header'
+        );
+        expect(header.querySelector('button, [tabindex]')).toBeNull();
     });
 
     it('should render epg details in the dialog', () => {
         fixture.detectChanges();
         const titleElement = fixture.debugElement.query(
-            By.css('.epg-dialog__title')
+            By.css('.app-dialog__title')
         );
         expect(titleElement.nativeElement.textContent.trim()).toContain(
             'TV Show 1'
