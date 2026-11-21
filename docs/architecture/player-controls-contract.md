@@ -269,6 +269,11 @@ is rendered; state such as `canSeek`, `canPreviousEpisode`, and
 - picture-in-picture active state and runtime availability;
 - previous/next episode availability.
 
+The shared dock exposes aspect-capable engines' 21:9 screen-fill mode as a
+one-tap toggle. Web video uses `object-fit: cover` to fill the player viewport
+and restores the element's prior fit when disabled; Embedded MPV delegates to
+its aspect-ratio override.
+
 Adapters translate engine types into this model. The controls component must not
 import Video.js, hls.js, ArtPlayer, libmpv, Electron IPC, or native-view types.
 Recording state may expose a `transitionKey` that identifies its current
