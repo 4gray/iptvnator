@@ -100,10 +100,12 @@ phone over mobile data using a controlled Access application.
 
 For a debug APK already paired to a synthetic loopback server, run
 `ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-hosted-reconnect.mjs emulator-5556 http://127.0.0.1:43340`
-with that server's port reversed through ADB. The native regression verifies
-Disconnect preserves pairing and Connect restores the authenticated library.
-It also checks that returning from Settings restores channel selection and
-decoded playback using the fixture's synthetic clip.
+with that server's port reversed through ADB. The paired-only fixture needs an
+M3U source named `Synthetic Android library` containing a playable video channel
+named `Synthetic playable clip`. The regression re-enters the server address
+after Disconnect, then uses the saved Connect shortcut after a simulated HTTP
+503. Both paths must load the protected inventory with the existing pairing.
+It also verifies channel selection and decoded playback after visiting Settings.
 
 ## What it does
 
