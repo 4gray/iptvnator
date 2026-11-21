@@ -1,5 +1,9 @@
 import { dialog } from 'electron';
-import { initDatabase } from '../database/connection';
+import {
+    hasPendingContentTitleFtsBuild,
+    initDatabase,
+} from '../database/connection';
+import { databaseWorkerClient } from '../services/database-worker-client';
 import { resetStaleDownloads } from '../events/database/downloads.events';
 import { reconcileStaleRecordings } from '../events/database/recording-recovery';
 import { traceStartupPhase } from '../services/debug-trace';
@@ -27,6 +31,13 @@ export async function finishStartupAfterFirstLoad(): Promise<void> {
             async () => {
                 await reconcileStaleRecordings();
                 traceStartupPhase('reconcile-stale-recordings:done');
+            },
+            // Off the main thread: a large catalog's title index rebuild
+            // (see libs/shared/database/README.md).
+            async () => {
+                if (!hasPendingContentTitleFtsBuild()) return;
+                await databaseWorkerClient.startContentTitleFtsBuild();
+                traceStartupPhase('content-title-fts-build:requested');
             },
         ],
         reportFailure: (error) =>

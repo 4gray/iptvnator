@@ -7,6 +7,7 @@ export {
   getDatabase,
   initDatabase,
   getDatabasePath,
+  hasPendingContentTitleFtsBuild,
   closeDatabase,
   type DatabaseInstance,
   type DatabaseOptions,

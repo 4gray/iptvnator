@@ -205,3 +205,45 @@ worker upgrade flow is also covered by
 For an orphaned 0.24 favorites table, initial startup and restart through the
 real Electron UI and worker are covered by
 `pnpm nx run electron-backend-e2e:e2e-ci--src/favorites-legacy.e2e.ts`.
+
+### Title index rebuild
+
+`src/lib/content-title-fts.ts` owns `content_title_fts`, the trigram index of
+`content.title`. Its tokenizer is fixed at CREATE time, so an upgrade that
+changes it (0.22 profiles to `remove_diacritics`; 0.19-0.21 profiles never had
+the index filled) re-indexes the whole catalog: about 4 s per million titles,
+which on the main thread kept a 3.9M-title profile from answering IPC, menus
+or window close for about 15 s. `prepareContentTitleFts()` runs in
+`runMigrations()`, before the content-mutating migrations:
+
+- The live table's DDL decides, not the marker alone: a `done` marker over an
+  unfolded table is rebuilt. A runtime without `remove_diacritics` builds the
+  plain tokenizer and leaves the diacritics marker unwritten, so a newer
+  SQLite upgrades later. Neither marker is written before the index exists.
+- Up to 50,000 titles (`CONTENT_TITLE_FTS_STARTUP_REBUILD_LIMIT`, counted with
+  a bounded scan), or with `IPTVNATOR_TITLE_INDEX_REBUILD_AT_STARTUP=1` (kill
+  switch, remove after 0.28), the table is recreated and rebuilt in one
+  transaction, as before.
+- Above that, startup only creates `content_title_fts_next`, a cursor in
+  `app_state` (`migration:content-title-fts-build-cursor:v1`) and three
+  triggers that keep the new index equal to the rows up to the cursor for
+  writes from any connection. After the recovery passes, the main process
+  posts `content-title-fts-build` to the database worker, which calls
+  `buildContentTitleFtsBatch()` with 5,000 titles per IMMEDIATE transaction
+  and yields to its requests between batches. The last call drops the old
+  table and triggers, renames the new table, recreates the triggers, deletes
+  the cursor and writes the markers in one transaction.
+- Search uses the old index until the swap. A 0.22 profile keeps finding
+  titles, without diacritic folding. A 0.19-0.21 profile has an empty live
+  index, so FTS title search finds nothing until the build completes; its
+  live triggers are dropped meanwhile, because an external content index
+  cannot detect a `delete` for a row it never held.
+- A worker closed or terminated mid-build loses only its open batch. The next
+  startup keeps the table and cursor and resumes; a busy database is retried
+  three times, then left to the next launch.
+
+`src/lib/content-title-fts.spec.ts` runs the build on real SQLite with
+concurrent writes, an interrupted batch, an old runtime and a distrusted
+marker; `connection-upgrades.spec.ts` takes populated 0.21 and 0.22 catalogs
+through `initDatabase()`; `apps/electron-backend/src/app/workers/content-title-fts-build.spec.ts`
+runs the real worker bundle on a deferred profile.

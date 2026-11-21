@@ -150,6 +150,19 @@ export class DatabaseWorkerClient {
         });
     }
 
+    /**
+     * Asks the worker to build the title index `initDatabase()` deferred.
+     * Fire and forget: the build is not a request, so quitting never waits
+     * for it (the next launch resumes it).
+     */
+    async startContentTitleFtsBuild(): Promise<void> {
+        const worker = await this.ensureWorker();
+        if (this.worker !== worker) {
+            throw new Error('Database worker shut down or replaced');
+        }
+        worker.postMessage({ type: 'content-title-fts-build' });
+    }
+
     async cancel(operationId: string): Promise<{ success: boolean }> {
         if (!operationId) {
             return { success: false };

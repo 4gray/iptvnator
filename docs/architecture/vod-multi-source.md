@@ -833,7 +833,11 @@ titles ("Amélie" → "amelie") against an index built from the raw one — with
 folding, every accented title was invisible to the FTS path, and two identical
 `Amélie` entries produced no candidates at all. The tokenizer is fixed at
 CREATE time, so existing databases are recreated and rebuilt once behind
-`migration:content-title-fts-remove-diacritics:v1`. That rebuild also records
+`migration:content-title-fts-remove-diacritics:v1` (a catalog above 50,000
+titles is rebuilt by the database worker after startup, while search keeps
+the old index; see the
+[database README](../../libs/shared/database/README.md#title-index-rebuild)).
+That rebuild also records
 `migration:content-title-fts-trigram:v1`, the plain rebuild it supersedes;
 before it did, a new profile rebuilt the whole index a second time on its
 second launch, on the main thread, right after the first catalog import.
