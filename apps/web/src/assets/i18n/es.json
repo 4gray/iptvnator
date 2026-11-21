@@ -1005,7 +1005,9 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
-        "ACTION_TRY_BUILT_IN_PLAYER": "Probar el reproductor integrado",
+        "ANDROID_PLAYER_MENU": "Opciones de reproducción",
+        "ACTION_OPEN_BUILT_IN_PLAYER": "Abrir en el reproductor integrado",
+        "ACTION_RECONNECT": "Volver a conectar",
         "ACTION_RETURN_TO_WEB_PLAYER": "Volver al reproductor web",
         "HLS_WAIT": "Seguimos esperando datos de la transmisión. Puedes esperar o reintentar.",
         "STAGE_LOADER": "Carga del flujo",

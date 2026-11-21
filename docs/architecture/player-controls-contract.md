@@ -117,17 +117,20 @@ engine, so opening the workspace does not fetch those styles.
 
 The diagnostic panel publishes a bubbling `iptvnator:playback-issue` DOM event
 after rendering each issue, with only its bounded `code` in the detail. It contains
-no stream URL or provider credentials; the TV
-shell uses format/decode codes for its standalone external-player offer. With
-the Media3 pilot enabled, the shell waits for both engines to fail in the same
-playback attempt before offering an external player. It records a web failure
-by attempt, including network and browser access errors reported by the engine,
-and failures where the media element has only a blob URL. It uses the URL from
-Media3 for the offer.
-Android playback attempts and native launch requests use `createRandomId()`
+no stream URL or provider credentials. In Android TV Shell, the web player's
+diagnostic panel owns the recovery actions. It prioritizes Media3 for format and
+decode errors and reconnecting for network errors. Recommendations to try a
+different web engine remain available. The native bridge checks the current
+stream against installed `ACTION_VIEW` handlers. The explicit external
+action opens the Android chooser regardless of the saved preferred player.
+On Android TV the panel centers within the video area and uses the app theme
+for actions and focus. The primary action spans the panel. Secondary actions
+stack in narrow players, and the video area scrolls if the panel is taller.
+The active Media3 handoff keeps the web failure visible after Back and can
+promote the external action if both engines fail.
+Android native launch and recovery availability requests use `createRandomId()`
 so they also work on plain HTTP home-network hosts.
-Turning Media3 off rechecks the current attempt for a deferred format or decode
-error and uses the web player's URL for the standalone offer.
+The external launch policy also applies to recovery actions in hosted libraries.
 Delayed native media errors retain the media element, source and load-attempt
 identity. Removal, replacement, a changed source or another `loadstart` discards
 that error before it can offer recovery for a newer playback attempt.

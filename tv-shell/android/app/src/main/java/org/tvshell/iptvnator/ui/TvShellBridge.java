@@ -46,6 +46,17 @@ final class TvShellBridge {
                 String playbackId = stringAt(args, 1);
                 if (playbackId != null) activity.stopNative(playbackId);
                 break;
+            case "checkExternalPlayback":
+                String checkId = stringAt(args, 1);
+                String checkUrl = stringAt(args, 2);
+                if (checkId != null && checkId.matches("[a-f0-9-]{36}") && checkUrl != null)
+                    activity.checkExternalPlayback(checkId, checkUrl);
+                break;
+            case "chooseExternalPlayback":
+                String stream = stringAt(args, 1);
+                String label = stringAt(args, 2);
+                if (stream != null && label != null) activity.chooseExternalPlayback(stream, label);
+                break;
             case "openExternal":
             case "onUrlCopied":
             case "onPlaybackError":

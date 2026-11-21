@@ -1005,7 +1005,9 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
-        "ACTION_TRY_BUILT_IN_PLAYER": "내장 플레이어 사용해 보기",
+        "ANDROID_PLAYER_MENU": "재생 옵션",
+        "ACTION_OPEN_BUILT_IN_PLAYER": "내장 플레이어에서 열기",
+        "ACTION_RECONNECT": "다시 연결",
         "ACTION_RETURN_TO_WEB_PLAYER": "웹 플레이어로 돌아가기",
         "HLS_WAIT": "스트림 데이터를 기다리고 있습니다. 계속 기다리거나 다시 시도할 수 있습니다.",
         "STAGE_LOADER": "스트림 로드",

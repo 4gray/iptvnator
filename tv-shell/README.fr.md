@@ -60,7 +60,7 @@ ou **TV**, ou activer le lecteur intégré expérimental dans **Lecture**. Le mo
 | D-pad | se déplacer entre les éléments (flèche maintenue : un élément par image affichée) ; sur l'image : ◀ ▶ = recherche, ▲ ▼ = quitter l'image / contrôles ; dans un champ texte, les flèches déplacent le curseur tant qu'il peut bouger |
 | OK | activer ; sur l'image : plein écran ; sur un champ texte : clavier. Un appui maintenu vaut une activation |
 | Retour | fermer dialogue/menu → quitter le plein écran → page précédente → (2×) quitter l'app ; **appui long** : réglages de IPTVnator (télécommandes sans touche Menu) |
-| Menu | menu contextuel de l'élément ; sur l'image : ouvrir le flux dans VLC ; **appui long** : réglages de IPTVnator. La touche menu contextuel HDMI-CEC et Y d'une manette font de même |
+| Menu | menu contextuel de l'élément ; sur l’image : options de lecture si Media3 est disponible, sinon ouvrir le flux dans un lecteur externe ; **appui long** : réglages de IPTVnator. La touche menu contextuel HDMI-CEC et Y d'une manette font de même |
 | ▶⏸ ⏪ ⏩ | lecture/pause, −15 s, +30 s |
 
 ## Réglages de IPTVnator (appui long sur Menu ou sur Retour)
@@ -141,17 +141,15 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
 
 ### Lecture
 
-- **Flux muet / noir / « ce flux ne peut pas être lu ici »** : codec ou conteneur
-  non géré par le WebView (`.ts` brut, AC3…). Acceptez l'ouverture dans VLC, ou
-  Menu sur l'image / « Copier l'URL du flux ». Pour Xtream, choisissez le format
-  de sortie `m3u8` dans les réglages de la playlist. Chaque nouvel essai sur une
-  chaîne repropose le lecteur.
-- **La proposition VLC n'apparaît plus** : réglages de IPTVnator → *Lecteur
-  externe* → cochez « Proposer un lecteur externe ». Avec le moteur HTML5 ou
-  ArtPlayer, une connexion coupée (erreur média native 1 ou 2) ne la déclenche
-  pas : VLC échouerait de la même façon. Le lecteur video.js (par défaut) la
-  propose toujours : il signale ainsi un manifeste illisible par la page (sans
-  CORS), que VLC lit.
+- Si l’image est noire ou le flux est sans son, ouvrez **Options de lecture**,
+  puis choisissez **Ouvrir dans le lecteur intégré**. Activez Media3 dans les
+  réglages Android de l’application pour afficher cette option. Pour Xtream,
+  vous pouvez aussi choisir le format de sortie `m3u8` dans les réglages de la
+  playlist.
+- En cas d’erreur de lecture, utilisez les actions affichées dans la vidéo.
+  En cas d’erreur réseau, relancez la connexion. Après une erreur de format,
+  Android propose **Ouvrir dans un lecteur externe** s’il trouve un lecteur
+  installé capable d’ouvrir le flux.
 - **« Error, something went wrong (ERR_RESPONSE_TOO_LARGE) »** à l'ajout d'une
   source : la playlist ou la réponse du portail dépasse ce que l'appareil peut
   tenir en mémoire (environ 32 Mo sur un Stick de 1 Go) ; utilisez un export

@@ -1,6 +1,7 @@
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { VodSourceRowComponent } from '@iptvnator/ui/components';
 import { PlaybackDiagnosticPanelComponent } from '../playback-diagnostic-panel/playback-diagnostic-panel.component';
@@ -42,6 +43,7 @@ export async function configureWebPlayerViewTest(
                     ClipboardModule,
                     MatButtonModule,
                     MatIconModule,
+                    MatMenuModule,
                     MatTooltipModule,
                     TranslateModule,
                 ],

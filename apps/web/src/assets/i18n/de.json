@@ -1005,7 +1005,9 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
-        "ACTION_TRY_BUILT_IN_PLAYER": "Integrierten Player ausprobieren",
+        "ANDROID_PLAYER_MENU": "Wiedergabeoptionen",
+        "ACTION_OPEN_BUILT_IN_PLAYER": "Im integrierten Player öffnen",
+        "ACTION_RECONNECT": "Erneut verbinden",
         "ACTION_RETURN_TO_WEB_PLAYER": "Zum Webplayer zurückkehren",
         "HLS_WAIT": "Warte weiter auf Stream-Daten. Du kannst warten oder die Wiedergabe erneut versuchen.",
         "STAGE_LOADER": "Stream laden",

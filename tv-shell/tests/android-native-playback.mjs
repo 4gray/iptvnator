@@ -162,7 +162,7 @@ try {
     let page = await (await device.webView({ pkg: app })).page();
     page.setDefaultTimeout(20000);
     await page.waitForFunction(() => window.__tvShell && !document.getElementById('initial-splash'));
-    async function setExperiment(enabled) {
+    async function openPlaybackSettings() {
         await page.evaluate(() => {
             if (!window.__tvShell.openSettingsSection('playback')) {
                 window.TvShell.postMessage('["openSettings"]');
@@ -170,6 +170,9 @@ try {
         });
         settingsOpen = true;
         await expect.poll(topActivity).toContain('.ui.SettingsActivity');
+    }
+    async function setExperiment(enabled) {
+        await openPlaybackSettings();
         let checkbox;
         await expect.poll(() => {
             checkbox = dumpLayout().match(/<node [^>]*resource-id="org\.tvshell\.iptvnator:id\/native_playback"[^>]*>/)?.[0];
@@ -221,12 +224,24 @@ try {
     await expect(entry('Synthetic Feature')).toBeVisible({ timeout: 60000 });
     await entry('Synthetic Feature').click();
     const stage = page.locator('app-web-player-view');
-    const action = stage.getByRole('button', { name: 'Try built-in player' });
+    const playerMenu = stage.getByRole('button', { name: 'Playback options' });
+    const recovery = stage.locator('app-playback-diagnostic-panel');
+    const action = page.locator('[data-tv-native-playback]');
+    const openMedia3 = async () => {
+        await expect.poll(async () => {
+            if (await action.isVisible()) return true;
+            await playerMenu.evaluateAll(([trigger]) => {
+                if (trigger?.getAttribute('aria-expanded') === 'false') trigger.click();
+            });
+            return false;
+        }).toBe(true);
+        await action.click();
+    };
     const video = stage.locator('video');
     await expect(video).toBeAttached();
-    await expect(action).toHaveCount(0);
+    await expect(playerMenu).toHaveCount(0);
     await setExperiment(true);
-    await expect(action).toBeVisible();
+    await expect(playerMenu).toBeVisible();
     for (const request of [
         { url: origin + '/synthetic.ism/Manifest' },
         { url: origin + '/synthetic.mpd', hls: true },
@@ -265,6 +280,71 @@ try {
         adb('shell', 'input', 'keyevent', '4');
         await expect.poll(topActivity).toContain('.ui.MainActivity');
     }
+    await expect(entry('Synthetic Unplayable')).toBeVisible({ timeout: 60000 });
+    await entry('Synthetic Unplayable').click();
+    await expect(recovery).toBeVisible();
+    await expect(recovery.locator('[data-tv-recovery-primary]')).toBeFocused();
+    await expect(recovery.locator('details')).not.toHaveAttribute('open', '');
+    const summary = recovery.locator('summary');
+    await summary.click();
+    await expect(recovery.locator('details')).toHaveJSProperty('open', true);
+    await summary.focus();
+    await back();
+    await expect(recovery.locator('details')).toHaveJSProperty('open', false);
+    await expect(summary).toBeFocused();
+    await openMedia3();
+    await waitNative();
+    await expect.poll(() => dumpLayout().includes('The built-in player could not play this stream')).toBe(true);
+    const failedStreamRequests = seen.failedStreamRequests;
+    adb('shell', 'input', 'keyevent', 'KEYCODE_MEDIA_PLAY');
+    await delay(1000);
+    assert.equal(seen.failedStreamRequests, failedStreamRequests,
+        'Remote Play must not restart a failed native session.');
+    assert.ok(!adb('shell', 'cmd', 'media_session', 'list-sessions').includes(app),
+        'A failed native session must also release its system transport controls.');
+    await back();
+    await expect(recovery).toBeVisible();
+    await expect(action).toHaveCount(0);
+    const external = recovery.locator('[data-tv-recovery-action="external"]');
+    const preferredPackage = process.env.TVSHELL_TEST_PREFERRED_PLAYER;
+    if (preferredPackage) {
+        await expect(external).toBeVisible();
+        await openPlaybackSettings();
+        const phonePicker = () => dumpLayout().match(/<node [^>]*resource-id="org\.tvshell\.iptvnator:id\/phone_player_picker"[^>]*>/)?.[0];
+        if (phonePicker()) {
+            const label = process.env.TVSHELL_TEST_PREFERRED_PLAYER_LABEL;
+            assert.ok(label, 'Set TVSHELL_TEST_PREFERRED_PLAYER_LABEL to the handler label in phone settings.');
+            tapNode(phonePicker());
+            const choice = () => dumpLayout().match(/<node [^>]*class="android.widget.CheckedTextView"[^>]*>/g)
+                ?.find((node) => node.includes(`text="${label}"`));
+            await expect.poll(choice).toBeDefined();
+            tapNode(choice());
+            await expect.poll(phonePicker).toContain(label);
+        } else {
+            const preferred = () => dumpLayout().match(/<node [^>]*class="android.widget.RadioButton"[^>]*>/g)
+                ?.find((node) => node.includes(`(${preferredPackage})`));
+            await expect.poll(preferred).toBeDefined();
+            tapNode(preferred());
+            await expect.poll(preferred).toContain('checked="true"');
+        }
+        await back();
+        settingsOpen = false;
+    }
+    if (await external.isVisible()) {
+        await expect(external).toHaveAttribute('data-tv-recovery-primary', '');
+        adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_RIGHT');
+        await external.focus();
+        adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_CENTER');
+        await expect.poll(topActivity).toMatch(/ChooserActivity|ResolverActivity/);
+        await back();
+        await expect(external).toBeFocused();
+    } else {
+        await expect(recovery.locator('[data-tv-recovery-primary]'))
+            .toHaveAttribute('data-tv-recovery-action', 'return');
+    }
+    console.log('PASS inline recovery, technical details Back and installed-player handling');
+    await entry('Synthetic Feature').click();
+    await expect(playerMenu).toBeVisible();
     const redirectedBefore = seen.target.length;
     await video.evaluate((element) => {
         element.volume = 0.25;
@@ -272,7 +352,9 @@ try {
     });
     // Leave touch mode before assigning focus for the remote activation.
     adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_RIGHT');
-    await action.focus();
+    await playerMenu.focus();
+    await expect(playerMenu).toBeFocused();
+    adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_CENTER');
     await expect(action).toBeFocused();
     adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_CENTER');
     await waitNative();
@@ -342,20 +424,23 @@ try {
     assert.ok(seen.target.slice(redirectedBefore).every((headers) => headers['user-agent'] !== 'Synthetic-Playback'),
         'A cross-origin redirect must not receive the provider user agent.');
     for (let attempt = 0; attempt < 3; attempt++) {
-        await expect(action).toBeEnabled();
-        await action.click();
+        adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_RIGHT');
+        await playerMenu.focus();
+        adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_CENTER');
+        await expect(action).toBeFocused();
+        adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_CENTER');
         await waitNative();
         await back();
+        await expect(playerMenu).toBeFocused();
     }
-    await expect(action).toBeEnabled();
+    await expect(playerMenu).toBeEnabled();
     await stage.getByRole('button', { name: 'Return to web player' }).click();
     await expect.poll(() => video.evaluate((media) => media.currentTime)).toBeGreaterThanOrEqual(result.positionMs / 1000 - 1);
     await expect.poll(() => video.evaluate((media) => media.muted ? 0 : media.volume)).toBe(0);
 
     await page.evaluate(() => { delete window.__nativeResult; });
     await entry('Synthetic Manifest HLS').click();
-    await expect(action).toBeVisible();
-    await action.click();
+    await openMedia3();
     await waitNative();
     await waitAudio();
     await back();
@@ -364,8 +449,7 @@ try {
     await page.evaluate(() => { delete window.__nativeResult; });
     const segmentsBeforeLive = seen.segments;
     await entry('Synthetic Live').click();
-    await expect(action).toBeVisible();
-    await action.click();
+    await openMedia3();
     await waitNative();
     await expect.poll(() => seen.segments).toBeGreaterThan(segmentsBeforeLive);
     await waitAudio();
@@ -379,8 +463,7 @@ try {
         'The exited player must release media controls before the next stream opens.');
     await page.evaluate(() => { delete window.__nativeResult; });
     await entry('Synthetic AC-3').click();
-    await expect(action).toBeVisible();
-    await action.click();
+    await openMedia3();
     await waitNative();
     await expect(video).toHaveCount(0);
     await waitAudio();
@@ -421,7 +504,7 @@ try {
         'Natural completion must reach autoplay after the foreground guard clears.');
     await expect.poll(topActivity).toContain('.ui.MainActivity');
     await setExperiment(false);
-    await expect(action).toHaveCount(0);
+    await expect(playerMenu).toHaveCount(0);
     await setExperiment(true);
     const systemCaptionSettings = ['accessibility_captioning_enabled', 'accessibility_captioning_locale'];
     const previousCaptionSettings = systemCaptionSettings.map((key) =>
@@ -563,12 +646,15 @@ try {
     await back();
 
     const playlistId = 'synthetic-reload-' + randomUUID();
+    const beforeRotation = await page.evaluate(() => ({
+        width: window.innerWidth,
+        viewport: document.querySelector('meta[name=viewport]').content,
+    }));
     const launchRotationFixture = (sourceId, startTime) => page.evaluate(({ url, playlistId, startTime }) => {
         const id = crypto.randomUUID();
-        const viewport = document.querySelector('meta[name=viewport]').content;
         window.addEventListener('iptvnator:android-playback-result', (event) => {
             if (event.detail.id === id && event.detail.result?.started) {
-                window.__rotationResult = document.querySelector('meta[name=viewport]').content !== viewport;
+                window.__rotationResult = true;
             }
         });
         window.TvShell.postMessage(JSON.stringify(['playNative', id, {
@@ -604,7 +690,10 @@ try {
         await waitAudio();
         await expect.poll(captionsState).toBe('Subtitles: on');
         await back();
-        await page.waitForFunction(() => window.__rotationResult === true);
+        await page.waitForFunction(({ width, viewport }) => window.__rotationResult === true &&
+            (window.__tvShell.handheld
+                ? window.innerWidth !== width
+                : document.querySelector('meta[name=viewport]').content !== viewport), beforeRotation);
     } finally {
         adb('shell', 'settings', 'put', 'system', 'user_rotation', oldRotation);
         adb('shell', 'settings', 'put', 'system', 'accelerometer_rotation', oldAutoRotation);
@@ -676,23 +765,6 @@ try {
     ).__iptvnator_native_playback_resets__)).toBeUndefined();
     assert.equal(await page.evaluate(() => window.__nativeResults), 1,
         'Checkpoint retry must not replay the original playback result.');
-    await expect(entry('Synthetic Unplayable')).toBeVisible({ timeout: 60000 });
-    await entry('Synthetic Unplayable').click();
-    await expect(stage.locator('app-playback-diagnostic-panel')).toBeVisible();
-    await expect(action).toBeVisible();
-    await action.click();
-    await waitNative();
-    await expect.poll(() => dumpLayout().includes('The built-in player could not play this stream')).toBe(true);
-    const failedStreamRequests = seen.failedStreamRequests;
-    adb('shell', 'input', 'keyevent', 'KEYCODE_MEDIA_PLAY');
-    await delay(1000);
-    assert.equal(seen.failedStreamRequests, failedStreamRequests,
-        'Remote Play must not restart a failed native session.');
-    assert.ok(!adb('shell', 'cmd', 'media_session', 'list-sessions').includes(app),
-        'A failed native session must also release its system transport controls.');
-    await back();
-    await expect.poll(() => dumpLayout().includes('This stream cannot be played here')).toBe(true);
-    adb('shell', 'input', 'keyevent', '4');
     const persistedId = 'synthetic-relaunch-' + randomUUID();
     await page.evaluate(({ url, playlistId }) => {
         window.__allowPositionWrite = false;

@@ -1,48 +1,87 @@
 @let issue = diagnostic();
+@let android = androidRecovery();
 <section
     class="web-player-diagnostic"
     data-test-id="playback-diagnostic-banner"
+    [class.web-player-diagnostic--android]="android"
     role="status"
 >
     <div class="web-player-diagnostic__content">
-        <div class="web-player-diagnostic__badge">
-            <mat-icon aria-hidden="true">warning</mat-icon>
-            <span>{{ getDiagnosticTitleKey(issue) | translate }}</span>
-        </div>
-
-        <h2 class="web-player-diagnostic__headline">
-            {{ diagnosticHeadlineKey() | translate }}
-        </h2>
-
-        <div class="web-player-diagnostic__description">
-            {{ getDiagnosticDescriptionKey(issue) | translate }}
-        </div>
-
-        @if (getDiagnosticMeta(issue); as meta) {
-            <div class="web-player-diagnostic__meta">
-                {{ meta }}
+        @if (android) {
+            <header class="web-player-diagnostic__android-header">
+                <mat-icon aria-hidden="true">warning</mat-icon>
+                <h2>{{ getDiagnosticTitleKey(issue) | translate }}</h2>
+            </header>
+        } @else {
+            <div class="web-player-diagnostic__badge">
+                <mat-icon aria-hidden="true">warning</mat-icon>
+                <span>{{ getDiagnosticTitleKey(issue) | translate }}</span>
             </div>
-        }
 
-        @if (getDiagnosticCodecHint(issue); as codecHint) {
-            <div
-                class="web-player-diagnostic__codec-hint"
-                data-test-id="playback-codec-hint"
-            >
-                {{
-                    'PLAYBACK_DIAGNOSTICS.CODEC_HINT'
-                        | translate: { codecs: codecHint }
-                }}
+            <h2 class="web-player-diagnostic__headline">
+                {{ diagnosticHeadlineKey() | translate }}
+            </h2>
+
+            <div class="web-player-diagnostic__description">
+                {{ getDiagnosticDescriptionKey(issue) | translate }}
             </div>
+
+            @if (getDiagnosticMeta(issue); as meta) {
+                <div class="web-player-diagnostic__meta">
+                    {{ meta }}
+                </div>
+            }
+
+            @if (getDiagnosticCodecHint(issue); as codecHint) {
+                <div
+                    class="web-player-diagnostic__codec-hint"
+                    data-test-id="playback-codec-hint"
+                >
+                    {{
+                        'PLAYBACK_DIAGNOSTICS.CODEC_HINT'
+                            | translate: { codecs: codecHint }
+                    }}
+                </div>
+            }
         }
 
         <div
             class="web-player-diagnostic__recommendations"
+            [class.web-player-diagnostic__recommendations--android]="android"
             role="group"
             [attr.aria-label]="
                 'PLAYBACK_DIAGNOSTICS.RECOMMENDATIONS_LABEL' | translate
             "
         >
+            @for (
+                action of androidActions();
+                track action;
+                let primary = $first
+            ) {
+                <button
+                    type="button"
+                    class="web-player-diagnostic__player-card web-player-diagnostic__android-action"
+                    [class.web-player-diagnostic__player-card--primary]="
+                        primary
+                    "
+                    [class.web-player-diagnostic__android-action--wide]="
+                        primary || $count === 2
+                    "
+                    [attr.data-tv-recovery-primary]="primary ? '' : null"
+                    [attr.data-tv-native-playback]="
+                        action === 'builtIn' ? '' : null
+                    "
+                    [attr.data-tv-recovery-action]="action"
+                    (click)="activateAndroid(action)"
+                >
+                    <mat-icon aria-hidden="true">{{
+                        androidActionIcons[action]
+                    }}</mat-icon>
+                    <span class="web-player-diagnostic__player-label">
+                        {{ androidActionLabels[action] | translate }}
+                    </span>
+                </button>
+            }
             @for (
                 recommendation of recommendations();
                 track getRecommendationKey(recommendation)
@@ -91,12 +130,19 @@
                             </p>
                         }
                     </fieldset>
-                } @else {
+                } @else if (
+                    !android ||
+                    (!android.opening &&
+                        recommendation.action === 'player' &&
+                        !isExternalPlayerRecommendation(recommendation))
+                ) {
                     <button
                         type="button"
                         class="web-player-diagnostic__player-card"
+                        [class.web-player-diagnostic__android-action]="android"
+                        [class.web-player-diagnostic__android-action--wide]="android"
                         [class.web-player-diagnostic__player-card--primary]="
-                            recommendation.priority === 'primary'
+                            !android && recommendation.priority === 'primary'
                         "
                         [attr.data-test-id]="
                             getRecommendationTestId(recommendation)
@@ -184,26 +230,28 @@
                 {{ 'PLAYBACK_DIAGNOSTICS.ACTION_COPY_DIAGNOSTIC' | translate }}
             </button>
             <span
+                class="web-player-diagnostic__copy-status"
                 aria-live="polite"
                 data-test-id="playback-copy-diagnostic-status"
             >
                 {{ copyStatusKey() ? (copyStatusKey() | translate) : '' }}
             </span>
-            <button
-                class="web-player-diagnostic__utility-button"
-                type="button"
-                [cdkCopyToClipboard]="playback().streamUrl"
-                [matTooltip]="playback().streamUrl"
-                data-test-id="playback-copy-url"
-            >
-                <mat-icon aria-hidden="true">content_copy</mat-icon>
-                {{ 'PLAYBACK_DIAGNOSTICS.ACTION_COPY_URL' | translate }}
-            </button>
-
-            <span
-                class="web-player-diagnostic__divider"
-                aria-hidden="true"
-            ></span>
+            @if (!android) {
+                <button
+                    class="web-player-diagnostic__utility-button"
+                    type="button"
+                    [cdkCopyToClipboard]="playback().streamUrl"
+                    [matTooltip]="playback().streamUrl"
+                    data-test-id="playback-copy-url"
+                >
+                    <mat-icon aria-hidden="true">content_copy</mat-icon>
+                    {{ 'PLAYBACK_DIAGNOSTICS.ACTION_COPY_URL' | translate }}
+                </button>
+                <span
+                    class="web-player-diagnostic__divider"
+                    aria-hidden="true"
+                ></span>
+            }
 
             <details
                 class="web-player-diagnostic__details"

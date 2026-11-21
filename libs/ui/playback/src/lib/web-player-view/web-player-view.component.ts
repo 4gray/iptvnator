@@ -1,3 +1,4 @@
+import { AndroidTvExternalPlayback } from './android-tv-external-playback';
 import { AndroidTvPlayback } from './android-tv-playback';
 import { SecondStreamFloatingDirective } from '../second-stream/second-stream-floating.directive';
 import { SecondStreamComponent } from '../second-stream/second-stream.component';
@@ -22,6 +23,7 @@ import {
     ChangeDetectionStrategy,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatMenuModule } from '@angular/material/menu';
 import {
     type PlaybackDiagnostic,
     type PlaybackDiagnosticCode,
@@ -87,7 +89,7 @@ import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
     styleUrls: ['./web-player-view.component.scss'],
     host: {
         class: 'web-player-view',
-        '[attr.data-tv-playback-attempt]': 'androidPlayback.attempt()',
+        '[attr.data-tv-inline-recovery]': 'androidPlayback.isShell || null',
     },
     imports: [
         SecondStreamComponent,
@@ -98,6 +100,7 @@ import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
         FullscreenChannelPanelComponent,
         HtmlVideoPlayerComponent,
         MatButtonModule,
+        MatMenuModule,
         PlaybackDiagnosticPanelComponent,
         VjsPlayerComponent,
     ],
@@ -324,6 +327,10 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly hasStartedPlayback = this.recovery.hasStartedPlayback;
     readonly visiblePlaybackDiagnostic =
         this.recovery.visiblePlaybackDiagnostic;
+    readonly androidExternal = new AndroidTvExternalPlayback(
+        this.resolvedPlayback,
+        this.visiblePlaybackDiagnostic
+    );
     readonly recommendations = this.recovery.recommendations;
     readonly effectiveStartTime = computed(() =>
         this.recoverySession.resumeStartTime(
@@ -432,10 +439,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     }
 
     private ownsBinding(binding: PlaybackBinding): boolean {
-        return this.applicationHandoff.owns(
-            binding,
-            this.playbackApplicationToken()
-        );
+        return this.applicationHandoff.owns(binding, this.applicationState.token());
     }
 
     readonly retryFailedPlayback = () =>
