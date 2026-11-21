@@ -1391,7 +1391,15 @@ side — over one shared `EpgQueueService`:
   stale (that reads only its own state) and contributes its whole visible
   slice, since the queue drops anything outside the visible set it was last
   handed; a channel both lists show is fetched once, and playlists stay apart
-  because their credentials differ.
+  because their credentials differ. The queue itself belongs to one account
+  (normalized server URL plus username) at a time: stream ids are
+  provider-local, so another account's `enqueue` retires every cached preview,
+  cooldown, prefetched XMLTV entry and queued id, discards that account's
+  requests still in flight, and the running loop continues with the latest
+  credentials. Lists read `getCached(streamId, credentials)`, which answers
+  nothing for another account's cache, and drop an `epgResult$` emission
+  whose `ownerKey` is not the shown playlist's (`isResultFor`): a late answer
+  can land after the list switched playlist but before its first `enqueue`.
 
 ### XMLTV response compression
 

@@ -71,6 +71,11 @@ Browser import preserves the metadata but does not apply desktop catalog filteri
     - `serverUrl`
     - `username`
     - `password`
+    - optional `userAgent`, `referrer`, `origin`, written when set. Archives
+      from before these were exported carry none of them, so a restore over an
+      existing source keeps that source's own values. Without an archive
+      version to tell the two apart, an archive of a source with no headers
+      cannot clear them on such a source either.
 - User state:
     - hidden categories by `{ categoryType, xtreamId }`
     - favorites by `{ contentType, xtreamId, addedAt?, position? }`

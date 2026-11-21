@@ -582,6 +582,75 @@ describe('PlaylistBackupService export → import round-trip', () => {
         ).toBeNull();
     });
 
+    describe('Xtream playlist headers', () => {
+        const headers = {
+            userAgent: 'SyntheticPlayer/1.0',
+            referrer: 'http://referrer.example.test/',
+            origin: 'http://origin.example.test',
+        };
+
+        function stateWithHeaders(): FakeBackupBackendState {
+            const state = seedState();
+            state.playlists = state.playlists.map((playlist) =>
+                playlist._id === 'xtream-1'
+                    ? ({ ...playlist, ...headers } as Playlist)
+                    : playlist
+            );
+            return state;
+        }
+
+        const xtreamPlaylist = (state: FakeBackupBackendState) =>
+            state.playlists.find((playlist) => playlist._id === 'xtream-1');
+
+        it('exports them and restores them on a fresh install', async () => {
+            const state = stateWithHeaders();
+            const collaborators = createStatefulBackupCollaborators(state);
+            const exported =
+                await createPlaylistBackupService(collaborators).exportBackup();
+            const entry = exported.manifest.playlists.find(
+                (playlist) => playlist.portalType === 'xtream'
+            ) as XtreamPlaylistBackupEntry;
+
+            expect(entry.connection).toEqual(expect.objectContaining(headers));
+
+            state.playlists = [];
+            await createPlaylistBackupService(collaborators).importBackup(
+                exported.json
+            );
+
+            expect(xtreamPlaylist(state)).toEqual(
+                expect.objectContaining(headers)
+            );
+        });
+
+        it('keeps the existing values when an archive from before they were exported is restored', async () => {
+            const state = stateWithHeaders();
+            const collaborators = createStatefulBackupCollaborators(state);
+            const exported =
+                await createPlaylistBackupService(collaborators).exportBackup();
+            const legacy = JSON.parse(exported.json) as {
+                playlists: Array<{
+                    portalType: string;
+                    connection: Record<string, unknown>;
+                }>;
+            };
+            for (const entry of legacy.playlists) {
+                if (entry.portalType !== 'xtream') continue;
+                delete entry.connection['userAgent'];
+                delete entry.connection['referrer'];
+                delete entry.connection['origin'];
+            }
+
+            await createPlaylistBackupService(collaborators).importBackup(
+                JSON.stringify(legacy)
+            );
+
+            expect(xtreamPlaylist(state)).toEqual(
+                expect.objectContaining(headers)
+            );
+        });
+    });
+
     it('re-importing its own export restores the full state and exports an identical manifest', async () => {
         const state = seedState();
         const collaborators = createStatefulBackupCollaborators(state);

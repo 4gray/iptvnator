@@ -1,3 +1,4 @@
+@use '../../../../../../../ui/styles/app-controls' as controls;
 :host {
     display: block;
     width: 100%;
@@ -102,31 +103,11 @@
         flex-wrap: wrap;
 
         .primary-button {
-            background: var(--app-selection-color);
-            color: var(--app-selection-on-color, white);
-            font-weight: 500;
-            padding: 10px 24px;
-            border-radius: 10px;
-            text-transform: none;
-            letter-spacing: 0.01em;
-            box-shadow: 0 4px 14px var(--app-selection-glow);
-            transition: all 0.25s ease;
-
-            mat-icon {
-                margin-right: 6px;
-            }
-
-            &:hover {
-                transform: translateY(-1px);
-                box-shadow: 0 6px 18px var(--app-selection-border);
-            }
+            @include controls.accent-button(md);
         }
 
         .secondary-button {
-            color: var(--app-selection-color);
-            font-weight: 500;
-            padding: 10px 18px;
-            text-transform: none;
+            @include controls.secondary-button(md);
         }
     }
 }

@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+@use '../../../../../../../ui/styles/app-controls' as controls;
 .welcome-dashboard {
     position: relative;
     display: flex;
@@ -171,35 +173,23 @@
         max-width: 480px;
     }
 
+    // The page's one action: the kit's accent button on the page's darker
+    // accent (see `--empty-state-accent-strong`), where the plain selection
+    // colour leaves its label under 4.5:1 in the light theme.
     .welcome-dashboard__cta {
+        $fill: color-mix(
+            in srgb,
+            var(--app-selection-color) 80%,
+            var(--app-heading-color)
+        );
         margin-top: 8px;
-        background: var(--empty-state-accent-fill);
-        color: var(--app-selection-on-color);
-        font-weight: 500;
-        font-size: clamp(0.875rem, 1.8vh, 1rem);
-        padding: 10px 28px;
-        border-radius: 12px;
-        box-shadow: 0 4px 16px
-            color-mix(in srgb, var(--app-selection-color) 30%, transparent);
-        transition:
-            transform 0.2s ease,
-            box-shadow 0.2s ease;
-        text-transform: none;
-        letter-spacing: 0.01em;
-
-        mat-icon {
-            margin-right: 8px;
-        }
-
-        &:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 24px
-                color-mix(in srgb, var(--app-selection-color) 40%, transparent);
-        }
-
-        &:active {
-            transform: translateY(0);
-        }
+        @include controls.accent-button(md);
+        @include mat.button-overrides(
+            (
+                filled-container-color: $fill,
+                filled-disabled-container-color: $fill,
+            )
+        );
     }
 
     .welcome-dashboard__cards {
@@ -372,10 +362,6 @@
             &:hover {
                 transform: translateY(-2px);
             }
-        }
-
-        .welcome-dashboard__cta:hover {
-            transform: none;
         }
     }
 }

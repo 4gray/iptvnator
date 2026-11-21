@@ -47,7 +47,7 @@ RUN BETTER_SQLITE3_VERSION="$(node -p 'require("./root-package.json").dependenci
 
 FROM node:${NODE_VERSION}-alpine
 
-RUN apk add --no-cache gettext nginx
+RUN apk add --no-cache gettext 'nginx>=1.30.7-r0'
 
 WORKDIR /opt/iptvnator
 

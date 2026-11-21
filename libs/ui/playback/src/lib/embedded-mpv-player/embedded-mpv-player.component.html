@@ -43,7 +43,7 @@
                     isReconnecting() ? 'sync' : 'error_outline'
                 }}</mat-icon>
                 <p>{{ statusLabel() }}</p>
-                <button mat-stroked-button type="button" [disabled]="!retryEnabled()" (click)="retry()">
+                <button mat-flat-button class="embedded-mpv-player__retry" type="button" [disabled]="!retryEnabled()" (click)="retry()">
                     <mat-icon>refresh</mat-icon>
                     <span>{{ 'EMBEDDED_MPV.PLAYER.RETRY' | translate }}</span>
                 </button>
@@ -71,7 +71,7 @@
             >
                 <mat-icon>warning_amber</mat-icon>
                 <p>{{ 'EMBEDDED_MPV.PLAYER.STALLED' | translate }}</p>
-                <button mat-stroked-button type="button" [disabled]="!retryEnabled()" (click)="retry()">
+                <button mat-flat-button class="embedded-mpv-player__retry" type="button" [disabled]="!retryEnabled()" (click)="retry()">
                     <mat-icon>refresh</mat-icon>
                     <span>{{ 'EMBEDDED_MPV.PLAYER.RETRY' | translate }}</span>
                 </button>

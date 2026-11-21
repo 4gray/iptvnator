@@ -1355,7 +1355,7 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   experimental; `.settings-callout` (`--info`, `--warn`) sits under the row
   it explains inside `.setting-item__sub` and only while that choice is made.
 - Destructive actions keep the confirm dialog from the Dialogs section; the
-  row itself uses `.app-destructive-button` on a stroked button.
+  row itself uses `.app-destructive-button` on a flat button.
 - Ordinary settings actions use `mat-flat-button` with the shared secondary
   role from the lazy settings stylesheet; `.settings-primary-button` marks the accent
   action (install/download, browser import, or the empty EPG prompt). Text and
@@ -1415,7 +1415,9 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   on the inline end: the right in LTR, the left in RTL.
 - Body actions opt into the shell's `mat-flat-button.app-dialog__secondary`
   role (add `app-dialog__secondary--sm` for dense bulk tools), or
-  `mat-button.app-dialog__ghost` for a text action. The footer remains the
+  `mat-button.app-dialog__ghost` for a text action, or
+  `mat-icon-button.app-dialog__ghost-icon` (the kit's 32px square) for an
+  icon action such as copy or previous/next. The footer remains the
   decision row. A separate EPG save explicitly says “Save EPG sources”.
   The playlist editor's main Save also includes valid pending EPG rows, while
   the separate action applies only EPG changes immediately. Track draft rows by

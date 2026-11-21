@@ -133,4 +133,20 @@
     <string name="native_playback_failed">Le lecteur intégré ne peut pas lire ce flux. Appuyez sur Retour.</string>
     <string name="native_playback_mute">Couper le son</string>
     <string name="native_playback_unmute">Rétablir le son</string>
+    <string name="native_playback_back">Revenir à l’écran précédent</string>
+    <string name="native_playback_audio">Audio</string>
+    <string name="native_playback_subtitles">Sous-titres</string>
+    <string name="native_playback_quality">Qualité</string>
+    <string name="native_playback_picture">Image</string>
+    <string name="native_playback_original">Originale</string>
+    <string name="native_playback_subtitles_on">Sous-titres : activés</string>
+    <string name="native_playback_subtitles_off">Sous-titres : désactivés</string>
+    <string name="native_playback_picture_description">Image : %1$s</string>
+    <string-array name="native_picture_modes">
+        <item>Ajuster</item>
+        <item>Zoom (rogner)</item>
+        <item>Étirer</item>
+        <item>16:9</item>
+        <item>4:3</item>
+    </string-array>
 </resources>
