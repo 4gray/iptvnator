@@ -184,6 +184,7 @@ export class SettingsHostedDevicesComponent {
 
     savePassword(event: Event, input: HTMLInputElement): void {
         event.preventDefault();
+        event.stopPropagation();
         const password = input.value;
         input.value = '';
         if (

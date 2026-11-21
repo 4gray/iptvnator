@@ -290,12 +290,17 @@ describe('hosted device settings', () => {
         expect(input?.minLength).toBe(12);
         expect(input?.maxLength).toBe(128);
         if (!input?.form) throw new Error('Missing password form');
+        const settingsForm = document.createElement('form');
+        settingsForm.appendChild(root);
+        const saveSettings = jest.fn();
+        settingsForm.addEventListener('submit', saveSettings);
         for (const password of [
             'synthetic-passphrase',
             'updated-synthetic-password',
         ]) {
             input.value = password;
-            input.form.dispatchEvent(new Event('submit', { cancelable: true }));
+            input.form.requestSubmit();
+            expect(saveSettings).not.toHaveBeenCalled();
             expect(input.value).toBe('');
             await jest.advanceTimersByTimeAsync(0);
             fixture.detectChanges();
