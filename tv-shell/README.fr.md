@@ -39,9 +39,9 @@ l'app desktop casserait sa mise à jour automatique).
 ## Téléphones et tablettes Android
 
 Le mode **Auto** utilise une interface tactile à la largeur de l’écran sur
-téléphone et tablette. La rotation conserve la page ouverte. Le bouton
-**Réglages** permet de choisir le mode **Auto**, **Téléphone / tablette** ou
-**TV**. Le mode **TV** conserve les largeurs 960, 1280 et 1600 px.
+téléphone et tablette. La rotation conserve la page ouverte. Dans les réglages,
+ouvrez **Appareil Android** pour choisir le mode **Auto**, **Téléphone / tablette**
+ou **TV**, ou activer le lecteur intégré expérimental dans **Lecture**. Le mode **TV** conserve les largeurs 960, 1280 et 1600 px.
 
 ## Touches
 
