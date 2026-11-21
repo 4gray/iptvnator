@@ -84,6 +84,17 @@ export async function checkNativeControls({ adb, dumpLayout, page, origin, topAc
         await page.waitForFunction(() => window.__controlsResult !== undefined);
         assert.equal(await page.evaluate(() => window.__controlsResult.ended), false);
     }
+    async function expectPictureRatio(ratio, message) {
+        await expect.poll(() => {
+            // Read laid-out video bounds even though the frame is omitted from the accessibility tree.
+            const frame = adb('shell', 'dumpsys', 'activity', 'top').match(
+                /(-?\d+),(-?\d+)-(-?\d+),(-?\d+) #[\da-f]+ \S*:id\/exo_content_frame\}/
+            );
+            if (!frame) return 0;
+            const [, left, top, right, bottom] = frame.map(Number);
+            return (right - left) / (bottom - top);
+        }, { message }).toBeCloseTo(ratio, 2);
+    }
 
     console.log('Checking Media3 audio, subtitles, picture and touch Back');
     await launch('/synthetic-controls.mkv');
@@ -108,9 +119,10 @@ export async function checkNativeControls({ adb, dumpLayout, page, origin, topAc
     await open('native_quality');
     assert.ok(nodeByText(dumpLayout(), 'Original'));
     adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');
+    await expectPictureRatio(16 / 9, 'Fit displays the source aspect ratio.');
     await open('native_picture');
     await choose('4:3');
-    assert.match(nodeById(dumpLayout(), 'native_picture'), /content-desc="Picture: 4:3"/);
+    await expectPictureRatio(4 / 3, 'Changing to 4:3 resizes the video frame.');
 
     const rotation = adb('shell', 'settings', 'get', 'system', 'user_rotation').trim();
     const autoRotation = adb('shell', 'settings', 'get', 'system', 'accelerometer_rotation').trim();
@@ -121,7 +133,7 @@ export async function checkNativeControls({ adb, dumpLayout, page, origin, topAc
         adb('shell', 'settings', 'put', 'system', 'accelerometer_rotation', '0');
         adb('shell', 'settings', 'put', 'system', 'user_rotation', rotation === '0' ? '1' : '0');
         await expect.poll(lastCreate).not.toBe(previousCreate);
-        await expect.poll(() => nodeById(dumpLayout(), 'native_picture')).toMatch(/content-desc="Picture: 4:3"/);
+        await expectPictureRatio(4 / 3, 'Rotating keeps the video frame at 4:3.');
         await open('native_audio');
         await expect.poll(() => nodeByText(dumpLayout(), 'French.*')).toMatch(/checked="true"/);
         adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');
