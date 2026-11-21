@@ -13,6 +13,7 @@ export interface ControlsSettingsDeps {
     state: Signal<PlayerControlsState>;
     capabilities: Signal<PlayerControlsCapabilities>;
     showControls: Signal<boolean>;
+    extraActionAvailable?: Signal<boolean>;
     menus: ControlsMenuState;
     reveal: (options?: { scheduleHide?: boolean }) => void;
 }
@@ -42,7 +43,9 @@ export class ControlsSettings {
 
     readonly available = computed(
         () =>
-            this.deps.showControls() && anySettingsGroupAvailable(this.groups())
+            this.deps.showControls() &&
+            (anySettingsGroupAvailable(this.groups()) ||
+                (this.deps.extraActionAvailable?.() ?? false))
     );
 
     readonly isOpen = computed(

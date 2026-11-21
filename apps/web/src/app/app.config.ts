@@ -8,6 +8,7 @@ import {
     provideHttpClient,
     withInterceptorsFromDi,
     withInterceptors,
+    withFetch,
     withXhr,
 } from '@angular/common/http';
 import {
@@ -109,7 +110,7 @@ export const appConfig: ApplicationConfig = {
         // tooltips render while the player is fullscreen.
         { provide: OverlayContainer, useClass: FullscreenOverlayContainer },
         provideHttpClient(
-            withXhr(),
+            ...('HostedAccessApi' in window ? [withFetch()] : [withXhr()]),
             withInterceptorsFromDi(),
             withInterceptors([sourceAuthInterceptor])
         ),
@@ -121,7 +122,7 @@ export const appConfig: ApplicationConfig = {
         provideRouterStore(),
         ...storeDevtoolsProviders,
         provideServiceWorker('ngsw-worker.js', {
-            enabled: shouldEnableServiceWorker(),
+            enabled: !('HostedAccessApi' in window) && shouldEnableServiceWorker(),
             registrationStrategy: 'registerWhenStable:30000',
         }),
         importProvidersFrom(

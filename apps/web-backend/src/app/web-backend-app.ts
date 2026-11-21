@@ -1,3 +1,4 @@
+import type { HostedIngressState } from './hosted-ingress';
 import { mountTvSetup } from './tv-setup/pairing-router';
 import cors from 'cors';
 import express, { Express, Request, Response } from 'express';
@@ -80,6 +81,11 @@ export interface WebBackendAppOptions {
     readonly runtimeBackendUrl?: string;
     /** Optional bearer token for every non-public route. */
     readonly accessToken?: string | null;
+    readonly devicePairingEnabled?: boolean;
+    readonly hostedIngress?: HostedIngressState;
+    readonly cloudflareAccess?: import('./cloudflare-access').CloudflareAccessCheck;
+    readonly hostedMode?: 'lan' | 'https' | 'proxy' | 'cloudflare';
+    readonly openLan?: boolean;
     /** Largest accepted playlist document in bytes. */
     readonly maxDocumentBytes?: number;
     readonly maxProviderResponseBytes?: number;
@@ -156,6 +162,11 @@ export function createWebBackendApp(
         corsMiddleware,
         storage: options.storage ?? null,
         accessToken: options.accessToken ?? null,
+        devicePairingEnabled: options.devicePairingEnabled,
+        hostedIngress: options.hostedIngress,
+        cloudflareAccess: options.cloudflareAccess,
+        hostedMode: options.hostedMode,
+        openLan: options.openLan,
         maxDocumentBytes:
             options.maxDocumentBytes ?? DEFAULT_MAX_DOCUMENT_BYTES,
     });

@@ -1,0 +1,310 @@
+<section
+    class="hosted-panel hosted-stack"
+    aria-labelledby="hosted-devices-title"
+>
+    <h3 id="hosted-devices-title">
+        {{ 'HOSTED_SERVER.PAIRED_DEVICES' | translate }}
+    </h3>
+    <div class="server-actions">
+        @if (lanAvailable() || pairingUnavailableReason()) {
+            <button
+                mat-flat-button
+                type="button"
+                class="settings-primary-button"
+                [disabled]="busy() || !lanAvailable()"
+                [attr.aria-describedby]="
+                    pairingUnavailableReason() ? 'hosted-pairing-unavailable' : null
+                "
+                (click)="pair()"
+                data-test-id="hosted-device-pair"
+            >
+                <mat-icon aria-hidden="true">qr_code_2</mat-icon>
+                {{
+                    (addressOnly() || cloudflare()
+                        ? 'HOSTED_SERVER.CONNECT_DEVICE'
+                        : 'HOSTED_SERVER.PAIR_DEVICE'
+                    ) | translate
+                }}
+            </button>
+        }
+        <button
+            mat-button
+            type="button"
+            aria-controls="hosted-device-list"
+            [attr.aria-expanded]="expanded()"
+            (click)="toggleDevices()"
+        >
+            {{
+                (expanded()
+                    ? 'HOSTED_SERVER.HIDE_DEVICES'
+                    : 'HOSTED_SERVER.SHOW_DEVICES'
+                ) | translate
+            }}
+        </button>
+    </div>
+    @if (pairingUnavailableReason(); as reason) {
+        <p class="server-message" id="hosted-pairing-unavailable" role="status">
+            {{ reason | translate }}
+        </p>
+    }
+    @if (lanAvailable()) {
+        @if (invite(); as pairing) {
+            <div class="hosted-stack">
+                <p class="server-message">
+                    {{ (cloudflare() ? 'HOSTED_SERVER.SCAN_CLOUDFLARE' : 'HOSTED_SERVER.SCAN_IN_APP') | translate }}
+                </p>
+                <qrcode
+                    class="hosted-qr"
+                    data-test-id="hosted-device-pair-qr"
+                    elementType="svg"
+                    [qrdata]="pairing.url"
+                    [width]="216"
+                    [margin]="4"
+                    [attr.aria-label]="
+                        'HOSTED_SERVER.PAIR_QR_LABEL' | translate
+                    "
+                    role="img"
+                />
+                <button
+                    mat-button
+                    type="button"
+                    (click)="copyPairingLink()"
+                    data-test-id="hosted-device-copy-link"
+                >
+                    {{ 'HOSTED_SERVER.COPY_PAIR_LINK' | translate }}
+                </button>
+            </div>
+        } @else if (inviteExpired()) {
+            <p class="server-message" role="status">
+                {{ 'HOSTED_SERVER.PAIR_EXPIRED' | translate }}
+            </p>
+        }
+    }
+    <div
+        id="hosted-device-list"
+        class="hosted-stack device-list"
+        [hidden]="!expanded()"
+    >
+        @if (expanded()) {
+            @if (listFailed()) {
+                <p class="server-message server-message--error" role="alert">
+                    {{ 'HOSTED_SERVER.DEVICE_LIST_FAILED' | translate }}
+                </p>
+            } @else if (list(); as snapshot) {
+                @if (snapshot.pending.length) {
+                    <section
+                        class="hosted-stack pairing-requests"
+                        aria-labelledby="hosted-pairing-requests-title"
+                    >
+                        <h4 id="hosted-pairing-requests-title">
+                            {{ 'HOSTED_SERVER.PAIR_REQUESTS' | translate }}
+                        </h4>
+                        <p class="server-message" id="hosted-pairing-compare">
+                            {{ 'HOSTED_SERVER.PAIR_COMPARE' | translate }}
+                        </p>
+                        <ul class="device-rows pairing-request-list">
+                            @for (claim of snapshot.pending; track claim.claimId) {
+                                <li class="pairing-request">
+                                    <div class="pairing-request-identity">
+                                        <span
+                                            class="pairing-device-name"
+                                            [id]="
+                                                'hosted-pairing-name-' + claim.claimId
+                                            "
+                                            >{{ claim.name }}</span
+                                        >
+                                        <span class="pairing-code-group">
+                                            <span class="pairing-code-label">
+                                                {{
+                                                    'HOSTED_SERVER.PAIR_CODE'
+                                                        | translate
+                                                }}
+                                            </span>
+                                            <code
+                                                class="pairing-code"
+                                                dir="ltr"
+                                                [id]="
+                                                    'hosted-pairing-code-' + claim.claimId
+                                                "
+                                                >{{ claim.confirmationCode }}</code
+                                            >
+                                        </span>
+                                    </div>
+                                    <button
+                                        mat-flat-button
+                                        type="button"
+                                        class="settings-primary-button"
+                                        [attr.aria-describedby]="
+                                            'hosted-pairing-name-' + claim.claimId +
+                                            ' hosted-pairing-code-' + claim.claimId +
+                                            ' hosted-pairing-compare'
+                                        "
+                                        [disabled]="busy()"
+                                        (click)="approve(claim.claimId)"
+                                        data-test-id="hosted-device-approve"
+                                    >
+                                        {{ 'HOSTED_SERVER.PAIR_APPROVE' | translate }}
+                                    </button>
+                                </li>
+                            }
+                        </ul>
+                    </section>
+                }
+                @if (snapshot.devices.length) {
+                    <ul
+                        class="device-rows"
+                        [attr.aria-label]="
+                            'HOSTED_SERVER.PAIRED_DEVICES' | translate
+                        "
+                    >
+                        @for (device of snapshot.devices; track device.id) {
+                            <li class="device-row">
+                                <span
+                                    class="device-name"
+                                    [id]="'hosted-device-name-' + device.id"
+                                    >{{ device.name }}</span
+                                >
+                                <mat-slide-toggle
+                                    data-test-id="hosted-device-approval"
+                                    [checked]="device.canApprove"
+                                    [disabled]="busy()"
+                                    [aria-describedby]="
+                                        'hosted-device-name-' + device.id
+                                    "
+                                    (toggleChange)="
+                                        setDeviceApproval(
+                                            device.id,
+                                            !device.canApprove
+                                        )
+                                    "
+                                >
+                                    {{
+                                        'HOSTED_SERVER.ALLOW_DEVICE_APPROVAL'
+                                            | translate
+                                    }}
+                                </mat-slide-toggle>
+                                <button
+                                    mat-button
+                                    type="button"
+                                    class="app-destructive-button"
+                                    [disabled]="busy()"
+                                    (click)="confirmRevoke(device)"
+                                >
+                                    {{
+                                        'HOSTED_SERVER.REVOKE_DEVICE'
+                                            | translate
+                                    }}
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                } @else if (!snapshot.pending.length) {
+                    <p class="server-message">
+                        {{ 'HOSTED_SERVER.PAIRED_DEVICES_EMPTY' | translate }}
+                    </p>
+                }
+            } @else {
+                <p class="server-message" role="status">
+                    {{ 'HOSTED_SERVER.DEVICES_LOADING' | translate }}
+                </p>
+            }
+        }
+    </div>
+    @if (message()) {
+        <p class="server-message" role="status">{{ message() | translate }}</p>
+    }
+    @if (httpsOrigin()) {
+        <details class="phone-pairing">
+            <summary data-test-id="hosted-browser-pairing-options">
+                {{ 'HOSTED_SERVER.PHONE_PAIRING_TITLE' | translate }}
+            </summary>
+            <div class="hosted-stack phone-pairing-content">
+                <p class="server-message">
+                    {{ 'HOSTED_SERVER.PHONE_PAIRING_DESCRIPTION' | translate }}
+                </p>
+                @if (passwordSettings.hasValue()) {
+                    <form
+                        class="hosted-stack phone-pairing"
+                        (submit)="savePassword($event, passwordInput)"
+                    >
+                        <mat-form-field appearance="outline">
+                            <mat-label>{{
+                                'HOSTED_SERVER.PHONE_PASSWORD_LABEL' | translate
+                            }}</mat-label>
+                            <input
+                                #passwordInput
+                                matInput
+                                type="password"
+                                autocomplete="new-password"
+                                required
+                                [minLength]="passwordMinLength"
+                                [maxLength]="passwordMaxLength"
+                                [disabled]="passwordBusy()"
+                                data-test-id="hosted-browser-pairing-password"
+                            />
+                            <mat-hint>{{
+                                'HOSTED_SERVER.PHONE_PASSWORD_LENGTH'
+                                    | translate
+                                        : {
+                                              min: passwordMinLength,
+                                              max: passwordMaxLength,
+                                          }
+                            }}</mat-hint>
+                        </mat-form-field>
+                        <div class="server-actions">
+                            <button
+                                mat-stroked-button
+                                type="submit"
+                                [disabled]="passwordBusy()"
+                                data-test-id="hosted-browser-pairing-save"
+                            >
+                                {{
+                                    'HOSTED_SERVER.PHONE_PASSWORD_SAVE' | translate
+                                }}
+                            </button>
+                            @if (passwordSettings.value().passwordConfigured) {
+                                <button
+                                    mat-button
+                                    type="button"
+                                    class="app-destructive-button"
+                                    [disabled]="passwordBusy()"
+                                    (click)="confirmClearPassword()"
+                                    data-test-id="hosted-browser-pairing-clear"
+                                >
+                                    {{
+                                        'HOSTED_SERVER.PHONE_PASSWORD_CLEAR'
+                                            | translate
+                                    }}
+                                </button>
+                            }
+                        </div>
+                    </form>
+                } @else if (passwordSettings.error()) {
+                    <p class="server-message server-message--error" role="alert">
+                        {{ 'HOSTED_SERVER.PHONE_PASSWORD_LOAD_FAILED' | translate }}
+                    </p>
+                    <button
+                        mat-button
+                        type="button"
+                        (click)="passwordSettings.reload()"
+                    >
+                        {{ 'RETRY' | translate }}
+                    </button>
+                } @else {
+                    <p class="server-message" role="status">
+                        {{ 'LOADING' | translate }}
+                    </p>
+                }
+                @if (passwordNotice(); as notice) {
+                    <p
+                        class="server-message"
+                        [class.server-message--error]="notice.error"
+                        [attr.role]="notice.error ? 'alert' : 'status'"
+                    >
+                        {{ notice.key | translate }}
+                    </p>
+                }
+            </div>
+        </details>
+    }
+</section>

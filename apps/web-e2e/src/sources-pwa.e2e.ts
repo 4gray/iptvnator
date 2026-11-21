@@ -23,6 +23,25 @@ test.beforeEach(async ({ page }) => {
     await page.goto('/');
 });
 
+test('@sources @pwa keeps the welcome page reachable on a phone', async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 411, height: 810 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/workspace/sources');
+
+    const icon = page.locator('.welcome-sources__icon');
+    await expect(icon).toBeInViewport({ ratio: 1 });
+    const addStalker = page.getByRole('button', {
+        name: 'Add Stalker',
+        exact: true,
+    });
+    await addStalker.scrollIntoViewIfNeeded();
+    await expect(addStalker).toBeInViewport({ ratio: 1 });
+    await addStalker.click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+});
+
 test('@sources @pwa opens Xtream source details without Electron DB bridge calls', async ({
     page,
     pwaMocks,

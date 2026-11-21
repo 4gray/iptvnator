@@ -739,6 +739,7 @@ channel-list-container/
 
 - `M3uWorkspaceRouteSession` owns route-driven channel loading for the player/sidebar routes: `all` and `groups`.
 - The route session sets `channelsLoading` before `getPlaylist()` resolves and clears it when `ChannelActions.setChannels` lands.
+- The visible player sidebar loads its deferred chunk immediately when mounted. It must not wait for an idle callback: a busy Android WebView can keep that callback pending after Settings navigation even when the channels have already loaded.
 - The route session dispatches reducer-only `FavoritesActions.hydrateFavorites`
   after that persisted read. Hydration must not use the persistence-bearing
   `setFavorites` action: doing so reads and rewrites the complete M3U payload

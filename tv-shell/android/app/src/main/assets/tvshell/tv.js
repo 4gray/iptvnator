@@ -35,9 +35,11 @@
     var MADE_FOCUSABLE = 'data-tv-focusable';
     var MEDIA_URL_RE = /\.(m3u8|m3u|ts|mp4|mkv|avi|mov|webm|mpd|aac|mp3|flac)(\?|#|$)|\/(live|movie|movies|series|play|stream|hls|dash|radio)\//i;
 
+    var touchLayout = window.__tvShellTouchLayout === true ||
+        (document.currentScript && document.currentScript.getAttribute('data-layout') === 'touch');
     var bridge = window.TvShell || null;
     var isAndroid = !!bridge && typeof bridge.postMessage === 'function';
-    var api = {};
+    var api = { handheld: isAndroid && !!touchLayout };
     var lastRect = null; // where focus last was, for recycled/removed elements
     var lastMediaUrl = null;
     // MediaSource playback sessions (see installMediaSourceTracking): the first
@@ -954,7 +956,7 @@
             target.dispatchEvent(ev);
             document.body.dispatchEvent(new KeyboardEvent('keyup', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true }));
             setTimeout(function () {
-                if (!document.activeElement || document.activeElement === document.body) focusFirst();
+                if (!touchLayout && (!document.activeElement || document.activeElement === document.body)) focusFirst();
             }, 120);
             return true;
         }
@@ -968,7 +970,7 @@
         if (active && (active.tagName === 'VIDEO' || active.tagName === 'AUDIO')) {
             active.blur();
             lastRect = rectOf(active);
-            if (focusFirst(null, active)) return true;
+            if (!touchLayout && focusFirst(null, active)) return true;
         }
         // The app's own page-level Back lives in the workspace header. Match it by its
         // stable hooks (component class and the test id upstream relies on), not by the
@@ -1104,6 +1106,60 @@
         }
         return true;
     };
+
+    api.openDeviceSettings = function () {
+        if (!api.handheld) return false;
+        native('openSettings');
+        return true;
+    };
+
+    api.openSettingsSection = function (section) {
+        if (!api.handheld || (section !== 'server' && section !== 'playback' && section !== 'device')) return false;
+        native('openSettings', section);
+        return true;
+    };
+
+    var libraryConnection = isAndroid && window.__tvShellLibraryConnection;
+    if (libraryConnection) {
+        api.libraryConnection = function () {
+            return {
+                origin: libraryConnection.origin,
+                savedOrigin: libraryConnection.savedOrigin,
+                approvalOrigin: libraryConnection.approvalOrigin,
+                offline: libraryConnection.offline,
+                paired: libraryConnection.paired,
+                canScanQr: libraryConnection.canScanQr
+            };
+        };
+        api.scanLibraryQr = function () {
+            if (!libraryConnection.canScanQr) return false;
+            native('scanLibraryQr');
+            return true;
+        };
+        if (window.HostedAccessApi) {
+            api.inviteAccessDevice = function () { native('inviteAccessDevice'); };
+        }
+        api.disconnectLibrary = function () {
+            if (!libraryConnection.origin && !libraryConnection.offline) return false;
+            native('disconnectLibrary');
+            return true;
+        };
+        api.removeLibraryPairing = function () {
+            if (!libraryConnection.paired) return false;
+            native('removeLibraryPairing');
+            return true;
+        };
+        api.pairLibrary = function (address, approvalAddress) {
+            if (typeof address !== 'string' || !address.trim() || typeof approvalAddress !== 'string') return false;
+            native('pairLibrary', address, approvalAddress);
+            return true;
+        };
+        api.connectLibrary = function (address) {
+            if (typeof address !== 'string' || !address.trim()) return false;
+            native('connectLibrary', address);
+            return true;
+        };
+    }
 
     /** Hand the current stream to an external Android player (VLC, ...). */
     api.openExternal = function () {
@@ -1578,6 +1634,7 @@
 
     var refocusTimer = null;
     function scheduleRefocus() {
+        if (touchLayout) return;
         if (refocusTimer) clearTimeout(refocusTimer);
         refocusTimer = setTimeout(function () {
             refocusTimer = null;
@@ -1616,13 +1673,18 @@
 
     // ------------------------------------------------------------- init
     function init() {
-        document.documentElement.classList.add('tv-shell');
         if (isAndroid) document.documentElement.classList.add('android-tv-shell');
-        document.body.classList.add('tv-shell');
-        installStyle();
         installNetworkTracking();
         installClipboardHook();
         installHistoryTracking();
+        if (!touchLayout) installTvNavigation();
+        watchReadiness();
+    }
+
+    function installTvNavigation() {
+        document.documentElement.classList.add('tv-shell');
+        document.body.classList.add('tv-shell');
+        installStyle();
         installFocusMirror();
         document.addEventListener('keydown', onKeyDown, true);
         // Keyups arrive in queue order: a keydown after one is a new press, however late it runs.
@@ -1639,6 +1701,9 @@
             var active = document.activeElement;
             if ((active && active !== document.body) || focusFirst() || attempts > 60) clearInterval(timer);
         }, 250);
+    }
+
+    function watchReadiness() {
         log('ready (' + (isAndroid ? 'android' : 'browser emulation: F9=Back F10=Menu F8=Play/Pause F7=External') + ')');
         // Report ready only once Angular has rendered (main.ts removes
         // #initial-splash after the first paint). A bundle this engine cannot

@@ -9,6 +9,7 @@ export const DISABLED_KEY = 'iptvnator:source-server-disabled';
 const INCOMPATIBLE = 'SOURCE_SYNC.INCOMPATIBLE';
 const OFFLINE = 'SOURCE_SYNC.OFFLINE';
 let selected: SourceServerConnection | null = null;
+let nativePairing: SourceServerConnection | null = null;
 let readFailed = false;
 let verificationEpoch = 0;
 
@@ -72,12 +73,33 @@ export async function prepareSourceConnection(
     runtimeBackendUrl?: string
 ): Promise<void> {
     selected = null;
+    nativePairing = null;
     invalidateSourceVerification();
     readFailed = false;
     try {
         if (window.electron?.sourceSyncConnection) {
             selected = window.electron.sourceSyncConnection();
             return;
+        }
+        const nativeAccess = window as Window & {
+            HostedAccessApi?: unknown;
+            __iptvnatorHostedAccessInstance?: string;
+        };
+        const instanceId = nativeAccess.__iptvnatorHostedAccessInstance;
+        if (nativeAccess.HostedAccessApi && typeof instanceId === 'string' && instanceId) {
+            selected = { apiUrl: `${location.origin}/api`, instanceId };
+            return;
+        }
+        if (runtimeBackendUrl && 'HostedPairing' in window) {
+            const paired = await import('./hosted-pairing-bridge')
+                .then(({ restoreNativeHostedPairing }) =>
+                    restoreNativeHostedPairing(runtimeBackendUrl)
+                )
+                .catch(() => null);
+            if (paired) {
+                selected = nativePairing = paired;
+                return;
+            }
         }
         const saved = localStorage.getItem(CONNECTION_KEY);
         if (saved) {
@@ -135,6 +157,16 @@ export async function prepareSourceConnection(
     } catch {
         readFailed = true;
     }
+}
+
+export async function forgetNativeHostedPairing(): Promise<void> {
+    if (!nativePairing || nativePairing !== selected) return;
+    const pairing = nativePairing;
+    const { forgetHostedPairing } = await import('./hosted-pairing-bridge');
+    if (!(await forgetHostedPairing(pairing.instanceId)))
+        throw new Error('SOURCE_SYNC.REQUEST_FAILED');
+    if (nativePairing !== pairing) return;
+    nativePairing = null;
 }
 
 export function invalidateSourceVerification(): void {

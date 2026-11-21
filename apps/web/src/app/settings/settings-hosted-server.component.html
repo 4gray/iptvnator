@@ -2,178 +2,389 @@
     <section class="settings-group server-group">
         <header class="settings-group__header server-header">
             <h2>{{ 'HOSTED_SERVER.TITLE' | translate }}</h2>
-            <p>{{ 'HOSTED_SERVER.DESCRIPTION' | translate }}</p>
             <a
                 class="server-help"
                 [href]="guides.desktop"
                 target="_blank"
                 rel="noopener noreferrer"
-                >{{ 'HOSTED_SERVER.SETUP_GUIDE' | translate }}</a
             >
+                {{ 'HOSTED_SERVER.SETUP_GUIDE' | translate }}
+            </a>
         </header>
         <div class="settings-card server-fields">
-            <app-settings-sync-status
-                [state]="status().state"
-                [stateKey]="stateKeys[status().state]"
-                testId="hosted-server-status"
-            />
-            @if (status().error; as error) {
-                <p class="server-message server-message--error" role="alert">
-                    {{ errorKeys[error] | translate }}
-                </p>
-            }
-            @if (status().state === 'running') {
-                @if (status().lanUrl; as address) {
-                    <p class="server-message">
-                        {{ 'HOSTED_SERVER.DEVICES' | translate }}
-                    </p>
-                } @else {
-                    <p class="server-message">
-                        {{
-                            (status().lanAddress
-                                ? 'HOSTED_SERVER.ADDRESS_UNAVAILABLE'
-                                : 'HOSTED_SERVER.LOCAL_ONLY'
-                            ) | translate
-                        }}
-                    </p>
-                }
-                <div class="server-actions hosted-controls">
-                    @if (status().lanUrl; as address) {
-                        <code
-                            class="hosted-value"
-                            data-test-id="hosted-server-address"
-                            >{{ address }}</code
-                        >
-                        <button
-                            mat-button
-                            type="button"
-                            (click)="copyAddress(address)"
-                        >
-                            {{ 'HOSTED_SERVER.COPY_ADDRESS' | translate }}
-                        </button>
-                        <button
-                            mat-button
-                            type="button"
-                            [attr.aria-expanded]="!!code()"
-                            aria-controls="hosted-server-code"
-                            (click)="showCode()"
-                        >
-                            {{
-                                (code()
-                                    ? 'HOSTED_SERVER.HIDE_CODE'
-                                    : 'HOSTED_SERVER.SHOW_CODE'
-                                ) | translate
-                            }}
-                        </button>
-                    }
+            <div class="hosted-status">
+                <app-settings-sync-status
+                    [state]="status().state"
+                    [stateKey]="statusLabel()"
+                    testId="hosted-server-status"
+                />
+                @if (status().state === 'running') {
                     <button
-                        mat-flat-button
+                        mat-button
                         type="button"
-                        class="hosted-power"
-                        (click)="control('stop')"
+                        class="app-destructive-button"
+                        (click)="stop()"
+                        [disabled]="busy()"
                         data-test-id="hosted-server-stop"
                     >
                         {{ 'HOSTED_SERVER.STOP' | translate }}
                     </button>
-                </div>
-                <code
-                    id="hosted-server-code"
-                    class="hosted-value"
-                    [hidden]="!code()"
-                    >{{ code() }}</code
-                >
-            } @else if (
-                status().state === 'stopped' || status().state === 'error'
-            ) {
-                <div class="server-actions hosted-controls">
-                    <div class="hosted-sharing">
-                        <mat-checkbox
-                            [checked]="shareLan()"
-                            (change)="lanChoice.set($event.checked)"
-                            [aria-describedby]="
-                                shareLan() ? 'hosted-server-lan-warning' : ''
-                            "
-                            data-test-id="hosted-server-share-lan"
-                        >
-                            {{ 'HOSTED_SERVER.SHARE_LAN' | translate }}
-                        </mat-checkbox>
-                        @if (shareLan()) {
-                            <p
-                                class="settings-callout settings-callout--warn hosted-warning"
-                                id="hosted-server-lan-warning"
+                } @else if (status().state === 'error' && status().autoStart) {
+                    <button
+                        mat-button
+                        type="button"
+                        (click)="stop()"
+                        [disabled]="busy()"
+                    >
+                        {{ 'HOSTED_SERVER.DISABLE_AUTOSTART' | translate }}
+                    </button>
+                }
+            </div>
+            @if (errorLabel(); as message) {
+                <p class="server-message server-message--error" role="alert">
+                    {{ message | translate }}
+                </p>
+            }
+            @if (status().state === 'running') {
+                @let availableAddresses = status().availableAddresses ?? [];
+                <section class="hosted-panel hosted-stack">
+                    <h3 data-test-id="hosted-server-active-mode">
+                        {{ accessModeLabel() | translate }}
+                    </h3>
+                    @if (endpoint(); as address) {
+                        <div class="server-actions">
+                            <code
+                                class="hosted-value"
+                                data-test-id="hosted-server-address"
+                                >{{ address }}</code
                             >
-                                <mat-icon aria-hidden="true">warning</mat-icon>
-                                <span>{{
-                                    'HOSTED_SERVER.LAN_WARNING' | translate
-                                }}</span>
-                            </p>
-                            @if (addresses().length > 1) {
-                                <mat-form-field
-                                    appearance="outline"
-                                    subscriptSizing="dynamic"
-                                >
+                            <button
+                                mat-button
+                                type="button"
+                                (click)="copyAddress(address)"
+                            >
+                                {{ 'HOSTED_SERVER.COPY_ADDRESS' | translate }}
+                            </button>
+                        </div>
+                    } @else if (availableAddresses.length) {
+                        <details class="hosted-lan-setup">
+                            <summary data-test-id="hosted-server-share-lan">
+                                {{ 'HOSTED_SERVER.LAN_SHARE_ACTION' | translate }}
+                            </summary>
+                            <div class="hosted-stack">
+                                <p class="server-message">
+                                    {{
+                                        'HOSTED_SERVER.LAN_RESTART_NOTICE'
+                                            | translate
+                                    }}
+                                </p>
+                                <mat-form-field appearance="outline">
                                     <mat-label>{{
                                         'HOSTED_SERVER.NETWORK_ADDRESS'
                                             | translate
                                     }}</mat-label>
                                     <mat-select
-                                        [value]="address()"
+                                        [value]="lanShareAddress()"
                                         (selectionChange)="
-                                            addressChoice.set($event.value)
+                                            lanShareAddress.set($event.value)
                                         "
+                                        [disabled]="busy()"
+                                        data-test-id="hosted-server-share-address"
                                     >
-                                        @for (
-                                            option of addresses();
-                                            track option
-                                        ) {
+                                        @for (option of availableAddresses; track option) {
                                             <mat-option [value]="option">{{
                                                 option
                                             }}</mat-option>
                                         }
                                     </mat-select>
                                 </mat-form-field>
-                            } @else if (!address()) {
-                                <p class="server-message">
-                                    {{ 'HOSTED_SERVER.NO_ADDRESS' | translate }}
-                                </p>
-                            }
+                                <button
+                                    mat-flat-button
+                                    type="button"
+                                    class="settings-primary-button"
+                                    [disabled]="!canShareOnLan()"
+                                    (click)="shareOnLan()"
+                                    data-test-id="hosted-server-restart-share"
+                                >
+                                    {{ 'HOSTED_SERVER.LAN_RESTART' | translate }}
+                                </button>
+                            </div>
+                        </details>
+                    } @else {
+                        <p class="server-message">
+                            {{ 'HOSTED_SERVER.NO_ADDRESS' | translate }}
+                        </p>
+                    }
+                </section>
+                @if (status().mode === 'cloudflare') {
+                    @if (canPair()) {
+                        <p class="server-message">
+                            {{ 'HOSTED_SERVER.ROUTE_access-protected' | translate }}
+                        </p>
+                    }
+                    @if (managed()) {
+                        @if (connector(); as current) {
+                            <p class="server-message">
+                                {{
+                                    connectorStatusLabels[current.state] | translate
+                                }}
+                            </p>
                         }
+                    }
+                }
+                @if (status().mode === 'lan' && endpoint()) {
+                    <mat-checkbox
+                        [checked]="openLan()"
+                        [disabled]="busy()"
+                        (change)="openLan.set($event.checked); start()"
+                    >
+                        {{ 'HOSTED_SERVER.OPEN_LAN' | translate }}
+                    </mat-checkbox>
+                }
+                <app-settings-hosted-devices
+                    [lanAvailable]="canPair()"
+                    [pairingUnavailableReason]="pairingUnavailableReason()"
+                    [deviceEndpoint]="endpoint()"
+                    [addressOnly]="status().lanAccess === 'open'"
+                    [cloudflare]="status().mode === 'cloudflare'"
+                    [httpsOrigin]="
+                        status().mode === 'cloudflare'
+                            ? undefined
+                            : status().httpsOrigin
+                    "
+                />
+            } @else {
+                <fieldset class="hosted-mode-picker" data-test-id="hosted-access-method">
+                    <legend>{{ 'HOSTED_SERVER.MODE' | translate }}</legend>
+                    <div class="hosted-access-choices">
+                        <label class="hosted-option" [class.hosted-option--selected]="mode() === 'lan'">
+                            <input
+                                type="radio"
+                                name="hosted-server-mode"
+                                [checked]="mode() === 'lan'"
+                                [disabled]="busy()"
+                                (change)="selectMode('lan')"
+                            />
+                            {{ 'HOSTED_SERVER.HOME_NETWORK' | translate }}
+                        </label>
+                        <label class="hosted-option" [class.hosted-option--selected]="mode() === 'https'">
+                            <input
+                                type="radio"
+                                name="hosted-server-mode"
+                                [checked]="mode() === 'https'"
+                                [disabled]="busy()"
+                                (change)="selectMode('https')"
+                            />
+                            {{ 'HOSTED_SERVER.CUSTOM_HTTPS' | translate }}
+                        </label>
+                        <label class="hosted-option" [class.hosted-option--selected]="mode() === 'cloudflare'">
+                            <input
+                                type="radio"
+                                name="hosted-server-mode"
+                                [checked]="mode() === 'cloudflare'"
+                                [disabled]="busy()"
+                                (change)="selectMode('cloudflare')"
+                            />
+                            {{ 'HOSTED_SERVER.TUNNEL' | translate }}
+                        </label>
                     </div>
-                    <div class="server-actions hosted-power">
-                        @if (status().state === 'error' && status().autoStart) {
+                </fieldset>
+                @if (mode() === 'lan' || mode() === 'https') {
+                    <mat-form-field appearance="outline">
+                        <mat-label>{{
+                            'HOSTED_SERVER.NETWORK_ADDRESS' | translate
+                        }}</mat-label>
+                        <mat-select
+                            [value]="address()"
+                            (selectionChange)="
+                                address.set($event.value); openLan.set(false)
+                            "
+                            [disabled]="busy()"
+                            data-test-id="hosted-network-address"
+                        >
+                            <mat-option value="">{{
+                                'HOSTED_SERVER.PC_ONLY' | translate
+                            }}</mat-option>
+                            @for (
+                                option of status().availableAddresses ?? [];
+                                track option
+                            ) {
+                                <mat-option [value]="option">{{
+                                    option
+                                }}</mat-option>
+                            }
+                        </mat-select>
+                    </mat-form-field>
+                }
+                @if (mode() === 'lan') {
+                    <mat-checkbox
+                        [checked]="openLan()"
+                        (change)="openLan.set($event.checked)"
+                        [disabled]="busy() || !address()"
+                    >
+                        {{ 'HOSTED_SERVER.OPEN_LAN' | translate }}
+                    </mat-checkbox>
+                    <p class="server-message">
+                        {{ 'HOSTED_SERVER.LAN_WARNING' | translate }}
+                    </p>
+                } @else {
+                    <mat-form-field appearance="outline">
+                        <mat-label>{{
+                            'HOSTED_SERVER.HTTPS_ADDRESS' | translate
+                        }}</mat-label>
+                        <input
+                            matInput
+                            type="url"
+                            [ngModel]="origin()"
+                            (ngModelChange)="origin.set($event)"
+                            [disabled]="busy()"
+                            placeholder="https://library.example.test"
+                            data-test-id="hosted-https-origin"
+                        />
+                    </mat-form-field>
+                    @if (mode() === 'https') {
+                        <div class="hosted-configuration-fields">
+                            <mat-form-field appearance="outline">
+                                <mat-label>{{
+                                    'HOSTED_SERVER.CERTIFICATE_PATH' | translate
+                                }}</mat-label>
+                                <input
+                                    matInput
+                                    [ngModel]="certificate()"
+                                    (ngModelChange)="certificate.set($event)"
+                                    [disabled]="busy()"
+                                    data-test-id="hosted-certificate-path"
+                                />
+                                <button
+                                    mat-button matSuffix type="button"
+                                    [disabled]="busy()"
+                                    [attr.aria-label]="'HOSTED_SERVER.CERTIFICATE_PATH' | translate"
+                                    (click)="certificateFile.click()"
+                                >{{ 'HOME.FILE_UPLOAD.BROWSE' | translate }}</button>
+                                <mat-hint>{{ 'HOSTED_SERVER.CERTIFICATE_CHAIN_HINT' | translate }}</mat-hint>
+                            </mat-form-field>
+                            <input #certificateFile type="file" accept=".pem" hidden
+                                (change)="selectPemFile(certificateFile, 'certificate')" />
+                            <mat-form-field appearance="outline">
+                                <mat-label>{{
+                                    'HOSTED_SERVER.KEY_PATH' | translate
+                                }}</mat-label>
+                                <input
+                                    matInput
+                                    [ngModel]="key()"
+                                    (ngModelChange)="key.set($event)"
+                                    [disabled]="busy()"
+                                    data-test-id="hosted-key-path"
+                                />
+                                <button
+                                    mat-button matSuffix type="button"
+                                    [disabled]="busy()"
+                                    [attr.aria-label]="'HOSTED_SERVER.KEY_PATH' | translate"
+                                    (click)="keyFile.click()"
+                                >{{ 'HOME.FILE_UPLOAD.BROWSE' | translate }}</button>
+                            </mat-form-field>
+                            <input #keyFile type="file" accept=".pem" hidden
+                                (change)="selectPemFile(keyFile, 'key')" />
+                        </div>
+                    }
+                    @if (mode() === 'cloudflare') {
+                        <p class="server-message">
+                            {{ 'HOSTED_SERVER.HTTPS_LOCAL_ORIGIN' | translate }}
+                            <code class="hosted-value"
+                                >http://127.0.0.1:4335</code
+                            >
+                        </p>
+                    }
+                    @if (mode() === 'cloudflare') {
+                        <div class="hosted-configuration-fields">
+                            <mat-form-field appearance="outline">
+                                <mat-label>{{
+                                    'HOSTED_SERVER.ACCESS_TEAM' | translate
+                                }}</mat-label>
+                                <input
+                                    matInput
+                                    [ngModel]="team()"
+                                    (ngModelChange)="team.set($event)"
+                                    [disabled]="busy()"
+                                />
+                            </mat-form-field>
+                            <mat-form-field appearance="outline">
+                                <mat-label>{{
+                                    'HOSTED_SERVER.ACCESS_AUDIENCE' | translate
+                                }}</mat-label>
+                                <input
+                                    matInput
+                                    [ngModel]="audience()"
+                                    (ngModelChange)="audience.set($event)"
+                                    [disabled]="busy()"
+                                />
+                            </mat-form-field>
+                        </div>
+                        <mat-checkbox
+                            [checked]="managed()"
+                            (change)="managed.set($event.checked)"
+                            [disabled]="
+                                busy() ||
+                                connector()?.state === 'unavailable' ||
+                                !connector()?.secureStorage
+                            "
+                        >
+                            {{ 'HOSTED_SERVER.MANAGE_CONNECTOR' | translate }}
+                        </mat-checkbox>
+                        @if (managed()) {
+                            <mat-form-field appearance="outline">
+                                <mat-label>{{
+                                    'HOSTED_SERVER.CLOUDFLARE_TOKEN' | translate
+                                }}</mat-label>
+                                <input
+                                    matInput
+                                    type="password"
+                                    autocomplete="off"
+                                    [ngModel]="token()"
+                                    (ngModelChange)="token.set($event)"
+                                    [disabled]="busy()"
+                                />
+                                @if (connector()?.savedToken) {
+                                    <mat-hint>{{
+                                        'HOSTED_SERVER.CLOUDFLARE_TOKEN_SAVED'
+                                            | translate
+                                    }}</mat-hint>
+                                }
+                            </mat-form-field>
+                        }
+                        @if (connector()?.savedToken) {
                             <button
-                                mat-flat-button
+                                mat-button
                                 type="button"
-                                (click)="control('stop')"
+                                [disabled]="busy()"
+                                (click)="forgetToken()"
                             >
                                 {{
-                                    'HOSTED_SERVER.DISABLE_AUTOSTART'
+                                    'HOSTED_SERVER.CLOUDFLARE_FORGET'
                                         | translate
                                 }}
                             </button>
                         }
-                        <button
-                            mat-flat-button
-                            type="button"
-                            [disabled]="shareLan() && !address()"
-                            (click)="start()"
-                            class="settings-primary-button"
-                            data-test-id="hosted-server-start"
-                        >
-                            {{ 'HOSTED_SERVER.START' | translate }}
-                        </button>
-                    </div>
+                    }
+                }
+                <div class="server-actions">
+                    <button
+                        mat-flat-button
+                        type="button"
+                        class="settings-primary-button"
+                        [disabled]="!canSubmit()"
+                        (click)="start()"
+                        data-test-id="hosted-server-start"
+                    >
+                        {{ 'HOSTED_SERVER.START' | translate }}
+                    </button>
                 </div>
             }
-            <p
-                class="server-message"
-                [class.visually-hidden]="!feedback()"
-                role="status"
-            >
-                @if (feedback()) {
+            @if (feedback()) {
+                <p class="server-message" role="status">
                     {{ feedback() | translate }}
-                }
-            </p>
+                </p>
+            }
         </div>
     </section>
 }

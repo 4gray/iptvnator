@@ -218,7 +218,7 @@ export async function verifyCachedSourcesDuringMaterialization(
         await providerStarted!;
         await page
             .locator('[data-test-id="source-sync-status"]')
-            .getByRole('link', { name: 'Server', exact: true })
+            .getByRole('link', { name: 'Connectivity', exact: true })
             .click();
         await expect(page).toHaveURL(/\/workspace\/settings\/server/);
         await expect(page.locator('app-settings-server-section')).toBeVisible();

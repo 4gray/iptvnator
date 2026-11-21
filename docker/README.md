@@ -149,23 +149,42 @@ the `restart: unless-stopped` policy.
 
 ## Run the server from the desktop app
 
-Open **Settings → Server** in the desktop app. Under **Server on this
-computer**, choose **Start server**. The server starts again the next time
-IPTVnator opens until you choose **Stop server**. Minimizing the app leaves it
-running. Quitting IPTVnator, shutting down the computer, or putting it to sleep
-makes the server unavailable to other devices. On macOS, closing the window
-can leave IPTVnator running. Use **Quit IPTVnator** to exit the app.
-If the server fails to start automatically, choose **Disable automatic start**
-to stop trying again when the app opens.
+Open **Settings → Server**. Under **Server on this computer**, choose
+**Home network**, **Custom HTTPS**, or **Cloudflare Tunnel**, enter the
+settings, and click **Start server**. The app remembers the successful mode
+for autostart. Choose **Stop server** to stop hosting or **Disable automatic
+start** if the saved configuration fails at launch. The computer and app
+must stay running to serve other devices.
 
-To use a tablet or another computer, enable **Allow devices on my home
-network** before starting. Open the address shown in Settings on the other
-device and enter the access code. Use this option only on a trusted network.
-HTTP carries the code and library data without encryption.
+For **Home network**, select your private network interface. Use **Pair a
+device** to open a short-lived QR, scan it in IPTVnator on Android, and
+approve the request on the PC. For read-only sharing on trusted Wi-Fi, enable
+**Allow anyone on the local network** and choose **Connect device** to display
+the address QR. Devices may also open the LAN address manually.
 
-Under **Connection on this device**, you can connect the desktop to its own
-server or to another server. Connecting to your own server lets you preview
-and import the desktop's original local sources into the shared library.
+Under **Connection on this device**, choose **Use this server** to connect
+the desktop to its hosted library and preview or import its local sources.
+
+## Optional HTTPS and Cloudflare Tunnel
+
+- For direct TLS, select **Custom HTTPS**. Enter the HTTPS origin and the
+  absolute paths to its PEM certificate chain and private key. Select the
+  network interface clients can reach, and ensure they trust the certificate.
+- For Cloudflare, select **Cloudflare Tunnel**. Publish the HTTP upstream
+  `http://127.0.0.1:4335`, preserve the public Host header, and add an Access
+  policy for the hostname. Cloudflare terminates public HTTPS.
+  Existing tunnel profiles with an origin certificate continue to use TLS
+  upstream and require the matching certificate name and trusted CA.
+  Android also needs Managed OAuth with dynamic client registration and the
+  exact redirect URI `org.tvshell.iptvnator://oauth/callback`.
+
+For Custom HTTPS, choose **Pair a device** and approve the Android device on
+the desktop. For Cloudflare Tunnel, choose **Connect device** after the public
+route is verified. Scan the QR in IPTVnator on Android to start native sign-in.
+A regular browser uses its Cloudflare Access session.
+
+See the [desktop hosting details](../docs/architecture/pwa-self-hosted.md#desktop-hosted-server)
+for certificate setup, Tunnel settings, TV approval and migration.
 
 ## Server Storage
 

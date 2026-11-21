@@ -1,5 +1,10 @@
 import { SettingsHostedServerComponent } from './settings-hosted-server.component';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { NgTemplateOutlet } from '@angular/common';
+import {
+    getAndroidLibraryControls,
+    getAndroidSettingsControls,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import { SettingsHistorySectionComponent } from './settings-history-section.component';
 import { SettingsFavoritesSectionComponent } from './settings-favorites-section.component';
 import {
@@ -39,6 +44,7 @@ import {
     SourceSyncService,
     connectBrowserSourceServer,
     disconnectBrowserSourceConnection,
+    forgetNativeHostedPairing,
     forgetSavedBrowserSourceConnection,
     readSavedBrowserSourceConnection,
     readLocalSourcesForImport,
@@ -50,6 +56,7 @@ import {
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [provideFormFieldDefaults()],
     imports: [
+        NgTemplateOutlet,
         SettingsActivitySectionComponent,
         SettingsHostedServerComponent,
         SettingsFavoritesSectionComponent,
@@ -72,6 +79,23 @@ export class SettingsServerSectionComponent {
     readonly sync = inject(SourceSyncService);
     readonly supportsHosting = inject(RuntimeCapabilitiesService)
         .supportsHostedServer;
+    protected readonly androidSettings = getAndroidSettingsControls();
+    protected readonly androidLibrary = getAndroidLibraryControls();
+    protected readonly library = this.androidLibrary?.libraryConnection();
+    protected libraryAddress = this.library?.savedOrigin ?? '';
+    protected approvalAddress = this.library?.approvalOrigin ?? '';
+    protected readonly directSourceConnection = signal(false);
+    protected readonly showSourceConnectionForm = computed(() => {
+        const connection = this.sync.connection;
+        return (
+            !this.androidSettings ||
+            this.directSourceConnection() ||
+            this.sync.connectionReadFailed ||
+            this.sync.errorKey() === 'SOURCE_SYNC.INSTANCE_CHANGED' ||
+            (!!connection &&
+                new URL(connection.apiUrl).origin !== location.origin)
+        );
+    });
 
     readonly hostedServer = viewChild(SettingsHostedServerComponent);
     readonly localServerUrl = computed(
@@ -85,10 +109,12 @@ export class SettingsServerSectionComponent {
     async connectHosted(url: string): Promise<void> {
         if (this.busy()) return;
         try {
-            const code = await window.electron.hostedServerAccessCode!();
+            const code = this.hostedServer()?.status().mode
+                ? ''
+                : await window.electron.hostedServerAccessCode!();
             this.urlControl.setValue(url);
             this.token = code;
-            await this.connect();
+            await this.connect(!!this.hostedServer()?.status().mode);
         } catch {
             this.message.set('HOSTED_SERVER.CODE_FAILED');
         } finally {
@@ -161,12 +187,12 @@ export class SettingsServerSectionComponent {
         }
     }
 
-    async connect(): Promise<void> {
+    async connect(useHosted = false): Promise<void> {
         if (this.busy()) return;
         this.message.set('');
         this.urlControl.markAsTouched();
         if (this.urlControl.invalid) return;
-        if (this.isCurrentServer() && !this.token) {
+        if (this.isCurrentServer() && !this.token && !useHosted) {
             await this.refresh();
             return;
         }
@@ -186,7 +212,7 @@ export class SettingsServerSectionComponent {
                     apiUrl,
                     this.token,
                     !this.isCurrentServer(),
-                    reuse?.instanceId
+                    useHosted ? true : reuse?.instanceId
                 );
                 this.token = '';
                 if (this.isCurrentServer()) await this.sync.refresh();
@@ -211,7 +237,7 @@ export class SettingsServerSectionComponent {
         }
     }
 
-    async forgetServer(urlInput: HTMLInputElement): Promise<void> {
+    async forgetServer(urlInput: HTMLInputElement | null): Promise<void> {
         if (this.busy()) return;
         this.busy.set(true);
         this.message.set('');
@@ -224,7 +250,7 @@ export class SettingsServerSectionComponent {
                 this.token = '';
             }
             this.savedConnection.set(null);
-            urlInput.focus();
+            urlInput?.focus();
         } catch (error) {
             this.showError(error);
         } finally {
@@ -238,6 +264,7 @@ export class SettingsServerSectionComponent {
             if (window.electron?.sourceSyncDisconnect)
                 await window.electron.sourceSyncDisconnect();
             else {
+                await forgetNativeHostedPairing();
                 if (!disconnectBrowserSourceConnection())
                     throw new Error('SOURCE_SYNC.REQUEST_FAILED');
                 location.reload();
