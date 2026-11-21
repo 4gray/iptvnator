@@ -8,14 +8,26 @@ import {
     HOSTED_SERVER_HTTPS_PORT,
     HOSTED_SERVER_PORT,
 } from '@iptvnator/shared/interfaces';
-import { expect, test, type Locator } from '@playwright/test';
+import {
+    expect,
+    test,
+    type Browser,
+    type Locator,
+    type Page,
+} from '@playwright/test';
 import {
     closeElectronApp,
     launchElectronApp,
     openSettings,
     openSettingsSection,
+    openSources,
+    sourceRowByTitle,
     workspaceRoot,
 } from './electron-test-fixtures';
+import {
+    routePlayableStreams,
+    startAndConfirmPlayback,
+} from './playable-stream-fixture';
 
 test.skip(
     process.env['IPTVNATOR_E2E_HOSTED_SERVER'] !== '1',
@@ -31,6 +43,76 @@ async function qrAddress(qr: Locator): Promise<string> {
         if (!debug.ng) throw new Error('Angular debug tools unavailable');
         return debug.ng.getComponent(element).qrdata;
     });
+}
+
+async function pairBrowserAndPlay(
+    browser: Browser,
+    host: Page,
+    invite: URL,
+    existingDeviceToken: string
+): Promise<void> {
+    const client = await browser.newPage({
+        ignoreHTTPSErrors: invite.protocol === 'https:',
+        serviceWorkers: 'block',
+    });
+    try {
+        const sources = invite.origin + '/api/v1/sources';
+        const seed = await client.request.put(sources + '/synthetic-browser', {
+            headers: {
+                Authorization: `Bearer ${existingDeviceToken}`,
+                'If-None-Match': '*',
+            },
+            data: {
+                id: 'synthetic-browser',
+                kind: 'm3u-text',
+                title: 'Synthetic browser library',
+                rawM3u: '#EXTM3U\n#EXTINF:-1,Synthetic channel\nhttps://streams.example.test/channel.webm',
+            },
+        });
+        expect(seed.status()).toBe(201);
+        await client.goto(invite.origin);
+        const recovery = client.getByTestId('source-sync-status');
+        await expect(recovery).toContainText('Open the new pairing link');
+
+        await client.goto(invite.href);
+        await client.getByRole('button', { name: 'Pair this browser' }).click();
+        const code = client.locator('#confirmation-code');
+        await expect(code).toHaveText(/^\d{6}$/);
+        const claim = host
+            .getByRole('listitem')
+            .filter({ hasText: 'Web browser' });
+        await expect(claim).toContainText(await code.innerText());
+        const inventory = () =>
+            client.waitForResponse((response) => response.url() === sources);
+        const [connected] = await Promise.all([
+            inventory(),
+            claim.getByRole('button', { name: 'Codes match, approve' }).click(),
+        ]);
+        expect(connected.status()).toBe(200);
+        await openSources(client);
+        const source = sourceRowByTitle(client, 'Synthetic browser library');
+        await expect(source).toBeVisible();
+        const [reconnected] = await Promise.all([inventory(), client.reload()]);
+        expect([200, 304]).toContain(reconnected.status());
+        await source
+            .getByText('Synthetic browser library', { exact: true })
+            .click();
+        await routePlayableStreams(client);
+        const channel = client.getByTestId('channel-item').filter({
+            hasText: 'Synthetic channel',
+        });
+        await startAndConfirmPlayback(client, () => channel.click());
+        await expect(client.locator('app-web-player-view video')).toBeVisible();
+
+        await claim.getByRole('button', { name: 'Revoke access' }).click();
+        await host.getByTestId('confirm-dialog-confirm').click();
+        await expect(host.locator('.device-row').filter({ hasText: 'Web browser' })).toHaveCount(0);
+        const [revoked] = await Promise.all([inventory(), client.reload()]);
+        expect(revoked.status()).toBe(401);
+        await expect(recovery).toContainText('Open the new pairing link');
+    } finally {
+        await client.close();
+    }
 }
 
 test('starts locally, reconnects through the hosted library, and stops on request', async () => {
@@ -144,6 +226,7 @@ test('starts locally, reconnects through the hosted library, and stops on reques
 test('lets a paired phone approve a TV and revokes access per device', async ({
     browser,
 }) => {
+    test.setTimeout(120_000);
     const directory = mkdtempSync(join(tmpdir(), 'iptvnator-hosted-lan-'));
     let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
     try {
@@ -175,29 +258,13 @@ test('lets a paired phone approve a TV and revokes access per device', async ({
             .getByRole('option', { name: available[0], exact: true })
             .click();
         await restartShare.click();
-        const openLan = page.getByRole('checkbox', {
-            name: 'Allow anyone on the local network',
-        });
-        await expect(openLan).toBeVisible();
-        await expect(openLan).not.toBeChecked();
         const address = page.getByTestId('hosted-server-address');
         await expect(address).toBeVisible();
         const lan = (await address.innerText()).trim();
         expect(new URL(lan).hostname).toBe(available[0]);
         expect((await fetch(lan + '/api/v1/sources')).status).toBe(401);
-        await openLan.check();
-        await expect
-            .poll(async () => {
-                try {
-                    return (await fetch(lan + '/api/v1/sources')).status;
-                } catch {
-                    return 0;
-                }
-            })
-            .toBe(200);
         const identity = await (await fetch(lan + '/api/v1/instance')).json();
-        expect(identity.auth).toBe('none');
-        expect((await fetch(lan + '/api/v1/sources')).status).toBe(200);
+        expect(identity.auth).toBe('token');
         expect(
             (
                 await fetch(lan + '/api/v1/favorites/operations', {
@@ -207,19 +274,6 @@ test('lets a paired phone approve a TV and revokes access per device', async ({
         ).toBe(401);
         expect((await fetch(lan + '/api/v1/devices')).status).toBe(403);
         const pairQr = page.getByTestId('hosted-device-pair-qr');
-        await expect(pairQr).toHaveCount(0);
-        await page.getByRole('button', { name: 'Connect device' }).click();
-        expect(new URL(await qrAddress(pairQr)).href).toBe(new URL(lan).href);
-        await openLan.uncheck();
-        await expect
-            .poll(async () => {
-                try {
-                    return (await fetch(lan + '/api/v1/sources')).status;
-                } catch {
-                    return 0;
-                }
-            })
-            .toBe(401);
         await expect(pairQr).toHaveCount(0);
         await page.getByTestId('hosted-device-pair').click();
         const invite = new URL(await qrAddress(pairQr));
@@ -378,6 +432,13 @@ test('lets a paired phone approve a TV and revokes access per device', async ({
                     })
                 ).status
             ).toBe(200);
+            await page.getByTestId('hosted-device-pair').click();
+            await pairBrowserAndPlay(
+                browser,
+                page,
+                new URL(await qrAddress(pairQr)),
+                tvDevice.token
+            );
         } finally {
             await device.close();
         }
@@ -392,6 +453,7 @@ test('lets a paired phone approve a TV and revokes access per device', async ({
 });
 
 test('approves and revokes a TV over native HTTPS', async ({ browser }) => {
+    test.setTimeout(120_000);
     const directory = mkdtempSync(join(tmpdir(), 'iptvnator-tv-pairing-'));
     const certificate = join(workspaceRoot, 'apps/web-backend/src/app/testing');
     const cert = join(certificate, 'provider-test.pem');
@@ -549,7 +611,8 @@ test('approves and revokes a TV over native HTTPS', async ({ browser }) => {
         await expect(
             page.getByRole('button', { name: 'Hide devices' })
         ).toBeVisible();
-        const device = page.getByRole('listitem').filter({
+        await pairBrowserAndPlay(browser, page, invite, enrolled.token);
+        const device = page.locator('.device-row').filter({
             hasText: 'Synthetic living room TV',
         });
         await device.getByRole('button', { name: 'Revoke access' }).click();
