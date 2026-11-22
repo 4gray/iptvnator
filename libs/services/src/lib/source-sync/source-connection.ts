@@ -89,6 +89,25 @@ export function assertSourceInstance(
     }
 }
 
+/** A verified native library is the default until the user selects another source API or disconnects source sync. */
+function prefersBrowserSourceSelection(): boolean {
+    try {
+        const active = localStorage.getItem(CONNECTION_KEY);
+        if (active) return parseSourceConnection(active).apiUrl !== `${location.origin}/api`;
+        const disabled = localStorage.getItem(DISABLED_KEY);
+        if (!disabled) return false;
+        try {
+            // Older shells disconnected the paired API as a browser source. A fresh native pairing can reopen it.
+            return parseSourceConnection(disabled).apiUrl !== `${location.origin}/api`;
+        } catch {
+            return true; // Legacy or forgotten source selection disables discovery.
+        }
+    } catch {
+        // A verified native instance can recover a malformed or unreadable browser selection.
+        return false;
+    }
+}
+
 /** Runs before Angular constructs storage or reads the source inventory. */
 export async function prepareSourceConnection(
     runtimeBackendUrl?: string
@@ -107,18 +126,39 @@ export async function prepareSourceConnection(
             __iptvnatorHostedAccessInstance?: string;
         };
         const instanceId = nativeAccess.__iptvnatorHostedAccessInstance;
-        if (nativeAccess.HostedAccessApi && typeof instanceId === 'string' && instanceId) {
+        const useNative =
+            (nativeAccess.HostedAccessApi || 'HostedPairing' in window) &&
+            !prefersBrowserSourceSelection();
+        if (
+            useNative &&
+            nativeAccess.HostedAccessApi &&
+            typeof instanceId === 'string' &&
+            instanceId
+        ) {
             selected = { apiUrl: `${location.origin}/api`, instanceId };
             return;
         }
-        if (runtimeBackendUrl && 'HostedPairing' in window) {
+        if (useNative && runtimeBackendUrl && 'HostedPairing' in window) {
+            const previous = localStorage.getItem(CONNECTION_KEY);
+            const disabled = localStorage.getItem(DISABLED_KEY);
             const paired = await import('./hosted-pairing-bridge')
                 .then(({ restoreNativeHostedPairing }) =>
                     restoreNativeHostedPairing(runtimeBackendUrl)
                 )
                 .catch(() => null);
-            if (paired) {
-                selected = nativePairing = paired;
+            if (
+                paired &&
+                localStorage.getItem(CONNECTION_KEY) === previous &&
+                localStorage.getItem(DISABLED_KEY) === disabled
+            ) {
+                const { connection, token } = paired;
+                sessionStorage.setItem(tokenKey(connection), token);
+                localStorage.setItem(
+                    CONNECTION_KEY,
+                    JSON.stringify(connection)
+                );
+                localStorage.removeItem(DISABLED_KEY);
+                selected = nativePairing = connection;
                 return;
             }
         }

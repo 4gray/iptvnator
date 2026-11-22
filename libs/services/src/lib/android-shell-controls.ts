@@ -18,10 +18,21 @@ export interface AndroidLibraryControls {
     };
     scanLibraryQr(): void;
     inviteAccessDevice?(): void;
-    disconnectLibrary(): void;
+    disconnectLibrary(): boolean;
     removeLibraryPairing?(): void;
     pairLibrary(address: string, approvalAddress: string): void;
     connectLibrary(address: string): void;
+}
+
+/** Disconnect the selected hosted page, even when TV layout hides handheld library controls. */
+export function disconnectAndroidHostedLibrary(apiUrl?: string): boolean {
+    if (apiUrl !== `${location.origin}/api`) return false;
+    const shell = (window as Window & {
+        __tvShell?: Partial<AndroidLibraryControls>;
+    }).__tvShell;
+    if (shell?.libraryConnection && !shell.libraryConnection().origin)
+        return false;
+    return shell?.disconnectLibrary?.() === true;
 }
 
 export function getAndroidLibraryControls():

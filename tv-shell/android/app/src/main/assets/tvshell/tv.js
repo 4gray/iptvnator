@@ -1120,6 +1120,14 @@
     };
 
     var libraryConnection = isAndroid && window.__tvShellLibraryConnection;
+    var pairedHostedPage = isAndroid && (window.HostedPairing || window.HostedAccessApi);
+    if (libraryConnection || pairedHostedPage) {
+        api.disconnectLibrary = function () {
+            if (!pairedHostedPage && !libraryConnection.origin && !libraryConnection.offline) return false;
+            native('disconnectLibrary');
+            return true;
+        };
+    }
     if (libraryConnection) {
         api.libraryConnection = function () {
             return {
@@ -1139,11 +1147,6 @@
         if (window.HostedAccessApi) {
             api.inviteAccessDevice = function () { native('inviteAccessDevice'); };
         }
-        api.disconnectLibrary = function () {
-            if (!libraryConnection.origin && !libraryConnection.offline) return false;
-            native('disconnectLibrary');
-            return true;
-        };
         api.removeLibraryPairing = function () {
             if (!libraryConnection.paired) return false;
             native('removeLibraryPairing');

@@ -1,6 +1,7 @@
 import { SettingsHostedServerComponent } from './settings-hosted-server.component';
 import { NgTemplateOutlet } from '@angular/common';
 import {
+    disconnectAndroidHostedLibrary,
     getAndroidLibraryControls,
     getAndroidSettingsControls,
     RuntimeCapabilitiesService,
@@ -44,7 +45,6 @@ import {
     SourceSyncService,
     connectBrowserSourceServer,
     disconnectBrowserSourceConnection,
-    forgetNativeHostedPairing,
     forgetSavedBrowserSourceConnection,
     readSavedBrowserSourceConnection,
     readLocalSourcesForImport,
@@ -92,8 +92,7 @@ export class SettingsServerSectionComponent {
             this.directSourceConnection() ||
             this.sync.connectionReadFailed ||
             this.sync.errorKey() === 'SOURCE_SYNC.INSTANCE_CHANGED' ||
-            (!!connection &&
-                new URL(connection.apiUrl).origin !== location.origin)
+            (!!connection && connection.apiUrl !== `${location.origin}/api`)
         );
     });
 
@@ -264,7 +263,10 @@ export class SettingsServerSectionComponent {
             if (window.electron?.sourceSyncDisconnect)
                 await window.electron.sourceSyncDisconnect();
             else {
-                await forgetNativeHostedPairing();
+                if (
+                    disconnectAndroidHostedLibrary(this.sync.connection?.apiUrl)
+                )
+                    return;
                 if (!disconnectBrowserSourceConnection())
                     throw new Error('SOURCE_SYNC.REQUEST_FAILED');
                 location.reload();

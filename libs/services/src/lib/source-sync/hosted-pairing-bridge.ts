@@ -1,10 +1,5 @@
 import type { SourceServerConnection } from '@iptvnator/shared/interfaces';
-import {
-    CONNECTION_KEY,
-    DISABLED_KEY,
-    assertSourceInstance,
-    tokenKey,
-} from './source-connection';
+import { assertSourceInstance } from './source-connection';
 
 interface HostedPairingBridge {
     postMessage(message: string): void;
@@ -50,7 +45,7 @@ function requestHostedPairing(
 
 export async function restoreNativeHostedPairing(
     runtimeBackendUrl: string
-): Promise<SourceServerConnection | null> {
+): Promise<{ connection: SourceServerConnection; token: string } | null> {
     try {
         const bridge = hostedPairingBridge();
         if (!bridge) return null;
@@ -72,11 +67,7 @@ export async function restoreNativeHostedPairing(
         const token = reply?.token;
         if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token))
             return null;
-        const connection = { apiUrl: api.href, instanceId };
-        sessionStorage.setItem(tokenKey(connection), token);
-        localStorage.setItem(CONNECTION_KEY, JSON.stringify(connection));
-        localStorage.removeItem(DISABLED_KEY);
-        return connection;
+        return { connection: { apiUrl: api.href, instanceId }, token };
     } catch {
         return null;
     }

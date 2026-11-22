@@ -321,6 +321,29 @@ describe('source server settings', () => {
             expect(findControl('source-server-url')).toBeNull();
         });
 
+        it('disconnects a paired hosted library through Android in TV layout', async () => {
+            const disconnectLibrary = jest.fn().mockReturnValue(true);
+            useAndroidShell(
+                { handheld: false, disconnectLibrary },
+                sameOriginConnection
+            );
+            localStorage.setItem(
+                'iptvnator:source-server',
+                JSON.stringify(sameOriginConnection)
+            );
+            try {
+                findControl('source-server-disconnect')?.click();
+                await fixture.whenStable();
+                expect(disconnectLibrary).toHaveBeenCalledTimes(1);
+                expect(localStorage.getItem('iptvnator:source-server')).toBe(
+                    JSON.stringify(sameOriginConnection)
+                );
+            } finally {
+                localStorage.removeItem('iptvnator:source-server');
+                localStorage.removeItem('iptvnator:source-server-disabled');
+            }
+        });
+
         it('retains editable address and disconnect for a different source server', () => {
             useAndroidShell(
                 { handheld: true, openSettingsSection },

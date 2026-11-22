@@ -1072,9 +1072,13 @@ public class MainActivity extends ComponentActivity {
             .putExtra(SettingsActivity.EXTRA_PHONE_SECTION, section));
     }
 
-    private boolean canManageLibrary() {
-        return !tvDevice && resumed && !isFinishing() && !isDestroyed()
+    private boolean hasCurrentLibrary() {
+        return resumed && !isFinishing() && !isDestroyed()
             && loadedConnection != null && loadedConnection.equals(effectiveLibraryOrigin());
+    }
+
+    private boolean canManageLibrary() {
+        return !tvDevice && hasCurrentLibrary();
     }
 
     void scanLibraryQr() {
@@ -1090,7 +1094,7 @@ public class MainActivity extends ComponentActivity {
     }
 
     void disconnectLibrary() {
-        if (!canManageLibrary() || prefs.hostedOrigin().isEmpty()) return;
+        if (!hasCurrentLibrary() || prefs.hostedOrigin().isEmpty()) return;
         cancelConnection();
         accessFlow.cancel();
         libraryQrScanner.cancel();

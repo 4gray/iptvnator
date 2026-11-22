@@ -50,6 +50,7 @@ for (const layout of ['touch', 'tv', 'hosted-touch', 'hosted-tv']) {
                     canScanQr: layout === 'touch',
                 },
             } : {}),
+            ...(layout === 'hosted-tv' ? { HostedPairing: {} } : {}),
             ...(android ? { TvShell: { postMessage: message => messages.push(JSON.parse(message)) } } : {}),
             addEventListener() {},
         };
@@ -109,6 +110,10 @@ for (const layout of ['touch', 'tv', 'hosted-touch', 'hosted-tv']) {
             ]);
         } else {
             assert.equal(window.__tvShell.libraryConnection, undefined);
+            if (android && layout === 'hosted-tv') {
+                assert.equal(window.__tvShell.disconnectLibrary(), true);
+                assert.deepEqual(messages, [['disconnectLibrary']]);
+            }
         }
         messages.length = 0;
         intervals.at(-1)();

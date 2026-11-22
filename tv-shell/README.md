@@ -32,7 +32,9 @@ HTTP is intended for trusted networks; HTTPS uses normal certificate validation.
 If the hosted server cannot load, the app opens the local library and keeps
 the preferred server and its paired device credential. The next launch tries
 the preferred server again. You can also reconnect from Connectivity.
-Disconnect selects the local library. Remove pairing also erases the device's
+Disconnect selects the local library in Touch and TV layouts. Selecting a separate
+source-sync server on a hosted page keeps that choice after a reload.
+Remove pairing also erases the device's
 stored credential. Server-side revocation is available under Paired devices.
 Reconnect accepts a saved pairing only after the server reports the matching
 instance ID. A different instance at the same address requires its own pairing.
