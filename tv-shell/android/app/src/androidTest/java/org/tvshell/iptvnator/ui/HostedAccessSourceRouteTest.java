@@ -48,6 +48,21 @@ public class HostedAccessSourceRouteTest extends TestCase {
         assertUnlisted("activity/sources/" + ID, "POST");
     }
 
+    public void testOpaqueSourceIdNamesKeepTheirSingleParameter() throws Exception {
+        for (String id : new String[]{"news..archive", "family//news"}) {
+            String encoded = android.net.Uri.encode(id);
+            for (String method : new String[]{"GET", "PUT"}) {
+                HttpUrl url = request("sources/" + encoded, method);
+                assertEquals(ORIGIN + "/api/v1/sources/" + encoded, url.toString());
+                assertEquals(java.util.Arrays.asList("api", "v1", "sources", id), url.pathSegments());
+            }
+            assertUnlisted("sources/" + encoded, "POST");
+        }
+        assertUnlisted("app-state/layout..preset", "GET");
+        for (String method : new String[]{"GET", "PUT"})
+            assertEquals(ORIGIN + "/api/v1/app-state/layout", request("app-state/layout", method).toString());
+    }
+
     private HttpUrl request(String path, String method) throws Exception {
         JSONObject input = new JSONObject().put("path", "/api/v1/" + path).put("method", method);
         return session.call(input, "example-token", EMPTY).request().url();

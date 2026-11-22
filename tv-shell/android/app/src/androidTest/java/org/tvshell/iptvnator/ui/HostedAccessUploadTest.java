@@ -57,7 +57,7 @@ public class HostedAccessUploadTest extends TestCase {
                         return newFixedLengthResponse(Response.Status.OK, "application/json",
                             "{\"access_token\":\"synthetic-renewed\",\"expires_in\":900}");
                     }
-                    if (request.getMethod() != Method.PUT || !"/api/v1/sources/family/news".equals(request.getUri()))
+                    if (request.getMethod() != Method.PUT || !"/api/v1/sources/family//news..archive".equals(request.getUri()))
                         throw new IllegalStateException();
                     int size = Integer.parseInt(request.getHeaders().get("content-length"));
                     if (size <= 16 * 1024 * 1024) throw new IllegalStateException();
@@ -115,7 +115,7 @@ public class HostedAccessUploadTest extends TestCase {
                 view.setWebViewClient(new WebViewClient() {
                     @Override public void onPageFinished(WebView v, String url) {
                         v.evaluateJavascript(bootstrap + "\n(async()=>{try {"
-                            + "const id = 'family/news'; const body = JSON.stringify({id,title:'Example',kind:'m3u-text',rawM3u:'#EXTM3U\\n'+'# test\\n'.repeat(2500000)});"
+                            + "const id = 'family//news..archive'; const body = JSON.stringify({id,title:'Example',kind:'m3u-text',rawM3u:'#EXTM3U\\n'+'# test\\n'.repeat(2500000)});"
                             + "const response = await fetch('/api/v1/sources/'+encodeURIComponent(id),{method:'PUT',body,"
                             + "headers:{'content-type':'application/json','if-none-match':'*'}});"
                             + "const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(body));"

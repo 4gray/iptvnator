@@ -135,6 +135,35 @@ describe('source synchronization API', () => {
             )
         ));
 
+    it('preserves punctuation in historical source IDs', () =>
+        withTempStorage((storage) =>
+            withServer(
+                createWebBackendApp({
+                    storage,
+                    httpClient: new StubHttpClient(),
+                    resolveHostname: resolvePublicHost,
+                }),
+                async (base, fetch) => {
+                    for (const id of ['news..archive', 'family//news']) {
+                        const segment = encodeURIComponent(id);
+                        const url = `${base}/v1/sources/${segment}`;
+                        const created = await fetch(
+                            url,
+                            body('PUT', source(id), { 'If-None-Match': '*' })
+                        );
+                        expect(created.status).toBe(201);
+                        expect(await (await fetch(url)).json()).toMatchObject({
+                            id,
+                        });
+                        const legacy = await fetch(
+                            `${base}/v1/playlists/${segment}`
+                        );
+                        expect(await legacy.json()).toMatchObject({ _id: id });
+                    }
+                }
+            )
+        ));
+
     it('keeps uploaded M3U out of inventory and invalidates tags after legacy mutations', () =>
         withTempStorage((storage) =>
             withServer(

@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import okhttp3.Call;
+import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -113,10 +114,14 @@ final class HostedAccessSession {
 
     Call call(JSONObject input, String token, RequestBody upload) throws Exception {
         requireCurrentPairing();
-        String path = input.getString("path");
+        String relative = input.getString("path");
+        String path = relative.split("\\?", 2)[0];
         String method = input.getString("method");
-        if (!allowed(path, method)) throw new IOException("Unsupported hosted request");
-        Request.Builder request = new Request.Builder().url(origin + path)
+        if (relative.length() > 32768 || relative.contains("#") || relative.contains("\\") || !allowed(path, method))
+            throw new IOException("Unsupported hosted request");
+        HttpUrl target = HttpUrl.get(origin + relative);
+        if (!target.encodedPath().equals(path)) throw new IOException("Unsupported hosted request");
+        Request.Builder request = new Request.Builder().url(target)
             .header("Authorization", "Bearer " + token)
             .header("X-IPTVnator-Instance-Id", instance);
         if (!deviceKey.isEmpty()) request.header("X-IPTVnator-Device-Key", deviceKey);
@@ -162,18 +167,17 @@ final class HostedAccessSession {
         return new JSONObject().put("status", response.code()).put("headers", headers);
     }
 
-    private static boolean allowed(String url, String method) {
-        if (url.length() > 32768 || url.contains("#") || url.contains("\\")) return false;
-        String path = url.split("\\?", 2)[0];
+    private static boolean allowed(String path, String method) {
         String lower = path.toLowerCase(Locale.ROOT);
-        if (path.contains("..") || lower.contains("%2e") || lower.contains("%5c") ||
+        if (lower.contains("%2e") || lower.contains("%5c") ||
             path.contains("//") || !method.matches("GET|HEAD|POST|PUT|PATCH|DELETE")) return false;
-        if (lower.contains("%2f")) {
-            // Inspect separators without changing the encoded URL sent to OkHttp.
-            String segments = lower.replace("%2f", "/");
-            if (segments.contains("//") || segments.endsWith("/") || segments.contains("/./") || segments.endsWith("/."))
-                return false;
-            return sourceIdRoute(path, method);
+        if (lower.contains("%2f") || path.contains("..")) {
+            if (!sourceIdRoute(path, method)) return false;
+            // Adjacent dots and encoded slashes can be part of an ID. Only whole dot segments traverse a path.
+            for (String segment : lower.replace("%2f", "/").split("/")) {
+                if (segment.equals(".") || segment.equals("..")) return false;
+            }
+            return true;
         }
         if (path.equals("/api/v1/instance")) return method.equals("GET") || method.equals("HEAD");
         if (path.matches("/api/v1/(sources|playlists|activity|favorites|history|user-state|app-state)(/[^/?]+)*")) return true;
