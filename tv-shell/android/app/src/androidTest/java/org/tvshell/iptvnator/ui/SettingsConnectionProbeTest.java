@@ -15,6 +15,13 @@ import org.tvshell.iptvnator.Prefs;
 import org.tvshell.iptvnator.R;
 
 public class SettingsConnectionProbeTest extends TestCase {
+    public void testEditingAddressSupersedesConnect() throws Exception {
+        checkProbe(settings -> {
+            ((EditText) settings.findViewById(R.id.host_address)).setText("https://next-library.example");
+            assertTrue("The edited address must be ready to connect", settings.findViewById(R.id.connect_host).isEnabled());
+        });
+    }
+
     public void testPairSupersedesConnect() throws Exception {
         checkProbe(settings -> {
             ((EditText) settings.findViewById(R.id.host_address)).setText("http://127.0.0.1:1");

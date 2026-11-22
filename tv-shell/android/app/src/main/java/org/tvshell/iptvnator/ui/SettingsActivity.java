@@ -6,6 +6,8 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
@@ -104,6 +106,13 @@ public class SettingsActivity extends Activity {
         TextView status = findViewById(R.id.connection_status);
         status.setText(prefs.hostedOrigin().isEmpty() ? R.string.connection_local : R.string.connection_hosted);
         Button connect = findViewById(R.id.connect_host);
+        address.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(Editable s) {
+                if (!connect.isEnabled()) cancelConnectionProbe();
+            }
+        });
         Button local = findViewById(R.id.local_library);
         pairing = new HostedPairingFlow(this);
         scanner = new LibraryQrScanner(this, prefs, pairing);
