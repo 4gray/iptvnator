@@ -23,14 +23,20 @@ final class PairedCredentialStore {
         prefs = context.getApplicationContext().getSharedPreferences("hosted-device-credentials", Context.MODE_PRIVATE);
     }
 
-    void save(String origin, String instanceId, String token) throws Exception {
+    void saveOrdinaryPairing(String origin, String instanceId, String token) throws Exception {
         if (!HostedOrigin.normalize(origin).equals(origin) || !PairingLink.opaqueId(token)) {
             throw new IllegalArgumentException("Invalid credential");
         }
-        saveRecord(origin, new JSONObject().put("instanceId", instanceId).put("token", token));
+        // A single preferences edit selects this pairing and invalidates the previous Access session.
+        saveRecord(origin, new JSONObject().put("instanceId", instanceId).put("token", token),
+            HostedAccessSession.storageKey(origin));
     }
 
     String saveRecord(String origin, JSONObject record) throws Exception {
+        return saveRecord(origin, record, null);
+    }
+
+    private String saveRecord(String origin, JSONObject record, String supersededKey) throws Exception {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE, key());
         cipher.updateAAD(origin.getBytes(StandardCharsets.UTF_8));
@@ -40,7 +46,9 @@ final class PairedCredentialStore {
             .put("data", Base64.encodeToString(cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8)), Base64.NO_WRAP));
         String encrypted = envelope.toString();
         synchronized (prefs) {
-            if (!prefs.edit().putString(origin, encrypted).commit()) throw new java.io.IOException("Could not save credential");
+            SharedPreferences.Editor changes = prefs.edit().putString(origin, encrypted);
+            if (supersededKey != null) changes.remove(supersededKey);
+            if (!changes.commit()) throw new java.io.IOException("Could not save credential");
         }
         return encrypted;
     }

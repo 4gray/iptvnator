@@ -36,7 +36,7 @@ public class HostedLibraryDisconnectTest extends TestCase {
         String token = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
         MainActivity main = null;
         try {
-            credentials.save(origin, instance, token);
+            credentials.saveOrdinaryPairing(origin, instance, token);
             prefs.setHostedOrigin(origin);
             prefs.setLayoutMode(Prefs.LayoutMode.TV);
             main = (MainActivity) instrumentation.startActivitySync(new Intent(instrumentation.getTargetContext(),

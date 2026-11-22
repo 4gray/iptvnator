@@ -69,6 +69,43 @@ public class HostedPairingRaceTest extends TestCase {
         }
     }
 
+    public void testApprovedOrdinaryPairingReplacesOnlyTheSameOriginsAccessSession() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        PairedCredentialStore store = new PairedCredentialStore(context);
+        String origin = "https://switch.example.test";
+        String accessKey = HostedAccessSession.storageKey(origin);
+        String otherKey = HostedAccessSession.storageKey("https://other.example.test");
+        String instance = "synthetic-library";
+        String token = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
+        JSONObject previous = new JSONObject().put("instanceId", instance)
+            .put("accessToken", "synthetic-access").put("expiresAt", Long.MAX_VALUE);
+        try {
+            String deviceKey = store.accessDeviceKey(origin);
+            String oldRecord = store.saveRecord(accessKey, previous);
+            String otherRecord = store.saveRecord(otherKey, previous);
+            HostedAccessSession oldSession = HostedAccessSession.load(context, origin);
+            try {
+                store.saveOrdinaryPairing(origin, instance, "invalid");
+                fail("An invalid ordinary credential was accepted");
+            } catch (IllegalArgumentException expected) { }
+            assertEquals("synthetic-access", oldSession.accessToken(null));
+
+            store.saveOrdinaryPairing(origin, instance, token);
+            assertNull("Opening the library still selects Cloudflare", HostedAccessSession.load(context, origin));
+            assertEquals(token, store.read(origin, instance));
+            assertEquals(otherRecord, store.encryptedRecord(otherKey));
+            assertEquals(deviceKey, store.accessDeviceKey(origin));
+            assertFalse("Old revocation affected the new pairing", oldSession.forget());
+            try {
+                store.replaceRecord(accessKey, oldRecord, previous);
+                fail("A stale refresh restored the superseded Access session");
+            } catch (IOException expected) { }
+            assertEquals(token, store.read(origin, instance));
+        } finally {
+            store.remove(origin, accessKey, otherKey, "cloudflare-device:" + origin);
+        }
+    }
+
     public void testRefreshFinishingAfterRemovalCannotRestorePairing() throws Exception {
         checkRefresh(true);
     }

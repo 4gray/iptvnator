@@ -242,7 +242,7 @@ final class HostedPairingFlow {
 
     private void approve(String origin, String instance, String token, long attempt, boolean tv) {
         if (!active(attempt)) return;
-        try { new PairedCredentialStore(activity).save(origin, instance, token); }
+        try { new PairedCredentialStore(activity).saveOrdinaryPairing(origin, instance, token); }
         catch (Exception e) { fail(attempt, tv); return; }
         new Prefs(activity).setHostedOrigin(origin);
         cancel();

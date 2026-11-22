@@ -64,7 +64,8 @@ accepts `{action: 'credential', instanceId}` and replies with `{token}` (null
 for a mismatch); `{action: 'forget', instanceId}` erases it and acknowledges
 `{forgotten: true}`. Resetting app data also removes native paired credentials.
 The flow rejects redirects and never puts credentials in a URL or diagnostics.
-Starting another pairing cancels pending Cloudflare sign-in. Removing a pairing
+Starting another pairing cancels pending Cloudflare sign-in. Approving ordinary
+pairing at the same HTTPS address replaces its saved Cloudflare session. Removing a pairing
 also invalidates active sessions, including a refresh already in progress.
 HTTP pairing is intended only for a trusted local network. This does not bypass
 Cloudflare Access; a separately protected instance must be reachable by the app.
