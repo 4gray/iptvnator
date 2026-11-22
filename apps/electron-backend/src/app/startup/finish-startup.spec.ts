@@ -3,12 +3,20 @@ const mockInitDatabase = jest.fn();
 const mockResetStaleDownloads = jest.fn();
 const mockReconcileStaleRecordings = jest.fn();
 const mockTraceStartupPhase = jest.fn();
+const mockHasPendingContentTitleFtsBuild = jest.fn(() => false);
+const mockStartContentTitleFtsBuild = jest.fn(() => Promise.resolve());
 
 jest.mock('electron', () => ({
     dialog: { showMessageBox: mockShowMessageBox },
 }));
 jest.mock('../database/connection', () => ({
     initDatabase: mockInitDatabase,
+    hasPendingContentTitleFtsBuild: mockHasPendingContentTitleFtsBuild,
+}));
+jest.mock('../services/database-worker-client', () => ({
+    databaseWorkerClient: {
+        startContentTitleFtsBuild: mockStartContentTitleFtsBuild,
+    },
 }));
 jest.mock('../events/database/downloads.events', () => ({
     resetStaleDownloads: mockResetStaleDownloads,
@@ -54,6 +62,25 @@ describe('finishStartupAfterFirstLoad', () => {
         expect(mockResetStaleDownloads).toHaveBeenCalledTimes(1);
         expect(mockReconcileStaleRecordings).toHaveBeenCalledTimes(1);
         expect(mockShowMessageBox).not.toHaveBeenCalled();
+        // Nothing deferred: the worker is not started for it.
+        expect(mockStartContentTitleFtsBuild).not.toHaveBeenCalled();
+    });
+
+    it('hands a deferred title index build to the database worker after recovery', async () => {
+        mockInitDatabase.mockResolvedValue({});
+        mockHasPendingContentTitleFtsBuild.mockReturnValueOnce(true);
+
+        await finishStartupAfterFirstLoad();
+
+        expect(mockStartContentTitleFtsBuild).toHaveBeenCalledTimes(1);
+        expect(
+            mockTraceStartupPhase.mock.calls.map(([phase]) => phase)
+        ).toEqual([
+            'init-database:done',
+            'reset-stale-downloads:done',
+            'reconcile-stale-recordings:done',
+            'content-title-fts-build:requested',
+        ]);
     });
 
     it('resolves and shows the error dialog when the database never opens', async () => {

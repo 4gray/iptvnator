@@ -5,6 +5,7 @@ import { favoriteLocalOperation } from '../database/operations/favorites-local.o
 import type { ActivityLocalRequest } from '@iptvnator/shared/interfaces/activity-sync';
 import { activityLocalOperation } from '../database/operations/activity-local.operations';
 import { getWorkerSqlite } from './database.worker-connection';
+import { startContentTitleFtsBuild } from './content-title-fts-build';
 import type {
     ElectronBridgeFavoriteReorderUpdate,
     XtreamFavoriteRemovalRef,
@@ -1369,6 +1370,16 @@ parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
 
     if (message.type === 'parental-lock') {
         setParentalLockActive(message.active === true);
+        return;
+    }
+
+    if (message.type === 'content-title-fts-build') {
+        void startContentTitleFtsBuild({
+            getSqlite: async () => {
+                await getWorkerDatabase();
+                return getWorkerSqlite();
+            },
+        });
         return;
     }
 
