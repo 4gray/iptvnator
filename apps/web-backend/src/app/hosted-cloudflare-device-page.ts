@@ -1,3 +1,7 @@
+import {
+    SOURCE_SERVER_CONNECTION_KEY,
+    SOURCE_SERVER_DISABLED_KEY,
+} from '@iptvnator/shared/interfaces';
 import type { Express } from 'express';
 import { prepareCloudflareBrowserDevice } from './storage/cloudflare-device-access';
 
@@ -26,11 +30,22 @@ if (/^[A-Za-z0-9_-]{1,200}$/.test(instance) && /^[A-Za-z0-9_-]{43}$/.test(invite
         try {
             const response = await fetch('/api/v1/device-pairing/cloudflare', {
                 method: 'POST',
+                redirect: 'error',
                 headers: { 'Content-Type': 'application/json', 'X-IPTVnator-Instance-Id': instance },
                 body: JSON.stringify({ inviteId, name: 'Web browser' }),
             });
-            if (response.ok) location.replace('/');
-            else if (response.headers.get('X-IPTVnator-Device-Status') === 'revoked') {
+            if (response.status === 204) {
+                try {
+                    const connection = { apiUrl: location.origin + '/api', instanceId: instance };
+                    localStorage.setItem('${SOURCE_SERVER_CONNECTION_KEY}', JSON.stringify(connection));
+                    localStorage.removeItem('${SOURCE_SERVER_DISABLED_KEY}');
+                } catch {
+                    status.textContent = 'Allow this site to save browser data, then try connecting again.';
+                    button.disabled = false;
+                    return;
+                }
+                location.replace('/');
+            } else if (response.headers.get('X-IPTVnator-Device-Status') === 'revoked') {
                 status.textContent = 'This browser was revoked on the host computer.';
             } else {
                 status.textContent = 'Open a fresh pairing link from IPTVnator on the host computer.';

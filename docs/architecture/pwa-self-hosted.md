@@ -92,8 +92,9 @@ its Access session. Android opens **Sign in with Cloudflare Access** from the
 in-app QR scan and uses the returned OAuth session for its bundled player.
 In Cloudflare mode the host creates a one-time invitation under **Connect a
 device**. After Access sign-in, Android registers a device key from its encrypted
-credential store. Open a separate invitation in a browser to register it. The
-host closes the QR panel when that invitation is used.
+credential store. Open a separate invitation in a browser and choose **Connect
+this browser** to register it. This also reopens the host's library after a
+voluntary disconnect. The host closes the QR panel when that invitation is used.
 
 The host caches Cloudflare signing keys for five minutes. An unfamiliar key ID
 triggers a shared refresh. After the initial download, further refreshes are
