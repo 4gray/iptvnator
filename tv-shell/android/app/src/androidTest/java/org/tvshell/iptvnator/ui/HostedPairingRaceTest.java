@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import junit.framework.TestCase;
 import org.json.JSONObject;
 
@@ -72,7 +73,7 @@ public class HostedPairingRaceTest extends TestCase {
         checkRefresh(true);
     }
 
-    public void testIndependentSessionCanUseANewerRefreshOfTheSamePairing() throws Exception {
+    public void testIndependentSessionsShareOneRefreshOfTheSamePairing() throws Exception {
         checkRefresh(false);
     }
 
@@ -83,14 +84,17 @@ public class HostedPairingRaceTest extends TestCase {
         PairedCredentialStore store = new PairedCredentialStore(context);
         CountDownLatch requested = new CountDownLatch(1);
         CountDownLatch respond = new CountDownLatch(1);
+        AtomicInteger renewals = new AtomicInteger();
+        CountDownLatch duplicate = new CountDownLatch(1);
         NanoHTTPD server = new NanoHTTPD("127.0.0.1", 0) {
             @Override public Response serve(IHTTPSession request) {
+                if (renewals.incrementAndGet() > 1) duplicate.countDown();
                 requested.countDown();
                 try {
                     if (!respond.await(10, TimeUnit.SECONDS)) throw new AssertionError("Refresh not released");
                 } catch (InterruptedException e) { throw new AssertionError(e); }
                 return newFixedLengthResponse(Response.Status.OK, "application/json",
-                    "{\"access_token\":\"synthetic-renewed\",\"expires_in\":900}");
+                    "{\"access_token\":\"synthetic-renewed\",\"refresh_token\":\"synthetic-rotated\",\"expires_in\":900}");
             }
         };
         server.start();
@@ -107,11 +111,26 @@ public class HostedPairingRaceTest extends TestCase {
             });
             new Thread(refreshed).start();
             assertTrue("Refresh did not start", requested.await(10, TimeUnit.SECONDS));
-            if (removeWhileRefreshing) assertTrue(new PairedCredentialStore(context).remove(key));
+            CountDownLatch probing = new CountDownLatch(1);
+            FutureTask<String> probed = new FutureTask<>(() -> {
+                probing.countDown();
+                return probe.accessToken("synthetic-expired");
+            });
+            if (removeWhileRefreshing) {
+                assertTrue(new PairedCredentialStore(context).remove(key));
+            } else {
+                new Thread(probed).start();
+                assertTrue(probing.await(10, TimeUnit.SECONDS));
+                assertFalse("Both sessions sent the same refresh token", duplicate.await(1, TimeUnit.SECONDS));
+            }
             respond.countDown();
             assertEquals(!removeWhileRefreshing, refreshed.get(10, TimeUnit.SECONDS).booleanValue());
             assertEquals(!removeWhileRefreshing, store.contains(key));
-            if (!removeWhileRefreshing) assertEquals("synthetic-renewed", probe.accessToken(null));
+            if (!removeWhileRefreshing) {
+                assertEquals("synthetic-renewed", probed.get(10, TimeUnit.SECONDS));
+                assertEquals("synthetic-rotated", store.readRecord(key).getString("refreshToken"));
+                assertEquals(1, renewals.get());
+            }
         } finally {
             respond.countDown();
             server.stop();

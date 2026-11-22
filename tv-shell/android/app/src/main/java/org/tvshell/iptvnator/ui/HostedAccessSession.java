@@ -4,7 +4,9 @@ import android.content.Context;
 import android.util.Base64;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import okhttp3.Call;
@@ -17,6 +19,7 @@ import org.json.JSONObject;
 
 final class HostedAccessSession {
     private static final int REQUEST_LIMIT = 16 * 1024 * 1024;
+    private static final Set<String> renewingPairings = new HashSet<>();
     private static final OkHttpClient API = HostedAccessOAuth.HTTP.newBuilder()
         .callTimeout(0, TimeUnit.SECONDS).readTimeout(45, TimeUnit.SECONDS).build();
     private final PairedCredentialStore store;
@@ -67,6 +70,21 @@ final class HostedAccessSession {
     }
 
     synchronized String accessToken(String rejected) throws Exception {
+        // A bridge and a connection probe can hold separate sessions for the same rotating token.
+        synchronized (renewingPairings) {
+            while (!renewingPairings.add(pairingId)) renewingPairings.wait();
+        }
+        try {
+            return readOrRenewToken(rejected);
+        } finally {
+            synchronized (renewingPairings) {
+                renewingPairings.remove(pairingId);
+                renewingPairings.notifyAll();
+            }
+        }
+    }
+
+    private String readOrRenewToken(String rejected) throws Exception {
         String stored = store.encryptedRecord(storageKey(origin));
         JSONObject latest = currentCredential(stored);
         if (latest == null) throw new IOException("Pairing changed");
