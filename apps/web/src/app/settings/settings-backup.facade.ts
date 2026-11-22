@@ -1,3 +1,4 @@
+import { isAndroidShellRuntime } from '../services/runtime-config';
 import { historyProfileUsed } from '../services/history-consent';
 import { loadHistoryRuntime } from '../services/history-sync.providers';
 import { favoritesProfileUsed } from '../services/favorites-consent';
@@ -42,9 +43,8 @@ export class SettingsBackupFacade {
     private readonly destroyRef = inject(DestroyRef);
 
     readonly isExportingData = signal(false);
-    /** The shell marker is set before bootstrap; Android has no download/save bridge yet. */
-    readonly supportsExport =
-        !document.documentElement.classList.contains('tv-shell');
+    /** Android can pick a backup for import but has no save-file bridge. */
+    readonly supportsExport = !isAndroidShellRuntime();
     readonly isImportingData = signal(false);
     private readonly isChoosingFile = signal(false);
     readonly isBusy = computed(

@@ -1,3 +1,4 @@
+export * from './lib/android-shell-controls';
 export * from './lib/catalog-title-match.service';
 export * from './lib/cross-portal-similar.service';
 export * from './lib/data.service';

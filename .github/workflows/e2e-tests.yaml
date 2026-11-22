@@ -160,6 +160,9 @@ jobs:
                   GH_TOKEN: ${{ github.token }}
               run: node tools/testing/electron/ensure-electron-binary.mjs
 
+            - name: Install Playwright Chromium
+              run: pnpm exec playwright install chromium
+
             - name: Run hosted server smoke
               run: pnpm nx run electron-backend-e2e:hosted-server
 

@@ -14,12 +14,14 @@ import {
     CONNECTION_KEY,
     DISABLED_KEY,
     prepareSourceConnection,
+    pairedBrowserTokenKey,
     sourceConnection,
     sourceProfileName,
     tokenKey,
     sourceConnectionReadFailed,
     invalidateSourceVerification,
     sourceVerificationEpoch,
+    forgetNativeHostedPairing,
 } from './source-connection';
 
 describe('source server selection and authorization', () => {
@@ -33,6 +35,286 @@ describe('source server selection and authorization', () => {
     afterEach(() => {
         window.electron = originalElectron;
         globalThis.fetch = originalFetch;
+        Reflect.deleteProperty(window, 'HostedPairing');
+        Reflect.deleteProperty(window, 'HostedAccessApi');
+        Reflect.deleteProperty(window, '__iptvnatorHostedAccessInstance');
+    });
+
+    it('uses the verified native tunnel instance despite cached browser settings', async () => {
+        Reflect.set(window, 'HostedAccessApi', {});
+        Reflect.set(window, '__iptvnatorHostedAccessInstance', 'verified-host');
+        localStorage.setItem('iptvnator:source-server', '{invalid');
+        localStorage.setItem('iptvnator:source-server-disabled', 'true');
+        const fetch = jest.fn();
+        globalThis.fetch = fetch;
+        await prepareSourceConnection('/api');
+        expect(sourceConnection()).toEqual({
+            apiUrl: `${location.origin}/api`,
+            instanceId: 'verified-host',
+        });
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it.each(['lan', 'access'])(
+        'retains an explicit source server and its disconnect on a paired %s page',
+        async (mode) => {
+            const external = {
+                apiUrl: 'https://sync.example.test/api',
+                instanceId: 'other-instance',
+            };
+            const host = {
+                service: 'iptvnator',
+                apiVersion: 1,
+                storage: 'server',
+                instanceId: 'android-host',
+                capabilities: ['sources-v1'],
+            };
+            const bridge = {
+                onmessage: null as
+                    ((message: MessageEvent<string>) => void) | null,
+                postMessage: jest.fn((): void =>
+                    bridge.onmessage?.(
+                        new MessageEvent('message', {
+                            data: JSON.stringify({ token: 'A'.repeat(43) }),
+                        })
+                    )
+                ),
+            };
+            if (mode === 'lan') Reflect.set(window, 'HostedPairing', bridge);
+            else {
+                Reflect.set(window, 'HostedAccessApi', {});
+                Reflect.set(
+                    window,
+                    '__iptvnatorHostedAccessInstance',
+                    host.instanceId
+                );
+            }
+            globalThis.fetch = jest
+                .fn()
+                .mockResolvedValue({ ok: true, json: async () => host });
+            await prepareSourceConnection('/api');
+            expect(sourceConnection()?.instanceId).toBe(host.instanceId);
+            bridge.postMessage.mockClear();
+
+            globalThis.fetch = jest.fn(async (input) => ({
+                ok: true,
+                json: async () =>
+                    String(input).startsWith(external.apiUrl)
+                        ? { ...host, instanceId: external.instanceId }
+                        : host,
+            })) as unknown as typeof fetch;
+            await connectBrowserSourceServer(
+                external.apiUrl,
+                'alternate-token',
+                undefined,
+                null
+            );
+            await prepareSourceConnection('/api');
+            expect(sourceConnection()).toEqual(external);
+            verifySourceInstance({ ...host, instanceId: external.instanceId });
+            expect(
+                sourceAuthorization(external.apiUrl + '/v1/sources')
+            ).toEqual({ Authorization: 'Bearer alternate-token' });
+            expect(sourceAuthorization('/api/v1/sources')).toEqual({});
+            expect(bridge.postMessage).not.toHaveBeenCalled();
+
+            expect(disconnectBrowserSourceConnection()).toBe(true);
+            await prepareSourceConnection('/api');
+            expect(sourceConnection()).toBeNull();
+            expect(readSavedBrowserSourceConnection()).toEqual({
+                ...external,
+                hasToken: true,
+            });
+        }
+    );
+
+    it('keeps a source selected while the native credential reply is pending', async () => {
+        const external = {
+            apiUrl: 'https://sync.example.test/api',
+            instanceId: 'secondary',
+        };
+        const bridge = {
+            onmessage: null as ((message: MessageEvent<string>) => void) | null,
+            postMessage: () => {
+                saveBrowserSourceConnection(external, 'secondary-token');
+                bridge.onmessage?.(
+                    new MessageEvent('message', {
+                        data: JSON.stringify({ token: 'A'.repeat(43) }),
+                    })
+                );
+            },
+        };
+        Reflect.set(window, 'HostedPairing', bridge);
+        globalThis.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                service: 'iptvnator',
+                apiVersion: 1,
+                storage: 'server',
+                instanceId: 'native',
+                capabilities: ['sources-v1'],
+            }),
+        });
+        await prepareSourceConnection('/api');
+        expect(sourceConnection()).toEqual(external);
+        expect(
+            sessionStorage.getItem(
+                tokenKey({
+                    apiUrl: location.origin + '/api',
+                    instanceId: 'native',
+                })
+            )
+        ).toBeNull();
+    });
+
+    it('restores an Android pairing only for the verified same-origin API and lets the device forget it', async () => {
+        const instance = {
+            service: 'iptvnator',
+            apiVersion: 1,
+            storage: 'server',
+            instanceId: 'paired-test-server',
+            capabilities: ['sources-v1'],
+        };
+        const token = 'A'.repeat(43);
+        const bridge = {
+            onmessage: null as ((message: MessageEvent<string>) => void) | null,
+            postMessage: jest.fn((message: string) => {
+                const { action } = JSON.parse(message);
+                bridge.onmessage?.(
+                    new MessageEvent('message', {
+                        data: JSON.stringify(
+                            action === 'credential'
+                                ? { token }
+                                : { forgotten: true }
+                        ),
+                    })
+                );
+            }),
+        };
+        Reflect.set(window, 'HostedPairing', bridge);
+        globalThis.fetch = jest.fn(async (input) => ({
+            ok: true,
+            json: async () =>
+                new URL(String(input), location.href).origin ===
+                'https://other.example.test'
+                    ? { storage: 'none' }
+                    : instance,
+        })) as unknown as typeof fetch;
+        await prepareSourceConnection('https://other.example.test/api');
+        expect(bridge.postMessage).not.toHaveBeenCalled();
+        localStorage.setItem(
+            DISABLED_KEY,
+            JSON.stringify({
+                apiUrl: location.origin + '/api',
+                instanceId: instance.instanceId,
+            })
+        );
+        await prepareSourceConnection('/api');
+        expect(sourceConnection()).toEqual({
+            apiUrl: `${location.origin}/api`,
+            instanceId: instance.instanceId,
+        });
+        expect(sourceAuthorization('/api/xtream')).toEqual({});
+        verifySourceInstance(instance);
+        expect(sourceAuthorization('/api/xtream')).toEqual({
+            Authorization: `Bearer ${token}`,
+        });
+        expect(
+            sourceAuthorization('https://other.example.test/api/xtream')
+        ).toEqual({});
+        await forgetNativeHostedPairing();
+        expect(
+            bridge.postMessage.mock.calls.map(([request]) =>
+                JSON.parse(request)
+            )
+        ).toEqual([
+            { action: 'credential', instanceId: instance.instanceId },
+            { action: 'forget', instanceId: instance.instanceId },
+        ]);
+    });
+
+    it('restores an approved browser after restart only on its verified instance and origin', async () => {
+        const connection = {
+            apiUrl: location.origin + '/api',
+            instanceId: 'paired-host',
+        };
+        const token = 'B'.repeat(43);
+        localStorage.setItem(pairedBrowserTokenKey(connection)!, token);
+        localStorage.setItem(CONNECTION_KEY, JSON.stringify(connection));
+        await prepareSourceConnection('/api');
+        expect(sourceAuthorization('/api/v1/sources')).toEqual({});
+        const instance = {
+            service: 'iptvnator',
+            apiVersion: 1,
+            storage: 'server',
+            capabilities: ['sources-v1'],
+            instanceId: connection.instanceId,
+        };
+        verifySourceInstance(instance);
+        expect(sourceAuthorization('/api/v1/sources')).toEqual({
+            Authorization: 'Bearer ' + token,
+        });
+        expect(
+            sourceAuthorization('https://other.example.test/api/v1/sources')
+        ).toEqual({});
+        expect(() =>
+            verifySourceInstance({ ...instance, instanceId: 'another-host' })
+        ).toThrow();
+        expect(sourceAuthorization('/api/v1/sources')).toEqual({});
+
+        const other = {
+            ...connection,
+            apiUrl: 'https://other.example.test/api',
+        };
+        localStorage.setItem(CONNECTION_KEY, JSON.stringify(other));
+        await prepareSourceConnection('/api');
+        verifySourceInstance(instance);
+        expect(sourceAuthorization(other.apiUrl + '/v1/sources')).toEqual({});
+    });
+
+    it('keeps a browser pairing across disconnect and reconnect, and removes it on Forget', async () => {
+        const connection = {
+            apiUrl: location.origin + '/api',
+            instanceId: 'paired-host',
+        };
+        const token = 'B'.repeat(43);
+        const key = pairedBrowserTokenKey(connection)!;
+        localStorage.setItem(key, token);
+        localStorage.setItem(CONNECTION_KEY, JSON.stringify(connection));
+        expect(disconnectBrowserSourceConnection()).toBe(true);
+        expect(readSavedBrowserSourceConnection()).toEqual({
+            ...connection,
+            hasToken: true,
+        });
+        const probe = {
+            service: 'iptvnator',
+            apiVersion: 1,
+            storage: 'server',
+            capabilities: ['sources-v1'],
+            instanceId: connection.instanceId,
+        };
+        globalThis.fetch = jest
+            .fn()
+            .mockResolvedValue({ ok: true, json: async () => probe });
+        await connectBrowserSourceServer(
+            connection.apiUrl,
+            '',
+            undefined,
+            connection
+        );
+        expect(globalThis.fetch).toHaveBeenLastCalledWith(
+            connection.apiUrl + '/v1/sources',
+            expect.objectContaining({
+                headers: expect.objectContaining({
+                    Authorization: 'Bearer ' + token,
+                }),
+            })
+        );
+        expect(localStorage.getItem(key)).toBe(token);
+        disconnectBrowserSourceConnection();
+        forgetSavedBrowserSourceConnection();
+        expect(localStorage.getItem(key)).toBeNull();
+        expect(sessionStorage.getItem(tokenKey(connection))).toBeNull();
     });
 
     it('keeps the token in the tab while a disconnected browser starts locally', async () => {

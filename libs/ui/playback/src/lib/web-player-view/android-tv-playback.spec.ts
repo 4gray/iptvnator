@@ -130,6 +130,26 @@ function setup() {
     };
 }
 
+it('creates the playback attempt and posts the native launch on a plain HTTP host', () => {
+    const { clear, open, playback } = setup();
+    const descriptor = Object.getOwnPropertyDescriptor(crypto, 'randomUUID');
+    Object.defineProperty(crypto, 'randomUUID', {
+        configurable: true,
+        value: undefined,
+    });
+    try {
+        const attempt = playback.attempt();
+        const request = open();
+        expect(attempt).toBeTruthy();
+        expect(request).toBeTruthy();
+        expect(request).not.toBe(attempt);
+    } finally {
+        if (descriptor) Object.defineProperty(crypto, 'randomUUID', descriptor);
+        else Reflect.deleteProperty(crypto, 'randomUUID');
+        clear();
+    }
+});
+
 it('keeps an attempt across Android settings refreshes and retires it for a new application', () => {
     const { clear, playback, token, tvWindow } = setup();
     try {

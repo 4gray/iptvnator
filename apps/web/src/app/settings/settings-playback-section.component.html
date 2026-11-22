@@ -9,6 +9,32 @@
             <h3>{{ 'SETTINGS.CARD_PLAYER' | translate }}</h3>
         </div>
         <div class="settings-card">
+            @if (androidSettingsControls; as controls) {
+                <div
+                    class="setting-item"
+                    data-setting-id="android-external-player"
+                >
+                    <div class="setting-item__meta">
+                        <h4>
+                            {{ 'SETTINGS.ANDROID_EXTERNAL_PLAYER' | translate }}
+                        </h4>
+                    </div>
+                    <div class="setting-item__control">
+                        <button
+                            type="button"
+                            mat-flat-button
+                            aria-haspopup="dialog"
+                            data-test-id="android-external-player"
+                            (click)="controls.openSettingsSection('playback')"
+                        >
+                            {{
+                                'SETTINGS.ANDROID_EXTERNAL_PLAYER_SETTINGS'
+                                    | translate
+                            }}
+                        </button>
+                    </div>
+                </div>
+            }
             <div class="setting-item" data-setting-id="video-player">
                 <div class="setting-item__meta">
                     <h4 id="video-player-label">

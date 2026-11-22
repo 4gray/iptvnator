@@ -1,4 +1,6 @@
 import express from 'express';
+import { markHostedLan } from '../hosted-ingress';
+import { createHostedWorkerTransport } from '../hosted-worker-transport';
 import { withServer } from '../web-backend-app.spec-helpers';
 import { createAccessGuard } from './access-guard';
 
@@ -12,6 +14,67 @@ function createApp() {
 }
 
 describe('createAccessGuard', () => {
+    it('requires pairing for LAN library access and keeps desktop worker access private', async () => {
+        const app = express();
+        app.use(
+            createAccessGuard('desktop-code', undefined, undefined, 'lan')
+        );
+        app.use((_req, res) => res.sendStatus(204));
+        const send = createHostedWorkerTransport(app);
+        await expect(
+            send({ method: 'GET', path: '/v1/sources' })
+        ).resolves.toMatchObject({ status: 204 });
+        await expect(
+            send({ method: 'POST', path: '/v1/favorites/operations', body: {} })
+        ).resolves.toMatchObject({ status: 204 });
+
+        const check = async (
+            method: string,
+            path: string,
+            token?: string
+        ) => {
+            const guard = createAccessGuard(
+                'desktop-code',
+                (candidate) => candidate === 'paired',
+                undefined,
+                'lan'
+            );
+            const req = {
+                method,
+                path,
+                socket: {},
+                get: (name: string) =>
+                    name === 'authorization' && token
+                        ? `Bearer ${token}`
+                        : undefined,
+            } as unknown as Parameters<typeof guard>[0];
+            markHostedLan(req, 'http://192.168.40.5:4334');
+            const next = jest.fn();
+            const res = {
+                status: jest.fn().mockReturnThis(),
+                set: jest.fn().mockReturnThis(),
+                json: jest.fn(),
+                sendStatus: jest.fn(),
+            };
+            await guard(
+                req,
+                res as unknown as Parameters<typeof guard>[1],
+                next
+            );
+            return next.mock.calls.length
+                ? 204
+                : (res.sendStatus.mock.calls[0]?.[0] ??
+                      res.status.mock.calls[0]?.[0]);
+        };
+        expect(await check('GET', '/v1/sources/synthetic')).toBe(401);
+        expect(await check('POST', '/v1/favorites/read')).toBe(401);
+        expect(await check('POST', '/v1/favorites/operations')).toBe(401);
+        expect(await check('GET', '/v1/sources', 'desktop-code')).toBe(
+            401
+        );
+        expect(await check('GET', '/v1/sources')).toBe(401);
+        expect(await check('GET', '/v1/sources', 'paired')).toBe(204);
+    });
     it('lets public routes through', () =>
         withServer(createApp(), async (baseUrl) => {
             expect((await fetch(`${baseUrl}/health`)).status).toBe(200);

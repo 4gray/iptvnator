@@ -30,35 +30,135 @@ a patched base rather than reusing the older published digest.
 
 ## Desktop-hosted server
 
-Desktop Settings → Server can launch the packaged web backend in an Electron
-utility process. It serves the bundled browser app and the existing API under
-`/api`. The server has its own database under the app data directory
-(`hosted-server/databases/iptvnator.db`). Connecting the desktop to it follows
-the same profile and opt-in rules as connecting to another server.
+In **Settings → Connectivity**, choose a mode, enter its settings, then click
+**Start server**. Each mode serves the bundled browser app and API under
+`/api` from one Electron utility process. They share the same instance ID,
+device records and SQLite database at `hosted-server/databases/iptvnator.db`.
+Each mode retains the configuration used the last time it started successfully.
+Switching modes also retains unsaved edits for the current app session. Custom
+HTTPS has its own network interface selection, which defaults to loopback.
+If the saved Home network address is unavailable at startup, the library runs
+on this computer only. The app retries the saved address on its next launch.
 
-The server starts on loopback port 4334. Home-network access is opt-in and binds
-a selected private IPv4 interface. The LAN listener accepts that address in
-the Host header and peers on that interface's subnet. The protected routes
-require a generated access code. HTTP carries this code and library data
-without encryption, so the settings UI asks users to share only on a trusted
-network. The code is stored in the server data directory with user-only file
-permissions where supported. A change to the selected network address requires
-selecting the new address and starting the server again.
+| Mode | Listener | Client address |
+| --- | --- | --- |
+| Home network | HTTP on the selected private IPv4 interface or loopback for this computer only | The selected LAN address and port 4334 |
+| Custom HTTPS | TLS on the selected interface and configured port (443 by default) | The HTTPS origin |
+| Cloudflare Tunnel | HTTP on `127.0.0.1:4335` | The public HTTPS origin through Cloudflare Access |
 
-The utility process inherits the desktop environment, including operating-system
-variables such as Windows `SystemRoot`, `PATH` and temporary-directory settings.
-Hosted storage, data paths, access code, assets, LAN binding and port override
-any inherited values so the worker always uses its dedicated server profile.
-The desktop's `IPTVNATOR_SOURCE_PROFILE` is cleared in the worker environment,
-so switching desktop server connections does not change the hosted database.
-The worker also clears `IPTVNATOR_E2E_DATA_DIR`, which otherwise takes
-precedence over the hosted data directory during Electron tests.
+For native HTTPS, enter absolute paths to the PEM certificate chain and matching
+private key. The hostname must resolve to the host from the client and match a
+certificate the client trusts. If a selected win-acme leaf certificate ends in
+`-crt.pem`, Custom HTTPS can use the adjacent `-chain.pem` when it contains the
+same leaf and its ordered issuer chain. An older External HTTPS proxy profile is left
+stopped on upgrade. Its saved Custom HTTPS, Cloudflare Tunnel and Home network
+profiles remain available to start manually. Each hosted listener checks its
+Host and Origin before processing browser requests. Home network also checks
+the peer's subnet. Standalone Docker uses its own listener and configuration.
 
-The desktop package includes `web-backend:build` and `web:build-hosted`. The
-latter emits a separate PWA bundle, so the Electron renderer and Docker
-deployment keep their own build outputs. The outer Nx graph builds shared
-dependencies once for both renderer builds. The hosted server reads the PWA
-shell at startup and reuses it for browser navigation requests.
+The running desktop server shows its active mode and device address. If it is
+running for this computer only, open **Share on home network**, select an
+address, and choose **Restart and share** to require pairing on that network. Use
+**Pair a device** to open an invitation QR in Home network and HTTPS modes.
+On Android, open **Settings → Connectivity → Scan QR code**, then compare the
+matching code after the request appears and approve on the PC. The invitation
+expires and the hosted database retains only the digest of each issued device
+credential. In a regular browser, open the invitation, choose **Pair this
+browser**, and compare and approve the code on the PC. The browser remembers
+its own device credential. **Revoke access** removes that device's access.
+Home network requires pairing, including for hosts upgraded from open LAN
+access.
+
+For a TV without a camera, open **Pair with server** in the Android library
+settings. Approve on the PC, or pair a phone and enable **Allow this device
+to approve pairing** before using **Scan TV QR**. The phone and TV use the
+same active server endpoint. A regular QR reader can open the TV approval
+page over HTTPS if the owner has set a separate **Phone approval password**
+under **Approve TVs from your phone** on the desktop.
+The short-lived browser session uses a Secure, HttpOnly cookie. The approval tab
+keeps the public request ID in its history entry so a refresh can resume the
+pending request. The TV keeps the claim secret needed to retrieve its device
+credential.
+
+### Cloudflare Tunnel
+
+Publish an HTTP upstream of `http://127.0.0.1:4335` and preserve the public Host header. Cloudflare provides the public TLS endpoint. Existing saved configurations with origin certificates continue to use TLS. Enter the public HTTPS origin, Zero Trust
+team name and Access application AUD tag in IPTVnator.
+
+Protect the public hostname with Access and enable Managed OAuth with dynamic
+client registration. Add the exact redirect
+`org.tvshell.iptvnator://oauth/callback` to the allowed URIs. Configure the
+Access policy for the intended viewers. The origin verifies Cloudflare's
+signed application assertion on each tunnel request. The browser web player uses
+its Access session. Android opens **Sign in with Cloudflare Access** from the
+in-app QR scan and uses the returned OAuth session for its bundled player.
+While the browser is open, Android keeps one pending sign-in in its encrypted
+credential store for up to ten minutes. A recreated activity can accept the
+matching browser result or callback link once. Canceling or starting another
+pairing invalidates the pending sign-in.
+In Cloudflare mode the host creates a one-time invitation under **Connect a
+device**. After Access sign-in, Android registers a device key from its encrypted
+credential store. Open a separate invitation in a browser and choose **Connect
+this browser** to register it. This also reopens the host's library after a
+voluntary disconnect. The host closes the QR panel when that invitation is used.
+
+The host caches Cloudflare signing keys for five minutes. An unfamiliar key ID
+triggers a shared refresh. After the initial download, further refreshes are
+limited to one per 30 seconds. Assertions with unverified keys are rejected.
+
+Cloudflare library API requests require both Access and a registered device.
+The host stores only key digests. Revocation blocks the device until it signs
+in through Cloudflare and uses a fresh invitation from the host. Android
+clears the configured server and switches to the local library when it receives
+the revocation. Manually disconnecting also clears the server address.
+Existing Cloudflare clients need one fresh invitation after upgrading the host.
+The host can enable **Allow this device to approve pairing** for a paired
+Cloudflare device. Its Android **Pair a device** action creates a short-lived,
+single-use QR. The recipient still signs in through Access. Removing permission
+or revoking the issuing device invalidates its outstanding invitations.
+
+Desktop builds with `IPTVNATOR_BUNDLE_CLOUDFLARED=1` include the connector.
+Managed mode starts it after the TLS listener and stores the connector token
+using OS-backed encryption. Worker, connector and public Access route status
+are shown separately. **Pair a device** stays visible while the public route
+check verifies the OAuth challenge. The button becomes available when the
+challenge is detected.
+The hosted web player leaves Cloudflare authorization and discovery paths to
+the edge. Android requests an isolated browser session for sign-in and bypasses
+older service workers when opening the same-origin authorization endpoint.
+
+Android keeps the source ID encoded as a single URL parameter for hosted
+source, playlist, activity, favorites, history and playlist user-state requests.
+This preserves existing IDs containing repeated dots or slashes when the server looks them up.
+Each main-frame document owns the bridge requests it starts. Reloading cancels
+its pending transfers. Navigation within the same document keeps them running.
+
+For hosted API uploads, the Android bridge hands OkHttp one 64 KiB slice at a
+time. The WebView keeps a replayable blob until response headers arrive so a
+Cloudflare token renewal can retry the request. The bridge accepts up to
+64 MiB per serialized request, including JSON fields and escaping. The hosted
+worker applies its own document limit, which defaults to 64 MiB.
+
+The Android bridge streams hosted API responses in bounded chunks, with an
+inactivity timeout for the transfer. Cloudflare OAuth calls keep a separate
+deadline. While the hosted worker buffers an Xtream response in Cloudflare mode,
+it sends JSON whitespace every ten seconds so the bridge can distinguish a slow
+catalog from a stalled connection. The provider socket retains its own inactivity timeout.
+
+Android callback, token renewal and playback still require a live Access
+application for end-to-end validation.
+
+Owner operations and **Use this server** use private Electron-to-worker IPC.
+Desktop source sync checks the stored instance ID before using that transport
+for an existing loopback profile. Server transitions are serialized. Stopping
+the server closes its listener and any bundled connector. Existing autostart
+settings migrate to Home network with pairing, and an explicitly selected
+mode is remembered for subsequent autostart. The worker clears the desktop
+profile and test-directory overrides to keep its database separate.
+
+The desktop package includes `web-backend:build` and `web:build-hosted`.
+The hosted browser app is a separate build from the desktop renderer and
+standalone Docker PWA.
 
 ## Runtime Backend Configuration
 
@@ -141,7 +241,9 @@ Notifications use the normal translation pipeline;
 the English fallback dictionary is prefetched with the app shell so a first
 offline reload retains readable recovery controls. Electron uses its desktop
 updater, and the Android TV Shell updates the web bundle with its APK. Both
-runtimes disable the browser updater.
+runtimes disable the browser updater. The Android shell applies this in Touch and
+TV layouts, including when it opens a hosted library. A hosted library opened
+in a regular browser uses the PWA updater.
 
 Docker serves `/ngsw.json` and `/ngsw-worker.js` without HTTP caching or the
 SPA fallback. A missing manifest returns 503 so a temporary deployment
@@ -314,7 +416,7 @@ Confirmed source-server profiles never use the stateless fallback.
 Once a server is selected, network/authentication/compatibility errors do not
 silently select local storage. The recovery banner remains available even when
 the initial source inventory cannot load. When the server rejects credentials,
-the banner links to Settings → Server to update the access token. If a new
+the banner links to Settings → Connectivity to update the access token. If a new
 probe fails because the server is unavailable, the banner offers **Retry
 connection**, even after an earlier credential rejection. Malformed saved
 connection data or unavailable browser storage does not prevent Angular
@@ -326,9 +428,18 @@ allow explicit reconnection or disconnection; the standalone library and prior
 server projections remain intact. Native configuration saves use a flushed
 private temporary file followed by an atomic rename.
 
-Settings → Server connects a desktop or browser client, refreshes the
+Settings → Connectivity connects a desktop or browser client, refreshes the
 library, previews/imports original local sources, and disconnects. Connection
 help links to the [client connection guide](../../docker/README.md#connect-your-clients).
+On Android phones and tablets, **Connect** checks the server address, including
+any reverse-proxy path. For a NAS, the APK loads the bundled player and connects
+to the selected API through Android. The Docker image's default `CLIENT_URL`
+works for both open and token-protected libraries. From a connected desktop
+library, enter the next desktop's address and confirm it on the device to begin
+pairing or reconnect. To start a new Cloudflare Access
+connection, choose **Scan QR code** and scan the host's device invitation.
+**Advanced → Open hosted web player** opens the server’s own web app. The
+optional HTTPS address under **Advanced** is for approving a pairing request.
 Rechecking the selected endpoint keeps its saved token when the password field
 is empty. Renewing credentials for the same endpoint and instance does not
 reload either client. Switching an endpoint or server instance still requires
@@ -382,7 +493,7 @@ error instead of exposing a false empty library. Server
 settings bypass the source-loading screen and remain reachable through the
 connection banner. Once a local source inventory is ready, a connectivity
 notice can be hidden for the current app session without changing profiles or
-stopping background retries. Settings → Server can still check the connection
+stopping background retries. Settings → Connectivity can still check the connection
 and shows the result there. A missing inventory, rejected token, or server
 identity error keeps its recovery controls visible. The status panel uses
 **Retry connection** as a secondary action and offers an icon-only dismiss
@@ -816,7 +927,7 @@ settings and guards read them in every build.
   browser backup import that could not finish) is copied to the server
   playlist id it merged into, unless that one has its own. Browser data is never
   deleted, the move does not start while user-data writes are unsent, and
-  the marker is written only when nothing failed, so Settings → Server
+  the marker is written only when nothing failed, so Settings → Connectivity
   keeps offering a partial move.
 
 What stays per device: settings, parental lock PINs and locked groups,
@@ -1081,7 +1192,7 @@ and Stalker live channels show their provider's programme guide.
 
 ## Viewing activity synchronization
 
-Connecting a source server synchronizes sources only. Settings → Server offers
+Connecting a source server synchronizes sources only. Settings → Connectivity offers
 an independent, disabled-by-default consent for progress and watched marks.
 The UI explains that the server holds **one shared household activity**: anyone
 with access sees and changes the same activity. Favorites and Recently Viewed each have an independent opt-in. EPG stays
@@ -1347,7 +1458,7 @@ the index base. Do not ship the Electron frontend build as a PWA deployment.
 
 ## Favorites synchronization
 
-Settings → Server provides an independent, disabled-by-default favorites consent.
+Settings → Connectivity provides an independent, disabled-by-default favorites consent.
 Connecting a server or enabling progress does not read/upload favorites. One shared
 library belongs to the server; there are no personal accounts or cross-provider
 matches. Membership is scoped by instance, source ID, persisted source incarnation
@@ -1534,7 +1645,7 @@ The same identity-compatibility helper guards both visible projection and export
 
 ## Recently Viewed synchronization
 
-Settings → Server → Recently viewed enables `history-v1` separately from sources,
+Settings → Connectivity → Recently viewed enables `history-v1` separately from sources,
 favorites and progress/watched. All clients of an instance share one history
 within each shared source; there are no household accounts or cross-provider
 matches. Connecting or enabling another domain does not authorize history reads

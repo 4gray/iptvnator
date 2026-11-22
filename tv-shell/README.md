@@ -1,9 +1,8 @@
-# IPTVnator (Fire TV / Android TV)
+# IPTVnator (Android and Fire TV)
 
-**IPTVnator for Android TV / Fire TV** is an experimental platform build: it runs the
-**IPTVnator browser app** (the PWA built from this repository) on Fire TV sticks
-and Android TV boxes, driven entirely with the remote, **with no server to
-host**: the web backend is re-implemented in Java and embedded in the APK.
+**IPTVnator for Android and Fire TV** is an experimental platform build. It runs the
+**IPTVnator browser app** on Android phones, tablets, TV boxes and Fire TV sticks.
+The Java backend is embedded in the APK for standalone use.
 The Android build shares the IPTVnator name and web interface with desktop
 and PWA builds. _[Version française](README.fr.md)._
 
@@ -20,6 +19,106 @@ APK
 > IPTVnator PWA built from these sources. If you redistribute a modified build
 > outside the project, apply [`TRADEMARK.md`](../TRADEMARK.md) (distinct name
 > and icon).
+
+## Hosted library connection
+
+Native Settings offers **Local library** and **Connect to hosted library**. Enter
+an HTTP or HTTPS address for a running IPTVnator hosted server; the shell checks
+its instance endpoint before switching. Leaving Settings, starting a pairing or
+scan, or selecting the local library cancels the check. Use the hosted page's sign-in for its
+access code. On phones and tablets, **Settings → Connectivity** also connects
+directly to a server from the bundled app.
+Local data and the saved hosted address remain available when switching modes.
+HTTP is intended for trusted networks; HTTPS uses normal certificate validation.
+If the hosted server cannot load, the app opens the local library and keeps
+the preferred server and its paired device credential. The next launch tries
+the preferred server again. You can also reconnect from Connectivity.
+NAS and Cloudflare Access libraries load the player from the APK. On a slow
+device, these screens get the same startup time as the standalone library.
+Disconnect selects the local library in Touch and TV layouts. Selecting a separate
+source-sync server on a hosted page keeps that choice after a reload.
+Remove pairing also erases the device's
+stored credential. Server-side revocation is available under Paired devices.
+Reconnect accepts a saved pairing only after the server reports the matching
+instance ID. A different instance at the same address requires its own pairing.
+When you switch back to a desktop server that revoked this device, Android
+requests a new pairing. The current library stays open until approval.
+A hosted page requires an up-to-date Android System WebView. External redirects
+are blocked; choose another server explicitly in Settings. Other user-selected
+HTTP(S) links open in the system browser. External playback accepts HTTP(S)
+provider URLs; hosted-server URLs stay inside the app.
+
+### Register with a QR code
+
+In Android, choose **Settings → Connectivity** and tap **Scan QR code** under
+**Library connection**. Scan the **Pair a device** QR from the
+server's **Paired devices** section, or tap **Choose image** in the scanner to
+read it from a saved screenshot or photo. A phone camera also opens the QR's landing
+page, where **Open IPTVnator** opens the same pairing flow using
+`iptvnator://pair?server=<encoded-origin>&invite=<invite-id>`. Android shows
+the exact server address and asks for confirmation before contacting it. Compare
+the six-digit code on Android with the pending request on the originating device
+and approve there. Keep Android in the foreground while waiting; cancelling or
+leaving Settings preserves the previous library selection.
+
+After approval, Android remembers that hosted server and stores its own device
+credential encrypted with Android Keystore, bound to both origin and verified
+instance ID. The hosted PWA obtains it only through the origin-scoped,
+main-frame `HostedPairing` bridge after verifying that instance. The bridge
+accepts `{action: 'credential', instanceId}` and replies with `{token}` (null
+for a mismatch); `{action: 'forget', instanceId}` erases it and acknowledges
+`{forgotten: true}`. Resetting app data also removes native paired credentials.
+The flow rejects redirects and never puts credentials in a URL or diagnostics.
+Starting another pairing cancels pending Cloudflare sign-in. Approving ordinary
+pairing at the same HTTPS address replaces its saved Cloudflare session. Removing a pairing
+also invalidates active sessions, including a refresh already in progress.
+HTTP pairing is intended only for a trusted local network. This does not bypass
+Cloudflare Access; a separately protected instance must be reachable by the app.
+
+### Cloudflare Access
+
+On the PC, start the server in **Cloudflare Tunnel** mode and open **Pair a
+device** after the public route is verified. Scan that QR inside Android
+IPTVnator and choose **Sign in with Cloudflare Access**. Sign-in opens an
+Android Auth Tab, or a Custom Tab on browsers that use the fallback.
+IPTVnator verifies the library's instance ID before switching libraries.
+
+Enable [Managed OAuth](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/managed-oauth/)
+and dynamic client registration on the Access application. Allow exactly
+`org.tvshell.iptvnator://oauth/callback` as the Android redirect URI. The app
+keeps tokens in Android Keystore-backed storage and runs the bundled UI with
+a native bridge for the selected server's API. A manually entered Access URL
+can still open the web player in the system browser.
+
+Each Access library uses its own HTTP `.localhost` origin for the bundled UI.
+The WebView can play plain HTTP streams directly. The native bridge sends Access
+and device credentials only to the selected server's HTTPS API.
+
+Earlier preview APKs used an HTTPS `.iptvnator.invalid` origin. Pairing and
+server-side library data carry over. WebView preferences, cached catalogs and
+unsynced favorites, history or progress stay in the old origin's storage.
+Before updating a preview, let any enabled sync finish. The new profile reads
+the shared library again. You can import an existing playlist backup and
+reapply device-local web preferences. The Android shell supports backup import only.
+
+Run the origin, redirect and QR checks with
+`cd tv-shell/android` then `./gradlew :app:hostedConnectionTests`.
+Verify native sign-in, cancel/retry, restart, token expiry and playback on a
+phone over mobile data using a controlled Access application.
+
+For a debug APK already paired to a synthetic loopback server, run
+`ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-hosted-reconnect.mjs emulator-5556 http://127.0.0.1:43340`
+with that server's port reversed through ADB. The paired-only fixture needs an
+M3U source named `Synthetic Android library` containing a playable video channel
+named `Synthetic playable clip`. The regression re-enters the server address
+after Disconnect, then uses the saved Connect shortcut after a simulated HTTP
+503. Both paths must load the protected inventory with the existing pairing.
+It also verifies channel selection and decoded playback after visiting Settings.
+
+On a disposable emulator, run [the library connection tests](tests/android-library-connections.mjs)
+in `hosted` mode to pair two Electron servers and switch between them, or in
+`nas` mode to test open and token-protected Docker servers. The script lists
+the fixture setup and checks which library reopens after a cold start.
 
 ## What it does
 
@@ -101,9 +200,27 @@ from the configured `--www` directory, with symbolic links confined to that dire
   Back, provided the external-player prompt is enabled. Enabling Media3 in
   settings preserves a web error for the same playback attempt. The app's
   "Copy stream URL" button also offers an external player on a TV.
-- **IPTVnator settings** (Settings → General → Open Android app settings, or
-  hold Menu or Back on the remote): interface size (960 / 1280 / 1600 px),
-  preferred external player, data reset, and diagnostics (WebView version, screen).
+- On phones and tablets, open **Settings → Connectivity**, enter the server
+  address, and tap **Connect**. The app connects to a stock Docker server
+  and prompts for its access token when required. To switch from one desktop
+  server to another, enter the new address here, confirm it, and follow the
+  pairing prompt if this is your first connection to that server. For a new
+  Cloudflare Access connection, use **Scan QR code** to open an invitation
+  from the host. The scanner also reads TV approval codes on a phone with
+  device approval permission.
+  Under **Advanced**, you can open the hosted web player, enter an optional
+  HTTPS address for pairing approval, or remove an existing pairing.
+  **Disconnect** returns to the local library.
+  Choose **Playback → External player settings** for the experimental built-in
+  player and Android external-player preferences,
+  or **Android device → Open settings** for diagnostics, data reset
+  and layout options on wider screens. The Android launcher also offers a
+  **Device settings** shortcut when you hold the app icon, including for older
+  hosted libraries. On a TV remote, hold Menu or Back to open the TV settings.
+  On a TV using the Touch layout, the Android settings shortcuts open the full
+  TV settings screen.
+- During playback on a phone or tablet, use **Open in another player** from the
+  player controls to hand the current stream to an installed Android player.
 - Data (playlists, favourites, positions) is stored by the PWA in the WebView
   (IndexedDB / localStorage) and survives restarts and updates. The embedded
   backend has no server storage: it answers the PWA's `/api/v1/instance` probe
@@ -114,7 +231,8 @@ features in IPTVnator).
 
 ## Trying the built-in player
 
-Go to **Settings → General → Open Android app settings** and turn on
+On a phone or tablet, open the gear and choose **Playback → External player
+settings**. On a TV remote, hold Menu or Back. Turn on
 **Enable built-in player (experimental)**. Open a channel or start a
 video, then select **Try built-in player** in the video area. It is also
 available when the web engine reports an error. The built-in player starts at
@@ -231,6 +349,11 @@ cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
 # → app/build/outputs/apk/release/app-release.apk (signed with the debug key)
 ```
 
+Set `JAVA_HOME` to a JDK 17 installation before running Gradle. Recent Android
+Studio versions can bundle JDK 25, which this Gradle 8.14.3 wrapper cannot run
+with (`Unsupported class file major version 69`). AndroidX Browser requires
+compile SDK 36; the app still targets API 35 and supports API 25 and newer.
+
 The Android build compiles the [Media3 FFmpeg audio extension](https://github.com/androidx/media/tree/1.11.1/libraries/decoder_ffmpeg)
 for ARM and x86 devices. It dynamically links unmodified [FFmpeg 6.1.6 source](https://ffmpeg.org/releases/ffmpeg-6.1.6.tar.xz)
 under LGPL 2.1 or later. The exact sources and configure flags are pinned in
@@ -308,7 +431,8 @@ from a channel goes through its available row actions on the way to the preview.
   reopens on the route it was showing (saved instance state; the server's SPA
   fallback serves any route). A display change that alters the scale reloads
   the same route.
-- Layout width 1280 CSS px (960 / 1600 selectable) with the page scale pinned
+- Compact handheld windows use the touch layout, including after rotation, while preserving the saved layout choice for wider windows. Automatic layout uses device width on phones and tablets. On wider handheld screens, change layout modes under **Android device → Open settings**. Android TV and Fire TV use the TV layout by default and retain D-pad navigation.
+- TV layout width 1280 CSS px (960 / 1600 selectable) with the page scale pinned
   from the measured screen width (`DisplayMetrics`; a 1080p Fire TV is 960 CSS
   px wide, so the scale is 0.75): the WebView's own overview-mode fit proved
   unreliable on the device.
@@ -508,3 +632,8 @@ JavaScript port of Android's `FocusFinder` (Apache 2.0). The notices are in
 `android/app/src/main/assets/tvshell/THIRD-PARTY-NOTICES.txt`, also served at
 `/tvshell/THIRD-PARTY-NOTICES.txt`. The web app's own licenses are in its
 `3rdpartylicenses.txt`.
+
+Android TV and Fire TV can start pairing in native Settings. Enter the server address and choose **Pair with server**, then scan the QR code on a phone and approve the matching code. When no HTTPS approval link is available, approve the request on the server desktop. The device keeps its own credential.
+For a local TV connection with a Cloudflare Access protected public address, enter that HTTPS origin in the optional approval address field. The TV shows the approval host; sign in on your phone.
+
+A paired Android phone can approve a TV using the QR icon under **Library connection**. Compare the displayed confirmation code with the TV before approving. A standard QR reader can open the approval page when the server provides an HTTPS approval address; a private LAN QR is intended for the paired app.

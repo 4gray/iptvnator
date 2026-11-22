@@ -83,6 +83,18 @@ describe('SettingsBackupFacade', () => {
         }
     });
 
+    it('keeps Android Touch backups import-only before TV styling is applied', async () => {
+        Reflect.set(window, 'TvShell', { postMessage: jest.fn() });
+        try {
+            configure();
+            expect(facade.supportsExport).toBe(false);
+            await facade.exportData(noWait);
+            expect(playlistBackupService.exportBackup).not.toHaveBeenCalled();
+        } finally {
+            Reflect.deleteProperty(window, 'TvShell');
+        }
+    });
+
     it('shows an export busy state until the backup file has been written', async () => {
         configure();
         let resolveExport: (value: typeof BACKUP_EXPORT_RESULT) => void = () =>

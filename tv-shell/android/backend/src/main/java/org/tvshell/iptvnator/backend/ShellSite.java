@@ -78,6 +78,7 @@ public class ShellSite {
     private volatile int layoutWidth;
     /** Screen width in CSS px at scale 1 (Android dp); 0 when unknown, then the WebView picks the scale. */
     private volatile int screenWidth;
+    public static final int DEVICE_VIEWPORT = 0;
 
     public ShellSite(AssetSource assets, String backendUrl, int layoutWidth) {
         this.assets = assets;
@@ -156,22 +157,27 @@ public class ShellSite {
      * own "overview mode" fit is not reliable on every device. Unknown screen: width only.
      */
     public static String viewport(int layoutWidth, int screenWidth) {
-        if (screenWidth <= 0 || layoutWidth <= 0) return "width=" + layoutWidth;
+        if (layoutWidth == DEVICE_VIEWPORT) return "width=device-width, initial-scale=1";
+        if (screenWidth <= 0) return "width=" + layoutWidth;
         String scale = String.format(Locale.ROOT, "%.4f", screenWidth / (double) layoutWidth);
         if (scale.indexOf('.') >= 0) scale = scale.replaceAll("0+$", "").replaceAll("\\.$", "");
         return "width=" + layoutWidth + ", initial-scale=" + scale + ", minimum-scale=" + scale + ", maximum-scale=" + scale;
     }
 
     public static String injectTvLayer(String html, int layoutWidth, int screenWidth) {
+        int width = layoutWidth;
         html = html.replaceFirst("<base href=\"[^\"]*\"\\s*/?>", "<base href=\"/\">");
         html = html.replaceFirst("<meta name=\"viewport\"[^>]*>",
-            "<meta name=\"viewport\" content=\"" + viewport(layoutWidth, screenWidth) + "\">");
+            "<meta name=\"viewport\" content=\"" + viewport(width, screenWidth) + "\">");
+        String shellScript = width == DEVICE_VIEWPORT
+            ? "<script src=\"tvshell/tv.js\" data-layout=\"touch\" defer></script>"
+            : "<script src=\"tvshell/tv.js\" defer></script>";
         String marker = "<script src=\"assets/app-config.js\"";
         int at = html.indexOf(marker);
         if (at >= 0) {
-            html = html.substring(0, at) + "<script src=\"tvshell/tv.js\" defer></script>\n        " + html.substring(at);
+            html = html.substring(0, at) + shellScript + "\n        " + html.substring(at);
         } else {
-            html = html.replaceFirst("</head>", "<script src=\"tvshell/tv.js\" defer></script></head>");
+            html = html.replaceFirst("</head>", shellScript + "</head>");
         }
         return html;
     }
