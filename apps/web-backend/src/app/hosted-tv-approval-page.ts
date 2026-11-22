@@ -38,8 +38,12 @@ code { font-size: 1.65rem; letter-spacing: .15em; }
 </html>`;
 
 const script = `
-const claimId = /^[/]approve-device[/]([A-Za-z0-9_-]{43})$/.exec(location.pathname)?.[1];
-history.replaceState(null, '', '/approve-device');
+const approvalPath = '/approve-device';
+const fromLink = /^[/]approve-device[/]([A-Za-z0-9_-]{43})$/.exec(location.pathname)?.[1];
+const saved = location.pathname === approvalPath ? history.state?.claimId : undefined;
+const claimId = fromLink ?? (typeof saved === 'string' && /^[A-Za-z0-9_-]{43}$/.test(saved) ? saved : undefined);
+// Keep only the public request identifier in this HTTPS tab's entry while approval is pending.
+history.replaceState(claimId && location.protocol === 'https:' ? { claimId } : null, '', approvalPath);
 const status = document.getElementById('status');
 const signIn = document.getElementById('sign-in');
 const password = document.getElementById('owner-password');
@@ -74,6 +78,7 @@ async function readRequest() {
         return;
     }
     if (response.status === 404) {
+        history.replaceState(null, '', approvalPath);
         status.textContent = expired;
         return;
     }
@@ -132,9 +137,11 @@ approve.addEventListener('click', async () => {
         if (response.status === 401) {
             await readRequest();
         } else if (response.status === 404) {
+            history.replaceState(null, '', approvalPath);
             request.hidden = true;
             status.textContent = expired;
         } else if (response.ok) {
+            history.replaceState(null, '', approvalPath);
             request.hidden = true;
             status.textContent = 'TV approved. Your library will open on the TV.';
         } else {

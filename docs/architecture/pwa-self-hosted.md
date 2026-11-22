@@ -75,8 +75,10 @@ to approve pairing** before using **Scan TV QR**. The phone and TV use the
 same active server endpoint. A regular QR reader can open the TV approval
 page over HTTPS if the owner has set a separate **Phone approval password**
 under **Approve TVs from your phone** on the desktop.
-The short-lived browser session uses a Secure, HttpOnly cookie. The TV keeps
-the claim secret needed to retrieve its device credential.
+The short-lived browser session uses a Secure, HttpOnly cookie. The approval tab
+keeps the public request ID in its history entry so a refresh can resume the
+pending request. The TV keeps the claim secret needed to retrieve its device
+credential.
 
 ### Cloudflare Tunnel
 

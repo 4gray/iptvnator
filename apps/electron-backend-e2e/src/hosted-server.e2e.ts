@@ -564,6 +564,8 @@ test('approves and revokes a TV over native HTTPS', async ({ browser }) => {
             approval.getByText('Synthetic living room TV')
         ).toBeHidden();
         expect(new URL(approval.url()).pathname).toBe('/approve-device');
+        await approval.reload();
+        await expect(password).toBeVisible();
         await password.fill('synthetic incorrect password');
         await approval.getByRole('button', { name: 'Sign in' }).click();
         await expect(approval.getByRole('status')).toContainText(
@@ -584,7 +586,7 @@ test('approves and revokes a TV over native HTTPS', async ({ browser }) => {
         await expect(approval.locator('#confirmation-code')).toHaveText(
             confirmationCode
         );
-        await approval.goto(approvalUrl);
+        await approval.reload();
         await expect(approval.locator('#confirmation-code')).toHaveText(
             confirmationCode
         );
@@ -593,6 +595,10 @@ test('approves and revokes a TV over native HTTPS', async ({ browser }) => {
             .getByRole('button', { name: 'Codes match, approve TV' })
             .click();
         await expect(approval.getByRole('status')).toContainText('TV approved');
+        await approval.reload();
+        await expect(approval.getByRole('status')).toContainText(
+            'Scan the QR code'
+        );
         const enrolled = await (await complete()).json();
         expect(enrolled.status).toBe('approved');
         const identity = await (
