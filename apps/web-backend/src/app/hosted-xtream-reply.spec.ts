@@ -15,7 +15,11 @@ describe('hosted Xtream catalog responses', () => {
                 const timer = setInterval(() => res.write(' '), 250);
                 res.once('close', () => clearInterval(timer));
                 finish = () =>
-                    res.end(oversized ? '0'.repeat(2048) + ']' : '42]');
+                    res.end(
+                        oversized
+                            ? '0'.repeat(2048) + ']'
+                            : '"<Arts & Crafts>"]'
+                    );
             });
             await withServer(provider, async (origin) => {
                 const app = createWebBackendApp({
@@ -46,15 +50,21 @@ describe('hosted Xtream catalog responses', () => {
                     expect(res.headers.get('content-type')).toMatch(
                         /application\/json/
                     );
-                    expect(
-                        JSON.parse(Buffer.concat(chunks).toString())
-                    ).toMatchObject(
+                    expect(res.headers.get('x-content-type-options')).toBe(
+                        'nosniff'
+                    );
+                    const json = Buffer.concat(chunks).toString();
+                    expect(json).not.toMatch(/[<>&]/);
+                    expect(JSON.parse(json)).toMatchObject(
                         oversized
                             ? {
                                   status: 413,
                                   code: 'PROVIDER_RESPONSE_TOO_LARGE',
                               }
-                            : { action: 'get_live_streams', payload: [42] }
+                            : {
+                                  action: 'get_live_streams',
+                                  payload: ['<Arts & Crafts>'],
+                              }
                     );
                 });
             });

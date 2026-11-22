@@ -171,14 +171,14 @@ export async function requestSourceServer(
         if (response.status >= 500) throw new Error('SOURCE_SYNC.OFFLINE');
         if (
             response.status === 401 &&
-            authorization.Authorization &&
+            authorization['Authorization'] &&
             isServerAccessChallenge(response.status, response.headers.get('www-authenticate'))
         ) {
             const key = pairedBrowserTokenKey(connection);
             // A late refusal must keep a newer pairing completed in another tab.
             if (
                 key &&
-                authorization.Authorization === `Bearer ${localStorage.getItem(key)}`
+                authorization['Authorization'] === `Bearer ${localStorage.getItem(key)}`
             )
                 localStorage.removeItem(key);
         }

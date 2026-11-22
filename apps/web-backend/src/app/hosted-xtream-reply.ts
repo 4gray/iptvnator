@@ -9,7 +9,10 @@ export function xtreamJsonReply(res: Response, throughTunnel: boolean) {
     const heartbeat = setInterval(() => {
         if (res.destroyed || res.writableNeedDrain) return;
         if (!res.headersSent) {
-            res.type('json').set('Cache-Control', 'no-store, no-transform');
+            res.type('json').set({
+                'Cache-Control': 'no-store, no-transform',
+                'X-Content-Type-Options': 'nosniff',
+            });
         }
         res.write('\n');
     }, 10_000);
@@ -18,7 +21,12 @@ export function xtreamJsonReply(res: Response, throughTunnel: boolean) {
 
     return (body: unknown) => {
         clearInterval(heartbeat);
-        if (res.headersSent) return res.end(JSON.stringify(body));
-        return res.json(body);
+        if (!res.headersSent) return res.json(body);
+        // Headers are already on the wire. Escape HTML delimiters without changing JSON values.
+        const json = JSON.stringify(body)
+            .replace(/</g, '\\u003c')
+            .replace(/>/g, '\\u003e')
+            .replace(/&/g, '\\u0026');
+        return res.end(json);
     };
 }
