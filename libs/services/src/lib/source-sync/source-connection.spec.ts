@@ -195,7 +195,8 @@ describe('source server selection and authorization', () => {
         globalThis.fetch = jest.fn(async (input) => ({
             ok: true,
             json: async () =>
-                String(input).startsWith('https://other.example.test')
+                new URL(String(input), location.href).origin ===
+                'https://other.example.test'
                     ? { storage: 'none' }
                     : instance,
         })) as unknown as typeof fetch;
