@@ -186,39 +186,25 @@
                     >
                         <ng-container formArrayName="epgUrl">
                             @if (epgUrl().length === 0) {
-                                <div
-                                    class="epg-sources-empty"
+                                <app-state-view
+                                    size="panel"
+                                    icon="event_busy"
                                     data-test-id="epg-sources-empty"
-                                >
-                                    <mat-icon class="epg-sources-empty__icon"
-                                        >event_busy</mat-icon
-                                    >
-                                    <p class="epg-sources-empty__title">
-                                        {{
-                                            'SETTINGS.EPG_EMPTY_TITLE'
-                                                | translate
-                                        }}
-                                    </p>
-                                    <p class="epg-sources-empty__hint">
-                                        {{
-                                            'SETTINGS.EPG_EMPTY_HINT'
-                                                | translate
-                                        }}
-                                    </p>
-                                    <button
-                                        mat-flat-button
-                                        class="settings-primary-button"
-                                        type="button"
-                                        [disabled]="sourceActionsUnavailable()"
-                                        (click)="addEpgSource.emit()"
-                                    >
-                                        <mat-icon>add</mat-icon>
-                                        {{
-                                            'SETTINGS.ADD_EPG_SOURCE'
-                                                | translate
-                                        }}
-                                    </button>
-                                </div>
+                                    [heading]="
+                                        'SETTINGS.EPG_EMPTY_TITLE' | translate
+                                    "
+                                    [description]="
+                                        'SETTINGS.EPG_EMPTY_HINT' | translate
+                                    "
+                                    [actionLabel]="
+                                        'SETTINGS.ADD_EPG_SOURCE' | translate
+                                    "
+                                    actionIcon="add"
+                                    [actionDisabled]="
+                                        sourceActionsUnavailable()
+                                    "
+                                    (action)="addEpgSource.emit()"
+                                />
                             } @else {
                                 <div class="epg-sources">
                                     @for (

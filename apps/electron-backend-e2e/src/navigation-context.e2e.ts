@@ -391,7 +391,7 @@ for (const mode of ['favorites', 'recent'] as const) {
                 ).toBeVisible();
                 await expect(
                     page.getByRole('button', {
-                        name: 'Add Your First Playlist',
+                        name: 'Add source',
                     })
                 ).toBeVisible();
             }

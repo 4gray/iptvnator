@@ -113,9 +113,14 @@
                     }
                 </div>
             } @empty {
-                <div class="empty-message">
-                    {{ 'CHANNELS.GROUP_MANAGEMENT.NO_RESULTS' | translate }}
-                </div>
+                <app-state-view
+                    class="empty-message"
+                    variant="no-results"
+                    size="panel"
+                    [heading]="
+                        'CHANNELS.GROUP_MANAGEMENT.NO_RESULTS' | translate
+                    "
+                />
             }
         </div>
     </div>

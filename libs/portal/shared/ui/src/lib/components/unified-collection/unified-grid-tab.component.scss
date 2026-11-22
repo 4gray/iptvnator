@@ -45,28 +45,3 @@
     padding: 16px;
     align-content: start;
 }
-
-.empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 64px 24px;
-    flex: 1;
-    text-align: center;
-    color: var(--mat-sys-on-surface-variant);
-
-    .empty-icon {
-        font-size: 48px;
-        height: 48px;
-        width: 48px;
-        margin-bottom: 16px;
-        opacity: 0.5;
-    }
-
-    .empty-title {
-        font-size: 14px;
-        font-weight: 500;
-        margin: 0;
-    }
-}

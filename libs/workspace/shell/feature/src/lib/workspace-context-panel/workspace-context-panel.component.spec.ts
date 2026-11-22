@@ -128,6 +128,7 @@ describe('WorkspaceContextPanelComponent', () => {
         manageItvCategoryCounts: signal(new Map<string, number>()),
         itvCategoryItemCounts: signal<Map<number, number>>(new Map()),
         setSelectedCategory: jest.fn(),
+        reloadCategories: jest.fn(),
         setPage: jest.fn(),
         clearSelectedItem: jest.fn(),
     };
@@ -1057,6 +1058,26 @@ describe('WorkspaceContextPanelComponent', () => {
             ).toBe(
                 'PORTALS.ERROR_VIEW.STALKER_DEVICE_CONFLICT device conflict - device_id mismatch — Your STB is damaged.'
             );
+        });
+
+        it('offers Retry, which asks the portal for the categories again', () => {
+            stalkerStore.reloadCategories.mockClear();
+            stalkerStore.isCategoryResourceFailed.set(
+                new Error('Invalid categories response') as never
+            );
+            fixture.componentRef.setInput('context', {
+                provider: 'stalker',
+                playlistId: 'stalker-1',
+            });
+            fixture.componentRef.setInput('section', 'itv');
+            fixture.detectChanges();
+
+            const retry = fixture.nativeElement.querySelector(
+                'app-state-view[data-state-variant="error"] [data-state-action="retry"]'
+            ) as HTMLButtonElement | null;
+            expect(retry).not.toBeNull();
+            retry?.click();
+            expect(stalkerStore.reloadCategories).toHaveBeenCalledTimes(1);
         });
 
         it('still relays any other refusal verbatim', () => {

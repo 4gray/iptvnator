@@ -120,16 +120,19 @@
                         }}</mat-icon>
                     </button>
                 } @empty {
-                    <div class="match-empty" role="status">
-                        <mat-icon aria-hidden="true">search_off</mat-icon>
-                        <strong>{{
+                    <app-state-view
+                        class="match-empty"
+                        size="panel"
+                        [variant]="searched() ? 'no-results' : 'empty'"
+                        icon="search_off"
+                        [heading]="
                             (searched()
                                 ? 'TMDB_MATCH.EMPTY'
                                 : 'TMDB_MATCH.SEARCH_HINT'
                             ) | translate
-                        }}</strong>
-                        <p>{{ 'TMDB_MATCH.EMPTY_HELP' | translate }}</p>
-                    </div>
+                        "
+                        [description]="'TMDB_MATCH.EMPTY_HELP' | translate"
+                    />
                 }
             }
         </div>

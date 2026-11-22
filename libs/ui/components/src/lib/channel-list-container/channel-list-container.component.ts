@@ -67,6 +67,7 @@ import {
     RecentViewItem,
 } from './recent-view/recent-view.component';
 import { ChannelListLoadingStateComponent } from '../channel-list-loading-state/channel-list-loading-state.component';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 function groupChannelsByTitle(channels: Channel[]): Record<string, Channel[]> {
     return channels.reduce<Record<string, Channel[]>>((groups, channel) => {
@@ -100,6 +101,7 @@ const EPG_AVAILABILITY_REFRESH_DEBOUNCE_MS = 2000;
     styleUrls: ['./channel-list-container.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        StateViewComponent,
         AllChannelsViewComponent,
         ChannelListLoadingStateComponent,
         CommonModule,

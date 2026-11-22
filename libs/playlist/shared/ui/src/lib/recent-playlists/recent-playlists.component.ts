@@ -55,6 +55,7 @@ import { EmptyStateComponent } from './empty-state/empty-state.component';
 import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';
 import { playlistInfoDialogConfig } from './playlist-info/playlist-info-dialog';
 import { SourceListRefreshService } from './source-list-refresh.service';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 /**
  * The Sources page list: every source that passes the side list's type and
@@ -68,6 +69,7 @@ import { SourceListRefreshService } from './source-list-refresh.service';
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [SourceListRefreshService],
     imports: [
+        StateViewComponent,
         DragDropModule,
         EmptyStateComponent,
         MatButton,

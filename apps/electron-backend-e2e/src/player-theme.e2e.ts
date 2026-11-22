@@ -201,10 +201,14 @@ for (const engine of [
                             app.mainWindow.locator('app-epg-timeline');
                         await expectThemeSurface(timeline, theme);
                         await expectTextContrast(
-                            timeline.locator('.epg-empty__title')
+                            timeline.locator(
+                                'app-epg-timeline-empty-state .app-state-view__title'
+                            )
                         );
                         await expectTextContrast(
-                            timeline.locator('.epg-empty__sub')
+                            timeline.locator(
+                                'app-epg-timeline-empty-state .app-state-view__description'
+                            )
                         );
                     }
                     if (engine === 'native') {

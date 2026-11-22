@@ -210,19 +210,18 @@
                         }
                     </div>
                 } @empty {
-                    <div class="empty-message">
-                        @if (searchTerm()) {
-                            {{
-                                'XTREAM.CATEGORY_MANAGEMENT.NO_RESULTS'
-                                    | translate
-                            }}
-                        } @else {
-                            {{
-                                'XTREAM.CATEGORY_MANAGEMENT.NO_CATEGORIES'
-                                    | translate
-                            }}
-                        }
-                    </div>
+                    <app-state-view
+                        class="empty-message"
+                        size="panel"
+                        [variant]="searchTerm() ? 'no-results' : 'empty'"
+                        icon="category"
+                        [heading]="
+                            (searchTerm()
+                                ? 'XTREAM.CATEGORY_MANAGEMENT.NO_RESULTS'
+                                : 'XTREAM.CATEGORY_MANAGEMENT.NO_CATEGORIES'
+                            ) | translate
+                        "
+                    />
                 }
             </div>
         }
@@ -237,7 +236,7 @@
             [disabled]="isLoading() || isSaving()"
         >
             @if (isSaving()) {
-                <mat-spinner diameter="20" />
+                <mat-spinner diameter="16" />
             } @else {
                 {{ 'XTREAM.CATEGORY_MANAGEMENT.SAVE' | translate }}
             }

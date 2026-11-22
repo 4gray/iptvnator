@@ -14,7 +14,7 @@ import {
 } from '@angular/core';
 import { MatListModule } from '@angular/material/list';
 import { TranslatePipe } from '@ngx-translate/core';
-import { WorkspaceContextErrorViewComponent } from './workspace-context-error-view.component';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 export interface WorkspaceCategoryViewItem {
     readonly category_id?: string | number;
@@ -31,7 +31,7 @@ export interface WorkspaceCategoryViewItem {
 
 @Component({
     selector: 'app-workspace-context-category-view',
-    imports: [MatListModule, TranslatePipe, WorkspaceContextErrorViewComponent],
+    imports: [MatListModule, StateViewComponent, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './workspace-context-category-view.component.html',
     styleUrl: './workspace-context-category-view.component.scss',

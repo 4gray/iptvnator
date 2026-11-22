@@ -74,6 +74,7 @@ import {
     xtreamCredentialsOf,
 } from './epg-refresh-coordinator.service';
 import { XtreamFavoriteMarksService } from './xtream-favorite-marks.service';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 export interface XtreamChannelListItem {
     readonly category_id?: string | number;
@@ -100,6 +101,7 @@ interface XtreamCategoryLike {
     styleUrls: ['./portal-channels-list.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        StateViewComponent,
         ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,

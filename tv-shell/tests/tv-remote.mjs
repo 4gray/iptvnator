@@ -116,10 +116,13 @@ await key('Enter');
 await page.waitForURL('**/workspace/sources');
 const addM3u = page.getByRole('button', { name: 'Add M3U', exact: true });
 await expect(addM3u).toBeVisible();
-// Past the last rail link, Down enters the source cards.
+// Past the last rail link, Down enters the welcome: its "Add source" action,
+// then the source types, one per row.
 await key('ArrowDown', 3);
+await expect(page.getByRole('button', { name: 'Add source', exact: true })).toBeFocused();
+await key('ArrowDown');
 await expect(addM3u).toBeFocused();
-await key('ArrowRight');
+await key('ArrowDown');
 await expect(page.getByRole('button', { name: 'Add Xtream', exact: true })).toBeFocused();
 await snap('sources');
 await key('Enter');

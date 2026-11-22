@@ -110,7 +110,6 @@
             "ADD_FIRST": "Please add your first playlist",
             "WELCOME_TITLE": "Welcome to IPTVnator",
             "WELCOME_DESCRIPTION": "Start your streaming journey by adding your first playlist. Connect to your favorite IPTV service and enjoy live TV, movies, and series.",
-            "ADD_YOUR_FIRST": "Add Your First Playlist",
             "FEATURE_M3U": "M3U/M3U8 Files",
             "FEATURE_XTREAM": "Xtream Codes",
             "FEATURE_STALKER": "Stalker Portal",
@@ -126,9 +125,9 @@
             "DASHBOARD_WELCOME_DESCRIPTION": "Connect M3U files, Xtream Codes, or Stalker portals — then enjoy live TV, movies and series on every screen.",
             "FEATURE_LIVE_TITLE": "Live TV",
             "FEATURE_LIVE_DESC": "Stream live channels with full schedule.",
-            "FEATURE_VOD_TITLE": "Movies & Series",
+            "FEATURE_VOD_TITLE": "Movies and series",
             "FEATURE_VOD_DESC": "On-demand library with covers and details.",
-            "FEATURE_EPG_TITLE": "EPG & Catch-up",
+            "FEATURE_EPG_TITLE": "Guide and catch-up",
             "FEATURE_EPG_DESC": "Program guide and time-shifted playback.",
             "FEATURE_OFFLINE_TITLE": "Offline downloads",
             "FEATURE_OFFLINE_DESC": "Save movies and episodes for later.",
@@ -2223,7 +2222,7 @@
             "REMOVED": "Removed “{{name}}”",
             "REMOVED_SWITCHED": "Removed “{{name}}”, switched to “{{next}}”",
             "REMOVE_FAILED": "Could not remove “{{name}}”",
-            "ADD_SOURCE": "Add a source"
+            "ADD_SOURCE": "Add source"
         },
         "CONTEXT": {
             "CATEGORIES": "Categories",

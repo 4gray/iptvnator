@@ -10,15 +10,15 @@ import { MatIcon } from '@angular/material/icon';
 import { MatButton } from '@angular/material/button';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { TranslatePipe } from '@ngx-translate/core';
-import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
 import { registerWorkspaceBack } from '@iptvnator/portal/shared/data-access';
 import { InfiniteScrollDirective } from '../../directives/infinite-scroll.directive';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 @Component({
     selector: 'app-search-layout',
     standalone: true,
     imports: [
-        EmptyStateComponent,
+        StateViewComponent,
         InfiniteScrollDirective,
         MatButton,
         MatIcon,

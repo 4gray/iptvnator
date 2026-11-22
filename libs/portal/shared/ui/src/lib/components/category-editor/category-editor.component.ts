@@ -18,6 +18,7 @@ import {
     DialogFooterDirective,
     DialogShellComponent,
 } from '@iptvnator/ui/components';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 export interface CategoryEditorRow {
     readonly id: number | string;
@@ -32,6 +33,7 @@ export interface CategoryEditorRow {
 @Component({
     selector: 'app-category-editor',
     imports: [
+        StateViewComponent,
         DialogFooterDirective,
         DialogShellComponent,
         MatButtonModule,
