@@ -166,11 +166,31 @@ final class HostedAccessSession {
         if (url.length() > 32768 || url.contains("#") || url.contains("\\")) return false;
         String path = url.split("\\?", 2)[0];
         String lower = path.toLowerCase(Locale.ROOT);
-        if (path.contains("..") || lower.contains("%2e") || lower.contains("%2f") || lower.contains("%5c") ||
+        if (path.contains("..") || lower.contains("%2e") || lower.contains("%5c") ||
             path.contains("//") || !method.matches("GET|HEAD|POST|PUT|PATCH|DELETE")) return false;
+        if (lower.contains("%2f")) {
+            // Inspect separators without changing the encoded URL sent to OkHttp.
+            String segments = lower.replace("%2f", "/");
+            if (segments.contains("//") || segments.endsWith("/") || segments.contains("/./") || segments.endsWith("/."))
+                return false;
+            return sourceIdRoute(path, method);
+        }
         if (path.equals("/api/v1/instance")) return method.equals("GET") || method.equals("HEAD");
         if (path.matches("/api/v1/(sources|playlists|activity|favorites|history|user-state|app-state)(/[^/?]+)*")) return true;
         if (path.matches("/api/(parse|parse-xml|xtream|stalker)")) return method.equals("GET");
         return path.matches("/api/(provider-targets|connectivity-guard/reset|v1/tmdb-transfer|v1/device-pairing/cloudflare-invite)") && method.equals("POST");
+    }
+
+    // Express matches each :id as one path parameter before decoding it.
+    private static boolean sourceIdRoute(String path, String method) {
+        boolean read = method.equals("GET") || method.equals("HEAD");
+        if (path.matches("/api/v1/sources/[^/]+"))
+            return read || method.matches("PUT|PATCH|DELETE");
+        if (path.matches("/api/v1/playlists/[^/]+"))
+            return read || method.matches("PUT|DELETE");
+        if (path.matches("/api/v1/(activity|favorites)/sources/[^/]+(/items)?")
+            || path.matches("/api/v1/history/sources/[^/]+")) return read;
+        return method.matches("PUT|DELETE") && path.matches(
+            "/api/v1/user-state/xtream-(favorites|recent-items|collection-items|playback-positions)/[^/]+");
     }
 }

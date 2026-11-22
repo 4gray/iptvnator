@@ -147,12 +147,14 @@ describe('source synchronization API', () => {
                 async (base, fetch) => {
                     const rawM3u =
                         '#EXTM3U\n#EXTINF:-1,One\nhttps://media.test/one';
+                    const id = 'family/news';
+                    const encodedId = encodeURIComponent(id);
                     const created = await fetch(
-                        `${base}/v1/sources/file`,
+                        `${base}/v1/sources/${encodedId}`,
                         body(
                             'PUT',
                             {
-                                id: 'file',
+                                id,
                                 title: 'Upload',
                                 kind: 'm3u-text',
                                 rawM3u,
@@ -163,7 +165,7 @@ describe('source synchronization API', () => {
                     expect(created.status).toBe(201);
                     const first = await fetch(`${base}/v1/sources`);
                     const legacy = await (
-                        await fetch(`${base}/v1/playlists/file`)
+                        await fetch(`${base}/v1/playlists/${encodedId}`)
                     ).json();
                     expect(legacy).toMatchObject({
                         playlist: {
@@ -179,8 +181,10 @@ describe('source synchronization API', () => {
                         rawM3u
                     );
                     expect(
-                        await (await fetch(`${base}/v1/sources/file`)).json()
-                    ).toMatchObject({ rawM3u });
+                        await (
+                            await fetch(`${base}/v1/sources/${encodedId}`)
+                        ).json()
+                    ).toMatchObject({ id, rawM3u });
                     const { playlist, ...legacyUpload } = m3uDocument('legacy');
                     const header = {
                         raw: '#EXTM3U x-tvg-url="https://guide.test/epg.xml"',
