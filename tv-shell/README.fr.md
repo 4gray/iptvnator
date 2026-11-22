@@ -40,7 +40,9 @@ l'app desktop casserait sa mise à jour automatique).
 
 Dans **Paramètres → Connectivité**, saisissez l’adresse du serveur puis
 appuyez sur **Connecter**. Si le serveur demande un jeton d’accès,
-saisissez-le à l’invite. Pour associer l’appareil à partir d’une invitation
+saisissez-le à l’invite. La configuration Docker par défaut convient. Pour
+passer d’un serveur de bureau à un autre, saisissez la nouvelle adresse sur
+ce même écran et confirmez-la. Pour associer l’appareil à partir d’une invitation
 du serveur, choisissez **Scanner le code QR**. Le lecteur web du serveur
 reste accessible dans **Options avancées**.
 

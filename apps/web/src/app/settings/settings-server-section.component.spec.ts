@@ -275,7 +275,8 @@ describe('source server settings', () => {
         });
 
         function useInlineLibrary(
-            connection: SourceServerConnection | null = null
+            connection: SourceServerConnection | null = null,
+            connectNasLibrary?: AndroidLibraryControls['connectNasLibrary']
         ) {
             const shell = {
                 handheld: true,
@@ -286,6 +287,7 @@ describe('source server settings', () => {
                     canScanQr: true,
                 }),
                 inspectServer: jest.fn(),
+                connectNasLibrary,
                 scanLibraryQr: jest.fn(),
                 disconnectLibrary: jest.fn(),
                 pairLibrary: jest.fn(),
@@ -479,6 +481,27 @@ describe('source server settings', () => {
                 disconnectBrowserSourceConnection(false);
             }
         });
+
+        it.each(['offline', 'locked'])(
+            'moves a previously selected %s NAS into the native connection flow',
+            async (state) => {
+                const connectNasLibrary = jest.fn();
+                const shell = useInlineLibrary(
+                    activeConnection,
+                    connectNasLibrary
+                );
+                shell.inspectServer.mockResolvedValue('token');
+                sync.state.set(state);
+                fixture.detectChanges();
+                expect(findControl('source-server-token')).toBeNull();
+                await fixture.componentInstance.connect();
+                expect(connectNasLibrary).toHaveBeenCalledWith(
+                    activeConnection.apiUrl,
+                    true
+                );
+                expect(sync.refresh).not.toHaveBeenCalled();
+            }
+        );
 
         it('rechecks an active offline NAS with its current credentials', async () => {
             const shell = useInlineLibrary(activeConnection);

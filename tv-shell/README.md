@@ -111,6 +111,11 @@ after Disconnect, then uses the saved Connect shortcut after a simulated HTTP
 503. Both paths must load the protected inventory with the existing pairing.
 It also verifies channel selection and decoded playback after visiting Settings.
 
+On a disposable emulator, run [the library connection tests](tests/android-library-connections.mjs)
+in `hosted` mode to pair two Electron servers and switch between them, or in
+`nas` mode to test open and token-protected Docker servers. The script lists
+the fixture setup and checks which library reopens after a cold start.
+
 ## What it does
 
 The Android WebView and the PWA's vertical page scrollers stop at their scroll
@@ -192,8 +197,10 @@ from the configured `--www` directory, with symbolic links confined to that dire
   settings preserves a web error for the same playback attempt. The app's
   "Copy stream URL" button also offers an external player on a TV.
 - On phones and tablets, open **Settings → Connectivity**, enter the server
-  address, and tap **Connect**. A Docker server can ask for an access token.
-  A desktop server can ask you to pair the phone or tablet. For a new
+  address, and tap **Connect**. The app connects to a stock Docker server
+  and prompts for its access token when required. To switch from one desktop
+  server to another, enter the new address here, confirm it, and follow the
+  pairing prompt if this is your first connection to that server. For a new
   Cloudflare Access connection, use **Scan QR code** to open an invitation
   from the host. The scanner also reads TV approval codes on a phone with
   device approval permission.

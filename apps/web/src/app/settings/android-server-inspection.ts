@@ -77,6 +77,13 @@ export async function selectAndroidServer(
     switch (kind) {
         case 'sources':
         case 'token':
+            if (
+                controls.connectNasLibrary &&
+                new URL(apiUrl).pathname.endsWith('/api')
+            ) {
+                controls.connectNasLibrary(apiUrl, kind === 'token');
+                return 'native';
+            }
             return kind;
         case 'pair':
         case 'reconnect':

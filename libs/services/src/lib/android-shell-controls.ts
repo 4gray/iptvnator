@@ -15,6 +15,7 @@ export interface AndroidShellControls {
 }
 
 export interface AndroidLibraryControls {
+    connectNasLibrary?(apiUrl: string, needsToken: boolean): void;
     inspectServer?(apiUrl: string): Promise<AndroidServerKind>;
     libraryConnection(): {
         origin: string;

@@ -50,11 +50,12 @@ for (const layout of ['touch', 'tv', 'hosted-touch', 'hosted-tv']) {
                     canScanQr: layout === 'touch',
                 },
             } : {}),
-            ...(android && layout === 'touch' ? { HostedServerInspection: {
+            ...(android && (layout === 'touch' || layout === 'hosted-touch') ? { HostedServerInspection: {
                 postMessage(message) {
                     const { id, apiUrl } = JSON.parse(message);
-                    assert.equal(apiUrl, 'https://nas.example.test/nested/api');
-                    queueMicrotask(() => this.onmessage({ data: JSON.stringify({ id, kind: 'sources' }) }));
+                    const hosted = layout === 'hosted-touch';
+                    assert.equal(apiUrl, hosted ? 'http://library-b.example.test/api' : 'https://nas.example.test/nested/api');
+                    queueMicrotask(() => this.onmessage({ data: JSON.stringify({ id, kind: hosted ? 'pair' : 'sources' }) }));
                 },
             } } : {}),
             ...(layout === 'hosted-tv' ? { HostedPairing: {} } : {}),
@@ -81,12 +82,13 @@ for (const layout of ['touch', 'tv', 'hosted-touch', 'hosted-tv']) {
         assert.equal(typeof window.__tvShell.back, 'function');
         const handheld = android && (layout === 'touch' || layout === 'hosted-touch');
         assert.equal(window.__tvShell.handheld, handheld);
-        if (android && layout === 'touch') {
-            const inspect = () => window.__tvShell.inspectServer('https://nas.example.test/nested/api');
+        if (handheld) {
+            const hosted = layout === 'hosted-touch';
+            const inspect = () => window.__tvShell.inspectServer(hosted ? 'http://library-b.example.test/api' : 'https://nas.example.test/nested/api');
             const superseded = inspect();
             const current = inspect();
             assert.equal(await superseded, 'unknown');
-            assert.equal(await current, 'sources');
+            assert.equal(await current, hosted ? 'pair' : 'sources');
         } else {
             assert.equal(window.__tvShell.inspectServer, undefined);
         }

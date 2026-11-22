@@ -23,12 +23,18 @@ final class HostedAccessBridge {
     private static final long MAX_RESPONSE_BYTES = 64L * 1024 * 1024;
     private final MainActivity activity;
     private final HostedAccessSession session;
+    private final NasLibrarySession nas;
     private final ThreadPoolExecutor network = new ThreadPoolExecutor(
         4, 4, 0, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
     private final ConcurrentHashMap<String, Task> pending = new ConcurrentHashMap<>();
     private JavaScriptReplyProxy document;
 
     HostedAccessBridge(MainActivity activity, WebView webView, String uiOrigin, HostedAccessSession session) {
+        this(activity, webView, uiOrigin, session, null);
+    }
+
+    HostedAccessBridge(MainActivity activity, WebView webView, String uiOrigin, HostedAccessSession session, NasLibrarySession nas) {
+        this.nas = nas;
         this.activity = activity;
         this.session = session;
         WebViewCompat.addWebMessageListener(webView, "HostedAccessApi", Collections.singleton(uiOrigin),
@@ -90,9 +96,9 @@ final class HostedAccessBridge {
             task.upload = new HostedAccessUpload(input.getLong("bodySize"), MediaType.get(type),
                 offset -> send(id, task, reply, new JSONObject(Collections.singletonMap("uploadOffset", offset)), false));
             try (Response response = open(input, task)) {
-                JSONObject result = HostedAccessSession.responseHeaders(response);
+                JSONObject result = HostedApiRequest.responseHeaders(response);
                 int status = response.code();
-                if (status == 403) {
+                if (session != null && status == 403) {
                     String deviceStatus = response.header("X-IPTVnator-Device-Status", "");
                     if ("revoked".equals(deviceStatus) || "registration_required".equals(deviceStatus))
                         activity.runOnUiThread(() -> {
@@ -141,6 +147,19 @@ final class HostedAccessBridge {
     }
 
     private Response open(JSONObject input, Task task) throws Exception {
+        if (nas != null) {
+            Call call = nas.call(input, task.upload);
+            task.attach(call);
+            Response response = call.execute();
+            try {
+                nas.observe(input, response);
+                if (response.isRedirect()) throw new IOException("Unexpected redirect");
+                return response;
+            } catch (Exception failure) {
+                response.close();
+                throw failure;
+            }
+        }
         String token = session.accessToken(null);
         Response response = request(input, task, token);
         // Refresh only on the edge's challenge. The request has not reached the origin.

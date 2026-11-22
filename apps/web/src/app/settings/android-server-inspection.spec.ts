@@ -1,5 +1,8 @@
 import type { AndroidLibraryControls } from '@iptvnator/services';
-import { inspectAndroidServer } from './android-server-inspection';
+import {
+    inspectAndroidServer,
+    selectAndroidServer,
+} from './android-server-inspection';
 
 describe('public server discovery in older handheld shells', () => {
     const originalFetch = globalThis.fetch;
@@ -48,6 +51,31 @@ describe('public server discovery in older handheld shells', () => {
                 })
             );
             expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+        }
+    );
+
+    it.each(['sources', 'token'] as const)(
+        'opens the native NAS client for %s without sending a browser request',
+        async (kind) => {
+            const api = 'https://library.example.test/prefix/api';
+            const native = {
+                ...controls,
+                inspectServer: jest.fn().mockResolvedValue(kind),
+                connectNasLibrary: jest.fn(),
+            };
+            globalThis.fetch = jest.fn();
+            const result = await selectAndroidServer(
+                native,
+                api,
+                '',
+                () => true
+            );
+            expect(result).toBe('native');
+            expect(native.connectNasLibrary).toHaveBeenCalledWith(
+                api,
+                kind === 'token'
+            );
+            expect(globalThis.fetch).not.toHaveBeenCalled();
         }
     );
 

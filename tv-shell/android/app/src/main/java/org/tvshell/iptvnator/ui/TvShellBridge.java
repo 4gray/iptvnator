@@ -92,6 +92,10 @@ final class TvShellBridge {
             case "pairLibrary":
                 if (args.size() == 3) activity.pairLibrary(stringAt(args, 1), stringAt(args, 2));
                 break;
+            case "connectNasLibrary":
+                if (args.size() == 3 && args.get(2) instanceof Boolean)
+                    activity.connectNasLibrary(stringAt(args, 1), (Boolean) args.get(2));
+                break;
             case "connectLibrary":
                 if (args.size() == 2) activity.connectLibrary(stringAt(args, 1));
                 break;

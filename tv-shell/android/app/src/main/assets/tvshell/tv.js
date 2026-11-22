@@ -1121,7 +1121,7 @@
 
     var libraryConnection = isAndroid && window.__tvShellLibraryConnection;
     var pairedHostedPage = isAndroid && (window.HostedPairing || window.HostedAccessApi);
-    var inspection = libraryConnection && !libraryConnection.origin && window.HostedServerInspection;
+    var inspection = libraryConnection && window.HostedServerInspection;
     if (inspection) {
         var inspectionId = 0, waiting = null;
         function finishInspection(kind) {
@@ -1140,7 +1140,7 @@
             if (typeof apiUrl !== 'string' || !apiUrl || apiUrl.length > 2048) return Promise.resolve('unknown');
             return new Promise(function (resolve) {
                 var id = String(++inspectionId);
-                waiting = { id: id, resolve: resolve, timer: setTimeout(function () { finishInspection('unknown'); }, 10000) };
+                waiting = { id: id, resolve: resolve, timer: setTimeout(function () { finishInspection('unknown'); }, libraryConnection.origin ? 70000 : 10000) };
                 try { inspection.postMessage(JSON.stringify({ id: id, apiUrl: apiUrl })); }
                 catch (e) { finishInspection('unknown'); }
             });
@@ -1169,7 +1169,7 @@
             native('scanLibraryQr');
             return true;
         };
-        if (window.HostedAccessApi) {
+        if (window.HostedAccessApi && !libraryConnection.nas) {
             api.inviteAccessDevice = function () { native('inviteAccessDevice'); };
         }
         api.removeLibraryPairing = function () {
@@ -1181,6 +1181,9 @@
             if (typeof address !== 'string' || !address.trim() || typeof approvalAddress !== 'string') return false;
             native('pairLibrary', address, approvalAddress);
             return true;
+        };
+        api.connectNasLibrary = function (apiUrl, needsToken) {
+            native('connectNasLibrary', apiUrl, needsToken);
         };
         api.connectLibrary = function (address) {
             if (typeof address !== 'string' || !address.trim()) return false;

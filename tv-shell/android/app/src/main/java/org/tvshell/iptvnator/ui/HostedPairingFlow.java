@@ -81,10 +81,10 @@ final class HostedPairingFlow {
     }
 
     void start(String address, String trustedApprovalOrigin) {
-        start(address, trustedApprovalOrigin, null);
+        start(address, trustedApprovalOrigin, null, false);
     }
 
-    void start(String address, String trustedApprovalOrigin, Runnable onConfirm) {
+    void start(String address, String trustedApprovalOrigin, Runnable onConfirm, boolean reconnectPaired) {
         final String origin;
         try { origin = HostedOrigin.normalize(address); }
         catch (IllegalArgumentException e) {
@@ -105,7 +105,7 @@ final class HostedPairingFlow {
             .setOnCancelListener(d -> cancel());
         if (onConfirm == null) {
             dialog = builder.show();
-            startClaim(origin, trustedApprovalOrigin, attempt, message);
+            startClaim(origin, trustedApprovalOrigin, attempt, message, reconnectPaired);
             return;
         }
         String approval = trustedApprovalOrigin.isEmpty() ? "" : "\n\n"
@@ -117,11 +117,11 @@ final class HostedPairingFlow {
             if (!active(attempt)) return;
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setVisibility(android.view.View.GONE);
             onConfirm.run();
-            startClaim(origin, trustedApprovalOrigin, attempt, message);
+            startClaim(origin, trustedApprovalOrigin, attempt, message, reconnectPaired);
         });
     }
 
-    private void startClaim(String origin, String trustedApprovalOrigin, long attempt, TextView message) {
+    private void startClaim(String origin, String trustedApprovalOrigin, long attempt, TextView message, boolean reconnectPaired) {
         message.setText(R.string.connection_checking);
         deadline = android.os.SystemClock.elapsedRealtime() + 5 * 60 * 1000;
         new Thread(() -> {
@@ -129,6 +129,12 @@ final class HostedPairingFlow {
                 PairingClient client = new PairingClient(origin);
                 String instance = client.instance();
                 if (!active(attempt)) return;
+                if (reconnectPaired && new PairedCredentialStore(activity).read(origin, instance) != null) {
+                    activity.runOnUiThread(() -> {
+                        if (active(attempt)) selectLibrary(origin);
+                    });
+                    return;
+                }
                 JSONObject claim = client.start();
                 String url = claim.optString("approvalUrl", "");
                 String remoteOrigin = PairingLink.approvalOrigin(url, claim.optString("claimId"), origin);
@@ -244,9 +250,13 @@ final class HostedPairingFlow {
         if (!active(attempt)) return;
         try { new PairedCredentialStore(activity).saveOrdinaryPairing(origin, instance, token); }
         catch (Exception e) { fail(attempt, tv); return; }
+        Toast.makeText(activity, R.string.pairing_success, Toast.LENGTH_LONG).show();
+        selectLibrary(origin);
+    }
+
+    private void selectLibrary(String origin) {
         new Prefs(activity).setHostedOrigin(origin);
         cancel();
-        Toast.makeText(activity, R.string.pairing_success, Toast.LENGTH_LONG).show();
         if (activity instanceof MainActivity) {
             ((MainActivity) activity).reloadPairedLibrary();
         } else {

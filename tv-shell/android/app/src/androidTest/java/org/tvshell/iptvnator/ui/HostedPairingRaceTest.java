@@ -27,7 +27,7 @@ public class HostedPairingRaceTest extends TestCase {
             try {
                 String origin = "http://127.0.0.1:1";
                 long manual = access.begin();
-                ordinary.start(origin, "", () -> {});
+                ordinary.start(origin, "", () -> {}, false);
                 assertFalse("Manual confirmation left the old sign-in active", access.active(manual));
                 long tv = access.begin();
                 ordinary.start(origin, "");

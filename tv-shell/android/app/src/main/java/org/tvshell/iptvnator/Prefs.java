@@ -60,8 +60,14 @@ public class Prefs {
 
     public void setApprovalOrigin(String origin) { prefs.edit().putString("approvalOrigin", origin).apply(); }
 
+    public boolean usesNasLibrary() { return prefs.getBoolean("nasLibrary", false); }
+
+    public void setNasLibrary(String appBase) {
+        prefs.edit().putString("hostedOrigin", appBase).putBoolean("nasLibrary", true).remove("savedHostedOrigin").apply();
+    }
+
     public void setHostedOrigin(String origin) {
-        prefs.edit().putString("hostedOrigin", origin).remove("savedHostedOrigin").apply();
+        prefs.edit().putString("hostedOrigin", origin).remove("nasLibrary").remove("savedHostedOrigin").apply();
     }
 
     /** CSS layout width used in TV mode. */

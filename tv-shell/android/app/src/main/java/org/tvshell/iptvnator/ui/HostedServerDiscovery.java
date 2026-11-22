@@ -51,26 +51,34 @@ final class HostedServerDiscovery {
                     && resource.encodedPassword().isEmpty()) return "access";
             }
         }
-        if (response.code() != 200 || response.body() == null) return "unknown";
+        Map<?, ?> info = sourceMetadata(response);
+        if (info == null) return "unknown";
+        List<?> capabilities = (List<?>) info.get("capabilities");
+        Object auth = info.get("auth");
+        if (capabilities.contains("cloudflare-device-v1")) return url.isHttps() ? "access" : "unknown";
+        if ("none".equals(auth)) return "sources";
+        if (!capabilities.contains("browser-pairing-v1")) return "token";
+        return "/api/v1/instance".equals(url.encodedPath()) && savedPairing.test(origin, (String) info.get("instanceId"))
+            ? "reconnect" : "pair";
+    }
+
+    static Map<?, ?> sourceMetadata(Response response) throws IOException {
+        if (response.code() != 200 || response.body() == null) return null;
         MediaType type = response.body().contentType();
         if (type == null || !"application".equals(type.type()) || !"json".equals(type.subtype())
-            || response.body().source().request(LIMIT + 1L)) return "unknown";
+            || response.body().source().request(LIMIT + 1L)) return null;
         Object decoded;
-        try { decoded = Json.parse(response.body().string()); }
-        catch (Json.JsonException invalid) { return "unknown"; }
-        if (!(decoded instanceof Map)) return "unknown";
+        try { decoded = Json.parse(response.peekBody(LIMIT).string()); }
+        catch (Json.JsonException invalid) { return null; }
+        if (!(decoded instanceof Map)) return null;
         Map<?, ?> info = (Map<?, ?>) decoded;
         Object instance = info.get("instanceId");
         if (!"iptvnator".equals(info.get("service")) || !new Json.JsonNumber("1").equals(info.get("apiVersion"))
             || !"server".equals(info.get("storage")) || !(instance instanceof String) || ((String) instance).trim().isEmpty()
-            || ((String) instance).length() > 200 || !(info.get("capabilities") instanceof List)) return "unknown";
+            || ((String) instance).length() > 200 || !(info.get("capabilities") instanceof List)) return null;
         List<?> capabilities = (List<?>) info.get("capabilities");
         Object auth = info.get("auth");
-        if (!capabilities.contains("sources-v1") || !("none".equals(auth) || "token".equals(auth))) return "unknown";
-        if (capabilities.contains("cloudflare-device-v1")) return url.isHttps() ? "access" : "unknown";
-        if ("none".equals(auth)) return "sources";
-        if (!capabilities.contains("browser-pairing-v1")) return "token";
-        return "/api/v1/instance".equals(url.encodedPath()) && savedPairing.test(origin, (String) instance)
-            ? "reconnect" : "pair";
+        if (!capabilities.contains("sources-v1") || !("none".equals(auth) || "token".equals(auth))) return null;
+        return info;
     }
 }

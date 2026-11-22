@@ -252,7 +252,9 @@ on a NAS or home server. The steps below use Docker.
    suffix is also accepted. Connection changes restart/reload the application.
 5. In the Android app on a phone or tablet, open **Settings → Connectivity**,
    enter the server address, and choose **Connect**. Enter the token from
-   step 3 if prompted. In a browser, open the same server address. The bundled
+   step 3 if prompted. The Android app works with the default Docker `CLIENT_URL`
+   setting. Include the reverse-proxy path if the NAS is served under one.
+   In a browser, open the same server address. The bundled
    PWA discovers its server automatically. If it asks for a token, open
    **Settings → Connectivity** and enter the same token there. A standalone PWA can
    also connect manually through that page.

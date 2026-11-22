@@ -60,6 +60,7 @@
     <string name="connection_invalid">Enter an HTTP or HTTPS server address without credentials, a query, or a path.</string>
     <string name="connection_failed">Could not verify this IPTVnator server. Check the address, connection, and HTTPS certificate.</string>
     <string name="connection_certificate">The HTTPS certificate could not be verified. Check the server certificate and address.</string>
+    <string name="connection_nas_token">Access token (leave blank to reuse a saved token)</string>
     <string name="connection_auth">The server requires authentication before it can be verified.</string>
     <string name="connection_access">This address redirects to Cloudflare Access sign-in. Browser sign-in cannot connect this native app yet.</string>
     <string name="connection_access_title">Connect with Cloudflare Access</string>
@@ -68,6 +69,8 @@
     <string name="connection_incompatible">This address does not identify an IPTVnator server.</string>
     <string name="hosted_webview_upgrade">Update Android System WebView to use a hosted library safely.</string>
     <string name="pairing_title">Register this Android device</string>
+    <string name="inspection_title">Check server</string>
+    <string name="inspection_confirm">Check the library type at %1$s?</string>
     <string name="connection_confirm_address">Connect this device to %1$s?</string>
     <string name="pairing_confirm">Connect this device to %1$s? Continue only if this is the server you chose on your other device.</string>
     <string name="pairing_http">\n\nThis HTTP connection is unencrypted. Use it only on a trusted local network.</string>

@@ -91,6 +91,8 @@ public class MainActivity extends ComponentActivity {
     private static String pendingPairingAction;
     private static PairingLink.CloudflareInvite pendingPairingInvite;
     private volatile HostedAccessSession accessSession;
+    private NasLibrarySession nasLibrary;
+    private volatile String bundledUiOrigin;
     private volatile TvShellServer bundledAccessSite;
     private HostedAccessBridge accessBridge;
     private HostedServerInspection serverInspection;
@@ -250,10 +252,10 @@ public class MainActivity extends ComponentActivity {
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 Uri url = request.getUrl();
                 if (!HostedOrigin.isAccessUiHost(url.getHost())) return null;
-                HostedAccessSession session = accessSession;
+                String uiOrigin = bundledUiOrigin;
                 TvShellServer site = bundledAccessSite;
                 String path = url.getEncodedPath();
-                if (session == null || site == null || !HostedOrigin.sameOrigin(session.uiOrigin, url.toString())
+                if (uiOrigin == null || site == null || !HostedOrigin.sameOrigin(uiOrigin, url.toString())
                     || "/api".equals(path) || (path != null && path.startsWith("/api/"))) {
                     return new WebResourceResponse("text/plain", "UTF-8", 404, "Unavailable",
                         Collections.emptyMap(), null);
@@ -314,6 +316,7 @@ public class MainActivity extends ComponentActivity {
 
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                if (serverInspection != null) serverInspection.cancel();
                 pendingNativePlaybackResult = null;
                 if (nativePlaybackId != null || !nativePlaybackCheckpoints.isEmpty()) {
                     nativePlaybackDocumentCurrent = false;
@@ -457,10 +460,17 @@ public class MainActivity extends ComponentActivity {
         webView.setInitialScale(0);
         updatePresentation();
         loadedConnection = effectiveLibraryOrigin();
-        accessSession = HostedAccessSession.load(this, loadedConnection);
-        server = loadedConnection.isEmpty() || accessSession != null ? ((ShellApp) getApplication()).ensureServer() : null;
-        bundledAccessSite = accessSession != null ? server : null;
-        if (server == null && (loadedConnection.isEmpty() || accessSession != null)) {
+        boolean nasSelected = !loadedConnection.isEmpty() && prefs.usesNasLibrary();
+        nasLibrary = nasSelected ? NasLibrarySession.load(new PairedCredentialStore(this), loadedConnection) : null;
+        accessSession = nasSelected ? null : HostedAccessSession.load(this, loadedConnection);
+        bundledUiOrigin = nasLibrary != null ? nasLibrary.uiOrigin : accessSession != null ? accessSession.uiOrigin : null;
+        if (nasSelected && nasLibrary == null) {
+            fallbackToLocalLibrary();
+            return;
+        }
+        server = loadedConnection.isEmpty() || bundledUiOrigin != null ? ((ShellApp) getApplication()).ensureServer() : null;
+        bundledAccessSite = bundledUiOrigin != null ? server : null;
+        if (server == null && (loadedConnection.isEmpty() || bundledUiOrigin != null)) {
             showError(getString(R.string.server_error));
             return;
         }
@@ -469,7 +479,7 @@ public class MainActivity extends ComponentActivity {
             showError(getString(loadedConnection.isEmpty() ? R.string.webview_bridge_unavailable : R.string.hosted_webview_upgrade));
             return;
         }
-        activeOrigin = accessSession != null ? accessSession.uiOrigin
+        activeOrigin = bundledUiOrigin != null ? bundledUiOrigin
             : loadedConnection.isEmpty() ? "http://127.0.0.1:" + server.port() : loadedConnection;
         try {
             bindBridge(activeOrigin, !loadedConnection.isEmpty());
@@ -510,13 +520,13 @@ public class MainActivity extends ComponentActivity {
         }
         if (shellScript != null) { shellScript.remove(); shellScript = null; }
         bridgeOrigin = origin;
-        if (!hosted && !tvDevice && WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-            HostedServerInspection inspector = new HostedServerInspection(this);
+        if (!tvDevice && WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+            HostedServerInspection inspector = new HostedServerInspection(this, hosted ? origin : null);
             serverInspection = inspector;
             WebViewCompat.addWebMessageListener(webView, "HostedServerInspection", Collections.singleton(origin),
                 (view, message, source, mainFrame, reply) -> {
                     if (view == webView && mainFrame && serverInspection == inspector && canManageLibrary()
-                        && loadedConnection.isEmpty() && HostedOrigin.sameOrigin(origin, source.toString())
+                        && HostedOrigin.sameOrigin(origin, view.getUrl()) && HostedOrigin.sameOrigin(origin, source.toString())
                         && message.getType() == WebMessageCompat.TYPE_STRING) inspector.receive(message.getData(), reply);
                 });
         }
@@ -529,8 +539,8 @@ public class MainActivity extends ComponentActivity {
                     bridge.receive(message.getData());
                 }
             });
-        if (accessSession != null) {
-            accessBridge = new HostedAccessBridge(this, webView, origin, accessSession);
+        if (bundledUiOrigin != null) {
+            accessBridge = new HostedAccessBridge(this, webView, origin, accessSession, nasLibrary);
             String bootstrap;
             try (InputStream input = getAssets().open("tvshell/hosted-access-api.js");
                  ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
@@ -541,7 +551,7 @@ public class MainActivity extends ComponentActivity {
             }
             shellScript = WebViewCompat.addDocumentStartJavaScript(webView,
                 "if (window === window.top) {\n" + libraryConnectionScript(true)
-                    + "window.__iptvnatorHostedAccessInstance=" + JSONObject.quote(accessSession.instance)
+                    + "window.__iptvnatorHostedAccessInstance=" + JSONObject.quote(nasLibrary != null ? nasLibrary.instance : accessSession.instance)
                     + ";\n" + bootstrap + "\n}", Collections.singleton(origin));
         } else if (hosted) {
             PairedCredentialStore credentials = new PairedCredentialStore(this);
@@ -600,10 +610,12 @@ public class MainActivity extends ComponentActivity {
         // During a temporary fallback, the embedded app still offers the selected server.
         String savedOrigin = hosted ? loadedConnection : prefs.hostedOrigin();
         PairedCredentialStore credentials = new PairedCredentialStore(this);
-        boolean paired = !savedOrigin.isEmpty() && (credentials.contains(savedOrigin)
-            || credentials.contains(HostedAccessSession.storageKey(savedOrigin)));
+        boolean paired = !savedOrigin.isEmpty() && (prefs.usesNasLibrary()
+            ? credentials.contains(NasLibrarySession.storageKey(savedOrigin))
+            : credentials.contains(savedOrigin) || credentials.contains(HostedAccessSession.storageKey(savedOrigin)));
         return "window.__tvShellLibraryConnection={origin:" + JSONObject.quote(loadedConnection)
             + ",savedOrigin:" + JSONObject.quote(savedOrigin)
+            + ",nas:" + (nasLibrary != null)
             + ",offline:" + (!hosted && prefs.hostedOrigin().equals(offlineOrigin))
             + ",paired:" + paired
             + ",approvalOrigin:" + JSONObject.quote(hosted ? "" : prefs.approvalOrigin())
@@ -1024,7 +1036,7 @@ public class MainActivity extends ComponentActivity {
         Uri media = Uri.parse(candidate);
         String scheme = media.getScheme();
         if (!effectiveLibraryOrigin().isEmpty() && ((!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))
-            || media.getHost() == null || HostedOrigin.sameOrigin(effectiveLibraryOrigin(), candidate))) {
+            || media.getHost() == null || HostedOrigin.sameOrigin(nasLibrary != null ? nasLibrary.serverOrigin : effectiveLibraryOrigin(), candidate))) {
             toast(getString(R.string.no_stream_to_open));
             return;
         }
@@ -1099,8 +1111,12 @@ public class MainActivity extends ComponentActivity {
     }
 
     private boolean hasCurrentLibrary() {
-        return resumed && !isFinishing() && !isDestroyed()
-            && loadedConnection != null && loadedConnection.equals(effectiveLibraryOrigin());
+        return resumed && !isFinishing() && !isDestroyed() && currentLibrarySelection();
+    }
+
+    private boolean currentLibrarySelection() {
+        return loadedConnection != null && loadedConnection.equals(effectiveLibraryOrigin())
+            && (loadedConnection.isEmpty() || prefs.usesNasLibrary() == (nasLibrary != null));
     }
 
     private boolean canManageLibrary() {
@@ -1134,8 +1150,9 @@ public class MainActivity extends ComponentActivity {
         if (!canManageLibrary()) return;
         String origin = prefs.hostedOrigin();
         PairedCredentialStore credentials = new PairedCredentialStore(this);
-        String accessKey = HostedAccessSession.storageKey(origin);
-        if (!credentials.contains(origin) && !credentials.contains(accessKey)) return;
+        String[] keys = prefs.usesNasLibrary() ? new String[]{NasLibrarySession.storageKey(origin)}
+            : new String[]{origin, HostedAccessSession.storageKey(origin)};
+        if (!java.util.Arrays.stream(keys).anyMatch(credentials::contains)) return;
         cancelConnection();
         accessFlow.cancel();
         libraryQrScanner.cancel();
@@ -1147,7 +1164,7 @@ public class MainActivity extends ComponentActivity {
             .setPositiveButton(R.string.remove_pairing, (dialog, button) -> {
                 if (!canManageLibrary() || !origin.equals(prefs.hostedOrigin())) return;
                 accessFlow.cancel();
-                if (!credentials.remove(origin, accessKey)) {
+                if (!credentials.remove(keys)) {
                     toast(getString(R.string.remove_pairing_failed));
                     return;
                 }
@@ -1169,7 +1186,32 @@ public class MainActivity extends ComponentActivity {
         }
         cancelConnection();
         libraryQrScanner.cancel();
-        pairing.start(address, trusted, () -> prefs.setApprovalOrigin(trusted));
+        boolean switching = !loadedConnection.isEmpty() && !HostedOrigin.sameOrigin(loadedConnection, address);
+        pairing.start(address, trusted, () -> prefs.setApprovalOrigin(trusted), switching);
+    }
+
+    void connectNasLibrary(String apiUrl, boolean needsToken) {
+        if (!canManageLibrary() || HostedServerDiscovery.instanceRequest(apiUrl) == null) return;
+        String appBase = apiUrl.substring(0, apiUrl.length() - "/api".length());
+        confirmLibrary(appBase, needsToken, (attempt, token) -> {
+            PairedCredentialStore store = new PairedCredentialStore(this);
+            try {
+                NasLibrarySession selected = NasLibrarySession.connect(store, apiUrl, token, () -> connectionAttempts.active(attempt));
+                runOnUiThread(() -> {
+                    if (!connectionAttempts.active(attempt) || !canManageLibrary()) return;
+                    try {
+                        selected.save(store);
+                        prefs.setNasLibrary(selected.appBase);
+                        cancelConnection();
+                        reloadPairedLibrary();
+                    } catch (Exception failure) { completeLibraryConnection(attempt, appBase, R.string.connection_failed); }
+                });
+            } catch (NasLibrarySession.AuthenticationRequired locked) {
+                runOnUiThread(() -> completeLibraryConnection(attempt, appBase, R.string.connection_auth));
+            } catch (Exception failure) {
+                runOnUiThread(() -> completeLibraryConnection(attempt, appBase, R.string.connection_failed));
+            }
+        });
     }
 
     void connectLibrary(String address) {
@@ -1180,25 +1222,45 @@ public class MainActivity extends ComponentActivity {
             toast(getString(R.string.connection_invalid));
             return;
         }
+        confirmLibrary(origin, false, (attempt, unused) -> {
+            int result = HostedConnection.probeSavedLibrary(this, origin);
+            runOnUiThread(() -> completeLibraryConnection(attempt, origin, result));
+        });
+    }
+
+    private interface ConnectionProbe { void check(long attempt, String token); }
+
+    private void confirmLibrary(String address, boolean needsToken, ConnectionProbe probe) {
         cancelConnection();
         accessFlow.cancel();
         libraryQrScanner.cancel();
         pairing.cancel();
         long attempt = connectionAttempts.begin();
-        connectionDialog = new AlertDialog.Builder(this).setTitle(R.string.connection_title)
-            .setMessage(getString(R.string.connection_confirm_address, origin)
-                + (origin.startsWith("http:") ? getString(R.string.pairing_http) : ""))
+        android.widget.EditText token = needsToken ? new android.widget.EditText(this) : null;
+        AlertDialog.Builder dialog = new AlertDialog.Builder(this).setTitle(R.string.connection_title)
+            .setMessage(getString(R.string.connection_confirm_address, address)
+                + (address.startsWith("http:") ? getString(R.string.pairing_http) : ""))
             .setPositiveButton(R.string.pairing_continue, null)
             .setNegativeButton(R.string.external_prompt_cancel, (d, w) -> cancelConnection())
-            .setOnCancelListener(d -> cancelConnection()).show();
+            .setOnCancelListener(d -> cancelConnection());
+        if (token != null) {
+            token.setSingleLine(true);
+            token.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+            token.setHint(R.string.connection_nas_token);
+            if (Build.VERSION.SDK_INT >= 26) token.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
+            dialog.setView(token);
+        }
+        connectionDialog = dialog.show();
         connectionDialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             if (!connectionAttempts.active(attempt)) return;
             v.setVisibility(View.GONE);
+            String entered = token == null ? "" : token.getText().toString();
+            if (token != null) {
+                token.setText("");
+                token.setVisibility(View.GONE);
+            }
             connectionDialog.setMessage(getString(R.string.connection_checking));
-            new Thread(() -> {
-                int result = HostedConnection.probeSavedLibrary(this, origin);
-                runOnUiThread(() -> completeLibraryConnection(attempt, origin, result));
-            }, "hosted-library-probe").start();
+            new Thread(() -> probe.check(attempt, entered), "hosted-library-probe").start();
         });
     }
 
@@ -1240,6 +1302,10 @@ public class MainActivity extends ComponentActivity {
                 TvShellServer local = ((ShellApp) getApplication()).ensureServer();
                 if (local != null) origin = "http://127.0.0.1:" + local.port();
             }
+            if (prefs.usesNasLibrary()) {
+                NasLibrarySession selected = NasLibrarySession.load(new PairedCredentialStore(this), origin);
+                if (selected != null) origin = selected.uiOrigin;
+            }
             restoreUrl = origin.isEmpty() ? null : origin + section;
         } else {
             restoreUrl = null;
@@ -1277,7 +1343,7 @@ public class MainActivity extends ComponentActivity {
             SettingsActivity.dataCleared = false;
             if (webView != null) webView.clearCache(true);
             load();
-        } else if (loadedConnection != null && !loadedConnection.equals(effectiveLibraryOrigin())) {
+        } else if (loadedConnection != null && !currentLibrarySelection()) {
             restoreUrl = null;
             load();
         } else if (selectedLayoutWidth() != loadedLayoutWidth) {
@@ -1291,6 +1357,7 @@ public class MainActivity extends ComponentActivity {
     @Override
     protected void onPause() {
         resumed = false;
+        if (serverInspection != null) serverInspection.cancel();
         handler.removeCallbacks(readyWatchdog); // startup time in the background does not count
         if (webView != null) {
             lastRoute = pageReady ? webView.getUrl() : null;

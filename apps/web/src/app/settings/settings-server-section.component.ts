@@ -176,6 +176,8 @@ export class SettingsServerSectionComponent {
         return (
             this.matchesAddress(this.tokenAddress()) ||
             (!this.nativeHosted &&
+                (!this.androidLibrary?.connectNasLibrary ||
+                    !this.sync.connection?.apiUrl.endsWith('/api')) &&
                 this.isCurrentServer() &&
                 this.sync.state() === 'locked')
         );
@@ -243,7 +245,9 @@ export class SettingsServerSectionComponent {
             !useHosted &&
             (!this.library ||
                 this.sync.state() === 'connected' ||
-                (!this.nativeHosted && this.sync.state() !== 'locked'))
+                (!this.nativeHosted &&
+                    !this.androidLibrary?.connectNasLibrary &&
+                    this.sync.state() !== 'locked'))
         ) {
             await this.refresh();
             return;
