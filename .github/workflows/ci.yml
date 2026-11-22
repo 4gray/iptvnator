@@ -563,6 +563,12 @@ jobs:
             - name: Validate form-field defaults
               run: pnpm run ui:form-field-defaults:validate
 
+            # Toasts open only through NotificationService: one position,
+            # look and politeness, translated text only
+            # (tools/nx/check-notifications.mjs).
+            - name: Validate notifications
+              run: pnpm run ui:notifications:validate
+
             # m3-theme.scss themes only the Material components the app
             # imports; a new import without a theme entry renders unthemed.
             - name: Validate the Material theme scope

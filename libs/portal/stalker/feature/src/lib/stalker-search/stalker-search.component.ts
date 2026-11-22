@@ -12,7 +12,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
@@ -110,7 +110,7 @@ export class StalkerSearchComponent {
     private readonly stalkerStore = inject(StalkerStore);
     private readonly stalkerSession = inject(StalkerSessionService);
     private readonly portalRepair = inject(StalkerPortalRepairService);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
     private readonly translateService = inject(TranslateService);
     private readonly logger = createLogger('StalkerSearch');
     private readonly searchLayout = viewChild(SearchLayoutComponent);
@@ -206,7 +206,7 @@ export class StalkerSearchComponent {
         selectedVodPosition: this.selectedVodPosition,
         playbackPositions: this.playbackPositions,
         portalPlayer: this.portalPlayer,
-        snackBar: this.snackBar,
+        notifications: this.notifications,
         translateService: this.translateService,
         logger: this.logger,
         playbackErrorLogMessage: 'Failed to start search VOD playback',
@@ -579,7 +579,7 @@ export class StalkerSearchComponent {
         discardPendingPositionLoad: () =>
             this.vodPlayback.discardPendingPositionLoad(),
         beginPendingStart: () => this.vodPlayback.beginPendingStart(),
-        snackBar: this.snackBar,
+        notifications: this.notifications,
         translate: this.translateService,
         logError: () => undefined,
     });

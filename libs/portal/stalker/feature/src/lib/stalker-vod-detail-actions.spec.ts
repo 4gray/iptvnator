@@ -55,7 +55,7 @@ describe('createStalkerVodDetailActions openExternal', () => {
             selectedVodId,
             selectedVodPosition: signal(null),
             beforeExternalLaunch,
-            snackBar: { open },
+            notifications: { success: open, error: open } as never,
             translate: { instant: (key: string) => key },
             logError,
         });
@@ -290,11 +290,7 @@ describe('createStalkerVodDetailActions openExternal', () => {
         await launch;
 
         expect(t.logError).toHaveBeenCalledTimes(1);
-        expect(t.open).toHaveBeenCalledWith(
-            'PORTALS.PLAYBACK_ERROR',
-            undefined,
-            expect.anything()
-        );
+        expect(t.open).toHaveBeenCalledWith('PORTALS.PLAYBACK_ERROR');
     });
 
     it('drops the stream once another movie was selected meanwhile', async () => {
@@ -347,7 +343,7 @@ describe('createStalkerVodDetailActions resetProgress', () => {
             discardPendingPositionLoad,
             beginPendingStart,
             afterProgressReset,
-            snackBar: { open },
+            notifications: { success: open, error: open } as never,
             translate: { instant: (key: string) => key },
             logError: jest.fn(),
         });
@@ -394,11 +390,7 @@ describe('createStalkerVodDetailActions resetProgress', () => {
         expect(t.discardPendingPositionLoad).toHaveBeenCalledTimes(1);
         expect(t.selectedVodPosition()).toBeNull();
         expect(t.afterProgressReset).toHaveBeenCalledWith('portal-1');
-        expect(t.open).toHaveBeenCalledWith(
-            'PORTALS.DETAIL.PROGRESS_RESET',
-            undefined,
-            expect.anything()
-        );
+        expect(t.open).toHaveBeenCalledWith('PORTALS.DETAIL.PROGRESS_RESET');
     });
 
     it('leaves the position of a movie selected meanwhile untouched', async () => {

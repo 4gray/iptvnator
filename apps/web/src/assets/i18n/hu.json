@@ -1250,7 +1250,6 @@
         "IMPORT_SUMMARY_QUEUED": "{{count}} forrás várakozik",
         "TOTAL_CHANNELS": "Csatornák összesen",
         "TOTAL_PROGRAMS": "Műsorok összesen",
-        "UP_TO_DATE": "Az EPG naprakész, nincs szükség szinkronizálásra",
         "RETRY": "Újrapróbálkozás",
         "ALLOW_PRIVATE_SOURCE": "Forrás engedélyezése",
         "ALLOW_PRIVATE_SOURCE_TITLE": "Engedélyezi a magánhálózaton található EPG-forrást?",
@@ -1696,8 +1695,8 @@
             "PLAYING_FROM": "Lejátszás innen:",
             "SWITCH_TITLE": "A forrás nem érhető el — váltás erre: {{playlist}}",
             "SWITCH_DETAIL": "folytatás innen: {{timecode}}",
-            "SWITCH_AUDIO_WARNING": "a szinkronváltozat eltérhet",
             "SWITCHED_TO": "Átváltva erre: {{playlist}}",
+            "SWITCHED_TO_AUDIO_MAY_DIFFER": "Átváltva erre: {{playlist}} — a szinkronváltozat eltérhet",
             "UNDO": "Visszavonás",
             "CHOOSE_OTHER": "Másik választása",
             "TRY_ANOTHER_SOURCE": "Másik forrás kipróbálása",
@@ -1762,10 +1761,9 @@
         "EPISODE_NAVIGATION": "Epizódnavigáció",
         "INLINE_PLAYER": "Lejátszó",
         "REQUEST_ERRORS": {
-            "XTREAM": "Sikertelen Xtream-kérés: {{message}}",
             "XTREAM_CONNECTION": "Nem sikerült kapcsolódni az Xtream-kiszolgálóhoz",
-            "STALKER": "Sikertelen Stalker-kérés: {{message}} (állapotkód: {{status}})",
-            "NOT_FOUND": "Nem található"
+            "XTREAM_FAILED": "Az Xtream-szerverhez küldött kérés sikertelen volt.",
+            "STALKER_FAILED": "A Stalker-portálhoz küldött kérés sikertelen volt."
         }
     },
     "INFORMATION": "Információk",
@@ -2475,7 +2473,7 @@
             "STREAM_NOT_FOUND": "Az adatfolyam nem található. Lehet, hogy az URL-cím hibás, vagy lejárt.",
             "TIMED_OUT": "Időtúllépés a kapcsolódáskor. A kiszolgáló nem válaszol.",
             "LAUNCH_FAILED": "Nem sikerült elindítani a lejátszót: {{player}}.",
-            "UNKNOWN": "Lejátszóhiba ({{player}}): {{error}}"
+            "REPORTED": "A(z) {{player}} hibát jelzett."
         },
         "INFO_DIALOG": {
             "PLAYING": "A videó lejátszása a külső lejátszó ablakában történik.",

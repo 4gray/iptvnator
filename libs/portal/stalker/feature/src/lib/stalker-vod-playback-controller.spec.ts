@@ -1,5 +1,5 @@
 import { signal } from '@angular/core';
-import type { MatSnackBar } from '@angular/material/snack-bar';
+import type { NotificationService } from '@iptvnator/services/notifications';
 import type { TranslateService } from '@ngx-translate/core';
 import type {
     Logger,
@@ -57,9 +57,10 @@ function createController(playbackOwnerKey?: () => string) {
         openResolvedPlayback: jest.fn(),
         openExternalPlayback: jest.fn(),
     } as unknown as jest.Mocked<PortalPlayer>;
-    const snackBar = {
-        open: jest.fn(),
-    } as unknown as MatSnackBar;
+    const notifications = {
+        success: jest.fn(),
+        error: jest.fn(),
+    } as unknown as NotificationService;
     const translateService = {
         instant: jest.fn((key: string) => key),
     } as unknown as TranslateService;
@@ -75,7 +76,7 @@ function createController(playbackOwnerKey?: () => string) {
         selectedVodPosition,
         playbackPositions,
         portalPlayer,
-        snackBar,
+        notifications,
         translateService,
         logger,
         playbackErrorLogMessage: 'Playback failed',

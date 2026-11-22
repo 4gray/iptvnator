@@ -12,8 +12,7 @@ import {
 } from './database-electron.service';
 import { SourceHealthEvidenceService } from './source-health-evidence.service';
 import { inject, Injectable } from '@angular/core';
-import { LazySnackBar } from './lazy-snack-bar/lazy-snack-bar';
-import { TranslateService } from '@ngx-translate/core';
+import { NotificationService } from './notifications/notification.service';
 import {
     createPlaylistObject,
     resolvePlaylistEpgSourceState,
@@ -94,8 +93,7 @@ export class PlaylistsService {
     });
     private readonly dbService = inject(NgxIndexedDBService);
     private readonly databaseService = inject(DatabaseService);
-    private readonly snackBar = inject(LazySnackBar);
-    private readonly translateService = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
     private readonly storageBackend = inject(PlaylistStorageBackend);
     private readonly playlistDeleteCleanups =
         inject(PLAYLIST_DELETE_CLEANUP, { optional: true }) ?? [];
@@ -1271,11 +1269,7 @@ export class PlaylistsService {
                 uploadType
             );
         } catch (error) {
-            void this.snackBar.open(
-                this.translateService.instant('HOME.PARSING_ERROR'),
-                undefined,
-                { duration: 2000 }
-            );
+            this.notifications.error('HOME.PARSING_ERROR');
             throw new Error(`Parsing failed, not a valid playlist: ${error}`);
         }
     }

@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
@@ -10,6 +10,15 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
 import { VodDetailsWatchedService } from './vod-details-watched.service';
+
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
+const SUCCESS_TOAST = expect.objectContaining({
+    politeness: 'polite',
+    panelClass: expect.arrayContaining(['app-notification--success']),
+});
 
 const PLAYLIST = 'playlist-1';
 const VOD_ID = 650020;
@@ -50,7 +59,7 @@ describe('VodDetailsWatchedService', () => {
     const discardPendingPositionLoads = jest.fn();
     const savePlaybackPositionOrThrow = jest.fn().mockResolvedValue(undefined);
     const clearPlaybackPositionOrThrow = jest.fn().mockResolvedValue(undefined);
-    const snackBarOpen = jest.fn();
+    const snackBarOpen = jest.fn().mockResolvedValue(null);
     let service: VodDetailsWatchedService;
 
     beforeEach(() => {
@@ -96,7 +105,7 @@ describe('VodDetailsWatchedService', () => {
                         clearPlaybackPositionOrThrow,
                     },
                 },
-                { provide: MatSnackBar, useValue: { open: snackBarOpen } },
+                { provide: LazySnackBar, useValue: { open: snackBarOpen } },
                 {
                     provide: TranslateService,
                     useValue: { instant: (key: string) => key },
@@ -130,7 +139,7 @@ describe('VodDetailsWatchedService', () => {
         expect(snackBarOpen).toHaveBeenCalledWith(
             'XTREAM.MOVIE_MARKED_WATCHED',
             undefined,
-            expect.anything()
+            SUCCESS_TOAST
         );
     });
 
@@ -150,7 +159,7 @@ describe('VodDetailsWatchedService', () => {
         expect(snackBarOpen).toHaveBeenCalledWith(
             'XTREAM.MOVIE_MARKED_UNWATCHED',
             undefined,
-            expect.anything()
+            SUCCESS_TOAST
         );
     });
 
@@ -233,8 +242,8 @@ describe('VodDetailsWatchedService', () => {
         expect(loadAllPositions).not.toHaveBeenCalled();
         expect(snackBarOpen).toHaveBeenCalledWith(
             'XTREAM.MOVIE_WATCH_UPDATE_FAILED',
-            undefined,
-            expect.anything()
+            'CLOSE',
+            ERROR_TOAST
         );
         errorSpy.mockRestore();
     });

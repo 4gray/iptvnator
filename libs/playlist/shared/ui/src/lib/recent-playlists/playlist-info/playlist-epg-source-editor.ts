@@ -1,8 +1,7 @@
 import { afterNextRender, inject, Injector, signal } from '@angular/core';
 import { UntypedFormArray } from '@angular/forms';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Store } from '@ngrx/store';
-import { TranslateService } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { EpgPreferencesService, SettingsStore } from '@iptvnator/services';
@@ -22,8 +21,7 @@ export class PlaylistEpgSourceEditor {
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly settingsStore = inject(SettingsStore);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
     private readonly store = inject(Store);
     private readonly injector = inject(Injector);
     readonly availableOpen = signal(false);
@@ -141,13 +139,11 @@ export class PlaylistEpgSourceEditor {
             return;
         }
 
-        this.snackBar.open(
-            this.translate.instant(
-                result.success ? 'EPG.FETCH_SUCCESS' : 'EPG.ERROR'
-            ),
-            this.translate.instant('CLOSE'),
-            { duration: 3000 }
-        );
+        if (result.success) {
+            this.notifications.success('EPG.FETCH_SUCCESS');
+        } else {
+            this.notifications.error('EPG.ERROR');
+        }
     }
 
     async addToSettings(url: string, container?: HTMLElement): Promise<void> {
@@ -164,11 +160,7 @@ export class PlaylistEpgSourceEditor {
             ]),
         });
 
-        this.snackBar.open(
-            this.translate.instant('SETTINGS.PLAYLIST_EPG_ADDED_GLOBAL'),
-            this.translate.instant('CLOSE'),
-            { duration: 3000 }
-        );
+        this.notifications.success('SETTINGS.PLAYLIST_EPG_ADDED_GLOBAL');
         this.focusSourceAction(container, url);
     }
 
@@ -219,11 +211,7 @@ export class PlaylistEpgSourceEditor {
                     'Failed to clear playlist EPG source data:',
                     error
                 );
-                this.snackBar.open(
-                    this.translate.instant('SETTINGS.EPG_DATA_CLEAR_FAILED'),
-                    this.translate.instant('CLOSE'),
-                    { duration: 3000 }
-                );
+                this.notifications.error('SETTINGS.EPG_DATA_CLEAR_FAILED');
                 return;
             }
         }

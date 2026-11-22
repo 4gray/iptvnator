@@ -188,6 +188,9 @@
             "@iptvnator/services/lazy-snack-bar": [
                 "libs/services/src/lib/lazy-snack-bar/lazy-snack-bar.ts"
             ],
+            "@iptvnator/services/notifications": [
+                "libs/services/src/lib/notifications/notification.service.ts"
+            ],
             "@iptvnator/services/xtream-catalog-refresh": [
                 "libs/services/src/lib/xtream-selected-catalog-refresh.service.ts"
             ],

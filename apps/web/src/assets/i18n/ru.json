@@ -1250,7 +1250,6 @@
         "IMPORT_SUMMARY_QUEUED": "в очереди: {{count}}",
         "TOTAL_CHANNELS": "Всего каналов",
         "TOTAL_PROGRAMS": "Всего программ",
-        "UP_TO_DATE": "EPG актуален, синхронизация не требуется",
         "RETRY": "Повторить",
         "ALLOW_PRIVATE_SOURCE": "Разрешить источник",
         "ALLOW_PRIVATE_SOURCE_TITLE": "Разрешить EPG-источник из частной сети?",
@@ -1696,8 +1695,8 @@
             "PLAYING_FROM": "Играет с:",
             "SWITCH_TITLE": "Источник недоступен — переключаемся на {{playlist}}",
             "SWITCH_DETAIL": "продолжаем с {{timecode}}",
-            "SWITCH_AUDIO_WARNING": "озвучка может отличаться",
             "SWITCHED_TO": "Переключено на {{playlist}}",
+            "SWITCHED_TO_AUDIO_MAY_DIFFER": "Переключено на {{playlist}} — озвучка может отличаться",
             "UNDO": "Отменить",
             "CHOOSE_OTHER": "Выбрать другой",
             "TRY_ANOTHER_SOURCE": "Попробовать другой источник",
@@ -1762,10 +1761,9 @@
         "EPISODE_NAVIGATION": "Навигация по эпизодам",
         "INLINE_PLAYER": "Плеер",
         "REQUEST_ERRORS": {
-            "XTREAM": "Ошибка запроса Xtream: {{message}}",
             "XTREAM_CONNECTION": "Не удалось подключиться к серверу Xtream",
-            "STALKER": "Ошибка запроса Stalker: {{message}} (статус {{status}})",
-            "NOT_FOUND": "Не найдено"
+            "XTREAM_FAILED": "Запрос к серверу Xtream не выполнен.",
+            "STALKER_FAILED": "Запрос к порталу Stalker не выполнен."
         }
     },
     "INFORMATION": "Инфо",
@@ -2475,7 +2473,7 @@
             "STREAM_NOT_FOUND": "Поток не найден. Возможно, URL указан неверно или срок его действия истёк.",
             "TIMED_OUT": "Истекло время ожидания подключения. Сервер не отвечает.",
             "LAUNCH_FAILED": "Не удалось запустить {{player}}.",
-            "UNKNOWN": "Ошибка {{player}}: {{error}}"
+            "REPORTED": "{{player}} сообщил об ошибке."
         },
         "INFO_DIALOG": {
             "PLAYING": "Видео воспроизводится в окне внешнего плеера.",

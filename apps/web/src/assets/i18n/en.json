@@ -1250,7 +1250,6 @@
         "IMPORT_SUMMARY_QUEUED": "{{count}} queued",
         "TOTAL_CHANNELS": "Total channels",
         "TOTAL_PROGRAMS": "Total programs",
-        "UP_TO_DATE": "EPG is up-to-date, no sync needed",
         "RETRY": "Retry",
         "ALLOW_PRIVATE_SOURCE": "Allow source",
         "ALLOW_PRIVATE_SOURCE_TITLE": "Allow private-network EPG source?",
@@ -1696,8 +1695,8 @@
             "PLAYING_FROM": "Playing from:",
             "SWITCH_TITLE": "Source unavailable — switching to {{playlist}}",
             "SWITCH_DETAIL": "resuming at {{timecode}}",
-            "SWITCH_AUDIO_WARNING": "the dub may differ",
             "SWITCHED_TO": "Switched to {{playlist}}",
+            "SWITCHED_TO_AUDIO_MAY_DIFFER": "Switched to {{playlist}} — the dub may differ",
             "UNDO": "Undo",
             "CHOOSE_OTHER": "Choose another",
             "TRY_ANOTHER_SOURCE": "Try another source",
@@ -1762,10 +1761,9 @@
         "EPISODE_NAVIGATION": "Episode navigation",
         "INLINE_PLAYER": "Player",
         "REQUEST_ERRORS": {
-            "XTREAM": "Xtream request failed: {{message}}",
             "XTREAM_CONNECTION": "Failed to connect to Xtream server",
-            "STALKER": "Stalker request failed: {{message}} (status {{status}})",
-            "NOT_FOUND": "Not found"
+            "XTREAM_FAILED": "The Xtream server request failed.",
+            "STALKER_FAILED": "The Stalker portal request failed."
         }
     },
     "INFORMATION": "Information",
@@ -2475,7 +2473,7 @@
             "STREAM_NOT_FOUND": "Stream not found. The URL may be incorrect or expired.",
             "TIMED_OUT": "Connection timed out. The server is not responding.",
             "LAUNCH_FAILED": "Could not start {{player}}.",
-            "UNKNOWN": "{{player}} error: {{error}}"
+            "REPORTED": "{{player}} reported an error."
         },
         "INFO_DIALOG": {
             "PLAYING": "The video is playing in the external player window.",

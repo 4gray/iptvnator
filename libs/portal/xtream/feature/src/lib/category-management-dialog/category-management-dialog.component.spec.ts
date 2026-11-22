@@ -1,6 +1,7 @@
 import { toObservable } from '@angular/core/rxjs-interop';
 import { firstValueFrom, filter } from 'rxjs';
 import { signal } from '@angular/core';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import {
@@ -8,7 +9,6 @@ import {
     CategoryEditorRow,
 } from '@iptvnator/portal/shared/ui';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateModule } from '@ngx-translate/core';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import {
@@ -23,6 +23,11 @@ import {
     CategoryManagementDialogComponent,
     CategoryManagementDialogData,
 } from './category-management-dialog.component';
+
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
 
 // Local database IDs deliberately differ from provider IDs.
 const categories: XCategoryFromDb[] = [
@@ -48,7 +53,7 @@ describe('CategoryManagementDialogComponent', () => {
         getAllCategories: jest.fn(),
     };
     const dialogRef = { close: jest.fn() };
-    const snackBar = { open: jest.fn() };
+    const snackBar = { open: jest.fn().mockResolvedValue(null) };
     const parentalLock = {
         enabled: signal(false),
         active: signal(false),
@@ -81,7 +86,7 @@ describe('CategoryManagementDialogComponent', () => {
                 { provide: MatDialogRef, useValue: dialogRef },
                 { provide: MAT_DIALOG_DATA, useValue: data },
                 { provide: ParentalLockService, useValue: parentalLock },
-                { provide: MatSnackBar, useValue: snackBar },
+                { provide: LazySnackBar, useValue: snackBar },
             ],
         }).compileComponents();
         fixture = TestBed.createComponent(CategoryManagementDialogComponent);
@@ -363,7 +368,7 @@ describe('CategoryManagementDialogComponent', () => {
         expect(snackBar.open).toHaveBeenCalledWith(
             'PARENTAL_LOCK.SAVE_FAILED',
             'CLOSE',
-            { duration: 3000 }
+            ERROR_TOAST
         );
         expect(dialogRef.close).not.toHaveBeenCalled();
         expect(component.isSaving()).toBe(false);
@@ -380,7 +385,7 @@ describe('CategoryManagementDialogComponent', () => {
         expect(snackBar.open).toHaveBeenCalledWith(
             'XTREAM.CATEGORY_MANAGEMENT.SAVE_FAILED',
             'CLOSE',
-            { duration: 3000 }
+            ERROR_TOAST
         );
         expect(dialogRef.close).not.toHaveBeenCalled();
     });
@@ -462,7 +467,7 @@ describe('CategoryManagementDialogComponent', () => {
             expect(snackBar.open).toHaveBeenCalledWith(
                 'PARENTAL_LOCK.SAVE_FAILED',
                 'CLOSE',
-                { duration: 3000 }
+                ERROR_TOAST
             );
             expect(dialogRef.close).not.toHaveBeenCalled();
         });

@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Router } from '@angular/router';
 import { EpgService } from '@iptvnator/epg/data-access';
 import {
@@ -12,7 +12,6 @@ import {
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { TranslateService } from '@ngx-translate/core';
 import {
     EMPTY,
     catchError,
@@ -76,10 +75,9 @@ export class PlaylistEffects {
     private dataService = inject(DataService);
     private epgService = inject(EpgService);
     private router = inject(Router);
-    private snackBar = inject(LazySnackBar);
+    private readonly notifications = inject(NotificationService);
     private storage = inject(StorageMap);
     private store = inject(Store);
-    private translate = inject(TranslateService);
     private settingsStore = inject(SettingsStore);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private epgSources = inject(EpgSourceSettingsService);
@@ -110,11 +108,7 @@ export class PlaylistEffects {
                     );
                 }),
                 tap(() => {
-                    void this.snackBar.open(
-                        this.translate.instant('CHANNELS.FAVORITES_UPDATED'),
-                        undefined,
-                        { duration: 2000 }
-                    );
+                    this.notifications.success('CHANNELS.FAVORITES_UPDATED');
                 })
             );
         },
@@ -152,13 +146,7 @@ export class PlaylistEffects {
                     action.program,
                     activeChannel,
                     () =>
-                        void this.snackBar.open(
-                            this.translate.instant(
-                                'EPG.TIMELINE.CATCHUP_FAILED'
-                            ),
-                            undefined,
-                            { duration: 4000 }
-                        )
+                        this.notifications.error('EPG.TIMELINE.CATCHUP_FAILED')
                 )
             )
         );

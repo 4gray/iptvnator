@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -18,6 +18,19 @@ import { EMPTY, of } from 'rxjs';
 import { PlaylistRefreshActionService } from '../../playlist-refresh-action.service';
 import { PlaylistInfoComponent } from './playlist-info.component';
 import { STALKER_PLAYLIST_CONNECTION_EDITOR } from './stalker-playlist-connection-editor.token';
+
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
+const INFO_TOAST = expect.objectContaining({
+    politeness: 'polite',
+    panelClass: expect.arrayContaining(['app-notification--info']),
+});
+const SUCCESS_TOAST = expect.objectContaining({
+    politeness: 'polite',
+    panelClass: expect.arrayContaining(['app-notification--success']),
+});
 
 // Saving a new M3U source while a refresh is running (#1677).
 describe('PlaylistInfoComponent M3U source refresh guard', () => {
@@ -40,7 +53,7 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
 
     beforeEach(async () => {
         dispatch = jest.fn();
-        open = jest.fn();
+        open = jest.fn().mockResolvedValue(null);
         close = jest.fn();
         refresh = jest.fn().mockResolvedValue('refreshed');
         blocked = false;
@@ -96,7 +109,7 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
                         getTrustOptions: () => ({}),
                     },
                 },
-                { provide: MatSnackBar, useValue: { open } },
+                { provide: LazySnackBar, useValue: { open } },
                 {
                     provide: TranslateService,
                     useValue: { instant: (key: string) => key },
@@ -131,7 +144,7 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
         expect(open).toHaveBeenCalledWith(
             'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED',
             'CLOSE',
-            { duration: 3000 }
+            ERROR_TOAST
         );
     });
 
@@ -145,8 +158,8 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
         expect(refresh).not.toHaveBeenCalled();
         expect(open).toHaveBeenCalledWith(
             'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS',
-            'CLOSE',
-            { duration: 3000 }
+            undefined,
+            SUCCESS_TOAST
         );
     });
 
@@ -190,8 +203,8 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
         expect(close).toHaveBeenCalled();
         expect(open).toHaveBeenCalledWith(
             'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS',
-            'CLOSE',
-            { duration: 3000 }
+            undefined,
+            SUCCESS_TOAST
         );
     });
 
@@ -228,8 +241,8 @@ describe('PlaylistInfoComponent M3U source refresh guard', () => {
         expect(close).toHaveBeenCalled();
         expect(open).toHaveBeenCalledWith(
             'HOME.PLAYLISTS.SOURCE_SAVED_NOT_LOADED',
-            'CLOSE',
-            { duration: 6000 }
+            undefined,
+            INFO_TOAST
         );
     });
 

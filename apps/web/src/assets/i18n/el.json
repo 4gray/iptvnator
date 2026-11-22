@@ -1250,7 +1250,6 @@
         "IMPORT_SUMMARY_QUEUED": "{{count}} σε αναμονή",
         "TOTAL_CHANNELS": "Σύνολο καναλιών",
         "TOTAL_PROGRAMS": "Σύνολο προγραμμάτων",
-        "UP_TO_DATE": "Το EPG είναι ενημερωμένο, δεν απαιτείται συγχρονισμός",
         "RETRY": "Επανάληψη",
         "ALLOW_PRIVATE_SOURCE": "Να επιτραπεί η πηγή",
         "ALLOW_PRIVATE_SOURCE_TITLE": "Να επιτραπεί πηγή EPG ιδιωτικού δικτύου;",
@@ -1696,8 +1695,8 @@
             "PLAYING_FROM": "Αναπαραγωγή από:",
             "SWITCH_TITLE": "Η πηγή δεν είναι διαθέσιμη — μετάβαση σε {{playlist}}",
             "SWITCH_DETAIL": "συνέχεια από {{timecode}}",
-            "SWITCH_AUDIO_WARNING": "η μεταγλώττιση μπορεί να διαφέρει",
             "SWITCHED_TO": "Έγινε μετάβαση σε {{playlist}}",
+            "SWITCHED_TO_AUDIO_MAY_DIFFER": "Έγινε μετάβαση σε {{playlist}} — η μεταγλώττιση μπορεί να διαφέρει",
             "UNDO": "Αναίρεση",
             "CHOOSE_OTHER": "Άλλη πηγή",
             "TRY_ANOTHER_SOURCE": "Δοκιμή άλλης πηγής",
@@ -1762,10 +1761,9 @@
         "EPISODE_NAVIGATION": "Πλοήγηση επεισοδίων",
         "INLINE_PLAYER": "Πρόγραμμα αναπαραγωγής",
         "REQUEST_ERRORS": {
-            "XTREAM": "Το αίτημα Xtream απέτυχε: {{message}}",
             "XTREAM_CONNECTION": "Αποτυχία σύνδεσης με τον διακομιστή Xtream",
-            "STALKER": "Το αίτημα Stalker απέτυχε: {{message}} (κατάσταση {{status}})",
-            "NOT_FOUND": "Δεν βρέθηκε"
+            "XTREAM_FAILED": "Το αίτημα προς τον διακομιστή Xtream απέτυχε.",
+            "STALKER_FAILED": "Το αίτημα προς την πύλη Stalker απέτυχε."
         }
     },
     "INFORMATION": "Πληροφορίες",
@@ -2475,7 +2473,7 @@
             "STREAM_NOT_FOUND": "Η ροή δεν βρέθηκε. Η διεύθυνση URL μπορεί να είναι λανθασμένη ή να έχει λήξει.",
             "TIMED_OUT": "Λήξη χρονικού ορίου σύνδεσης. Ο διακομιστής δεν αποκρίνεται.",
             "LAUNCH_FAILED": "Δεν ήταν δυνατή η εκκίνηση του {{player}}.",
-            "UNKNOWN": "Σφάλμα {{player}}: {{error}}"
+            "REPORTED": "Το {{player}} ανέφερε σφάλμα."
         },
         "INFO_DIALOG": {
             "PLAYING": "Το βίντεο αναπαράγεται στο παράθυρο του εξωτερικού προγράμματος αναπαραγωγής.",

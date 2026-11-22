@@ -5,9 +5,9 @@ import {
     signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import {
@@ -40,6 +40,11 @@ import { stalkerFavoriteReference } from '@iptvnator/shared/interfaces/favorites
 import { StalkerCollectionDetailComponent } from './stalker-collection-detail.component';
 import { StalkerInlineDetailComponent } from './stalker-inline-detail/stalker-inline-detail.component';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
+
+const SUCCESS_TOAST = expect.objectContaining({
+    politeness: 'polite',
+    panelClass: expect.arrayContaining(['app-notification--success']),
+});
 
 @Component({
     selector: 'app-content-hero',
@@ -186,7 +191,7 @@ describe('StalkerCollectionDetailComponent', () => {
             getAllPlaybackPositions: jest.fn(),
             clearPlaybackPosition: jest.fn(),
         };
-        snackBar = { open: jest.fn() };
+        snackBar = { open: jest.fn().mockResolvedValue(null) };
         playbackUpdateHandler = undefined;
         playlistsService = {
             getPlaylistById: jest.fn((playlistId: string) =>
@@ -228,7 +233,7 @@ describe('StalkerCollectionDetailComponent', () => {
                     },
                 },
                 {
-                    provide: MatSnackBar,
+                    provide: LazySnackBar,
                     useValue: snackBar,
                 },
                 {
@@ -754,7 +759,7 @@ describe('StalkerCollectionDetailComponent', () => {
         expect(snackBar.open).toHaveBeenCalledWith(
             'XTREAM.MOVIE_MARKED_WATCHED',
             undefined,
-            expect.anything()
+            SUCCESS_TOAST
         );
     });
 

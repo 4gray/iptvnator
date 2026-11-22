@@ -257,7 +257,10 @@ test('retains the offline library after failed updates and protects unsaved sett
         await expect(
             page.locator('[data-test-id="save-settings"]')
         ).toBeHidden();
-        await expectAbove(notice, page.locator('.settings-snackbar'));
+        await expectAbove(
+            notice,
+            page.locator('.app-notification--above-save-bar')
+        );
         await expect(notice).toHaveCSS('bottom', '12px');
         await notice
             .getByRole('button', { name: 'Refresh', exact: true })

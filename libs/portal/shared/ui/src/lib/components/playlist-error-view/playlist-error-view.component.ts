@@ -8,7 +8,7 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Router, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -54,7 +54,7 @@ export class PlaylistErrorViewComponent {
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly playlistDeleteAction = inject(PlaylistDeleteActionService);
     private router = inject(Router);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
     private store = inject(Store);
     private translate = inject(TranslateService);
 
@@ -122,11 +122,7 @@ export class PlaylistErrorViewComponent {
                 playlistId: playlist._id,
             })
         );
-        this.snackBar.open(
-            this.translate.instant('HOME.PLAYLISTS.REMOVE_DIALOG.SUCCESS'),
-            undefined,
-            { duration: 2000 }
-        );
+        this.notifications.success('HOME.PLAYLISTS.REMOVE_DIALOG.SUCCESS');
         void this.router.navigate(['/']);
     }
 }

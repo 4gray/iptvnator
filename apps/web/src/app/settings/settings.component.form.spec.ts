@@ -1,6 +1,6 @@
 import { FormArray, FormControl } from '@angular/forms';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     Language,
@@ -20,11 +20,16 @@ import {
     createEpgBridgeStub,
     DEFAULT_DASHBOARD_RAILS,
     DEFAULT_SETTINGS,
-    MatSnackBarStub,
+    LazySnackBarStub,
     MockSettingsStore,
     setSettingsSection,
     stubSettingsSideEffects,
 } from './test-stubs/settings-test-harness.stub';
+
+const SUCCESS_TOAST = expect.objectContaining({
+    politeness: 'polite',
+    panelClass: expect.arrayContaining(['app-notification--success']),
+});
 
 /**
  * Everything the rendered settings form does: hydration from the store, the
@@ -35,7 +40,7 @@ describe('SettingsComponent form', () => {
     let fixture: ComponentFixture<SettingsComponent>;
     let settingsStore: MockSettingsStore;
     let translate: TranslateService;
-    let snackBar: MatSnackBarStub;
+    let snackBar: LazySnackBarStub;
     let epgBridge: Partial<EpgRuntimeBridgeService>;
     const originalElectron = window.electron;
 
@@ -52,7 +57,7 @@ describe('SettingsComponent form', () => {
             SettingsStore
         ) as unknown as MockSettingsStore;
         translate = TestBed.inject(TranslateService);
-        snackBar = TestBed.inject(MatSnackBar) as unknown as MatSnackBarStub;
+        snackBar = TestBed.inject(LazySnackBar) as unknown as LazySnackBarStub;
 
         component = fixture.componentInstance;
         stubSettingsSideEffects(component);
@@ -168,9 +173,9 @@ describe('SettingsComponent form', () => {
         expect(component.settingsForm.value.theme).toBe(Theme.SystemTheme);
 
         const dark = root.querySelector('[data-test-id="system-dark-theme"]');
-        const options = [
-            ...(dark?.querySelectorAll('button') ?? []),
-        ].map((button) => button.getAttribute('data-test-id'));
+        const options = [...(dark?.querySelectorAll('button') ?? [])].map(
+            (button) => button.getAttribute('data-test-id')
+        );
         // Only dark presets can be the dark choice.
         expect(options).toEqual([
             'system-dark-dark',
@@ -211,14 +216,12 @@ describe('SettingsComponent form', () => {
         fixture.detectChanges();
         const root = fixture.nativeElement as HTMLElement;
         const press = (testId: string) =>
-            root
-                .querySelector(`[data-test-id="${testId}"]`)
-                ?.dispatchEvent(
-                    new KeyboardEvent('keydown', {
-                        key: 'ArrowRight',
-                        bubbles: true,
-                    })
-                );
+            root.querySelector(`[data-test-id="${testId}"]`)?.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key: 'ArrowRight',
+                    bubbles: true,
+                })
+            );
 
         // The last dark preset wraps to the first one, inside the pair only.
         press('system-dark-high-contrast');
@@ -268,7 +271,7 @@ describe('SettingsComponent form', () => {
         expect(snackBar.open).toHaveBeenCalledWith(
             'SETTINGS.TMDB_TRANSFER.SAVED',
             undefined,
-            expect.anything()
+            SUCCESS_TOAST
         );
     });
 
@@ -1049,12 +1052,7 @@ describe('SettingsComponent form', () => {
             expect(snackBar.open).toHaveBeenCalledWith(
                 'Settings saved',
                 undefined,
-                {
-                    duration: 2000,
-                    horizontalPosition: 'center',
-                    panelClass: ['settings-snackbar'],
-                    verticalPosition: 'bottom',
-                }
+                SUCCESS_TOAST
             );
         });
 

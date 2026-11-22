@@ -25,7 +25,7 @@ import {
 } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { firstValueFrom, Subscription } from 'rxjs';
@@ -91,7 +91,7 @@ export class PlaylistInfoComponent {
     private formBuilder = inject(UntypedFormBuilder);
     private playlistsService = inject(PlaylistsService);
     private readonly playlistStorage = inject(PlaylistStorageBackend);
-    private snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
     private translate = inject(TranslateService);
     private runtime = inject(RuntimeCapabilitiesService);
     private readonly destroyRef = inject(DestroyRef);
@@ -314,11 +314,7 @@ export class PlaylistInfoComponent {
         } catch (error) {
             console.error('Failed to load complete Stalker playlist:', error);
             this.stalkerPlaylistHydrationFailed.set(true);
-            this.snackBar.open(
-                this.translate.instant('HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED'),
-                this.translate.instant('CLOSE'),
-                { duration: 3000 }
-            );
+            this.notifications.error('HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED');
         } finally {
             this.isHydratingStalkerPlaylist.set(false);
         }

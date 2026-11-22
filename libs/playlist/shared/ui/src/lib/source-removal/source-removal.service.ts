@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { MatSnackBar, MatSnackBarRef } from '@angular/material/snack-bar';
+import type { MatSnackBarRef } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
@@ -70,7 +71,7 @@ export class SourceRemovalService {
     private readonly activity = inject(SourceActivityService);
     private readonly router = inject(Router);
     private readonly runtime = inject(RuntimeCapabilitiesService);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
     /** Progress of a long delete; its row comes back to show it. */
@@ -115,9 +116,14 @@ export class SourceRemovalService {
         ) {
             return;
         }
-        // A second delete commits the first at once.
+        // A second delete commits the first at once, but only once its Undo
+        // was on screen: a delete nobody could undo yet is cancelled instead.
         if (this.pending) {
-            this.settle(this.pending);
+            if (this.pending.snackBar) {
+                this.settle(this.pending);
+            } else {
+                this.undo(this.pending);
+            }
         }
 
         const wasActive =
@@ -152,9 +158,9 @@ export class SourceRemovalService {
             settled: false,
             timer: undefined,
         };
-        const snackBar = this.snackBar.openFromComponent(
-            SourceRemovalToastComponent,
-            {
+        this.pending = removal;
+        void this.notifications
+            .fromComponent(SourceRemovalToastComponent, {
                 data: {
                     message,
                     undoLabel: this.translate.instant(
@@ -164,17 +170,27 @@ export class SourceRemovalService {
                     returnFocusTo: options.returnFocusTo ?? null,
                     commitNow: () => this.settle(removal),
                 },
-                duration: SOURCE_REMOVAL_UNDO_MS,
-                panelClass: 'app-toast',
-            }
-        );
-        removal.snackBar = snackBar;
-        removal.timer = setTimeout(
-            () => this.settle(removal),
-            SOURCE_REMOVAL_UNDO_MS
-        );
-        this.pending = removal;
-        snackBar.onAction().subscribe(() => this.undo(removal));
+                durationMs: SOURCE_REMOVAL_UNDO_MS,
+            })
+            .then((snackBar) => {
+                // A second delete can commit this one while the chunk loads.
+                if (removal.settled) {
+                    snackBar?.dismiss();
+                    return;
+                }
+                // Without the Undo control the delete must not run.
+                if (!snackBar) {
+                    this.undo(removal);
+                    return;
+                }
+                removal.snackBar = snackBar;
+                // The full Undo window starts once the control is on screen.
+                removal.timer = setTimeout(
+                    () => this.settle(removal),
+                    SOURCE_REMOVAL_UNDO_MS
+                );
+                snackBar.onAction().subscribe(() => this.undo(removal));
+            });
     }
 
     /** Ends the Undo window: commits the delete unless it was undone. */
@@ -260,13 +276,9 @@ export class SourceRemovalService {
                     commit();
                 }
             } else if (!this.progress.takeCancelled(playlist._id)) {
-                this.snackBar.open(
-                    this.translate.instant('WORKSPACE.SOURCES.REMOVE_FAILED', {
-                        name: this.nameOf(playlist),
-                    }),
-                    this.translate.instant('CLOSE'),
-                    { duration: 5000, panelClass: 'app-toast' }
-                );
+                this.notifications.error('WORKSPACE.SOURCES.REMOVE_FAILED', {
+                    name: this.nameOf(playlist),
+                });
             }
         } finally {
             this.progress.clear(playlist._id);

@@ -30,7 +30,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
@@ -201,7 +201,7 @@ export class StalkerLiveStreamLayoutComponent
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly streamHeaders = inject(ElectronStreamHeadersService);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
     private readonly translate = inject(TranslateService);
     private readonly routeSession = inject(StalkerWorkspaceRouteSession, {
         optional: true,
@@ -1122,11 +1122,11 @@ export class StalkerLiveStreamLayoutComponent
             }
 
             this.logger.error('Playback failed', error);
-            const errorMessage =
+            this.notifications.error(
                 error instanceof Error && error.message === 'nothing_to_play'
-                    ? this.translate.instant('PORTALS.CONTENT_NOT_AVAILABLE')
-                    : this.translate.instant('PORTALS.PLAYBACK_ERROR');
-            this.snackBar.open(errorMessage, undefined, { duration: 3000 });
+                    ? 'PORTALS.CONTENT_NOT_AVAILABLE'
+                    : 'PORTALS.PLAYBACK_ERROR'
+            );
         }
     }
 

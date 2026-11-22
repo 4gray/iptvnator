@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { of, Subject } from 'rxjs';
@@ -71,7 +71,10 @@ describe('PlaylistInfoComponent playlist EPG source rows', () => {
                         ),
                     },
                 },
-                { provide: MatSnackBar, useValue: { open: jest.fn() } },
+                {
+                    provide: LazySnackBar,
+                    useValue: { open: jest.fn().mockResolvedValue(null) },
+                },
                 {
                     provide: MatDialogRef,
                     useValue: {
@@ -234,10 +237,10 @@ describe('PlaylistInfoComponent playlist EPG source rows', () => {
         await fixture.whenStable();
         expect(button.disabled).toBe(true);
         expect(host.textContent).toContain('SETTINGS.PLAYLIST_EPG_IN_GLOBAL');
-        expect(TestBed.inject(MatSnackBar).open).toHaveBeenCalledWith(
+        expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
             'SETTINGS.PLAYLIST_EPG_ADDED_GLOBAL',
-            'CLOSE',
-            { duration: 3000 }
+            undefined,
+            expect.objectContaining({ politeness: 'polite' })
         );
         await fixture.componentInstance.epg.addToSettings(keepUrl);
         expect(

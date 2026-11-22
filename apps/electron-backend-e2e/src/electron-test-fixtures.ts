@@ -1736,7 +1736,7 @@ export async function deleteSource(page: Page, title: string): Promise<void> {
         .locator('.cdk-overlay-pane [mat-menu-item]')
         .filter({ hasText: 'Remove playlist' })
         .click();
-    const toast = page.locator('mat-snack-bar-container.app-toast');
+    const toast = page.locator('mat-snack-bar-container.app-notification');
     await expect(toast).toContainText('Removed');
     await expect(toast).toBeHidden({ timeout: 15000 });
 }

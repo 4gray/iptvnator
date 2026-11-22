@@ -1,6 +1,5 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
@@ -13,6 +12,7 @@ import {
     RuntimeCapabilitiesService,
     SourceActivityService,
 } from '@iptvnator/services';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import {
     RENDERER_PERFORMANCE_PHASE_HOOK_KEY,
@@ -73,14 +73,29 @@ describe('SourceRemovalService', () => {
     /** The Undo window ends: the service's own timer commits. */
     const expireUndo = () => jest.advanceTimersByTime(SOURCE_REMOVAL_UNDO_MS);
 
+    const snackBar = {
+        openFromComponent: jest.fn(
+            (
+                _component: unknown,
+                config: {
+                    data: {
+                        message: string;
+                        commitNow?: () => void;
+                        returnFocusTo?: HTMLElement | null;
+                    };
+                }
+            ) => toast(config.data.message, config.data)
+        ),
+    };
+
     const flush = async () => {
-        await Promise.resolve();
-        await Promise.resolve();
+        for (let i = 0; i < 4; i++) await Promise.resolve();
     };
 
     beforeEach(() => {
         jest.useFakeTimers();
         toasts = [];
+        snackBar.openFromComponent.mockClear();
         deletePlaylist = jest.fn().mockResolvedValue(true);
         cancelOperation = jest.fn().mockResolvedValue(true);
         dispatch = jest.fn();
@@ -104,20 +119,14 @@ describe('SourceRemovalService', () => {
             providers: [
                 SourceRemovalService,
                 {
-                    provide: MatSnackBar,
+                    // NotificationService opens the Undo toast once the
+                    // snack-bar chunk resolves; tests flush that first.
+                    provide: LazySnackBar,
                     useValue: {
-                        open: jest.fn((message: string) => toast(message)),
-                        openFromComponent: jest.fn(
-                            (
-                                _component: unknown,
-                                config: {
-                                    data: {
-                                        message: string;
-                                        commitNow?: () => void;
-                                    };
-                                }
-                            ) => toast(config.data.message, config.data)
+                        open: jest.fn(async (message: string) =>
+                            toast(message)
                         ),
+                        resolve: jest.fn(async () => snackBar),
                     },
                 },
                 {
@@ -141,6 +150,7 @@ describe('SourceRemovalService', () => {
     it('hides the source and deletes it only when the Undo window ends', async () => {
         const a = playlist('a');
         service.remove(a);
+        await flush();
         expect(service.isPending('a')).toBe(true);
         expect(deletePlaylist).not.toHaveBeenCalled();
         expect(toasts[0].message).toBe('WORKSPACE.SOURCES.REMOVED');
@@ -156,10 +166,66 @@ describe('SourceRemovalService', () => {
         expect(service.isPending('a')).toBe(false);
     });
 
+    it('cancels a first delete whose Undo was not on screen when a second starts', async () => {
+        const a = playlist('a');
+        service.remove(a);
+        // The snack-bar chunk is still loading when the next delete starts.
+        service.remove(playlist('b'));
+        await flush();
+
+        expect(service.isPending('a')).toBe(false);
+        const first = toasts.find(
+            (toast) => toast.message === 'WORKSPACE.SOURCES.REMOVED'
+        );
+        expect(first?.dismiss).toHaveBeenCalled();
+        expireUndo();
+        await flush();
+        expect(deletePlaylist).toHaveBeenCalledTimes(1);
+        expect(deletePlaylist).not.toHaveBeenCalledWith(a, expect.anything());
+    });
+
+    it('starts the Undo window only once the toast is on screen', async () => {
+        let open!: (value: unknown) => void;
+        (TestBed.inject(LazySnackBar).resolve as jest.Mock).mockReturnValueOnce(
+            new Promise((resolve) => (open = resolve))
+        );
+        const a = playlist('a');
+        service.remove(a);
+        expireUndo();
+        await flush();
+        expect(deletePlaylist).not.toHaveBeenCalled();
+
+        open(snackBar);
+        await flush();
+        expect(toasts).toHaveLength(1);
+        jest.advanceTimersByTime(SOURCE_REMOVAL_UNDO_MS - 1);
+        await flush();
+        expect(deletePlaylist).not.toHaveBeenCalled();
+        jest.advanceTimersByTime(1);
+        await flush();
+        expect(deletePlaylist).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the source when the Undo toast cannot open', async () => {
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        (
+            TestBed.inject(LazySnackBar).resolve as jest.Mock
+        ).mockRejectedValueOnce(new Error('chunk failed'));
+        service.remove(playlist('a'));
+        await flush();
+
+        expireUndo();
+        await flush();
+        expect(toasts).toHaveLength(0);
+        expect(deletePlaylist).not.toHaveBeenCalled();
+        expect(service.isPending('a')).toBe(false);
+    });
+
     it('does not remove a source while a refresh clears and refills it', async () => {
         // Any entry point's refresh, or the startup auto-refresh.
         const release = TestBed.inject(SourceActivityService).begin(['a']);
         service.remove(playlist('a'));
+        await flush();
         expireUndo();
         await flush();
         expect(service.isPending('a')).toBe(false);
@@ -170,6 +236,7 @@ describe('SourceRemovalService', () => {
 
     it('restores the source on Undo without deleting anything', async () => {
         service.remove(playlist('a'));
+        await flush();
         toasts[0].action.next();
         toasts[0].dismissed.next();
         expireUndo();
@@ -180,6 +247,7 @@ describe('SourceRemovalService', () => {
 
     it('keeps the full Undo window when another message replaces the toast', async () => {
         service.remove(playlist('a'));
+        await flush();
         // A refresh finishing elsewhere opens its own snack bar.
         toasts[0].dismissed.next();
         jest.advanceTimersByTime(SOURCE_REMOVAL_UNDO_MS - 1);
@@ -193,6 +261,7 @@ describe('SourceRemovalService', () => {
 
     it('commits at once from the close button, and only once', async () => {
         service.remove(playlist('a'));
+        await flush();
         toasts[0].data.commitNow?.();
         await flush();
         expect(deletePlaylist).toHaveBeenCalledTimes(1);
@@ -205,16 +274,19 @@ describe('SourceRemovalService', () => {
 
     it('commits an earlier removal when a second one starts', async () => {
         service.remove(playlist('a'));
+        await flush();
         service.remove(playlist('b'));
+        await flush();
         await flush();
         expect(toasts[0].dismiss).toHaveBeenCalled();
         expect(deletePlaylist).toHaveBeenCalledTimes(1);
         expect(service.isPending('b')).toBe(true);
     });
 
-    it('switches away from the active source and back on Undo', () => {
+    it('switches away from the active source and back on Undo', async () => {
         resolvedPlaylistId.set('a');
         service.remove(playlist('a'), playlist('b'));
+        await flush();
         expect(context.selectPlaylist).toHaveBeenCalledWith(playlist('b'));
         expect(toasts[0].message).toBe('WORKSPACE.SOURCES.REMOVED_SWITCHED');
 
@@ -222,40 +294,44 @@ describe('SourceRemovalService', () => {
         expect(context.activatePlaylist).toHaveBeenCalledWith('a');
     });
 
-    it('does not hand over to a source that is being deleted', () => {
+    it('does not hand over to a source that is being deleted', async () => {
         resolvedPlaylistId.set('a');
         service.progress.track('b', {
             operation: 'delete-playlist',
             status: 'started',
         });
         service.remove(playlist('a'), playlist('b'));
+        await flush();
         expect(context.selectPlaylist).not.toHaveBeenCalled();
         expect(toasts[0].message).toBe('WORKSPACE.SOURCES.REMOVED');
     });
 
-    it('does not hand over to a source a refresh or import holds', () => {
+    it('does not hand over to a source a refresh or import holds', async () => {
         resolvedPlaylistId.set('a');
         const release = TestBed.inject(SourceActivityService).begin(['b']);
         service.remove(playlist('a'), playlist('b'));
+        await flush();
         expect(context.selectPlaylist).not.toHaveBeenCalled();
         expect(toasts[0].message).toBe('WORKSPACE.SOURCES.REMOVED');
         release();
     });
 
-    it('leaves a switch the user made after the delete alone on Undo', () => {
+    it('leaves a switch the user made after the delete alone on Undo', async () => {
         resolvedPlaylistId.set('a');
         service.remove(playlist('a'), playlist('b'));
+        await flush();
         resolvedPlaylistId.set('c');
         toasts[0].action.next();
         expect(context.activatePlaylist).not.toHaveBeenCalled();
     });
 
-    it('leaves a later switch alone on Undo when nothing replaced the source', () => {
+    it('leaves a later switch alone on Undo when nothing replaced the source', async () => {
         // The source was the only row a filter showed: no replacement.
         resolvedPlaylistId.set('a');
         routePlaylistId.set('a');
         router.url = '/workspace/xtreams/a/vod';
         service.remove(playlist('a'));
+        await flush();
         resolvedPlaylistId.set('c');
 
         toasts[0].action.next();
@@ -263,21 +339,22 @@ describe('SourceRemovalService', () => {
         expect(context.activatePlaylist).not.toHaveBeenCalled();
     });
 
-    it('passes the focus target of a closing surface to the toast', () => {
+    it('passes the focus target of a closing surface to the toast', async () => {
         const trigger = document.createElement('button');
         service.remove(playlist('a'), null, { returnFocusTo: trigger });
-        const openFromComponent = TestBed.inject(MatSnackBar)
-            .openFromComponent as jest.Mock;
+        await flush();
+        const openFromComponent = snackBar.openFromComponent;
         expect(openFromComponent.mock.calls[0][1].data.returnFocusTo).toBe(
             trigger
         );
     });
 
-    it('leaves the deleted source’s own page and returns on Undo', () => {
+    it('leaves the deleted source’s own page and returns on Undo', async () => {
         resolvedPlaylistId.set('a');
         routePlaylistId.set('a');
         router.url = '/workspace/xtreams/a/vod';
         service.remove(playlist('a'));
+        await flush();
         expect(router.navigate).toHaveBeenCalledWith(['/workspace', 'sources']);
 
         toasts[0].action.next();
@@ -289,6 +366,7 @@ describe('SourceRemovalService', () => {
     it('shows a desktop Xtream row as removing as soon as the delete starts', async () => {
         deletePlaylist.mockReturnValue(new Promise(() => undefined));
         service.remove({ ...playlist('x'), serverUrl: 'http://x.test' });
+        await flush();
         expect(service.isPending('x')).toBe(true);
         expireUndo();
         await flush();
@@ -307,6 +385,7 @@ describe('SourceRemovalService', () => {
             events.push(event);
         try {
             service.remove({ ...playlist('x'), serverUrl: 'http://x.test' });
+            await flush();
             expireUndo();
             await flush();
         } finally {
@@ -337,6 +416,7 @@ describe('SourceRemovalService', () => {
             }
         );
         service.remove(playlist('x'));
+        await flush();
         expireUndo();
         await flush();
 
@@ -374,6 +454,7 @@ describe('SourceRemovalService', () => {
             }
         );
         service.remove({ ...playlist('x'), serverUrl: 'http://x.test' });
+        await flush();
         expireUndo();
         await flush();
 
@@ -393,6 +474,7 @@ describe('SourceRemovalService', () => {
     it('brings the source back and says so when the delete fails', async () => {
         deletePlaylist.mockResolvedValue(false);
         service.remove(playlist('a'));
+        await flush();
         expireUndo();
         await flush();
         expect(dispatch).not.toHaveBeenCalled();

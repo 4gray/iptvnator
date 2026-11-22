@@ -1250,7 +1250,6 @@
         "IMPORT_SUMMARY_QUEUED": "{{count}} فالصف",
         "TOTAL_CHANNELS": "مجموع القنوات",
         "TOTAL_PROGRAMS": "مجموع البرامج",
-        "UP_TO_DATE": "EPG محدث، ما خاصش مزامنة",
         "RETRY": "حاول مرة أخرى",
         "ALLOW_PRIVATE_SOURCE": "سمح للمصدر",
         "ALLOW_PRIVATE_SOURCE_TITLE": "نسمحو لمصدر EPG من شبكة خاصة؟",
@@ -1696,8 +1695,8 @@
             "PLAYING_FROM": "كيتشغل من:",
             "SWITCH_TITLE": "المصدر ما متوفرش — كنبدلو ل {{playlist}}",
             "SWITCH_DETAIL": "غادي نكملو من {{timecode}}",
-            "SWITCH_AUDIO_WARNING": "يمكن الدوبلاج يكون مختلف",
             "SWITCHED_TO": "تبدل ل {{playlist}}",
+            "SWITCHED_TO_AUDIO_MAY_DIFFER": "تبدل ل {{playlist}} — يمكن الدوبلاج يكون مختلف",
             "UNDO": "تراجع",
             "CHOOSE_OTHER": "اختار واحد آخر",
             "TRY_ANOTHER_SOURCE": "جرب مصدر آخر",
@@ -1762,10 +1761,9 @@
         "EPISODE_NAVIGATION": "التنقل بين الحلقات",
         "INLINE_PLAYER": "المشغّل",
         "REQUEST_ERRORS": {
-            "XTREAM": "فشل طلب Xtream: {{message}}",
             "XTREAM_CONNECTION": "ما قدرناش نتاصلو بسيرفر Xtream",
-            "STALKER": "فشل طلب Stalker: {{message}} (الحالة {{status}})",
-            "NOT_FOUND": "ما تلقاش"
+            "XTREAM_FAILED": "الطلب لسيرفر Xtream ما نجحش.",
+            "STALKER_FAILED": "الطلب لبوابة Stalker ما نجحش."
         }
     },
     "INFORMATION": "معلومات",
@@ -2475,7 +2473,7 @@
             "STREAM_NOT_FOUND": "البث ما تلقاش. يمكن الرابط غالط ولا سالات الصلاحية ديالو.",
             "TIMED_OUT": "مهلة الاتصال سالات. السيرفر ما كيجاوبش.",
             "LAUNCH_FAILED": "ما قدرناش نشعلو {{player}}.",
-            "UNKNOWN": "خطأ فـ {{player}}: {{error}}"
+            "REPORTED": "{{player}} عطا خطأ."
         },
         "INFO_DIALOG": {
             "PLAYING": "الفيديو خدام فنافذة المشغّل الخارجي.",

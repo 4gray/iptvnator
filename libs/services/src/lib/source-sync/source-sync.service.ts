@@ -7,8 +7,7 @@ import {
     Injectable,
     signal,
 } from '@angular/core';
-import { LazySnackBar } from '../lazy-snack-bar/lazy-snack-bar';
-import { TranslateService } from '@ngx-translate/core';
+import { NotificationService } from '../notifications/notification.service';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { Subject } from 'rxjs';
 import {
@@ -42,8 +41,7 @@ export class SourceSyncService {
     private readonly backend = inject(PlaylistStorageBackend);
     private readonly db = inject(NgxIndexedDBService);
     private readonly data = inject(DataService);
-    private readonly snackBar = inject(LazySnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
     private readonly destroy = inject(DestroyRef);
     private readonly cleanups =
         inject(PLAYLIST_DELETE_CLEANUP, { optional: true }) ?? [];
@@ -283,10 +281,9 @@ export class SourceSyncService {
                         Math.min(120000, 15000 * 2 ** this.failures++);
                     this.reportError(key.startsWith('SOURCE_SYNC.') ? key : null);
                     if (key === 'SOURCE_SYNC.INSTANCE_CHANGED') {
-                        this.snackBar.open(
-                            this.translate.instant(key),
-                            this.translate.instant('CLOSE')
-                        );
+                        this.notifications.error(key, undefined, {
+                            duration: 'sticky',
+                        });
                     }
                 }
             })
@@ -354,16 +351,7 @@ export class SourceSyncService {
             if (!['locked', 'conflict'].includes(this.state()))
                 this.state.set('offline');
             if (mutation) {
-                const message =
-                    error instanceof Error &&
-                    error.message.startsWith('SOURCE_SYNC.')
-                        ? error.message
-                        : 'SOURCE_SYNC.REQUEST_FAILED';
-                this.snackBar.open(
-                    this.translate.instant(message),
-                    this.translate.instant('CLOSE'),
-                    { duration: 7000 }
-                );
+                this.notifications.error(key ?? 'SOURCE_SYNC.REQUEST_FAILED');
             }
             throw new Error(key ?? 'SOURCE_SYNC.OFFLINE');
         }

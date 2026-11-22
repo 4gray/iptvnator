@@ -471,17 +471,23 @@ async function withFloatingSurfaces(
                 .getByTestId('confirm-dialog-confirm')
                 .click();
 
+            // A success toast: the kit frame with the hairline tinted by
+            // the success colour (NotificationService variants).
             const toast = page.locator(
-                '.mat-mdc-snack-bar-container .mat-mdc-snackbar-surface'
+                '.mat-mdc-snack-bar-container.app-notification--success .mat-mdc-snackbar-surface'
             );
             await expect(toast).toBeVisible();
+            const successHairline = await resolveColor(
+                page,
+                'color-mix(in srgb, var(--app-success-color) 55%, var(--app-line-strong))'
+            );
             await expect
                 .poll(() => frame(toast), {
                     message: `toast frame in ${theme} theme`,
                 })
                 .toEqual({
                     background: surface,
-                    border: hairline,
+                    border: successHairline,
                     radius: '10px',
                 });
             expect(
