@@ -425,6 +425,12 @@ private temporary file followed by an atomic rename.
 Settings → Connectivity connects a desktop or browser client, refreshes the
 library, previews/imports original local sources, and disconnects. Connection
 help links to the [client connection guide](../../docker/README.md#connect-your-clients).
+On Android phones and tablets, **Connect** checks the server address, including
+any reverse-proxy path. A source-sync server can request an access token, while a
+desktop server can require device pairing. To start a new Cloudflare Access
+connection, choose **Scan QR code** and scan the host's device invitation.
+**Advanced → Open hosted web player** opens the server’s own web app. The
+optional HTTPS address under **Advanced** is for approving a pairing request.
 Rechecking the selected endpoint keeps its saved token when the password field
 is empty. Renewing credentials for the same endpoint and instance does not
 reload either client. Switching an endpoint or server instance still requires

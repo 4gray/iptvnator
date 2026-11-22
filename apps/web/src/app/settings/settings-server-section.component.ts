@@ -1,4 +1,10 @@
 import { SettingsHostedServerComponent } from './settings-hosted-server.component';
+import {
+    isHostedLibrarySource,
+    selectAndroidServer,
+} from './android-server-inspection';
+import { matchesServerAddress, serverAddressControl } from './server-address';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgTemplateOutlet } from '@angular/common';
 import {
     disconnectAndroidHostedLibrary,
@@ -10,18 +16,14 @@ import { SettingsHistorySectionComponent } from './settings-history-section.comp
 import { SettingsFavoritesSectionComponent } from './settings-favorites-section.component';
 import {
     ChangeDetectionStrategy,
+    DestroyRef,
     Component,
     inject,
     signal,
     viewChild,
     computed,
 } from '@angular/core';
-import {
-    FormControl,
-    FormsModule,
-    ReactiveFormsModule,
-    Validators,
-} from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 import {
@@ -82,12 +84,29 @@ export class SettingsServerSectionComponent {
     protected readonly androidSettings = getAndroidSettingsControls();
     protected readonly androidLibrary = getAndroidLibraryControls();
     protected readonly library = this.androidLibrary?.libraryConnection();
-    protected libraryAddress = this.library?.savedOrigin ?? '';
+    private readonly destroyRef = inject(DestroyRef);
+    private readonly tokenAddress = signal('');
+    protected readonly nativeHosted = isHostedLibrarySource(
+        this.library?.origin,
+        this.sync.connection?.apiUrl
+    );
+    protected get otherSelectedAddress(): string | undefined {
+        const current = this.sync.connection?.apiUrl;
+        const origin = this.nativeHosted
+            ? this.library?.origin
+            : this.library?.savedOrigin;
+        if (current && !this.nativeHosted)
+            return this.matchesAddress(current) ? undefined : current;
+        return origin && !this.matchesAddress(origin + '/api')
+            ? origin
+            : undefined;
+    }
     protected approvalAddress = this.library?.approvalOrigin ?? '';
     protected readonly directSourceConnection = signal(false);
     protected readonly showSourceConnectionForm = computed(() => {
         const connection = this.sync.connection;
         return (
+            !!this.library ||
             !this.androidSettings ||
             this.directSourceConnection() ||
             this.sync.connectionReadFailed ||
@@ -132,27 +151,62 @@ export class SettingsServerSectionComponent {
               ? (window.electron.sourceSyncSavedConnection?.() ?? null)
               : readSavedBrowserSourceConnection()
     );
-    readonly urlControl = new FormControl(
-        this.sync.connection?.apiUrl ?? this.savedConnection()?.apiUrl ?? '',
-        {
-            nonNullable: true,
-            validators: [
-                Validators.required,
-                (control) => {
-                    try {
-                        normalizeSourceServerUrl(control.value.trim());
-                        return null;
-                    } catch {
-                        return { serverUrl: true };
-                    }
-                },
-            ],
-        }
+    readonly urlControl = serverAddressControl(
+        (this.nativeHosted
+            ? this.library?.origin
+            : this.sync.connection?.apiUrl) ??
+            this.savedConnection()?.apiUrl ??
+            this.library?.savedOrigin ??
+            ''
     );
     token = '';
 
+    constructor() {
+        if (this.library)
+            this.urlControl.valueChanges
+                .pipe(takeUntilDestroyed())
+                .subscribe(() => {
+                    this.tokenAddress.set('');
+                    this.token = '';
+                    this.message.set('');
+                });
+    }
+
+    protected needsAndroidToken(): boolean {
+        return (
+            this.matchesAddress(this.tokenAddress()) ||
+            (!this.nativeHosted &&
+                this.isCurrentServer() &&
+                this.sync.state() === 'locked')
+        );
+    }
+
+    protected isSavedLibrary(): boolean {
+        return (
+            !!this.library?.savedOrigin &&
+            !this.library.origin &&
+            this.matchesAddress(this.library.savedOrigin + '/api')
+        );
+    }
+
+    protected openHostedPlayer(): void {
+        this.urlControl.markAsTouched();
+        if (this.urlControl.invalid || this.busy()) return;
+        const api = new URL(
+            normalizeSourceServerUrl(this.urlControl.value.trim())
+        );
+        if (api.pathname !== '/api')
+            this.message.set('SOURCE_SYNC.URL_INVALID');
+        else this.androidLibrary?.connectLibrary(api.origin);
+    }
+
     isCurrentServer(): boolean {
-        return this.matchesAddress(this.sync.connection?.apiUrl);
+        return (
+            !!this.sync.connection &&
+            (this.matchesAddress(this.sync.connection.apiUrl) ||
+                (this.nativeHosted &&
+                    this.matchesAddress(this.library?.origin + '/api')))
+        );
     }
 
     isSavedServer(): boolean {
@@ -160,15 +214,7 @@ export class SettingsServerSectionComponent {
     }
 
     private matchesAddress(apiUrl?: string): boolean {
-        if (!apiUrl) return false;
-        const input = this.urlControl.value.trim().replace(/\/+$/, '');
-        try {
-            return (
-                input === apiUrl || normalizeSourceServerUrl(input) === apiUrl
-            );
-        } catch {
-            return false;
-        }
+        return matchesServerAddress(this.urlControl.value, apiUrl);
     }
 
     async refresh(): Promise<void> {
@@ -191,12 +237,20 @@ export class SettingsServerSectionComponent {
         this.message.set('');
         this.urlControl.markAsTouched();
         if (this.urlControl.invalid) return;
-        if (this.isCurrentServer() && !this.token && !useHosted) {
+        if (
+            this.isCurrentServer() &&
+            !this.token &&
+            !useHosted &&
+            (!this.library ||
+                this.sync.state() === 'connected' ||
+                (!this.nativeHosted && this.sync.state() !== 'locked'))
+        ) {
             await this.refresh();
             return;
         }
         this.busy.set(true);
         this.connecting.set(true);
+        let sourceAddress = '';
         try {
             const input = this.urlControl.value.trim().replace(/\/+$/, '');
             const saved = this.isSavedServer() ? this.savedConnection() : null;
@@ -206,6 +260,24 @@ export class SettingsServerSectionComponent {
                 input === saved?.apiUrl
                     ? input
                     : normalizeSourceServerUrl(input);
+            if (this.androidLibrary) {
+                const step = await selectAndroidServer(
+                    this.androidLibrary,
+                    apiUrl,
+                    this.approvalAddress,
+                    () =>
+                        !this.destroyRef.destroyed &&
+                        this.matchesAddress(apiUrl)
+                );
+                if (step === 'invitation')
+                    this.message.set('SETTINGS.ANDROID_ACCESS_INVITE_REQUIRED');
+                if (step !== 'sources' && step !== 'token') return;
+                sourceAddress = apiUrl;
+                if (step === 'token') {
+                    this.tokenAddress.set(apiUrl);
+                    if (!this.token && !reuse?.hasToken) return;
+                }
+            }
             if (window.electron?.sourceSyncConfigure) {
                 await window.electron.sourceSyncConfigure(
                     apiUrl,
@@ -229,6 +301,13 @@ export class SettingsServerSectionComponent {
                 else location.reload();
             }
         } catch (error) {
+            if (
+                sourceAddress &&
+                this.matchesAddress(sourceAddress) &&
+                error instanceof Error &&
+                error.message === 'SOURCE_SYNC.LOCKED'
+            )
+                this.tokenAddress.set(sourceAddress);
             this.showError(error, 'SOURCE_SYNC.CONNECTION_FAILED');
         } finally {
             this.busy.set(false);

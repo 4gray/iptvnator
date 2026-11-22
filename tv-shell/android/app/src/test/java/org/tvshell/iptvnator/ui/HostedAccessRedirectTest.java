@@ -15,6 +15,7 @@ public class HostedAccessRedirectTest {
         PairingQrTest.main(args);
         PairingTransportTest.main(args);
         PairingAttemptsTest.main(args);
+        HostedServerDiscoveryTest.main(args);
         for (int status : new int[] {301, 302, 303, 307, 308}) {
             check(true, status, "https://team.cloudflareaccess.com/cdn-cgi/access/login/server.example?redirect_url=%2F");
         }

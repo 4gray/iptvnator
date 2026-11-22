@@ -38,6 +38,12 @@ l'app desktop casserait sa mise à jour automatique).
 
 ## Téléphones et tablettes Android
 
+Dans **Paramètres → Connectivité**, saisissez l’adresse du serveur puis
+appuyez sur **Connecter**. Si le serveur demande un jeton d’accès,
+saisissez-le à l’invite. Pour associer l’appareil à partir d’une invitation
+du serveur, choisissez **Scanner le code QR**. Le lecteur web du serveur
+reste accessible dans **Options avancées**.
+
 Le mode **Auto** utilise une interface tactile à la largeur de l’écran sur
 téléphone et tablette. La rotation conserve la page ouverte. Dans les réglages,
 ouvrez **Appareil Android** pour choisir le mode **Auto**, **Téléphone / tablette**

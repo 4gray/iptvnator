@@ -1121,6 +1121,31 @@
 
     var libraryConnection = isAndroid && window.__tvShellLibraryConnection;
     var pairedHostedPage = isAndroid && (window.HostedPairing || window.HostedAccessApi);
+    var inspection = libraryConnection && !libraryConnection.origin && window.HostedServerInspection;
+    if (inspection) {
+        var inspectionId = 0, waiting = null;
+        function finishInspection(kind) {
+            if (!waiting) return;
+            clearTimeout(waiting.timer);
+            waiting.resolve(kind);
+            waiting = null;
+        }
+        inspection.onmessage = function (event) {
+            var result = JSON.parse(event.data);
+            if (waiting && result.id === waiting.id)
+                finishInspection(['sources', 'token', 'pair', 'reconnect', 'access'].indexOf(result.kind) >= 0 ? result.kind : 'unknown');
+        };
+        api.inspectServer = function (apiUrl) {
+            finishInspection('unknown');
+            if (typeof apiUrl !== 'string' || !apiUrl || apiUrl.length > 2048) return Promise.resolve('unknown');
+            return new Promise(function (resolve) {
+                var id = String(++inspectionId);
+                waiting = { id: id, resolve: resolve, timer: setTimeout(function () { finishInspection('unknown'); }, 10000) };
+                try { inspection.postMessage(JSON.stringify({ id: id, apiUrl: apiUrl })); }
+                catch (e) { finishInspection('unknown'); }
+            });
+        };
+    }
     if (libraryConnection || pairedHostedPage) {
         api.disconnectLibrary = function () {
             if (!pairedHostedPage && !libraryConnection.origin && !libraryConnection.offline) return false;

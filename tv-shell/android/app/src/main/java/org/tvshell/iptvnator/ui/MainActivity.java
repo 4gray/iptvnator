@@ -93,6 +93,7 @@ public class MainActivity extends ComponentActivity {
     private volatile HostedAccessSession accessSession;
     private volatile TvShellServer bundledAccessSite;
     private HostedAccessBridge accessBridge;
+    private HostedServerInspection serverInspection;
 
     private String effectiveLibraryOrigin() {
         String preferred = prefs.hostedOrigin();
@@ -339,6 +340,7 @@ public class MainActivity extends ComponentActivity {
             /** The sandboxed renderer died (OOM abort or system kill). Unhandled, Chromium crashes or kills the app. */
             @Override
             public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+                if (serverInspection != null) serverInspection.cancel();
                 if (accessBridge != null) { accessBridge.close(); accessBridge = null; }
                 fileChooser.cancel();
                 boolean crashed = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && detail.didCrash();
@@ -492,6 +494,11 @@ public class MainActivity extends ComponentActivity {
     }
 
     private void bindBridge(String origin, boolean hosted) throws IOException {
+        if (serverInspection != null) {
+            serverInspection.cancel();
+            serverInspection = null;
+            WebViewCompat.removeWebMessageListener(webView, "HostedServerInspection");
+        }
         if (accessBridge != null) {
             accessBridge.close();
             accessBridge = null;
@@ -503,6 +510,16 @@ public class MainActivity extends ComponentActivity {
         }
         if (shellScript != null) { shellScript.remove(); shellScript = null; }
         bridgeOrigin = origin;
+        if (!hosted && !tvDevice && WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+            HostedServerInspection inspector = new HostedServerInspection(this);
+            serverInspection = inspector;
+            WebViewCompat.addWebMessageListener(webView, "HostedServerInspection", Collections.singleton(origin),
+                (view, message, source, mainFrame, reply) -> {
+                    if (view == webView && mainFrame && serverInspection == inspector && canManageLibrary()
+                        && loadedConnection.isEmpty() && HostedOrigin.sameOrigin(origin, source.toString())
+                        && message.getType() == WebMessageCompat.TYPE_STRING) inspector.receive(message.getData(), reply);
+                });
+        }
         TvShellBridge bridge = new TvShellBridge(this);
         WebViewCompat.addWebMessageListener(webView, "TvShell", Collections.singleton(origin),
             (view, message, sourceOrigin, isMainFrame, replyProxy) -> {
@@ -1353,6 +1370,7 @@ public class MainActivity extends ComponentActivity {
     @Override
     protected void onDestroy() {
         fileChooser.cancel();
+        if (serverInspection != null) serverInspection.cancel();
         if (isFinishing()) accessFlow.cancel();
         else accessFlow.detach();
         if (accessBridge != null) accessBridge.close();

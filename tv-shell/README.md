@@ -26,7 +26,8 @@ Native Settings offers **Local library** and **Connect to hosted library**. Ente
 an HTTP or HTTPS address for a running IPTVnator hosted server; the shell checks
 its instance endpoint before switching. Leaving Settings, starting a pairing or
 scan, or selecting the local library cancels the check. Use the hosted page's sign-in for its
-access code. The web app's Connect action is a separate source-sync setting.
+access code. On phones and tablets, **Settings → Connectivity** also connects
+directly to a server from the bundled app.
 Local data and the saved hosted address remain available when switching modes.
 HTTP is intended for trusted networks; HTTPS uses normal certificate validation.
 If the hosted server cannot load, the app opens the local library and keeps
@@ -190,15 +191,15 @@ from the configured `--www` directory, with symbolic links confined to that dire
   Back, provided the external-player prompt is enabled. Enabling Media3 in
   settings preserves a web error for the same playback attempt. The app's
   "Copy stream URL" button also offers an external player on a TV.
-- On phones and tablets, open the gear and choose **Connectivity**. The
-  library card shows whether you're using the local library and displays the
-  current or saved server address. Tap **Connect** to reconnect to a saved server
-  or **Disconnect** to return to the local library.
-  **Scan QR code** scans server invitations and TV approval codes. Approving a TV
-  requires a paired phone with device approval permission. The shared access-code
-  connection, optional HTTPS approval address and **Remove pairing** are under
-  **Connection options**. To sync sources while using the embedded app, expand
-  **Connection options** and choose **Source sync connection options**.
+- On phones and tablets, open **Settings → Connectivity**, enter the server
+  address, and tap **Connect**. A Docker server can ask for an access token.
+  A desktop server can ask you to pair the phone or tablet. For a new
+  Cloudflare Access connection, use **Scan QR code** to open an invitation
+  from the host. The scanner also reads TV approval codes on a phone with
+  device approval permission.
+  Under **Advanced**, you can open the hosted web player, enter an optional
+  HTTPS address for pairing approval, or remove an existing pairing.
+  **Disconnect** returns to the local library.
   Choose **Playback → External player settings** for the experimental built-in
   player and Android external-player preferences,
   or **Android device → Open settings** for diagnostics, data reset

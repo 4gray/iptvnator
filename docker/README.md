@@ -250,7 +250,9 @@ on a NAS or home server. The steps below use Docker.
    internal backend port, `/api/v1`, a provider login URL or an address with
    query parameters. The client adds `/api` automatically; an existing `/api`
    suffix is also accepted. Connection changes restart/reload the application.
-5. On a phone or another browser, open the same server address. The bundled
+5. In the Android app on a phone or tablet, open **Settings → Connectivity**,
+   enter the server address, and choose **Connect**. Enter the token from
+   step 3 if prompted. In a browser, open the same server address. The bundled
    PWA discovers its server automatically. If it asks for a token, open
    **Settings → Connectivity** and enter the same token there. A standalone PWA can
    also connect manually through that page.

@@ -18,7 +18,7 @@ for (const [layout, widget] of [['activity_settings', 'CheckBox'], ['activity_se
 
 for (const layout of ['touch', 'tv', 'hosted-touch', 'hosted-tv']) {
   for (const android of [true, false]) {
-    test(`${layout} layout starts with appropriate navigation and ${android ? 'Android' : 'browser'} bridge`, () => {
+    test(`${layout} layout starts with appropriate navigation and ${android ? 'Android' : 'browser'} bridge`, async () => {
         const events = new Set();
         const classes = new Set();
         const intervals = [];
@@ -50,6 +50,13 @@ for (const layout of ['touch', 'tv', 'hosted-touch', 'hosted-tv']) {
                     canScanQr: layout === 'touch',
                 },
             } : {}),
+            ...(android && layout === 'touch' ? { HostedServerInspection: {
+                postMessage(message) {
+                    const { id, apiUrl } = JSON.parse(message);
+                    assert.equal(apiUrl, 'https://nas.example.test/nested/api');
+                    queueMicrotask(() => this.onmessage({ data: JSON.stringify({ id, kind: 'sources' }) }));
+                },
+            } } : {}),
             ...(layout === 'hosted-tv' ? { HostedPairing: {} } : {}),
             ...(android ? { TvShell: { postMessage: message => messages.push(JSON.parse(message)) } } : {}),
             addEventListener() {},
@@ -62,7 +69,7 @@ for (const layout of ['touch', 'tv', 'hosted-touch', 'hosted-tv']) {
             XMLHttpRequest: class {},
             MutationObserver: class { observe() {} },
             setInterval: callback => intervals.push(callback),
-            clearInterval() {},
+            clearInterval() {}, setTimeout, clearTimeout,
             console: { log() {} },
         });
 
@@ -74,6 +81,15 @@ for (const layout of ['touch', 'tv', 'hosted-touch', 'hosted-tv']) {
         assert.equal(typeof window.__tvShell.back, 'function');
         const handheld = android && (layout === 'touch' || layout === 'hosted-touch');
         assert.equal(window.__tvShell.handheld, handheld);
+        if (android && layout === 'touch') {
+            const inspect = () => window.__tvShell.inspectServer('https://nas.example.test/nested/api');
+            const superseded = inspect();
+            const current = inspect();
+            assert.equal(await superseded, 'unknown');
+            assert.equal(await current, 'sources');
+        } else {
+            assert.equal(window.__tvShell.inspectServer, undefined);
+        }
         assert.equal(window.__tvShell.openDeviceSettings(), handheld);
         assert.deepEqual(messages, handheld ? [['openSettings']] : []);
         messages.length = 0;

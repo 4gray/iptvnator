@@ -1,4 +1,11 @@
 export type AndroidSettingsSection = 'server' | 'playback' | 'device';
+export type AndroidServerKind =
+    | 'sources'
+    | 'token'
+    | 'pair'
+    | 'reconnect'
+    | 'access'
+    | 'unknown';
 
 export interface AndroidShellControls {
     readonly handheld: true;
@@ -8,6 +15,7 @@ export interface AndroidShellControls {
 }
 
 export interface AndroidLibraryControls {
+    inspectServer?(apiUrl: string): Promise<AndroidServerKind>;
     libraryConnection(): {
         origin: string;
         savedOrigin: string;

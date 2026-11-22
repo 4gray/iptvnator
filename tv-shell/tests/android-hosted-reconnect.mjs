@@ -75,8 +75,8 @@ try {
         adb('shell', 'input', 'tap', String(Math.round((x1 + x2) / 2)), String(Math.round((y1 + y2) / 2)));
     }
     const disconnect = '[data-test-id="android-library-disconnect"]';
-    const reconnect = '[data-test-id="android-library-reconnect"]';
-    const options = '.android-connection-options';
+    const addressField = '[data-test-id="source-server-url"]';
+    const connect = '[data-test-id="source-server-connect"]';
     const server = JSON.stringify(origin);
     const element = selector => `document.querySelector(${JSON.stringify(selector)})`;
     const connection = 'window.__tvShellLibraryConnection';
@@ -100,23 +100,19 @@ try {
     await evaluate('location.href = "/workspace/settings/server"; true');
     await waitFor(element(disconnect), 'Hosted Connectivity did not load.');
     await evaluate(`${element(disconnect)}.click(); true`);
-    await waitFor(`${connection}?.origin === '' && ${element(options)}`, 'Disconnect did not open local Connectivity.');
+    await waitFor(`${connection}?.origin === '' && ${element(addressField)}`, 'Disconnect did not open local Connectivity.');
     const local = await evaluate(connection);
     assert.equal(local.savedOrigin, '');
     assert.equal(local.offline, false);
     assert.equal(local.paired, false, 'Local mode has no selected device credential.');
-    assert.equal(await evaluate(`!!${element(reconnect)}`), false);
+    assert.equal(await evaluate(`${element(addressField)}.value`), '');
     await evaluate(`
-        const options = ${element(options)};
-        options.open = true;
-        const address = options.querySelector('input[type="url"]');
+        const address = ${element(addressField)};
         address.value = ${server};
         address.dispatchEvent(new Event('input', { bubbles: true }));
     `);
-    const manualConnect = `[...${element(options)}.querySelectorAll('button')].find(
-        button => button.textContent.trim() === 'Connect with access code' && !button.disabled)`;
-    await waitFor(manualConnect, 'Connection options did not accept the server address.');
-    await restoreHosted(manualConnect);
+    await waitFor(`${element(connect)} && !${element(connect)}.disabled`, 'Connect did not accept the server address.');
+    await restoreHosted(element(connect));
     console.log('PASS Re-entering the address after Disconnect restores the authenticated library');
 
     // A main-frame 503 exercises the WebView's native offline fallback. The host remains available for reconnect.
@@ -130,7 +126,7 @@ try {
         });
         const [requestId] = await Promise.all([pause, evaluate(`setTimeout(() => location.assign(${JSON.stringify(offlineUrl)})); true`)]);
         await send('Fetch.fulfillRequest', { requestId, responseCode: 503, responsePhrase: 'Service Unavailable' });
-        await waitFor(`${connection}?.offline && ${element(reconnect)}`, 'The unavailable server did not open offline Connectivity.');
+        await waitFor(`${connection}?.offline && ${element(addressField)}?.value === ${server}`, 'Offline Connectivity did not restore the saved address.');
     } finally {
         clearTimeout(pauseTimer);
         pausedNavigation = undefined;
@@ -140,7 +136,7 @@ try {
     assert.equal(offline.origin, '');
     assert.equal(offline.savedOrigin, origin);
     assert.equal(offline.paired, true);
-    await restoreHosted(element(reconnect));
+    await restoreHosted(element(connect));
     console.log('PASS Offline fallback retains the saved server and Connect restores the authenticated library');
 
     const sources = 'a[href="/workspace/sources"]';

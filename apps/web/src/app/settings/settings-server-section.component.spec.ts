@@ -195,24 +195,20 @@ describe('source server settings', () => {
                 const scan = findControl('android-library-scan');
                 expect(scan?.textContent).toContain('SETTINGS.ANDROID_SCAN_QR');
                 expect(scan?.closest('details')).toBeNull();
-                expect(scan?.classList.contains('settings-primary-button')).toBe(
-                    !origin
-                );
-                if (!origin) {
-                    const sourceSyncOptions = findControl(
-                        'android-source-sync-options'
-                    );
-                    expect(sourceSyncOptions?.closest('details')?.open).toBe(
-                        false
-                    );
-                }
+                expect(findControl('android-source-sync-options')).toBeNull();
+                expect(
+                    findControl('source-server-url')?.closest('details')
+                ).toBeNull();
+                expect(findControl('source-server-connect')).not.toBeNull();
+                expect(findControl('source-server-token')).toBeNull();
                 scan?.click();
                 expect(scanLibraryQr).toHaveBeenCalledTimes(1);
                 const disconnect = findControl('android-library-disconnect');
                 if (origin) {
-                    expect(findControl('android-library-address')?.textContent).toContain(
+                    expect(fixture.componentInstance.urlControl.value).toBe(
                         origin
                     );
+                    expect(findControl('android-library-address')).toBeNull();
                     expect(disconnect).not.toBeNull();
                     disconnect?.click();
                     expect(disconnectLibrary).toHaveBeenCalledTimes(1);
@@ -222,7 +218,7 @@ describe('source server settings', () => {
             }
         );
 
-        it('reconnects to a saved server with the address shown separately', () => {
+        it('reconnects to a saved server with the address shown separately', async () => {
             const origin = 'https://iptvnator-library.example';
             const connectLibrary = jest.fn();
             const removeLibraryPairing = jest.fn();
@@ -240,6 +236,7 @@ describe('source server settings', () => {
                     disconnectLibrary: jest.fn(),
                     pairLibrary: jest.fn(),
                     connectLibrary,
+                    inspectServer: jest.fn().mockResolvedValue('reconnect'),
                     removeLibraryPairing,
                 },
                 null
@@ -248,11 +245,18 @@ describe('source server settings', () => {
             expect(findControl('android-library-state')?.textContent).toContain(
                 'SETTINGS.ANDROID_LOCAL_LIBRARY'
             );
-            expect(findControl('android-library-address')?.textContent).toContain(origin);
-            const reconnect = findControl('android-library-reconnect');
-            expect(reconnect?.textContent?.trim()).toBe('SOURCE_SYNC.CONNECT');
-            expect(reconnect?.classList.contains('settings-primary-button')).toBe(true);
+            expect(fixture.componentInstance.urlControl.value).toBe(origin);
+            expect(findControl('android-library-address')).toBeNull();
+            const reconnect = findControl('source-server-connect');
+            expect(reconnect?.textContent?.trim()).toBe(
+                'SOURCE_SYNC.RECONNECT'
+            );
+            expect(
+                reconnect?.classList.contains('settings-primary-button')
+            ).toBe(true);
             reconnect?.click();
+            await fixture.whenStable();
+            fixture.detectChanges();
             expect(connectLibrary).toHaveBeenCalledWith(origin);
 
             const removePairing = findControl('android-library-remove-pairing');
@@ -262,10 +266,227 @@ describe('source server settings', () => {
             removePairing?.click();
             expect(removeLibraryPairing).toHaveBeenCalledTimes(1);
 
-            findControl('android-source-sync-options')?.click();
+            expect(
+                findControl('source-server-url')?.closest('details')
+            ).toBeNull();
+            expect(
+                findControl('source-server-connect')?.closest('details')
+            ).toBeNull();
+        });
+
+        function useInlineLibrary(
+            connection: SourceServerConnection | null = null
+        ) {
+            const shell = {
+                handheld: true,
+                openSettingsSection,
+                libraryConnection: () => ({
+                    origin: '',
+                    savedOrigin: '',
+                    canScanQr: true,
+                }),
+                inspectServer: jest.fn(),
+                scanLibraryQr: jest.fn(),
+                disconnectLibrary: jest.fn(),
+                pairLibrary: jest.fn(),
+                connectLibrary: jest.fn(),
+            };
+            useAndroidShell(shell, connection);
+            return shell;
+        }
+
+        it('asks for a token only for the inspected address and clears it on an edit', async () => {
+            const shell = useInlineLibrary();
+            const component = fixture.componentInstance;
+            component.urlControl.setValue('https://nas.test/share/');
+            shell.inspectServer.mockResolvedValue('token');
+            globalThis.fetch = jest.fn();
+            await component.connect();
             fixture.detectChanges();
-            expect(findControl('source-server-url')?.closest('details')).toBe(options);
-            expect(findControl('source-server-connect')?.closest('details')).toBe(options);
+            expect(shell.inspectServer).toHaveBeenCalledWith(
+                'https://nas.test/share/api'
+            );
+            expect(findControl('source-server-token')).not.toBeNull();
+            expect(globalThis.fetch).not.toHaveBeenCalled();
+            component.token = 'synthetic-token';
+            component.urlControl.setValue('https://new.example');
+            fixture.detectChanges();
+            expect(component.token).toBe('');
+            expect(findControl('source-server-token')).toBeNull();
+            shell.inspectServer.mockResolvedValue('unknown');
+            await component.connect();
+            expect(component.message()).toBe('SOURCE_SYNC.CONNECTION_FAILED');
+            expect(shell.pairLibrary).not.toHaveBeenCalled();
+            expect(globalThis.fetch).not.toHaveBeenCalled();
+        });
+
+        it('pairs an Electron library and routes an Access library to the native sign-in', async () => {
+            const shell = useInlineLibrary();
+            const component = fixture.componentInstance;
+            component.urlControl.setValue('https://library.example/api');
+            const advanced: HTMLInputElement =
+                fixture.nativeElement.querySelector(
+                    '.android-connection-options input[type="url"]'
+                );
+            advanced.value = 'https://approval.example';
+            advanced.dispatchEvent(new Event('input'));
+            shell.inspectServer.mockResolvedValue('pair');
+            await component.connect();
+            expect(shell.pairLibrary).toHaveBeenCalledWith(
+                'https://library.example',
+                'https://approval.example'
+            );
+            shell.inspectServer.mockResolvedValue('access');
+            await component.connect();
+            expect(shell.connectLibrary).toHaveBeenCalledWith(
+                'https://library.example'
+            );
+            expect(component.message()).toBe(
+                'SETTINGS.ANDROID_ACCESS_INVITE_REQUIRED'
+            );
+            fixture.detectChanges();
+            expect(findControl('source-server-token')).toBeNull();
+        });
+
+        it('ignores an inspection completed after editing the address', async () => {
+            const shell = useInlineLibrary();
+            const component = fixture.componentInstance;
+            component.urlControl.setValue('https://previous.example');
+            let finish!: (kind: string) => void;
+            shell.inspectServer.mockReturnValue(
+                new Promise((resolve) => (finish = resolve))
+            );
+            const pending = component.connect();
+            component.urlControl.setValue('https://new.example');
+            finish('pair');
+            await pending;
+            expect(shell.pairLibrary).not.toHaveBeenCalled();
+        });
+
+        it('shows an active NAS address without reporting a local library', () => {
+            useInlineLibrary(activeConnection);
+            expect(findControl('android-library-state')).toBeNull();
+            expect(fixture.componentInstance.urlControl.value).toBe(
+                activeConnection.apiUrl
+            );
+            fixture.componentInstance.urlControl.setValue(
+                'https://new.example'
+            );
+            fixture.detectChanges();
+            expect(
+                findControl('android-library-address')?.textContent
+            ).toContain(activeConnection.apiUrl);
+            expect(findControl('source-server-disconnect')).not.toBeNull();
+        });
+
+        it('opens the hosted player explicitly using the main field and refuses subpaths', () => {
+            const shell = useInlineLibrary();
+            const component = fixture.componentInstance;
+            component.urlControl.setValue('https://library.example');
+            fixture.detectChanges();
+            const action = findControl('android-open-hosted-player');
+            expect(action?.closest('details')).not.toBeNull();
+            action?.click();
+            expect(shell.connectLibrary).toHaveBeenCalledWith(
+                'https://library.example'
+            );
+            component.urlControl.setValue('https://library.example/nas');
+            fixture.detectChanges();
+            action?.click();
+            expect(shell.connectLibrary).toHaveBeenCalledTimes(1);
+            expect(component.message()).toBe('SOURCE_SYNC.URL_INVALID');
+            expect(shell.inspectServer).not.toHaveBeenCalled();
+        });
+
+        it('restores the saved token only after checking the selected NAS instance', async () => {
+            const access = 'synthetic-access';
+            saveBrowserSourceConnection(activeConnection, access);
+            disconnectBrowserSourceConnection();
+            try {
+                const shell = useInlineLibrary();
+                shell.inspectServer.mockResolvedValue('token');
+                globalThis.fetch = jest
+                    .fn()
+                    .mockResolvedValueOnce({
+                        ok: true,
+                        json: async () => ({
+                            service: 'iptvnator',
+                            apiVersion: 1,
+                            storage: 'server',
+                            capabilities: ['sources-v1'],
+                            auth: 'token',
+                            instanceId: activeConnection.instanceId,
+                        }),
+                    })
+                    .mockResolvedValueOnce({ ok: false, status: 401 });
+                expect(findControl('source-server-token')).toBeNull();
+                await fixture.componentInstance.connect();
+                fixture.detectChanges();
+                expect(globalThis.fetch).toHaveBeenLastCalledWith(
+                    activeConnection.apiUrl + '/v1/sources',
+                    expect.objectContaining({
+                        headers: {
+                            Authorization: 'Bearer ' + access,
+                            'X-IPTVnator-Instance-Id':
+                                activeConnection.instanceId,
+                        },
+                    })
+                );
+                expect(findControl('source-server-token')).not.toBeNull();
+                expect(fixture.componentInstance.token).toBe('');
+                expect(fixture.componentInstance.message()).toBe(
+                    'SOURCE_SYNC.LOCKED'
+                );
+            } finally {
+                await fixture.componentInstance.forgetServer(null);
+                localStorage.removeItem('iptvnator:source-server-disabled');
+            }
+        });
+
+        it('uses the source API and stores an authenticated NAS connection', async () => {
+            const shell = useInlineLibrary(activeConnection);
+            const component = fixture.componentInstance;
+            sync.state.set('locked');
+            shell.inspectServer.mockResolvedValue('token');
+            component.token = 'synthetic-access';
+            globalThis.fetch = jest
+                .fn()
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({
+                        service: 'iptvnator',
+                        apiVersion: 1,
+                        storage: 'server',
+                        auth: 'token',
+                        instanceId: activeConnection.instanceId,
+                        capabilities: ['sources-v1'],
+                    }),
+                })
+                .mockResolvedValueOnce({ ok: true });
+            try {
+                await component.connect();
+                expect(component.message()).toBe('');
+                expect(component.token).toBe('');
+                expect(
+                    JSON.parse(
+                        localStorage.getItem('iptvnator:source-server') ??
+                            'null'
+                    )
+                ).toEqual(activeConnection);
+                expect(sync.refresh).toHaveBeenCalledTimes(1);
+                expect(shell.connectLibrary).not.toHaveBeenCalled();
+            } finally {
+                disconnectBrowserSourceConnection(false);
+            }
+        });
+
+        it('rechecks an active offline NAS with its current credentials', async () => {
+            const shell = useInlineLibrary(activeConnection);
+            sync.state.set('offline');
+            await fixture.componentInstance.connect();
+            expect(sync.refresh).toHaveBeenCalledTimes(1);
+            expect(shell.inspectServer).not.toHaveBeenCalled();
+            expect(findControl('source-server-token')).toBeNull();
         });
 
         it('opens native Server settings and omits the browser connection form for a local library', () => {

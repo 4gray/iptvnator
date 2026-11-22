@@ -81,7 +81,7 @@ android {
     }
 }
 
-configurations { hostedQrTest }
+configurations { hostedTestRuntime }
 tasks.register('buildMedia3Ffmpeg', Exec) {
     inputs.file ffmpegBuildScript
     inputs.property 'ndkVersion', android.ndkVersion
@@ -98,7 +98,9 @@ dependencies {
     androidTestImplementation 'androidx.test:runner:1.6.2'
     implementation project(':backend')
     implementation 'com.google.zxing:core:3.5.3'
-    hostedQrTest 'com.google.zxing:core:3.5.3'
+    hostedTestRuntime 'com.google.zxing:core:3.5.3'
+    hostedTestRuntime project(':backend')
+    hostedTestRuntime 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
     implementation 'androidx.webkit:webkit:1.13.0'
     implementation 'androidx.browser:browser:1.9.0'
@@ -123,9 +125,9 @@ dependencies {
 // Pure-Java origin and redirect rules run without an emulator or Android stubs.
 def hostedTestClasses = layout.buildDirectory.dir('hostedConnectionTests')
 tasks.register('compileHostedConnectionTests', JavaCompile) {
-    source fileTree('src/main/java') { include '**/LayoutPolicy.java', '**/HostedOrigin.java', '**/HostedAccessRedirect.java', '**/PairingLink.java', '**/PairingTransport.java', '**/PairingAttempts.java', '**/QrImageDecoder.java' }
-    source fileTree('src/test/java') { include '**/LayoutPolicyTest.java', '**/HostedOriginTest.java', '**/HostedAccessRedirectTest.java', '**/PairingLinkTest.java', '**/PairingTransportTest.java', '**/PairingAttemptsTest.java', '**/PairingQrTest.java' }
-    classpath = configurations.hostedQrTest
+    source fileTree('src/main/java') { include '**/LayoutPolicy.java', '**/HostedOrigin.java', '**/HostedAccessRedirect.java', '**/HostedServerDiscovery.java', '**/PairingLink.java', '**/PairingTransport.java', '**/PairingAttempts.java', '**/QrImageDecoder.java' }
+    source fileTree('src/test/java') { include '**/LayoutPolicyTest.java', '**/HostedOriginTest.java', '**/HostedAccessRedirectTest.java', '**/HostedServerDiscoveryTest.java', '**/PairingLinkTest.java', '**/PairingTransportTest.java', '**/PairingAttemptsTest.java', '**/PairingQrTest.java' }
+    classpath = configurations.hostedTestRuntime
     destinationDirectory = hostedTestClasses
     sourceCompatibility = '11'
     targetCompatibility = '11'
@@ -135,7 +137,7 @@ tasks.register('hostedConnectionTests', JavaExec) {
     group = 'verification'
     description = 'Checks hosted origin validation and Access redirect diagnostics.'
     dependsOn 'compileHostedConnectionTests'
-    classpath = files(hostedTestClasses) + configurations.hostedQrTest
+    classpath = files(hostedTestClasses) + configurations.hostedTestRuntime
     mainClass = 'org.tvshell.iptvnator.ui.HostedAccessRedirectTest'
 }
 tasks.named('check') { dependsOn 'hostedConnectionTests' }
