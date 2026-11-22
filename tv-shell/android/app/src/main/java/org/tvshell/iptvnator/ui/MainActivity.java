@@ -1066,8 +1066,8 @@ public class MainActivity extends ComponentActivity {
         startActivity(new Intent(this, SettingsActivity.class));
     }
 
-    void openPhoneSettings(String section) {
-        if (tvDevice || SettingsActivity.PhoneSection.fromKey(section) == null) return;
+    void openSettingsSection(String section) {
+        if (SettingsActivity.PhoneSection.fromKey(section) == null) return;
         startActivity(new Intent(this, SettingsActivity.class)
             .putExtra(SettingsActivity.EXTRA_PHONE_SECTION, section));
     }

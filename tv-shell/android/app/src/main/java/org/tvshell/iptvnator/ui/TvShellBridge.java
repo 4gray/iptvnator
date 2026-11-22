@@ -75,7 +75,7 @@ final class TvShellBridge {
                 break;
             case "openSettings":
                 if (args.size() == 1) activity.openSettings();
-                else if (args.size() == 2) activity.openPhoneSettings(stringAt(args, 1));
+                else if (args.size() == 2) activity.openSettingsSection(stringAt(args, 1));
                 break;
             case "scanLibraryQr":
                 if (args.size() == 1) activity.scanLibraryQr();
