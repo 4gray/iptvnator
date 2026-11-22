@@ -1,3 +1,4 @@
+import { getStalkerLiveRowGenre } from '@iptvnator/shared/interfaces';
 import { isStalkerItemWithheld } from './stalker-parental-lock.utils';
 import {
     firstNonBlankStalkerId,
@@ -55,9 +56,8 @@ export function filterItvChannelsByGenre(
         return channels;
     }
 
-    const target = String(categoryId);
     return channels.filter(
-        (channel) => String(channel.tv_genre_id ?? '') === target
+        (channel) => getStalkerLiveRowGenre(channel) === categoryId
     );
 }
 

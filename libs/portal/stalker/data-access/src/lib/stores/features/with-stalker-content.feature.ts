@@ -1110,6 +1110,17 @@ export function withStalkerContent() {
                 counts.set(Number.NaN, channels.length);
                 return counts;
             });
+            // The editor also lists hidden genres and opens behind the PIN when enabled.
+            const manageItvCategoryCounts = computed(() => {
+                const playlist = storeContext.currentPlaylist();
+                itvCache.versionFor(playlist);
+                const counts = new Map<string, number>();
+                for (const channel of itvCache.getChannels(playlist) ?? []) {
+                    const id = getStalkerLiveRowGenre(channel);
+                    if (id !== null) counts.set(id, (counts.get(id) ?? 0) + 1);
+                }
+                return counts;
+            });
             /** The selected genre as listed, or undefined (none or unknown). */
             const selectedListedCategory = computed(() => {
                 const selectedCategoryId = storeContext.selectedCategoryId();
@@ -1161,9 +1172,9 @@ export function withStalkerContent() {
                  * True when the currently selected ITV category can be served
                  * from the full-list cache. Censored (adult) genres are usually
                  * excluded from `get_all_channels`, so a genre with zero cached
-                 * channels stays on the legacy paged flow. O(1): reuses the
-                 * memoized per-genre count map instead of re-scanning the list
-                 * on every category click.
+                 * channels stays on the legacy paged flow. Use exact provider IDs
+                 * from the full-list index so age locks and hidden genres
+                 * agree with the filter used to load the channel list.
                  */
                 itvSelectedCategoryFromCache: computed(() => {
                     const playlist = storeContext.currentPlaylist();
@@ -1179,34 +1190,18 @@ export function withStalkerContent() {
                         return true;
                     }
 
-                    const genreId = Number(categoryId);
-                    if (Number.isNaN(genreId)) {
-                        // Non-numeric genre id would collide with the NaN
-                        // "All" total key — fall back to the direct scan.
-                        return (
-                            filterItvChannelsByGenre(
-                                itvFullChannelList(),
-                                categoryId
-                            ).length > 0
-                        );
-                    }
-
-                    return (itvCategoryItemCounts().get(genreId) ?? 0) > 0;
+                    parentalLock.version();
+                    return (
+                        manageItvCategoryCounts().has(categoryId) &&
+                        !withheldStalkerCategoryIds(
+                            parentalLock,
+                            playlist,
+                            'itv'
+                        ).has(categoryId)
+                    );
                 }),
                 itvCategoryItemCounts,
-                // The editor also lists hidden genres and opens behind the PIN when enabled.
-                manageItvCategoryCounts: computed(() => {
-                    const playlist = storeContext.currentPlaylist();
-                    itvCache.versionFor(playlist);
-                    const counts = new Map<string, number>();
-                    for (const channel of itvCache.getChannels(playlist) ??
-                        []) {
-                        const id = getStalkerLiveRowGenre(channel);
-                        if (id !== null)
-                            counts.set(id, (counts.get(id) ?? 0) + 1);
-                    }
-                    return counts;
-                }),
+                manageItvCategoryCounts,
                 /**
                  * Whether the portal reports more items than the grid has
                  * accumulated. Derived from `total_items` versus the actual

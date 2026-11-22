@@ -24,8 +24,8 @@ const Store = signalStore(
         setPage(page: number) {
             patchState(store, { page });
         },
-        selectAll() {
-            patchState(store, { selectedCategoryId: '*', page: 0 });
+        selectCategory(selectedCategoryId: string) {
+            patchState(store, { selectedCategoryId, page: 0 });
         },
         selectPlaylist(
             id: string,
@@ -101,7 +101,8 @@ describe('Stalker category ownership', () => {
                     useValue: {
                         versionFor: () => 0,
                         getChannels,
-                        isReady: () => false,
+                        ensureLoaded: jest.fn(),
+                        isReady: () => getChannels() !== null,
                         isLoading: () => false,
                         progressOf: () => null,
                         isUnsupported: () => false,
@@ -138,7 +139,7 @@ describe('Stalker category ownership', () => {
             store.selectType(section);
             store.selectPlaylist('a', { [section]: ['01'] });
             store.setCategories(section, categories);
-            store.selectAll();
+            store.selectCategory('*');
             for (
                 let attempt = 0;
                 attempt < 10 && !store.getPaginatedContent().length;
@@ -162,7 +163,7 @@ describe('Stalker category ownership', () => {
         store.selectType('itv');
         store.selectPlaylist('a', { itv: ['01'], radio: ['02'] });
         store.setCategories('itv', categories);
-        store.selectAll();
+        store.selectCategory('*');
         await settle();
         expect(
             store.getCategoryResource().map((genre) => genre.category_id)
@@ -187,13 +188,39 @@ describe('Stalker category ownership', () => {
         expect(request).not.toHaveBeenCalled();
     });
 
+    it('uses the exact provider genre for cache selection and paged fallback', async () => {
+        getChannels.mockReturnValue([
+            { id: 'cached', tv_genre_id: ' ', category_id: '01' },
+        ]);
+        store.selectType('itv');
+        store.selectPlaylist('a');
+        store.setCategories('itv', [
+            ...categories,
+            { category_id: '1', category_name: 'Another genre' },
+        ]);
+        store.selectCategory('01');
+        await settle();
+        expect(store.itvSelectedCategoryFromCache()).toBe(true);
+        expect(store.itvChannels().map((row) => row.id)).toEqual(['cached']);
+        expect(request).not.toHaveBeenCalled();
+
+        request.mockResolvedValue({
+            js: { data: [{ id: 'paged', tv_genre_id: '1' }], total_items: 2 },
+        });
+        store.selectCategory('1');
+        await settle();
+        expect(store.itvSelectedCategoryFromCache()).toBe(false);
+        expect(store.itvChannels().map((row) => row.id)).toEqual(['paged']);
+        expect(request).toHaveBeenCalledTimes(1);
+    });
+
     it('allows a saved hidden channel to play until its parental lock is active', async () => {
         const channel = { id: '1', category_id: '01' };
         getChannels.mockReturnValue([channel]);
         store.selectType('itv');
         store.selectPlaylist('a', { itv: ['01'] });
         store.setCategories('itv', categories);
-        store.selectAll();
+        store.selectCategory('*');
         await settle();
         expect(store.itvFullChannelList()).toEqual([]);
         expect(store.findItvChannelForHandoff('1')).toEqual(channel);
@@ -222,7 +249,7 @@ describe('Stalker category ownership', () => {
         store.selectType('radio');
         store.selectPlaylist('a');
         store.setCategories('radio', categories);
-        store.selectAll();
+        store.selectCategory('*');
         await settle();
         expect(store.radioChannels()).toHaveLength(2);
         store.setPage(1);
