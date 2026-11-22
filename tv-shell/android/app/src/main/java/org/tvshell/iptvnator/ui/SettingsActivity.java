@@ -125,7 +125,7 @@ public class SettingsActivity extends Activity {
         EditText approvalAddress = findViewById(R.id.approval_address);
         approvalAddress.setText(prefs.approvalOrigin());
         View pair = findViewById(R.id.pair_host);
-        pair.setOnClickListener(v -> {
+        Runnable startPairing = () -> {
             cancelLibraryActions();
             final String trusted;
             try { trusted = HostedConnection.approvalOrigin(approvalAddress.getText().toString()); }
@@ -133,7 +133,8 @@ public class SettingsActivity extends Activity {
             approvalAddress.setText(trusted);
             prefs.setApprovalOrigin(trusted);
             pairing.start(address.getText().toString(), trusted);
-        });
+        };
+        pair.setOnClickListener(v -> startPairing.run());
         local.setOnClickListener(v -> {
             HostedPairingFlow.cancelAccessSignIn(this);
             cancelLibraryActions();
@@ -152,7 +153,7 @@ public class SettingsActivity extends Activity {
             connect.setEnabled(false);
             status.setText(R.string.connection_checking);
             new Thread(() -> {
-                int result = HostedConnection.probeSavedLibrary(this, origin);
+                int result = HostedConnection.probeSavedLibrary(this, origin, () -> connectionAttempts.active(attempt));
                 runOnUiThread(() -> {
                     if (!connectionAttempts.active(attempt) || isFinishing() || isDestroyed()) return;
                     connect.setEnabled(true);
@@ -161,6 +162,9 @@ public class SettingsActivity extends Activity {
                         address.setText(origin);
                         status.setText(R.string.connection_hosted);
                         updateConnectionActions();
+                    } else if (result == HostedConnection.PAIR_AGAIN) {
+                        status.setText(R.string.connection_auth);
+                        startPairing.run();
                     } else {
                         status.setText(result);
                         if (result == R.string.connection_access) HostedConnection.offerAccessQr(this, null);

@@ -39,6 +39,8 @@ Remove pairing also erases the device's
 stored credential. Server-side revocation is available under Paired devices.
 Reconnect accepts a saved pairing only after the server reports the matching
 instance ID. A different instance at the same address requires its own pairing.
+When you switch back to a desktop server that revoked this device, Android
+requests a new pairing. The current library stays open until approval.
 A hosted page requires an up-to-date Android System WebView. External redirects
 are blocked; choose another server explicitly in Settings. Other user-selected
 HTTP(S) links open in the system browser. External playback accepts HTTP(S)

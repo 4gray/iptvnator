@@ -9,7 +9,6 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { setTimeout as delay } from 'node:timers/promises';
 import { _electron, chromium, expect } from '@playwright/test';
 
 const [serial, scenario] = process.argv.slice(2);
@@ -156,6 +155,17 @@ async function confirm(port, token, action = 'Continue') {
             : /resource-id="android:id\/button2"/
     );
 }
+async function approvePairing(label) {
+    const xml = await nativeDialog(/Confirmation code: \d{6}/);
+    const code = xml.match(/Confirmation code: (\d{6})/)[1];
+    assert.equal(
+        await desktop.evaluate(
+            (_electron, args) => globalThis.androidFixture.approve(...args),
+            [label, code]
+        ),
+        204
+    );
+}
 async function inventory(port, title) {
     await page.waitForFunction(
         (expected) => window.__tvShellLibraryConnection?.origin === expected,
@@ -222,16 +232,7 @@ try {
             );
             await select(port);
             await confirm(port);
-            const xml = await nativeDialog(/Confirmation code: \d{6}/);
-            const code = xml.match(/Confirmation code: (\d{6})/)[1];
-            assert.equal(
-                await desktop.evaluate(
-                    (_electron, args) =>
-                        globalThis.androidFixture.approve(...args),
-                    [label, code]
-                ),
-                204
-            );
+            await approvePairing(label);
             await inventory(port, 'Synthetic hosted ' + label);
             console.log(
                 'PASS Paired hosted library ' +
@@ -245,6 +246,32 @@ try {
         await inventory(ports[0], 'Synthetic hosted A');
         console.log(
             'PASS Cold start restores B and switching back reuses the approved A credential'
+        );
+        assert.equal(
+            await desktop.evaluate(() =>
+                globalThis.androidFixture.revokeDevice('B')
+            ),
+            204
+        );
+        await select(ports[1]);
+        await confirm(ports[1]);
+        // The application attaches the device's Bearer credential to its own requests.
+        const [sources] = await Promise.all([
+            page.waitForResponse(
+                (response) =>
+                    response.url() === origin(ports[1]) + '/api/v1/sources' &&
+                    response.request().method() === 'GET',
+                { timeout }
+            ),
+            approvePairing('B'),
+        ]);
+        assert.ok(
+            [200, 304].includes(sources.status()),
+            'B rejected its new device credential'
+        );
+        await inventory(ports[1], 'Synthetic hosted B');
+        console.log(
+            'PASS Switching to a revoked library requires a new approved code and restores its protected inventory'
         );
     } else {
         await select(ports[0]);

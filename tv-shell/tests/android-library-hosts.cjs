@@ -83,6 +83,17 @@ app.whenReady()
             worker.request = request;
         }
         globalThis.androidFixture = {
+            async revokeDevice(name) {
+                const request = workers.get(name).request;
+                const { body } = await request('GET', '/v1/devices');
+                if (body.devices.length !== 1)
+                    throw new Error('Expected one paired Android device');
+                const reply = await request(
+                    'DELETE',
+                    '/v1/devices/' + encodeURIComponent(body.devices[0].id)
+                );
+                return reply.status;
+            },
             async approve(name, code) {
                 const request = workers.get(name).request;
                 const { body } = await request('GET', '/v1/devices');

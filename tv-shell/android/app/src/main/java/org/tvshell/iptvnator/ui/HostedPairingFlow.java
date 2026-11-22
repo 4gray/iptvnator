@@ -129,12 +129,14 @@ final class HostedPairingFlow {
                 PairingClient client = new PairingClient(origin);
                 String instance = client.instance();
                 if (!active(attempt)) return;
-                if (reconnectPaired && new PairedCredentialStore(activity).read(origin, instance) != null) {
+                String savedToken = reconnectPaired ? new PairedCredentialStore(activity).read(origin, instance) : null;
+                if (savedToken != null && client.acceptsCredential(instance, savedToken)) {
                     activity.runOnUiThread(() -> {
                         if (active(attempt)) selectLibrary(origin);
                     });
                     return;
                 }
+                if (!active(attempt)) return;
                 JSONObject claim = client.start();
                 String url = claim.optString("approvalUrl", "");
                 String remoteOrigin = PairingLink.approvalOrigin(url, claim.optString("claimId"), origin);

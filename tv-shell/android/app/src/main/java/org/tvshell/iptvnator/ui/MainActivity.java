@@ -1223,7 +1223,7 @@ public class MainActivity extends ComponentActivity {
             return;
         }
         confirmLibrary(origin, false, (attempt, unused) -> {
-            int result = HostedConnection.probeSavedLibrary(this, origin);
+            int result = HostedConnection.probeSavedLibrary(this, origin, () -> connectionAttempts.active(attempt));
             runOnUiThread(() -> completeLibraryConnection(attempt, origin, result));
         });
     }
@@ -1271,6 +1271,8 @@ public class MainActivity extends ComponentActivity {
             prefs.setHostedOrigin(origin);
             offlineOrigin = null;
             reloadLibraryFromSettings();
+        } else if (result == HostedConnection.PAIR_AGAIN) {
+            pairing.start(origin, prefs.approvalOrigin());
         } else if (result == R.string.connection_access) {
             connectionDialog = HostedConnection.offerAccessQr(this, this::scanLibraryQr);
         } else {

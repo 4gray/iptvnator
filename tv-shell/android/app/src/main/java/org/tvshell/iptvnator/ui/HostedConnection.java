@@ -7,12 +7,15 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.function.BooleanSupplier;
 
 import org.json.JSONObject;
 import org.tvshell.iptvnator.R;
 
 final class HostedConnection {
     private HostedConnection() {}
+
+    static final int PAIR_AGAIN = -1;
 
     static String approvalOrigin(String input) {
         String address = input.trim();
@@ -24,9 +27,9 @@ final class HostedConnection {
         return origin;
     }
 
-    static int probeSavedLibrary(Activity activity, String origin) {
+    static int probeSavedLibrary(Activity activity, String origin, BooleanSupplier active) {
         HostedAccessSession saved = HostedAccessSession.load(activity, origin);
-        if (saved == null) return probe(origin, new PairedCredentialStore(activity));
+        if (saved == null) return probe(origin, new PairedCredentialStore(activity), active);
         try {
             saved.verifyLibrary();
             return 0;
@@ -41,8 +44,8 @@ final class HostedConnection {
         }
     }
 
-    /** Verify the public instance endpoint without following redirects or sending credentials. */
-    static int probe(String origin, PairedCredentialStore credentials) {
+    /** Discover the identity anonymously before verifying any matching device credential. */
+    private static int probe(String origin, PairedCredentialStore credentials, BooleanSupplier active) {
         HttpURLConnection connection = null;
         try {
             connection = (HttpURLConnection) new URL(origin + "/api/v1/instance").openConnection();
@@ -73,15 +76,16 @@ final class HostedConnection {
                 || !"server".equals(json.optString("storage")) || instance.isEmpty() || instance.length() > 200)
                 return R.string.connection_incompatible;
             String auth = json.optString("auth");
-            // A saved device may reconnect to a protected library. Only use a credential
-            // bound to the just-verified origin and instance; the probe never transmits it.
-            boolean paired = "token".equals(auth) && credentials.read(origin, instance) != null;
-            return "none".equals(auth) || paired ? 0 : R.string.connection_auth;
+            if ("none".equals(auth)) return 0;
+            String savedToken = "token".equals(auth) ? credentials.read(origin, instance) : null;
+            if (savedToken == null) return R.string.connection_auth;
+            if (!active.getAsBoolean()) return R.string.connection_failed;
+            return new PairingClient(origin).acceptsCredential(instance, savedToken) ? 0 : PAIR_AGAIN;
         } catch (javax.net.ssl.SSLException e) {
             return R.string.connection_certificate;
         } catch (java.io.IOException e) {
             return R.string.connection_failed;
-        } catch (org.json.JSONException e) {
+        } catch (org.json.JSONException | IllegalArgumentException e) {
             return R.string.connection_incompatible;
         } finally {
             if (connection != null) connection.disconnect();

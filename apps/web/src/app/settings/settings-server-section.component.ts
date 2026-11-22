@@ -248,10 +248,8 @@ export class SettingsServerSectionComponent {
                 (!this.nativeHosted &&
                     !this.androidLibrary?.connectNasLibrary &&
                     this.sync.state() !== 'locked'))
-        ) {
-            await this.refresh();
-            return;
-        }
+        )
+            return this.refresh();
         this.busy.set(true);
         this.connecting.set(true);
         let sourceAddress = '';

@@ -1,6 +1,9 @@
 package org.tvshell.iptvnator.ui;
 
 import java.io.IOException;
+import okhttp3.MediaType;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.json.JSONObject;
 
 /** Bounded requests to the confirmed origin. Redirects never receive pairing credentials. */
@@ -17,6 +20,21 @@ final class PairingClient {
             throw new IOException("Incompatible server");
         }
         return id;
+    }
+
+    /** Called after anonymous instance verification and native confirmation of this origin. */
+    boolean acceptsCredential(String instance, String token) throws IOException {
+        Request request = new Request.Builder().url(origin + "/api/v1/sources")
+            .header("Authorization", "Bearer " + token)
+            .header("X-IPTVnator-Instance-Id", instance)
+            .header("Accept", "application/json").header("Cache-Control", "no-cache").build();
+        try (Response response = HostedAccessOAuth.HTTP.newCall(request).execute()) {
+            if (response.code() == 401 || response.code() == 403) return false;
+            MediaType type = response.body() == null ? null : response.body().contentType();
+            if (response.code() != 200 || type == null || !"application".equals(type.type()) || !"json".equals(type.subtype()))
+                throw new IOException("Protected source inventory unavailable");
+            return true;
+        }
     }
 
     JSONObject claim(String invite) throws Exception {

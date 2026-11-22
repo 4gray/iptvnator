@@ -42,7 +42,9 @@ Dans **Paramètres → Connectivité**, saisissez l’adresse du serveur puis
 appuyez sur **Connecter**. Si le serveur demande un jeton d’accès,
 saisissez-le à l’invite. La configuration Docker par défaut convient. Pour
 passer d’un serveur de bureau à un autre, saisissez la nouvelle adresse sur
-ce même écran et confirmez-la. Pour associer l’appareil à partir d’une invitation
+ce même écran et confirmez-la. Si le serveur a révoqué l’accès de cet appareil,
+Android demande une nouvelle association. La bibliothèque actuelle reste ouverte
+jusqu’à l’approbation. Pour associer l’appareil à partir d’une invitation
 du serveur, choisissez **Scanner le code QR**. Le lecteur web du serveur
 reste accessible dans **Options avancées**.
 

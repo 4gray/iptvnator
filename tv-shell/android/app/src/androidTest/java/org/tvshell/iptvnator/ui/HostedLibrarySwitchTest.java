@@ -23,15 +23,32 @@ public class HostedLibrarySwitchTest extends TestCase {
     private static final String TOKEN_A = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
     private static final String TOKEN_B = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq";
 
+    private static final String STALE_TOKEN = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefg";
+    private enum Pairing { VALID, NEW, REVOKED, UNAVAILABLE, CANCELLED }
+
     public void testHostedOriginChecksAnotherPairedLibraryOnlyWithConsent() throws Exception {
-        switchLibrary(true);
+        switchLibrary(Pairing.VALID);
     }
 
     public void testHostedOriginPairsWithANewLibrary() throws Exception {
-        switchLibrary(false);
+        switchLibrary(Pairing.NEW);
     }
 
-    private void switchLibrary(boolean previouslyPaired) throws Exception {
+    public void testRevokedDestinationRequiresFreshApproval() throws Exception {
+        switchLibrary(Pairing.REVOKED);
+    }
+
+    public void testUnavailableDestinationKeepsCurrentLibrary() throws Exception {
+        switchLibrary(Pairing.UNAVAILABLE);
+    }
+
+    public void testCancellingRejectedCredentialCheckDoesNotStartPairing() throws Exception {
+        switchLibrary(Pairing.CANCELLED);
+    }
+
+    private void switchLibrary(Pairing pairing) throws Exception {
+        String savedCredential = pairing == Pairing.REVOKED || pairing == Pairing.CANCELLED ? STALE_TOKEN : TOKEN_B;
+        CountDownLatch checking = new CountDownLatch(1), releaseCheck = new CountDownLatch(1);
         AtomicInteger probes = new AtomicInteger(), starts = new AtomicInteger(), completions = new AtomicInteger();
         CountDownLatch opened = new CountDownLatch(1), declined = new CountDownLatch(1), pairedKind = new CountDownLatch(1);
         NanoHTTPD destination = new NanoHTTPD("127.0.0.1", 0) {
@@ -43,6 +60,20 @@ public class HostedLibrarySwitchTest extends TestCase {
                     return newFixedLengthResponse(Response.Status.OK, "application/json",
                         "{\"service\":\"iptvnator\",\"apiVersion\":1,\"storage\":\"server\",\"instanceId\":\"synthetic-b\","
                         + "\"auth\":\"token\",\"capabilities\":[\"sources-v1\",\"browser-pairing-v1\"]}");
+                }
+                if ("/api/v1/sources".equals(request.getUri())) {
+                    if (!("Bearer " + savedCredential).equals(request.getHeaders().get("authorization"))
+                        || !"synthetic-b".equals(request.getHeaders().get("x-iptvnator-instance-id")))
+                        return newFixedLengthResponse(Response.Status.BAD_REQUEST, "text/plain", "Wrong credential scope");
+                    checking.countDown();
+                    if (pairing == Pairing.CANCELLED) {
+                        try { releaseCheck.await(15, TimeUnit.SECONDS); }
+                        catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                    }
+                    Response.Status status = pairing == Pairing.REVOKED ? Response.Status.UNAUTHORIZED
+                        : pairing == Pairing.CANCELLED ? Response.Status.FORBIDDEN
+                        : pairing == Pairing.UNAVAILABLE ? Response.Status.SERVICE_UNAVAILABLE : Response.Status.OK;
+                    return newFixedLengthResponse(status, "application/json", "{\"entries\":[]}");
                 }
                 if (request.getMethod() == Method.POST) {
                     // NanoHTTPD leaves unread bodies on the socket between keep-alive requests.
@@ -95,7 +126,7 @@ public class HostedLibrarySwitchTest extends TestCase {
         MainActivity main = null;
         try {
             store.saveOrdinaryPairing(origin, "synthetic-a", TOKEN_A);
-            if (previouslyPaired) store.saveOrdinaryPairing(target, "synthetic-b", TOKEN_B);
+            if (pairing != Pairing.NEW) store.saveOrdinaryPairing(target, "synthetic-b", savedCredential);
             prefs.setHostedOrigin(origin);
             prefs.setLayoutMode(Prefs.LayoutMode.TOUCH);
             main = (MainActivity) instrumentation.startActivitySync(new Intent(context, MainActivity.class)
@@ -110,14 +141,36 @@ public class HostedLibrarySwitchTest extends TestCase {
                 pairedKind.await(10, TimeUnit.SECONDS));
             assertEquals(origin, prefs.hostedOrigin());
             tapDialog(instrumentation, target, context.getString(R.string.pairing_continue));
+            if (pairing != Pairing.NEW)
+                assertTrue("The saved credential was not checked", checking.await(8, TimeUnit.SECONDS));
+            if (pairing == Pairing.UNAVAILABLE || pairing == Pairing.CANCELLED) {
+                if (pairing == Pairing.CANCELLED) {
+                    Thread worker = Thread.getAllStackTraces().keySet().stream()
+                        .filter(thread -> "hosted-device-start".equals(thread.getName())).findFirst().get();
+                    tapDialog(instrumentation, context.getString(R.string.connection_checking),
+                        context.getString(R.string.external_prompt_cancel));
+                    instrumentation.waitForIdleSync();
+                    releaseCheck.countDown();
+                    worker.join(8000);
+                    assertFalse("Cancelled verification did not finish", worker.isAlive());
+                } else {
+                    tapDialog(instrumentation, context.getString(R.string.pairing_tv_failed), context.getString(android.R.string.ok));
+                }
+                assertEquals("A failed or cancelled verification switched libraries", origin, prefs.hostedOrigin());
+                assertEquals(0, starts.get());
+                assertEquals(savedCredential, store.read(target, "synthetic-b"));
+                return;
+            }
+            int expectedClaims = pairing == Pairing.VALID ? 0 : 1;
             boolean loaded = opened.await(10, TimeUnit.SECONDS);
-            assertEquals("Pairing starts", previouslyPaired ? 0 : 1, starts.get());
-            assertEquals("Approved pairing completions", previouslyPaired ? 0 : 1, completions.get());
+            assertEquals("Pairing starts", expectedClaims, starts.get());
+            assertEquals("Approved pairing completions", expectedClaims, completions.get());
             assertTrue("The destination document did not open", loaded);
             assertEquals(target, prefs.hostedOrigin());
             assertEquals(TOKEN_A, store.read(origin, "synthetic-a"));
             assertEquals(TOKEN_B, store.read(target, "synthetic-b"));
         } finally {
+            releaseCheck.countDown();
             if (main != null) instrumentation.runOnMainSync(main::finish);
             if (previousNas) prefs.setNasLibrary(previous);
             else prefs.setHostedOrigin(previous);
