@@ -90,6 +90,10 @@ Access policy for the intended viewers. The origin verifies Cloudflare's
 signed application assertion on each tunnel request. The browser web player uses
 its Access session. Android opens **Sign in with Cloudflare Access** from the
 in-app QR scan and uses the returned OAuth session for its bundled player.
+While the browser is open, Android keeps one pending sign-in in its encrypted
+credential store for up to ten minutes. A recreated activity can accept the
+matching browser result or callback link once. Canceling or starting another
+pairing invalidates the pending sign-in.
 In Cloudflare mode the host creates a one-time invitation under **Connect a
 device**. After Access sign-in, Android registers a device key from its encrypted
 credential store. Open a separate invitation in a browser and choose **Connect

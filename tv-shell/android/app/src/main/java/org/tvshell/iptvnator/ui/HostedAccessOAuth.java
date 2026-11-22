@@ -21,6 +21,8 @@ import org.json.JSONObject;
 final class HostedAccessOAuth {
     static final String SCHEME = "org.tvshell.iptvnator";
     static final String CALLBACK = SCHEME + "://oauth/callback";
+    static final String PENDING_KEY = "pending-cloudflare-sign-in";
+    private static final long MAX_WAIT_MS = 10 * 60 * 1000L;
     private static final SecureRandom RANDOM = new SecureRandom();
     static final OkHttpClient HTTP = new OkHttpClient.Builder().followRedirects(false)
         .followSslRedirects(false).cookieJar(okhttp3.CookieJar.NO_COOKIES)
@@ -44,6 +46,8 @@ final class HostedAccessOAuth {
     private final String verifier;
     private final String state;
     final Uri authorization;
+    private long expiresAt;
+    private String pendingRecord;
 
     HostedAccessOAuth(String origin, String instance, String invite) throws Exception {
         if (!origin.startsWith("https://")) throw new IOException("HTTPS required");
@@ -82,6 +86,68 @@ final class HostedAccessOAuth {
         authorization = authorizationUri.build();
     }
 
+    private HostedAccessOAuth(JSONObject saved) throws Exception {
+        origin = HostedOrigin.normalize(saved.getString("origin"));
+        if (!origin.startsWith("https://") || !origin.equals(saved.getString("origin")))
+            throw new IOException("Invalid sign-in origin");
+        resource = origin;
+        instance = saved.getString("instance");
+        invite = saved.getString("invite");
+        String address = saved.getString("tokenEndpoint");
+        tokenEndpoint = endpoint(origin, address, address);
+        client = saved.getString("client");
+        verifier = saved.getString("verifier");
+        state = saved.getString("state");
+        expiresAt = saved.getLong("expiresAt");
+        if (!PairingLink.opaqueId(state) || !PairingLink.opaqueId(verifier) || remainingMillis() == 0)
+            throw new IOException("Invalid or expired sign-in");
+        authorization = null; // The browser already owns the authorization page.
+    }
+
+    void savePending(PairedCredentialStore store) throws Exception {
+        expiresAt = System.currentTimeMillis() + MAX_WAIT_MS;
+        pendingRecord = store.saveRecord(PENDING_KEY, pendingData());
+    }
+
+    void awaitFallbackLink(PairedCredentialStore store) throws Exception {
+        // A fallback Custom Tab can report cancellation just before delivering its deep link.
+        expiresAt = Math.min(expiresAt, System.currentTimeMillis() + 700);
+        pendingRecord = store.replaceRecord(PENDING_KEY, pendingRecord, pendingData());
+    }
+
+    private JSONObject pendingData() throws Exception {
+        return new JSONObject().put("origin", origin)
+            .put("instance", instance).put("invite", invite).put("tokenEndpoint", tokenEndpoint)
+            .put("client", client).put("verifier", verifier).put("state", state).put("expiresAt", expiresAt);
+    }
+
+    static HostedAccessOAuth restorePending(PairedCredentialStore store) {
+        String record = store.encryptedRecord(PENDING_KEY);
+        if (record == null) return null;
+        try {
+            HostedAccessOAuth oauth = new HostedAccessOAuth(store.decrypt(PENDING_KEY, record));
+            oauth.pendingRecord = record;
+            return oauth;
+        } catch (Exception invalid) {
+            store.removeIfCurrent(PENDING_KEY, record::equals);
+            return null;
+        }
+    }
+
+    long remainingMillis() {
+        long remaining = expiresAt - System.currentTimeMillis();
+        return remaining > 0 && remaining <= MAX_WAIT_MS ? remaining : 0;
+    }
+
+    String launcherKey() {
+        // ActivityResultRegistry saves this key outside the encrypted credential store.
+        return "hosted-auth:" + java.util.UUID.nameUUIDFromBytes(state.getBytes(StandardCharsets.UTF_8));
+    }
+
+    boolean discardPending(PairedCredentialStore store) {
+        return pendingRecord != null && store.removeIfCurrent(PENDING_KEY, pendingRecord::equals);
+    }
+
     private static String random() {
         byte[] value = new byte[32];
         RANDOM.nextBytes(value);
@@ -89,16 +155,18 @@ final class HostedAccessOAuth {
     }
 
     boolean matches(Uri uri) {
-        return uri != null && SCHEME.equals(uri.getScheme()) && "oauth".equals(uri.getEncodedAuthority())
-            && "/callback".equals(uri.getEncodedPath()) && uri.getFragment() == null
-            && uri.getQueryParameters("state").size() == 1 && state.equals(uri.getQueryParameter("state"));
+        if (uri == null || !SCHEME.equals(uri.getScheme()) || !"oauth".equals(uri.getEncodedAuthority())
+            || !"/callback".equals(uri.getEncodedPath()) || uri.getFragment() != null
+            || uri.getQueryParameters("state").size() != 1 || !state.equals(uri.getQueryParameter("state"))) return false;
+        String code = uri.getQueryParameter("code");
+        String error = uri.getQueryParameter("error");
+        if (error != null) return !error.isEmpty() && uri.getQueryParameters("error").size() == 1 && code == null;
+        return code != null && !code.isEmpty() && code.length() <= 8192 && uri.getQueryParameters("code").size() == 1;
     }
 
     JSONObject finish(Uri uri, PairedCredentialStore store) throws Exception {
         if (!matches(uri) || uri.getQueryParameter("error") != null) throw new Denied();
         String code = uri.getQueryParameter("code");
-        if (code == null || code.isEmpty() || code.length() > 8192 || uri.getQueryParameters("code").size() != 1)
-            throw new IOException("Invalid code");
         JSONObject token = token(tokenEndpoint, new FormBody.Builder().add("grant_type", "authorization_code")
             .add("client_id", client).add("code", code).add("code_verifier", verifier)
             .add("redirect_uri", CALLBACK).add("resource", resource));

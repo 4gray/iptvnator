@@ -126,7 +126,7 @@ public class SettingsActivity extends Activity {
             pairing.start(address.getText().toString(), trusted);
         });
         local.setOnClickListener(v -> {
-            HostedPairingFlow.cancelAccessSignIn();
+            HostedPairingFlow.cancelAccessSignIn(this);
             cancelLibraryActions();
             prefs.setHostedOrigin("");
             address.setText("");
@@ -138,7 +138,7 @@ public class SettingsActivity extends Activity {
             final String origin;
             try { origin = HostedOrigin.normalize(address.getText().toString()); }
             catch (IllegalArgumentException e) { status.setText(R.string.connection_invalid); return; }
-            HostedPairingFlow.cancelAccessSignIn();
+            HostedPairingFlow.cancelAccessSignIn(this);
             long attempt = connectionAttempts.begin();
             connect.setEnabled(false);
             status.setText(R.string.connection_checking);
@@ -387,7 +387,7 @@ public class SettingsActivity extends Activity {
                     }
                     new NativePlaybackCheckpoints(SettingsActivity.this).clear();
                     dataCleared = true;
-                    HostedPairingFlow.cancelAccessSignIn();
+                    HostedPairingFlow.cancelAccessSignIn(SettingsActivity.this);
                     new PairedCredentialStore(SettingsActivity.this).clear();
                     updateConnectionActions();
                     Toast.makeText(SettingsActivity.this, R.string.reset_done, Toast.LENGTH_SHORT).show();

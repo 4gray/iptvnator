@@ -36,7 +36,7 @@ final class LibraryQrScanner {
 
     void open() {
         if (scanning || !available(activity)) return;
-        HostedPairingFlow.cancelAccessSignIn();
+        HostedPairingFlow.cancelAccessSignIn(activity);
         cancel();
         pairing.cancel();
         scanning = true;

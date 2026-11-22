@@ -26,19 +26,24 @@ import org.tvshell.iptvnator.R;
 
 /** One foreground handoff. Leaving/cancelling never changes the selected library. */
 final class HostedPairingFlow {
-    interface AccessSignIn { void cancel(); }
+    interface AccessSignIn {
+        void cancel();
+        default void detach() { cancel(); }
+    }
 
     // MainActivity owns sign-in, but TV Settings and external invitation links can supersede it.
     private static WeakReference<AccessSignIn> pendingAccess = new WeakReference<>(null);
 
     static void registerAccessSignIn(AccessSignIn signIn) {
-        cancelAccessSignIn();
+        AccessSignIn previous = pendingAccess.get();
+        if (previous != null) previous.detach();
         pendingAccess = new WeakReference<>(signIn);
     }
 
-    static void cancelAccessSignIn() {
+    static void cancelAccessSignIn(Activity activity) {
+        new PairedCredentialStore(activity).remove(HostedAccessOAuth.PENDING_KEY);
         AccessSignIn signIn = pendingAccess.get();
-        if (signIn != null) signIn.cancel();
+        if (signIn != null) signIn.detach();
     }
 
     private final Activity activity;
@@ -62,7 +67,7 @@ final class HostedPairingFlow {
     }
 
     void confirmInvite(PairingLink link) {
-        cancelAccessSignIn();
+        cancelAccessSignIn(activity);
         cancel();
         final long attempt = attempts.begin();
         // No network operation occurs until this explicit, origin-displaying confirmation.
@@ -85,7 +90,7 @@ final class HostedPairingFlow {
         catch (IllegalArgumentException e) {
             Toast.makeText(activity, R.string.connection_invalid, Toast.LENGTH_LONG).show(); return;
         }
-        cancelAccessSignIn();
+        cancelAccessSignIn(activity);
         cancel();
         final long attempt = attempts.begin();
         startContent = new LinearLayout(activity);

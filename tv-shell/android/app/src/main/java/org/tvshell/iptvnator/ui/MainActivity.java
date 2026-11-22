@@ -87,7 +87,7 @@ public class MainActivity extends ComponentActivity {
     private String bridgeOrigin;
     private String loadedConnection;
     private String offlineOrigin;
-    private final HostedAccessFlow accessFlow = new HostedAccessFlow(this);
+    private HostedAccessFlow accessFlow;
     private static String pendingPairingAction;
     private static PairingLink.CloudflareInvite pendingPairingInvite;
     private volatile HostedAccessSession accessSession;
@@ -187,6 +187,8 @@ public class MainActivity extends ComponentActivity {
             }
         }
         setContentView(R.layout.activity_main);
+        accessFlow = new HostedAccessFlow(this);
+        if (Intent.ACTION_VIEW.equals(getIntent().getAction())) acceptAccessCallback(getIntent());
         root = findViewById(R.id.root);
         tvDevice = Prefs.isTvDevice(this);
         touchWindowInsets = new TouchWindowInsets(this, root);
@@ -662,8 +664,14 @@ public class MainActivity extends ComponentActivity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        if (Intent.ACTION_VIEW.equals(intent.getAction())) accessFlow.callback(intent.getData());
+        if (Intent.ACTION_VIEW.equals(intent.getAction())) acceptAccessCallback(intent);
         else acceptSettingsPairing(intent);
+    }
+
+    private void acceptAccessCallback(Intent intent) {
+        Uri uri = intent.getData();
+        intent.setData(null);
+        accessFlow.callback(uri);
     }
 
     /** (Re)starts the ready watchdog for a full period; while paused onResume() does it. */
@@ -1345,7 +1353,8 @@ public class MainActivity extends ComponentActivity {
     @Override
     protected void onDestroy() {
         fileChooser.cancel();
-        accessFlow.cancel();
+        if (isFinishing()) accessFlow.cancel();
+        else accessFlow.detach();
         if (accessBridge != null) accessBridge.close();
         handler.removeCallbacks(readyWatchdog);
         handler.removeCallbacks(loadRetry);

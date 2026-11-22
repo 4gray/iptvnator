@@ -4,9 +4,12 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.browser.customtabs.CustomTabsClient;
 import androidx.browser.customtabs.CustomTabsService;
 import androidx.browser.auth.AuthTabIntent;
@@ -16,7 +19,9 @@ import java.util.function.BooleanSupplier;
 
 final class HostedAccessFlow implements HostedPairingFlow.AccessSignIn {
     private final MainActivity activity;
-    private final ActivityResultLauncher<Intent> launcher;
+    private ActivityResultLauncher<Intent> launcher;
+    private final PairedCredentialStore store;
+    private final Handler handler = new Handler(Looper.getMainLooper());
     private final PairingAttempts attempts = new PairingAttempts();
     private HostedAccessOAuth active;
     private AlertDialog prompt;
@@ -24,17 +29,31 @@ final class HostedAccessFlow implements HostedPairingFlow.AccessSignIn {
 
     HostedAccessFlow(MainActivity activity) {
         this.activity = activity;
+        store = new PairedCredentialStore(activity);
         HostedPairingFlow.registerAccessSignIn(this);
-        launcher = AuthTabIntent.registerActivityResultLauncher(activity, result -> {
-            if (result.resultCode == AuthTabIntent.RESULT_OK) callback(result.resultUri);
-            else if (active != null) {
-                // The Custom Tabs fallback may deliver its deep link before or after this result.
-                HostedAccessOAuth current = active;
-                activity.getWindow().getDecorView().postDelayed(() -> {
-                    if (active == current) retry(current, R.string.access_cancelled);
-                }, 700);
-            }
-        });
+        HostedAccessOAuth pending = HostedAccessOAuth.restorePending(store);
+        if (pending != null) awaitCallback(pending);
+    }
+
+    private void awaitCallback(HostedAccessOAuth oauth) {
+        active = oauth;
+        handler.postDelayed(this::cancel, oauth.remainingMillis());
+        ActivityResultLauncher<Intent> registered = activity.getActivityResultRegistry().register(oauth.launcherKey(),
+            new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (active != oauth) return;
+                if (result.getResultCode() == AuthTabIntent.RESULT_OK) {
+                    if (result.getData() != null) callback(result.getData().getData());
+                } else {
+                    try { oauth.awaitFallbackLink(store); }
+                    catch (Exception failure) { retry(oauth, R.string.access_cancelled); return; }
+                    handler.postDelayed(() -> {
+                        if (active == oauth) retry(oauth, R.string.access_cancelled);
+                    }, oauth.remainingMillis());
+                }
+            });
+        // Registration can immediately deliver a result saved by Android.
+        if (active == oauth) launcher = registered;
+        else registered.unregister();
     }
 
     void offer(String origin, String instance) {
@@ -57,8 +76,13 @@ final class HostedAccessFlow implements HostedPairingFlow.AccessSignIn {
                 HostedAccessOAuth oauth = new HostedAccessOAuth(origin, instance, invite);
                 activity.runOnUiThread(() -> {
                     if (!valid(attempt)) return;
-                    active = oauth;
+                    try { oauth.savePending(store); }
+                    catch (Exception storageFailure) {
+                        failed(origin, instance, invite, R.string.access_library_save_failed);
+                        return;
+                    }
                     try {
+                        awaitCallback(oauth);
                         // Keep any previously installed web player out of the sign-in tab.
                         AuthTabIntent tab = new AuthTabIntent.Builder()
                             .setEphemeralBrowsingEnabled(true).build();
@@ -98,11 +122,12 @@ final class HostedAccessFlow implements HostedPairingFlow.AccessSignIn {
     void callback(Uri uri) {
         HostedAccessOAuth oauth = active;
         if (oauth == null || !oauth.matches(uri)) return;
-        active = null;
+        boolean current = oauth.discardPending(store);
+        stopWaiting();
+        if (!current || oauth.remainingMillis() == 0) return;
         long attempt = attempts.begin();
         new Thread(() -> {
             try {
-                PairedCredentialStore store = new PairedCredentialStore(activity);
                 JSONObject credential = oauth.finish(uri, store);
                 connectRegistered(oauth, store, credential, attempt);
             } catch (Exception failure) {
@@ -162,8 +187,9 @@ final class HostedAccessFlow implements HostedPairingFlow.AccessSignIn {
     }
 
     private void retry(HostedAccessOAuth oauth, int message) {
-        active = null;
-        failed(oauth.origin, oauth.instance, oauth.invite, message);
+        boolean current = oauth.discardPending(store);
+        stopWaiting();
+        if (current) failed(oauth.origin, oauth.instance, oauth.invite, message);
     }
 
     void deviceRegistrationRequired() {
@@ -235,8 +261,20 @@ final class HostedAccessFlow implements HostedPairingFlow.AccessSignIn {
     }
 
     @Override public void cancel() {
-        attempts.cancel();
+        if (active != null) active.discardPending(store);
+        detach();
+    }
+
+    private void stopWaiting() {
+        handler.removeCallbacksAndMessages(null);
+        if (launcher != null) launcher.unregister();
+        launcher = null;
         active = null;
+    }
+
+    @Override public void detach() {
+        attempts.cancel();
+        stopWaiting();
         if (prompt != null) prompt.dismiss();
         prompt = null;
     }
