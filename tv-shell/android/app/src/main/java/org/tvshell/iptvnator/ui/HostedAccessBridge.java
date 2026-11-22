@@ -14,6 +14,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import okhttp3.Call;
+import okhttp3.MediaType;
 import okhttp3.Response;
 import org.json.JSONObject;
 
@@ -37,11 +38,17 @@ final class HostedAccessBridge {
     }
 
     private void receive(String data, JavaScriptReplyProxy reply) {
-        if (network.isShutdown() || data == null || data.length() > 24 * 1024 * 1024) return;
+        if (network.isShutdown() || data == null || data.length() > 128 * 1024) return;
         try {
             JSONObject input = new JSONObject(data);
             String id = input.getString("id");
             if (!id.matches("[0-9]{1,16}")) return;
+            if (input.has("uploadOffset")) {
+                Task task = pending.get(id);
+                if (task != null && task.upload != null)
+                    task.upload.accept(input.getInt("uploadOffset"), input.getString("chunk"));
+                return;
+            }
             if (input.optBoolean("cancel")) {
                 Task task = pending.remove(id);
                 if (task != null) task.cancel();
@@ -65,6 +72,10 @@ final class HostedAccessBridge {
 
     private void execute(String id, JSONObject input, Task task, JavaScriptReplyProxy reply) {
         try {
+            JSONObject headers = input.optJSONObject("headers");
+            String type = headers == null ? "application/json" : headers.optString("content-type", "application/json");
+            task.upload = new HostedAccessUpload(input.getLong("bodySize"), MediaType.get(type),
+                offset -> send(id, task, reply, new JSONObject(Collections.singletonMap("uploadOffset", offset)), false));
             try (Response response = open(input, task)) {
                 JSONObject result = HostedAccessSession.responseHeaders(response);
                 int status = response.code();
@@ -142,7 +153,7 @@ final class HostedAccessBridge {
     }
 
     private Response request(JSONObject input, Task task, String token) throws Exception {
-        Call call = session.call(input, token);
+        Call call = session.call(input, token, task.upload);
         task.attach(call);
         return call.execute();
     }
@@ -161,6 +172,7 @@ final class HostedAccessBridge {
     private static final class Task {
         private final Semaphore demand = new Semaphore(0);
         private Call call;
+        private volatile HostedAccessUpload upload;
         private volatile boolean cancelled;
         void requestChunk() {
             if (demand.availablePermits() == 0) demand.release();
@@ -176,6 +188,7 @@ final class HostedAccessBridge {
         synchronized void cancel() {
             cancelled = true;
             if (call != null) call.cancel();
+            if (upload != null) upload.cancel();
             requestChunk();
         }
     }

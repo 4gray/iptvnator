@@ -121,6 +121,12 @@ The hosted web player leaves Cloudflare authorization and discovery paths to
 the edge. Android requests an isolated browser session for sign-in and bypasses
 older service workers when opening the same-origin authorization endpoint.
 
+For hosted API uploads, the Android bridge hands OkHttp one 64 KiB slice at a
+time. The WebView keeps a replayable blob until response headers arrive so a
+Cloudflare token renewal can retry the request. The bridge accepts up to
+64 MiB per serialized request, including JSON fields and escaping. The hosted
+worker applies its own document limit, which defaults to 64 MiB.
+
 The Android bridge streams hosted API responses in bounded chunks, with an
 inactivity timeout for the transfer. Cloudflare OAuth calls keep a separate
 deadline. While the hosted worker buffers an Xtream response in Cloudflare mode,

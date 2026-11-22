@@ -1,7 +1,6 @@
 package org.tvshell.iptvnator.ui;
 
 import android.content.Context;
-import android.util.Base64;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
@@ -18,7 +17,6 @@ import okhttp3.Response;
 import org.json.JSONObject;
 
 final class HostedAccessSession {
-    private static final int REQUEST_LIMIT = 16 * 1024 * 1024;
     private static final Set<String> renewingPairings = new HashSet<>();
     private static final OkHttpClient API = HostedAccessOAuth.HTTP.newBuilder()
         .callTimeout(0, TimeUnit.SECONDS).readTimeout(45, TimeUnit.SECONDS).build();
@@ -31,7 +29,7 @@ final class HostedAccessSession {
     private JSONObject credential;
     private volatile String encryptedRecord;
 
-    private HostedAccessSession(PairedCredentialStore store, String origin, JSONObject credential, String encryptedRecord) {
+    HostedAccessSession(PairedCredentialStore store, String origin, JSONObject credential, String encryptedRecord) {
         this.store = store;
         this.origin = origin;
         this.credential = credential;
@@ -113,7 +111,7 @@ final class HostedAccessSession {
         requireCurrentPairing();
     }
 
-    Call call(JSONObject input, String token) throws Exception {
+    Call call(JSONObject input, String token, RequestBody upload) throws Exception {
         requireCurrentPairing();
         String path = input.getString("path");
         String method = input.getString("method");
@@ -123,27 +121,25 @@ final class HostedAccessSession {
             .header("X-IPTVnator-Instance-Id", instance);
         if (!deviceKey.isEmpty()) request.header("X-IPTVnator-Device-Key", deviceKey);
         JSONObject headers = input.optJSONObject("headers");
-        String contentType = "application/json";
         if (headers != null) {
-            contentType = headers.optString("content-type", contentType);
             for (String name : new String[]{"if-match", "if-none-match", "accept"})
                 if (headers.has(name)) request.header(name, headers.getString(name));
         }
-        byte[] bytes = Base64.decode(input.optString("body"), Base64.DEFAULT);
-        if (bytes.length > REQUEST_LIMIT) throw new IOException("Hosted request is too large");
-        RequestBody body = ("GET".equals(method) || "HEAD".equals(method) ||
-            ("DELETE".equals(method) && bytes.length == 0)) ? null : RequestBody.create(bytes, MediaType.get(contentType));
+        boolean read = "GET".equals(method) || "HEAD".equals(method);
+        if (read && upload.contentLength() != 0) throw new IOException("Unexpected hosted request body");
+        RequestBody body = read || ("DELETE".equals(method) && upload.contentLength() == 0) ? null : upload;
         return API.newCall(request.method(method, body).build());
     }
 
     String createDeviceInvite() throws Exception {
         JSONObject input = new JSONObject()
             .put("path", "/api/v1/device-pairing/cloudflare-invite").put("method", "POST");
+        RequestBody body = RequestBody.create(new byte[0], MediaType.get("application/json"));
         String token = accessToken(null);
-        try (Response response = call(input, token).execute()) {
+        try (Response response = call(input, token, body).execute()) {
             if (response.code() != 401) return deviceInvite(response);
         }
-        try (Response response = call(input, accessToken(token)).execute()) {
+        try (Response response = call(input, accessToken(token), body).execute()) {
             return deviceInvite(response);
         }
     }

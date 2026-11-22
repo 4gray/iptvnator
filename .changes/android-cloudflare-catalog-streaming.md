@@ -3,4 +3,4 @@ type: fix
 area: android
 ---
 
-Load large Xtream catalogs through Cloudflare on Android without cutting off healthy transfers while the server is still receiving data or buffering the whole response in the native bridge.
+Load large Xtream catalogs through Cloudflare on Android while the server is still receiving data. Sync M3U playlists with JSON documents up to 64 MiB through the same connection.
