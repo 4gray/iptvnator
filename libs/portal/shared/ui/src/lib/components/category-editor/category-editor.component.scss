@@ -1,4 +1,5 @@
 @use '@angular/material' as mat;
+@use '../../../../../../../ui/styles/focus-ring';
 
 // The list is the only part that scrolls: inside the shell's column body
 // the wrapper flexes to the height left under the cap, and the list flexes
@@ -30,10 +31,10 @@
 
 .selection-info {
     font-size: 0.8125rem;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-body-color);
 
     strong {
-        color: var(--mat-sys-primary);
+        color: var(--app-heading-color);
     }
 }
 
@@ -50,8 +51,8 @@
     padding: 0 10px;
     min-height: 36px;
     border-radius: 10px;
-    border: 1px solid var(--app-search-border, var(--mat-sys-outline-variant));
-    background: var(--app-search-bg, var(--mat-sys-surface-container));
+    border: 1px solid var(--app-search-border, var(--app-separator));
+    background: var(--app-search-bg, var(--app-card-hover-bg));
     cursor: text;
     transition:
         border-color 0.15s ease,
@@ -68,7 +69,7 @@
     font-size: 18px;
     width: 18px;
     height: 18px;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-body-color);
     flex-shrink: 0;
 }
 
@@ -77,14 +78,14 @@
     border: none;
     outline: none;
     background: transparent;
-    color: var(--mat-sys-on-surface);
+    color: var(--app-heading-color);
     font: inherit;
     font-size: 0.84rem;
     width: 100%;
     min-width: 0;
 
     &::placeholder {
-        color: var(--mat-sys-on-surface-variant);
+        color: var(--app-body-color);
         opacity: 0.6;
     }
 
@@ -112,7 +113,7 @@
     flex: 1;
     min-height: 200px;
     overflow-y: auto;
-    border: 1px solid var(--mat-sys-outline-variant);
+    border: 1px solid var(--app-separator);
     border-radius: 8px;
 }
 
@@ -121,16 +122,18 @@
     align-items: center;
     padding: 0 10px;
     min-height: 30px;
-    cursor: pointer;
     gap: 6px;
+    &:has(mat-checkbox:not(.mat-mdc-checkbox-disabled)) {
+        cursor: pointer;
+    }
     transition: background-color 0.12s ease;
 
     &:hover {
-        background-color: var(--mat-sys-surface-container);
+        background-color: var(--app-card-hover-bg);
     }
 
     &:not(:last-child) {
-        border-bottom: 1px solid var(--mat-sys-surface-container);
+        border-bottom: 1px solid var(--app-card-hover-bg);
     }
 
     mat-checkbox {
@@ -144,6 +147,7 @@
 
 .category-name {
     flex: 1;
+    min-width: 0;
     font-size: 0.8125rem;
     white-space: nowrap;
     overflow: hidden;
@@ -153,7 +157,7 @@
 .empty-message {
     padding: 24px;
     text-align: center;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-body-color);
     font-size: 0.8125rem;
 }
 
@@ -187,4 +191,18 @@
         color: var(--app-selection-color);
         background: var(--app-selection-surface);
     }
+}
+
+.censored-chip {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--app-danger-surface);
+    color: var(--app-danger-text);
+}
+
+.category-item:has(input:focus-visible),
+.lock-toggle:focus-visible {
+    @include focus-ring.focus-ring-declarations($offset: -2px);
 }

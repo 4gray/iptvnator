@@ -5,6 +5,7 @@ import {
     effect,
     inject,
     untracked,
+    viewChild,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -22,11 +23,11 @@ import {
     GLOBAL_SEARCH_MIN_LENGTH,
     isStalkerAccountPlaylist,
 } from '@iptvnator/shared/interfaces';
-import {
-    type StalkerGlobalSearchContext,
-    type StalkerGlobalSearchItem,
-    StalkerGlobalSearchService,
-} from './stalker-global-search.service';
+import { StalkerGlobalSearchService } from './stalker-global-search.service';
+import type {
+    StalkerGlobalSearchContext,
+    StalkerGlobalSearchItem,
+} from './stalker-global-search.types';
 import {
     type AdditionalGlobalSearchResult,
     SearchResultsComponent,
@@ -59,9 +60,11 @@ export class GlobalSearchRouteComponent {
     readonly term = queryParamSignal(inject(ActivatedRoute), 'q', (term) =>
         (term ?? '').trim()
     );
+    private readonly results = viewChild(SearchResultsComponent);
     private readonly context = computed<StalkerGlobalSearchContext>(() => ({
         term: this.term(),
         movies: this.filters().movie,
+        excludeHidden: this.results()?.excludeHidden() ?? false,
         series: this.filters().series,
         sources: this.stalkerSources(),
         lockVersion: this.parentalLock.version(),

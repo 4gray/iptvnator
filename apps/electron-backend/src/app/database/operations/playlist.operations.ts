@@ -5,6 +5,7 @@ import {
 } from './xtream-history-recovery';
 import { eq, sql } from 'drizzle-orm';
 import {
+    isHiddenStalkerCategories,
     normalizeXtreamContentTypes,
     parseXtreamHistoryRecovery,
     XTREAM_HISTORY_RECOVERY_PREFIX,
@@ -264,22 +265,34 @@ export async function getAppPlaylistMetas(db: AppDatabase) {
             favorites: schema.playlists.favorites,
             recentlyViewed: schema.playlists.recentlyViewed,
             lastUsage: schema.playlists.lastUsage,
+            hiddenStalkerCategories: sql<
+                string | null
+            >`CASE WHEN ${schema.playlists.type} = 'stalker' THEN CASE WHEN json_valid(${schema.playlists.payload}) THEN CASE WHEN json_type(${schema.playlists.payload}, '$.hiddenStalkerCategories') = 'object' THEN json_extract(${schema.playlists.payload}, '$.hiddenStalkerCategories') END END END`,
             xtreamContentTypes: sql<
                 string | null
             >`CASE WHEN ${schema.playlists.type} = 'xtream' THEN CASE WHEN json_valid(${schema.playlists.payload}) THEN CASE WHEN json_type(${schema.playlists.payload}, '$.xtreamContentTypes') = 'array' THEN json_extract(${schema.playlists.payload}, '$.xtreamContentTypes') END END END`,
         })
         .from(schema.playlists);
 
-    return rows.map((row) => ({
-        ...parseAppPlaylist({ ...row, payload: null } as schema.Playlist),
-        ...(row.xtreamContentTypes == null
-            ? {}
-            : {
-                  xtreamContentTypes: normalizeXtreamContentTypes(
-                      JSON.parse(row.xtreamContentTypes)
-                  ),
-              }),
-    }));
+    return rows.map((row) => {
+        const hidden = parseJsonValue<unknown>(
+            row.hiddenStalkerCategories,
+            null
+        );
+        return {
+            ...parseAppPlaylist({ ...row, payload: null } as schema.Playlist),
+            ...(isHiddenStalkerCategories(hidden)
+                ? { hiddenStalkerCategories: hidden }
+                : {}),
+            ...(row.xtreamContentTypes == null
+                ? {}
+                : {
+                      xtreamContentTypes: normalizeXtreamContentTypes(
+                          JSON.parse(row.xtreamContentTypes)
+                      ),
+                  }),
+        };
+    });
 }
 
 export async function getAppPlaylist(

@@ -99,13 +99,34 @@ describe('dialog header guard', () => {
                 /\b(MAT_DIALOG_DATA|MatDialogRef)\b/.test(file.source)
         );
         expect(dialogs.length).toBeGreaterThan(20);
-        const ownHeader = dialogs
+        // A provider adapter can delegate its entire dialog to a shared
+        // component. Check that component still owns a real dialog shell.
+        const shellHosts = files
             .filter(
                 (file) =>
-                    !templateOf(file.path, file.source).includes(
-                        '<app-dialog-shell'
-                    )
+                    file.name.endsWith('.ts') &&
+                    file.source.includes('@Component')
             )
+            .filter((file) =>
+                templateOf(file.path, file.source).includes('<app-dialog-shell')
+            )
+            .flatMap(
+                (file) =>
+                    file.source.match(
+                        /selector:\s*['"]([a-z][a-z0-9-]+)['"]/
+                    )?.[1] ?? []
+            );
+        const ownHeader = dialogs
+            .filter((file) => {
+                const template = templateOf(file.path, file.source);
+                if (template.includes('<app-dialog-shell')) return false;
+                const inline =
+                    template.match(/template:\s*`([\s\S]*?)`/)?.[1] ?? template;
+                const onlyChild = inline
+                    .trim()
+                    .match(/^<([a-z][a-z0-9-]+)\s+[^<>]*\/>$/)?.[1];
+                return !onlyChild || !shellHosts.includes(onlyChild);
+            })
             .map((file) => file.name)
             .filter((name) => !OWN_SURFACE.has(name));
         expect(ownHeader).toEqual([]);

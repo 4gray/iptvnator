@@ -104,6 +104,11 @@ describe('WorkspaceContextPanelComponent', () => {
         reloadCategories: jest.fn(),
     };
     const stalkerStore = {
+        currentPlaylist: signal({
+            _id: 'stalker-1',
+            hiddenStalkerCategories: { itv: ['1'] },
+        }),
+        selectedContentType: signal('itv'),
         getAllCategoriesForSelectedType: jest.fn(() => [
             { category_id: '*', category_name: 'All' },
             { category_id: '1', category_name: 'News' },
@@ -120,6 +125,7 @@ describe('WorkspaceContextPanelComponent', () => {
         isCategoryResourceFailed: signal(false),
         itvFullListActive: signal(false),
         itvFullListLoading: signal(false),
+        manageItvCategoryCounts: signal(new Map<string, number>()),
         itvCategoryItemCounts: signal<Map<number, number>>(new Map()),
         setSelectedCategory: jest.fn(),
         setPage: jest.fn(),
@@ -156,6 +162,7 @@ describe('WorkspaceContextPanelComponent', () => {
         xtreamStore.setSelectedItem.mockClear();
         xtreamStore.setSelectedCategory.mockClear();
         xtreamStore.reloadCategories.mockClear();
+        stalkerStore.selectedContentType.set('itv');
         stalkerStore.getCategoryResource.set([]);
         stalkerStore.selectedCategoryId.set(null);
         stalkerStore.setSelectedCategory.mockClear();
@@ -1149,12 +1156,16 @@ describe('WorkspaceContextPanelComponent', () => {
         );
     });
 
-    describe('Stalker lock dialog', () => {
+    describe('Stalker category editor', () => {
         function enableLock(): void {
             const parentalLock = TestBed.inject(ParentalLockService);
             Object.defineProperty(parentalLock, 'enabled', {
                 configurable: true,
                 value: signal(true),
+            });
+            Object.defineProperty(parentalLock, 'active', {
+                configurable: true,
+                value: signal(false),
             });
             jest.spyOn(parentalLock, 'requestUnlock').mockResolvedValue(true);
             jest.spyOn(parentalLock, 'ensureLocksReadable').mockResolvedValue(
@@ -1162,7 +1173,7 @@ describe('WorkspaceContextPanelComponent', () => {
             );
         }
 
-        it('opens with the categories snapshotted before the lazy import', async () => {
+        it('opens with all real categories after the PIN gate', async () => {
             enableLock();
             fixture.componentRef.setInput('context', {
                 provider: 'stalker',
@@ -1171,7 +1182,7 @@ describe('WorkspaceContextPanelComponent', () => {
             fixture.componentRef.setInput('section', 'itv');
             fixture.detectChanges();
             const component = fixture.componentInstance;
-            component.loadStalkerLockDialog = jest.fn(
+            component.loadStalkerCategoryDialog = jest.fn(
                 async () => class DialogStub {}
             );
 
@@ -1183,6 +1194,8 @@ describe('WorkspaceContextPanelComponent', () => {
                     data: {
                         playlistId: 'stalker-1',
                         contentType: 'itv',
+                        hiddenIds: ['1'],
+                        itemCounts: undefined,
                         categories: [
                             { category_id: '1', category_name: 'News' },
                         ],
@@ -1191,6 +1204,44 @@ describe('WorkspaceContextPanelComponent', () => {
                 })
             );
         });
+
+        it.each(['itv', 'radio', 'vod', 'series'])(
+            'opens %s with locks off and an empty visible rail',
+            async (section) => {
+                const lock = TestBed.inject(ParentalLockService);
+                jest.spyOn(lock, 'requestUnlock').mockResolvedValue(true);
+                const readLocks = jest.spyOn(lock, 'ensureLocksReadable');
+                fixture.componentRef.setInput('context', {
+                    provider: 'stalker',
+                    playlistId: 'stalker-1',
+                });
+                fixture.componentRef.setInput('section', section);
+                stalkerStore.selectedContentType.set(section);
+                fixture.detectChanges();
+                const component = fixture.componentInstance;
+                component.loadStalkerCategoryDialog = jest.fn(
+                    async () => class DialogStub {}
+                );
+                expect(
+                    fixture.nativeElement.querySelector(
+                        '[data-test-id="context-manage-categories"]'
+                    ).disabled
+                ).toBe(false);
+                await component.openManageStalkerCategories();
+                expect(readLocks).not.toHaveBeenCalled();
+                expect(dialog.open).toHaveBeenCalledWith(
+                    expect.any(Function),
+                    expect.objectContaining({
+                        data: expect.objectContaining({
+                            contentType: section,
+                            categories: [
+                                { category_id: '1', category_name: 'News' },
+                            ],
+                        }),
+                    })
+                );
+            }
+        );
 
         it('opens nothing when the route changed while the PIN was asked', async () => {
             enableLock();
@@ -1211,13 +1262,13 @@ describe('WorkspaceContextPanelComponent', () => {
                 }
             );
             const component = fixture.componentInstance;
-            component.loadStalkerLockDialog = jest.fn(
+            component.loadStalkerCategoryDialog = jest.fn(
                 async () => class DialogStub {}
             );
 
             await component.openManageStalkerCategories();
 
-            expect(component.loadStalkerLockDialog).not.toHaveBeenCalled();
+            expect(component.loadStalkerCategoryDialog).not.toHaveBeenCalled();
             expect(dialog.open).not.toHaveBeenCalled();
         });
 
@@ -1234,7 +1285,7 @@ describe('WorkspaceContextPanelComponent', () => {
             fixture.componentRef.setInput('section', 'itv');
             fixture.detectChanges();
             const component = fixture.componentInstance;
-            component.loadStalkerLockDialog = jest.fn(
+            component.loadStalkerCategoryDialog = jest.fn(
                 async () => class DialogStub {}
             );
 
@@ -1252,7 +1303,7 @@ describe('WorkspaceContextPanelComponent', () => {
             fixture.componentRef.setInput('section', 'itv');
             fixture.detectChanges();
             const component = fixture.componentInstance;
-            component.loadStalkerLockDialog = jest.fn(async () => {
+            component.loadStalkerCategoryDialog = jest.fn(async () => {
                 fixture.componentRef.setInput('context', {
                     provider: 'stalker',
                     playlistId: 'stalker-2',

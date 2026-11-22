@@ -257,8 +257,9 @@ handler as the header Back.
   the previous portal's list must never match), then locates the channel in
   the full ITV channel list cache — `get_ordered_list` is server-paged, so
   the row may sit on any page of its genre — selects that genre (`'*'` for a
-  channel without one), expands the rail and plays it. While the list loads it
-  waits (the cache turning ready re-runs the effect); a portal that cannot
+  channel without one), expands the rail and plays it. A saved channel in a
+  hidden genre plays over the visible All list. The exact lookup checks parental
+  locks again before deferred playback starts. While the list loads it waits (the cache turning ready re-runs the effect); a portal that cannot
   serve a full list (`itvFullListUnsupported`, the cache's reactive
   unsupported set), a load that fails transiently (the cache only arms a
   retry cooldown and changes no signal, so the flow awaits the preload

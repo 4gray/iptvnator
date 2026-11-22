@@ -1,7 +1,10 @@
 import { DestroyRef, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { NavigationEnd, Router } from '@angular/router';
-import { StalkerItvChannel } from '@iptvnator/portal/stalker/data-access';
+import {
+    findStalkerHandoffChannel,
+    StalkerItvChannel,
+} from '@iptvnator/portal/stalker/data-access';
 import { Subject } from 'rxjs';
 import { StalkerLiveAutoOpen } from './stalker-live-auto-open';
 
@@ -20,13 +23,19 @@ describe('StalkerLiveAutoOpen', () => {
     let events: Subject<unknown>;
     const selectedCategoryId = signal<string | null>(null);
     const searchPhrase = signal('');
+    const fullCache = signal<StalkerItvChannel[]>([]);
+    const lockedGenres = new Set<string>();
     const store = {
-        currentPlaylist: signal<{ _id?: string } | null>({ _id: 'pl-3' }),
+        currentPlaylist: signal<{
+            _id?: string;
+            hiddenStalkerCategories?: { itv?: string[] };
+        } | null>({ _id: 'pl-3' }),
         selectedContentType: signal<string | null>('itv'),
         selectedCategoryId,
         itvChannelsCategory: signal<string | null>(null),
         searchPhrase,
-        itvFullChannelList: signal<StalkerItvChannel[]>([]),
+        findItvChannelForHandoff: (id: string) =>
+            findStalkerHandoffChannel(fullCache(), id, lockedGenres),
         itvFullListActive: signal(false),
         itvFullListUnsupported: signal(false),
         preloadItvChannels: jest.fn(() => Promise.resolve()),
@@ -67,7 +76,8 @@ describe('StalkerLiveAutoOpen', () => {
         store.selectedCategoryId.set(null);
         store.itvChannelsCategory.set(null);
         store.searchPhrase.set('');
-        store.itvFullChannelList.set([]);
+        fullCache.set([]);
+        lockedGenres.clear();
         store.itvFullListActive.set(false);
         store.itvFullListUnsupported.set(false);
         store.preloadItvChannels.mockImplementation(() => Promise.resolve());
@@ -96,7 +106,7 @@ describe('StalkerLiveAutoOpen', () => {
             ''
         );
         store.itvFullListActive.set(true);
-        store.itvFullChannelList.set([channel('30')]);
+        fullCache.set([channel('30')]);
         store.selectedCategoryId.set('7');
         store.itvChannelsCategory.set('7');
 
@@ -118,7 +128,7 @@ describe('StalkerLiveAutoOpen', () => {
         expect(play).not.toHaveBeenCalled();
         expect(autoOpen.pendingItemId()).toBe('30');
 
-        store.itvFullChannelList.set([channel('1', 2), channel('30', 7)]);
+        fullCache.set([channel('1', 2), channel('30', 7)]);
         store.itvFullListActive.set(true);
         TestBed.tick();
 
@@ -137,13 +147,40 @@ describe('StalkerLiveAutoOpen', () => {
         expect(play).toHaveBeenCalledWith(channel('30', 7));
     });
 
+    it('opens a saved channel from a hidden genre over All without selecting the genre', () => {
+        store.currentPlaylist.set({
+            _id: 'pl-3',
+            hiddenStalkerCategories: { itv: ['7'] },
+        });
+        fullCache.set([channel('30', 7)]);
+        store.itvFullListActive.set(true);
+        arrive();
+        expect(store.setSelectedCategory).toHaveBeenCalledWith('*');
+        expect(store.setSelectedCategory).not.toHaveBeenCalledWith('7');
+        serveCategory('*');
+        expect(play).toHaveBeenCalledWith(channel('30', 7));
+    });
+
+    it('refuses a deferred hidden-channel handoff when its genre relocks', () => {
+        store.currentPlaylist.set({
+            _id: 'pl-3',
+            hiddenStalkerCategories: { itv: ['7'] },
+        });
+        fullCache.set([channel('30', 7)]);
+        store.itvFullListActive.set(true);
+        arrive();
+        lockedGenres.add('7');
+        serveCategory('*');
+        expect(play).not.toHaveBeenCalled();
+    });
+
     it('defers while another genre is still on screen, even when it shows the channel', () => {
         // The All list on screen holds the channel, but those rows are not
         // genre 7's: prepare() would capture the wrong channel order.
         const allItems = [channel('1', 2), channel('30', 7)];
         store.selectedCategoryId.set('*');
         store.itvChannelsCategory.set('*');
-        store.itvFullChannelList.set(allItems);
+        fullCache.set(allItems);
         store.itvFullListActive.set(true);
 
         arrive();
@@ -160,7 +197,7 @@ describe('StalkerLiveAutoOpen', () => {
         store.selectedCategoryId.set('7');
         store.itvChannelsCategory.set('7');
         store.searchPhrase.set('news');
-        store.itvFullChannelList.set([channel('30', 7)]);
+        fullCache.set([channel('30', 7)]);
         store.itvFullListActive.set(true);
 
         arrive();
@@ -172,7 +209,7 @@ describe('StalkerLiveAutoOpen', () => {
     it('plays once a legacy-paged genre is served, even without the row on page 1', () => {
         store.selectedCategoryId.set('2');
         store.itvChannelsCategory.set('2');
-        store.itvFullChannelList.set([channel('30', 7)]);
+        fullCache.set([channel('30', 7)]);
         store.itvFullListActive.set(true);
 
         arrive();
@@ -185,7 +222,7 @@ describe('StalkerLiveAutoOpen', () => {
     it('keeps waiting while the previous genre is still the served list', () => {
         store.selectedCategoryId.set('2');
         store.itvChannelsCategory.set('2');
-        store.itvFullChannelList.set([channel('30', 7)]);
+        fullCache.set([channel('30', 7)]);
         store.itvFullListActive.set(true);
 
         arrive();
@@ -195,7 +232,7 @@ describe('StalkerLiveAutoOpen', () => {
     });
 
     it('lets a newer handoff supersede a channel still waiting for its rows', () => {
-        store.itvFullChannelList.set([channel('30', 7), channel('31', 7)]);
+        fullCache.set([channel('30', 7), channel('31', 7)]);
         store.itvFullListActive.set(true);
 
         arrive();
@@ -214,7 +251,7 @@ describe('StalkerLiveAutoOpen', () => {
         // even a genre-less channel waits for the '*' list.
         const noGenre = { id: '30', cmd: 'x', name: 'No genre' };
         store.selectedCategoryId.set(null);
-        store.itvFullChannelList.set([noGenre]);
+        fullCache.set([noGenre]);
         store.itvFullListActive.set(true);
 
         arrive();
@@ -231,7 +268,7 @@ describe('StalkerLiveAutoOpen', () => {
         const noGenre = { id: '30', cmd: 'x', name: 'No genre' };
         store.selectedCategoryId.set('2');
         store.itvChannelsCategory.set('2');
-        store.itvFullChannelList.set([noGenre]);
+        fullCache.set([noGenre]);
         store.itvFullListActive.set(true);
 
         arrive();
@@ -246,7 +283,7 @@ describe('StalkerLiveAutoOpen', () => {
     });
 
     it('drops the deferred play when the user starts a search first', () => {
-        store.itvFullChannelList.set([channel('30', 7)]);
+        fullCache.set([channel('30', 7)]);
         store.itvFullListActive.set(true);
 
         arrive();
@@ -258,7 +295,7 @@ describe('StalkerLiveAutoOpen', () => {
     });
 
     it('drops the deferred play when the user selects another genre first', () => {
-        store.itvFullChannelList.set([channel('30', 7)]);
+        fullCache.set([channel('30', 7)]);
         store.itvFullListActive.set(true);
 
         arrive();
@@ -344,7 +381,7 @@ describe('StalkerLiveAutoOpen', () => {
         );
 
         arrive();
-        store.itvFullChannelList.set([channel('30', 7)]);
+        fullCache.set([channel('30', 7)]);
         store.itvFullListActive.set(true);
         TestBed.tick();
         serveCategory('7');
@@ -361,7 +398,7 @@ describe('StalkerLiveAutoOpen', () => {
     it('waits while the store still serves another portal, even one holding the same id', () => {
         store.currentPlaylist.set({ _id: 'pl-1' });
         store.itvFullListActive.set(true);
-        store.itvFullChannelList.set([channel('30', 9)]);
+        fullCache.set([channel('30', 9)]);
 
         arrive();
 
@@ -370,7 +407,7 @@ describe('StalkerLiveAutoOpen', () => {
         expect(autoOpen.pendingItemId()).toBe('30');
 
         store.currentPlaylist.set({ _id: 'pl-3' });
-        store.itvFullChannelList.set([channel('30', 7)]);
+        fullCache.set([channel('30', 7)]);
         TestBed.tick();
         serveCategory('7');
 
@@ -387,7 +424,7 @@ describe('StalkerLiveAutoOpen', () => {
             tv_genre_id: 7,
         } as unknown as StalkerItvChannel;
         store.itvFullListActive.set(true);
-        store.itvFullChannelList.set([byStreamId]);
+        fullCache.set([byStreamId]);
 
         arrive();
         serveCategory('7');
@@ -401,7 +438,7 @@ describe('StalkerLiveAutoOpen', () => {
         // selection a tick later.
         routeReady.set(false);
         store.itvFullListActive.set(true);
-        store.itvFullChannelList.set([channel('30', 7)]);
+        fullCache.set([channel('30', 7)]);
 
         arrive();
 
@@ -435,7 +472,7 @@ describe('StalkerLiveAutoOpen', () => {
         expect(window.history.state).toEqual({});
 
         settle();
-        store.itvFullChannelList.set([channel('30', 7)]);
+        fullCache.set([channel('30', 7)]);
         store.itvFullListActive.set(true);
         TestBed.tick();
 
@@ -489,7 +526,7 @@ describe('StalkerLiveAutoOpen', () => {
         // user action and must not drop the handoff.
         routeReady.set(false);
         store.selectedCategoryId.set('4');
-        store.itvFullChannelList.set([channel('30', 7)]);
+        fullCache.set([channel('30', 7)]);
         store.itvFullListActive.set(true);
 
         arrive();
@@ -513,7 +550,7 @@ describe('StalkerLiveAutoOpen', () => {
             category_id: '8',
         } as unknown as StalkerItvChannel;
         store.itvFullListActive.set(true);
-        store.itvFullChannelList.set([byCategoryId]);
+        fullCache.set([byCategoryId]);
 
         arrive();
         serveCategory('*');
@@ -534,7 +571,7 @@ describe('StalkerLiveAutoOpen', () => {
         } as unknown as StalkerItvChannel;
         const other = channel('7', 7);
         store.itvFullListActive.set(true);
-        store.itvFullChannelList.set([other, twoIds]);
+        fullCache.set([other, twoIds]);
 
         arrive({
             openStalkerLiveItemId: '99',
@@ -563,7 +600,7 @@ describe('StalkerLiveAutoOpen', () => {
             tv_genre_id: 7,
         } as unknown as StalkerItvChannel;
         store.itvFullListActive.set(true);
-        store.itvFullChannelList.set([byStreamId, byId]);
+        fullCache.set([byStreamId, byId]);
 
         arrive({
             openStalkerLiveItemId: '99',
@@ -579,7 +616,7 @@ describe('StalkerLiveAutoOpen', () => {
     it('does nothing outside the ITV section', () => {
         store.selectedContentType.set('radio');
         store.itvFullListActive.set(true);
-        store.itvFullChannelList.set([channel('30')]);
+        fullCache.set([channel('30')]);
 
         arrive();
 
@@ -604,7 +641,7 @@ describe('StalkerLiveAutoOpen', () => {
 
     it('consumes a handoff whose channel is missing from the loaded list', () => {
         store.itvFullListActive.set(true);
-        store.itvFullChannelList.set([channel('1')]);
+        fullCache.set([channel('1')]);
 
         arrive();
 
@@ -627,7 +664,7 @@ describe('StalkerLiveAutoOpen', () => {
                 tv_genre_id: genre,
             };
             store.itvFullListActive.set(true);
-            store.itvFullChannelList.set([noGenre]);
+            fullCache.set([noGenre]);
 
             arrive();
             serveCategory('*');
