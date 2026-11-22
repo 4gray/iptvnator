@@ -122,7 +122,9 @@ older service workers when opening the same-origin authorization endpoint.
 
 The Android bridge streams hosted API responses in bounded chunks, with an
 inactivity timeout for the transfer. Cloudflare OAuth calls keep a separate
-deadline. This lets long Xtream catalog downloads complete as data arrives.
+deadline. While the hosted worker buffers an Xtream response in Cloudflare mode,
+it sends JSON whitespace every ten seconds so the bridge can distinguish a slow
+catalog from a stalled connection. The provider socket retains its own inactivity timeout.
 
 Android callback, token renewal and playback still require a live Access
 application for end-to-end validation.
