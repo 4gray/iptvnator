@@ -40,6 +40,8 @@ import {
     PlaylistRecentlyViewedItem,
     PlaylistRecentIdentity,
     PlaylistUpdateState,
+    applyStalkerCategoryVisibility,
+    type StalkerCategoryVisibilityChanges,
     StalkerPortalItem,
     withExplicitStalkerPortalFlag,
 } from '@iptvnator/shared/interfaces';
@@ -1068,6 +1070,44 @@ export class PlaylistsService {
 
             await this.persistPlaylistMutation(nextPlaylist);
             return nextPlaylist;
+        });
+    }
+
+    updateStalkerCategoryVisibility(
+        playlistId: string,
+        changes: StalkerCategoryVisibilityChanges
+    ): Observable<Playlist> {
+        const edit = (current: Playlist): Playlist => {
+            if (!current?.macAddress)
+                throw new Error('Stalker playlist no longer exists');
+            return {
+                ...current,
+                hiddenStalkerCategories: applyStalkerCategoryVisibility(
+                    current.hiddenStalkerCategories,
+                    changes
+                ),
+            };
+        };
+        return this.serializePlaylistWrite(playlistId, async () => {
+            if (!this.usesDocumentStore) {
+                await this.ensureIndexedDbPlaylistMigrations();
+                const saved = await this.transformIndexedDbPlaylistMeta(
+                    playlistId,
+                    edit
+                );
+                if (!saved)
+                    throw new Error('Stalker playlist no longer exists');
+                return saved;
+            }
+            const playlist = edit(
+                await firstValueFrom(this.getPlaylistById(playlistId))
+            );
+            this.startupMetas = null;
+            const saved =
+                await this.documentStore?.dbUpsertAppPlaylist(playlist);
+            if (!saved?.success)
+                throw new Error('Stalker category visibility write failed');
+            return saved.playlist ?? playlist;
         });
     }
 

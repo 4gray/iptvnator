@@ -1,12 +1,15 @@
+import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { TestBed } from '@angular/core/testing';
 import {
     ActivatedRouteSnapshot,
     convertToParamMap,
+    RedirectCommand,
     Router,
     RouterStateSnapshot,
     UrlTree,
 } from '@angular/router';
-import { ParentalLockService } from '@iptvnator/services';
+import { ParentalLockService, PlaylistsService } from '@iptvnator/services';
+import { of } from 'rxjs';
 import { parentalLockStalkerCategoryGuard } from './parental-lock-category.guard';
 
 function createRoute(playlistId: string, categoryId: string) {
@@ -29,7 +32,7 @@ describe('parentalLockStalkerCategoryGuard', () => {
         isStalkerCategoryLocked: jest.Mock;
         requestUnlock: jest.Mock;
     };
-    let router: { createUrlTree: jest.Mock };
+    let router: { createUrlTree: jest.Mock; currentNavigation: jest.Mock };
 
     beforeEach(() => {
         parentalLock = {
@@ -38,11 +41,25 @@ describe('parentalLockStalkerCategoryGuard', () => {
             isStalkerCategoryLocked: jest.fn(() => false),
             requestUnlock: jest.fn().mockResolvedValue(false),
         };
-        router = { createUrlTree: jest.fn(() => ({}) as UrlTree) };
+        router = {
+            currentNavigation: jest.fn(),
+            createUrlTree: jest.fn(() => ({}) as UrlTree),
+        };
         TestBed.configureTestingModule({
             providers: [
+                {
+                    provide: PlaylistContextFacade,
+                    useValue: { playlists: () => [] },
+                },
                 { provide: ParentalLockService, useValue: parentalLock },
                 { provide: Router, useValue: router },
+                {
+                    provide: PlaylistsService,
+                    useValue: {
+                        getPlaylistById: () =>
+                            of({ hiddenStalkerCategories: { vod: ['8'] } }),
+                    },
+                },
             ],
         });
     });
@@ -55,6 +72,36 @@ describe('parentalLockStalkerCategoryGuard', () => {
             )
         );
     }
+
+    it('redirects a hidden genre even while unlocked and skips the PIN prompt', async () => {
+        parentalLock.active.mockReturnValue(false);
+        expect(await run('vod', '8')).not.toBe(true);
+        expect(router.createUrlTree).toHaveBeenCalledWith([
+            '/workspace',
+            'stalker',
+            'portal-1',
+            'vod',
+        ]);
+        expect(parentalLock.requestUnlock).not.toHaveBeenCalled();
+        expect(await run('series', '8')).toBe(true);
+    });
+
+    it('retains a direct item handoff over All only after passing its parental gate', async () => {
+        const state = {
+            openStalkerItem: { id: 'film', category_id: '8' },
+            stalkerReturnTo: '/workspace',
+        };
+        router.currentNavigation.mockReturnValue({ extras: { state } });
+        parentalLock.isStalkerCategoryLocked.mockReturnValue(true);
+        expect(await run('vod', '8')).not.toBeInstanceOf(RedirectCommand);
+        expect(parentalLock.requestUnlock).toHaveBeenCalled();
+        parentalLock.requestUnlock.mockResolvedValue(true);
+        const allowed = await run('vod', '8');
+        expect(allowed).toBeInstanceOf(RedirectCommand);
+        expect(
+            (allowed as RedirectCommand).navigationBehaviorOptions?.state
+        ).toBe(state);
+    });
 
     it('passes an unlocked genre and an inactive lock', async () => {
         await expect(run('vod', '9')).resolves.toBe(true);

@@ -220,15 +220,12 @@ export class WorkspaceContextPanelComponent {
     readonly canManageXtreamCategories = computed(
         () => this.isXtreamCategories() && this.xtreamSelectedTypeCountsReady()
     );
-    /**
-     * Stalker has no hide/show dialog, so its "Manage categories" is the
-     * lock dialog alone and exists only while the lock is on — same button,
-     * same icon as the Xtream rail, so the entry point is one pattern.
-     */
     readonly canManageStalkerCategories = computed(
         () =>
             this.isStalkerCategories() &&
-            this.parentalLock.enabled() &&
+            this.stalkerStore.currentPlaylist()?._id ===
+                this.context().playlistId &&
+            this.stalkerStore.selectedContentType() === this.section() &&
             !this.isStalkerCategoryLoading() &&
             !this.isStalkerCategoryFailed()
     );
@@ -587,28 +584,41 @@ export class WorkspaceContextPanelComponent {
         }
         // The dialog's draft is the lock store's list: built from the empty
         // fail-closed snapshot it would erase the real locks on Save.
-        if (!unchanged() || !(await this.parentalLock.ensureLocksReadable())) {
+        if (
+            !unchanged() ||
+            (this.parentalLock.enabled() &&
+                !(await this.parentalLock.ensureLocksReadable()))
+        ) {
             return;
         }
         if (!unchanged()) {
             return;
         }
-        // Snapshot before the lazy import, for the same reason.
+        const dialogComponent = await this.loadStalkerCategoryDialog();
+        if (!unchanged() || this.parentalLock.active()) return;
         const categories = this.stalkerStore
             .getAllCategoriesForSelectedType()
             .filter((category) => String(category.category_id) !== '*');
-        const dialogComponent = await this.loadStalkerLockDialog();
-        if (!unchanged()) {
-            return;
-        }
         this.dialog.open(dialogComponent, {
             ...dialogSize('md'),
-            data: { playlistId: context.playlistId, contentType, categories },
+            data: {
+                playlistId: context.playlistId,
+                contentType,
+                categories,
+                hiddenIds:
+                    this.stalkerStore.currentPlaylist()
+                        ?.hiddenStalkerCategories?.[contentType] ?? [],
+                itemCounts:
+                    contentType === 'itv' &&
+                    this.stalkerStore.itvFullListActive()
+                        ? this.stalkerStore.manageItvCategoryCounts()
+                        : undefined,
+            },
         });
     }
 
     /** The dynamic import; a field so specs can substitute it. */
-    loadStalkerLockDialog = (): Promise<Type<unknown>> =>
+    loadStalkerCategoryDialog = (): Promise<Type<unknown>> =>
         import('@iptvnator/portal/stalker/feature').then(
             (module) => module.StalkerCategoryLockDialogComponent
         );

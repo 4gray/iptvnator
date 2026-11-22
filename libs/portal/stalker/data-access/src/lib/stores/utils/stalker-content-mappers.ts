@@ -1,4 +1,9 @@
-import { firstNonBlankStalkerId } from '../../stalker-vod.utils';
+import { getStalkerLiveRowGenre } from '@iptvnator/shared/interfaces';
+import { isStalkerItemWithheld } from './stalker-parental-lock.utils';
+import {
+    firstNonBlankStalkerId,
+    normalizeStalkerEntityId,
+} from '../../stalker-vod.utils';
 import {
     StalkerContentItem,
     StalkerItvChannel,
@@ -51,10 +56,26 @@ export function filterItvChannelsByGenre(
         return channels;
     }
 
-    const target = String(categoryId);
     return channels.filter(
-        (channel) => String(channel.tv_genre_id ?? '') === target
+        (channel) => getStalkerLiveRowGenre(channel) === categoryId
     );
+}
+
+/** Either provider ID can identify a saved channel. A collision across rows is ambiguous. */
+export function findStalkerHandoffChannel(
+    channels: readonly StalkerItvChannel[],
+    id: string,
+    lockedGenres: ReadonlySet<string>
+): StalkerItvChannel | null {
+    const matches = channels.filter(
+        (row) =>
+            normalizeStalkerEntityId(row.id) === id ||
+            normalizeStalkerEntityId(row.stream_id) === id
+    );
+    return matches.length === 1 &&
+        !isStalkerItemWithheld(matches[0], 'itv', lockedGenres)
+        ? matches[0]
+        : null;
 }
 
 export function toStalkerItvChannel(

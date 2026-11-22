@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Locator, Page } from '@playwright/test';
-import type { PlaylistBackupManifestV1 } from '@iptvnator/shared/interfaces';
+import type {
+    PlaylistBackupManifestV1,
+    StalkerPlaylistBackupEntry,
+} from '@iptvnator/shared/interfaces';
 import {
     addXtreamPortal,
     closeElectronApp,
@@ -28,6 +31,93 @@ import { readVisibleSidebarCategories } from './sidebar-categories.e2e-support';
  * assertions also guard #1017's missing provider category IDs.
  */
 test.describe('Electron playlist backup round-trip', () => {
+    test('round-trips Stalker visibility and preserves it when merging an older archive', async ({
+        dataDir,
+    }) => {
+        const app = await launchElectronApp(dataDir);
+        try {
+            await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'backup');
+            const section = app.mainWindow.locator('#backup');
+            const id = 'synthetic-categories';
+            const hiddenCategories = {
+                vod: ['shared-id'],
+                series: ['series-id'],
+                radio: ['shared-id'],
+            };
+            const entry: StalkerPlaylistBackupEntry = {
+                portalType: 'stalker',
+                exportedId: id,
+                title: 'Synthetic archive',
+                autoRefresh: false,
+                connection: {
+                    portalUrl: 'https://source.test/portal',
+                    macAddress: '00:00:00:00:00:00',
+                },
+                userState: {
+                    favorites: [],
+                    recentlyViewed: [],
+                    hiddenCategories,
+                },
+            };
+            const manifest: PlaylistBackupManifestV1 = {
+                kind: 'iptvnator-playlist-backup',
+                version: 1,
+                exportedAt: '2026-01-01T00:00:00Z',
+                includeSecrets: true,
+                playlists: [entry],
+            };
+            for (const summary of ['1 imported', '0 imported, 1 merged']) {
+                const chooser = app.mainWindow.waitForEvent('filechooser');
+                await section
+                    .getByRole('button', { name: 'Import', exact: true })
+                    .click();
+                const file = await chooser;
+                await file.setFiles({
+                    name: 'synthetic-backup.json',
+                    mimeType: 'application/json',
+                    buffer: Buffer.from(JSON.stringify(manifest)),
+                });
+                await expect(
+                    app.mainWindow.getByText(
+                        `Backup import finished: ${summary}`
+                    )
+                ).toBeVisible();
+                delete entry.userState.hiddenCategories;
+            }
+            const meta = await app.mainWindow.evaluate(
+                async (id) =>
+                    (await window.electron.dbGetAppPlaylistMetas()).find(
+                        (row) => row._id === id
+                    ),
+                id
+            );
+            expect(meta?.hiddenStalkerCategories).toEqual(hiddenCategories);
+            const exportPath = join(dataDir, 'stalker-visibility.json');
+            await app.electronApp.evaluate(({ dialog }, path) => {
+                dialog.showSaveDialog = async () => ({
+                    canceled: false,
+                    filePath: path,
+                });
+            }, exportPath);
+            await section
+                .getByRole('button', { name: 'Export', exact: true })
+                .click();
+            await expect(
+                app.mainWindow.getByText('Playlist backup exported.')
+            ).toBeVisible();
+            const exported = JSON.parse(
+                readFileSync(exportPath, 'utf8')
+            ) as PlaylistBackupManifestV1;
+            expect(
+                exported.playlists.find((row) => row.exportedId === id)
+                    ?.userState
+            ).toMatchObject({ hiddenCategories });
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
     test('preserves pending backup state on re-export and restores it after restart', async ({
         dataDir,
         request,

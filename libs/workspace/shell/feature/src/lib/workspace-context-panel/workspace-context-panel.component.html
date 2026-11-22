@@ -63,31 +63,21 @@
                         }
                     </mat-menu>
                 }
-                @if (isXtreamCategories()) {
+                @if (isXtreamCategories() || isStalkerCategories()) {
                     <button
                         type="button"
                         mat-icon-button
                         class="context-header__action"
                         data-test-id="context-manage-categories"
-                        (click)="openManageCategories()"
-                        [disabled]="!canManageXtreamCategories()"
-                        [matTooltip]="
-                            'WORKSPACE.CONTEXT.MANAGE_CATEGORIES' | translate
+                        (click)="
+                            isStalkerCategories()
+                                ? openManageStalkerCategories()
+                                : openManageCategories()
                         "
-                        [attr.aria-label]="
-                            'WORKSPACE.CONTEXT.MANAGE_CATEGORIES' | translate
+                        [disabled]="
+                            !canManageXtreamCategories() &&
+                            !canManageStalkerCategories()
                         "
-                    >
-                        <mat-icon>tune</mat-icon>
-                    </button>
-                }
-                @if (canManageStalkerCategories()) {
-                    <button
-                        type="button"
-                        mat-icon-button
-                        class="context-header__action"
-                        data-test-id="context-manage-categories"
-                        (click)="openManageStalkerCategories()"
                         [matTooltip]="
                             'WORKSPACE.CONTEXT.MANAGE_CATEGORIES' | translate
                         "

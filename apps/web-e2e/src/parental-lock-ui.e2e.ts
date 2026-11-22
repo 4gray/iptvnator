@@ -156,8 +156,8 @@ async function tabTo(
  * The ring sits inside the row (offset -2px), so it must stand out from the
  * row's own fill and from the surface around the row.
  */
-async function expectFocusRing(row: Locator): Promise<void> {
-    await expect(row).toBeFocused();
+async function expectFocusRing(row: Locator, focused = row): Promise<void> {
+    await expect(focused).toBeFocused();
     await expect(row).toHaveCSS('outline-style', 'solid');
     await expect(row).toHaveCSS('outline-width', '2px');
     const inside = await contrastBehind(row, 'outlineColor', true);
@@ -338,18 +338,19 @@ test.describe('Parental lock UI', () => {
         await expect(rows.first()).toBeVisible();
 
         const search = dialog.locator('.search-inline input');
-        await tabTo(page, browserName, search, rows.first());
+        const checkbox = rows.first().getByRole('checkbox');
+        await tabTo(page, browserName, search, checkbox);
         for (const theme of THEMES) {
             await setTheme(page, theme);
-            await expectFocusRing(rows.first());
+            await expectFocusRing(rows.first(), checkbox);
             await expectPaintedBorder(
                 dialog.locator('.categories-list'),
                 'solid'
             );
         }
-        // The next row takes the ring over when Tab moves on.
+        // Tab moves from the visibility checkbox to the independent lock toggle.
         await pressTab(page, browserName);
-        await expectFocusRing(rows.nth(1));
+        await expectFocusRing(rows.first().getByRole('button'));
 
         await search.fill('a');
         await dialog.getByRole('button', { name: 'Clear search' }).click();

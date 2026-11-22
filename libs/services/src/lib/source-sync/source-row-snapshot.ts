@@ -74,6 +74,7 @@ export function preserveUnchangedDeviceFields(
         'autoImportEpg',
         'position',
         'hiddenGroupTitles',
+        'hiddenStalkerCategories',
         'manualEpgUrls',
         'disabledEpgUrls',
         'lastUsage',

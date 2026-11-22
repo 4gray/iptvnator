@@ -279,6 +279,9 @@ export class StalkerSearchComponent {
                 }
                 const item = origin.item as StalkerVodSource;
                 if (
+                    this.currentPlaylist()?.hiddenStalkerCategories?.[
+                        origin.catalog
+                    ]?.includes(String(item.category_id)) ||
                     this.parentalLock.isStalkerCategoryLocked(
                         playlistId,
                         origin.catalog,

@@ -194,7 +194,7 @@ Explicitly excluded:
 ### Stalker
 
 Stalker backups export connection metadata plus playlist-scoped favorites/recent
-state and playback positions.
+state, category visibility, and playback positions.
 
 - Exported connection fields:
     - `portalUrl`
@@ -209,6 +209,7 @@ state and playback positions.
 - Exported user state:
     - favorites snapshots
     - recently viewed snapshots
+    - `hiddenCategories`, an object of hidden provider IDs grouped by `itv`, `radio`, `vod`, or `series`. A present object replaces the destination’s visibility, including an empty object to show every category. Older archives omit the field and retain the destination’s preferences.
     - optional `playbackPositions`, including shared activity and exact episode reset barriers
 
 The settings projector overlays shared activity on strictly read local positions.
