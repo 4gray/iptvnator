@@ -2720,6 +2720,68 @@ describe('PlaylistsService', () => {
             expect(deleteOrder).toBeGreaterThan(upsertOrder);
         });
 
+        it('edits the browser cursor row without replacing other hidden genres', async () => {
+            testWindow.electron = undefined;
+            const current = {
+                ...createBasePlaylist('local-source'),
+                macAddress: '00:00:00:00:00:00',
+                hiddenStalkerCategories: { itv: ['01', '02'] },
+            };
+            const update = jest.fn();
+            const service = createService({
+                openCursor: ({ query }: { query?: string }) =>
+                    query === current._id
+                        ? of({ value: current, update })
+                        : EMPTY,
+            });
+            const saved = await firstValueFrom(
+                service.updateStalkerCategoryVisibility(current._id, {
+                    itv: { show: ['01'] },
+                })
+            );
+            expect(saved).toEqual({
+                ...current,
+                hiddenStalkerCategories: { itv: ['02'] },
+            });
+            expect(update).toHaveBeenCalledWith(saved);
+            await expect(
+                firstValueFrom(
+                    service.updateStalkerCategoryVisibility('removed-source', {
+                        itv: { hide: ['01'] },
+                    })
+                )
+            ).rejects.toThrow('Stalker playlist no longer exists');
+            expect(update).toHaveBeenCalledTimes(1);
+        });
+
+        it('aborts browser visibility edits if another source replaced the portal', async () => {
+            testWindow.electron = undefined;
+            const abort = jest.fn();
+            const update = jest.fn();
+            const service = createService({
+                openCursor: ({ query }: { query?: string }) =>
+                    query
+                        ? of({
+                              value: {
+                                  _id: query,
+                                  url: 'https://source.example/list',
+                              },
+                              update,
+                              request: { transaction: { abort } },
+                          })
+                        : EMPTY,
+            });
+            await expect(
+                firstValueFrom(
+                    service.updateStalkerCategoryVisibility('replaced-source', {
+                        vod: { hide: ['01'] },
+                    })
+                )
+            ).rejects.toThrow('Stalker playlist no longer exists');
+            expect(abort).toHaveBeenCalledTimes(1);
+            expect(update).not.toHaveBeenCalled();
+        });
+
         it('merges Stalker visibility edits against the latest source and survives stale refreshes', async () => {
             const original = {
                 ...createBasePlaylist('synthetic-categories'),
