@@ -216,18 +216,31 @@ export class DevicePairingStore {
         claim.approved = true;
         return true;
     }
+    ownsClaim(id: unknown, supplied: unknown): boolean {
+        if (
+            typeof id !== 'string' ||
+            id.length > 128 ||
+            typeof supplied !== 'string' ||
+            supplied.length > 128
+        )
+            return false;
+        const claim = this.claims.get(id);
+        return (
+            !!claim &&
+            claim.expires > this.now() &&
+            timingSafeEqual(
+                Buffer.from(claim.secret, 'hex'),
+                Buffer.from(digest(supplied), 'hex')
+            )
+        );
+    }
     complete(
         id: string,
         supplied: string
     ): { status: 'pending' } | { status: 'approved'; token: string } | null {
         this.prune();
         const claim = this.claims.get(id);
-        const suppliedDigest = Buffer.from(digest(supplied), 'hex');
-        if (
-            !claim ||
-            !timingSafeEqual(Buffer.from(claim.secret, 'hex'), suppliedDigest)
-        )
-            return null;
+        if (!claim || !this.ownsClaim(id, supplied)) return null;
         if (!claim.approved) return { status: 'pending' };
         const token = secret();
         this.db

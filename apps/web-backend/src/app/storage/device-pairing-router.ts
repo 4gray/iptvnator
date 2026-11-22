@@ -30,18 +30,31 @@ export function createDevicePairingRouter(
         res.set('Cache-Control', 'no-store');
         next();
     });
-    router.use(
-        pairingPaths,
-        rateLimit({
-            windowMs: 60_000,
-            limit: 120,
-            standardHeaders: 'draft-8',
-            legacyHeaders: false,
-            keyGenerator: (req) =>
-                ipKeyGenerator(req.socket.remoteAddress ?? 'unknown'),
-        })
-    );
-    router.use(pairingPaths, express.json({ limit: '4kb' }));
+    const json = express.json({ limit: '4kb' });
+    const pairingLimit = rateLimit({
+        windowMs: 60_000,
+        limit: 120,
+        standardHeaders: 'draft-8',
+        legacyHeaders: false,
+        keyGenerator: (req, res) =>
+            res.locals.claimPollKey ??
+            ipKeyGenerator(req.socket.remoteAddress ?? 'unknown'),
+    });
+    // Devices behind one tunnel share a peer address. Only a live claim's owner gets its polling budget.
+    router.post('/device-pairing/complete', (req, res, next) => {
+        json(req, res, (error) => {
+            if (error) {
+                void pairingLimit(req, res, (limitError) =>
+                    next(limitError ?? error)
+                );
+                return;
+            }
+            if (store.ownsClaim(req.body?.claimId, req.body?.claimSecret))
+                res.locals.claimPollKey = 'claim:' + req.body.claimId;
+            next();
+        });
+    });
+    router.use(pairingPaths, pairingLimit, json);
     const admin: RequestHandler = (req, res, next) => {
         if (isHostedWorkerRequest(req)) {
             next();
