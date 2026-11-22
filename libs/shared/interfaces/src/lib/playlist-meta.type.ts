@@ -27,6 +27,7 @@ export type PlaylistMeta = Pick<
     | 'password'
     | 'macAddress'
     | 'hiddenGroupTitles'
+    | 'hiddenStalkerCategories'
     | 'portalUrl'
     | 'recentlyViewed'
     | 'serverTimezone'

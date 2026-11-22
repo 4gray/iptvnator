@@ -458,6 +458,23 @@ describe('playlist.operations', () => {
         );
     });
 
+    it('exposes only the Stalker visibility map in metadata without loading catalog payloads', () => {
+        const result = runPlaylistUpdateScenario(`
+            const hidden = { itv: ['reused'], series: ['reused'] };
+            await upsertAppPlaylist(db, { _id: 'synthetic-portal', macAddress: '00:00:00:00:00:00', hiddenStalkerCategories: hidden, stalkerToken: 'synthetic-session' });
+            await upsertAppPlaylist(db, { _id: 'synthetic-text', hiddenStalkerCategories: hidden });
+            const metas = await getAppPlaylistMetas(db);
+            process.stdout.write(JSON.stringify(metas.map(row => ({ id: row._id, hidden: row.hiddenStalkerCategories, token: row.stalkerToken }))));
+        `);
+        expect(result).toEqual([
+            {
+                id: 'synthetic-portal',
+                hidden: { itv: ['reused'], series: ['reused'] },
+            },
+            { id: 'synthetic-text' },
+        ]);
+    });
+
     it('resolves M3U favorite channels in the worker without returning the full playlist payload', async () => {
         const firstChannel = {
             id: 'channel-1',

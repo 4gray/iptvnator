@@ -1,24 +1,14 @@
 import {
     ChangeDetectionStrategy,
     Component,
-    computed,
     effect,
     inject,
     OnInit,
     signal,
 } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import {
-    MAT_DIALOG_DATA,
-    MatDialogModule,
-    MatDialogRef,
-} from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { TranslateService } from '@ngx-translate/core';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import {
     DatabaseService,
@@ -27,12 +17,10 @@ import {
     XCategoryFromDb,
 } from '@iptvnator/services';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { foldSearchText } from '@iptvnator/shared/interfaces';
 import {
-    DialogFooterDirective,
-    DialogShellComponent,
-} from '@iptvnator/ui/components';
-import { StateViewComponent } from '@iptvnator/ui/state';
+    CategoryEditorComponent,
+    CategoryEditorRow,
+} from '@iptvnator/portal/shared/ui';
 
 export interface CategoryManagementDialogData {
     playlistId: string;
@@ -40,28 +28,26 @@ export interface CategoryManagementDialogData {
     itemCounts: Map<number, number>;
 }
 
-interface CategoryWithSelection extends XCategoryFromDb {
-    selected: boolean;
-    /** Parental lock draft; only rendered while the lock is enabled. */
-    lockedDraft: boolean;
+interface CategoryWithSelection extends CategoryEditorRow {
+    readonly id: number;
+    readonly providerId: number;
 }
 
 @Component({
     selector: 'app-category-management-dialog',
-    imports: [
-        StateViewComponent,
-        DialogFooterDirective,
-        DialogShellComponent,
-        MatDialogModule,
-        MatButtonModule,
-        MatCheckboxModule,
-        MatIconModule,
-        MatProgressSpinnerModule,
-        MatTooltipModule,
-        TranslatePipe,
-    ],
-    templateUrl: './category-management-dialog.component.html',
-    styleUrl: './category-management-dialog.component.scss',
+    imports: [CategoryEditorComponent],
+    template: `
+        <app-category-editor
+            [(categories)]="categories"
+            subtitle="DIALOGS.XTREAM_CATEGORIES"
+            [supportsVisibility]="supportsVisibility"
+            [showLocks]="showLocks()"
+            [isLoading]="isLoading()"
+            [isSaving]="isSaving()"
+            (saveRequested)="save()"
+            (cancelled)="cancel()"
+        />
+    `,
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CategoryManagementDialogComponent implements OnInit {
@@ -82,45 +68,15 @@ export class CategoryManagementDialogComponent implements OnInit {
     readonly data = inject<CategoryManagementDialogData>(MAT_DIALOG_DATA);
     private readonly logger = createLogger('CategoryManagementDialog');
 
-    /** Lock toggles exist only while the parental lock feature is on. */
     /**
      * Lock toggles, only once the lock store has been read: a draft built
      * from the empty fail-closed snapshot would, if storage recovered by
      * Save, replace the real locks with nothing.
      */
     readonly showLocks = signal(false);
-    readonly lockedCount = computed(
-        () => this.categories().filter((c) => c.lockedDraft).length
-    );
-
     readonly isLoading = signal(true);
     readonly isSaving = signal(false);
     readonly categories = signal<CategoryWithSelection[]>([]);
-    readonly searchTerm = signal('');
-
-    readonly filteredCategories = computed(() => {
-        const term = foldSearchText(this.searchTerm());
-        if (!term) return this.categories();
-        return this.categories().filter((c) =>
-            foldSearchText(c.name).includes(term)
-        );
-    });
-
-    readonly selectedCount = computed(
-        () => this.categories().filter((c) => c.selected).length
-    );
-
-    readonly totalCount = computed(() => this.categories().length);
-
-    readonly filteredSelectedCount = computed(
-        () => this.filteredCategories().filter((c) => c.selected).length
-    );
-
-    readonly allFilteredSelected = computed(
-        () =>
-            this.filteredCategories().length > 0 &&
-            this.filteredSelectedCount() === this.filteredCategories().length
-    );
 
     constructor() {
         // The PIN gate only covers opening: a relock (idle timer, Lock now)
@@ -152,7 +108,10 @@ export class CategoryManagementDialogComponent implements OnInit {
             );
             this.categories.set(
                 allCategories.map((c) => ({
-                    ...c,
+                    id: c.id,
+                    providerId: c.xtream_id,
+                    name: c.name,
+                    count: this.data.itemCounts.get(c.id) ?? 0,
                     selected: !c.hidden,
                     lockedDraft: lockedIds.has(c.xtream_id),
                 }))
@@ -188,15 +147,6 @@ export class CategoryManagementDialogComponent implements OnInit {
         }
     }
 
-    clearSearch(): void {
-        this.searchTerm.set('');
-    }
-
-    getItemCount(category: CategoryWithSelection): number {
-        const categoryId = Number(category.id);
-        return this.data.itemCounts.get(categoryId) ?? 0;
-    }
-
     private getDbType(): 'live' | 'movies' | 'series' {
         switch (this.data.contentType) {
             case 'live':
@@ -206,38 +156,6 @@ export class CategoryManagementDialogComponent implements OnInit {
             case 'series':
                 return 'series';
         }
-    }
-
-    toggleCategory(category: CategoryWithSelection): void {
-        this.categories.update((cats) =>
-            cats.map((c) =>
-                c.id === category.id ? { ...c, selected: !c.selected } : c
-            )
-        );
-    }
-
-    toggleLock(category: CategoryWithSelection, event?: Event): void {
-        event?.stopPropagation();
-        this.categories.update((cats) =>
-            cats.map((c) =>
-                c.id === category.id ? { ...c, lockedDraft: !c.lockedDraft } : c
-            )
-        );
-    }
-
-    selectAll(): void {
-        this.setFilteredSelection(true);
-    }
-
-    deselectAll(): void {
-        this.setFilteredSelection(false);
-    }
-
-    private setFilteredSelection(selected: boolean): void {
-        const ids = new Set(this.filteredCategories().map((c) => c.id));
-        this.categories.update((cats) =>
-            cats.map((c) => (ids.has(c.id) ? { ...c, selected } : c))
-        );
     }
 
     async save(): Promise<void> {
@@ -311,7 +229,7 @@ export class CategoryManagementDialogComponent implements OnInit {
             const saved = await this.parentalLock.setXtreamLocks(
                 this.data.playlistId,
                 this.getDbType(),
-                categories.filter((c) => c.lockedDraft).map((c) => c.xtream_id)
+                categories.filter((c) => c.lockedDraft).map((c) => c.providerId)
             );
             if (!saved) {
                 this.logger.error('Category locks were not saved');

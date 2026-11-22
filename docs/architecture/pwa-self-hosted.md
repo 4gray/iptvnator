@@ -130,10 +130,14 @@ event, so the explicit check offers Retry. `NO_NEW_VERSION_DETECTED` clears
 an obsolete failure notice while preserving pending reloads. Refresh is
 explicit, warns that playback stops, and retains the browser's unsaved-settings
 beforeunload confirmation. Later check or candidate failures retain an already
-pending Refresh action. The deferred card uses the desktop notification's layout
-and remains reachable after a cancelled reload or a settings-save toast.
-Unrecoverable cache errors request a reload without claiming a new version is
-ready. Notifications use the normal translation pipeline;
+pending Refresh action. The deferred card uses the desktop notification's
+bottom-right layout and respects the bottom safe area. It moves up while an
+unsaved-settings bar or a snackbar is present, so both sets of controls remain
+reachable. Dismiss hides a failed or ready notice until the status changes or
+the page is loaded again. Background checks continue, and About keeps the
+current status and update action. Unrecoverable cache errors keep the recovery
+notice visible and request a reload without claiming a new version is ready.
+Notifications use the normal translation pipeline;
 the English fallback dictionary is prefetched with the app shell so a first
 offline reload retains readable recovery controls. Electron uses its desktop
 updater, and the Android TV Shell updates the web bundle with its APK. Both

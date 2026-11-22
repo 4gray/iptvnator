@@ -1,3 +1,4 @@
+export * from './lib/components/category-editor/category-editor.component';
 export * from './lib/components/category-view/category-view.component';
 export * from './lib/directives/infinite-scroll.directive';
 export * from './lib/components/content-card/content-card.component';

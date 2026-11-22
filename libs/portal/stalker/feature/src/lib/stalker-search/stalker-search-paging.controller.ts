@@ -66,6 +66,7 @@ function searchKey(
         type,
         term,
         lockVersion,
+        playlist.hiddenStalkerCategories?.[type],
     ]);
 }
 
@@ -77,7 +78,8 @@ function searchKey(
 export class StalkerSearchPagingController {
     // Retain one return snapshot in memory. Portal rows never enter history state.
     private static similarReturn: SearchReturnSnapshot | null = null;
-    /** Lock version the accumulated results were built under. */
+    /** Visibility and lock state under which the current results were loaded. */
+    private searchResultsHiddenKey: string | null = null;
     private searchResultsLockVersion: number | null = null;
     /**
      * Withheld row ids seen for the current search identity. A page adding
@@ -88,6 +90,14 @@ export class StalkerSearchPagingController {
     private readonly searchWithheldIds = new Set<string>();
 
     constructor(private readonly config: StalkerSearchPagingControllerConfig) {}
+
+    private readonly hiddenKey = computed(() =>
+        JSON.stringify(
+            this.config.currentPlaylist()?.hiddenStalkerCategories?.[
+                this.config.selectedFilterType()
+            ] ?? []
+        )
+    );
 
     /**
      * Portal page for the current term+filter+portal; resets when any of
@@ -124,6 +134,7 @@ export class StalkerSearchPagingController {
             // Lock/unlock re-fires the search: withheld rows are dropped at
             // page time, so the results must be rebuilt when they change.
             parentalLockVersion: this.config.parentalLock.version(),
+            hiddenKey: this.hiddenKey(),
         }),
         loader: async ({ params, abortSignal }) => {
             if (params.search.length < GLOBAL_SEARCH_MIN_LENGTH) {
@@ -147,16 +158,31 @@ export class StalkerSearchPagingController {
             const withheldCategoryIds = resolveSearchWithheldCategoryIds(
                 this.config.parentalLock,
                 playlist._id,
-                contentType
+                contentType,
+                playlist.hiddenStalkerCategories?.[contentType]
             );
             const lockVersionChanged =
                 this.searchResultsLockVersion !== null &&
                 this.searchResultsLockVersion !== params.parentalLockVersion;
             this.searchResultsLockVersion = params.parentalLockVersion;
+            const hiddenChanged =
+                this.searchResultsHiddenKey !== null &&
+                this.searchResultsHiddenKey !== params.hiddenKey;
+            this.searchResultsHiddenKey = params.hiddenKey;
             if (lockVersionChanged) {
-                this.applyRelockToResults(withheldCategoryIds, contentType);
+                // Only a parental relock can interrupt a detail's playback.
+                this.config.closeWithheldDetail(
+                    resolveSearchWithheldCategoryIds(
+                        this.config.parentalLock,
+                        playlist._id,
+                        contentType
+                    )
+                );
             }
-            if (lockVersionChanged && params.page > 1) {
+            if (lockVersionChanged || hiddenChanged) {
+                this.applyVisibilityToResults(withheldCategoryIds, contentType);
+            }
+            if ((lockVersionChanged || hiddenChanged) && params.page > 1) {
                 // A lock flip past page 1: rebuild from page 1 rather than
                 // appending to pages accumulated under the old lock state.
                 this.searchPage.set(1);
@@ -185,6 +211,7 @@ export class StalkerSearchPagingController {
                     page: this.searchPage(),
                     playlistId: this.config.currentPlaylist()?._id ?? null,
                     parentalLockVersion: this.config.parentalLock.version(),
+                    hiddenKey: this.hiddenKey(),
                 });
 
             try {
@@ -278,6 +305,7 @@ export class StalkerSearchPagingController {
 
         this.searchWithheldKey = snapshot.key;
         this.searchResultsLockVersion = lockVersion;
+        this.searchResultsHiddenKey = this.hiddenKey();
         this.searchWithheldIds.clear();
         for (const id of snapshot.withheldIds) this.searchWithheldIds.add(id);
         this.searchPage.set(snapshot.page);
@@ -322,7 +350,7 @@ export class StalkerSearchPagingController {
         this.searchHasMore.set(
             madeProgress &&
                 (typeof totalItems === 'number' && totalItems >= 0
-                    ? merged.length < totalItems
+                    ? merged.length + this.searchWithheldIds.size < totalItems
                     : pageHadRows)
         );
         this.searchAppendError.set(false);
@@ -427,18 +455,11 @@ export class StalkerSearchPagingController {
         });
     }
 
-    /**
-     * A lock change reached the results on screen, which were read under
-     * the old lock state: close an open detail of a now-withheld genre (the
-     * list hiding it is not enough) and drop the withheld rows NOW, before
-     * the replacement page is awaited — on page 1 too, or they stay
-     * clickable while (or, if it hangs, after) that request is pending.
-     */
-    applyRelockToResults(
+    /** Remove newly withheld cards while their replacement page is still in flight. */
+    applyVisibilityToResults(
         withheldCategoryIds: ReadonlySet<string>,
-        contentType: Parameters<typeof withoutWithheldStalkerItems>[1]
+        contentType: StalkerSearchContentType
     ): void {
-        this.config.closeWithheldDetail(withheldCategoryIds);
         this.accumulatedSearchResults.set(
             withoutWithheldStalkerItems(
                 this.accumulatedSearchResults(),

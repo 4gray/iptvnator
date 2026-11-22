@@ -1,3 +1,4 @@
+import type { HiddenStalkerCategories } from './stalker-category-visibility';
 import type { XtreamFavoriteSnapshot } from './xtream-favorite.interface';
 import { PlaybackPositionData } from './playback-position.interface';
 import { M3uRecentlyViewedItem } from './playlist-recently-viewed.interface';
@@ -161,6 +162,8 @@ export interface StalkerPlaylistBackupEntry extends PlaylistBackupBaseEntry {
         recentlyViewed: StalkerPortalItem[];
         /** Absent in historical archives: preserve existing local activity on restore. */
         playbackPositions?: PlaybackPositionData[];
+        /** Missing in historical archives, which retain existing visibility on merge. */
+        hiddenCategories?: HiddenStalkerCategories;
         /** Parental-lock genres; optional with the same absence rule as Xtream. */
         lockedCategories?: StalkerBackupLockedCategory[];
     };
