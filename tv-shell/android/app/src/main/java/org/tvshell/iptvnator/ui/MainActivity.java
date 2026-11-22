@@ -150,7 +150,7 @@ public class MainActivity extends ComponentActivity {
         @Override
         public void run() {
             if (pageReady || errorPanel.getVisibility() == View.VISIBLE) return;
-            if (fallbackToLocalLibrary()) return;
+            if (loadsRemotePage() && fallbackToLocalLibrary()) return;
             if (!pageFinished && !watchdogExtended) {
                 // Still fetching and parsing: slow, not broken. One more period before giving up.
                 watchdogExtended = true;
@@ -330,7 +330,7 @@ public class MainActivity extends ComponentActivity {
                 pageFinished = true;
                 if (!resumed) js("window.__tvShell && typeof window.__tvShell.setForeground === 'function' && window.__tvShell.setForeground(false)");
                 if (first && !pageReady && errorPanel.getVisibility() != View.VISIBLE
-                        && (loadedConnection == null || loadedConnection.isEmpty())) {
+                        && !loadsRemotePage()) {
                     // The bundle has run: Angular's bootstrap (IndexedDB, playlists) gets a period of its own.
                     armWatchdog();
                 }
@@ -703,12 +703,15 @@ public class MainActivity extends ComponentActivity {
         accessFlow.callback(uri);
     }
 
+    private boolean loadsRemotePage() {
+        return loadedConnection != null && !loadedConnection.isEmpty() && bundledUiOrigin == null;
+    }
+
     /** (Re)starts the ready watchdog for a full period; while paused onResume() does it. */
     private void armWatchdog() {
         handler.removeCallbacks(readyWatchdog);
         if (!resumed) return; // startup time in the background does not count
-        handler.postDelayed(readyWatchdog, loadedConnection != null && !loadedConnection.isEmpty()
-            ? HOSTED_READY_TIMEOUT_MS : READY_TIMEOUT_MS);
+        handler.postDelayed(readyWatchdog, loadsRemotePage() ? HOSTED_READY_TIMEOUT_MS : READY_TIMEOUT_MS);
     }
 
     private boolean fallbackToLocalLibrary() {

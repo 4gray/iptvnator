@@ -33,6 +33,8 @@ HTTP is intended for trusted networks; HTTPS uses normal certificate validation.
 If the hosted server cannot load, the app opens the local library and keeps
 the preferred server and its paired device credential. The next launch tries
 the preferred server again. You can also reconnect from Connectivity.
+NAS and Cloudflare Access libraries load the player from the APK. On a slow
+device, these screens get the same startup time as the standalone library.
 Disconnect selects the local library in Touch and TV layouts. Selecting a separate
 source-sync server on a hosted page keeps that choice after a reload.
 Remove pairing also erases the device's
