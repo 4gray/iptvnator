@@ -8,16 +8,17 @@ const bootstrap = readFileSync(new URL(
 ), 'utf8');
 const origin = 'http://synthetic.iptvnator.localhost';
 
-function connect(onRequest, directFetch = fetch, RequestClass = Request) {
+function connect(onRequest, directFetch = fetch, RequestClass = Request, page = new EventTarget()) {
     const bridge = {
         postMessage(data) {
             const request = JSON.parse(data);
+            if (request.document) return;
             queueMicrotask(() => onRequest(request, result => {
                 bridge.onmessage({ data: JSON.stringify({ id: request.id, ...result }) });
             }));
         },
     };
-    const window = { HostedAccessApi: bridge, fetch: directFetch };
+    const window = Object.assign(page, { HostedAccessApi: bridge, fetch: directFetch });
     runInNewContext(bootstrap, {
         window,
         location: new URL(origin),
@@ -39,6 +40,22 @@ test('HTTP manifests and segments use the browser transport without hosted crede
     const manifest = await fetchHosted(media + 'live.m3u8');
     await fetchHosted(new URL(await manifest.text(), media));
     assert.deepEqual(requests, [media + 'live.m3u8', media + 'segment.ts']);
+});
+
+test('restoring a cached document drops uploads prepared during its previous visit', async () => {
+    const page = new EventTarget();
+    const fetchHosted = connect((request, reply) => {
+        assert.equal(request.method, 'GET');
+        reply({ status: 204 });
+    }, fetch, Request, page);
+    let bodyController;
+    const body = new ReadableStream({ start(controller) { bodyController = controller; } });
+    const sending = fetchHosted(origin + '/api/v1/sources/example', { method: 'PUT', body, duplex: 'half' });
+    page.dispatchEvent(new Event('pagehide'));
+    page.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true }));
+    bodyController.close();
+    await assert.rejects(sending, { name: 'AbortError' });
+    assert.equal((await fetchHosted(origin + '/api/v1/sources/example')).status, 204);
 });
 
 test('streams an Xtream catalog larger than the former 16 MiB limit', async () => {

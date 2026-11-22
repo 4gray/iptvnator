@@ -9,9 +9,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import okhttp3.Call;
 import okhttp3.MediaType;
@@ -23,8 +23,10 @@ final class HostedAccessBridge {
     private static final long MAX_RESPONSE_BYTES = 64L * 1024 * 1024;
     private final MainActivity activity;
     private final HostedAccessSession session;
-    private final ExecutorService network = Executors.newFixedThreadPool(4);
+    private final ThreadPoolExecutor network = new ThreadPoolExecutor(
+        4, 4, 0, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
     private final ConcurrentHashMap<String, Task> pending = new ConcurrentHashMap<>();
+    private JavaScriptReplyProxy document;
 
     HostedAccessBridge(MainActivity activity, WebView webView, String uiOrigin, HostedAccessSession session) {
         this.activity = activity;
@@ -41,6 +43,16 @@ final class HostedAccessBridge {
         if (network.isShutdown() || data == null || data.length() > 128 * 1024) return;
         try {
             JSONObject input = new JSONObject(data);
+            // Each main-frame document gets its own injected object and native reply proxy.
+            if ("start".equals(input.optString("document"))) {
+                if (document != reply) changeDocument(reply);
+                return;
+            }
+            if (document != reply) return;
+            if ("end".equals(input.optString("document"))) {
+                changeDocument(null);
+                return;
+            }
             String id = input.getString("id");
             if (!id.matches("[0-9]{1,16}")) return;
             if (input.has("uploadOffset")) {
@@ -71,6 +83,7 @@ final class HostedAccessBridge {
     }
 
     private void execute(String id, JSONObject input, Task task, JavaScriptReplyProxy reply) {
+        if (task.cancelled) return;
         try {
             JSONObject headers = input.optJSONObject("headers");
             String type = headers == null ? "application/json" : headers.optString("content-type", "application/json");
@@ -82,7 +95,9 @@ final class HostedAccessBridge {
                 if (status == 403) {
                     String deviceStatus = response.header("X-IPTVnator-Device-Status", "");
                     if ("revoked".equals(deviceStatus) || "registration_required".equals(deviceStatus))
-                        activity.runOnUiThread(() -> activity.reportAccessDeviceStatus(session, deviceStatus));
+                        activity.runOnUiThread(() -> {
+                            if (pending.get(id) == task) activity.reportAccessDeviceStatus(session, deviceStatus);
+                        });
                 }
                 if (response.body() == null || status == 204 || status == 205 || status == 304
                         || "HEAD".equals(input.getString("method"))) {
@@ -163,9 +178,15 @@ final class HostedAccessBridge {
         catch (org.json.JSONException impossible) { throw new IllegalStateException(impossible); }
     }
 
-    void close() {
+    private void changeDocument(JavaScriptReplyProxy next) {
+        network.getQueue().clear();
         for (Task task : pending.values()) task.cancel();
         pending.clear();
+        document = next;
+    }
+
+    void close() {
+        changeDocument(null);
         network.shutdownNow();
     }
 

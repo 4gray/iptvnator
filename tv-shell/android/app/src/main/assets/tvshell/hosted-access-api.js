@@ -5,6 +5,19 @@
     const chunkBytes = 64 * 1024;
     const maxUploadBytes = 64 * 1024 * 1024;
     let nextId = 0;
+    let visit;
+
+    function beginVisit() {
+        visit = {};
+        bridge.postMessage('{"document":"start"}');
+    }
+    beginVisit();
+    window.addEventListener('pagehide', () => {
+        visit = null;
+        for (const request of pending.values()) request.cancel();
+        bridge.postMessage('{"document":"end"}');
+    });
+    window.addEventListener('pageshow', event => { if (event.persisted) beginVisit(); });
 
     function finish(id, request) {
         pending.delete(id);
@@ -76,6 +89,7 @@
             return baseFetch(input, options);
         }
         const request = new Request(input instanceof Request ? input : url.href, options);
+        const owner = visit;
         const id = String(++nextId);
         const headers = Object.fromEntries(request.headers.entries());
         let body = null;
@@ -103,7 +117,7 @@
             const entry = { resolve, reject, signal: request.signal, body };
             const stop = () => {
                 finish(id, entry);
-                bridge.postMessage(JSON.stringify({ id, cancel: true }));
+                if (visit === owner) bridge.postMessage(JSON.stringify({ id, cancel: true }));
             };
             const cancel = () => {
                 stop();
@@ -111,7 +125,7 @@
                 if (entry.controller) entry.controller.error(error);
                 else reject(error);
             };
-            if (request.signal.aborted) {
+            if (!owner || visit !== owner || request.signal.aborted) {
                 reject(request.signal.reason ?? new DOMException('Aborted', 'AbortError'));
                 return;
             }

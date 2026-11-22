@@ -124,6 +124,8 @@ older service workers when opening the same-origin authorization endpoint.
 Android keeps the source ID encoded as a single URL parameter for hosted
 source, playlist, activity, favorites, history and playlist user-state requests.
 This preserves existing IDs containing a slash when the server looks them up.
+Each main-frame document owns the bridge requests it starts. Reloading cancels
+its pending transfers. Navigation within the same document keeps them running.
 
 For hosted API uploads, the Android bridge hands OkHttp one 64 KiB slice at a
 time. The WebView keeps a replayable blob until response headers arrive so a

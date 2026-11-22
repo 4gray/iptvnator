@@ -337,6 +337,7 @@ public class MainActivity extends ComponentActivity {
             /** The sandboxed renderer died (OOM abort or system kill). Unhandled, Chromium crashes or kills the app. */
             @Override
             public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+                if (accessBridge != null) { accessBridge.close(); accessBridge = null; }
                 fileChooser.cancel();
                 boolean crashed = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && detail.didCrash();
                 long now = SystemClock.uptimeMillis();
