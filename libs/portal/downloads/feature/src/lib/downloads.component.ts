@@ -22,7 +22,6 @@ import {
     RecordingsService,
     injectTranslationTick,
 } from '@iptvnator/services';
-import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
 import {
     PORTAL_SHELL_ACTIONS,
     PortalCollectionContextService,
@@ -55,6 +54,7 @@ import { RecordingManagerActionsService } from './recording-manager-actions.serv
 import { buildRecordingManagerViewModel } from './recording-manager.viewmodel';
 import { RecordingQueueComponent } from './recording-queue.component';
 import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 const FILTER_KEYS = {
     all: 'DOWNLOADS.FILTER.ALL',
@@ -78,9 +78,9 @@ const ACTIVE_RECORDING_REFRESH_MS = 15_000;
         RecordingManagerActionsService,
     ],
     imports: [
+        StateViewComponent,
         DownloadLibraryComponent,
         DownloadQueueComponent,
-        EmptyStateComponent,
         MatButtonModule,
         MatDialogModule,
         MatIcon,

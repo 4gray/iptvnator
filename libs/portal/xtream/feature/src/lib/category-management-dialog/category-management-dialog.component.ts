@@ -32,6 +32,7 @@ import {
     DialogFooterDirective,
     DialogShellComponent,
 } from '@iptvnator/ui/components';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 export interface CategoryManagementDialogData {
     playlistId: string;
@@ -48,6 +49,7 @@ interface CategoryWithSelection extends XCategoryFromDb {
 @Component({
     selector: 'app-category-management-dialog',
     imports: [
+        StateViewComponent,
         DialogFooterDirective,
         DialogShellComponent,
         MatDialogModule,

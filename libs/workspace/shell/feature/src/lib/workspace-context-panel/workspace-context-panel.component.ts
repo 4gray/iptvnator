@@ -52,7 +52,6 @@ import {
     CategoryLockTarget,
     WorkspaceCategoryLockActionService,
 } from './workspace-category-lock-action.service';
-import { WorkspaceContextErrorViewComponent } from './components/workspace-context-error-view.component';
 import {
     clearCategoryScope,
     hasActiveLiveCategoryRoute,
@@ -60,6 +59,7 @@ import {
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 import { foldSearchText } from '@iptvnator/shared/interfaces';
 import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
+import { StateViewComponent } from '@iptvnator/ui/state';
 import { WorkspaceShellSearchSyncService } from '../workspace-shell/services/workspace-shell-search-sync.service';
 
 type WorkspaceProvider = 'xtreams' | 'stalker' | 'playlists';
@@ -94,7 +94,7 @@ interface WorkspaceCategoryLike {
         MenuItemRadioDirective,
         TranslatePipe,
         WorkspaceContextCategoryViewComponent,
-        WorkspaceContextErrorViewComponent,
+        StateViewComponent,
     ],
     templateUrl: './workspace-context-panel.component.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -295,6 +295,11 @@ export class WorkspaceContextPanelComponent {
         this.stalkerStore.isCategoryResourceLoading;
     readonly isStalkerCategoryFailed =
         this.stalkerStore.isCategoryResourceFailed;
+
+    /** Asks the portal for the section's categories again after a failure. */
+    retryStalkerCategories(): void {
+        this.stalkerStore.reloadCategories();
+    }
     /**
      * When category loading failed because the portal refused the session,
      * the portal's own explanation (msg/block_msg or the documented

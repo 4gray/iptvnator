@@ -24,6 +24,7 @@ import {
     DialogFooterDirective,
     DialogShellComponent,
 } from '@iptvnator/ui/components';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 export interface StalkerCategoryLockDialogData {
     playlistId: string;
@@ -47,6 +48,7 @@ interface LockableCategory {
 @Component({
     selector: 'app-stalker-category-lock-dialog',
     imports: [
+        StateViewComponent,
         DialogFooterDirective,
         DialogShellComponent,
         MatButtonModule,

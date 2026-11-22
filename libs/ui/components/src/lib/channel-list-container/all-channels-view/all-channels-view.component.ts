@@ -43,6 +43,7 @@ import {
     MenuItemRadioCheckDirective,
     MenuItemRadioDirective,
 } from '../../menu-item-radio/menu-item-radio.directive';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 const ALL_CHANNELS_SORT_STORAGE_KEY = 'm3u-all-channels-sort-mode';
 
@@ -54,6 +55,7 @@ export type { ChannelEpgMetadata } from '../epg-enrichment.util';
     styleUrls: ['./all-channels-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        StateViewComponent,
         ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,

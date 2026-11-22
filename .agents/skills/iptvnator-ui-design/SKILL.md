@@ -43,6 +43,10 @@ not UI or util.
   (`@iptvnator/ui/components/app-icons`);
   `pnpm run ui:favorite-glyph:validate` checks it (UI guidelines, Favourite
   And Rating Glyphs).
+- Empty, no-results, error and offline states render `app-state-view`
+  (`@iptvnator/ui/state`), and spinners are 16, 24 or 40 px
+  (`SPINNER_DIAMETERS`); `pnpm run ui:states:validate` checks both (UI
+  guidelines, Empty, Error And Offline States).
 
 ## Validation
 

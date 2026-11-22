@@ -58,6 +58,7 @@ import {
 } from './group-management-dialog/group-management-dialog.component';
 import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 import { createGroupsRailReveal } from './groups-rail-reveal';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 const GROUP_CHANNEL_SORT_STORAGE_KEY = 'm3u-groups-channel-sort-mode';
 /** Rail width inside the fullscreen channel panel; see the `compact` input. */
@@ -82,6 +83,7 @@ interface FilteredGroupView {
     styleUrls: ['./groups-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        StateViewComponent,
         ChannelContextMenuComponent,
         CategoryLockMenuComponent,
         ChannelScrollFocusDirective,

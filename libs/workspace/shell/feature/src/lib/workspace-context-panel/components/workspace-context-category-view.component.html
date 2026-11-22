@@ -54,23 +54,20 @@
                 }
             </button>
         } @empty {
-            <app-workspace-context-error-view
-                [title]="'PORTALS.EMPTY_LIST_VIEW.TITLE' | translate"
+            <app-state-view
+                variant="no-results"
+                size="panel"
+                [heading]="'PORTALS.EMPTY_LIST_VIEW.TITLE' | translate"
                 [description]="
                     'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS' | translate
                 "
-                [showActionButtons]="false"
-                [viewType]="'NO_SEARCH_RESULTS'"
             />
         }
     </div>
 } @else {
-    <div class="category-empty-state">
-        <app-workspace-context-error-view
-            [title]="'PORTALS.NO_CATEGORIES' | translate"
-            [showIllustration]="false"
-            [showActionButtons]="false"
-            [viewType]="'EMPTY_CATEGORY'"
-        />
-    </div>
+    <app-state-view
+        size="panel"
+        icon="category"
+        [heading]="'PORTALS.NO_CATEGORIES' | translate"
+    />
 }

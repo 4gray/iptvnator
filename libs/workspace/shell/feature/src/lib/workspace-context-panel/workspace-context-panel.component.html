@@ -198,10 +198,15 @@
                 }
             </div>
         } @else if (isStalkerCategoryFailed()) {
-            <app-workspace-context-error-view
-                [title]="'WORKSPACE.CONTEXT.LOAD_CATEGORIES_ERROR' | translate"
+            <app-state-view
+                variant="error"
+                size="panel"
+                [heading]="
+                    'WORKSPACE.CONTEXT.LOAD_CATEGORIES_ERROR' | translate
+                "
                 [description]="stalkerCategoryErrorDescription()"
-                [showActionButtons]="false"
+                [retryable]="true"
+                (retry)="retryStalkerCategories()"
             />
         } @else {
             <app-workspace-context-category-view

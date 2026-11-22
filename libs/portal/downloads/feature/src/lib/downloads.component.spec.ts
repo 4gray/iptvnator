@@ -394,8 +394,8 @@ describe('DownloadsComponent', () => {
                     GO_TO_SOURCES: 'Go to sources',
                     GO_TO_DASHBOARD: 'Go to dashboard',
                 },
+                SOURCES: { ADD_SOURCE: 'Add source' },
             },
-            HOME: { PLAYLISTS: { ADD_YOUR_FIRST: 'Add playlist' } },
         });
         translate.use('en');
 
@@ -531,7 +531,7 @@ describe('DownloadsComponent', () => {
 
         const root = fixture.nativeElement as HTMLElement;
         expect(root.querySelector('app-download-library')).not.toBeNull();
-        expect(root.querySelector('app-empty-state')).toBeNull();
+        expect(root.querySelector('app-state-view')).toBeNull();
         expect(
             root.querySelector('[data-test-id="downloads-filters"]')
         ).not.toBeNull();

@@ -349,7 +349,7 @@ export async function expectCollisionCollection(
         await expect(toggles.filter({ hasText: removed.label })).toHaveCount(0);
     }
     if (items.length === 0) {
-        await expect(page.locator('app-empty-state')).toBeVisible();
+        await expect(page.locator('app-state-view')).toBeVisible();
     }
 }
 

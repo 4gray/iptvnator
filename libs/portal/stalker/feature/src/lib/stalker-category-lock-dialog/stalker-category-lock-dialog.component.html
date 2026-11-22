@@ -26,7 +26,7 @@
                 }
                 <button
                     mat-flat-button
-                        class="app-dialog__secondary app-dialog__secondary--sm"
+                    class="app-dialog__secondary app-dialog__secondary--sm"
                     type="button"
                     [disabled]="isSaving() || lockedCount() === 0"
                     (click)="unlockAll()"
@@ -87,9 +87,14 @@
                     }
                 </button>
             } @empty {
-                <div class="empty-message">
-                    {{ 'XTREAM.CATEGORY_MANAGEMENT.NO_RESULTS' | translate }}
-                </div>
+                <app-state-view
+                    class="empty-message"
+                    variant="no-results"
+                    size="panel"
+                    [heading]="
+                        'XTREAM.CATEGORY_MANAGEMENT.NO_RESULTS' | translate
+                    "
+                />
             }
         </div>
     </div>
@@ -110,7 +115,7 @@
             [disabled]="isSaving()"
         >
             @if (isSaving()) {
-                <mat-spinner diameter="20" />
+                <mat-spinner diameter="16" />
             } @else {
                 {{ 'XTREAM.CATEGORY_MANAGEMENT.SAVE' | translate }}
             }

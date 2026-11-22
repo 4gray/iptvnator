@@ -150,13 +150,6 @@
     text-overflow: ellipsis;
 }
 
-.empty-message {
-    padding: 24px;
-    text-align: center;
-    color: var(--mat-sys-on-surface-variant);
-    font-size: 0.8125rem;
-}
-
 // The saving spinner replaces the label inside the accent button.
 [appDialogFooter] button mat-spinner {
     display: inline-block;

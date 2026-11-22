@@ -73,7 +73,7 @@ describe('EPG mapping search recovery', () => {
         search('news');
         expect(fixture.componentInstance.searchFailed()).toBe(true);
         expect(
-            fixture.nativeElement.querySelector('[role="status"]').textContent
+            fixture.nativeElement.querySelector('[role="alert"]').textContent
         ).toContain('PORTALS.SEARCH_VIEW.ERROR_TITLE');
         expect(fixture.nativeElement.textContent).not.toContain(
             'EPG_MAPPING_DIALOG.NO_RESULTS'
@@ -91,7 +91,9 @@ describe('EPG mapping search recovery', () => {
         });
         search('news');
         expect(fixture.componentInstance.searchFailed()).toBe(true);
-        fixture.nativeElement.querySelector('[role="status"] button').click();
+        fixture.nativeElement
+            .querySelector('[data-state-action="retry"]')
+            .click();
         tick(301);
         flushMicrotasks();
         expect(bridge.searchEpgChannels).toHaveBeenLastCalledWith('news');

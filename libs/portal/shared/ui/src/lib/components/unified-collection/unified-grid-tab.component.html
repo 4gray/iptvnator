@@ -1,21 +1,18 @@
 @if (filteredItems().length === 0) {
-    <div class="empty-state">
-        <mat-icon class="empty-icon">{{
-            contentType() === 'movie' ? 'movie' : 'tv'
-        }}</mat-icon>
-        <p class="empty-title">
-            @if (searchTerm()) {
-                {{ 'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS' | translate }}
-            } @else {
-                {{
-                    (mode() === 'favorites'
-                        ? 'PORTALS.NO_FAVORITES'
-                        : 'PORTALS.NO_RECENT_ITEMS'
-                    ) | translate
-                }}
-            }
-        </p>
-    </div>
+    <app-state-view
+        [variant]="searchTerm() ? 'no-results' : 'empty'"
+        [icon]="
+            searchTerm() ? null : contentType() === 'movie' ? 'movie' : 'tv'
+        "
+        [heading]="
+            (searchTerm()
+                ? 'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS'
+                : mode() === 'favorites'
+                  ? 'PORTALS.NO_FAVORITES'
+                  : 'PORTALS.NO_RECENT_ITEMS'
+            ) | translate
+        "
+    />
 } @else {
     <div class="grid-container">
         @for (item of filteredItems(); track trackByUid($index, item)) {
