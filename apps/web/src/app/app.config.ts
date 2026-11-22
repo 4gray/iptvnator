@@ -122,7 +122,7 @@ export const appConfig: ApplicationConfig = {
         provideRouterStore(),
         ...storeDevtoolsProviders,
         provideServiceWorker('ngsw-worker.js', {
-            enabled: !('HostedAccessApi' in window) && shouldEnableServiceWorker(),
+            enabled: shouldEnableServiceWorker(),
             registrationStrategy: 'registerWhenStable:30000',
         }),
         importProvidersFrom(

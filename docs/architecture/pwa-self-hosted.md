@@ -225,7 +225,9 @@ ready. Notifications use the normal translation pipeline;
 the English fallback dictionary is prefetched with the app shell so a first
 offline reload retains readable recovery controls. Electron uses its desktop
 updater, and the Android TV Shell updates the web bundle with its APK. Both
-runtimes disable the browser updater.
+runtimes disable the browser updater. The Android shell applies this in Touch and
+TV layouts, including when it opens a hosted library. A hosted library opened
+in a regular browser uses the PWA updater.
 
 Docker serves `/ngsw.json` and `/ngsw-worker.js` without HTTP caching or the
 SPA fallback. A missing manifest returns 503 so a temporary deployment
