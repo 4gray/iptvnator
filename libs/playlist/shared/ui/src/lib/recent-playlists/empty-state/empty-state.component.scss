@@ -160,7 +160,9 @@ ul {
     padding: 1px 8px;
     border-radius: 999px;
     background: var(--app-neutral-tag-surface);
-    color: var(--app-body-color);
+    // The body colour is 4.05:1 on the tag surface in the dark theme
+    // (os-color-scheme.e2e.ts); the heading ink keeps 4.5:1 in every theme.
+    color: var(--app-heading-color);
     font-size: 11.5px;
     font-weight: 500;
     line-height: 1.6;
