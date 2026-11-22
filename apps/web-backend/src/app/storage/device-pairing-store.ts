@@ -259,7 +259,7 @@ export class DevicePairingStore {
     }
     registerCloudflareDevice(inviteId: string, origin: string, name: string, key: string) {
         const state = this.cloudflareDevice(key);
-        if (state === 'active') return state;
+        if (!inviteId) return state;
         this.prune();
         const invite = this.invites.get(inviteId);
         if (!invite?.cloudflare || invite.origin !== origin) return state;
@@ -270,7 +270,7 @@ export class DevicePairingStore {
             this.db.prepare(
                 'UPDATE server_paired_devices SET revoked = 0, name = ? WHERE token_digest = ? AND cloudflare = 1'
             ).run(name, digest(key));
-        } else {
+        } else if (state === 'unknown') {
             this.db.prepare(
                 'INSERT INTO server_paired_devices (id, name, token_digest, cloudflare) VALUES (?, ?, ?, 1)'
             ).run(randomUUID(), name, digest(key));

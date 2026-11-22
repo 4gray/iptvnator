@@ -3,4 +3,4 @@ type: fix
 area: server
 ---
 
-Hide the Cloudflare pairing QR and copy-link button as soon as the invitation is used.
+The Cloudflare pairing QR and copy-link button close when a device uses the invitation, including when a registered device reconnects.
