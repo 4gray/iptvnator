@@ -85,28 +85,6 @@ li:last-child .settings-search-result {
     white-space: nowrap;
 }
 
-.settings-search-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    padding: 40px 16px;
-    color: var(--settings-muted);
-    text-align: center;
-
-    mat-icon {
-        width: 32px;
-        height: 32px;
-        font-size: 32px;
-    }
-
-    p {
-        margin: 0;
-        max-width: 420px;
-        line-height: 1.45;
-    }
-}
-
 @media (max-width: 640px) {
     .settings-search-result {
         flex-wrap: wrap;

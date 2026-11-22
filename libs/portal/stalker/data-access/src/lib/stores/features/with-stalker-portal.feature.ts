@@ -51,6 +51,23 @@ export function withStalkerPortal() {
                 portalRepair = inject(StalkerPortalRepairService),
                 runtime = inject(RuntimeCapabilitiesService)
             ) => ({
+                setCategoryVisibility(
+                    playlistId: string,
+                    hidden: PlaylistMeta['hiddenStalkerCategories']
+                ) {
+                    const current = store.currentPlaylist();
+                    if (
+                        current?._id === playlistId &&
+                        current.hiddenStalkerCategories !== hidden
+                    ) {
+                        patchState(store, {
+                            currentPlaylist: {
+                                ...current,
+                                hiddenStalkerCategories: hidden,
+                            },
+                        });
+                    }
+                },
                 async setCurrentPlaylist(playlist: PlaylistMeta | undefined) {
                     // A lazy repair may have corrected this playlist's
                     // endpoint/mode while the NgRx meta stayed stale; route

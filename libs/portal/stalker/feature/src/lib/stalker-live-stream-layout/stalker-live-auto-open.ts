@@ -16,13 +16,20 @@ import { StalkerLiveAutoOpenState } from './stalker-live-auto-open-state';
 
 /** The slice of `StalkerStore` the auto-open flow reads and drives. */
 export interface StalkerLiveAutoOpenStore {
-    currentPlaylist: Signal<{ _id?: string } | null | undefined>;
+    currentPlaylist: Signal<
+        | {
+              _id?: string;
+              hiddenStalkerCategories?: { itv?: readonly string[] };
+          }
+        | null
+        | undefined
+    >;
     selectedContentType: Signal<string | null | undefined>;
     selectedCategoryId: Signal<string | null | undefined>;
     /** The category the channels on screen were served for (see the store). */
     itvChannelsCategory: Signal<string | null>;
     searchPhrase: Signal<string>;
-    itvFullChannelList: Signal<StalkerItvChannel[]>;
+    findItvChannelForHandoff(id: string): StalkerItvChannel | null;
     itvFullListActive: Signal<boolean>;
     itvFullListUnsupported: Signal<boolean>;
     /** Resolves when the full-list load settles (also when it fails). */
@@ -47,7 +54,7 @@ export interface StalkerLiveAutoOpenOptions {
 }
 
 interface DeferredPlay {
-    item: StalkerItvChannel;
+    providerId: string;
     /** The portal the channel belongs to; a portal switch drops the request. */
     playlistId: string;
     /** The genre whose channels must be on screen before playback starts. */
@@ -226,26 +233,8 @@ export class StalkerLiveAutoOpen {
             return;
         }
 
-        // Either provider id can be the one that was persisted: a favorite
-        // prefers `stream_id` (`with-stalker-favorites.feature.ts`) while a
-        // cached channel prefers `id`, both skipping blanks, so a row
-        // carrying two different non-blank ids is reachable only by
-        // accepting both.
-        // The handoff carries a bare value, so it cannot say WHICH field it
-        // came from: when one channel claims it as its id and another as its
-        // stream id, the identity is ambiguous and neither is played —
-        // guessing an order would open the wrong channel half the time. The
-        // genre fallback still runs, so the user lands in the right list.
-        const candidates = store
-            .itvFullChannelList()
-            .filter(
-                (channel) =>
-                    normalizeStalkerEntityId(channel.id) === pendingId ||
-                    normalizeStalkerEntityId(channel.stream_id) === pendingId
-            );
-        untracked(() =>
-            this.settle(candidates.length === 1 ? candidates[0] : null)
-        );
+        const item = store.findItvChannelForHandoff(pendingId);
+        untracked(() => this.settle(item));
     }
 
     private settle(item: StalkerItvChannel | null): void {
@@ -260,9 +249,16 @@ export class StalkerLiveAutoOpen {
         // missing one. The remembered genre for a row that could NOT be
         // located is a different case: it is served by the portal, so it
         // does read `category_id` (`resolveStalkerLiveGenreId`).
-        const category = item
+        const genre = item
             ? normalizeStalkerEntityId(item.tv_genre_id) || '*'
             : this.pendingCategoryId();
+        const category =
+            genre &&
+            store
+                .currentPlaylist()
+                ?.hiddenStalkerCategories?.itv?.includes(genre)
+                ? '*'
+                : genre;
 
         if (category) {
             store.setSearchPhrase('');
@@ -270,12 +266,13 @@ export class StalkerLiveAutoOpen {
             store.setPage(0);
             this.options.sidebar?.expand('portal');
         }
-        if (item && category) {
+        const providerId = this.pendingItemId();
+        if (item && category && providerId) {
             if (store.itvChannelsCategory() === category) {
                 this.options.play(item);
             } else {
                 this.deferredPlay.set({
-                    item,
+                    providerId,
                     playlistId: normalizeStalkerEntityId(
                         store.currentPlaylist()?._id
                     ),
@@ -343,7 +340,9 @@ export class StalkerLiveAutoOpen {
 
         untracked(() => {
             this.deferredPlay.set(null);
-            this.options.play(deferred.item);
+            // The source or parental locks can change while the All/genre rows load.
+            const item = store.findItvChannelForHandoff(deferred.providerId);
+            if (item) this.options.play(item);
         });
     }
 }

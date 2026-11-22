@@ -450,8 +450,12 @@ test.describe('server storage @self-hosted @persistence', () => {
                 });
                 await sourceRowByTitle(page, title).click();
                 await expect.poll(() => outage).toBe(true);
+                // The catalog's load error (and, with it, the category
+                // rail's) render the shared error state.
                 await expect(
-                    page.locator('app-playlist-error-view')
+                    page
+                        .locator('app-state-view[data-state-variant="error"]')
+                        .first()
                 ).toBeVisible();
                 // Re-check an edited connection without reloading the app or
                 // discarding the failed request's in-memory verification state.

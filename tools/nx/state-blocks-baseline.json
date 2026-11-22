@@ -1,0 +1,14 @@
+{
+    "apps/web/src/app/settings/settings-server-section.component.html": {
+        "count": 1,
+        "reason": "A one-line status inside the server import preview card, with its Close button; the card is the state, not a page or panel."
+    },
+    "libs/portal/shared/ui/src/lib/components/grid-list/grid-list.component.html": {
+        "count": 1,
+        "reason": "The channel card's programme line ('No programme info'); card metadata, not an empty state."
+    },
+    "libs/workspace/shell/feature/src/lib/workspace-command-palette/workspace-command-palette.component.html": {
+        "count": 1,
+        "reason": "The command palette draws its own surface; its empty result is one row in the result list."
+    }
+}

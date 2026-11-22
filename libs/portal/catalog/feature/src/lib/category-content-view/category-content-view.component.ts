@@ -20,11 +20,11 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
+import { StateViewComponent } from '@iptvnator/ui/state';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
     GridListComponent,
     InfiniteScrollDirective,
-    PlaylistErrorViewComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
     APP_ICONS,
@@ -75,7 +75,7 @@ interface CategoryContentItem {
         MenuItemRadioCheckDirective,
         MenuItemRadioDirective,
         NgComponentOutlet,
-        PlaylistErrorViewComponent,
+        StateViewComponent,
         TranslatePipe,
     ],
 })

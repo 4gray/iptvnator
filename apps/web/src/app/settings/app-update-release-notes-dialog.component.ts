@@ -142,7 +142,7 @@ function decorateReleaseNotesHtml(html: string): string {
 
                 @if (loading()) {
                     <div class="release-notes-dialog__loading">
-                        <mat-spinner diameter="28" />
+                        <mat-spinner diameter="24" />
                     </div>
                 } @else if (error(); as loadError) {
                     <div

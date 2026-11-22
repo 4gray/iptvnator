@@ -307,7 +307,9 @@ describe('RecentPlaylistsComponent', () => {
         const element = fixture.nativeElement as HTMLElement;
         expect(element.textContent).toContain('WORKSPACE.SOURCES.NO_MATCHES');
         element
-            .querySelector<HTMLButtonElement>('.sources-empty__reset')
+            .querySelector<HTMLButtonElement>(
+                '.sources-empty [data-state-action="action"]'
+            )
             ?.click();
         expect(viewState.filter()).toEqual({ type: 'all', status: 'all' });
     });

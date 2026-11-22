@@ -177,6 +177,11 @@ all pages before reload/close and merge their counters before writing the report
 The parent merges those reports into Jest without replacing objects cached by
 existing instrumentation. Missing reports fail the test; assertion failures still
 propagate. The helper never creates synthetic hits or changes coverage thresholds.
+Instrument only files the Jest process does not load itself: a source that is
+also covered in process (for example `connection.ts`) is instrumented twice with
+different statement maps, and the merged report keeps the in-process copy's
+misses. For such a source, run its real-SQLite scenarios in process instead, as
+`content-title-fts.spec.ts` does on `node:sqlite`.
 
 Some `electron-backend` and `database` specs run SQLite code in the Electron
 binary under `ELECTRON_RUN_AS_NODE`, resolving it with `require('electron')`.

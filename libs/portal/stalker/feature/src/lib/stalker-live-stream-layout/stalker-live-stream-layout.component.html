@@ -276,7 +276,7 @@
 <ng-template #stalkerChannelList let-panelSearchTerm="searchTerm">
     @if (isFullListLoading()) {
         <div class="full-list-progress" role="status">
-            <mat-spinner diameter="14" />
+            <mat-spinner diameter="16" />
             <span class="full-list-progress__label">
                 {{ 'PORTALS.LOADING_ALL_CHANNELS' | translate }}
             </span>
@@ -308,19 +308,19 @@
             hasSearchTerm(panelSearchTerm) &&
             channelsForList(panelSearchTerm).length === 0
         ) {
-            <div class="empty-search-state">
-                <app-portal-empty-state
-                    icon="search_off"
-                    [message]="'CHANNELS.NO_SEARCH_RESULTS' | translate"
-                />
-            </div>
+            <app-portal-empty-state
+                size="panel"
+                variant="no-results"
+                icon="search_off"
+                [message]="'CHANNELS.NO_SEARCH_RESULTS' | translate"
+                [hint]="'CHANNELS.TRY_DIFFERENT_SEARCH' | translate"
+            />
         } @else if (isCategoryEmpty()) {
-            <div class="empty-search-state">
-                <app-portal-empty-state
-                    icon="tv_off"
-                    [message]="'PORTALS.NO_CHANNELS_IN_CATEGORY' | translate"
-                />
-            </div>
+            <app-portal-empty-state
+                size="panel"
+                icon="tv_off"
+                [message]="'PORTALS.NO_CHANNELS_IN_CATEGORY' | translate"
+            />
         } @else {
             @for (
                 item of channelsForList(panelSearchTerm);

@@ -31,6 +31,7 @@ import { DialogShellComponent } from '@iptvnator/ui/dialog';
 import { DialogFooterDirective } from '@iptvnator/ui/dialog';
 import { provideFormFieldDefaults } from '../form-field-defaults/form-field-defaults';
 import { ImeInputDirective } from '../ime-input.directive';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 const DisplayNames = (
     Intl as unknown as {
@@ -47,6 +48,7 @@ type Mode = 'auto' | 'manual' | 'provider';
     selector: 'app-tmdb-match-dialog',
     providers: [provideFormFieldDefaults()],
     imports: [
+        StateViewComponent,
         ImeInputDirective,
         FormsModule,
         MatButtonModule,

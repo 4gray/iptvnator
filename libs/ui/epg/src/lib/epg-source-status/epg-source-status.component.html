@@ -1,7 +1,7 @@
 @switch (status()) {
     @case ('loading') {
         <span class="status status--loading">
-            <mat-progress-spinner diameter="14" mode="indeterminate" />
+            <mat-progress-spinner diameter="16" mode="indeterminate" />
             <span class="status__label">{{ 'EPG.LOADING' | translate }}</span>
         </span>
     }
@@ -28,10 +28,7 @@
         </span>
     }
     @case ('error') {
-        <span
-            class="status status--error"
-            [matTooltip]="errorMessage() ?? ''"
-        >
+        <span class="status status--error" [matTooltip]="errorMessage() ?? ''">
             <mat-icon>error</mat-icon>
             <span class="status__label">{{
                 'SETTINGS.EPG_STATUS_ERROR' | translate

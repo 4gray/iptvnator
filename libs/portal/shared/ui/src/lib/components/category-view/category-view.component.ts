@@ -14,7 +14,7 @@ import {
 } from '@angular/core';
 import { MatListModule } from '@angular/material/list';
 import { TranslatePipe } from '@ngx-translate/core';
-import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 interface CategoryViewItem {
     readonly category_id?: string | number;
@@ -31,7 +31,7 @@ interface CategoryViewItem {
 
 @Component({
     selector: 'app-category-view',
-    imports: [MatListModule, PlaylistErrorViewComponent, TranslatePipe],
+    imports: [MatListModule, StateViewComponent, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './category-view.component.html',
     styleUrls: ['./category-view.component.scss'],

@@ -183,7 +183,7 @@ test.describe('Kit button conformance', () => {
             await expectKitButtons(page, 'first-run sources');
 
             await openGlobalFavorites(page);
-            await expect(page.locator('.no-data-state')).toBeVisible();
+            await expect(page.locator('app-state-view')).toBeVisible();
             await expectKitButtons(page, 'empty global favorites');
 
             await openSettings(page);

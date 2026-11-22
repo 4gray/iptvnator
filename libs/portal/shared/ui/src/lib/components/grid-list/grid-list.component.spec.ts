@@ -633,7 +633,9 @@ describe('GridListComponent keyboard access', () => {
             'WORKSPACE.REFINE_HIDE_WATCHED_PARTIAL'
         );
         fixture.nativeElement.querySelector('.grid-list__tail button').click();
-        fixture.nativeElement.querySelector('.grid-filter-clear').click();
+        fixture.nativeElement
+            .querySelector('.grid-filter-clear button')
+            .click();
         expect(resume).toHaveBeenCalledTimes(1);
         expect(clear).toHaveBeenCalledTimes(1);
         fixture.componentRef.setInput('sourceHasMore', false);

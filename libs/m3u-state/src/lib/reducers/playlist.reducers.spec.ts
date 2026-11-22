@@ -42,6 +42,38 @@ describe('playlistReducers', () => {
             ).toBe(state);
         }
     );
+    it('publishes visibility only on the edited source and keeps it through a delayed refresh', () => {
+        const source = {
+            _id: 'synthetic',
+            title: 'Synthetic',
+            playlist: { items: [] },
+        } as unknown as Playlist;
+        const other = { ...source, _id: 'other' };
+        const loaded = reducer(
+            initialState,
+            PlaylistActions.loadPlaylistsSuccess({ playlists: [source, other] })
+        );
+        const hiddenStalkerCategories = { vod: ['one'] };
+        const saved = reducer(
+            loaded,
+            PlaylistActions.stalkerCategoryVisibilitySaved({
+                playlistId: source._id,
+                hiddenStalkerCategories,
+            })
+        );
+        const next = reducer(
+            saved,
+            PlaylistActions.updateManyPlaylists({
+                playlists: [{ ...source, hiddenStalkerCategories: {} }],
+            })
+        );
+        expect(
+            next.playlists.entities[source._id]?.hiddenStalkerCategories
+        ).toEqual(hiddenStalkerCategories);
+        expect(next.playlists.entities[other._id]).toBe(
+            loaded.playlists.entities[other._id]
+        );
+    });
     it('drops removed source metadata without duplicating the active channel payload', () => {
         const before = {
             _id: 'shared',

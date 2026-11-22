@@ -638,6 +638,7 @@ export class PlaylistBackupService {
                     : {}),
             },
             userState: {
+                hiddenCategories: playlist.hiddenStalkerCategories ?? {},
                 ...this.optionalLockedStalkerCategories(playlist._id),
                 playbackPositions: this.runtime.supportsXtreamSqliteDataSource
                     ? await this.playbackPositionService.getAllPlaybackPositionsOrThrow(
@@ -1121,6 +1122,9 @@ export class PlaylistBackupService {
             recentlyViewed: entry.userState.recentlyViewed.map((item) => ({
                 ...item,
             })),
+            ...(entry.userState.hiddenCategories !== undefined
+                ? { hiddenStalkerCategories: entry.userState.hiddenCategories }
+                : {}),
             stalkerSerialNumber: entry.connection.stalkerSerialNumber,
             stalkerDeviceId1: entry.connection.stalkerDeviceId1,
             stalkerDeviceId2: entry.connection.stalkerDeviceId2,

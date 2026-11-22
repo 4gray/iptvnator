@@ -105,42 +105,6 @@ app-settings-epg-section {
     }
 }
 
-.epg-sources-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    padding: 34px 20px 24px;
-    color: var(--settings-muted);
-    text-align: center;
-    line-height: 1.55;
-
-    .epg-sources-empty__icon {
-        width: 28px;
-        height: 28px;
-        font-size: 28px;
-        margin-bottom: 8px;
-        color: var(--app-muted-color);
-    }
-
-    .epg-sources-empty__title {
-        margin: 0;
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--app-heading-color);
-    }
-
-    .epg-sources-empty__hint {
-        margin: 0;
-        max-width: 42ch;
-        font-size: 12.5px;
-    }
-
-    button {
-        margin-top: 14px;
-    }
-}
-
 .epg-sources__formats-examples {
     display: flex;
     flex-wrap: wrap;

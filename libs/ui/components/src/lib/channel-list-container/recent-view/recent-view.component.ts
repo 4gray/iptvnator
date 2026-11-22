@@ -30,6 +30,7 @@ import {
     resolveChannelEpgProgram,
 } from '../epg-enrichment.util';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 export interface RecentViewItem {
     channel: Channel;
@@ -42,6 +43,7 @@ export interface RecentViewItem {
     styleUrls: ['./recent-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        StateViewComponent,
         ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,

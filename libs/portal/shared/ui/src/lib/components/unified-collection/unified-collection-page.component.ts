@@ -51,7 +51,6 @@ import {
     UnifiedCollectionDataService,
 } from '@iptvnator/portal/shared/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
-import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
 import { UnifiedLiveTabComponent } from './unified-live-tab.component';
 import { UnifiedGridTabComponent } from './unified-grid-tab.component';
 import {
@@ -75,6 +74,7 @@ import { setupCollectionLoad } from './unified-collection-load';
 import { createCollectionScopeState } from './unified-collection-scope';
 import { collectionSkeletonShowsEpg } from './unified-collection-skeleton';
 import { UnifiedCollectionDetailDirective } from './unified-collection-detail.directive';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 @Component({
     selector: 'app-unified-collection-page',
@@ -83,8 +83,8 @@ import { UnifiedCollectionDetailDirective } from './unified-collection-detail.di
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [UnifiedCollectionDataService],
     imports: [
+        StateViewComponent,
         ChannelListSkeletonComponent,
-        EmptyStateComponent,
         NgTemplateOutlet,
         MatButtonToggleModule,
         MatIconButton,

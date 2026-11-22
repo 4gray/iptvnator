@@ -21,10 +21,20 @@ const Store = signalStore(
         page: 0,
     }),
     withMethods((store) => ({
-        selectPlaylist(id: string) {
+        setPage(page: number) {
+            patchState(store, { page });
+        },
+        selectCategory(selectedCategoryId: string) {
+            patchState(store, { selectedCategoryId, page: 0 });
+        },
+        selectPlaylist(
+            id: string,
+            hiddenStalkerCategories?: PlaylistMeta['hiddenStalkerCategories']
+        ) {
             patchState(store, {
                 currentPlaylist: {
                     _id: id,
+                    hiddenStalkerCategories,
                     portalUrl: `http://${id}.example/portal.php`,
                     macAddress: '00:1A:79:00:00:01',
                     isFullStalkerPortal: false,
@@ -58,7 +68,9 @@ async function settle() {
 describe('Stalker category ownership', () => {
     let store: InstanceType<typeof Store>;
     let request: jest.Mock;
+    let getChannels: jest.Mock;
     beforeEach(() => {
+        getChannels = jest.fn(() => null);
         request = jest.fn().mockResolvedValue({ js: [] });
         TestBed.configureTestingModule({
             providers: [
@@ -66,7 +78,11 @@ describe('Stalker category ownership', () => {
                 { provide: DataService, useValue: { sendIpcEvent: request } },
                 {
                     provide: ParentalLockService,
-                    useValue: { active: () => false, version: () => 0 },
+                    useValue: {
+                        active: () => false,
+                        lockedStalkerIds: () => [],
+                        version: () => 0,
+                    },
                 },
                 {
                     provide: TranslateService,
@@ -84,8 +100,9 @@ describe('Stalker category ownership', () => {
                     provide: StalkerItvCacheService,
                     useValue: {
                         versionFor: () => 0,
-                        getChannels: () => null,
-                        isReady: () => false,
+                        getChannels,
+                        ensureLoaded: jest.fn(),
+                        isReady: () => getChannels() !== null,
                         isLoading: () => false,
                         progressOf: () => null,
                         isUnsupported: () => false,
@@ -95,6 +112,165 @@ describe('Stalker category ownership', () => {
         });
         store = TestBed.inject(Store);
         void store.isCategoryResourceLoading();
+    });
+
+    const categories = [
+        { category_id: '*', category_name: '' },
+        { category_id: '01', category_name: 'First genre' },
+        { category_id: '02', category_name: 'Second genre' },
+    ];
+
+    it.each(['vod', 'series'] as const)(
+        'continues past a hidden first %s page using the original provider total',
+        async (section) => {
+            request
+                .mockResolvedValueOnce({
+                    js: {
+                        data: [{ id: 'one', category_id: '01' }],
+                        total_items: 2,
+                    },
+                })
+                .mockResolvedValueOnce({
+                    js: {
+                        data: [{ id: 'two', category_id: '02' }],
+                        total_items: 2,
+                    },
+                });
+            store.selectType(section);
+            store.selectPlaylist('a', { [section]: ['01'] });
+            store.setCategories(section, categories);
+            store.selectCategory('*');
+            for (
+                let attempt = 0;
+                attempt < 10 && !store.getPaginatedContent().length;
+                attempt++
+            ) {
+                await settle();
+            }
+            expect(store.getPaginatedContent().map((row) => row.id)).toEqual([
+                'two',
+            ]);
+            expect(store.hasMoreContent()).toBe(false);
+            expect(request).toHaveBeenCalledTimes(2);
+        }
+    );
+
+    it('filters cached All channels and their counts while retaining raw genres for recovery', async () => {
+        getChannels.mockReturnValue([
+            { id: 'one', category_id: '01' },
+            { id: 'two', tv_genre_id: '02' },
+        ]);
+        store.selectType('itv');
+        store.selectPlaylist('a', { itv: ['01'], radio: ['02'] });
+        store.setCategories('itv', categories);
+        store.selectCategory('*');
+        await settle();
+        expect(
+            store.getCategoryResource().map((genre) => genre.category_id)
+        ).toEqual(['*', '02']);
+        expect(store.itvFullChannelList().map((row) => row.id)).toEqual([
+            'two',
+        ]);
+        expect(store.itvCategoryItemCounts().get(Number.NaN)).toBe(1);
+        expect(store.manageItvCategoryCounts()).toEqual(
+            new Map([
+                ['01', 1],
+                ['02', 1],
+            ])
+        );
+        store.selectPlaylist('a', { itv: ['01', '02'] });
+        await settle();
+        expect(store.itvChannels()).toEqual([]);
+        expect(store.getAllCategoriesForSelectedType()).toEqual(categories);
+        store.selectPlaylist('a');
+        await settle();
+        expect(store.itvChannels()).toHaveLength(2);
+        expect(request).not.toHaveBeenCalled();
+    });
+
+    it('uses the exact provider genre for cache selection and paged fallback', async () => {
+        getChannels.mockReturnValue([
+            { id: 'cached', tv_genre_id: ' ', category_id: '01' },
+        ]);
+        store.selectType('itv');
+        store.selectPlaylist('a');
+        store.setCategories('itv', [
+            ...categories,
+            { category_id: '1', category_name: 'Another genre' },
+        ]);
+        store.selectCategory('01');
+        await settle();
+        expect(store.itvSelectedCategoryFromCache()).toBe(true);
+        expect(store.itvChannels().map((row) => row.id)).toEqual(['cached']);
+        expect(request).not.toHaveBeenCalled();
+
+        request.mockResolvedValue({
+            js: { data: [{ id: 'paged', tv_genre_id: '1' }], total_items: 2 },
+        });
+        store.selectCategory('1');
+        await settle();
+        expect(store.itvSelectedCategoryFromCache()).toBe(false);
+        expect(store.itvChannels().map((row) => row.id)).toEqual(['paged']);
+        expect(request).toHaveBeenCalledTimes(1);
+    });
+
+    it('allows a saved hidden channel to play until its parental lock is active', async () => {
+        const channel = { id: '1', category_id: '01' };
+        getChannels.mockReturnValue([channel]);
+        store.selectType('itv');
+        store.selectPlaylist('a', { itv: ['01'] });
+        store.setCategories('itv', categories);
+        store.selectCategory('*');
+        await settle();
+        expect(store.itvFullChannelList()).toEqual([]);
+        expect(store.findItvChannelForHandoff('1')).toEqual(channel);
+        const lock = TestBed.inject(ParentalLockService);
+        jest.spyOn(lock, 'active').mockReturnValue(true);
+        jest.spyOn(lock, 'lockedStalkerIds').mockReturnValue(['01']);
+        expect(store.findItvChannelForHandoff('1')).toBeNull();
+    });
+
+    it('removes an already displayed radio genre during a pending reload and discards its stale page', async () => {
+        const first = {
+            js: {
+                data: [
+                    { id: 'station-one', tv_genre_id: ' ', category_id: '01' },
+                    { id: 'station-two', tv_genre_id: '02' },
+                ],
+                total_items: 3,
+            },
+        };
+        const append = deferred();
+        const replacement = deferred();
+        request
+            .mockResolvedValueOnce(first)
+            .mockReturnValueOnce(append.promise)
+            .mockReturnValue(replacement.promise);
+        store.selectType('radio');
+        store.selectPlaylist('a');
+        store.setCategories('radio', categories);
+        store.selectCategory('*');
+        await settle();
+        expect(store.radioChannels()).toHaveLength(2);
+        store.setPage(1);
+        await settle();
+        expect(request).toHaveBeenCalledTimes(2);
+        store.selectPlaylist('a', { radio: ['01'] });
+        await settle();
+        expect(store.page()).toBe(0);
+        expect(store.radioChannels().map((row) => row.id)).toEqual([
+            'station-two',
+        ]);
+        append.resolve(first);
+        await settle();
+        expect(store.radioChannels().map((row) => row.id)).toEqual([
+            'station-two',
+        ]);
+        replacement.resolve(first);
+        await settle();
+        expect(store.radioChannels().map((row) => row.id)).toEqual([
+            'station-two',
+        ]);
     });
 
     it('sends no request on a reset alone', async () => {

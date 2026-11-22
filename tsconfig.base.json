@@ -84,6 +84,7 @@
             "@iptvnator/playlist/shared/util/playlist-file-import": [
                 "libs/playlist/shared/util/src/lib/playlist-file-import.service.ts"
             ],
+            "@iptvnator/ui/state": ["libs/ui/state/src/index.ts"],
             "@iptvnator/ui/epg": ["libs/ui/epg/src/index.ts"],
             "@iptvnator/ui/epg/date": ["libs/ui/epg/src/lib/epg-date.ts"],
             "@iptvnator/ui/epg/progress-panel": [
@@ -259,6 +260,9 @@
             ],
             "@iptvnator/shared/database/connection-observer": [
                 "libs/shared/database/src/lib/connection-observer.ts"
+            ],
+            "@iptvnator/shared/database/content-title-fts": [
+                "libs/shared/database/src/lib/content-title-fts.ts"
             ],
             "@iptvnator/workspace/dashboard/feature": [
                 "libs/workspace/dashboard/feature/src/index.ts"

@@ -215,7 +215,7 @@ describe('PortalChannelsListComponent', () => {
             fixture.nativeElement.querySelector('.channels-loading-state')
         ).not.toBeNull();
         expect(
-            fixture.nativeElement.querySelector('.empty-search-state')
+            fixture.nativeElement.querySelector('app-state-view')
         ).toBeNull();
     });
 
@@ -228,7 +228,7 @@ describe('PortalChannelsListComponent', () => {
             fixture.nativeElement.querySelector('.channels-loading-state')
         ).toBeNull();
         expect(
-            fixture.nativeElement.querySelector('.empty-search-state')
+            fixture.nativeElement.querySelector('app-state-view')
         ).not.toBeNull();
     });
 

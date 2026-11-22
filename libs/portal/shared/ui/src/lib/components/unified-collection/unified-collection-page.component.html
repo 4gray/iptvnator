@@ -264,22 +264,25 @@
 
         @if (!hasLive() && !hasMovies() && !hasSeries()) {
             @if (workspaceSearchTerm()) {
-                <div class="empty-state">
-                    <mat-icon class="empty-icon">search_off</mat-icon>
-                    <p class="empty-title">
-                        {{
-                            'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS' | translate
-                        }}
-                    </p>
-                </div>
+                <app-state-view
+                    variant="no-results"
+                    [heading]="
+                        'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS' | translate
+                    "
+                    [description]="
+                        'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS_HINT' | translate
+                    "
+                />
             } @else {
-                <app-empty-state
-                    type="no-data"
+                <app-state-view
                     [icon]="emptyStateIcon()"
-                    [titleKey]="emptyStateTitleKey()"
-                    [descriptionKey]="emptyStateBodyKey()"
-                    secondaryActionLabelKey="WORKSPACE.SHELL.GO_TO_DASHBOARD"
-                    (secondaryActionClicked)="goToDashboard()"
+                    [heading]="emptyStateTitleKey() | translate"
+                    [description]="emptyStateBodyKey() | translate"
+                    [actionLabel]="
+                        'WORKSPACE.SHELL.GO_TO_DASHBOARD' | translate
+                    "
+                    actionIcon="space_dashboard"
+                    (action)="goToDashboard()"
                 />
             }
         }

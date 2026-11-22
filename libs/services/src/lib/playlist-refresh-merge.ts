@@ -50,6 +50,8 @@ export function mergeRefreshedPlaylist(
         updateState: PlaylistUpdateState.UPDATED,
         ...(currentPlaylist
             ? {
+                  hiddenStalkerCategories:
+                      currentPlaylist.hiddenStalkerCategories,
                   favorites: currentPlaylist.favorites,
                   recentlyViewed: currentPlaylist.recentlyViewed,
                   position: currentPlaylist.position,

@@ -4,8 +4,6 @@ import {
     computed,
     inject,
 } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { RouterOutlet } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistErrorViewComponent } from '@iptvnator/portal/shared/ui';
@@ -16,8 +14,6 @@ import { XtreamCachedOfflineNoticeComponent } from './xtream-cached-offline-noti
     selector: 'app-xtream-content-gate',
     standalone: true,
     imports: [
-        MatButtonModule,
-        MatIconModule,
         PlaylistErrorViewComponent,
         RouterOutlet,
         TranslatePipe,
@@ -29,19 +25,12 @@ import { XtreamCachedOfflineNoticeComponent } from './xtream-cached-offline-noti
                 <app-playlist-error-view
                     [title]="titleKey() | translate"
                     [description]="descriptionKey() | translate"
+                    [variant]="
+                        blockReason === 'unavailable' ? 'offline' : 'error'
+                    "
+                    [retryable]="true"
+                    (retry)="retryContentInitialization()"
                 />
-
-                <div class="xtream-content-gate__actions">
-                    <button
-                        mat-flat-button
-                        color="primary"
-                        type="button"
-                        (click)="retryContentInitialization()"
-                    >
-                        <mat-icon>refresh</mat-icon>
-                        {{ 'DOWNLOADS.RETRY' | translate }}
-                    </button>
-                </div>
             </div>
         } @else {
             <app-xtream-cached-offline-notice />

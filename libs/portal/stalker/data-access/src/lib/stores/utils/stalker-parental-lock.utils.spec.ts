@@ -1,5 +1,7 @@
+import type { ParentalLockService } from '@iptvnator/services';
 import {
     isStalkerItemWithheld,
+    resolveStalkerWithheldCategoryIds,
     stalkerWithheldRowKey,
     withoutWithheldStalkerItems,
 } from './stalker-parental-lock.utils';
@@ -18,9 +20,29 @@ describe('stalker-parental-lock.utils', () => {
         expect(isStalkerItemWithheld({ tv_genre_id: 8 }, 'itv', withheld)).toBe(
             false
         );
-        // A VOD row with a matching category_id is not a live row.
         expect(
             isStalkerItemWithheld({ category_id: '7' }, 'itv', withheld)
+        ).toBe(true);
+        expect(
+            isStalkerItemWithheld(
+                { tv_genre_id: ' ', category_id: '7' },
+                'radio',
+                withheld
+            )
+        ).toBe(true);
+        expect(
+            isStalkerItemWithheld(
+                { tv_genre_id: '8', category_id: '7' },
+                'itv',
+                withheld
+            )
+        ).toBe(false);
+        expect(
+            isStalkerItemWithheld(
+                { category_id: ' RADIO ' },
+                'radio',
+                new Set(['RADIO'])
+            )
         ).toBe(false);
     });
 
@@ -63,6 +85,28 @@ describe('isStalkerItemWithheld in fail-closed mode', () => {
                 ALL_CATEGORIES_WITHHELD
             )
         ).toEqual([]);
+    });
+});
+
+describe('combined category visibility', () => {
+    it('keeps hidden IDs while unlocked and preserves the unreadable-lock sentinel', () => {
+        const lock = {
+            active: jest.fn(() => false),
+            lockedStalkerIds: () => ['locked'],
+            withholdsEverything: jest.fn(() => false),
+        };
+        const withheld = () =>
+            resolveStalkerWithheldCategoryIds(
+                lock as unknown as ParentalLockService,
+                'source',
+                'vod',
+                ['hidden']
+            );
+        expect(withheld()).toEqual(new Set(['hidden']));
+        lock.active.mockReturnValue(true);
+        expect(withheld()).toEqual(new Set(['hidden', 'locked']));
+        lock.withholdsEverything.mockReturnValue(true);
+        expect(withheld()).toBe(ALL_CATEGORIES_WITHHELD);
     });
 });
 
