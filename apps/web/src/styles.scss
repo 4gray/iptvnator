@@ -327,6 +327,21 @@ body.dark-theme {
     margin-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
 }
 
+// Reserve room for active bottom controls, including wrapped save buttons on
+// narrow settings panes and settings toasts that already clear the save bar.
+body:has(.unsaved-bar, .mat-mdc-snack-bar-container)
+    app-pwa-update-notification {
+    --pwa-update-bottom-clearance: 96px;
+
+    @media (max-width: 960px) {
+        --pwa-update-bottom-clearance: 160px;
+    }
+}
+
+body:has(.settings-snackbar) app-pwa-update-notification {
+    --pwa-update-bottom-clearance: 160px;
+}
+
 // Failures (settings could not be saved/loaded) must not read as the usual
 // neutral confirmation toast.
 .mat-mdc-snack-bar-container.settings-snackbar--error {

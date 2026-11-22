@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import { servePwaUpdateFixture } from './pwa-update.fixture';
 
 // eslint-disable-next-line playwright/no-skipped-test -- Requires the actual production worker and build.
@@ -33,6 +33,18 @@ async function checkWorker(page: Page) {
     );
 }
 
+async function expectAbove(notice: Locator, lowerPanel: Locator) {
+    await expect
+        .poll(async () => {
+            const [upper, lower] = await Promise.all([
+                notice.boundingBox(),
+                lowerPanel.boundingBox(),
+            ]);
+            return upper && lower && upper.y + upper.height < lower.y;
+        })
+        .toBe(true);
+}
+
 test('checks for PWA updates on startup, in About and on resume @pwa @critical', async ({
     page,
 }) => {
@@ -52,6 +64,11 @@ test('checks for PWA updates on startup, in About and on resume @pwa @critical',
 
         const status = page.locator('[data-test-id="pwa-update-status"]');
         const check = page.locator('[data-test-id="pwa-update-check"]');
+        const notice = page.locator('[data-test-id="pwa-update-notification"]');
+        const close = notice.getByRole('button', {
+            name: 'Close',
+            exact: true,
+        });
         await expect(status).toHaveText(
             'No newer build was found on this server.'
         );
@@ -60,6 +77,18 @@ test('checks for PWA updates on startup, in About and on resume @pwa @critical',
         fixture.state.failManifest = true;
         await check.click();
         await expect(status).toContainText('could not be downloaded');
+        await close.press('Enter');
+        await expect(notice).toBeHidden();
+        await expect(page.getByRole('main')).toBeFocused();
+        await check.click();
+        await expect(check).toBeEnabled();
+        await expect(status).toContainText('could not be downloaded');
+        await expect(notice).toBeHidden();
+
+        await page.reload();
+        await expect(notice).toContainText('could not be downloaded');
+        await close.click();
+        await expect(notice).toBeHidden();
 
         fixture.state.failManifest = false;
         await page.evaluate(() =>
@@ -76,6 +105,9 @@ test('checks for PWA updates on startup, in About and on resume @pwa @critical',
         );
         await check.click();
         await expect(status).toContainText('An update is ready');
+        await expect(notice).toContainText('An update is ready');
+        await close.click();
+        await expect(notice).toBeHidden();
         await expect(check).toHaveText(/Refresh/);
         await check.click();
         await expect(page.locator('meta[name="audit-update"]')).toHaveAttribute(
@@ -140,6 +172,8 @@ test('retains the offline library after failed updates and protects unsaved sett
         expect(await checkWorker(page)).toBe(false);
         const notice = page.locator('[data-test-id="pwa-update-notification"]');
         await expect(notice).toContainText('could not be downloaded');
+        await expect(notice).toHaveCSS('bottom', '20px');
+        await expect(notice).toHaveCSS('right', '20px');
         await page.screenshot({
             path: info.outputPath('update-failed-dark.png'),
         });
@@ -186,13 +220,22 @@ test('retains the offline library after failed updates and protects unsaved sett
         await expect(notice).toContainText('An update is ready');
         await page.evaluate(() => Reflect.set(window, 'auditDocument', true));
         await page.locator('a[href$="/workspace/settings"]').click();
+        await page.locator('[data-test-id="settings-section-about"]').click();
+        await expect(notice).toHaveCSS('bottom', '20px');
         await page
             .locator('[data-test-id="settings-section-appearance"]')
             .click();
+        await page.setViewportSize({ width: 480, height: 900 });
+        await expect(notice).toHaveCSS('bottom', '12px');
+        await expect(notice).toHaveCSS('right', '12px');
         await page
             .locator('[data-test-id="select-theme"]')
             .getByRole('radio', { name: 'Light', exact: true })
             .click();
+        await expectAbove(
+            notice,
+            page.locator('[data-test-id="settings-unsaved-bar"]')
+        );
         const beforeUnload = page.waitForEvent('dialog');
         const refreshClick = notice
             .getByRole('button', { name: 'Refresh', exact: true })
@@ -210,11 +253,12 @@ test('retains the offline library after failed updates and protects unsaved sett
         await expect(
             page.locator('[data-test-id="save-settings"]')
         ).toBeVisible();
-        await page.setViewportSize({ width: 480, height: 900 });
         await page.locator('[data-test-id="save-settings"]').click();
         await expect(
             page.locator('[data-test-id="save-settings"]')
         ).toBeHidden();
+        await expectAbove(notice, page.locator('.settings-snackbar'));
+        await expect(notice).toHaveCSS('bottom', '12px');
         await notice
             .getByRole('button', { name: 'Refresh', exact: true })
             .click();

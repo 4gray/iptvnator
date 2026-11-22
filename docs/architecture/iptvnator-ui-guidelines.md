@@ -1564,7 +1564,8 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   `floating-panel-title` the title: the kit's 12.5px uppercase label with an
   18px accent icon. Header actions are `ghost-icon-button(28px, 18px)`, row
   actions 24px; neither keeps Material's 48px touch target, which used to
-  push a horizontal scrollbar into the list.
+  push a horizontal scrollbar into the list. The PWA update notification gives
+  its dismiss action a 44px target on touch screens.
 - **Actions.** Buttons inside a panel follow the dialog footer: one accent
   action (`accent-button(sm)`), a secondary beside it (`secondary-button(sm)`
   on a `mat-flat-button`), never an outlined button. The update card's
