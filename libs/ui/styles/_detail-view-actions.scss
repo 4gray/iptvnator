@@ -326,7 +326,7 @@
     background: var(--app-cta-bg, #f2f4f8);
     color: var(--app-cta-fg, #0a0e14);
     font-family: inherit;
-    font-size: 13.5px;
+    font-size: var(--app-text-md);
     font-weight: 600;
     line-height: 1.15;
     white-space: nowrap;
@@ -399,7 +399,7 @@
     padding: 0 18px;
     border-radius: var(--app-radius-lg);
     font-family: inherit;
-    font-size: 13.5px;
+    font-size: var(--app-text-md);
     font-weight: 600;
     line-height: 1;
     white-space: nowrap;

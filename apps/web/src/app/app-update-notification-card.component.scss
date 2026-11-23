@@ -42,7 +42,7 @@
     display: grid;
     gap: 10px;
     padding: 12px;
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     line-height: 1.4;
     overflow-wrap: anywhere;
 

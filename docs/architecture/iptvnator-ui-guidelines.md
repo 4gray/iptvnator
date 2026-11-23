@@ -1586,7 +1586,7 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   `styles.scss`: the widget surface with the hairline and shadow on a 10px
   panel, 13px text in the heading colour, the action as accent text without
   a ripple; `app-notification--success` tints the hairline with
-  `--app-success-color`, `app-notification--error` takes a danger-tinted
+  `--app-status-success`, `app-notification--error` takes a danger-tinted
   surface and hairline with the action in `--app-danger-text`. An error
   never shows a provider's or an exception's text: the key names the
   failure, values carry only names, counts and dates, and the `code` option
@@ -1975,12 +1975,22 @@ and shares nothing with this one.
   (the playback diagnostic panel) declares the `status-dark` values itself.
   `--app-danger-text` reads `--app-status-danger`. A status tint is
   `color-mix(in srgb, var(--app-status-…) <n>%, transparent)`.
-- Existing literals map to the nearest step only within 0.5px; icon glyph
-  sizes and in-between values (12.5px, 13.5px, 1rem) stay until the full
-  migration (UI-32). `pnpm run styles:scales:validate` counts the distinct
-  literal font sizes, radii, z-index values and box-shadows outside the token
-  files and fails if any count grows; `tools/nx/style-scales-baseline.json`
-  only moves down (`pnpm run styles:scales:update` after removing literals).
+- Text sizes read `--app-text-*`. A size between two steps takes the nearer
+  one, and a tie rounds up (12.5px is `sm`, 13.5px is `md`). Sizes with no
+  step (16px, 20px, `clamp()` heroes), `em` sizes and icon glyph sizes stay
+  literal; the ratchet counts them. Sass size parameters (the kit's size map,
+  `standard-panel-title`, the dashboard rail geometry) pass tokens too; a
+  line box computed from one is a `calc()`.
+- 11px is a hard floor: no literal `font-size`, nor the size in a `font`
+  shorthand, may be below it. Dense labels (badges, kbd hints, EPG ticks) use
+  `--app-text-2xs` and stay small through weight, case and colour.
+- `pnpm run styles:scales:validate` fails on text below the floor, and counts
+  the distinct literal font sizes, radii, z-index values and box-shadows
+  outside the token files, failing if any count grows;
+  `tools/nx/style-scales-baseline.json` only moves down
+  (`pnpm run styles:scales:update` after removing literals).
+- A separate app that renders `libs/ui` components declares the scales in its
+  own global stylesheet (`apps/remote-control-web/src/styles.scss`).
 
 ## Theme Guidance
 

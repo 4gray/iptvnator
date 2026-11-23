@@ -34,7 +34,7 @@
     overflow: hidden;
 }
 
-@mixin standard-panel-title($font-size: 0.95rem) {
+@mixin standard-panel-title($font-size: var(--app-text-lg)) {
     margin: 0;
     font-size: $font-size;
     font-weight: 600;

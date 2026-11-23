@@ -48,11 +48,11 @@
     }
 
     .external-playback-dock__title {
-        font-size: 0.86rem;
+        font-size: var(--app-text-md);
     }
 
     .external-playback-dock__status {
-        font-size: 0.72rem;
+        font-size: var(--app-text-xs);
     }
 }
 
@@ -116,7 +116,7 @@
     background: var(--app-card-hover-bg, #f0f2f5);
     color: var(--app-body-color, #4a5060);
     border: 1px solid var(--app-widget-header-border, rgba(0, 0, 0, 0.08));
-    font-size: 0.66rem;
+    font-size: var(--app-text-2xs);
     font-weight: 700;
     letter-spacing: 0.08em;
 }
@@ -125,7 +125,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.95rem;
+    font-size: var(--app-text-lg);
     font-weight: 700;
     color: var(--app-heading-color, #1a1d23);
     margin-bottom: 2px;
@@ -136,7 +136,7 @@
     align-items: center;
     gap: 6px;
     color: var(--app-body-color, #4a5060);
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     min-width: 0;
 
     .external-playback-dock__status-separator {

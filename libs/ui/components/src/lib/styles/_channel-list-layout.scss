@@ -30,7 +30,7 @@ $groups-nav-action-size: 28px;
 
 @mixin list-header-title-type {
     margin: 0;
-    font-size: 0.94rem;
+    font-size: var(--app-text-lg);
     font-weight: 600;
 }
 
@@ -61,7 +61,7 @@ $groups-nav-action-size: 28px;
 
 @mixin groups-nav-title-type {
     margin: 0;
-    font-size: 0.94rem;
+    font-size: var(--app-text-lg);
     font-weight: 600;
     letter-spacing: -0.01em;
 }

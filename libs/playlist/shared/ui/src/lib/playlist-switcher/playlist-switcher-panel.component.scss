@@ -40,13 +40,13 @@
 
 .switcher__title {
     margin: 0;
-    font-size: 15px;
+    font-size: var(--app-text-lg);
     font-weight: 600;
     letter-spacing: -0.2px;
 }
 
 .switcher__count {
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     font-variant-numeric: tabular-nums;
     color: var(--app-muted-color);
 }
@@ -99,7 +99,7 @@
         background: none;
         color: var(--app-heading-color);
         font: inherit;
-        font-size: 0.84rem;
+        font-size: var(--app-text-sm);
 
         &::placeholder {
             color: var(--app-muted-color);
@@ -108,7 +108,7 @@
 
     kbd {
         font-family: var(--app-font-mono);
-        font-size: 11px;
+        font-size: var(--app-text-2xs);
         font-weight: 500;
     }
 }
@@ -121,7 +121,7 @@
 
 // The segment's 6px gap separates the count from its label.
 .switcher__type-count {
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     color: var(--app-muted-color);
 }
 
@@ -142,7 +142,7 @@
 
 .switcher__group {
     padding: 10px 8px 4px;
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     font-weight: 600;
     letter-spacing: 0.8px;
     text-transform: uppercase;
@@ -152,7 +152,7 @@
 .switcher__empty {
     margin: 0;
     padding: 20px 16px;
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     color: var(--app-body-color);
 }
 
@@ -171,7 +171,7 @@
     gap: 6px;
     padding: 0 6px;
     font-family: var(--app-font-mono);
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     font-weight: 400;
     color: var(--app-muted-color);
 

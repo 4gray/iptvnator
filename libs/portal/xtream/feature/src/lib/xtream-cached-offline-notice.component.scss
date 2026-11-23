@@ -42,13 +42,13 @@
     overflow-wrap: anywhere;
 
     strong {
-        font-size: 0.88rem;
+        font-size: var(--app-text-md);
         font-weight: 600;
         line-height: 1.3;
     }
 
     span {
-        font-size: 0.82rem;
+        font-size: var(--app-text-sm);
         line-height: 1.4;
     }
 }

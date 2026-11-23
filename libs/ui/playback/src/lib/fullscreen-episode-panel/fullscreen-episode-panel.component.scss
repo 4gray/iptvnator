@@ -63,13 +63,13 @@
 }
 
 .episode-panel__season-name {
-    font-size: 0.9rem;
+    font-size: var(--app-text-md);
     font-weight: 600;
     color: #ffffff;
 }
 
 .episode-panel__season-count {
-    font-size: 0.76rem;
+    font-size: var(--app-text-xs);
     color: rgba(255, 255, 255, 0.6);
 }
 
@@ -100,7 +100,7 @@
     gap: 10px;
     padding: 28px 12px;
     color: rgba(255, 255, 255, 0.6);
-    font-size: 0.85rem;
+    font-size: var(--app-text-md);
 
     mat-icon {
         color: rgba(255, 255, 255, 0.4);
@@ -121,7 +121,7 @@
     background: transparent;
     color: #ffffff;
     font: inherit;
-    font-size: 0.8rem;
+    font-size: var(--app-text-sm);
     cursor: pointer;
 
     &:hover,
@@ -262,7 +262,7 @@
     flex-wrap: wrap;
     gap: 8px;
     align-items: center;
-    font-size: 0.74rem;
+    font-size: var(--app-text-xs);
     font-weight: 700;
     letter-spacing: 0.05em;
     color: rgba(255, 255, 255, 0.72);
@@ -282,14 +282,14 @@
 }
 
 .episode-panel__now-playing {
-    font-size: 0.62rem;
+    font-size: var(--app-text-2xs);
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: #5cd6ff;
 }
 
 .episode-panel__title {
-    font-size: 0.92rem;
+    font-size: var(--app-text-lg);
     font-weight: 600;
     line-height: 1.25;
     color: #ffffff;
@@ -300,7 +300,7 @@
 }
 
 .episode-panel__overview {
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     line-height: 1.4;
     color: rgba(255, 255, 255, 0.62);
     display: -webkit-box;

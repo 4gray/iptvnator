@@ -29,7 +29,7 @@
     align-items: center;
     gap: 8px;
     color: var(--app-danger-text);
-    font-size: 13px;
+    font-size: var(--app-text-sm);
 }
 
 .picker__source {
@@ -48,7 +48,7 @@
     background: var(--app-widget-bg);
     color: var(--app-on-surface);
     font: inherit;
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     font-weight: 500;
     text-overflow: ellipsis;
 
@@ -90,7 +90,7 @@
         background: transparent;
         color: inherit;
         font: inherit;
-        font-size: 14px;
+        font-size: var(--app-text-md);
 
         &::placeholder {
             color: var(--app-muted-color);
@@ -169,7 +169,7 @@ button.picker__search-clear {
         padding-top: 8px;
     }
     color: var(--app-muted-color);
-    font-size: 13px;
+    font-size: var(--app-text-sm);
 
     [role='alert'] {
         color: var(--app-danger-text);
@@ -209,7 +209,7 @@ select {
         background: transparent;
         color: var(--app-body-color);
         font: inherit;
-        font-size: 13px;
+        font-size: var(--app-text-sm);
         cursor: pointer;
 
         &:hover {
@@ -237,7 +237,7 @@ select {
     h3 {
         @include side-list.title;
         @include side-list.row-label;
-        font-size: 15px;
+        font-size: var(--app-text-lg);
     }
 }
 
@@ -282,7 +282,7 @@ select {
     > span {
         @include side-list.row-label;
         color: var(--app-muted-color);
-        font-size: 12px;
+        font-size: var(--app-text-xs);
     }
 
     > .picker__opened {

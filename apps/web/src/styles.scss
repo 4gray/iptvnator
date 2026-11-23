@@ -81,7 +81,7 @@
     display: inline-flex;
     align-items: center;
     flex-shrink: 0;
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     font-weight: 500;
     line-height: 1;
     color: var(--app-muted-color, #8891a4);
@@ -332,7 +332,7 @@ body.dark-theme {
     .mat-mdc-snackbar-surface {
     border-color: color-mix(
         in srgb,
-        var(--app-success-color) 55%,
+        var(--app-status-success) 55%,
         var(--app-line-strong)
     );
 }

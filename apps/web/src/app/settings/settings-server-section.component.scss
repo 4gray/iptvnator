@@ -30,7 +30,7 @@
     gap: 4px 16px;
 
     h2 {
-        font-size: 22px;
+        font-size: var(--app-text-2xl);
     }
 
     p {
@@ -48,7 +48,7 @@
 
     mat-hint,
     mat-error {
-        font-size: 12px;
+        font-size: var(--app-text-xs);
     }
 }
 
@@ -66,7 +66,7 @@
     code {
         color: var(--app-heading-color);
         font-family: var(--app-font-mono);
-        font-size: 13px;
+        font-size: var(--app-text-sm);
     }
 }
 
@@ -95,7 +95,7 @@
 .server-message {
     margin: 0;
     color: var(--app-body-color);
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     overflow-wrap: anywhere;
     line-height: 1.5;
 }
@@ -133,7 +133,7 @@
     grid-area: 1 / 2;
     justify-self: start;
     color: var(--app-selection-text-color);
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     text-underline-offset: 3px;
 }
 button,

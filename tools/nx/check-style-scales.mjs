@@ -13,6 +13,8 @@ import { fileURLToPath } from 'node:url';
  * `var(--app-text-sm)` and `controls.$radius-sm` are not. `0` and `none`
  * are not counted: they turn the property off rather than pick a step.
  *
+ * It also enforces the type floor: no literal text size below 11px.
+ *
  * The baseline only moves down: `--update` lowers it to the current counts
  * and refuses to raise it. Scales are declared in the token files, which the
  * scan skips. Inline component styles are out of scope: the web app keeps
@@ -137,6 +139,42 @@ export function findLiterals(file, source) {
     return findings;
 }
 
+/** The type floor: no text is set below 11px (`--app-text-2xs`). */
+export const MIN_TEXT_PX = 11;
+
+const SIZE_IN_VALUE = /(?<![\w.-])(\d*\.?\d+)(px|rem)\b/g;
+
+/**
+ * Literal `font-size` values, and the size in a `font` shorthand, below
+ * the floor. Icon glyphs are not exempt: none sits below 11px, and a
+ * smaller glyph would be unreadable too. Sizes inside `clamp()`/`max()` and
+ * `em` values follow their context and are not checked.
+ */
+export function findUndersized(file, source) {
+    const text = stripComments(source);
+    const findings = [];
+    for (const match of text.matchAll(DECLARATION)) {
+        const [, property, raw] = match;
+        if (property !== 'font-size' && property !== 'font') continue;
+        const value = normalizeValue(raw);
+        if (/\b(clamp|max|min|calc)\(/.test(value)) continue;
+        const sizes = [...withoutVarReads(value).matchAll(SIZE_IN_VALUE)].map(
+            ([, n, unit]) => (unit === 'rem' ? Number(n) * 16 : Number(n))
+        );
+        // A `font` shorthand's size is its first length (`600 10px/1.2 x`).
+        const px =
+            property === 'font'
+                ? sizes[0]
+                : sizes.length === 1
+                  ? sizes[0]
+                  : undefined;
+        if (px === undefined || px >= MIN_TEXT_PX) continue;
+        const line = text.slice(0, match.index).split('\n').length;
+        findings.push({ file, line, value });
+    }
+    return findings;
+}
+
 export function countDistinct(findings) {
     const counts = {};
     for (const key of Object.keys(CATEGORIES)) {
@@ -192,11 +230,23 @@ if (isMain) {
     }
 
     const findings = [];
+    const undersized = [];
     for (const file of files) {
         const source = await readFile(path.join(rootDir, file), 'utf8');
         findings.push(...findLiterals(file, source));
+        undersized.push(...findUndersized(file, source));
     }
     const counts = countDistinct(findings);
+
+    if (undersized.length > 0) {
+        console.error(
+            `Text below the ${MIN_TEXT_PX}px floor. Use var(--app-text-2xs) or larger:`
+        );
+        for (const { file, line, value } of undersized) {
+            console.error(`- ${file}:${line} ${value}`);
+        }
+        process.exitCode = 1;
+    }
 
     if (args.has('--list')) {
         for (const key of Object.keys(CATEGORIES)) {
