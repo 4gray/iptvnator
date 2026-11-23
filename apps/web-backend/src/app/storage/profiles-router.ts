@@ -5,7 +5,6 @@ import {
     PROFILE_LIMIT,
     PROFILE_NAME_MAX_LENGTH,
     type ServerProfile,
-    type ServerProfileList,
 } from '@iptvnator/shared/interfaces/profiles';
 import { hashProfilePin, PROFILE_PIN, verifyProfilePin } from './profile-pin';
 import type { ServerStorage } from './server-storage';
@@ -59,8 +58,22 @@ export function createProfilesRouter(storage: ServerStorage): Router {
     });
 
     router.get('/profiles', (_req, res) => {
-        const body: ServerProfileList = { profiles: profiles.list() };
-        res.json(body);
+        res.json(profiles.snapshot());
+    });
+
+    // One switch for the household, so every device agrees whether
+    // profiles are on. Turning it off deletes nothing.
+    router.patch('/profiles', (req, res) => {
+        const enabled = objectBody(req)['enabled'];
+        if (typeof enabled !== 'boolean') {
+            throw new StorageRequestError(
+                400,
+                'invalid_profiles_setting',
+                'Expected { enabled: boolean }.'
+            );
+        }
+        profiles.household.setEnabled(enabled);
+        res.json(profiles.snapshot());
     });
 
     router.post('/profiles', async (req, res) => {

@@ -7,12 +7,27 @@ import {
 import type { ServerStorage } from './server-storage';
 import { StorageRequestError } from './storage-route-errors';
 
-/** A personal scope must name an existing profile; `'shared'` always does. */
+/**
+ * A personal scope must name an existing profile; `'shared'` always does.
+ * While profiles are off for the household only `'shared'` is accepted, so
+ * a device that has not caught up cannot write into a profile.
+ */
 export function requireProfileScope(
     storage: ServerStorage,
     scope: PersonalScope | undefined
 ): void {
-    if (!storage.profiles.hasScope(scope ?? DEFAULT_PERSONAL_SCOPE)) {
+    const personal = scope ?? DEFAULT_PERSONAL_SCOPE;
+    if (
+        personal !== DEFAULT_PERSONAL_SCOPE &&
+        !storage.profiles.household.enabled()
+    ) {
+        throw new StorageRequestError(
+            409,
+            'profiles_disabled',
+            'Profiles are turned off for this household.'
+        );
+    }
+    if (!storage.profiles.hasScope(personal)) {
         throw new StorageRequestError(
             409,
             'profile_missing',

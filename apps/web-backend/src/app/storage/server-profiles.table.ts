@@ -15,3 +15,14 @@ export const SERVER_PROFILES_TABLE_SQL = `CREATE TABLE IF NOT EXISTS server_prof
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 )`;
+
+/**
+ * Server-only table: per-household profile settings. No row means profiles
+ * are off and the list is at revision 0, as on a server that never had them.
+ */
+export const SERVER_PROFILE_HOUSEHOLDS_TABLE_SQL = `CREATE TABLE IF NOT EXISTS server_profile_households (
+    household_id TEXT PRIMARY KEY NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 0,
+    revision INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL
+)`;

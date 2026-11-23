@@ -107,9 +107,9 @@ describe('storage keys', () => {
     it('keeps the four-field Default history key, with or without an explicit shared scope', () => {
         const before = '["instance-1","source-1","incarnation-1","xtream"]';
         expect(historyScopeKey(history)).toBe(before);
-        expect(
-            historyScopeKey({ ...history, personalScope: 'shared' })
-        ).toBe(before);
+        expect(historyScopeKey({ ...history, personalScope: 'shared' })).toBe(
+            before
+        );
         expect(
             parseHistoryScope({ ...history, personalScope: 'shared' })
         ).toEqual(history);

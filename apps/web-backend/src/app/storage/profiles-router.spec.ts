@@ -11,6 +11,7 @@ import type {
     ServerProfileList,
 } from '@iptvnator/shared/interfaces/profiles';
 import type { ServerStorage } from './server-storage';
+import { requireProfileScope } from './profile-scope-guard';
 
 function app(storage: ServerStorage) {
     return createWebBackendApp({
@@ -53,7 +54,12 @@ describe('profiles routes', () => {
                 ).json()) as ServerInstanceInfo;
                 expect(instance.capabilities).toContain('profiles-v1');
 
-                const profiles = await profilesIn(await call('/profiles'));
+                const list = (await (
+                    await call('/profiles')
+                ).json()) as ServerProfileList;
+                expect(list.enabled).toBe(false);
+                expect(list.revision).toBe(0);
+                const profiles = list.profiles;
                 expect(profiles).toEqual([
                     {
                         id: 'default',
@@ -64,6 +70,104 @@ describe('profiles routes', () => {
                         sortOrder: -1,
                     },
                 ]);
+            })
+        ));
+
+    it('turns profiles on and off for the household without deleting any', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const call = client(baseUrl, storage);
+                const listOf = async (response: Response) =>
+                    (await response.json()) as ServerProfileList;
+                const kid = (await (
+                    await call('/profiles', {
+                        method: 'POST',
+                        body: { name: 'Kid' },
+                    })
+                ).json()) as ServerProfile;
+                const history = `/history/sources/source?scope=${kid.scope}`;
+
+                // Off by default: a profile scope is refused, 'shared' is not.
+                const off = await call(history);
+                expect(off.status).toBe(409);
+                expect(await codeOf(off)).toBe('profiles_disabled');
+                expect(() => requireProfileScope(storage, kid.scope)).toThrow(
+                    'Profiles are turned off'
+                );
+                expect(() =>
+                    requireProfileScope(storage, 'shared')
+                ).not.toThrow();
+
+                const on = await listOf(
+                    await call('/profiles', {
+                        method: 'PATCH',
+                        body: { enabled: true },
+                    })
+                );
+                expect(on.enabled).toBe(true);
+                expect(on.profiles).toHaveLength(2);
+                // Past the scope check, to the missing source.
+                expect((await call(history)).status).toBe(404);
+                expect(() =>
+                    requireProfileScope(storage, kid.scope)
+                ).not.toThrow();
+
+                const again = await listOf(
+                    await call('/profiles', {
+                        method: 'PATCH',
+                        body: { enabled: false },
+                    })
+                );
+                expect(again.enabled).toBe(false);
+                expect(again.profiles.map((p) => p.id)).toEqual([
+                    'default',
+                    kid.id,
+                ]);
+                expect(again.revision).toBeGreaterThan(on.revision);
+                expect((await call(history)).status).toBe(409);
+
+                for (const body of [{}, { enabled: 'yes' }, [true]]) {
+                    const bad = await call('/profiles', {
+                        method: 'PATCH',
+                        body,
+                    });
+                    expect(bad.status).toBe(400);
+                }
+            })
+        ));
+
+    it('moves the revision on every change to the list', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const call = client(baseUrl, storage);
+                const revision = async () =>
+                    (
+                        (await (
+                            await call('/profiles')
+                        ).json()) as ServerProfileList
+                    ).revision;
+                const seen = [await revision()];
+                const { id } = (await (
+                    await call('/profiles', {
+                        method: 'POST',
+                        body: { name: 'Kid' },
+                    })
+                ).json()) as ServerProfile;
+                seen.push(await revision());
+                await call(`/profiles/${id}`, {
+                    method: 'PATCH',
+                    body: { name: 'Robin' },
+                });
+                seen.push(await revision());
+                await call(`/profiles/${id}`, { method: 'DELETE' });
+                seen.push(await revision());
+                // Setting the switch to what it already is changes nothing.
+                await call('/profiles', {
+                    method: 'PATCH',
+                    body: { enabled: false },
+                });
+                seen.push(await revision());
+                expect(seen).toEqual([0, 1, 2, 3, 3]);
             })
         ));
 

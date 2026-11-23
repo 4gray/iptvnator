@@ -1764,6 +1764,17 @@ fixed to `default` for now so a household level can be added above profiles late
 The Default profile (`id` `default`) gets a row only once it is renamed,
 recoloured or given a PIN. A household has at most 12 profiles.
 
+Profiles are one household-wide switch, off by default, so every device agrees.
+`GET /v1/profiles` returns `{ enabled, revision, profiles }` and
+`PATCH /v1/profiles` with `{ enabled }` turns them on or off. Turning them on
+makes the existing data the Default profile; turning them off deletes nothing.
+While they are off the server accepts only `'shared'` and answers a `profile:`
+scope with `409 profiles_disabled`, so a device that has not caught up cannot
+write into a profile. Profiles can still be created and edited while the switch
+is off. Whether a device asks who is watching on start-up or reuses the last
+profile is a per-device setting and never syncs. `revision` moves on every change
+to the list or the switch.
+
 Authenticated, uncached `/v1/profiles` routes require the verified instance header:
 `GET` lists the Default profile first; `POST` creates one; `PATCH /:id` renames,
 recolours, or sets or clears (`pin: null`) a PIN; `DELETE /:id` removes a profile

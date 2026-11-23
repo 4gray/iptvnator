@@ -26,8 +26,21 @@ export interface ServerProfile {
 }
 
 export interface ServerProfileList {
+    /**
+     * Whether profiles are on for the household, one switch for every
+     * device. Off by default; while off the server accepts only the
+     * `'shared'` scope, and turning it off deletes nothing.
+     */
+    readonly enabled: boolean;
+    /** Moves on every change to the profiles or to `enabled`. */
+    readonly revision: number;
     /** The Default profile first, then the others in `sortOrder`. */
     readonly profiles: ServerProfile[];
+}
+
+/** `PATCH /v1/profiles`: turns profiles on or off for the household. */
+export interface UpdateServerProfilesRequest {
+    readonly enabled: boolean;
 }
 
 export interface CreateServerProfileRequest {

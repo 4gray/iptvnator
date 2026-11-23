@@ -8,7 +8,9 @@ import {
     profileScope,
     type PersonalScope,
     type ServerProfile,
+    type ServerProfileList,
 } from '@iptvnator/shared/interfaces/profiles';
+import { ServerProfileHousehold } from './server-profile-household';
 
 const HOUSEHOLD = 'default';
 const DEFAULT_NAME = 'Default';
@@ -44,7 +46,20 @@ export interface ProfileChanges {
  * favorites and history stores, keyed by each profile's scope.
  */
 export class ServerProfileRepository {
-    constructor(private readonly sqlite: Database.Database) {}
+    readonly household: ServerProfileHousehold;
+
+    constructor(private readonly sqlite: Database.Database) {
+        this.household = new ServerProfileHousehold(sqlite, HOUSEHOLD);
+    }
+
+    /** What `GET /v1/profiles` returns. */
+    snapshot(): ServerProfileList {
+        return {
+            enabled: this.household.enabled(),
+            revision: this.household.revision(),
+            profiles: this.list(),
+        };
+    }
 
     list(): ServerProfile[] {
         const rows = this.sqlite
@@ -62,7 +77,10 @@ export class ServerProfileRepository {
         return row ? toProfile(row) : null;
     }
 
-    /** Whether a personal scope belongs to a profile that exists. */
+    /**
+     * Whether a personal scope belongs to a profile that exists. Ignores the
+     * household switch; the scope guard checks that separately.
+     */
     hasScope(scope: PersonalScope): boolean {
         const id = profileIdOfScope(scope);
         return id === null || this.row(id) !== null;
@@ -87,21 +105,24 @@ export class ServerProfileRepository {
         const id = randomUUID();
         const now = new Date().toISOString();
         const order = this.list().length;
-        this.sqlite
-            .prepare(
-                `INSERT INTO server_profiles (id, household_id, name, colour, pin_hash, sort_order, created_at, updated_at)
+        this.sqlite.transaction(() => {
+            this.sqlite
+                .prepare(
+                    `INSERT INTO server_profiles (id, household_id, name, colour, pin_hash, sort_order, created_at, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-            )
-            .run(
-                id,
-                HOUSEHOLD,
-                name,
-                colour ?? PROFILE_COLOURS[order % PROFILE_COLOURS.length],
-                pinHash,
-                order,
-                now,
-                now
-            );
+                )
+                .run(
+                    id,
+                    HOUSEHOLD,
+                    name,
+                    colour ?? PROFILE_COLOURS[order % PROFILE_COLOURS.length],
+                    pinHash,
+                    order,
+                    now,
+                    now
+                );
+            this.household.touch();
+        })();
         return this.get(id) as ServerProfile;
     }
 
@@ -114,23 +135,26 @@ export class ServerProfileRepository {
             changes.pinHash === undefined
                 ? this.pinHashOf(id)
                 : changes.pinHash;
-        this.sqlite
-            .prepare(
-                `INSERT INTO server_profiles (id, household_id, name, colour, pin_hash, sort_order, created_at, updated_at)
+        this.sqlite.transaction(() => {
+            this.sqlite
+                .prepare(
+                    `INSERT INTO server_profiles (id, household_id, name, colour, pin_hash, sort_order, created_at, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                  ON CONFLICT(id) DO UPDATE SET name = excluded.name, colour = excluded.colour,
                      pin_hash = excluded.pin_hash, updated_at = excluded.updated_at`
-            )
-            .run(
-                id,
-                HOUSEHOLD,
-                changes.name ?? current.name,
-                changes.colour ?? current.colour,
-                pinHash,
-                current.sortOrder,
-                now,
-                now
-            );
+                )
+                .run(
+                    id,
+                    HOUSEHOLD,
+                    changes.name ?? current.name,
+                    changes.colour ?? current.colour,
+                    pinHash,
+                    current.sortOrder,
+                    now,
+                    now
+                );
+            this.household.touch();
+        })();
         return this.get(id);
     }
 
@@ -145,6 +169,7 @@ export class ServerProfileRepository {
             this.sqlite
                 .prepare('DELETE FROM server_profiles WHERE id = ?')
                 .run(id);
+            this.household.touch();
             for (const [table, where] of STATE_TABLES) {
                 if (this.tableExists(table)) {
                     this.sqlite
