@@ -38,7 +38,7 @@ describe('EmbeddedMpvCommandRunner video fit IPC', () => {
             ['mpv-1', 'original'],
             ['mpv-1', 'crop'],
         ]);
-        const properties = (mode: 'original' | 'crop') => ({
+        const properties = (mode: 'original' | 'crop' | 'stretch') => ({
             keepaspect: mode !== 'stretch',
             panscan: mode === 'crop' ? 1 : 0,
         });

@@ -344,11 +344,11 @@ describe('EmbeddedMpvPlayerComponent dock panels', () => {
             .mockResolvedValue(undefined);
         controller.support.update(
             (support) =>
-                support && {
+                support && support.capabilities ? {
                     ...support,
                     platform: 'linux',
                     capabilities: { ...support.capabilities, videoFit: true },
-                }
+                } : support
         );
         const snapshot = controller.session();
         if (!snapshot) throw new Error('Expected ready session');
