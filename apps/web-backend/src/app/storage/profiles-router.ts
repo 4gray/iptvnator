@@ -8,10 +8,12 @@ import {
 import {
     missingProfile,
     objectBody,
+    optionalBoolean,
     optionalColour,
     optionalObjectBody,
     optionalPin,
     requireName,
+    requireNoKidsPin,
 } from './profile-input';
 import { hashProfilePin } from './profile-pin';
 import { PinLockedError, ProfilePinAttempts } from './profile-pin-attempts';
@@ -97,6 +99,8 @@ export function createProfilesRouter(
         const name = requireName(body['name']);
         const colour = optionalColour(body['colour']);
         const pin = optionalPin(body['pin']);
+        const kids = optionalBoolean(body['kids'], 'kids') ?? false;
+        requireNoKidsPin(kids, !!pin);
         const pinHash = pin ? await hashProfilePin(pin) : null;
         // Checked after hashing, right before the synchronous write, so
         // overlapping requests cannot both pass them.
@@ -108,7 +112,7 @@ export function createProfilesRouter(
             );
         }
         requireFreeName(name);
-        res.status(201).json(profiles.create(name, colour, pinHash));
+        res.status(201).json(profiles.create({ name, colour, pinHash, kids }));
     });
 
     router.patch('/profiles/:id', pinLimitIfPin, async (req, res) => {
@@ -120,8 +124,15 @@ export function createProfilesRouter(
         const colour = optionalColour(body['colour']);
         const changesPin = body['pin'] !== undefined;
         const newPin = body['pin'] === null ? null : optionalPin(body['pin']);
+        const kids = optionalBoolean(body['kids'], 'kids');
         // Changing or removing a PIN takes the current one.
         const stored = profiles.pinHashOf(id);
+        const kidsPin = () =>
+            requireNoKidsPin(
+                kids ?? requireProfile(id).kids,
+                changesPin ? newPin !== null : !!profiles.pinHashOf(id)
+            );
+        kidsPin();
         if (changesPin && stored) {
             await checkPin(res, id, body['currentPin'], stored);
         }
@@ -131,8 +142,9 @@ export function createProfilesRouter(
         // PIN changed or the name taken in the meantime.
         requireProfile(id);
         if (changesPin) requireSamePin(id, stored);
+        kidsPin();
         if (name !== undefined) requireFreeName(name, id);
-        const updated = profiles.update(id, { name, colour, pinHash });
+        const updated = profiles.update(id, { name, colour, pinHash, kids });
         if (!updated) throw missingProfile();
         res.json(updated);
     });

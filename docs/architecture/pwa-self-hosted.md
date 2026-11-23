@@ -1786,6 +1786,12 @@ PIN-protected profile take the current PIN as `currentPin` (`403 pin_required` o
 the same lock: five lock the profile for 30 seconds (`429 pin_locked`), and a
 client can try at most 30 PINs a minute across all profiles.
 
+A profile can be a kids profile (`kids: true`). The server only stores the flag;
+the contract for clients (phase 2) is that while a kids profile is active the app's
+existing parental lock is always on, and leaving the profile asks for the parental
+PIN. A kids profile cannot also have a profile PIN (`400 kids_profile_pin`), so
+there is one lock to explain; the optional profile PIN is for adult profiles.
+
 The PIN is a light lock. It keeps someone from picking another person's profile by
 accident, nothing more: anyone with the server access token can read and write
 every scope, and the server cannot tell which client is in which profile. A kids

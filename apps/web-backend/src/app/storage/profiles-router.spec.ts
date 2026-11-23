@@ -67,6 +67,7 @@ describe('profiles routes', () => {
                         name: 'Default',
                         colour: '#3b82f6',
                         hasPin: false,
+                        kids: false,
                         sortOrder: -1,
                     },
                 ]);
@@ -168,6 +169,70 @@ describe('profiles routes', () => {
                 });
                 seen.push(await revision());
                 expect(seen).toEqual([0, 1, 2, 3, 3]);
+            })
+        ));
+
+    it('keeps kids profiles free of a profile PIN', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const call = client(baseUrl, storage);
+                const created = await call('/profiles', {
+                    method: 'POST',
+                    body: { name: 'Kid', kids: true },
+                });
+                const kid = (await created.json()) as ServerProfile;
+                expect(kid).toMatchObject({ kids: true, hasPin: false });
+                expect(
+                    (await profilesIn(await call('/profiles'))).map(
+                        (p) => p.kids
+                    )
+                ).toEqual([false, true]);
+
+                const both = await call('/profiles', {
+                    method: 'POST',
+                    body: { name: 'Sam', kids: true, pin: '1234' },
+                });
+                expect(both.status).toBe(400);
+                expect(await codeOf(both)).toBe('kids_profile_pin');
+                const notBoolean = await call('/profiles', {
+                    method: 'POST',
+                    body: { name: 'Sam', kids: 'yes' },
+                });
+                expect(await codeOf(notBoolean)).toBe('invalid_body');
+
+                const pinOnKid = await call(`/profiles/${kid.id}`, {
+                    method: 'PATCH',
+                    body: { pin: '1234' },
+                });
+                expect(await codeOf(pinOnKid)).toBe('kids_profile_pin');
+
+                const adult = (await (
+                    await call('/profiles', {
+                        method: 'POST',
+                        body: { name: 'Robin', pin: '1234' },
+                    })
+                ).json()) as ServerProfile;
+                const kidWithPin = await call(`/profiles/${adult.id}`, {
+                    method: 'PATCH',
+                    body: { kids: true },
+                });
+                expect(await codeOf(kidWithPin)).toBe('kids_profile_pin');
+                const switched = await call(`/profiles/${adult.id}`, {
+                    method: 'PATCH',
+                    body: { kids: true, pin: null, currentPin: '1234' },
+                });
+                expect(await switched.json()).toMatchObject({
+                    kids: true,
+                    hasPin: false,
+                });
+                const back = await call(`/profiles/${adult.id}`, {
+                    method: 'PATCH',
+                    body: { kids: false, pin: '4321' },
+                });
+                expect(await back.json()).toMatchObject({
+                    kids: false,
+                    hasPin: true,
+                });
             })
         ));
 

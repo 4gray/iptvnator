@@ -93,7 +93,10 @@ describe('profile state', () => {
         withDataDir(async (open) => {
             const storage = await open();
             try {
-                const kid = storage.profiles.create('Kid', undefined, null);
+                const kid = storage.profiles.create({
+                    name: 'Kid',
+                    pinHash: null,
+                });
                 const store = new SqliteFavoriteServerStore(
                     storage.database.sqlite,
                     () => undefined
@@ -133,7 +136,10 @@ describe('profile state', () => {
         withDataDir(async (open) => {
             const storage = await open();
             try {
-                const kid = storage.profiles.create('Kid', undefined, null);
+                const kid = storage.profiles.create({
+                    name: 'Kid',
+                    pinHash: null,
+                });
                 const store = new SqliteFavoriteServerStore(
                     storage.database.sqlite,
                     () => undefined

@@ -61,6 +61,29 @@ export function optionalColour(value: unknown): string | undefined {
     return value.toLowerCase();
 }
 
+export function optionalBoolean(
+    value: unknown,
+    field: string
+): boolean | undefined {
+    if (value === undefined || typeof value === 'boolean') return value;
+    throw new StorageRequestError(
+        400,
+        'invalid_body',
+        `${field} is true or false.`
+    );
+}
+
+/** A kids profile relies on the parental lock, so it cannot take a PIN. */
+export function requireNoKidsPin(kids: boolean, hasPin: boolean): void {
+    if (kids && hasPin) {
+        throw new StorageRequestError(
+            400,
+            'kids_profile_pin',
+            'A kids profile uses the parental lock, not a profile PIN.'
+        );
+    }
+}
+
 export function optionalPin(value: unknown): string | undefined {
     if (value === undefined) return undefined;
     if (typeof value !== 'string' || !PROFILE_PIN.test(value)) {

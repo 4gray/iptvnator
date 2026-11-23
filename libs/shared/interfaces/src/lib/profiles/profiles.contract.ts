@@ -24,6 +24,13 @@ export interface ServerProfile {
     /** `#rrggbb`. */
     readonly colour: string;
     readonly hasPin: boolean;
+    /**
+     * A kids profile. Clients keep the app's parental lock always on while
+     * it is active, and leaving it asks for the parental PIN. A kids profile
+     * cannot also have a profile PIN, so there is one lock to explain; the
+     * optional PIN is for adult profiles.
+     */
+    readonly kids: boolean;
     readonly sortOrder: number;
 }
 
@@ -45,10 +52,12 @@ export interface UpdateServerProfilesRequest {
     readonly enabled: boolean;
 }
 
+/** `kids` and `pin` exclude each other. */
 export interface CreateServerProfileRequest {
     readonly name: string;
     readonly colour?: string;
     readonly pin?: string;
+    readonly kids?: boolean;
 }
 
 /**
@@ -61,6 +70,8 @@ export interface UpdateServerProfileRequest {
     readonly colour?: string;
     readonly pin?: string | null;
     readonly currentPin?: string;
+    /** Turning a profile into a kids profile needs its PIN removed first or in the same request. */
+    readonly kids?: boolean;
 }
 
 /** Body of `DELETE /v1/profiles/:id`; a PIN-protected profile takes its PIN. */

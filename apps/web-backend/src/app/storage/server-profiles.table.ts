@@ -11,6 +11,7 @@ export const SERVER_PROFILES_TABLE_SQL = `CREATE TABLE IF NOT EXISTS server_prof
     name TEXT NOT NULL,
     colour TEXT NOT NULL,
     pin_hash TEXT,
+    kids INTEGER NOT NULL DEFAULT 0,
     sort_order INTEGER NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
