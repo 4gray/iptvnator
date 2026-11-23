@@ -143,7 +143,7 @@ in `apps/web/src/m3-theme.scss`):
 - `--app-widget-border` / `--app-rail-border` — hairlines
 - `--app-on-surface` — primary text
 - `--app-eyebrow-color` — secondary/muted text
-- `--app-success-color` — done/watched status (episode watched toggle)
+- `--app-status-*` — status hues (see Scales)
 - `--app-list-selected-bg` / `--app-list-selected-fg` /
   `--app-list-selected-outline` — the chosen row of a side list and the
   active source's row on Sources and in the switcher (see Selection Pattern)
@@ -1090,7 +1090,7 @@ colour per context, and never a literal of its own:
   gets `PLAYER_PROGRESS_COLOR` (`player-palette.ts`), which a spec pins to the
   Sass value.
 - Live programme progress next to a LIVE marker (the dashboard's live rail and
-  live hero slides) keeps `--app-live-color`; EPG programme progress keeps the
+  live hero slides) keeps `--app-status-live`; EPG programme progress keeps the
   fill described below.
 
 Specs hold the rule in each owning project: `m3-theme.spec.ts` (web: the token
@@ -1923,6 +1923,50 @@ Native navigation buttons inherit the app font family in `_nav-list.scss`,
 then apply the shared 14px/500 normal and 600 selected roles. Category
 consumers must not reset these with a later `font: inherit` shorthand. Different
 content rows retain their own typography and density.
+
+## Scales
+
+`libs/ui/styles/_scales.scss` owns the web app's type, spacing, radius,
+elevation and z-index scales. `custom-properties` emits them once on `html`
+from `apps/web/src/styles.scss`; components read the custom properties and
+never redeclare them. The TV app has its own scale (`apps/tv/src/tokens.css`)
+and shares nothing with this one.
+
+| Scale | Tokens | Values |
+| --- | --- | --- |
+| Type (rem) | `--app-text-2xs` … `--app-text-2xl` | 11, 12, 13, 14, 15, 18, 22px; 11px is the floor |
+| Display | `--app-text-display-sm/md/lg` | 28, 36, 48px |
+| Spacing | `--app-space-0-5` … `--app-space-12` | 4px base (`1` = 4px) plus 2, 6, 10px |
+| Radius | `--app-radius-2xs` … `--app-radius-4xl`, `--app-radius-full` | 2, 4, 6, 8, 10, 12, 14, 16, 20, 999px |
+| Elevation | `--app-elev-1` … `--app-elev-5` | media marks, card hover, menus, select/floating panels, sheets |
+| Z layers | `--app-z-floating/drawer/overlay/popover/drop-target/window-controls` | 900, 950, 1000, 1200, 9999, 10000 |
+
+- Type roles are mixins (`caption`, `label`, `body`, `title`,
+  `section-title`, `heading`, `display`, `mono`); they set size and weight,
+  and line height only when asked, so adopting one does not move a row.
+- `--app-z-overlay` equals the CDK overlay container (1000): an in-page
+  overlay ties with dialogs and menus and loses on DOM order. Only the hover
+  popover, the window drop target and the frameless window controls sit
+  above the CDK. Stacking inside a component keeps small local values.
+- Rings and inset hairlines are borders, not elevation. The theme-tuned
+  `--app-widget-shadow` and `--app-popover-shadow` stay with the palettes.
+- Material shapes read the scale: dialogs `--app-radius-3xl`, menus, selects,
+  form fields and toasts `--app-radius-lg`, menu items and options
+  `--app-radius-sm`; the select and kit menu panels use `--app-elev-4`.
+- Status hues: `--app-status-success`, `-warning`, `-danger`, `-info`,
+  `-live` and `-expiry`, text-grade (4.5:1) on the mode's surfaces and on a
+  10–16% tint of themselves. `status-light` and `status-dark` declare them;
+  the palettes include the pair for their mode, so every preset (High
+  Contrast included) inherits them, and an always-dark surface over video
+  (the playback diagnostic panel) declares the `status-dark` values itself.
+  `--app-danger-text` reads `--app-status-danger`. A status tint is
+  `color-mix(in srgb, var(--app-status-…) <n>%, transparent)`.
+- Existing literals map to the nearest step only within 0.5px; icon glyph
+  sizes and in-between values (12.5px, 13.5px, 1rem) stay until the full
+  migration (UI-32). `pnpm run styles:scales:validate` counts the distinct
+  literal font sizes, radii, z-index values and box-shadows outside the token
+  files and fails if any count grows; `tools/nx/style-scales-baseline.json`
+  only moves down (`pnpm run styles:scales:update` after removing literals).
 
 ## Theme Guidance
 

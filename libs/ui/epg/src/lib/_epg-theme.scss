@@ -17,10 +17,10 @@ $accent-text: color-mix(
 );
 $live-text: color-mix(
     in srgb,
-    var(--app-live-color) 40%,
+    var(--app-status-live) 40%,
     var(--app-on-surface)
 );
-$accent-live: var(--app-live-color);
+$accent-live: var(--app-status-live);
 // Text/icons ON a filled `$accent-live` surface. The content background is the
 // live colour's counterpart in both themes — near-black behind the light
 // theme's red and near-white behind the dark theme's pink — so it clears 4.5:1

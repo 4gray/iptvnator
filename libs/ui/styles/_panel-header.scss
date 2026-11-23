@@ -1,7 +1,7 @@
 @mixin standard-panel-header(
     $sticky: false,
-    $padding: 0 20px,
-    $gap: 12px,
+    $padding: 0 var(--app-space-5),
+    $gap: var(--app-space-3),
     $min-height: 52px,
     $z-index: 2,
     $border-color: var(--app-widget-header-border, rgba(255, 255, 255, 0.05))
@@ -46,9 +46,9 @@
 }
 
 @mixin standard-panel-subtitle(
-    $font-size: 0.78rem,
+    $font-size: var(--app-text-xs),
     $font-weight: 500,
-    $padding: 2px 8px,
+    $padding: var(--app-space-0-5) var(--app-space-2),
     $color: var(--app-body-color, var(--mat-sys-on-surface-variant)),
     $background: var(--mat-sys-surface-container)
 ) {
@@ -58,6 +58,6 @@
     color: $color;
     background: $background;
     padding: $padding;
-    border-radius: 999px;
+    border-radius: var(--app-radius-full);
     flex-shrink: 0;
 }

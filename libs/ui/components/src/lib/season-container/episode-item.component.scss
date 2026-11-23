@@ -25,7 +25,7 @@
         var(--app-body-color, #8b93a8)
     );
     --ep-accent: var(--app-progress-color, #78adff);
-    --ep-success: var(--app-success-color, #4ade80);
+    --ep-success: var(--app-status-success, #4ade80);
 
     position: relative;
     display: grid;

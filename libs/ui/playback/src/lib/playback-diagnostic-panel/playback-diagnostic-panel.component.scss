@@ -140,11 +140,17 @@
     --playback-diagnostic-source-hover: #252d3b;
     --playback-diagnostic-source-selected: #243b5c;
     --playback-diagnostic-source-border: #657086;
-    --playback-diagnostic-source-ok-foreground: #4ade80;
+    /* The dark status hues whatever the app theme: `status-dark` in
+     * libs/ui/styles/_scales.scss, written out because the spec loads this
+     * stylesheet as raw CSS, where a Sass module cannot be used. */
+    --app-status-success: #4ade80;
+    --app-status-warning: #fbbf24;
+    --app-status-danger: #ff8d9b;
+    --playback-diagnostic-source-ok-foreground: var(--app-status-success);
     --playback-diagnostic-source-ok-surface: #173928;
-    --playback-diagnostic-source-warn-foreground: #ffcf99;
+    --playback-diagnostic-source-warn-foreground: var(--app-status-warning);
     --playback-diagnostic-source-warn-surface: #422e1d;
-    --playback-diagnostic-source-bad-foreground: #ff9aa6;
+    --playback-diagnostic-source-bad-foreground: var(--app-status-danger);
     --playback-diagnostic-source-bad-surface: #451f27;
     --app-on-surface: var(--playback-diagnostic-source-foreground);
     --app-eyebrow-color: var(--playback-diagnostic-source-muted);

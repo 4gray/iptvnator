@@ -10,7 +10,7 @@
 :host {
     position: fixed;
     inset: 0 0 auto auto;
-    z-index: 10000;
+    z-index: var(--app-z-window-controls);
     display: flex;
     width: fit-content;
     height: fit-content;

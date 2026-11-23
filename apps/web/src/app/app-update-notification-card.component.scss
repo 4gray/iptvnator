@@ -12,7 +12,7 @@
     );
     width: 320px;
     max-width: calc(100vw - 40px);
-    z-index: 901;
+    z-index: calc(var(--app-z-floating) + 1);
 }
 
 .app-update-notification__header {

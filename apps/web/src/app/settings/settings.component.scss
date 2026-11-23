@@ -316,7 +316,7 @@
 
 .settings-chip--warn {
     background: var(--app-expiry-warn-surface);
-    color: var(--app-expiry-warn-text);
+    color: var(--app-status-expiry);
 }
 
 .settings-callout {
@@ -644,7 +644,7 @@
 
     &[data-state='offline'],
     &[data-state='unauthorized'] {
-        color: var(--app-expiry-warn-text);
+        color: var(--app-status-expiry);
         background: var(--app-expiry-warn-surface);
     }
 }

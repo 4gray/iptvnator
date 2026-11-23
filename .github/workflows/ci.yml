@@ -568,6 +568,13 @@ jobs:
             - name: Validate the Material theme scope
               run: pnpm run styles:material-theme-scope:validate
 
+            # Literal font sizes, radii, z-index values and box-shadows may
+            # only fall: new ones use the libs/ui/styles/_scales.scss tokens
+            # (tools/nx/check-style-scales.mjs, baseline in
+            # tools/nx/style-scales-baseline.json).
+            - name: Validate the style scales ratchet
+              run: pnpm run styles:scales:validate
+
             # Nx rejects a non-parallel task with continuous dependencies, and
             # the Playwright plugin infers serve dependencies only when CI is
             # unset, so this checks both the local and the CI inference.

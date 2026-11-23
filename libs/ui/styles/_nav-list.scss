@@ -12,7 +12,7 @@
     padding: 2px 8px 12px;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--app-space-0-5);
 }
 
 .nav-item {
@@ -20,17 +20,17 @@
     width: 100%;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 6px 4px;
+    gap: var(--app-space-2-5);
+    padding: var(--app-space-1-5) var(--app-space-1);
     border: 1px solid transparent;
-    border-radius: 10px;
+    border-radius: var(--app-radius-lg);
     background: transparent;
     color: var(--mat-sys-on-surface-variant);
     text-align: left;
     text-decoration: none;
     cursor: pointer;
     font-family: inherit;
-    font-size: 0.875rem;
+    font-size: var(--app-text-md);
     font-weight: 500;
     line-height: 1.2;
     box-sizing: border-box;
@@ -59,7 +59,7 @@
     }
 
     .nav-item-meta {
-        font-size: 0.8rem;
+        font-size: var(--app-text-sm);
         min-width: 2ch;
         text-align: right;
         flex-shrink: 0;

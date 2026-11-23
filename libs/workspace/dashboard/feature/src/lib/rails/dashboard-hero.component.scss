@@ -174,7 +174,7 @@
                 40% 90% at 100% 100%,
                 color-mix(
                     in srgb,
-                    var(--app-live-color, #ff8f8f) 28%,
+                    var(--app-status-live, #ff8f8f) 28%,
                     transparent
                 ),
                 transparent 70%
@@ -305,7 +305,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: var(--app-live-color, #ff8f8f);
+    color: var(--app-status-live, #ff8f8f);
 
     &::before {
         content: '';
@@ -405,7 +405,7 @@
     }
 
     &--live i {
-        background: var(--app-live-color, #ff8f8f);
+        background: var(--app-status-live, #ff8f8f);
     }
 }
 

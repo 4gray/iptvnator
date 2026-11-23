@@ -7,7 +7,7 @@
     position: fixed;
     right: 20px;
     bottom: 20px;
-    z-index: 901;
+    z-index: calc(var(--app-z-floating) + 1);
     width: 320px;
     max-width: calc(100vw - 40px);
     padding: 10px 12px;

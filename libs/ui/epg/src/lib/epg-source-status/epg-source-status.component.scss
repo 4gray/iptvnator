@@ -1,8 +1,9 @@
 :host {
-    // Theme-aware tokens
-    --badge-fresh: #22c55e;
-    --badge-stale: #f59e0b;
-    --badge-error: #ef4444;
+    // Status hues follow the theme (`--app-status-*`); queued keeps a local
+    // violet, which has no status role.
+    --badge-fresh: var(--app-status-success);
+    --badge-stale: var(--app-status-warning);
+    --badge-error: var(--app-status-danger);
     --badge-queued: #a78bfa;
     --badge-accent: var(--app-selection-color);
 

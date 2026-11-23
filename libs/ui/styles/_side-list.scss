@@ -8,9 +8,9 @@
 @mixin header {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
+    gap: var(--app-space-2);
     padding: 4px 4px 12px;
-    margin-bottom: 12px;
+    margin-bottom: var(--app-space-3);
     border-bottom: 1px solid var(--app-widget-header-border);
 }
 
@@ -24,15 +24,15 @@
 }
 
 @mixin subtitle {
-    margin: 2px 0 0;
-    font-size: 13px;
+    margin: var(--app-space-0-5) 0 0;
+    font-size: var(--app-text-sm);
     color: var(--app-body-color);
 }
 
 @mixin label {
     margin: 0;
     padding: 8px 12px 6px;
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     font-weight: 600;
     letter-spacing: 0.8px;
     text-transform: uppercase;
@@ -45,17 +45,17 @@
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: 10px;
+    gap: var(--app-space-2-5);
     width: 100%;
     height: 40px;
-    padding: 0 12px;
+    padding: 0 var(--app-space-3);
     box-sizing: border-box;
     border: 0;
-    border-radius: 8px;
+    border-radius: var(--app-radius-md);
     background: none;
     color: var(--app-body-color);
     font: inherit;
-    font-size: 14px;
+    font-size: var(--app-text-md);
     font-weight: 400;
     text-align: start;
     cursor: pointer;
@@ -96,7 +96,7 @@
 }
 
 @mixin row-count {
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     font-variant-numeric: tabular-nums;
     color: var(--app-muted-color);
 }
