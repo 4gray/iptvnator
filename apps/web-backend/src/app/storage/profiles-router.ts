@@ -154,6 +154,15 @@ export function createProfilesRouter(
         const changesPin = body['pin'] !== undefined;
         const newPin = body['pin'] === null ? null : optionalPin(body['pin']);
         const kids = optionalBoolean(body['kids'], 'kids');
+        // Default holds the shared data older clients show; locking it
+        // would surprise people on those devices.
+        if (kids && id === DEFAULT_PROFILE_ID) {
+            throw new StorageRequestError(
+                400,
+                'default_profile_kids',
+                'The Default profile cannot be a kids profile.'
+            );
+        }
         // Changing or removing a PIN takes the current one.
         const stored = profiles.pinHashOf(id);
         const kidsPin = () =>

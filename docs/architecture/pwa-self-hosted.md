@@ -1804,7 +1804,10 @@ A profile can be a kids profile (`kids: true`). The server only stores the flag;
 the contract for clients (phase 2) is that while a kids profile is active the app's
 existing parental lock is always on, and leaving the profile asks for the parental
 PIN. A kids profile cannot also have a profile PIN (`400 kids_profile_pin`), so
-there is one lock to explain; the optional profile PIN is for adult profiles.
+there is one lock to explain; the optional profile PIN is for adult profiles. The
+Default profile cannot be a kids profile (`400 default_profile_kids`): it holds the
+shared data that older clients show, and locking it would surprise people on those
+devices.
 
 The PIN is a light lock. It keeps someone from picking another person's profile by
 accident, nothing more: anyone with the server access token can read and write

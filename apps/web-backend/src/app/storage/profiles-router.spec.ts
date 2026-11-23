@@ -453,6 +453,25 @@ describe('profiles routes', () => {
             })
         ));
 
+    it('does not make the Default profile a kids profile', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const call = client(baseUrl, storage);
+                const refused = await call('/profiles/default', {
+                    method: 'PATCH',
+                    body: { kids: true },
+                });
+                expect(refused.status).toBe(400);
+                expect(await codeOf(refused)).toBe('default_profile_kids');
+                expect(storage.profiles.get('default')?.kids).toBe(false);
+                const allowed = await call('/profiles/default', {
+                    method: 'PATCH',
+                    body: { kids: false, name: 'Home' },
+                });
+                expect(allowed.status).toBe(200);
+            })
+        ));
+
     it('requires the verified instance id', () =>
         withTempStorage((storage) =>
             withServer(app(storage), async (baseUrl) => {

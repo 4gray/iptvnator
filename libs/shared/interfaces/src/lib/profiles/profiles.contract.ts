@@ -30,7 +30,8 @@ export interface ServerProfile {
      * A kids profile. Clients keep the app's parental lock always on while
      * it is active, and leaving it asks for the parental PIN. A kids profile
      * cannot also have a profile PIN, so there is one lock to explain; the
-     * optional PIN is for adult profiles.
+     * optional PIN is for adult profiles. The Default profile is never a
+     * kids profile: it holds the shared data older clients show.
      */
     readonly kids: boolean;
     readonly sortOrder: number;
