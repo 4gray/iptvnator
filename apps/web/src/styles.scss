@@ -284,8 +284,9 @@ body.dark-theme {
 
 // UI-kit toast for every snack-bar: the floating panel's surface, hairline
 // and shadow on a 10px panel, 13px text, the action in the accent colour
-// without a ripple. Toasts sit at Material's bottom centre; a caller adds a
-// panel class for spacing (the settings save bar), never another look.
+// without a ripple. Toasts open only through `NotificationService`
+// (`@iptvnator/services/notifications`), which sets the bottom-centre
+// position and one `app-notification--<variant>` class below.
 .mat-mdc-snack-bar-container {
     @include mat.snack-bar-overrides(
         (
@@ -326,8 +327,14 @@ body.dark-theme {
     overflow: visible;
 }
 
-.mat-mdc-snack-bar-container.settings-snackbar {
-    margin-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+// Success: the neutral toast with its hairline in the success colour.
+.mat-mdc-snack-bar-container.app-notification--success
+    .mat-mdc-snackbar-surface {
+    border-color: color-mix(
+        in srgb,
+        var(--app-success-color) 55%,
+        var(--app-line-strong)
+    );
 }
 
 // Reserve room for active bottom controls, including wrapped save buttons on
@@ -341,20 +348,38 @@ body:has(.unsaved-bar, .mat-mdc-snack-bar-container)
     }
 }
 
-body:has(.settings-snackbar) app-pwa-update-notification {
+body:has(.app-notification--above-save-bar) app-pwa-update-notification {
     --pwa-update-bottom-clearance: 160px;
 }
 
-// Failures (settings could not be saved/loaded) must not read as the usual
-// neutral confirmation toast.
-.mat-mdc-snack-bar-container.settings-snackbar--error {
+// Errors must not read as the usual neutral confirmation: a danger-tinted
+// opaque surface, the danger hairline, and the action in the danger text
+// colour (measured against the tinted surface in all three themes).
+.mat-mdc-snack-bar-container.app-notification--error {
     @include mat.snack-bar-overrides(
         (
-            container-color: var(--mat-sys-error-container),
-            supporting-text-color: var(--mat-sys-on-error-container),
-            button-color: var(--mat-sys-on-error-container),
+            container-color: color-mix(
+                    in srgb,
+                    var(--app-danger-text) 12%,
+                    var(--app-widget-bg)
+                ),
+            supporting-text-color: var(--app-heading-color),
+            button-color: var(--app-danger-text),
         )
     );
+
+    .mat-mdc-snackbar-surface {
+        border-color: color-mix(
+            in srgb,
+            var(--app-danger-text) 55%,
+            var(--app-line-strong)
+        );
+    }
+}
+
+// Settings pages keep a save bar at the bottom; the toast clears it.
+.mat-mdc-snack-bar-container.app-notification--above-save-bar {
+    margin-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
 }
 
 // WCAG-friendly visually-hidden helper — content stays in the

@@ -1250,7 +1250,6 @@
         "IMPORT_SUMMARY_QUEUED": "w kolejce: {{count}}",
         "TOTAL_CHANNELS": "Wszystkie kanały",
         "TOTAL_PROGRAMS": "Wszystkie programy",
-        "UP_TO_DATE": "EPG jest aktualne, synchronizacja nie jest potrzebna",
         "RETRY": "Spróbuj ponownie",
         "ALLOW_PRIVATE_SOURCE": "Zezwól na źródło",
         "ALLOW_PRIVATE_SOURCE_TITLE": "Zezwolić na źródło EPG z sieci prywatnej?",
@@ -1696,8 +1695,8 @@
             "PLAYING_FROM": "Odtwarzanie z:",
             "SWITCH_TITLE": "Źródło niedostępne — przełączanie na {{playlist}}",
             "SWITCH_DETAIL": "wznawianie od {{timecode}}",
-            "SWITCH_AUDIO_WARNING": "wersja językowa może się różnić",
             "SWITCHED_TO": "Przełączono na {{playlist}}",
+            "SWITCHED_TO_AUDIO_MAY_DIFFER": "Przełączono na {{playlist}} — wersja językowa może się różnić",
             "UNDO": "Cofnij",
             "CHOOSE_OTHER": "Wybierz inne",
             "TRY_ANOTHER_SOURCE": "Spróbuj innego źródła",
@@ -1762,10 +1761,9 @@
         "EPISODE_NAVIGATION": "Nawigacja po odcinkach",
         "INLINE_PLAYER": "Odtwarzacz",
         "REQUEST_ERRORS": {
-            "XTREAM": "Żądanie Xtream nie powiodło się: {{message}}",
             "XTREAM_CONNECTION": "Nie udało się połączyć z serwerem Xtream",
-            "STALKER": "Żądanie Stalker nie powiodło się: {{message}} (status {{status}})",
-            "NOT_FOUND": "Nie znaleziono"
+            "XTREAM_FAILED": "Żądanie do serwera Xtream nie powiodło się.",
+            "STALKER_FAILED": "Żądanie do portalu Stalker nie powiodło się."
         }
     },
     "INFORMATION": "Informacje",
@@ -2475,7 +2473,7 @@
             "STREAM_NOT_FOUND": "Nie znaleziono strumienia. URL może być nieprawidłowy lub wygasł.",
             "TIMED_OUT": "Przekroczono limit czasu połączenia. Serwer nie odpowiada.",
             "LAUNCH_FAILED": "Nie udało się uruchomić {{player}}.",
-            "UNKNOWN": "Błąd {{player}}: {{error}}"
+            "REPORTED": "{{player}} zgłosił błąd."
         },
         "INFO_DIALOG": {
             "PLAYING": "Wideo jest odtwarzane w oknie zewnętrznego odtwarzacza.",

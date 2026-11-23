@@ -9,7 +9,7 @@ import {
     ChangeDetectionStrategy,
     viewChild,
 } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
@@ -121,8 +121,7 @@ export class SerialDetailsComponent implements OnDestroy {
 
     private readonly xtreamStore = inject(XtreamStore);
     private readonly playback = inject(SerialDetailsPlaybackService);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translateService = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
 
     readonly heroPresenter = inject(SerialDetailsHeroPresenter);
     readonly menu = inject(SerialDetailsMenuService);
@@ -389,12 +388,6 @@ export class SerialDetailsComponent implements OnDestroy {
     }
 
     showCopyNotification(): void {
-        this.snackBar.open(
-            this.translateService.instant('PORTALS.STREAM_URL_COPIED'),
-            undefined,
-            {
-                duration: 2000,
-            }
-        );
+        this.notifications.success('PORTALS.STREAM_URL_COPIED');
     }
 }

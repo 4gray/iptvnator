@@ -1,6 +1,5 @@
 import { Injectable, Signal, computed, inject, signal } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { TranslateService } from '@ngx-translate/core';
+import { NotificationService } from '@iptvnator/services/notifications';
 import {
     PORTAL_PLAYBACK_POSITIONS,
     VOD_WATCHED_FEEDBACK_KEYS,
@@ -27,8 +26,7 @@ export class VodDetailsWatchedService {
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly playback = inject(VodDetailsPlaybackService);
     private readonly xtreamStore = inject(XtreamStore);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
     private readonly logger = createLogger('VodDetailsWatched');
 
     private readonly toggle = createVodWatchedToggle({
@@ -52,10 +50,8 @@ export class VodDetailsWatchedService {
         ),
         positionReady: this.playback.positionLoaded,
         notify: (feedback) =>
-            this.snackBar.open(
-                this.translate.instant(VOD_WATCHED_FEEDBACK_KEYS[feedback]),
-                undefined,
-                { duration: 5000 }
+            this.notifications[feedback === 'failed' ? 'error' : 'success'](
+                VOD_WATCHED_FEEDBACK_KEYS[feedback]
             ),
         // Catalog cards read the store's position map, which only the
         // once-per-playlist load and external-player pushes fill. That map is

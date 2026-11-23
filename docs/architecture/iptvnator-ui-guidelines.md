@@ -207,16 +207,17 @@ in the overlay chunk. Everything else is lazy by these rules:
   and the workspace shell actions do; `openConfirmDialog` returns a promise
   that settles once the dialog is open. A component in a lazy chunk injects
   `MatDialog` directly.
-- **Toasts from services created with the app.** A root service or the app
-  shell opens its snack-bars through `LazySnackBar`
-  (`@iptvnator/services/lazy-snack-bar`), whose `open` takes
-  `MatSnackBar.open`'s arguments and returns a promise of the ref, or of
-  `null` after a failed chunk load, which it logs without the message (a
-  toast can carry a playlist URL). `snack-bar.mjs` statically imports
-  Material's button, the icon button chunk, ripple and the CDK a11y module,
-  so one eager `MatSnackBar` injection put about 110 KB on the initial
-  path. A component in a lazy chunk injects `MatSnackBar` directly; the
-  initial-bytes ratchet fails on a new eager importer.
+- **Toasts.** Every toast goes through `NotificationService`
+  (`@iptvnator/services/notifications`), which any root service or lazy
+  component may inject. It resolves the snack-bar through `LazySnackBar`
+  (`@iptvnator/services/lazy-snack-bar`) on the first toast:
+  `snack-bar.mjs` statically imports Material's button, the icon button
+  chunk, ripple and the CDK a11y module, so one eager `MatSnackBar`
+  injection put about 110 KB on the initial path. A failed chunk load is
+  logged without the message. `pnpm run ui:notifications:validate` (CI)
+  reports a `MatSnackBar` or `LazySnackBar` import, or a snack-bar `open`,
+  outside the service; the initial-bytes ratchet fails on a new eager
+  importer.
 - **Panels the shell mounts on every launch.** The EPG progress panel and the
   update notification are an eager host with `@defer (when visible)` around
   the view that imports Material; the startup status draws its spinner as
@@ -1572,18 +1573,31 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   action (`accent-button(sm)`), a secondary beside it (`secondary-button(sm)`
   on a `mat-flat-button`), never an outlined button. The update card's
   release notes and download/install buttons are the reference.
-- **Toasts.** Every `mat-snack-bar` takes the same look from one global rule
-  in `styles.scss`: the widget surface with the hairline and shadow on a
-  10px panel, 13px text in the heading colour, the action as accent text
-  without a ripple. Toasts sit at Material's default bottom centre; a caller
-  may add a panel class for spacing (`settings-snackbar` clears the save
-  bar) or the error tint (`settings-snackbar--error`), never a position of
-  its own. A failure the import panel already reports (a source's error row
+- **Toasts.** `NotificationService` has three variants, each a
+  translation key with optional values: `success` (2.5 s), `info` (5 s)
+  and `error` (5 s with Close; with an action such as Retry or Trust host it
+  stays until dismissed, and a lazily loaded component toast puts a Close
+  button beside the action, since a text snack-bar has room for one). A caller may pick another preset (`short`,
+  `default`, `sticky`) but never a position: every toast sits at the bottom
+  centre, and Settings lifts it above the save bar (`aboveSaveBar`). Errors
+  are assertive (`role="alert"`), the rest polite (`role="status"`).
+  Material skips the enter and exit animations under reduced motion
+  (`material-motion.e2e.ts`). The look comes from one global rule in
+  `styles.scss`: the widget surface with the hairline and shadow on a 10px
+  panel, 13px text in the heading colour, the action as accent text without
+  a ripple; `app-notification--success` tints the hairline with
+  `--app-success-color`, `app-notification--error` takes a danger-tinted
+  surface and hairline with the action in `--app-danger-text`. An error
+  never shows a provider's or an exception's text: the key names the
+  failure, values carry only names, counts and dates, and the `code` option
+  appends a bounded machine code such as `(ETIMEDOUT)`. A toast whose body
+  is a component (the source removal's Undo) opens through
+  `fromComponent`. No toast reports a non-event (the EPG being up to
+  date). A failure the import panel already reports (a source's error row
   with Retry) gets no toast; `EpgService` toasts only when the bridge call
   itself fails, a programme lookup errors, or the runtime imports without
   reporting progress (`supportsProgress` false: no row can carry the
-  failure), always with the translated generic message, never the
-  backend's text.
+  failure), always with the translated generic message.
 
 ## Forms
 
@@ -2142,8 +2156,11 @@ in `@iptvnator/playlist/shared/util` (`source-display`, `source-format`,
 - **Delete with Undo.** A single delete has no confirmation: the row leaves
   every list at once (`SourceRemovalService.pendingIds`) and the delete runs
   when the four-second Undo window ends. The window is the service's own
-  timer, not the toast's: another message replacing the toast (a refresh
-  finishing elsewhere) does not shorten it. The toast's close button commits
+  timer, not the toast's: it starts once the Undo toast is on screen, and
+  another message replacing the toast (a refresh finishing elsewhere) does
+  not shorten it. If the toast cannot open (its chunk failed to load), the
+  source stays, and a second delete commits the first only once its Undo
+  was on screen (otherwise the first is cancelled). The toast's close button commits
   at once, and quitting within the four seconds keeps the source. Deleting the active source
   switches to the next row; Undo switches back only if no other source was
   chosen since. A desktop Xtream delete brings its row back as "Removing…"

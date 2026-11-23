@@ -9,7 +9,7 @@ import {
     ChangeDetectionStrategy,
 } from '@angular/core';
 import { Location } from '@angular/common';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import {
@@ -87,7 +87,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     private readonly router = inject(Router);
     private readonly location = inject(Location);
     readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
     private readonly translateService = inject(TranslateService);
     private readonly playlistService = inject(PlaylistsService);
     private readonly downloadsService = inject(DownloadsService);
@@ -187,7 +187,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
             this.vodPosition.discardPendingLoad();
             this.vodPosition.position.set(position);
         },
-        snackBar: this.snackBar,
+        notifications: this.notifications,
         translateService: this.translateService,
         logger: this.logger,
         onPersisted: (playlistId) => this.catalog.refreshPositions(playlistId),
@@ -298,7 +298,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
                     this.translateService.defaultLang ||
                     'en',
             }),
-        snackBar: this.snackBar,
+        notifications: this.notifications,
         translate: this.translateService,
         logError: (message, error) => this.logger.error(message, error),
     });
@@ -372,7 +372,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
             resetPositionWriter: () => this.positionWriter.reset(),
             logger: this.logger,
             translate: this.translateService,
-            snackBar: this.snackBar,
+            notifications: this.notifications,
         });
     }
 }

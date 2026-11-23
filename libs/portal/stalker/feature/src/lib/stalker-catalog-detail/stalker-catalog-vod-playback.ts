@@ -1,5 +1,5 @@
 import type { WritableSignal } from '@angular/core';
-import type { MatSnackBar } from '@angular/material/snack-bar';
+import type { NotificationService } from '@iptvnator/services/notifications';
 import type { TranslateService } from '@ngx-translate/core';
 import type { Logger, PortalPlayer } from '@iptvnator/portal/shared/util';
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
@@ -27,7 +27,7 @@ interface StalkerCatalogVodPlaybackDeps {
     readonly resetPositionWriter: () => void;
     readonly logger: Pick<Logger, 'error'>;
     readonly translate: Pick<TranslateService, 'instant'>;
-    readonly snackBar: Pick<MatSnackBar, 'open'>;
+    readonly notifications: NotificationService;
 }
 
 /**
@@ -71,13 +71,11 @@ export async function startStalkerCatalogVodPlayback(
             return;
         }
         deps.logger.error('Failed to start inline VOD playback', error);
-        const errorMessage =
+        deps.notifications.error(
             error instanceof Error && error.message === 'nothing_to_play'
-                ? deps.translate.instant('PORTALS.CONTENT_NOT_AVAILABLE')
-                : deps.translate.instant('PORTALS.PLAYBACK_ERROR');
-        deps.snackBar.open(errorMessage, undefined, {
-            duration: 3000,
-        });
+                ? 'PORTALS.CONTENT_NOT_AVAILABLE'
+                : 'PORTALS.PLAYBACK_ERROR'
+        );
     } finally {
         host.pendingStart.settle(startId);
     }

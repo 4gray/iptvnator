@@ -1,6 +1,5 @@
 import { inject, Injectable, Injector } from '@angular/core';
-import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
-import { TranslateService } from '@ngx-translate/core';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { BehaviorSubject, from, Observable, of } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
 import {
@@ -32,8 +31,7 @@ import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
 })
 export class EpgService {
     private readonly injector = inject(Injector);
-    private snackBar = inject(LazySnackBar);
-    private translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly sourceSettings = inject(EpgSourceSettingsService);
@@ -215,15 +213,10 @@ export class EpgService {
 
     /**
      * The generic EPG failure toast, for failures no import panel row
-     * reports (the bridge call itself, a programme lookup). Material's
-     * default bottom-centre position, as every other toast.
+     * reports (the bridge call itself, a programme lookup).
      */
     private showErrorSnackbar(): void {
-        void this.snackBar.open(
-            this.translate.instant('EPG.ERROR'),
-            this.translate.instant('CLOSE'),
-            { duration: 3000 }
-        );
+        this.notifications.error('EPG.ERROR');
     }
 
     /**

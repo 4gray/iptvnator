@@ -1,12 +1,17 @@
 import { signal } from '@angular/core';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { ParentalLockService } from '@iptvnator/services';
 import { WorkspaceCategoryLockActionService } from './workspace-category-lock-action.service';
 
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
+
 describe('WorkspaceCategoryLockActionService', () => {
-    const snackBar = { open: jest.fn() };
+    const snackBar = { open: jest.fn().mockResolvedValue(null) };
     const parentalLock = {
         enabled: signal(true),
         requestUnlock: jest.fn(async () => true),
@@ -32,7 +37,7 @@ describe('WorkspaceCategoryLockActionService', () => {
         TestBed.configureTestingModule({
             providers: [
                 { provide: ParentalLockService, useValue: parentalLock },
-                { provide: MatSnackBar, useValue: snackBar },
+                { provide: LazySnackBar, useValue: snackBar },
                 {
                     provide: TranslateService,
                     useValue: { instant: (key: string) => key },
@@ -126,7 +131,7 @@ describe('WorkspaceCategoryLockActionService', () => {
         expect(snackBar.open).toHaveBeenCalledWith(
             'PARENTAL_LOCK.SAVE_FAILED',
             'CLOSE',
-            expect.any(Object)
+            ERROR_TOAST
         );
     });
 });

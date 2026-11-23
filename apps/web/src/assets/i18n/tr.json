@@ -1250,7 +1250,6 @@
         "IMPORT_SUMMARY_QUEUED": "{{count}} sırada",
         "TOTAL_CHANNELS": "Toplam kanal",
         "TOTAL_PROGRAMS": "Toplam program",
-        "UP_TO_DATE": "EPG güncel, senkronizasyona gerek yok",
         "RETRY": "Tekrar Dene",
         "ALLOW_PRIVATE_SOURCE": "Kaynağa izin ver",
         "ALLOW_PRIVATE_SOURCE_TITLE": "Özel ağ EPG kaynağına izin verilsin mi?",
@@ -1696,8 +1695,8 @@
             "PLAYING_FROM": "Şuradan oynatılıyor:",
             "SWITCH_TITLE": "Kaynak kullanılamıyor — {{playlist}} kaynağına geçiliyor",
             "SWITCH_DETAIL": "{{timecode}} konumundan devam ediliyor",
-            "SWITCH_AUDIO_WARNING": "dublaj farklı olabilir",
             "SWITCHED_TO": "{{playlist}} kaynağına geçildi",
+            "SWITCHED_TO_AUDIO_MAY_DIFFER": "{{playlist}} kaynağına geçildi — dublaj farklı olabilir",
             "UNDO": "Geri al",
             "CHOOSE_OTHER": "Başkasını seç",
             "TRY_ANOTHER_SOURCE": "Başka bir kaynak dene",
@@ -1762,10 +1761,9 @@
         "EPISODE_NAVIGATION": "Bölüm gezinmesi",
         "INLINE_PLAYER": "Oynatıcı",
         "REQUEST_ERRORS": {
-            "XTREAM": "Xtream isteği başarısız oldu: {{message}}",
             "XTREAM_CONNECTION": "Xtream sunucusuna bağlanılamadı",
-            "STALKER": "Stalker isteği başarısız oldu: {{message}} (durum {{status}})",
-            "NOT_FOUND": "Bulunamadı"
+            "XTREAM_FAILED": "Xtream sunucusuna yapılan istek başarısız oldu.",
+            "STALKER_FAILED": "Stalker portalına yapılan istek başarısız oldu."
         }
     },
     "INFORMATION": "Bilgi",
@@ -2475,7 +2473,7 @@
             "STREAM_NOT_FOUND": "Yayın bulunamadı. URL yanlış olabilir veya süresi dolmuş olabilir.",
             "TIMED_OUT": "Bağlantı zaman aşımına uğradı. Sunucu yanıt vermiyor.",
             "LAUNCH_FAILED": "{{player}} başlatılamadı.",
-            "UNKNOWN": "{{player}} hatası: {{error}}"
+            "REPORTED": "{{player}} bir hata bildirdi."
         },
         "INFO_DIALOG": {
             "PLAYING": "Video harici oynatıcı penceresinde oynatılıyor.",

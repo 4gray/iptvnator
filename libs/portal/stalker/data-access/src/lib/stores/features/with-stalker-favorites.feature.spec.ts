@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -9,6 +9,11 @@ import { PlaylistsService } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { StalkerContentType } from '../stalker-store.contracts';
 import { withStalkerFavorites } from './with-stalker-favorites.feature';
+
+const SUCCESS_TOAST = expect.objectContaining({
+    politeness: 'polite',
+    panelClass: expect.arrayContaining(['app-notification--success']),
+});
 
 const PLAYLIST = {
     _id: 'portal-1',
@@ -55,14 +60,14 @@ describe('withStalkerFavorites', () => {
             ),
             removeFromPortalFavorites: jest.fn(() => of({ favorites: [] })),
         };
-        snackBar = { open: jest.fn() };
+        snackBar = { open: jest.fn().mockResolvedValue(null) };
         ngrxStore = { dispatch: jest.fn() };
 
         TestBed.configureTestingModule({
             providers: [
                 TestFavoritesStore,
                 { provide: PlaylistsService, useValue: playlistService },
-                { provide: MatSnackBar, useValue: snackBar },
+                { provide: LazySnackBar, useValue: snackBar },
                 {
                     provide: TranslateService,
                     useValue: { instant: jest.fn((key: string) => key) },
@@ -125,7 +130,7 @@ describe('withStalkerFavorites', () => {
             expect(snackBar.open).toHaveBeenCalledWith(
                 'PORTALS.ADDED_TO_FAVORITES',
                 undefined,
-                { duration: 1000 }
+                SUCCESS_TOAST
             );
             expect(onDone).toHaveBeenCalled();
         });
@@ -217,7 +222,7 @@ describe('withStalkerFavorites', () => {
             expect(snackBar.open).toHaveBeenCalledWith(
                 'PORTALS.REMOVED_FROM_FAVORITES',
                 undefined,
-                { duration: 1000 }
+                SUCCESS_TOAST
             );
             expect(onDone).toHaveBeenCalled();
         });

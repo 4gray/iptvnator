@@ -4,6 +4,7 @@ export * from './lib/cross-portal-similar.service';
 export * from './lib/data.service';
 export * from './lib/host-connectivity-reset';
 export * from './lib/lazy-snack-bar/lazy-snack-bar';
+export * from './lib/notifications/notification.service';
 export * from './lib/database-electron.service';
 export * from './lib/downloads.service';
 export * from './lib/recordings.service';

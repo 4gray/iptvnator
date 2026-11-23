@@ -1250,7 +1250,6 @@
         "IMPORT_SUMMARY_QUEUED": "{{count}} 個排隊中",
         "TOTAL_CHANNELS": "頻道總數",
         "TOTAL_PROGRAMS": "節目總數",
-        "UP_TO_DATE": "EPG 已是最新，無需同步",
         "RETRY": "重試",
         "ALLOW_PRIVATE_SOURCE": "允許來源",
         "ALLOW_PRIVATE_SOURCE_TITLE": "允許私有網路 EPG 來源？",
@@ -1696,8 +1695,8 @@
             "PLAYING_FROM": "播放來源：",
             "SWITCH_TITLE": "來源無法使用 — 正在切換至 {{playlist}}",
             "SWITCH_DETAIL": "從 {{timecode}} 繼續播放",
-            "SWITCH_AUDIO_WARNING": "配音可能不同",
             "SWITCHED_TO": "已切換至 {{playlist}}",
+            "SWITCHED_TO_AUDIO_MAY_DIFFER": "已切換至 {{playlist}} — 配音可能不同",
             "UNDO": "復原",
             "CHOOSE_OTHER": "選擇其他來源",
             "TRY_ANOTHER_SOURCE": "嘗試其他播放來源",
@@ -1762,10 +1761,9 @@
         "EPISODE_NAVIGATION": "集數導覽",
         "INLINE_PLAYER": "播放器",
         "REQUEST_ERRORS": {
-            "XTREAM": "Xtream 請求失敗：{{message}}",
             "XTREAM_CONNECTION": "無法連線至 Xtream 伺服器",
-            "STALKER": "Stalker 請求失敗：{{message}}（狀態 {{status}}）",
-            "NOT_FOUND": "找不到"
+            "XTREAM_FAILED": "Xtream 伺服器請求失敗。",
+            "STALKER_FAILED": "Stalker 入口網站請求失敗。"
         }
     },
     "INFORMATION": "資訊",
@@ -2475,7 +2473,7 @@
             "STREAM_NOT_FOUND": "找不到串流。URL 可能不正確或已過期。",
             "TIMED_OUT": "連線逾時。伺服器沒有回應。",
             "LAUNCH_FAILED": "無法啟動 {{player}}。",
-            "UNKNOWN": "{{player}} 錯誤：{{error}}"
+            "REPORTED": "{{player}} 回報了錯誤。"
         },
         "INFO_DIALOG": {
             "PLAYING": "影片正在外部播放器視窗中播放。",

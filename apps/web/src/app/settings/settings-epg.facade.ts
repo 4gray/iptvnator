@@ -116,14 +116,12 @@ export class SettingsEpgFacade {
                     if (result && result.success === false) {
                         throw new Error('Clear EPG returned success=false');
                     }
-                    this.settingsSnackbar.open(
-                        this.translate.instant('SETTINGS.EPG_DATA_CLEARED')
-                    );
+                    this.settingsSnackbar.success('SETTINGS.EPG_DATA_CLEARED');
                     this.refreshAll();
                 } catch (error) {
                     console.error('Failed to clear EPG data:', error);
-                    this.settingsSnackbar.open(
-                        this.translate.instant('SETTINGS.EPG_DATA_CLEAR_FAILED')
+                    this.settingsSnackbar.error(
+                        'SETTINGS.EPG_DATA_CLEAR_FAILED'
                     );
                 } finally {
                     this.isClearing.set(false);

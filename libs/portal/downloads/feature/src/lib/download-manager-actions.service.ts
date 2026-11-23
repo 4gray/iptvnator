@@ -1,5 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { TranslateService } from '@ngx-translate/core';
 import { type DownloadItem, DownloadsService } from '@iptvnator/services';
 import { copyTextToClipboard } from '@iptvnator/services/clipboard-copy';
@@ -20,7 +20,7 @@ export class DownloadManagerActionsService {
     private readonly downloads = inject(DownloadsService);
     private readonly dialogs = inject(DialogService);
     private readonly translate = inject(TranslateService);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
 
     readonly pendingIds = signal<ReadonlySet<number>>(new Set());
     readonly isClearing = signal(false);
@@ -67,17 +67,13 @@ export class DownloadManagerActionsService {
         });
     }
 
-    showActionError(error?: string): void {
-        const base = this.translate.instant('DOWNLOADS.ACTION_FAILED');
-        this.snackBar.open(error ? `${base}: ${error}` : base, undefined, {
-            duration: 4000,
-        });
+    /** The failure's own text (a path, a system error) is not shown. */
+    showActionError(): void {
+        this.notifications.error('DOWNLOADS.ACTION_FAILED');
     }
 
-    showMessage(key: string, duration: number): void {
-        this.snackBar.open(this.translate.instant(key), undefined, {
-            duration,
-        });
+    showMessage(key: string, variant: 'success' | 'error'): void {
+        this.notifications[variant](key);
     }
 
     private confirmRemove(item: DownloadItem): void {
@@ -114,9 +110,7 @@ export class DownloadManagerActionsService {
                 else this.showActionError();
             }
         } catch (error) {
-            this.showActionError(
-                error instanceof Error ? error.message : String(error)
-            );
+            this.showActionError();
         } finally {
             this.isClearing.set(false);
         }
@@ -128,7 +122,7 @@ export class DownloadManagerActionsService {
     ): Promise<DownloadActionResult> {
         const filePath = item.filePath;
         if (!filePath) {
-            this.showMessage('DOWNLOADS.FILE_NOT_FOUND', 3000);
+            this.showMessage('DOWNLOADS.FILE_NOT_FOUND', 'error');
             return 'file-missing';
         }
         return this.withPending(
@@ -153,21 +147,21 @@ export class DownloadManagerActionsService {
             async () => {
                 try {
                     await copyTextToClipboard(item.url);
-                    this.showMessage('DOWNLOADS.URL_COPIED', 2000);
+                    this.showMessage('DOWNLOADS.URL_COPIED', 'success');
                     return { success: true };
                 } catch {
                     return { success: false };
                 }
             },
-            () => this.showMessage('DOWNLOADS.URL_COPY_FAILED', 3000)
+            () => this.showMessage('DOWNLOADS.URL_COPY_FAILED', 'error')
         );
     }
 
     private async withPending(
         itemId: number,
         operation: () => Promise<DownloadOperationResult>,
-        onFailure: (error?: string) => void | Promise<void> = (error) =>
-            this.showActionError(error),
+        onFailure: (error?: string) => void | Promise<void> = () =>
+            this.showActionError(),
         failureResult: (error?: string) => DownloadActionResult = () => 'failed'
     ): Promise<DownloadActionResult> {
         if (this.pendingIds().has(itemId)) {
@@ -194,9 +188,7 @@ export class DownloadManagerActionsService {
                 try {
                     await onFailure(failure);
                 } catch (error) {
-                    this.showActionError(
-                        error instanceof Error ? error.message : String(error)
-                    );
+                    this.showActionError();
                 }
                 return failureResult(failure);
             }
@@ -238,7 +230,7 @@ export class DownloadManagerActionsService {
             error === 'File not found'
                 ? 'DOWNLOADS.FILE_NOT_FOUND'
                 : 'DOWNLOADS.FILE_ACTION_ERROR',
-            3000
+            'error'
         );
     }
 }

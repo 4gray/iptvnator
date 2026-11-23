@@ -125,14 +125,10 @@ export class SettingsPlaylistResetFacade {
             }
 
             this.store.dispatch(PlaylistActions.removeAllPlaylists());
-            this.settingsSnackbar.open(
-                this.translate.instant('SETTINGS.PLAYLISTS_REMOVED')
-            );
+            this.settingsSnackbar.success('SETTINGS.PLAYLISTS_REMOVED');
         } catch (error) {
             console.error('Error removing playlists:', error);
-            this.settingsSnackbar.open(
-                this.translate.instant('SETTINGS.PLAYLISTS_REMOVE_FAILED')
-            );
+            this.settingsSnackbar.error('SETTINGS.PLAYLISTS_REMOVE_FAILED');
         } finally {
             this.removeAllProgress.set(null);
             this.isRemovingAllPlaylists.set(false);

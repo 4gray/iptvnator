@@ -226,7 +226,7 @@ test.describe('Electron Sources keyboard', () => {
             // The row leaves at once; Undo takes the focus the row had.
             await expect(rows).toHaveCount(1);
             const undo = page.locator(
-                'mat-snack-bar-container.app-toast .source-removal-toast__undo'
+                'mat-snack-bar-container.app-notification .source-removal-toast__undo'
             );
             await expect(undo).toBeFocused();
             await page.keyboard.press('Enter');
@@ -236,7 +236,7 @@ test.describe('Electron Sources keyboard', () => {
                 await rows.locator('.source-row__name').allTextContents()
             ).toEqual(before);
             await expect(
-                page.locator('mat-snack-bar-container.app-toast')
+                page.locator('mat-snack-bar-container.app-notification')
             ).toHaveCount(0);
         } finally {
             await closeElectronApp(app);

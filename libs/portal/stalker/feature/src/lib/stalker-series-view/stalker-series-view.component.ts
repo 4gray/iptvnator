@@ -12,7 +12,7 @@ import {
     viewChild,
 } from '@angular/core';
 import { Location } from '@angular/common';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { withEpisodeTitleFallback } from './stalker-series-episode-titles';
@@ -192,7 +192,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private readonly playbackPositionBridge = inject(
         PlaybackPositionRuntimeBridgeService
     );
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
     private readonly translateService = inject(TranslateService);
     private readonly languageTick = injectTranslationTick();
     readonly backClicked = output<void>();
@@ -1191,13 +1191,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     showCopyNotification(): void {
-        this.snackBar.open(
-            this.translateService.instant('PORTALS.STREAM_URL_COPIED'),
-            undefined,
-            {
-                duration: 2000,
-            }
-        );
+        this.notifications.success('PORTALS.STREAM_URL_COPIED');
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
@@ -1283,11 +1277,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             // silent; the user chose this launch and gets its failure.
             if (generation !== this.seriesPlaybackRequestGeneration) return;
             this.logger.error('External episode launch failed', error);
-            this.snackBar.open(
-                this.translateService.instant('PORTALS.PLAYBACK_ERROR'),
-                undefined,
-                { duration: 3000 }
-            );
+            this.notifications.error('PORTALS.PLAYBACK_ERROR');
             return;
         }
         // The viewer left the series, or started something else, while the
@@ -1432,15 +1422,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             if (!this.isPlaybackRequestCurrent(request)) return;
             this.autoplayStreak.cancelAutoplay();
             this.logger.error('Failed to start inline series playback', error);
-            const errorMessage =
+            this.notifications.error(
                 error instanceof Error && error.message === 'nothing_to_play'
-                    ? this.translateService.instant(
-                          'PORTALS.CONTENT_NOT_AVAILABLE'
-                      )
-                    : this.translateService.instant('PORTALS.PLAYBACK_ERROR');
-            this.snackBar.open(errorMessage, undefined, {
-                duration: 3000,
-            });
+                    ? 'PORTALS.CONTENT_NOT_AVAILABLE'
+                    : 'PORTALS.PLAYBACK_ERROR'
+            );
         } finally {
             autoplaySignal?.removeEventListener('abort', cancel);
             if (this.pendingStart()?.generation === generation)

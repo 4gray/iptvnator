@@ -1,7 +1,7 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { DialogService } from '@iptvnator/ui/components';
 import {
     DataService,
@@ -45,7 +45,7 @@ export class PlaylistRefreshActionService {
     private readonly store = inject(Store);
     private readonly activity = inject(SourceActivityService);
     private readonly translate = inject(TranslateService);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
     private readonly dialogService = inject(DialogService);
     private readonly databaseService = inject(DatabaseService);
     private readonly dataService = inject(DataService);
@@ -152,11 +152,7 @@ export class PlaylistRefreshActionService {
             return loaded === false ? 'failed' : 'refreshed';
         } catch (error) {
             console.error('Error refreshing playlist:', error);
-            this.snackBar.open(
-                this.translate.instant('HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR'),
-                this.translate.instant('CLOSE'),
-                { duration: 5000 }
-            );
+            this.notifications.error('HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR');
             return 'failed';
         } finally {
             this.m3uRefreshId.set(null);
@@ -252,12 +248,8 @@ export class PlaylistRefreshActionService {
                 })
             );
 
-            this.snackBar.open(
-                this.translate.instant(
-                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
-                ),
-                undefined,
-                { duration: 2000 }
+            this.notifications.success(
+                'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
             );
             return 'refreshed';
         } catch (error) {
@@ -271,11 +263,7 @@ export class PlaylistRefreshActionService {
                 ) {
                     return 'failed';
                 }
-                this.snackBar.open(
-                    this.getRefreshErrorMessage(error, item),
-                    this.translate.instant('CLOSE'),
-                    { duration: 5000 }
-                );
+                this.notifications.error(this.getRefreshErrorKey(error, item));
             }
             return 'failed';
         } finally {
@@ -290,18 +278,16 @@ export class PlaylistRefreshActionService {
         }
     }
 
-    private getRefreshErrorMessage(error: unknown, item: PlaylistMeta): string {
+    private getRefreshErrorKey(error: unknown, item: PlaylistMeta): string {
         if (
             error instanceof Error &&
             error.message?.includes('ENOENT') &&
             item.filePath
         ) {
-            return this.translate.instant(
-                'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_NOT_FOUND'
-            );
+            return 'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_NOT_FOUND';
         }
 
-        return this.translate.instant('HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR');
+        return 'HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR';
     }
 
     private handlePlaylistSecurityError(
@@ -316,14 +302,20 @@ export class PlaylistRefreshActionService {
             return false;
         }
 
-        const ref = this.snackBar.open(
-            this.translate.instant('HOME.URL_UPLOAD.ERROR_INVALID_TLS'),
-            this.translate.instant('HOME.URL_UPLOAD.TRUST_TLS_HOST'),
-            { duration: 10000 }
+        this.notifications.error(
+            'HOME.URL_UPLOAD.ERROR_INVALID_TLS',
+            undefined,
+            {
+                action: {
+                    labelKey: 'HOME.URL_UPLOAD.TRUST_TLS_HOST',
+                    run: () =>
+                        this.confirmTrustPlaylistHost(
+                            securityError.host,
+                            retry
+                        ),
+                },
+            }
         );
-        ref.onAction().subscribe(() => {
-            this.confirmTrustPlaylistHost(securityError.host, retry);
-        });
         return true;
     }
 
@@ -332,13 +324,7 @@ export class PlaylistRefreshActionService {
         retry: () => void
     ): void {
         if (!host) {
-            this.snackBar.open(
-                this.translate.instant(
-                    'HOME.URL_UPLOAD.ERROR_TLS_HOST_UNKNOWN'
-                ),
-                this.translate.instant('CLOSE'),
-                { duration: 5000 }
-            );
+            this.notifications.error('HOME.URL_UPLOAD.ERROR_TLS_HOST_UNKNOWN');
             return;
         }
 

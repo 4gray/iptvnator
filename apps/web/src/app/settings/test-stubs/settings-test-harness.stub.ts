@@ -13,8 +13,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatSelectModule } from '@angular/material/select';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import {
     ActivatedRoute,
@@ -144,8 +144,8 @@ export const DEFAULT_APP_UPDATE_STATUS: ElectronBridgeAppUpdateStatus = {
     installedChannel: 'stable',
 };
 
-export class MatSnackBarStub {
-    open = jest.fn();
+export class LazySnackBarStub {
+    open = jest.fn().mockResolvedValue(null);
 }
 
 export class MockRouter {
@@ -387,7 +387,7 @@ export function settingsTestProviders(
         MockProvider(DialogService, { openConfirmDialog: jest.fn() }),
         MockProvider(MatDialog, { open: jest.fn() }),
         { provide: SettingsService, useClass: MockSettingsService },
-        { provide: MatSnackBar, useClass: MatSnackBarStub },
+        { provide: LazySnackBar, useClass: LazySnackBarStub },
         { provide: DataService, useClass: ElectronServiceStub },
         { provide: Router, useClass: MockRouter },
         { provide: ActivatedRoute, useClass: MockActivatedRoute },

@@ -229,7 +229,7 @@ describe('PwaService', () => {
     );
 
     it('translates the too-large upload message', () => {
-        expect(service.getErrorMessageByStatusCode(413)).toBe(
+        expect(service.getErrorKeyByStatusCode(413)).toBe(
             'HOME.URL_UPLOAD.ERROR_413'
         );
     });
@@ -268,7 +268,7 @@ describe('PwaService', () => {
             expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
                 'HOME.URL_UPLOAD.ERROR_FETCH_FAILED (ETIMEDOUT)',
                 'CLOSE',
-                { duration: 5000 }
+                expect.objectContaining({ politeness: 'assertive' })
             );
         } finally {
             rxjsConfig.onUnhandledError = previousHandler;
@@ -319,7 +319,7 @@ describe('PwaService', () => {
         expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
             'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS',
             undefined,
-            { duration: 2000 }
+            expect.objectContaining({ politeness: 'polite' })
         );
     });
 
@@ -346,7 +346,7 @@ describe('PwaService', () => {
         expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
             'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED',
             'CLOSE',
-            { duration: 5000 }
+            expect.objectContaining({ politeness: 'assertive' })
         );
     });
 
@@ -370,7 +370,7 @@ describe('PwaService', () => {
         expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
             expect.any(String),
             'CLOSE',
-            { duration: 5000 }
+            expect.objectContaining({ politeness: 'assertive' })
         );
     });
 
@@ -404,7 +404,7 @@ describe('PwaService', () => {
             expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
                 'HOME.URL_UPLOAD.ERROR_FETCH_FAILED (ENETUNREACH)',
                 'CLOSE',
-                { duration: 5000 }
+                expect.objectContaining({ politeness: 'assertive' })
             );
         } finally {
             rxjsConfig.onUnhandledError = previousHandler;

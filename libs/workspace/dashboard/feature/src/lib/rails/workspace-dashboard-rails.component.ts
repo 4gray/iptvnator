@@ -15,7 +15,7 @@ import {
     sourceDialogSubtitle,
 } from '@iptvnator/shared/interfaces';
 import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Router } from '@angular/router';
 import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
 import { Store } from '@ngrx/store';
@@ -122,7 +122,7 @@ export class WorkspaceDashboardRailsComponent {
         PlaylistRefreshActionService
     );
     private readonly router = inject(Router);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
     private readonly languageTick = injectTranslationTick();
@@ -456,11 +456,7 @@ export class WorkspaceDashboardRailsComponent {
         mutation: () => Promise<unknown>
     ): void {
         mutation().catch(() => {
-            this.snackBar.open(
-                this.t('WORKSPACE.DASHBOARD.ACTION_FAILED'),
-                undefined,
-                { duration: 5000 }
-            );
+            this.notifications.error('WORKSPACE.DASHBOARD.ACTION_FAILED');
         });
     }
 
@@ -706,11 +702,7 @@ export class WorkspaceDashboardRailsComponent {
                 playlistId: playlist._id,
             })
         );
-        this.snackBar.open(
-            this.translate.instant('HOME.PLAYLISTS.REMOVE_DIALOG.SUCCESS'),
-            undefined,
-            { duration: 2000 }
-        );
+        this.notifications.success('HOME.PLAYLISTS.REMOVE_DIALOG.SUCCESS');
     }
 
     private t(key: string): string {

@@ -1,6 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { TranslateService } from '@ngx-translate/core';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { SeasonContainerSeriesPlaybackToggleRequest } from '@iptvnator/ui/components';
@@ -30,8 +29,7 @@ export type SerialDetailsWatchScope = keyof typeof WATCH_TOGGLE_FEEDBACK;
 @Injectable()
 export class SerialDetailsSeasonWatchService {
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
 
     readonly batchRunning = signal(false);
 
@@ -116,7 +114,7 @@ export class SerialDetailsSeasonWatchService {
                 error
             );
             if (stillCurrent()) {
-                this.notify(feedback.failed);
+                this.notifications.error(feedback.failed);
             }
             return false;
         } finally {
@@ -125,8 +123,6 @@ export class SerialDetailsSeasonWatchService {
     }
 
     private notify(key: string, params?: object): void {
-        this.snackBar.open(this.translate.instant(key, params), undefined, {
-            duration: 5000,
-        });
+        this.notifications.success(key, params);
     }
 }

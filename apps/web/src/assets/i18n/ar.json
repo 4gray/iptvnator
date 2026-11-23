@@ -1250,7 +1250,6 @@
         "IMPORT_SUMMARY_QUEUED": "{{count}} في قائمة الانتظار",
         "TOTAL_CHANNELS": "إجمالي القنوات",
         "TOTAL_PROGRAMS": "إجمالي البرامج",
-        "UP_TO_DATE": "EPG محدث، لا حاجة للمزامنة",
         "RETRY": "إعادة المحاولة",
         "ALLOW_PRIVATE_SOURCE": "السماح بالمصدر",
         "ALLOW_PRIVATE_SOURCE_TITLE": "السماح بمصدر EPG من شبكة خاصة؟",
@@ -1696,8 +1695,8 @@
             "PLAYING_FROM": "التشغيل من:",
             "SWITCH_TITLE": "المصدر غير متاح — جارٍ التبديل إلى {{playlist}}",
             "SWITCH_DETAIL": "الاستئناف عند {{timecode}}",
-            "SWITCH_AUDIO_WARNING": "قد تختلف الدبلجة",
             "SWITCHED_TO": "تم التبديل إلى {{playlist}}",
+            "SWITCHED_TO_AUDIO_MAY_DIFFER": "تم التبديل إلى {{playlist}} — قد تختلف الدبلجة",
             "UNDO": "تراجع",
             "CHOOSE_OTHER": "اختر مصدرًا آخر",
             "TRY_ANOTHER_SOURCE": "جرّب مصدرًا آخر",
@@ -1762,10 +1761,9 @@
         "EPISODE_NAVIGATION": "التنقل بين الحلقات",
         "INLINE_PLAYER": "المشغّل",
         "REQUEST_ERRORS": {
-            "XTREAM": "فشل طلب Xtream: {{message}}",
             "XTREAM_CONNECTION": "فشل الاتصال بخادم Xtream",
-            "STALKER": "فشل طلب Stalker: {{message}} (الحالة {{status}})",
-            "NOT_FOUND": "غير موجود"
+            "XTREAM_FAILED": "فشل طلب خادم Xtream.",
+            "STALKER_FAILED": "فشل طلب بوابة Stalker."
         }
     },
     "INFORMATION": "معلومات",
@@ -2475,7 +2473,7 @@
             "STREAM_NOT_FOUND": "البث غير موجود. قد يكون الرابط غير صحيح أو منتهي الصلاحية.",
             "TIMED_OUT": "انتهت مهلة الاتصال. الخادم لا يستجيب.",
             "LAUNCH_FAILED": "تعذّر بدء تشغيل {{player}}.",
-            "UNKNOWN": "خطأ في {{player}}: {{error}}"
+            "REPORTED": "أبلغ {{player}} عن خطأ."
         },
         "INFO_DIALOG": {
             "PLAYING": "يتم تشغيل الفيديو في نافذة المشغل الخارجي.",

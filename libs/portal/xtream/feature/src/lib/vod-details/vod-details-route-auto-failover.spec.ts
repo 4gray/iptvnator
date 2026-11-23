@@ -17,7 +17,7 @@ describe('VodDetailsRouteComponent — auto-failover', () => {
     let fixture: ComponentFixture<VodDetailsRouteComponent>;
     let restoreLogging: (() => void) | undefined;
     const stubs = createVodDetailsRouteStubs();
-    const { selectedPlayer, snackBarOpen, updateSettings } = stubs;
+    const { selectedPlayer, notifyError, updateSettings } = stubs;
 
     beforeEach(async () => {
         restoreLogging = silenceRouteLogging();
@@ -34,7 +34,7 @@ describe('VodDetailsRouteComponent — auto-failover', () => {
     beforeEach(() => {
         selectedPlayer.set(VideoPlayer.Html5Player);
         updateSettings.mockReset().mockResolvedValue(undefined);
-        snackBarOpen.mockClear();
+        notifyError.mockClear();
     });
 
     it.each([VideoPlayer.MPV, VideoPlayer.VLC, VideoPlayer.EmbeddedMpv])(
@@ -57,9 +57,7 @@ describe('VodDetailsRouteComponent — auto-failover', () => {
     ])('is offered on %s', (player) => {
         selectedPlayer.set(player);
 
-        expect(fixture.componentInstance.autoFailoverSupported()).toBe(
-            true
-        );
+        expect(fixture.componentInstance.autoFailoverSupported()).toBe(true);
     });
 
     it('tells the user when the preference could not be stored', async () => {
@@ -72,10 +70,8 @@ describe('VodDetailsRouteComponent — auto-failover', () => {
         await Promise.resolve();
         await Promise.resolve();
 
-        expect(snackBarOpen).toHaveBeenCalledWith(
-            'SETTINGS.SETTINGS_SAVE_FAILED',
-            'CLOSE',
-            expect.anything()
+        expect(notifyError).toHaveBeenCalledWith(
+            'SETTINGS.SETTINGS_SAVE_FAILED'
         );
     });
 
@@ -87,6 +83,6 @@ describe('VodDetailsRouteComponent — auto-failover', () => {
         expect(updateSettings).toHaveBeenCalledWith({
             vodAutoFailover: true,
         });
-        expect(snackBarOpen).not.toHaveBeenCalled();
+        expect(notifyError).not.toHaveBeenCalled();
     });
 });

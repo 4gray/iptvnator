@@ -344,7 +344,10 @@ export class DownloadsComponent {
             return;
         }
         if (!this.availablePlaylistIds().has(item.playlistId)) {
-            this.actions.showMessage('DOWNLOADS.SOURCE_PLAYLIST_MISSING', 3000);
+            this.actions.showMessage(
+                'DOWNLOADS.SOURCE_PLAYLIST_MISSING',
+                'error'
+            );
             return;
         }
         if (!this.navigation.canOpen(item, this.availablePlaylistIds())) {

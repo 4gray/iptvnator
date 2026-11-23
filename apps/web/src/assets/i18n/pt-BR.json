@@ -1250,7 +1250,6 @@
         "IMPORT_SUMMARY_QUEUED": "{{count}} na fila",
         "TOTAL_CHANNELS": "Total de canais",
         "TOTAL_PROGRAMS": "Total de programas",
-        "UP_TO_DATE": "EPG está atualizado, sincronização não é necessária",
         "RETRY": "Tentar novamente",
         "ALLOW_PRIVATE_SOURCE": "Permitir fonte",
         "ALLOW_PRIVATE_SOURCE_TITLE": "Permitir fonte de EPG em rede privada?",
@@ -1696,8 +1695,8 @@
             "PLAYING_FROM": "Reproduzindo de:",
             "SWITCH_TITLE": "Fonte indisponível — trocando para {{playlist}}",
             "SWITCH_DETAIL": "retomando em {{timecode}}",
-            "SWITCH_AUDIO_WARNING": "a dublagem pode ser diferente",
             "SWITCHED_TO": "Trocado para {{playlist}}",
+            "SWITCHED_TO_AUDIO_MAY_DIFFER": "Trocado para {{playlist}} — a dublagem pode ser diferente",
             "UNDO": "Desfazer",
             "CHOOSE_OTHER": "Escolher outra",
             "TRY_ANOTHER_SOURCE": "Tentar outra fonte",
@@ -1762,10 +1761,9 @@
         "EPISODE_NAVIGATION": "Navegação de episódios",
         "INLINE_PLAYER": "Reprodutor",
         "REQUEST_ERRORS": {
-            "XTREAM": "Falha na solicitação Xtream: {{message}}",
             "XTREAM_CONNECTION": "Falha ao conectar ao servidor Xtream",
-            "STALKER": "Falha na solicitação Stalker: {{message}} (status {{status}})",
-            "NOT_FOUND": "Não encontrado"
+            "XTREAM_FAILED": "A solicitação ao servidor Xtream falhou.",
+            "STALKER_FAILED": "A solicitação ao portal Stalker falhou."
         }
     },
     "INFORMATION": "Informação",
@@ -2475,7 +2473,7 @@
             "STREAM_NOT_FOUND": "Stream não encontrado. A URL pode estar incorreta ou expirada.",
             "TIMED_OUT": "Tempo de conexão esgotado. O servidor não está respondendo.",
             "LAUNCH_FAILED": "Não foi possível iniciar o {{player}}.",
-            "UNKNOWN": "Erro do {{player}}: {{error}}"
+            "REPORTED": "O {{player}} relatou um erro."
         },
         "INFO_DIALOG": {
             "PLAYING": "O vídeo está sendo reproduzido na janela do reprodutor externo.",

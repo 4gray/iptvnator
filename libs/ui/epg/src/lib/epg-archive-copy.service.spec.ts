@@ -1,20 +1,29 @@
 import { Clipboard } from '@angular/cdk/clipboard';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { EpgArchiveCopyService } from './epg-archive-copy.service';
 
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
+const SUCCESS_TOAST = expect.objectContaining({
+    politeness: 'polite',
+    panelClass: expect.arrayContaining(['app-notification--success']),
+});
+
 describe('EpgArchiveCopyService', () => {
     const copy = jest.fn();
-    const open = jest.fn();
+    const open = jest.fn().mockResolvedValue(null);
     let service: EpgArchiveCopyService;
     beforeEach(() => {
         copy.mockReset().mockReturnValue(true);
-        open.mockReset();
+        open.mockReset().mockResolvedValue(null);
         TestBed.configureTestingModule({
             providers: [
                 { provide: Clipboard, useValue: { copy } },
-                { provide: MatSnackBar, useValue: { open } },
+                { provide: LazySnackBar, useValue: { open } },
                 {
                     provide: TranslateService,
                     useValue: { instant: (key: string) => key },
@@ -31,7 +40,7 @@ describe('EpgArchiveCopyService', () => {
         expect(open).toHaveBeenCalledWith(
             'EPG.PROGRAM_DIALOG.ARCHIVE_URL_COPIED',
             undefined,
-            { duration: 4000 }
+            SUCCESS_TOAST
         );
     });
     it.each([null, '', 'javascript:alert(1)'])(
@@ -41,8 +50,8 @@ describe('EpgArchiveCopyService', () => {
             expect(copy).not.toHaveBeenCalled();
             expect(open).toHaveBeenCalledWith(
                 'EPG.PROGRAM_DIALOG.ARCHIVE_URL_FAILED',
-                undefined,
-                { duration: 4000 }
+                'CLOSE',
+                ERROR_TOAST
             );
         }
     );
