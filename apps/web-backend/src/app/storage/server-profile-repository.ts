@@ -31,6 +31,7 @@ interface ProfileRow {
     id: string;
     name: string;
     colour: string;
+    emoji: string | null;
     pin_hash: string | null;
     kids: number;
     sort_order: number;
@@ -40,6 +41,7 @@ interface ProfileRow {
 export interface NewProfile {
     readonly name: string;
     readonly colour?: string;
+    readonly emoji?: string;
     readonly pinHash: string | null;
     readonly kids?: boolean;
 }
@@ -48,6 +50,8 @@ export interface NewProfile {
 export interface ProfileChanges {
     readonly name?: string;
     readonly colour?: string;
+    /** `null` removes the emoji. */
+    readonly emoji?: string | null;
     readonly pinHash?: string | null;
     readonly kids?: boolean;
 }
@@ -78,7 +82,7 @@ export class ServerProfileRepository {
     list(): ServerProfile[] {
         const rows = this.sqlite
             .prepare(
-                `SELECT id, name, colour, pin_hash, kids, sort_order FROM server_profiles
+                `SELECT id, name, colour, emoji, pin_hash, kids, sort_order FROM server_profiles
                  WHERE household_id = ? AND id != ? ORDER BY sort_order, created_at`
             )
             .all(this.householdId, DEFAULT_PROFILE_ID) as ProfileRow[];
@@ -115,21 +119,22 @@ export class ServerProfileRepository {
         return this.list().length;
     }
 
-    create({ name, colour, pinHash, kids = false }: NewProfile) {
+    create({ name, colour, emoji, pinHash, kids = false }: NewProfile) {
         const id = randomUUID();
         const now = new Date().toISOString();
         const order = this.list().length;
         this.sqlite.transaction(() => {
             this.sqlite
                 .prepare(
-                    `INSERT INTO server_profiles (id, household_id, name, colour, pin_hash, kids, sort_order, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                    `INSERT INTO server_profiles (id, household_id, name, colour, emoji, pin_hash, kids, sort_order, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
                 )
                 .run(
                     id,
                     this.householdId,
                     name,
                     colour ?? PROFILE_COLOURS[order % PROFILE_COLOURS.length],
+                    emoji ?? null,
                     pinHash,
                     kids ? 1 : 0,
                     order,
@@ -153,9 +158,10 @@ export class ServerProfileRepository {
         this.sqlite.transaction(() => {
             this.sqlite
                 .prepare(
-                    `INSERT INTO server_profiles (id, household_id, name, colour, pin_hash, kids, sort_order, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    `INSERT INTO server_profiles (id, household_id, name, colour, emoji, pin_hash, kids, sort_order, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                  ON CONFLICT(household_id, id) DO UPDATE SET name = excluded.name, colour = excluded.colour,
+                     emoji = excluded.emoji,
                      pin_hash = excluded.pin_hash, kids = excluded.kids, updated_at = excluded.updated_at`
                 )
                 .run(
@@ -163,6 +169,9 @@ export class ServerProfileRepository {
                     this.householdId,
                     changes.name ?? current.name,
                     changes.colour ?? current.colour,
+                    changes.emoji === undefined
+                        ? (current.emoji ?? null)
+                        : changes.emoji,
                     pinHash,
                     (changes.kids ?? current.kids) ? 1 : 0,
                     current.sortOrder,
@@ -206,6 +215,7 @@ export class ServerProfileRepository {
             scope: DEFAULT_PERSONAL_SCOPE,
             name: row?.name ?? DEFAULT_NAME,
             colour: row?.colour ?? PROFILE_COLOURS[0],
+            ...(row?.emoji ? { emoji: row.emoji } : {}),
             hasPin: !!row?.pin_hash,
             kids: !!row?.kids,
             sortOrder: -1,
@@ -216,7 +226,7 @@ export class ServerProfileRepository {
         return (
             (this.sqlite
                 .prepare(
-                    'SELECT id, name, colour, pin_hash, kids, sort_order FROM server_profiles WHERE id = ? AND household_id = ?'
+                    'SELECT id, name, colour, emoji, pin_hash, kids, sort_order FROM server_profiles WHERE id = ? AND household_id = ?'
                 )
                 .get(id, this.householdId) as ProfileRow | undefined) ?? null
         );
@@ -251,6 +261,7 @@ function toProfile(row: ProfileRow): ServerProfile {
         scope: profileScope(row.id),
         name: row.name,
         colour: row.colour,
+        ...(row.emoji ? { emoji: row.emoji } : {}),
         hasPin: !!row.pin_hash,
         kids: !!row.kids,
         sortOrder: row.sort_order,

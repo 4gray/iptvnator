@@ -23,6 +23,8 @@ export interface ServerProfile {
     readonly name: string;
     /** `#rrggbb`. */
     readonly colour: string;
+    /** One emoji shown with the colour instead of a letter; absent if none. */
+    readonly emoji?: string;
     readonly hasPin: boolean;
     /**
      * A kids profile. Clients keep the app's parental lock always on while
@@ -56,6 +58,7 @@ export interface UpdateServerProfilesRequest {
 export interface CreateServerProfileRequest {
     readonly name: string;
     readonly colour?: string;
+    readonly emoji?: string;
     readonly pin?: string;
     readonly kids?: boolean;
 }
@@ -68,6 +71,8 @@ export interface CreateServerProfileRequest {
 export interface UpdateServerProfileRequest {
     readonly name?: string;
     readonly colour?: string;
+    /** `null` removes the emoji. */
+    readonly emoji?: string | null;
     readonly pin?: string | null;
     readonly currentPin?: string;
     /** Turning a profile into a kids profile needs its PIN removed first or in the same request. */

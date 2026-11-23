@@ -10,6 +10,7 @@ import {
     objectBody,
     optionalBoolean,
     optionalColour,
+    optionalEmoji,
     optionalObjectBody,
     optionalPin,
     requireName,
@@ -98,6 +99,7 @@ export function createProfilesRouter(
         const body = objectBody(req);
         const name = requireName(body['name']);
         const colour = optionalColour(body['colour']);
+        const emoji = optionalEmoji(body['emoji']) ?? undefined;
         const pin = optionalPin(body['pin']);
         const kids = optionalBoolean(body['kids'], 'kids') ?? false;
         requireNoKidsPin(kids, !!pin);
@@ -112,7 +114,9 @@ export function createProfilesRouter(
             );
         }
         requireFreeName(name);
-        res.status(201).json(profiles.create({ name, colour, pinHash, kids }));
+        res.status(201).json(
+            profiles.create({ name, colour, emoji, pinHash, kids })
+        );
     });
 
     router.patch('/profiles/:id', pinLimitIfPin, async (req, res) => {
@@ -122,6 +126,7 @@ export function createProfilesRouter(
         const name =
             body['name'] === undefined ? undefined : requireName(body['name']);
         const colour = optionalColour(body['colour']);
+        const emoji = optionalEmoji(body['emoji']);
         const changesPin = body['pin'] !== undefined;
         const newPin = body['pin'] === null ? null : optionalPin(body['pin']);
         const kids = optionalBoolean(body['kids'], 'kids');
@@ -144,7 +149,13 @@ export function createProfilesRouter(
         if (changesPin) requireSamePin(id, stored);
         kidsPin();
         if (name !== undefined) requireFreeName(name, id);
-        const updated = profiles.update(id, { name, colour, pinHash, kids });
+        const updated = profiles.update(id, {
+            name,
+            colour,
+            emoji,
+            pinHash,
+            kids,
+        });
         if (!updated) throw missingProfile();
         res.json(updated);
     });

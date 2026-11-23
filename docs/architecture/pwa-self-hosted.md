@@ -1788,6 +1788,11 @@ PIN-protected profile take the current PIN as `currentPin` (`403 pin_required` o
 the same lock: five lock the profile for 30 seconds (`429 pin_locked`), and a
 client can try at most 30 PINs a minute across all profiles.
 
+Each profile has a `#rrggbb` colour and may have an `emoji`: a single grapheme
+that contains an emoji, checked on the server with `Intl.Segmenter`
+(`400 invalid_profile_emoji` otherwise; `emoji: null` removes it). There are no
+image uploads.
+
 A profile can be a kids profile (`kids: true`). The server only stores the flag;
 the contract for clients (phase 2) is that while a kids profile is active the app's
 existing parental lock is always on, and leaving the profile asks for the parental

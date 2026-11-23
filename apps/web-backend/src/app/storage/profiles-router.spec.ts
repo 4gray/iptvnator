@@ -236,6 +236,56 @@ describe('profiles routes', () => {
             })
         ));
 
+    it('takes one optional emoji per profile', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const call = client(baseUrl, storage);
+                const create = (name: string, emoji: unknown) =>
+                    call('/profiles', {
+                        method: 'POST',
+                        body: { name, emoji },
+                    });
+                const good = ['🦊', '👩‍👩‍👧', '🇳🇱', '👍🏽', '1️⃣', '❤️'];
+                for (const [i, emoji] of good.entries()) {
+                    const created = await create(`Person ${i}`, emoji);
+                    expect(created.status).toBe(201);
+                    expect(
+                        ((await created.json()) as ServerProfile).emoji
+                    ).toBe(emoji);
+                }
+                const bad = ['', 'A', 'ab', '🦊🦊', 'é', 7];
+                for (const emoji of bad) {
+                    const response = await create('Sam', emoji);
+                    expect(response.status).toBe(400);
+                    expect(await codeOf(response)).toBe(
+                        'invalid_profile_emoji'
+                    );
+                }
+
+                const plain = (await (
+                    await create('Robin', undefined)
+                ).json()) as ServerProfile;
+                expect(plain).not.toHaveProperty('emoji');
+                const set = await call(`/profiles/${plain.id}`, {
+                    method: 'PATCH',
+                    body: { emoji: '🐢' },
+                });
+                expect(((await set.json()) as ServerProfile).emoji).toBe('🐢');
+                const renamed = await call(`/profiles/${plain.id}`, {
+                    method: 'PATCH',
+                    body: { name: 'Robin B' },
+                });
+                expect(((await renamed.json()) as ServerProfile).emoji).toBe(
+                    '🐢'
+                );
+                const cleared = await call(`/profiles/${plain.id}`, {
+                    method: 'PATCH',
+                    body: { emoji: null },
+                });
+                expect(await cleared.json()).not.toHaveProperty('emoji');
+            })
+        ));
+
     it('requires the verified instance id', () =>
         withTempStorage((storage) =>
             withServer(app(storage), async (baseUrl) => {

@@ -4,6 +4,10 @@ import { PROFILE_PIN } from './profile-pin';
 import { StorageRequestError } from './storage-route-errors';
 
 const COLOUR = /^#[0-9a-f]{6}$/;
+/** UTF-16 units: room for ZWJ sequences and tag flags, not for mark spam. */
+const EMOJI_MAX_LENGTH = 32;
+const PICTOGRAPH = /\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20e3/u;
+const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 
 /** Request-body checks for the `/v1/profiles` routes. */
 export function missingProfile(): StorageRequestError {
@@ -82,6 +86,24 @@ export function requireNoKidsPin(kids: boolean, hasPin: boolean): void {
             'A kids profile uses the parental lock, not a profile PIN.'
         );
     }
+}
+
+/** One emoji grapheme, or `null` to remove it. */
+export function optionalEmoji(value: unknown): string | null | undefined {
+    if (value === undefined || value === null) return value;
+    if (
+        typeof value !== 'string' ||
+        value.length > EMOJI_MAX_LENGTH ||
+        Array.from(graphemes.segment(value)).length !== 1 ||
+        !PICTOGRAPH.test(value)
+    ) {
+        throw new StorageRequestError(
+            400,
+            'invalid_profile_emoji',
+            'A profile emoji is a single emoji.'
+        );
+    }
+    return value;
 }
 
 export function optionalPin(value: unknown): string | undefined {

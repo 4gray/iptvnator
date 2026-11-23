@@ -12,6 +12,7 @@ export const SERVER_PROFILES_TABLE_SQL = `CREATE TABLE IF NOT EXISTS server_prof
     household_id TEXT NOT NULL DEFAULT 'default',
     name TEXT NOT NULL,
     colour TEXT NOT NULL,
+    emoji TEXT,
     pin_hash TEXT,
     kids INTEGER NOT NULL DEFAULT 0,
     sort_order INTEGER NOT NULL,
