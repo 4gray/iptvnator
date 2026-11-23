@@ -36,8 +36,10 @@ export interface SourceRemovalOptions {
 
 interface PendingRemoval {
     playlist: PlaylistMeta;
-    /** Its Undo toast, set once opened. */
+    /** Its Undo toast, set once created. */
     snackBar?: MatSnackBarRef<SourceRemovalToastComponent>;
+    /** The Undo toast reached the screen (its enter animation finished). */
+    opened: boolean;
     /** The playlist was the active one; `next` replaced it, if any. */
     wasActive: boolean;
     wasOnItsRoute: boolean;
@@ -119,7 +121,7 @@ export class SourceRemovalService {
         // A second delete commits the first at once, but only once its Undo
         // was on screen: a delete nobody could undo yet is cancelled instead.
         if (this.pending) {
-            if (this.pending.snackBar) {
+            if (this.pending.opened) {
                 this.settle(this.pending);
             } else {
                 this.undo(this.pending);
@@ -154,6 +156,7 @@ export class SourceRemovalService {
             wasOnItsRoute,
             previousUrl,
             next: replacement,
+            opened: false,
             undone: false,
             settled: false,
             timer: undefined,
@@ -184,12 +187,26 @@ export class SourceRemovalService {
                     return;
                 }
                 removal.snackBar = snackBar;
-                // The full Undo window starts once the control is on screen.
-                removal.timer = setTimeout(
-                    () => this.settle(removal),
-                    SOURCE_REMOVAL_UNDO_MS
-                );
                 snackBar.onAction().subscribe(() => this.undo(removal));
+                // The full Undo window starts once the control is on screen,
+                // not when the toast is created: another toast opened in the
+                // same tick can replace it before it is ever painted.
+                snackBar.afterOpened().subscribe(() => {
+                    if (removal.settled) {
+                        return;
+                    }
+                    removal.opened = true;
+                    removal.timer = setTimeout(
+                        () => this.settle(removal),
+                        SOURCE_REMOVAL_UNDO_MS
+                    );
+                });
+                // Closed before it opened: nobody saw Undo, so keep the source.
+                snackBar.afterDismissed().subscribe(() => {
+                    if (!removal.opened) {
+                        this.undo(removal);
+                    }
+                });
             });
     }
 

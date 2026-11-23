@@ -22,7 +22,7 @@ export interface NotificationActionToastData {
  * by `NotificationService`: it imports Material's snack-bar and buttons.
  */
 @Component({
-    selector: 'app-notification-action-toast',
+    selector: 'lib-notification-action-toast',
     imports: [
         MatButton,
         MatIcon,

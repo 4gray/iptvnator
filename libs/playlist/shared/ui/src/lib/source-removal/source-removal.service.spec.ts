@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
-import { Subject } from 'rxjs';
+import { ReplaySubject, Subject } from 'rxjs';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
@@ -36,9 +36,12 @@ describe('SourceRemovalService', () => {
         message: string;
         data: { commitNow?: () => void };
         action: Subject<void>;
+        opened: ReplaySubject<void>;
         dismissed: Subject<void>;
         dismiss: jest.Mock;
     }>;
+    /** Leave new toasts mid-enter: their `afterOpened` has not fired. */
+    let holdOpen: boolean;
     let deletePlaylist: jest.Mock;
     let cancelOperation: jest.Mock;
     let dispatch: jest.Mock;
@@ -55,16 +58,20 @@ describe('SourceRemovalService', () => {
 
     const toast = (message: string, data: { commitNow?: () => void } = {}) => {
         const dismissed = new Subject<void>();
+        const opened = new ReplaySubject<void>(1);
+        if (!holdOpen) opened.next();
         const entry: (typeof toasts)[number] = {
             message,
             data,
             action: new Subject<void>(),
+            opened,
             dismissed,
             dismiss: jest.fn(() => dismissed.next()),
         };
         toasts.push(entry);
         return {
             onAction: () => entry.action,
+            afterOpened: () => entry.opened,
             afterDismissed: () => entry.dismissed,
             dismiss: entry.dismiss,
         };
@@ -95,6 +102,7 @@ describe('SourceRemovalService', () => {
     beforeEach(() => {
         jest.useFakeTimers();
         toasts = [];
+        holdOpen = false;
         snackBar.openFromComponent.mockClear();
         deletePlaylist = jest.fn().mockResolvedValue(true);
         cancelOperation = jest.fn().mockResolvedValue(true);
@@ -204,6 +212,50 @@ describe('SourceRemovalService', () => {
         jest.advanceTimersByTime(1);
         await flush();
         expect(deletePlaylist).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the source when another toast replaces Undo before it is painted', async () => {
+        holdOpen = true;
+        service.remove(playlist('a'));
+        await flush();
+        // A refresh toast opens in the same tick and replaces Undo mid-enter.
+        toasts[0].dismissed.next();
+        expireUndo();
+        await flush();
+
+        expect(deletePlaylist).not.toHaveBeenCalled();
+        expect(service.isPending('a')).toBe(false);
+    });
+
+    it('starts the Undo window when the toast finishes entering', async () => {
+        holdOpen = true;
+        service.remove(playlist('a'));
+        await flush();
+        expireUndo();
+        await flush();
+        expect(deletePlaylist).not.toHaveBeenCalled();
+
+        toasts[0].opened.next();
+        expireUndo();
+        await flush();
+        expect(deletePlaylist).toHaveBeenCalledTimes(1);
+    });
+
+    it('cancels a first delete still entering when a second starts', async () => {
+        holdOpen = true;
+        service.remove(playlist('a'));
+        await flush();
+        holdOpen = false;
+        service.remove(playlist('b'));
+        await flush();
+        expireUndo();
+        await flush();
+
+        expect(deletePlaylist).toHaveBeenCalledTimes(1);
+        expect(deletePlaylist).not.toHaveBeenCalledWith(
+            expect.objectContaining({ _id: 'a' }),
+            expect.anything()
+        );
     });
 
     it('keeps the source when the Undo toast cannot open', async () => {
