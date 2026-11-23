@@ -400,8 +400,8 @@
             <div class="player-controls__actions">
                 <app-player-video-fit
                     [surface]="playerSurface()"
-                    [command]="videoFitCommand()"
-                    [owner]="fullscreenTarget()"
+                    [command]="videoFit()?.command ?? null"
+                    [owner]="videoFit()?.owner ?? fullscreenTarget()"
                     (menuOpen)="videoFitMenuOpen.set($event)"
                 />
                 @if (

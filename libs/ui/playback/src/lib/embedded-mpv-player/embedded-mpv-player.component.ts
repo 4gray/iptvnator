@@ -131,8 +131,12 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
      */
     private readonly translationsTick = injectTranslationTick();
     readonly controller = inject(EmbeddedMpvSessionController);
-    private readonly videoFitSessionId = computed(() => this.controller.session()?.id);
-    private readonly videoFitAvailable = computed(() => this.capabilities().videoFit === true);
+    private readonly videoFitSessionId = computed(
+        () => this.controller.session()?.id
+    );
+    private readonly videoFitAvailable = computed(
+        () => this.capabilities().videoFit === true
+    );
     readonly videoFitCommand = computed(() => {
         if (!this.videoFitSessionId() || !this.videoFitAvailable()) return null;
         return (mode: 'original' | 'crop' | 'stretch'): void => {
@@ -140,6 +144,20 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         };
     });
     readonly videoFitMode = signal<VideoFitMode>('original');
+    /**
+     * Key for the remembered fit. Multiview players share one fullscreen stage,
+     * so only the primary uses it; companions keep their fit per player root.
+     * ponytail: a companion remount resets to Original; key by slot if that matters.
+     */
+    readonly videoFitOwner = computed(() =>
+        this.multiviewSlot() === 1
+            ? this.fullscreenSurface()
+            : this.playerSurface()
+    );
+    readonly videoFitControls = computed(() => ({
+        command: this.videoFitCommand(),
+        owner: this.videoFitOwner(),
+    }));
     readonly sharedControls = inject(EmbeddedMpvControlsAdapter);
     private readonly shortcuts = new EmbeddedMpvShortcuts();
     readonly menus = new EmbeddedMpvMenuState();
@@ -590,13 +608,19 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         });
 
         effect(() => {
-            const owner = this.fullscreenSurface();
-            untracked(() => this.videoFitMode.set((owner && videoFitModes.get(owner)) || 'original'));
+            const owner = this.videoFitOwner();
+            untracked(() =>
+                this.videoFitMode.set(
+                    (owner && videoFitModes.get(owner)) || 'original'
+                )
+            );
         });
 
         effect(() => {
             // Native dock only; frame-copy forwards through app-player-controls.
-            const command = this.isFrameCopyEngine() ? null : this.videoFitCommand();
+            const command = this.isFrameCopyEngine()
+                ? null
+                : this.videoFitCommand();
             const mode = this.videoFitMode();
             if (command) untracked(() => command(mode));
         });
@@ -822,7 +846,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     /** Native-view fit picker lives in the dock: a CDK menu would hide MPV. */
     selectVideoFit(mode: VideoFitMode): void {
         this.videoFitMode.set(mode);
-        const owner = this.fullscreenSurface();
+        const owner = this.videoFitOwner();
         if (owner) videoFitModes.set(owner, mode);
         this.menus.close('fit');
         this.legacyInteractions.scheduleControlsHide();

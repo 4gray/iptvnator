@@ -2828,10 +2828,11 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
     exports.Set("setSubtitleTrack", Napi::Function::New(env, SetSubtitleTrack));
     exports.Set("setSpeed", Napi::Function::New(env, SetSpeed));
     exports.Set("setAspect", Napi::Function::New(env, SetAspect));
-    exports.Set("setVideoFit", Napi::Function::New(env, SetVideoFit));
     exports.Set("startRecording", Napi::Function::New(env, StartRecording));
     exports.Set("stopRecording", Napi::Function::New(env, StopRecording));
 #endif
+    // Linux sends video fit over the mpv JSON IPC socket, so it is exported everywhere.
+    exports.Set("setVideoFit", Napi::Function::New(env, SetVideoFit));
     exports.Set("getSessionSnapshot", Napi::Function::New(env, GetSessionSnapshot));
     exports.Set("disposeSession", Napi::Function::New(env, DisposeSession));
     return exports;

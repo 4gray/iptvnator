@@ -101,7 +101,7 @@
     @if (isFrameCopyEngine() && isSupported()) {
         <app-player-controls
             [controller]="sharedControls"
-            [videoFitCommand]="videoFitCommand()"
+            [videoFit]="videoFitControls()"
             [playerSurface]="playerSurface()"
             [fullscreenTarget]="fullscreenTarget()"
             [mediaTitle]="mediaTitle()"
