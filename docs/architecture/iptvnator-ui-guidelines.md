@@ -1591,7 +1591,7 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   `styles.scss`: the widget surface with the hairline and shadow on a 10px
   panel, 13px text in the heading colour, the action as accent text without
   a ripple; `app-notification--success` tints the hairline with
-  `--app-success-color`, `app-notification--error` takes a danger-tinted
+  `--app-status-success`, `app-notification--error` takes a danger-tinted
   surface and hairline with the action in `--app-danger-text`. An error
   never shows a provider's or an exception's text: the key names the
   failure, values carry only names, counts and dates, and the `code` option
