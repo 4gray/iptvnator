@@ -1351,6 +1351,11 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   and rows stack under 600px of pane width. Keep `data-setting-id` on every row: settings search and the
   command palette reveal rows by it, and the registry spec checks the index
   against the templates.
+- No page adds its own `<h1>` or page header. Form-heavy pages
+  (Connectivity) use the same rows: fields stack full width in a
+  `.setting-item--full-control` row with a `.setting-item__control--stack`
+  column, button rows use `.inline-actions`, and status lines sit in a
+  `.setting-item__sub` under the row they report on.
 - Controls: `.settings-select` is a 220px outlined select without a floating
   label (the row title names it; pass `aria-labelledby`); boolean settings
   are `mat-slide-toggle` switches; segmented choices use `.theme-switcher`

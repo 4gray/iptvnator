@@ -51,10 +51,6 @@
     padding: 28px 40px calc(48px + var(--settings-safe-bottom));
 }
 
-.settings-layout--server {
-    padding-block: 20px calc(24px + var(--settings-safe-bottom));
-}
-
 .settings-content {
     min-width: 0;
     display: flex;

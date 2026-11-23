@@ -1,29 +1,46 @@
-<header class="server-page-header">
-    <h1>{{ 'SOURCE_SYNC.TITLE' | translate }}</h1>
-    <button
-        type="button"
-        mat-button
-        aria-haspopup="dialog"
-        (click)="showAbout()"
-    >
-        <mat-icon aria-hidden="true">info_outline</mat-icon>
-        {{ 'SOURCE_SYNC.ABOUT_TITLE' | translate }}
-    </button>
-</header>
-@if (supportsHosting) {
-    <app-settings-hosted-server />
-}
-<section class="settings-group server-group" id="server">
-    <header class="settings-group__header server-header">
-        <h2>
-            {{
-                (library
-                    ? 'SETTINGS.ANDROID_LIBRARY_TITLE'
-                    : 'HOSTED_SERVER.CLIENT_TITLE'
-                ) | translate
-            }}
-        </h2>
-        <p>
+<section class="settings-group" id="server">
+    <header class="settings-group__header server-group__header">
+        <h2>{{ 'SOURCE_SYNC.TITLE' | translate }}</h2>
+        <button
+            type="button"
+            mat-button
+            aria-haspopup="dialog"
+            (click)="showAbout()"
+        >
+            <mat-icon aria-hidden="true">info_outline</mat-icon>
+            {{ 'SOURCE_SYNC.ABOUT_TITLE' | translate }}
+        </button>
+    </header>
+    @if (supportsHosting) {
+        <app-settings-hosted-server />
+    }
+    <section class="settings-section" aria-labelledby="server-client-title">
+        <div class="settings-section__header">
+            <h3 id="server-client-title">
+                {{
+                    (library
+                        ? 'SETTINGS.ANDROID_LIBRARY_TITLE'
+                        : 'HOSTED_SERVER.CLIENT_TITLE'
+                    ) | translate
+                }}
+            </h3>
+            <div class="settings-section__actions">
+                <a
+                    mat-button
+                    [href]="guides.connection"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-test-id="source-server-help"
+                    >{{
+                        (supportsHosting
+                            ? 'HOSTED_SERVER.CLIENT_GUIDE'
+                            : 'SOURCE_SYNC.SETUP_GUIDE'
+                        ) | translate
+                    }}</a
+                >
+            </div>
+        </div>
+        <p class="settings-section__desc">
             {{
                 (library
                     ? 'SETTINGS.ANDROID_SERVER_DESCRIPTION'
@@ -33,458 +50,504 @@
                 ) | translate
             }}
         </p>
-        <a
-            class="server-help"
-            [href]="guides.connection"
-            target="_blank"
-            rel="noopener noreferrer"
-            data-test-id="source-server-help"
-            >{{
-                (supportsHosting
-                    ? 'HOSTED_SERVER.CLIENT_GUIDE'
-                    : 'SOURCE_SYNC.SETUP_GUIDE'
-                ) | translate
-            }}</a
-        >
-    </header>
-    <div class="settings-card server-fields" data-setting-id="source-server">
         @let showSourceForm = showSourceConnectionForm();
         @let showSourceCredentials =
             library
                 ? needsAndroidToken()
                 : showSourceForm || sync.state() === 'locked';
-        @if (androidLibrary && library) {
-            @if (!sync.connection) {
-                <p class="server-message" data-test-id="android-library-state">
-                    {{
-                        (library.origin
-                            ? 'SOURCE_SYNC.STATE_connected'
-                            : 'SETTINGS.ANDROID_LOCAL_LIBRARY'
-                        ) | translate
-                    }}
-                </p>
-            }
-            @if (otherSelectedAddress; as address) {
-                <dl class="android-library-address">
-                    <dt class="server-message">
-                        {{ 'SETTINGS.ANDROID_LIBRARY_ADDRESS' | translate }}
-                    </dt>
-                    <dd>
-                        <code data-test-id="android-library-address">{{
-                            address
-                        }}</code>
-                    </dd>
-                </dl>
-            }
-        }
-        @if (!library) {
-            @if (androidSettings; as controls) {
-                <div class="server-actions">
-                    <button
-                        type="button"
-                        mat-flat-button
-                        class="settings-primary-button"
-                        aria-haspopup="dialog"
-                        [disabled]="busy()"
-                        (click)="controls.openSettingsSection('server')"
-                        data-test-id="android-library-connection"
-                    >
-                        {{ 'SETTINGS.ANDROID_LIBRARY_CONNECTION' | translate }}
-                    </button>
-                    <ng-container
-                        [ngTemplateOutlet]="androidSourceSyncOptions"
-                    />
-                </div>
-            }
-        }
-        <ng-template #androidSourceSyncOptions>
+        @let androidLibraryState = !!androidLibrary && !!library;
+        <div
+            class="settings-card"
+            data-setting-id="source-server"
+            #connectionFields
+        >
             @if (
-                androidSettings &&
-                !sync.connection &&
-                !sync.connectionReadFailed
+                sync.connection ||
+                (androidLibraryState && !sync.connection) ||
+                (!library && savedConnection())
             ) {
-                <div class="server-actions">
-                    <button
-                        type="button"
-                        mat-button
-                        [disabled]="busy()"
-                        [attr.aria-expanded]="directSourceConnection()"
-                        (click)="
-                            directSourceConnection.set(
-                                !directSourceConnection()
-                            )
-                        "
-                        data-test-id="android-source-sync-options"
-                    >
-                        {{ 'SETTINGS.ANDROID_SOURCE_SYNC_OPTIONS' | translate }}
-                    </button>
+                <div class="setting-item">
+                    <div class="setting-item__meta">
+                        @if (sync.connection) {
+                            <app-settings-sync-status
+                                [state]="
+                                    checking() ? 'connecting' : sync.state()
+                                "
+                                [stateKey]="
+                                    checking()
+                                        ? 'SOURCE_SYNC.STATE_connecting'
+                                        : sync.errorKey() || sync.stateKey()
+                                "
+                                [lastSync]="sync.lastSync()"
+                                testId="source-server-state"
+                            />
+                        } @else if (androidLibraryState) {
+                            <p data-test-id="android-library-state">
+                                {{
+                                    (library?.origin
+                                        ? 'SOURCE_SYNC.STATE_connected'
+                                        : 'SETTINGS.ANDROID_LOCAL_LIBRARY'
+                                    ) | translate
+                                }}
+                            </p>
+                        } @else {
+                            <p>{{ 'SOURCE_SYNC.STATE_local' | translate }}</p>
+                        }
+                    </div>
+                    @if (sync.connection) {
+                        <div class="setting-item__control inline-actions">
+                            <button
+                                type="button"
+                                mat-flat-button
+                                [disabled]="busy()"
+                                [attr.aria-busy]="checking()"
+                                (click)="refresh()"
+                                data-test-id="source-server-refresh"
+                            >
+                                <mat-icon aria-hidden="true">refresh</mat-icon>
+                                {{ 'SOURCE_SYNC.CHECK_CONNECTION' | translate }}
+                            </button>
+                            <button
+                                type="button"
+                                mat-flat-button
+                                [disabled]="
+                                    busy() || sync.state() !== 'connected'
+                                "
+                                (click)="previewImport()"
+                                data-test-id="source-server-import"
+                            >
+                                <mat-icon aria-hidden="true">upload</mat-icon>
+                                {{ 'SOURCE_SYNC.IMPORT' | translate }}
+                            </button>
+                        </div>
+                    }
                 </div>
             }
-        </ng-template>
-        @if (sync.connection) {
-            <app-settings-sync-status
-                [state]="checking() ? 'connecting' : sync.state()"
-                [stateKey]="
-                    checking()
-                        ? 'SOURCE_SYNC.STATE_connecting'
-                        : sync.errorKey() || sync.stateKey()
-                "
-                [lastSync]="sync.lastSync()"
-                testId="source-server-state"
-            />
-        } @else if (!library && savedConnection()) {
-            <p class="server-message">
-                {{ 'SOURCE_SYNC.STATE_local' | translate }}
-            </p>
-        }
-        @if (localServerUrl(); as url) {
-            @if (sync.connection?.apiUrl === url + '/api') {
-                <p class="server-message">
-                    {{ 'HOSTED_SERVER.CONNECTED_LOCAL' | translate }}
-                </p>
-            } @else {
-                <div class="server-actions server-local-shortcut">
-                    <button
-                        mat-flat-button
-                        type="button"
-                        [disabled]="busy()"
-                        (click)="connectHosted(url)"
-                        data-test-id="hosted-server-connect"
-                    >
-                        {{ 'HOSTED_SERVER.CONNECT_LOCAL' | translate }}
-                    </button>
+            @if (androidLibraryState && otherSelectedAddress; as address) {
+                <div class="setting-item">
+                    <div class="setting-item__meta">
+                        <p>
+                            {{ 'SETTINGS.ANDROID_LIBRARY_ADDRESS' | translate }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control">
+                        <code
+                            class="server-value"
+                            data-test-id="android-library-address"
+                            >{{ address }}</code
+                        >
+                    </div>
                 </div>
             }
-        }
-        <ng-container [ngTemplateOutlet]="sourceConnectionControls" />
-        @if (androidLibrary && library) {
-            <details class="android-connection-options">
-                <summary>
-                    {{ 'SETTINGS.ANDROID_CONNECTION_OPTIONS' | translate }}
-                </summary>
-                <div class="android-connection-fields">
-                    <mat-form-field appearance="outline">
-                        <mat-label>{{
-                            'SETTINGS.ANDROID_APPROVAL_ADDRESS' | translate
-                        }}</mat-label>
-                        <input
-                            matInput
-                            type="url"
-                            autocomplete="url"
-                            [readOnly]="busy()"
-                            [(ngModel)]="approvalAddress"
-                            [ngModelOptions]="{ standalone: true }"
-                        />
-                    </mat-form-field>
-                    <div class="server-actions">
+            @if (!library && androidSettings; as controls) {
+                <div class="setting-item">
+                    <div class="setting-item__control inline-actions">
                         <button
                             type="button"
-                            mat-button
-                            [disabled]="busy() || urlControl.invalid"
-                            (click)="openHostedPlayer()"
-                            data-test-id="android-open-hosted-player"
+                            mat-flat-button
+                            class="settings-primary-button"
+                            aria-haspopup="dialog"
+                            [disabled]="busy()"
+                            (click)="controls.openSettingsSection('server')"
+                            data-test-id="android-library-connection"
                         >
                             {{
-                                'SETTINGS.ANDROID_OPEN_HOSTED_PLAYER'
+                                'SETTINGS.ANDROID_LIBRARY_CONNECTION'
                                     | translate
                             }}
                         </button>
-                        @if (
-                            library.paired &&
-                            androidLibrary.removeLibraryPairing
-                        ) {
+                        @if (!sync.connection && !sync.connectionReadFailed) {
                             <button
                                 type="button"
                                 mat-button
-                                class="app-destructive-button"
                                 [disabled]="busy()"
+                                [attr.aria-expanded]="directSourceConnection()"
                                 (click)="
-                                    androidLibrary.removeLibraryPairing?.()
+                                    directSourceConnection.set(
+                                        !directSourceConnection()
+                                    )
                                 "
-                                data-test-id="android-library-remove-pairing"
+                                data-test-id="android-source-sync-options"
                             >
                                 {{
-                                    'SETTINGS.ANDROID_REMOVE_PAIRING'
+                                    'SETTINGS.ANDROID_SOURCE_SYNC_OPTIONS'
                                         | translate
                                 }}
                             </button>
                         }
                     </div>
                 </div>
-            </details>
-        }
-        <ng-template #sourceConnectionControls>
-            <div #connectionFields style="display: contents">
-                @if (showSourceForm) {
-                    <mat-form-field appearance="outline">
-                        <mat-label>{{
-                            (library
-                                ? 'SETTINGS.ANDROID_LIBRARY_ADDRESS'
-                                : 'SOURCE_SYNC.URL'
-                            ) | translate
-                        }}</mat-label>
-                        <input
-                            matInput
-                            name="sourceServerUrl"
-                            type="url"
-                            [formControl]="urlControl"
-                            [readOnly]="busy()"
-                            [placeholder]="
-                                library
-                                    ? 'https://library.example'
-                                    : 'http://library.example:4333'
-                            "
-                            autocomplete="url"
-                            data-test-id="source-server-url"
-                        />
-                        @if (!library) {
-                            <mat-hint>{{
-                                'SOURCE_SYNC.URL_HINT'
-                                    | translate
-                                        : {
-                                              example:
-                                                  'http://library.example:4333',
-                                          }
-                            }}</mat-hint>
-                        }
-                        <mat-error>{{
-                            'SOURCE_SYNC.URL_INVALID' | translate
-                        }}</mat-error>
-                    </mat-form-field>
-                }
-                @if (showSourceCredentials) {
-                    <mat-form-field appearance="outline">
-                        <mat-label>{{
-                            (library
-                                ? 'SERVER_STORAGE.SIGN_IN_TOKEN_LABEL'
-                                : 'SOURCE_SYNC.TOKEN'
-                            ) | translate
-                        }}</mat-label>
-                        <input
-                            matInput
-                            name="sourceServerToken"
-                            type="password"
-                            [(ngModel)]="token"
-                            [ngModelOptions]="{ standalone: true }"
-                            autocomplete="off"
-                            [readOnly]="busy()"
-                            data-test-id="source-server-token"
-                        />
-                        @if (
-                            !library ||
-                            (isSavedServer() && savedConnection()?.hasToken)
-                        ) {
-                            <mat-hint>{{
-                                (isSavedServer() && savedConnection()?.hasToken
-                                    ? 'SOURCE_SYNC.SAVED_TOKEN'
-                                    : 'SOURCE_SYNC.TOKEN_HINT'
-                                ) | translate
-                            }}</mat-hint>
-                        }
-                    </mat-form-field>
-                }
-                @if (showSourceForm && !library) {
-                    <p class="server-message">
-                        {{ 'SOURCE_SYNC.RESTART_HINT' | translate }}
-                    </p>
-                }
-                <div class="server-actions">
-                    @if (androidLibrary && library) {
-                        <ng-container [ngTemplateOutlet]="connectButton" />
-                        @if (library.canScanQr) {
+            }
+            @if (localServerUrl(); as url) {
+                <div class="setting-item">
+                    @if (sync.connection?.apiUrl === url + '/api') {
+                        <div class="setting-item__meta">
+                            <p>
+                                {{
+                                    'HOSTED_SERVER.CONNECTED_LOCAL' | translate
+                                }}
+                            </p>
+                        </div>
+                    } @else {
+                        <div class="setting-item__control inline-actions">
                             <button
+                                mat-flat-button
                                 type="button"
-                                mat-button
                                 [disabled]="busy()"
-                                (click)="androidLibrary.scanLibraryQr()"
-                                data-test-id="android-library-scan"
+                                (click)="connectHosted(url)"
+                                data-test-id="hosted-server-connect"
                             >
-                                <mat-icon aria-hidden="true"
-                                    >qr_code_2</mat-icon
-                                >
-                                {{ 'SETTINGS.ANDROID_SCAN_QR' | translate }}
+                                {{ 'HOSTED_SERVER.CONNECT_LOCAL' | translate }}
                             </button>
+                        </div>
+                    }
+                </div>
+            }
+            @if (
+                showSourceForm || showSourceCredentials || androidLibraryState
+            ) {
+                <div class="setting-item setting-item--full-control">
+                    @if (showSourceForm && !library) {
+                        <div class="setting-item__meta">
+                            <p>{{ 'SOURCE_SYNC.RESTART_HINT' | translate }}</p>
+                        </div>
+                    }
+                    <div
+                        class="setting-item__control setting-item__control--stack"
+                    >
+                        @if (showSourceForm) {
+                            <mat-form-field appearance="outline">
+                                <mat-label>{{
+                                    (library
+                                        ? 'SETTINGS.ANDROID_LIBRARY_ADDRESS'
+                                        : 'SOURCE_SYNC.URL'
+                                    ) | translate
+                                }}</mat-label>
+                                <input
+                                    matInput
+                                    name="sourceServerUrl"
+                                    type="url"
+                                    [formControl]="urlControl"
+                                    [readOnly]="busy()"
+                                    [placeholder]="
+                                        library
+                                            ? 'https://library.example'
+                                            : 'http://library.example:4333'
+                                    "
+                                    autocomplete="url"
+                                    data-test-id="source-server-url"
+                                />
+                                @if (!library) {
+                                    <mat-hint>{{
+                                        'SOURCE_SYNC.URL_HINT'
+                                            | translate
+                                                : {
+                                                      example:
+                                                          'http://library.example:4333',
+                                                  }
+                                    }}</mat-hint>
+                                }
+                                <mat-error>{{
+                                    'SOURCE_SYNC.URL_INVALID' | translate
+                                }}</mat-error>
+                            </mat-form-field>
                         }
-                        @if (
-                            nativeHosted ||
-                            (library.offline && !sync.connection)
-                        ) {
-                            @if (androidLibrary.inviteAccessDevice) {
+                        @if (showSourceCredentials) {
+                            <mat-form-field appearance="outline">
+                                <mat-label>{{
+                                    (library
+                                        ? 'SERVER_STORAGE.SIGN_IN_TOKEN_LABEL'
+                                        : 'SOURCE_SYNC.TOKEN'
+                                    ) | translate
+                                }}</mat-label>
+                                <input
+                                    matInput
+                                    name="sourceServerToken"
+                                    type="password"
+                                    [(ngModel)]="token"
+                                    [ngModelOptions]="{ standalone: true }"
+                                    autocomplete="off"
+                                    [readOnly]="busy()"
+                                    data-test-id="source-server-token"
+                                />
+                                @if (
+                                    !library ||
+                                    (isSavedServer() &&
+                                        savedConnection()?.hasToken)
+                                ) {
+                                    <mat-hint>{{
+                                        (isSavedServer() &&
+                                        savedConnection()?.hasToken
+                                            ? 'SOURCE_SYNC.SAVED_TOKEN'
+                                            : 'SOURCE_SYNC.TOKEN_HINT'
+                                        ) | translate
+                                    }}</mat-hint>
+                                }
+                            </mat-form-field>
+                        }
+                        <div class="inline-actions">
+                            @if (androidLibrary && library) {
+                                <ng-container
+                                    [ngTemplateOutlet]="connectButton"
+                                />
+                                @if (library.canScanQr) {
+                                    <button
+                                        type="button"
+                                        mat-button
+                                        [disabled]="busy()"
+                                        (click)="androidLibrary.scanLibraryQr()"
+                                        data-test-id="android-library-scan"
+                                    >
+                                        <mat-icon aria-hidden="true"
+                                            >qr_code_2</mat-icon
+                                        >
+                                        {{
+                                            'SETTINGS.ANDROID_SCAN_QR'
+                                                | translate
+                                        }}
+                                    </button>
+                                }
+                                @if (
+                                    nativeHosted ||
+                                    (library.offline && !sync.connection)
+                                ) {
+                                    @if (androidLibrary.inviteAccessDevice) {
+                                        <button
+                                            mat-button
+                                            type="button"
+                                            [disabled]="busy()"
+                                            (click)="
+                                                androidLibrary.inviteAccessDevice?.()
+                                            "
+                                        >
+                                            {{
+                                                'HOSTED_SERVER.PAIR_DEVICE'
+                                                    | translate
+                                            }}
+                                        </button>
+                                    }
+                                    <button
+                                        type="button"
+                                        mat-button
+                                        [disabled]="busy()"
+                                        (click)="
+                                            androidLibrary.disconnectLibrary()
+                                        "
+                                        data-test-id="android-library-disconnect"
+                                    >
+                                        {{
+                                            'SOURCE_SYNC.DISCONNECT' | translate
+                                        }}
+                                    </button>
+                                }
+                            }
+                            @if (
+                                showSourceForm &&
+                                !nativeHosted &&
+                                (sync.connection || sync.connectionReadFailed)
+                            ) {
                                 <button
-                                    mat-button
                                     type="button"
+                                    mat-flat-button
+                                    class="app-destructive-button"
+                                    [disabled]="busy()"
+                                    (click)="disconnect()"
+                                    data-test-id="source-server-disconnect"
+                                >
+                                    {{ 'SOURCE_SYNC.DISCONNECT' | translate }}
+                                </button>
+                            }
+                            @if (showSourceForm && savedConnection()) {
+                                <button
+                                    type="button"
+                                    mat-button
                                     [disabled]="busy()"
                                     (click)="
-                                        androidLibrary.inviteAccessDevice?.()
+                                        forgetServer(
+                                            connectionFields.querySelector(
+                                                'input[name=sourceServerUrl]'
+                                            )
+                                        )
                                     "
                                 >
                                     {{
-                                        'HOSTED_SERVER.PAIR_DEVICE' | translate
+                                        'SOURCE_SYNC.FORGET_SERVER' | translate
                                     }}
                                 </button>
                             }
-                            <button
-                                type="button"
-                                mat-button
-                                [disabled]="busy()"
-                                (click)="androidLibrary.disconnectLibrary()"
-                                data-test-id="android-library-disconnect"
-                            >
-                                {{ 'SOURCE_SYNC.DISCONNECT' | translate }}
-                            </button>
-                        }
-                    }
-                    @if (sync.connection) {
-                        <button
-                            type="button"
-                            mat-flat-button
-                            [disabled]="busy()"
-                            [attr.aria-busy]="checking()"
-                            (click)="refresh()"
-                            data-test-id="source-server-refresh"
-                        >
-                            <mat-icon aria-hidden="true">refresh</mat-icon>
-                            {{ 'SOURCE_SYNC.CHECK_CONNECTION' | translate }}
-                        </button>
-                        <button
-                            type="button"
-                            mat-flat-button
-                            [disabled]="busy() || sync.state() !== 'connected'"
-                            (click)="previewImport()"
-                            data-test-id="source-server-import"
-                        >
-                            <mat-icon aria-hidden="true">upload</mat-icon>
-                            {{ 'SOURCE_SYNC.IMPORT' | translate }}
-                        </button>
-                    }
-                    @if (
-                        showSourceForm &&
-                        !nativeHosted &&
-                        (sync.connection || sync.connectionReadFailed)
-                    ) {
-                        <button
-                            type="button"
-                            mat-flat-button
-                            class="app-destructive-button"
-                            [disabled]="busy()"
-                            (click)="disconnect()"
-                            data-test-id="source-server-disconnect"
-                        >
-                            {{ 'SOURCE_SYNC.DISCONNECT' | translate }}
-                        </button>
-                    }
-                    @if (showSourceForm && savedConnection()) {
-                        <button
-                            type="button"
-                            mat-button
-                            [disabled]="busy()"
-                            (click)="
-                                forgetServer(
-                                    connectionFields.querySelector('input')
-                                )
-                            "
-                        >
-                            {{ 'SOURCE_SYNC.FORGET_SERVER' | translate }}
-                        </button>
-                    }
-                    @if (!library && showSourceCredentials) {
-                        <ng-container [ngTemplateOutlet]="connectButton" />
-                    }
-                    <ng-template #connectButton>
-                        <button
-                            type="button"
-                            mat-flat-button
-                            [disabled]="
-                                busy() ||
-                                !urlControl.value.trim() ||
-                                (isCurrentServer() &&
-                                    !token &&
-                                    sync.state() === 'connected')
-                            "
-                            [attr.aria-busy]="connecting()"
-                            (click)="connect()"
-                            class="settings-primary-button"
-                            [class.server-connect]="!library"
-                            data-test-id="source-server-connect"
-                        >
-                            {{
-                                (connecting()
-                                    ? 'SOURCE_SYNC.STATE_connecting'
-                                    : isCurrentServer() &&
-                                        !token &&
-                                        sync.state() === 'connected'
-                                      ? 'SOURCE_SYNC.STATE_connected'
-                                      : isSavedServer() || isSavedLibrary()
-                                        ? 'SOURCE_SYNC.RECONNECT'
-                                        : 'SOURCE_SYNC.CONNECT'
-                                ) | translate
-                            }}
-                        </button>
-                    </ng-template>
+                            @if (!library && showSourceCredentials) {
+                                <ng-container
+                                    [ngTemplateOutlet]="connectButton"
+                                />
+                            }
+                            <ng-template #connectButton>
+                                <button
+                                    type="button"
+                                    mat-flat-button
+                                    [disabled]="
+                                        busy() ||
+                                        !urlControl.value.trim() ||
+                                        (isCurrentServer() &&
+                                            !token &&
+                                            sync.state() === 'connected')
+                                    "
+                                    [attr.aria-busy]="connecting()"
+                                    (click)="connect()"
+                                    class="settings-primary-button"
+                                    data-test-id="source-server-connect"
+                                >
+                                    {{
+                                        (connecting()
+                                            ? 'SOURCE_SYNC.STATE_connecting'
+                                            : isCurrentServer() &&
+                                                !token &&
+                                                sync.state() === 'connected'
+                                              ? 'SOURCE_SYNC.STATE_connected'
+                                              : isSavedServer() ||
+                                                  isSavedLibrary()
+                                                ? 'SOURCE_SYNC.RECONNECT'
+                                                : 'SOURCE_SYNC.CONNECT'
+                                        ) | translate
+                                    }}
+                                </button>
+                            </ng-template>
+                        </div>
+                    </div>
                 </div>
-                @if (preview(); as sources) {
-                    <section
-                        class="server-import-preview"
-                        data-test-id="source-server-import-preview"
-                        [attr.aria-label]="'SOURCE_SYNC.IMPORT' | translate"
-                    >
-                        @if (sources.length) {
+            }
+            @if (androidLibrary && library) {
+                <div class="setting-item setting-item--full-control">
+                    <details class="server-disclosure">
+                        <summary>
+                            {{
+                                'SETTINGS.ANDROID_CONNECTION_OPTIONS'
+                                    | translate
+                            }}
+                        </summary>
+                        <div
+                            class="setting-item__control setting-item__control--stack"
+                        >
+                            <mat-form-field appearance="outline">
+                                <mat-label>{{
+                                    'SETTINGS.ANDROID_APPROVAL_ADDRESS'
+                                        | translate
+                                }}</mat-label>
+                                <input
+                                    matInput
+                                    type="url"
+                                    autocomplete="url"
+                                    [readOnly]="busy()"
+                                    [(ngModel)]="approvalAddress"
+                                    [ngModelOptions]="{ standalone: true }"
+                                />
+                            </mat-form-field>
+                            <div class="inline-actions">
+                                <button
+                                    type="button"
+                                    mat-button
+                                    [disabled]="busy() || urlControl.invalid"
+                                    (click)="openHostedPlayer()"
+                                    data-test-id="android-open-hosted-player"
+                                >
+                                    {{
+                                        'SETTINGS.ANDROID_OPEN_HOSTED_PLAYER'
+                                            | translate
+                                    }}
+                                </button>
+                                @if (
+                                    library.paired &&
+                                    androidLibrary.removeLibraryPairing
+                                ) {
+                                    <button
+                                        type="button"
+                                        mat-button
+                                        class="app-destructive-button"
+                                        [disabled]="busy()"
+                                        (click)="
+                                            androidLibrary.removeLibraryPairing?.()
+                                        "
+                                        data-test-id="android-library-remove-pairing"
+                                    >
+                                        {{
+                                            'SETTINGS.ANDROID_REMOVE_PAIRING'
+                                                | translate
+                                        }}
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </details>
+                </div>
+            }
+            @if (preview(); as sources) {
+                <section
+                    class="setting-item"
+                    data-test-id="source-server-import-preview"
+                    [attr.aria-label]="'SOURCE_SYNC.IMPORT' | translate"
+                >
+                    @if (sources.length) {
+                        <div class="setting-item__meta">
                             <p>
                                 {{
                                     'SOURCE_SYNC.IMPORT_PREVIEW'
                                         | translate: { count: sources.length }
                                 }}
                             </p>
-                            <ul>
+                            <ul class="server-import-list">
                                 @for (source of sources; track source._id) {
                                     <li>{{ source.title }}</li>
                                 }
                             </ul>
-                            <div class="server-actions">
-                                <button
-                                    type="button"
-                                    mat-button
-                                    [disabled]="busy()"
-                                    (click)="preview.set(null)"
-                                >
-                                    {{ 'CANCEL' | translate }}
-                                </button>
-                                <button
-                                    type="button"
-                                    mat-flat-button
-                                    [disabled]="busy()"
-                                    (click)="importSources()"
-                                    class="settings-primary-button"
-                                    data-test-id="source-server-import-confirm"
-                                >
-                                    {{ 'SETTINGS.IMPORT_DATA' | translate }}
-                                </button>
-                            </div>
-                        } @else {
-                            <div class="server-import-empty">
-                                <p
-                                    role="status"
-                                    data-test-id="source-server-import-empty"
-                                >
-                                    {{ 'SOURCE_SYNC.IMPORT_EMPTY' | translate }}
-                                </p>
-                                <button
-                                    type="button"
-                                    mat-button
-                                    (click)="preview.set(null)"
-                                    data-test-id="source-server-import-close"
-                                >
-                                    {{ 'CLOSE' | translate }}
-                                </button>
-                            </div>
-                        }
-                    </section>
-                }
+                        </div>
+                        <div class="setting-item__control inline-actions">
+                            <button
+                                type="button"
+                                mat-button
+                                [disabled]="busy()"
+                                (click)="preview.set(null)"
+                            >
+                                {{ 'CANCEL' | translate }}
+                            </button>
+                            <button
+                                type="button"
+                                mat-flat-button
+                                [disabled]="busy()"
+                                (click)="importSources()"
+                                class="settings-primary-button"
+                                data-test-id="source-server-import-confirm"
+                            >
+                                {{ 'SETTINGS.IMPORT_DATA' | translate }}
+                            </button>
+                        </div>
+                    } @else {
+                        <div class="setting-item__meta">
+                            <p
+                                role="status"
+                                data-test-id="source-server-import-empty"
+                            >
+                                {{ 'SOURCE_SYNC.IMPORT_EMPTY' | translate }}
+                            </p>
+                        </div>
+                        <div class="setting-item__control">
+                            <button
+                                type="button"
+                                mat-button
+                                (click)="preview.set(null)"
+                                data-test-id="source-server-import-close"
+                            >
+                                {{ 'CLOSE' | translate }}
+                            </button>
+                        </div>
+                    }
+                </section>
+            }
+            <div
+                class="setting-item__sub setting-item__meta"
+                [class.visually-hidden]="!connecting() && !message()"
+            >
                 <p
                     role="status"
                     aria-live="polite"
-                    class="server-message"
-                    [class.visually-hidden]="!connecting() && !message()"
                     [class.server-message--error]="
                         message() &&
                         message() !== 'SOURCE_SYNC.IMPORTED' &&
@@ -499,8 +562,8 @@
                     }
                 </p>
             </div>
-        </ng-template>
-    </div>
+        </div>
+    </section>
 </section>
 @if (sync.connection) {
     <app-settings-activity-section />
