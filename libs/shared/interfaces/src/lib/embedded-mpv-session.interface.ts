@@ -15,6 +15,8 @@ export interface EmbeddedMpvCapabilities {
     subtitles: boolean;
     playbackSpeed: boolean;
     aspectOverride: boolean;
+    /** Requires rebuilt addon/helper; older runtimes hide the fit menu. */
+    videoFit?: boolean;
     screenshot: boolean;
     recording: boolean;
     /** Loading an external subtitle file via `sub-add` (frame-copy engine). */

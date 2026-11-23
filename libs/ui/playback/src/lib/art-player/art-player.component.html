@@ -20,6 +20,7 @@
             (nextEpisodeRequested)="nextEpisodeRequested.emit()"
         />
     } @else {
+        <app-player-video-fit [surface]="playerRoot" [owner]="fullscreenTarget()" [floating]="true" />
         <app-series-playback-navigation-controls
             [navigation]="seriesNavigation()"
             (previousEpisodeRequested)="previousEpisodeRequested.emit()"

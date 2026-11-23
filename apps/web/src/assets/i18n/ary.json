@@ -1,4 +1,10 @@
 {
+    "PLAYER_VIDEO_FIT": {
+        "TITLE": "قياس الفيديو",
+        "ORIGINAL": "الأصلي",
+        "CROP": "قص",
+        "STRETCH": "تمديد"
+    },
     "TWO_STREAMS": {
         "MULTIVIEW": "العرض المتعدد",
         "ADD_STREAM": "زيد بث",

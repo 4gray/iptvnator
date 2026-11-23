@@ -1,3 +1,4 @@
+import { PlayerVideoFitComponent } from '../player-controls/player-video-fit.component';
 import {
     Component,
     ElementRef,
@@ -46,6 +47,7 @@ Artplayer.AUTO_PLAYBACK_TIMEOUT = 10000;
 @Component({
     selector: 'app-art-player',
     imports: [
+        PlayerVideoFitComponent,
         PlayerControlsComponent,
         SeriesPlaybackNavigationControlsComponent,
     ],

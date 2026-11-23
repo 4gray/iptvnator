@@ -283,6 +283,10 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
         this.send(sessionId, `speed\tvalue=${speed}`);
     }
 
+    setVideoFit(sessionId: string, mode: string): void {
+        this.send(sessionId, `video-fit\tvalue=${encodeProtocolValue(mode)}`);
+    }
+
     setAspect(sessionId: string, aspect: string): void {
         this.send(sessionId, `aspect\tvalue=${encodeProtocolValue(aspect)}`);
     }

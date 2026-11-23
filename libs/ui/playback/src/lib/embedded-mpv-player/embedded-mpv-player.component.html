@@ -101,6 +101,7 @@
     @if (isFrameCopyEngine() && isSupported()) {
         <app-player-controls
             [controller]="sharedControls"
+            [videoFitCommand]="videoFitCommand()"
             [playerSurface]="playerSurface()"
             [fullscreenTarget]="fullscreenTarget()"
             [mediaTitle]="mediaTitle()"
@@ -459,7 +460,11 @@
                         </button>
                     }
 
-                    @if (capabilities().aspectOverride) {
+                    <app-player-video-fit
+                [owner]="fullscreenTarget() ?? playerSurface()"
+                [command]="videoFitCommand()"
+            />
+            @if (capabilities().aspectOverride) {
                         <button
                             mat-icon-button
                             type="button"

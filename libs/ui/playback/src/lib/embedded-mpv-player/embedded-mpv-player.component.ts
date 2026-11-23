@@ -1,3 +1,4 @@
+import { PlayerVideoFitComponent } from '../player-controls/player-video-fit.component';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -73,6 +74,7 @@ const RECORDING_MESSAGE_DISMISS_DELAY_MS = 5000;
     styleUrl: './embedded-mpv-player.component.scss',
     imports: [
         EmbeddedMpvDockPanelComponent,
+        PlayerVideoFitComponent,
         MatButtonModule,
         MatIconModule,
         MatProgressSpinnerModule,
@@ -130,6 +132,14 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
      */
     private readonly translationsTick = injectTranslationTick();
     readonly controller = inject(EmbeddedMpvSessionController);
+    private readonly videoFitSessionId = computed(() => this.controller.session()?.id);
+    private readonly videoFitAvailable = computed(() => this.capabilities().videoFit === true);
+    readonly videoFitCommand = computed(() => {
+        if (!this.videoFitSessionId() || !this.videoFitAvailable()) return null;
+        return (mode: 'original' | 'crop' | 'stretch'): void => {
+            void this.controller.setVideoFit(mode);
+        };
+    });
     readonly sharedControls = inject(EmbeddedMpvControlsAdapter);
     private readonly shortcuts = new EmbeddedMpvShortcuts();
     readonly menus = new EmbeddedMpvMenuState();

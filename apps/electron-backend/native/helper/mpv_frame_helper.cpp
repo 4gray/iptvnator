@@ -847,6 +847,11 @@ void handleCommand(const Command& command) {
     } else if (command.name == "speed") {
         double speed = std::clamp(command.getDouble("value", 1), 0.25, 4.0);
         mpv_set_property(g_state.mpv, "speed", MPV_FORMAT_DOUBLE, &speed);
+    } else if (command.name == "video-fit") {
+        const auto mode = command.get("value", "original");
+        if (mode != "original" && mode != "crop" && mode != "stretch") return;
+        setPropertyString("keepaspect", mode == "stretch" ? "no" : "yes");
+        setPropertyString("panscan", mode == "crop" ? "1" : "0");
     } else if (command.name == "aspect") {
         setPropertyString("video-aspect-override", command.get("value", "no"));
     } else if (command.name == "record") {

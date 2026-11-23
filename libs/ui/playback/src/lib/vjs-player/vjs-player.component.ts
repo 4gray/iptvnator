@@ -1,3 +1,4 @@
+import { PlayerVideoFitComponent } from '../player-controls/player-video-fit.component';
 import {
     Component,
     ElementRef,
@@ -65,7 +66,7 @@ const debugVjsPlayer = createDevLogger('VjsPlayer');
     styleUrls: ['./vjs-player.component.scss'],
     encapsulation: ViewEncapsulation.None,
     imports: [
-        PlayerControlsComponent,
+        PlayerVideoFitComponent, PlayerControlsComponent,
         SeriesPlaybackNavigationControlsComponent,
         TranslatePipe,
         MatIcon,

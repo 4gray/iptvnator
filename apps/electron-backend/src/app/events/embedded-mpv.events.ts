@@ -10,6 +10,7 @@ import {
     EMBEDDED_MPV_SEEK_BY,
     EMBEDDED_MPV_SELECT_SUBTITLE_FILE,
     EMBEDDED_MPV_SET_ASPECT,
+    EMBEDDED_MPV_SET_VIDEO_FIT,
     EMBEDDED_MPV_SET_AUDIO_TRACK,
     EMBEDDED_MPV_SET_BOUNDS,
     EMBEDDED_MPV_SET_PAUSED,
@@ -193,6 +194,12 @@ handleEmbeddedMpv(EMBEDDED_MPV_SELECT_SUBTITLE_FILE, () =>
 
 handleEmbeddedMpv(EMBEDDED_MPV_SET_SPEED, (sessionId: string, speed: number) =>
     getService().setSpeed(sessionId, speed)
+);
+
+handleEmbeddedMpv(
+    EMBEDDED_MPV_SET_VIDEO_FIT,
+    (sessionId: string, mode: 'original' | 'crop' | 'stretch') =>
+        getService().setVideoFit(sessionId, mode)
 );
 
 handleEmbeddedMpv(

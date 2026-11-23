@@ -1,4 +1,10 @@
 {
+    "PLAYER_VIDEO_FIT": {
+        "TITLE": "Προσαρμογή βίντεο",
+        "ORIGINAL": "Αρχικό",
+        "CROP": "Περικοπή",
+        "STRETCH": "Τέντωμα"
+    },
     "TWO_STREAMS": {
         "MULTIVIEW": "Πολλαπλή προβολή",
         "ADD_STREAM": "Προσθήκη ροής",

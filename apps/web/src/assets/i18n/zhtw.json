@@ -1,4 +1,10 @@
 {
+    "PLAYER_VIDEO_FIT": {
+        "TITLE": "畫面適配",
+        "ORIGINAL": "原始",
+        "CROP": "裁切",
+        "STRETCH": "拉伸"
+    },
     "TWO_STREAMS": {
         "MULTIVIEW": "多畫面",
         "ADD_STREAM": "新增串流",

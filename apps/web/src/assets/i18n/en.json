@@ -1,4 +1,10 @@
 {
+    "PLAYER_VIDEO_FIT": {
+        "TITLE": "Video fit",
+        "ORIGINAL": "Original",
+        "CROP": "Crop",
+        "STRETCH": "Stretch"
+    },
     "TWO_STREAMS": {
         "MULTIVIEW": "Multiview",
         "ADD_STREAM": "Add stream",
