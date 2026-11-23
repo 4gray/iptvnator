@@ -2,6 +2,7 @@
 @use '../../../libs/ui/components/src/lib/resizable/resizable.scss';
 @use '../../../libs/ui/styles/focus-ring';
 @use '../../../libs/ui/styles/app-controls' as controls;
+@use '../../../libs/ui/styles/scales';
 @use './settings-theme';
 @use './cover-size';
 
@@ -119,6 +120,8 @@ html:has(> body.dark-theme) {
 
 body,
 html {
+    // Type, spacing, radius, elevation and z scales (`_scales.scss`).
+    @include scales.custom-properties;
     margin: 0;
     padding: 0;
     height: 100%;
@@ -287,9 +290,9 @@ body.dark-theme {
     @include mat.snack-bar-overrides(
         (
             container-color: var(--app-widget-bg),
-            container-shape: 10px,
+            container-shape: var(--app-radius-lg),
             supporting-text-color: var(--app-heading-color),
-            supporting-text-size: 13px,
+            supporting-text-size: var(--app-text-sm),
             supporting-text-line-height: 20px,
             supporting-text-weight: 500,
             button-color: var(--app-selection-color),

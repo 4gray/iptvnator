@@ -8,7 +8,7 @@
 
 .xtream-cached-offline-notice {
     --notice-surface: var(--app-expiry-warn-surface);
-    --notice-color: var(--app-expiry-warn-text);
+    --notice-color: var(--app-status-expiry);
 
     display: grid;
     grid-template-columns: 20px minmax(0, 1fr) auto;

@@ -8,7 +8,7 @@ import {
     openSettingsSection,
     test,
 } from './electron-test-fixtures';
-import { applyTheme } from './theme-contrast';
+import { applyTheme, themePresets } from './theme-contrast';
 
 const epgFixtureXml = `<?xml version="1.0" encoding="UTF-8"?>
 <tv>
@@ -251,6 +251,108 @@ test.describe('Theme tokens', () => {
                 });
             }
             expect(surfaces['light']).not.toBe(surfaces['dark']);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('@theme @electron resolves the scale and status tokens in every preset', async ({
+        dataDir,
+    }) => {
+        const app = await launchElectronApp(dataDir);
+        const page = app.mainWindow;
+        const statuses = [
+            'success',
+            'warning',
+            'danger',
+            'info',
+            'live',
+            'expiry',
+        ];
+        try {
+            const hues: Record<string, string[]> = {};
+            for (const preset of themePresets) {
+                await applyTheme(page, preset);
+                // Status hues switch with the mode and reach every preset,
+                // High Contrast included; overlays see the body's values.
+                const values = await page.evaluate((names) => {
+                    const style = getComputedStyle(document.body);
+                    const read = (name: string) =>
+                        style.getPropertyValue(name).trim();
+                    // A custom property keeps its text as the build wrote
+                    // it (minified or not), so the scales are compared
+                    // through the computed value of a property that reads
+                    // them.
+                    const probe = document.createElement('div');
+                    probe.style.cssText = [
+                        'font-size: var(--app-text-sm)',
+                        'padding-top: var(--app-space-4)',
+                        'border-top-left-radius: var(--app-radius-lg)',
+                        'box-shadow: var(--app-elev-4)',
+                        'position: relative',
+                        'z-index: var(--app-z-overlay)',
+                        'font-family: var(--app-font-mono)',
+                    ].join(';');
+                    document.body.appendChild(probe);
+                    const computed = getComputedStyle(probe);
+                    const scales = [
+                        computed.fontSize,
+                        computed.paddingTop,
+                        computed.borderTopLeftRadius,
+                        computed.boxShadow,
+                        computed.zIndex,
+                        computed.fontFamily,
+                    ];
+                    probe.remove();
+                    return {
+                        statuses: names.map((name) =>
+                            read(`--app-status-${name}`)
+                        ),
+                        danger: read('--app-danger-text'),
+                        scales,
+                    };
+                }, statuses);
+                for (const [index, name] of statuses.entries()) {
+                    expect(
+                        values.statuses[index],
+                        `--app-status-${name} in ${preset}`
+                    ).toMatch(/^#[0-9a-f]{6}$/);
+                }
+                expect(values.danger, `danger text in ${preset}`).toBe(
+                    values.statuses[statuses.indexOf('danger')]
+                );
+                expect(values.scales, `scales in ${preset}`).toEqual([
+                    '13px',
+                    '16px',
+                    '10px',
+                    'rgba(0, 0, 0, 0.35) 0px 18px 40px 0px',
+                    '1000',
+                    '"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace',
+                ]);
+                hues[preset] = values.statuses;
+            }
+            expect(hues['light']).not.toEqual(hues['dark']);
+            expect(hues['cream']).toEqual(hues['light']);
+            for (const preset of [
+                'mocha',
+                'night-owl',
+                'black-oled',
+                'high-contrast',
+            ]) {
+                expect(hues[preset], preset).toEqual(hues['dark']);
+            }
+
+            // The CDK overlay container shares the overlay layer, and the
+            // dialog shape follows the radius scale.
+            const overlayZ = await page.evaluate(() => {
+                const container = document.createElement('div');
+                container.className = 'cdk-overlay-container';
+                document.body.appendChild(container);
+                const z = getComputedStyle(container).zIndex;
+                container.remove();
+                return z;
+            });
+            expect(overlayZ).toBe('1000');
         } finally {
             await closeElectronApp(app);
         }

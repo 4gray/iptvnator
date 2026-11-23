@@ -134,7 +134,7 @@
 }
 
 .embedded-mpv-player__stalled > mat-icon {
-    color: var(--app-live-color);
+    color: var(--app-status-live);
     font-size: 36px;
     width: 36px;
     height: 36px;
@@ -302,12 +302,12 @@
 }
 
 .embedded-mpv-player__recording-status--active {
-    color: var(--app-live-color);
+    color: var(--app-status-live);
     font-weight: 700;
 }
 
 .embedded-mpv-player__recording-status--active mat-icon {
-    color: var(--app-live-color);
+    color: var(--app-status-live);
 }
 
 .embedded-mpv-player__live-badge {
@@ -317,7 +317,7 @@
     padding: 2px 8px;
     border-radius: 4px;
     color: var(--app-widget-bg);
-    background: var(--app-live-color);
+    background: var(--app-status-live);
     font-size: 0.66rem;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -365,7 +365,7 @@
 }
 
 .embedded-mpv-player__record-button--active {
-    color: var(--app-live-color);
+    color: var(--app-status-live);
 }
 
 .embedded-mpv-player__slider {
