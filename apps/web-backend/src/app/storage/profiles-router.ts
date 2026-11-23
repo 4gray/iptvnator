@@ -67,11 +67,15 @@ export function createProfilesRouter(
             message: 'Too many PIN attempts. Try again shortly.',
         },
     });
-    // Edits and deletes share the budget when they carry a PIN, so they
-    // are no way around it.
+    // Creates, edits and deletes share the budget when they carry a PIN,
+    // so they are no way around it and cannot queue up scrypt work.
     const pinLimitIfPin: express.RequestHandler = (req, res, next) => {
         const body = req.body as Record<string, unknown> | undefined;
-        if (body && typeof body === 'object' && 'currentPin' in body) {
+        if (
+            body &&
+            typeof body === 'object' &&
+            ('currentPin' in body || 'pin' in body)
+        ) {
             return pinLimit(req, res, next);
         }
         next();
@@ -120,7 +124,7 @@ export function createProfilesRouter(
         sendList(req, res);
     });
 
-    router.post('/profiles', async (req, res) => {
+    router.post('/profiles', pinLimitIfPin, async (req, res) => {
         const body = objectBody(req);
         const name = requireName(body['name']);
         const colour = optionalColour(body['colour']);
@@ -128,17 +132,12 @@ export function createProfilesRouter(
         const pin = optionalPin(body['pin']);
         const kids = optionalBoolean(body['kids'], 'kids') ?? false;
         requireNoKidsPin(kids, !!pin);
+        // Checked before hashing, so a refused create costs no scrypt work,
+        // and again right before the synchronous write, so overlapping
+        // requests cannot both pass them.
+        requireRoomFor(name);
         const pinHash = pin ? await hashProfilePin(pin) : null;
-        // Checked after hashing, right before the synchronous write, so
-        // overlapping requests cannot both pass them.
-        if (profiles.count() >= PROFILE_LIMIT) {
-            throw new StorageRequestError(
-                409,
-                'profile_limit',
-                `A household has at most ${PROFILE_LIMIT} profiles.`
-            );
-        }
-        requireFreeName(name);
+        requireRoomFor(name);
         res.status(201).json(
             profiles.create({ name, colour, emoji, pinHash, kids })
         );
@@ -220,6 +219,17 @@ export function createProfilesRouter(
         res.json({ unlocked: true });
     });
 
+    function requireRoomFor(name: string): void {
+        if (profiles.count() >= PROFILE_LIMIT) {
+            throw new StorageRequestError(
+                409,
+                'profile_limit',
+                `A household has at most ${PROFILE_LIMIT} profiles.`
+            );
+        }
+        requireFreeName(name);
+    }
+
     /**
      * The list with its revision as the ETag. A matching `If-None-Match`
      * gets `304`, so clients can poll cheaply for renames and new profiles.
@@ -261,7 +271,12 @@ export function createProfilesRouter(
             );
         }
         try {
-            await attempts.verify(id, pin, stored);
+            // The PIN may change, or the profile go, while scrypt runs: a
+            // gone profile is 404, a PIN that changed counts as wrong.
+            await attempts.verify(id, pin, stored, () => {
+                requireProfile(id);
+                return profiles.pinHashOf(id) === stored;
+            });
         } catch (error) {
             if (error instanceof PinLockedError) {
                 res.set('Retry-After', String(error.retryAfterSeconds));

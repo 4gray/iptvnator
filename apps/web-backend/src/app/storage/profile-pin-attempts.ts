@@ -18,13 +18,23 @@ export class ProfilePinAttempts {
         { at: number[]; until: number }
     >();
 
-    constructor(private readonly now: () => number = Date.now) {}
+    constructor(
+        private readonly now: () => number = Date.now,
+        private readonly check: typeof verifyProfilePin = verifyProfilePin
+    ) {}
 
     /**
      * Resolves when `pin` matches `stored`; throws `403 wrong_pin`, or
-     * `429 pin_locked` while the profile is locked.
+     * `429 pin_locked` while the profile is locked. `stillCurrent` runs
+     * after the hash check: a PIN that matched a hash replaced meanwhile
+     * counts as wrong.
      */
-    async verify(id: string, pin: unknown, stored: string): Promise<void> {
+    async verify(
+        id: string,
+        pin: unknown,
+        stored: string,
+        stillCurrent: () => boolean = () => true
+    ): Promise<void> {
         const now = this.now();
         const state = this.failures.get(id);
         if (state && state.until > now) {
@@ -46,8 +56,8 @@ export class ProfilePinAttempts {
         const ok =
             typeof pin === 'string' &&
             PROFILE_PIN.test(pin) &&
-            (await verifyProfilePin(pin, stored));
-        if (!ok) {
+            (await this.check(pin, stored));
+        if (!ok || !stillCurrent()) {
             throw new StorageRequestError(403, 'wrong_pin', 'Wrong PIN.');
         }
         this.failures.delete(id);

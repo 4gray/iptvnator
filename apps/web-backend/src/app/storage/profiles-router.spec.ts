@@ -12,6 +12,7 @@ import type {
 } from '@iptvnator/shared/interfaces/profiles';
 import type { ServerStorage } from './server-storage';
 import { requireProfileScope } from './profile-scope-guard';
+import * as profilePin from './profile-pin';
 
 function app(storage: ServerStorage) {
     return createWebBackendApp({
@@ -393,6 +394,62 @@ describe('profiles routes', () => {
                 );
                 expect(others.map((p) => p.colour)).not.toContain(d.colour);
                 expect(d.colour).toBe(b.colour);
+            })
+        ));
+
+    it('refuses a create over the limit or with a taken name before hashing its PIN', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const call = client(baseUrl, storage);
+                const hash = jest.spyOn(profilePin, 'hashProfilePin');
+                try {
+                    const taken = await call('/profiles', {
+                        method: 'POST',
+                        body: { name: 'default', pin: '1234' },
+                    });
+                    expect(await codeOf(taken)).toBe('profile_name_taken');
+                    for (let i = 1; i < 12; i++) {
+                        await call('/profiles', {
+                            method: 'POST',
+                            body: { name: `Person ${i}` },
+                        });
+                    }
+                    const full = await call('/profiles', {
+                        method: 'POST',
+                        body: { name: 'One more', pin: '1234' },
+                    });
+                    expect(await codeOf(full)).toBe('profile_limit');
+                    expect(hash).not.toHaveBeenCalled();
+                } finally {
+                    hash.mockRestore();
+                }
+            })
+        ));
+
+    it('counts creates that carry a PIN against the PIN rate limit', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const call = client(baseUrl, storage);
+                // A taken name: each request is refused, but still counts.
+                for (let i = 0; i < 30; i++) {
+                    const refused = await call('/profiles', {
+                        method: 'POST',
+                        body: { name: 'Default', pin: '1234' },
+                    });
+                    expect(refused.status).toBe(409);
+                }
+                const limited = await call('/profiles', {
+                    method: 'POST',
+                    body: { name: 'Default', pin: '1234' },
+                });
+                expect(limited.status).toBe(429);
+                expect(await codeOf(limited)).toBe('pin_rate_limited');
+                // Creates without a PIN are not held back.
+                const plain = await call('/profiles', {
+                    method: 'POST',
+                    body: { name: 'Sam' },
+                });
+                expect(plain.status).toBe(201);
             })
         ));
 
