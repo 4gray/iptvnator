@@ -56,6 +56,8 @@
                 ? needsAndroidToken()
                 : showSourceForm || sync.state() === 'locked';
         @let androidLibraryState = !!androidLibrary && !!library;
+        <!-- Forget focuses the address field: the first input in this
+             card whenever the form (and so the Forget button) shows. -->
         <div
             class="settings-card"
             data-setting-id="source-server"
@@ -365,7 +367,7 @@
                                     (click)="
                                         forgetServer(
                                             connectionFields.querySelector(
-                                                'input[name=sourceServerUrl]'
+                                                'input'
                                             )
                                         )
                                     "
