@@ -1,10 +1,11 @@
-import express, { Router, type Response } from 'express';
+import express, { Router, type Request, type Response } from 'express';
 import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
 import {
     DEFAULT_PROFILE_ID,
     PROFILE_LIMIT,
     type ServerProfile,
 } from '@iptvnator/shared/interfaces/profiles';
+import { matchesEtag } from './etag-match';
 import {
     missingProfile,
     objectBody,
@@ -76,9 +77,7 @@ export function createProfilesRouter(
         next();
     };
 
-    router.get('/profiles', (_req, res) => {
-        res.json(profiles.snapshot());
-    });
+    router.get('/profiles', (req, res) => sendList(req, res));
 
     // One switch for the household, so every device agrees whether
     // profiles are on. Turning it off deletes nothing.
@@ -92,7 +91,33 @@ export function createProfilesRouter(
             );
         }
         profiles.household.setEnabled(enabled);
-        res.json(profiles.snapshot());
+        sendList(req, res);
+    });
+
+    // The full list of ids in the new order. Default stays first; it may
+    // lead the list or be left out.
+    router.put('/profiles/order', (req, res) => {
+        const ids = objectBody(req)['ids'];
+        if (
+            !Array.isArray(ids) ||
+            ids.length > PROFILE_LIMIT ||
+            ids.some((id) => typeof id !== 'string')
+        ) {
+            throw new StorageRequestError(
+                400,
+                'invalid_profile_order',
+                'Expected { ids: string[] }.'
+            );
+        }
+        const others = ids[0] === DEFAULT_PROFILE_ID ? ids.slice(1) : ids;
+        if (!profiles.reorder(others as string[])) {
+            throw new StorageRequestError(
+                409,
+                'profile_order_mismatch',
+                'Send every profile id once; the list may be out of date.'
+            );
+        }
+        sendList(req, res);
     });
 
     router.post('/profiles', async (req, res) => {
@@ -194,6 +219,29 @@ export function createProfilesRouter(
         await checkPin(res, id, pin, stored);
         res.json({ unlocked: true });
     });
+
+    /**
+     * The list with its revision as the ETag. A matching `If-None-Match`
+     * gets `304`, so clients can poll cheaply for renames and new profiles.
+     */
+    function sendList(req: Request, res: Response): void {
+        const list = profiles.snapshot();
+        const etag = `"profiles-${list.revision}"`;
+        res.set({
+            ETag: etag,
+            // Revalidated on every use; there is no PIN data in the list.
+            'Cache-Control': 'no-cache',
+            'Access-Control-Expose-Headers': 'ETag',
+        });
+        if (
+            req.method === 'GET' &&
+            matchesEtag(req.get('if-none-match'), etag)
+        ) {
+            res.status(304).end();
+            return;
+        }
+        res.json(list);
+    }
 
     /**
      * Checks a PIN, counting a wrong one towards the profile's lock. A

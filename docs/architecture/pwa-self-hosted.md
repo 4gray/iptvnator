@@ -1775,18 +1775,25 @@ scope with `409 profiles_disabled`, so a device that has not caught up cannot
 write into a profile. Profiles can still be created and edited while the switch
 is off. Whether a device asks who is watching on start-up or reuses the last
 profile is a per-device setting and never syncs. `revision` moves on every change
-to the list or the switch.
+to the list or the switch, persists across restarts, and is sent as the `ETag`
+(`"profiles-<revision>"`); a `GET` with a matching `If-None-Match` gets `304`, so
+clients can poll cheaply for renames and new profiles.
 
 Authenticated, uncached `/v1/profiles` routes require the verified instance header:
 `GET` lists the Default profile first; `POST` creates one; `PATCH /:id` renames,
-recolours, or sets or clears (`pin: null`) a PIN; `DELETE /:id` removes a profile
+recolours, or sets or clears (`pin: null`) a PIN; `PUT /order` takes every profile
+id once in the new order (Default stays first and may lead the list or be left out;
+`409 profile_order_mismatch` if the list is out of date); `DELETE /:id` removes a profile
 and its activity, favorites and history states and receipts in one transaction;
 `POST /:id/unlock` checks a PIN. PINs are 4 to 8 digits, stored as scrypt hashes
 and never returned. Changing or removing a PIN (`PATCH` with `pin`) and deleting a
 PIN-protected profile take the current PIN as `currentPin` (`403 pin_required` or
 `403 wrong_pin` otherwise). Every wrong PIN, on any of these routes, counts towards
-the same lock: five lock the profile for 30 seconds (`429 pin_locked`), and a
-client can try at most 30 PINs a minute across all profiles.
+the same lock: five within 15 minutes lock the profile for 30 seconds
+(`429 pin_locked`), and older failures stop counting. A client can try at most 30
+PINs a minute across all profiles. A new profile is placed last (`sortOrder` is the
+highest plus one) and, unless it picks a colour, gets the first colour no other
+profile uses.
 
 Each profile has a `#rrggbb` colour and may have an `emoji`: a single grapheme
 that contains an emoji, checked on the server with `Intl.Segmenter`
@@ -1808,7 +1815,9 @@ token remains the security boundary.
 Every activity, favorites and history read or write checks that a `profile:`
 scope names an existing profile, answering `409 profile_missing` otherwise. The
 source item lists and `GET /v1/history/sources/:id` take `?scope=`; without it
-they return the Default profile, as earlier clients expect.
+they return the Default profile, as earlier clients expect. The scope is part of
+the activity and favorites `address_key`, so a list reads one key range of the
+source's index rather than the scope out of every stored address.
 
 Two older shared stores do not know about profiles yet:
 

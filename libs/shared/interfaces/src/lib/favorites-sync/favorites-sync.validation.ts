@@ -1,4 +1,7 @@
-import { assertActivityToken } from '../activity-sync/activity-sync.identity';
+import {
+    assertActivityToken,
+    keyPrefixRange,
+} from '../activity-sync/activity-sync.identity';
 import type {
     FavoriteAddress,
     FavoriteReference,
@@ -87,6 +90,20 @@ export function favoriteAddressKey(value: FavoriteAddress): string {
         a.sourceId,
         a.sourceIncarnation,
         a.content,
+    ]);
+}
+/** The `[from, to)` range of the `favoriteAddressKey`s of one scope within a source. */
+export function favoriteScopeKeyRange(
+    instanceId: string,
+    sourceId: string,
+    sourceIncarnation: string,
+    scope: PersonalScope
+): readonly [string, string] {
+    return keyPrefixRange([
+        instanceId,
+        parsePersonalScope(scope),
+        sourceId,
+        sourceIncarnation,
     ]);
 }
 export function parseFavoriteSnapshot(

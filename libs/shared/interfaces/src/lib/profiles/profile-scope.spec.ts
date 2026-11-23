@@ -1,8 +1,12 @@
-import { activityAddressKey } from '../activity-sync/activity-sync.identity';
+import {
+    activityAddressKey,
+    activityScopeKeyRange,
+} from '../activity-sync/activity-sync.identity';
 import { parseActivityAddress } from '../activity-sync/activity-sync.wire';
 import type { ActivityAddress } from '../activity-sync/activity-sync.contract';
 import {
     favoriteAddressKey,
+    favoriteScopeKeyRange,
     parseFavoriteAddress,
 } from '../favorites-sync/favorites-sync.validation';
 import type { FavoriteAddress } from '../favorites-sync/favorites-sync.contract';
@@ -124,5 +128,63 @@ describe('storage keys', () => {
         expect(() =>
             parseHistoryScope({ ...history, personalScope: 'profile:x' })
         ).toThrow('Invalid history scope');
+    });
+});
+
+describe('scope key ranges', () => {
+    const inRange = (key: string, [from, to]: readonly [string, string]) =>
+        key > from && key < to;
+    const OTHER = 'profile:1b6f3c1e-2d4a-4e8b-9c7d-1a2b3c4d5e6f' as const;
+
+    it('holds exactly the activity keys of one scope and source', () => {
+        const range = (scope: typeof PROFILE | 'shared') =>
+            activityScopeKeyRange(
+                'instance-1',
+                'source-1',
+                'incarnation-1',
+                scope
+            );
+        const contents: ActivityAddress['content'][] = [
+            { provider: 'xtream', kind: 'vod', id: '101' },
+            {
+                provider: 'xtream',
+                kind: 'episode',
+                seriesId: '9',
+                id: '3',
+            },
+        ];
+        for (const content of contents) {
+            for (const scope of ['shared', PROFILE, OTHER] as const) {
+                const key = activityAddressKey({ ...activity, scope, content });
+                expect(inRange(key, range('shared'))).toBe(scope === 'shared');
+                expect(inRange(key, range(PROFILE))).toBe(scope === PROFILE);
+            }
+            const otherSource = activityAddressKey({
+                ...activity,
+                sourceId: 'source-10',
+                content,
+            });
+            expect(inRange(otherSource, range('shared'))).toBe(false);
+        }
+    });
+
+    it('holds exactly the favorite keys of one scope and source', () => {
+        const range = favoriteScopeKeyRange(
+            'instance-1',
+            'source-1',
+            'incarnation-1',
+            PROFILE
+        );
+        const base = parseFavoriteAddress(favorite);
+        for (const scope of ['shared', PROFILE, OTHER] as const) {
+            const key = favoriteAddressKey({ ...base, scope });
+            expect(inRange(key, range)).toBe(scope === PROFILE);
+        }
+        const otherIncarnation = favoriteAddressKey({
+            ...base,
+            scope: PROFILE,
+            sourceIncarnation: 'incarnation-10',
+        });
+        expect(inRange(otherIncarnation, range)).toBe(false);
     });
 });

@@ -122,7 +122,12 @@ export class ServerProfileRepository {
     create({ name, colour, emoji, pinHash, kids = false }: NewProfile) {
         const id = randomUUID();
         const now = new Date().toISOString();
-        const order = this.list().length;
+        // After a deletion the count would repeat an order and a colour.
+        const order = this.nextSortOrder();
+        const used = new Set(this.list().map((p) => p.colour));
+        const pick =
+            PROFILE_COLOURS.find((c) => !used.has(c)) ??
+            PROFILE_COLOURS[order % PROFILE_COLOURS.length];
         this.sqlite.transaction(() => {
             this.sqlite
                 .prepare(
@@ -133,7 +138,7 @@ export class ServerProfileRepository {
                     id,
                     this.householdId,
                     name,
-                    colour ?? PROFILE_COLOURS[order % PROFILE_COLOURS.length],
+                    colour ?? pick,
                     emoji ?? null,
                     pinHash,
                     kids ? 1 : 0,
@@ -144,6 +149,32 @@ export class ServerProfileRepository {
             this.household.touch();
         })();
         return this.get(id) as ServerProfile;
+    }
+
+    /**
+     * Sets the order of the profiles other than Default, which stays first.
+     * `ids` must name each of them once; returns false otherwise.
+     */
+    reorder(ids: readonly string[]): boolean {
+        const current = this.list()
+            .map((p) => p.id)
+            .filter((id) => id !== DEFAULT_PROFILE_ID);
+        const wanted = new Set(ids);
+        if (
+            ids.length !== current.length ||
+            wanted.size !== ids.length ||
+            current.some((id) => !wanted.has(id))
+        ) {
+            return false;
+        }
+        const move = this.sqlite.prepare(
+            'UPDATE server_profiles SET sort_order = ? WHERE household_id = ? AND id = ?'
+        );
+        this.sqlite.transaction(() => {
+            ids.forEach((id, index) => move.run(index, this.householdId, id));
+            this.household.touch();
+        })();
+        return true;
     }
 
     /** Updates a profile; the Default profile gets its row on its first change. */
@@ -206,6 +237,16 @@ export class ServerProfileRepository {
             }
         })();
         return true;
+    }
+
+    private nextSortOrder(): number {
+        const { next } = this.sqlite
+            .prepare(
+                `SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM server_profiles
+                 WHERE household_id = ? AND id != ?`
+            )
+            .get(this.householdId, DEFAULT_PROFILE_ID) as { next: number };
+        return next;
     }
 
     private defaultProfile(): ServerProfile {

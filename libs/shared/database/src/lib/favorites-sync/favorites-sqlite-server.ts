@@ -11,7 +11,7 @@ import {
     type FavoriteSourceContext,
     type FavoriteList,
     DEFAULT_PERSONAL_SCOPE,
-    parsePersonalScope,
+    favoriteScopeKeyRange,
     type PersonalScope,
 } from '@iptvnator/shared/interfaces/favorites-sync';
 import { ensureFavoriteSchema } from './favorites-schema';
@@ -94,19 +94,26 @@ export class SqliteFavoriteServerStore {
         cursor = '',
         scope: PersonalScope = DEFAULT_PERSONAL_SCOPE
     ): FavoriteList {
+        // The scope is part of the key, so one range of the key index holds it.
+        const [from, to] = favoriteScopeKeyRange(
+            instanceId,
+            source.sourceId,
+            source.sourceIncarnation,
+            scope
+        );
         const rows = this.database
             .prepare(
                 `SELECT address, value, address_key FROM favorite_server_states
-             WHERE instance_id = ? AND source_id = ? AND source_incarnation = ? AND address_key > ?
-               AND json_extract(address, '$.scope') = ?
+             WHERE instance_id = ? AND source_id = ? AND source_incarnation = ?
+               AND address_key > ? AND address_key < ?
              ORDER BY address_key LIMIT 101`
             )
             .all(
                 instanceId,
                 source.sourceId,
                 source.sourceIncarnation,
-                cursor,
-                parsePersonalScope(scope)
+                cursor > from ? cursor : from,
+                to
             ) as { address: string; value: string; address_key: string }[];
         const page = rows.slice(0, 100);
         return {

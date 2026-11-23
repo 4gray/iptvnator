@@ -3,7 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { IPTVNATOR_DATA_DIR_ENV } from '@iptvnator/shared/database';
 import { SqliteFavoriteServerStore } from '@iptvnator/shared/database/favorites-sync';
-import { ensureActivitySchema } from '@iptvnator/shared/database/activity-sync';
+import {
+    ensureActivitySchema,
+    SqliteActivityServerStore,
+} from '@iptvnator/shared/database/activity-sync';
 import { ensureHistorySchema } from '@iptvnator/shared/database/history-sync';
 import type { FavoriteAddress } from '@iptvnator/shared/interfaces/favorites-sync';
 import type { PersonalScope } from '@iptvnator/shared/interfaces/profiles';
@@ -177,6 +180,118 @@ describe('profile state', () => {
                 expect(storage.profiles.list().map((p) => p.id)).toEqual([
                     'default',
                 ]);
+            } finally {
+                storage.database.close();
+            }
+        }));
+
+    it('pages one profile at a time through the favorites list', () =>
+        withDataDir(async (open) => {
+            const storage = await open();
+            try {
+                const kid = storage.profiles.create({
+                    name: 'Kid',
+                    pinHash: null,
+                });
+                const store = new SqliteFavoriteServerStore(
+                    storage.database.sqlite,
+                    () => undefined
+                );
+                const instance = storage.database.instanceId;
+                const add = (scope: PersonalScope, id: string) =>
+                    store.apply(
+                        {
+                            ...favorite(instance, scope),
+                            content: { provider: 'xtream', kind: 'movie', id },
+                        } as FavoriteAddress,
+                        {
+                            operationId: `${scope}-${id}`,
+                            deviceId: 'device',
+                            expectedRevision: 0,
+                            member: true,
+                        }
+                    );
+                for (let i = 1; i <= 120; i++) add(kid.scope, String(i));
+                for (let i = 1; i <= 3; i++) add('shared', String(i));
+
+                const first = store.list(
+                    instance,
+                    favoriteSource,
+                    '',
+                    kid.scope
+                );
+                expect(first.entries).toHaveLength(100);
+                const second = store.list(
+                    instance,
+                    favoriteSource,
+                    first.cursor,
+                    kid.scope
+                );
+                expect(second.entries).toHaveLength(20);
+                expect(second.cursor).toBeUndefined();
+                const all = [...first.entries, ...second.entries];
+                const ids = all.map((e) => JSON.stringify(e.address.content));
+                expect(new Set(ids).size).toBe(120);
+                expect(all.every((e) => e.address.scope === kid.scope)).toBe(
+                    true
+                );
+                expect(
+                    store.list(instance, favoriteSource).entries
+                ).toHaveLength(3);
+            } finally {
+                storage.database.close();
+            }
+        }));
+
+    it('lists a scope from a key range of the source index', () =>
+        withDataDir(async (open) => {
+            const storage = await open();
+            try {
+                const db = storage.database.sqlite;
+                const kid = storage.profiles.create({
+                    name: 'Kid',
+                    pinHash: null,
+                });
+                const statements: string[] = [];
+                const prepare = db.prepare.bind(db);
+                const spy = jest
+                    .spyOn(db, 'prepare')
+                    .mockImplementation((sql: string) => {
+                        statements.push(sql);
+                        return prepare(sql);
+                    });
+                const instance = storage.database.instanceId;
+                new SqliteFavoriteServerStore(db, () => undefined).list(
+                    instance,
+                    favoriteSource,
+                    '',
+                    kid.scope
+                );
+                new SqliteActivityServerStore(db, () => undefined).list(
+                    instance,
+                    favoriteSource,
+                    '',
+                    kid.scope
+                );
+                spy.mockRestore();
+                const lists = statements.filter((sql) =>
+                    sql.includes('ORDER BY address_key')
+                );
+                expect(lists).toHaveLength(2);
+                for (const sql of lists) {
+                    expect(sql).not.toContain('json_extract');
+                    const plan = db.prepare(`EXPLAIN QUERY PLAN ${sql}`).all(
+                        ...sql
+                            .split('?')
+                            .slice(1)
+                            .map(() => '')
+                    ) as {
+                        detail: string;
+                    }[];
+                    expect(plan.map((row) => row.detail).join('\n')).toMatch(
+                        /USING INDEX .*address_key>\? AND address_key<\?/
+                    );
+                }
             } finally {
                 storage.database.close();
             }

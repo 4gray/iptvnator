@@ -4,6 +4,8 @@ import { StorageRequestError } from './storage-route-errors';
 /** Wrong PINs in a row before a profile is locked for a while. */
 const MAX_PIN_FAILURES = 5;
 const PIN_LOCK_MS = 30_000;
+/** A wrong PIN stops counting after this long. */
+export const PIN_FAILURE_WINDOW_MS = 15 * 60_000;
 
 /**
  * Checks profile PINs and locks a profile after too many wrong ones. Every
@@ -13,7 +15,7 @@ const PIN_LOCK_MS = 30_000;
 export class ProfilePinAttempts {
     private readonly failures = new Map<
         string,
-        { count: number; until: number }
+        { at: number[]; until: number }
     >();
 
     constructor(private readonly now: () => number = Date.now) {}
@@ -30,12 +32,16 @@ export class ProfilePinAttempts {
         }
         // Every attempt counts before the PIN is checked, so overlapping
         // guesses cannot all start from the same count. A lockout that has
-        // run out starts the count again.
+        // run out starts the count again, and failures older than the
+        // window no longer count.
         const expired = !!state?.until && state.until <= now;
-        const count = (expired ? 0 : (state?.count ?? 0)) + 1;
+        const at = (expired ? [] : (state?.at ?? [])).filter(
+            (time) => time > now - PIN_FAILURE_WINDOW_MS
+        );
+        at.push(now);
         this.failures.set(id, {
-            count,
-            until: count >= MAX_PIN_FAILURES ? now + PIN_LOCK_MS : 0,
+            at,
+            until: at.length >= MAX_PIN_FAILURES ? now + PIN_LOCK_MS : 0,
         });
         const ok =
             typeof pin === 'string' &&

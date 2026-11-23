@@ -43,7 +43,10 @@ export interface ServerProfileList {
      * `'shared'` scope, and turning it off deletes nothing.
      */
     readonly enabled: boolean;
-    /** Moves on every change to the profiles or to `enabled`. */
+    /**
+     * Moves on every change to the profiles or to `enabled`. Also sent as
+     * the `ETag`; a matching `If-None-Match` is answered with `304`.
+     */
     readonly revision: number;
     /** The Default profile first, then the others in `sortOrder`. */
     readonly profiles: ServerProfile[];
@@ -82,6 +85,14 @@ export interface UpdateServerProfileRequest {
 /** Body of `DELETE /v1/profiles/:id`; a PIN-protected profile takes its PIN. */
 export interface DeleteServerProfileRequest {
     readonly currentPin?: string;
+}
+
+/**
+ * `PUT /v1/profiles/order`: every profile id once, in the new order. The
+ * Default profile stays first; it may lead the list or be left out.
+ */
+export interface ReorderServerProfilesRequest {
+    readonly ids: readonly string[];
 }
 
 export interface UnlockServerProfileRequest {

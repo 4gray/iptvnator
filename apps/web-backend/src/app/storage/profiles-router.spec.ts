@@ -286,6 +286,116 @@ describe('profiles routes', () => {
             })
         ));
 
+    it('sends the revision as an ETag and answers a match with 304', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const get = (etag?: string) =>
+                    fetch(`${baseUrl}/v1/profiles`, {
+                        headers: {
+                            'x-iptvnator-instance-id':
+                                storage.database.instanceId,
+                            ...(etag ? { 'if-none-match': etag } : {}),
+                        },
+                    });
+                const first = await get();
+                const etag = first.headers.get('etag') as string;
+                expect(etag).toBe('"profiles-0"');
+                expect(first.headers.get('cache-control')).toBe('no-cache');
+                expect((await get(etag)).status).toBe(304);
+                expect((await get(`W/${etag}`)).status).toBe(304);
+
+                await client(baseUrl, storage)('/profiles', {
+                    method: 'POST',
+                    body: { name: 'Kid' },
+                });
+                const changed = await get(etag);
+                expect(changed.status).toBe(200);
+                expect(changed.headers.get('etag')).toBe('"profiles-1"');
+            })
+        ));
+
+    it('reorders profiles from the full list of ids', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const call = client(baseUrl, storage);
+                const ids: string[] = [];
+                for (const name of ['A', 'B', 'C']) {
+                    const created = await call('/profiles', {
+                        method: 'POST',
+                        body: { name },
+                    });
+                    ids.push(((await created.json()) as ServerProfile).id);
+                }
+                const [a, b, c] = ids;
+                const order = (body: unknown) =>
+                    call('/profiles/order', { method: 'PUT', body });
+                const names = async (response: Response) =>
+                    (await profilesIn(response)).map((p) => p.name);
+
+                expect(await names(await order({ ids: [c, a, b] }))).toEqual([
+                    'Default',
+                    'C',
+                    'A',
+                    'B',
+                ]);
+                expect(
+                    await names(await order({ ids: ['default', b, c, a] }))
+                ).toEqual(['Default', 'B', 'C', 'A']);
+                expect(await names(await call('/profiles'))).toEqual([
+                    'Default',
+                    'B',
+                    'C',
+                    'A',
+                ]);
+
+                for (const stale of [
+                    [a, b],
+                    [a, b, b],
+                    [a, b, c, 'x'],
+                    [b, 'default', c, a],
+                ]) {
+                    const response = await order({ ids: stale });
+                    expect(response.status).toBe(409);
+                    expect(await codeOf(response)).toBe(
+                        'profile_order_mismatch'
+                    );
+                }
+                for (const body of [{}, { ids: 'a' }, { ids: [1] }]) {
+                    expect(await codeOf(await order(body))).toBe(
+                        'invalid_profile_order'
+                    );
+                }
+            })
+        ));
+
+    it('places a new profile last with a colour no one uses', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const call = client(baseUrl, storage);
+                const create = async (name: string) =>
+                    (await (
+                        await call('/profiles', {
+                            method: 'POST',
+                            body: { name },
+                        })
+                    ).json()) as ServerProfile;
+                await create('A');
+                const b = await create('B');
+                await create('C');
+                await call(`/profiles/${b.id}`, { method: 'DELETE' });
+                const d = await create('D');
+
+                const list = await profilesIn(await call('/profiles'));
+                const others = list.filter((p) => p.id !== d.id);
+                expect(list.at(-1)?.id).toBe(d.id);
+                expect(others.map((p) => p.sortOrder)).not.toContain(
+                    d.sortOrder
+                );
+                expect(others.map((p) => p.colour)).not.toContain(d.colour);
+                expect(d.colour).toBe(b.colour);
+            })
+        ));
+
     it('requires the verified instance id', () =>
         withTempStorage((storage) =>
             withServer(app(storage), async (baseUrl) => {
