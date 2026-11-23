@@ -332,7 +332,7 @@ body.dark-theme {
     .mat-mdc-snackbar-surface {
     border-color: color-mix(
         in srgb,
-        var(--app-success-color) 55%,
+        var(--app-status-success) 55%,
         var(--app-line-strong)
     );
 }
