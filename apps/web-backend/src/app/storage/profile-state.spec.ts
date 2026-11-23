@@ -8,6 +8,7 @@ import { ensureHistorySchema } from '@iptvnator/shared/database/history-sync';
 import type { FavoriteAddress } from '@iptvnator/shared/interfaces/favorites-sync';
 import type { PersonalScope } from '@iptvnator/shared/interfaces/profiles';
 import { openServerStorage, type ServerStorage } from './server-storage';
+import { ServerProfileRepository } from './server-profile-repository';
 
 const source = { sourceId: 'source-1', sourceIncarnation: 'incarnation-1' };
 const favoriteSource = { ...source, provider: 'xtream' as const };
@@ -176,6 +177,34 @@ describe('profile state', () => {
                 expect(storage.profiles.list().map((p) => p.id)).toEqual([
                     'default',
                 ]);
+            } finally {
+                storage.database.close();
+            }
+        }));
+
+    it('gives each household its own Default profile row', () =>
+        withDataDir(async (open) => {
+            const storage = await open();
+            try {
+                const other = new ServerProfileRepository(
+                    storage.database.sqlite,
+                    'household-2'
+                );
+                storage.profiles.update('default', { name: 'Home' });
+                other.update('default', { name: 'Cabin', kids: true });
+                expect(storage.profiles.get('default')).toMatchObject({
+                    name: 'Home',
+                    kids: false,
+                });
+                expect(other.get('default')).toMatchObject({
+                    name: 'Cabin',
+                    kids: true,
+                });
+                const kid = other.create({ name: 'Kid', pinHash: null });
+                expect(storage.profiles.get(kid.id)).toBeNull();
+                expect(storage.profiles.delete(kid.id)).toBe(false);
+                expect(other.get(kid.id)).not.toBeNull();
+                expect(rows(storage, 'server_profiles')).toBe(3);
             } finally {
                 storage.database.close();
             }

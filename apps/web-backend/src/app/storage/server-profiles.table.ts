@@ -3,10 +3,12 @@
  * `openServerDatabase`, never by the desktop app. The Default profile
  * (id `default`, scope `'shared'`) has a row only once it is renamed,
  * recoloured or given a PIN. `household_id` leaves room for several
- * households on one server; today every row belongs to `default`.
+ * households on one server; today every row belongs to `default`. The key
+ * is `(household_id, id)`, so each household can have its own Default row.
+ * The table never shipped with an `id`-only key, so nothing is migrated.
  */
 export const SERVER_PROFILES_TABLE_SQL = `CREATE TABLE IF NOT EXISTS server_profiles (
-    id TEXT PRIMARY KEY NOT NULL,
+    id TEXT NOT NULL,
     household_id TEXT NOT NULL DEFAULT 'default',
     name TEXT NOT NULL,
     colour TEXT NOT NULL,
@@ -14,7 +16,8 @@ export const SERVER_PROFILES_TABLE_SQL = `CREATE TABLE IF NOT EXISTS server_prof
     kids INTEGER NOT NULL DEFAULT 0,
     sort_order INTEGER NOT NULL,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (household_id, id)
 )`;
 
 /**

@@ -1761,6 +1761,8 @@ migration runs.
 
 The server-only `server_profiles` table holds the profiles, with `household_id`
 fixed to `default` for now so a household level can be added above profiles later.
+Its key is `(household_id, id)`, so each household can have its own Default row;
+the per-household switch and list revision live in `server_profile_households`.
 The Default profile (`id` `default`) gets a row only once it is renamed,
 recoloured or given a PIN. A household has at most 12 profiles.
 

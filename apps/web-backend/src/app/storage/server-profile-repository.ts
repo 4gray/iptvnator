@@ -12,7 +12,8 @@ import {
 } from '@iptvnator/shared/interfaces/profiles';
 import { ServerProfileHousehold } from './server-profile-household';
 
-const HOUSEHOLD = 'default';
+/** The only household until a household level is added above profiles. */
+export const DEFAULT_HOUSEHOLD_ID = 'default';
 const DEFAULT_NAME = 'Default';
 /** Colours given in turn to new profiles that do not choose one. */
 export const PROFILE_COLOURS = [
@@ -58,8 +59,11 @@ export interface ProfileChanges {
 export class ServerProfileRepository {
     readonly household: ServerProfileHousehold;
 
-    constructor(private readonly sqlite: Database.Database) {
-        this.household = new ServerProfileHousehold(sqlite, HOUSEHOLD);
+    constructor(
+        private readonly sqlite: Database.Database,
+        private readonly householdId = DEFAULT_HOUSEHOLD_ID
+    ) {
+        this.household = new ServerProfileHousehold(sqlite, householdId);
     }
 
     /** What `GET /v1/profiles` returns. */
@@ -77,7 +81,7 @@ export class ServerProfileRepository {
                 `SELECT id, name, colour, pin_hash, kids, sort_order FROM server_profiles
                  WHERE household_id = ? AND id != ? ORDER BY sort_order, created_at`
             )
-            .all(HOUSEHOLD, DEFAULT_PROFILE_ID) as ProfileRow[];
+            .all(this.householdId, DEFAULT_PROFILE_ID) as ProfileRow[];
         return [this.defaultProfile(), ...rows.map(toProfile)];
     }
 
@@ -123,7 +127,7 @@ export class ServerProfileRepository {
                 )
                 .run(
                     id,
-                    HOUSEHOLD,
+                    this.householdId,
                     name,
                     colour ?? PROFILE_COLOURS[order % PROFILE_COLOURS.length],
                     pinHash,
@@ -151,12 +155,12 @@ export class ServerProfileRepository {
                 .prepare(
                     `INSERT INTO server_profiles (id, household_id, name, colour, pin_hash, kids, sort_order, created_at, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                 ON CONFLICT(id) DO UPDATE SET name = excluded.name, colour = excluded.colour,
+                 ON CONFLICT(household_id, id) DO UPDATE SET name = excluded.name, colour = excluded.colour,
                      pin_hash = excluded.pin_hash, kids = excluded.kids, updated_at = excluded.updated_at`
                 )
                 .run(
                     id,
-                    HOUSEHOLD,
+                    this.householdId,
                     changes.name ?? current.name,
                     changes.colour ?? current.colour,
                     pinHash,
@@ -179,8 +183,10 @@ export class ServerProfileRepository {
         const scope = profileScope(id);
         this.sqlite.transaction(() => {
             this.sqlite
-                .prepare('DELETE FROM server_profiles WHERE id = ?')
-                .run(id);
+                .prepare(
+                    'DELETE FROM server_profiles WHERE household_id = ? AND id = ?'
+                )
+                .run(this.householdId, id);
             this.household.touch();
             for (const [table, where] of STATE_TABLES) {
                 if (this.tableExists(table)) {
@@ -212,7 +218,7 @@ export class ServerProfileRepository {
                 .prepare(
                     'SELECT id, name, colour, pin_hash, kids, sort_order FROM server_profiles WHERE id = ? AND household_id = ?'
                 )
-                .get(id, HOUSEHOLD) as ProfileRow | undefined) ?? null
+                .get(id, this.householdId) as ProfileRow | undefined) ?? null
         );
     }
 
