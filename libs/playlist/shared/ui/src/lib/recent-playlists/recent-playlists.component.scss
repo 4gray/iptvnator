@@ -34,22 +34,3 @@ app-source-row:focus-within,
 app-source-row:focus-within + app-source-row {
     border-top-color: transparent;
 }
-
-.sources-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    padding: 64px 16px;
-    text-align: center;
-}
-
-.sources-empty__message {
-    margin: 0;
-    font-size: 13px;
-    color: var(--app-body-color);
-}
-
-.sources-empty__reset {
-    @include controls.ghost-button(sm);
-}

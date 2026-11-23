@@ -6,6 +6,7 @@ export interface StalkerSearchRequestKey {
     readonly playlistId: string | null;
     /** `ParentalLockService.version` at request time. */
     readonly parentalLockVersion: number;
+    readonly hiddenKey: string;
 }
 
 /**
@@ -24,6 +25,7 @@ export function isStalkerSearchRequestCurrent(
         requested.contentType === current.contentType &&
         requested.page === current.page &&
         requested.playlistId === current.playlistId &&
-        requested.parentalLockVersion === current.parentalLockVersion
+        requested.parentalLockVersion === current.parentalLockVersion &&
+        requested.hiddenKey === current.hiddenKey
     );
 }

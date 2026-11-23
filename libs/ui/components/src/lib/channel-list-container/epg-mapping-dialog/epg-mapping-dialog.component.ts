@@ -32,6 +32,7 @@ import {
     DialogFooterStartDirective,
 } from '@iptvnator/ui/dialog';
 import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 export interface EpgMappingDialogData {
     channelKey: string;
@@ -54,6 +55,7 @@ const SEARCH_MIN_CHARS = 2;
     styleUrl: './epg-mapping-dialog.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        StateViewComponent,
         DialogFooterDirective,
         DialogFooterStartDirective,
         DialogShellComponent,

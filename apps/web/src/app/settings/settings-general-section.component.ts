@@ -13,6 +13,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { TranslateModule } from '@ngx-translate/core';
+import { getAndroidShellControls } from '@iptvnator/services';
 import { Language } from '@iptvnator/shared/interfaces';
 import {
     StartupBehaviorOption,
@@ -47,13 +48,16 @@ export class SettingsGeneralSectionComponent {
             | null
     )?.TvShell;
     readonly canOpenAndroidSettings =
-        typeof this.shell?.postMessage === 'function';
+        typeof this.shell?.postMessage === 'function' &&
+        !getAndroidShellControls();
 
     openAndroidSettings(): void {
         this.shell?.postMessage(JSON.stringify(['openSettings']));
     }
 
     readonly form = input.required<FormGroup>();
+    protected readonly legacyAndroidShellControls =
+        this.getLegacyAndroidShellControls();
     private readonly injector = inject(Injector);
 
     constructor() {
@@ -70,6 +74,12 @@ export class SettingsGeneralSectionComponent {
     readonly supportsStartupWindowMode = input(false);
     readonly supportsPortalConnectivityGuard = input(false);
 
+    private getLegacyAndroidShellControls() {
+        const controls = getAndroidShellControls();
+        return typeof controls?.openSettingsSection === 'function'
+            ? undefined
+            : controls;
+    }
     /**
      * Opens the workspace shell's shortcuts dialog, the one `?` opens.
      * Settings renders inside the shell, whose chunk is already loaded, so

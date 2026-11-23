@@ -551,6 +551,12 @@ jobs:
             - name: Validate favourite and rating glyphs
               run: pnpm run ui:favorite-glyph:validate
 
+            # Empty, no-results, error and offline states render through
+            # app-state-view: bespoke empty blocks only go down, and every
+            # spinner is 16, 24 or 40 px (tools/nx/check-state-blocks.mjs).
+            - name: Validate state views and the spinner scale
+              run: pnpm run ui:states:validate
+
             # Form-field defaults are provided per lazy component: the root
             # token import would load Material form-field and @angular/forms
             # on startup (tools/nx/check-form-field-defaults.mjs).

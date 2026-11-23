@@ -168,29 +168,3 @@ app-unified-grid-tab {
     flex-direction: column;
     transition: opacity var(--collection-reload-dim-duration, 160ms) ease;
 }
-
-.empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 64px 24px;
-    flex: 1;
-    text-align: center;
-    color: var(--mat-sys-on-surface-variant);
-
-    .empty-icon {
-        font-size: 56px;
-        height: 56px;
-        width: 56px;
-        margin-bottom: 16px;
-        opacity: 0.4;
-    }
-
-    .empty-title {
-        font-size: 1.05rem;
-        font-weight: 500;
-        letter-spacing: -0.01em;
-        margin: 0;
-    }
-}

@@ -37,34 +37,16 @@ import {
 import { stalkerSessionFingerprint } from '@iptvnator/shared/interfaces/stalker-session';
 import { firstValueFrom } from 'rxjs';
 
-export interface StalkerGlobalSearchContext {
-    term: string;
-    movies: boolean;
-    series: boolean;
-    sources: readonly PlaylistMeta[];
-    lockVersion: number;
-}
+import type {
+    StalkerGlobalSearchContext,
+    StalkerGlobalSearchGroup,
+    StalkerGlobalSearchItem,
+} from './stalker-global-search.types';
 
-export interface StalkerGlobalSearchItem {
-    readonly playlistId: string;
-    readonly origin: StalkerSearchContentType;
-    readonly id: string;
-    readonly displayType: 'movie' | 'series';
-    readonly item: StalkerVodSource;
-    readonly key: string;
-}
-
-export interface StalkerGlobalSearchGroup {
-    readonly playlistId: string;
-    readonly playlistName: string;
-    readonly origins: readonly StalkerSearchContentType[];
-    readonly more: readonly StalkerSearchContentType[];
-    readonly loading: boolean;
-    readonly hasError: boolean;
-    readonly items: readonly StalkerGlobalSearchItem[];
-}
-
-type SearchCriteria = Omit<StalkerGlobalSearchContext, 'sources'>;
+type SearchCriteria = Omit<
+    StalkerGlobalSearchContext,
+    'sources' | 'excludeHidden'
+>;
 
 interface SearchPortal {
     playlist: PlaylistMeta;
@@ -138,8 +120,8 @@ export class StalkerGlobalSearchService {
     readonly groups = computed<readonly StalkerGlobalSearchGroup[]>(() =>
         Array.from(this.submission()?.portals.values() ?? [], (portal) => {
             const { playlist, origins, more, loading, failed, items } = portal;
-            const vod = this.withheld(playlist._id, 'vod');
-            const series = this.withheld(playlist._id, 'series');
+            const vod = this.withheld(portal, 'vod');
+            const series = this.withheld(portal, 'series');
             return {
                 playlistId: playlist._id,
                 playlistName: playlist.title,
@@ -265,7 +247,7 @@ export class StalkerGlobalSearchService {
             !isStalkerItemWithheld(
                 item.item,
                 item.origin,
-                this.withheld(item.playlistId, item.origin)
+                this.withheld(portal, item.origin)
             )
         );
     }
@@ -379,13 +361,19 @@ export class StalkerGlobalSearchService {
     }
 
     private withheld(
-        playlistId: string,
+        portal: SearchPortal,
         origin: StalkerSearchContentType
     ): ReadonlySet<string> {
+        const context = this.readContext()?.();
+        const source = context?.sources.find(
+            ({ _id }) => _id === portal.playlist._id
+        );
+        const hidden = source?.hiddenStalkerCategories;
         return resolveSearchWithheldCategoryIds(
             this.parentalLock,
-            playlistId,
-            origin
+            portal.playlist._id,
+            origin,
+            context?.excludeHidden ? hidden?.[origin] : undefined
         );
     }
 
@@ -396,7 +384,11 @@ export class StalkerGlobalSearchService {
         rawItems: StalkerVodSource[]
     ): StalkerGlobalSearchItem[] {
         const { playlistId, origin } = job;
-        const withheld = this.withheld(playlistId, origin);
+        const withheld = resolveSearchWithheldCategoryIds(
+            this.parentalLock,
+            playlistId,
+            origin
+        );
         const items = [...existing];
         const keys = new Set(items.map(({ key }) => key));
         for (const item of withoutWithheldStalkerItems(

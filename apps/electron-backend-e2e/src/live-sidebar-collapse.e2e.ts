@@ -101,7 +101,7 @@ function headerToggle(page: Page) {
 
 function hiddenStateRestoreButton(page: Page) {
     return page.locator(
-        'app-channel-list-hidden-state button.empty-state-action'
+        'app-channel-list-hidden-state button[data-state-action="action"]'
     );
 }
 
@@ -359,7 +359,9 @@ test.describe('Live channel rail collapse (#1458)', () => {
                 'aria-pressed',
                 'false'
             );
-            await expect(hiddenStateRestoreButton(app.mainWindow)).toBeVisible();
+            await expect(
+                hiddenStateRestoreButton(app.mainWindow)
+            ).toBeVisible();
             expect(await readStorage(app.mainWindow, PORTAL_STATE_KEY)).toBe(
                 'collapsed'
             );

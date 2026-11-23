@@ -1,5 +1,25 @@
-import { ALL_CATEGORIES_WITHHELD } from '@iptvnator/shared/interfaces';
+import type { ParentalLockService } from '@iptvnator/services';
+import {
+    ALL_CATEGORIES_WITHHELD,
+    getStalkerLiveRowGenre,
+} from '@iptvnator/shared/interfaces';
 import type { StalkerContentType } from '../stalker-store.contracts';
+
+/** Visibility preferences remain in effect while the parental lock is unlocked. */
+export function resolveStalkerWithheldCategoryIds(
+    parentalLock: ParentalLockService,
+    playlistId: string | undefined,
+    contentType: StalkerContentType,
+    hiddenIds: readonly string[] = []
+): ReadonlySet<string> {
+    const hidden = new Set(hiddenIds);
+    hidden.delete('*');
+    if (!playlistId || !parentalLock.active()) return hidden;
+    if (parentalLock.withholdsEverything?.()) return ALL_CATEGORIES_WITHHELD;
+    for (const id of parentalLock.lockedStalkerIds(playlistId, contentType))
+        hidden.add(id);
+    return hidden;
+}
 
 /** Minimal item shape the parental lock needs: the category a row belongs to. */
 export interface StalkerLockableItem {
@@ -30,7 +50,7 @@ export function stalkerWithheldRowKey(item: StalkerLockableItem): string {
 
 /**
  * Whether an item belongs to one of the withheld categories. Live and radio
- * rows carry their genre in `tv_genre_id`; VOD and series rows carry
+ * rows can also use a provider `category_id`; VOD and series rows carry
  * `category_id`. Only matters for portal-wide lists ("All" and search),
  * since a withheld category can never be selected on its own.
  */
@@ -44,7 +64,7 @@ export function isStalkerItemWithheld(
     }
     const categoryId =
         contentType === 'itv' || contentType === 'radio'
-            ? item.tv_genre_id
+            ? getStalkerLiveRowGenre(item)
             : item.category_id;
     if (categoryId === undefined || categoryId === null) {
         // A row without a genre is visible under a normal lock set but not

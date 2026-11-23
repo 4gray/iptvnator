@@ -18,6 +18,8 @@ import {
     sourceServerToken,
 } from '../services/source-server-config';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
+import { setHostedServerSession } from '../services/hosted-server-session';
+import { HOSTED_SERVER_INSTANCE_ID, store } from '../services/store.service';
 import {
     registerSourceSyncEvents,
     sourceServerRequest,
@@ -39,6 +41,10 @@ jest.mock('../services/source-server-config', () => ({
 }));
 jest.mock('../util/validated-axios', () => ({
     requestWithValidatedRedirects: jest.fn(),
+}));
+jest.mock('../services/store.service', () => ({
+    HOSTED_SERVER_INSTANCE_ID: 'HOSTED_SERVER_INSTANCE_ID',
+    store: { get: jest.fn() },
 }));
 
 const connection = {
@@ -65,6 +71,7 @@ describe('native source transport and connection IPC', () => {
     const prepareRestart = jest.fn();
     beforeEach(() => {
         jest.clearAllMocks();
+        jest.mocked(store.get).mockReturnValue(undefined);
         (readSourceServerConfig as jest.Mock).mockReturnValue(connection);
         (readSavedSourceServerConfig as jest.Mock).mockReturnValue(null);
         (requestWithValidatedRedirects as jest.Mock).mockResolvedValue({
@@ -73,6 +80,103 @@ describe('native source transport and connection IPC', () => {
             data: instance,
         });
         registerSourceSyncEvents(prepareRestart);
+    });
+
+    afterEach(() => setHostedServerSession());
+
+    it('routes only the recognized hosted instance or explicit desktop selection over IPC', async () => {
+        const apiUrl = 'http://127.0.0.1:4334/api';
+        const instanceId = 'synthetic-hosted-instance';
+        const request = jest.fn(async ({ path }: { path: string }) => ({
+            status: 200,
+            body: path === '/v1/instance' ? { ...instance, instanceId } : [],
+        }));
+        jest.mocked(store.get).mockImplementation((key) =>
+            key === HOSTED_SERVER_INSTANCE_ID ? instanceId : undefined
+        );
+        setHostedServerSession({ instanceId, code: 'synthetic-code', request });
+
+        await sourceServerRequest(
+            apiUrl,
+            '',
+            { operation: 'instance' },
+            'other-instance'
+        );
+        expect(request).not.toHaveBeenCalled();
+        expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(1);
+        await handler(SOURCE_SYNC_CONFIGURE)({}, apiUrl, '', true, true);
+        expect(request.mock.calls.map(([value]) => value.path)).toEqual([
+            '/v1/instance',
+            '/v1/sources',
+        ]);
+        expect(saveSourceServerConfig).toHaveBeenCalledWith(
+            { apiUrl, instanceId, hosted: true },
+            ''
+        );
+
+        setHostedServerSession({
+            instanceId: 'replacement',
+            code: 'synthetic-code',
+            request,
+        });
+        await expect(
+            sourceServerRequest(apiUrl, '', { operation: 'clear' }, instanceId)
+        ).rejects.toThrow('SOURCE_SYNC.INSTANCE_CHANGED');
+        setHostedServerSession();
+        await expect(
+            sourceServerRequest(apiUrl, '', { operation: 'list' }, instanceId)
+        ).rejects.toThrow('SOURCE_SYNC.OFFLINE');
+        expect(request).toHaveBeenCalledTimes(2);
+        expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(1);
+    });
+
+    it('reconnects a saved hosted server through the worker only if its identity matches', async () => {
+        const apiUrl = 'http://127.0.0.1:4334/api';
+        const instanceId = 'synthetic-hosted-instance';
+        jest.mocked(readSourceServerConfig).mockReturnValue(null);
+        jest.mocked(readSavedSourceServerConfig).mockReturnValue({
+            apiUrl,
+            instanceId,
+            hosted: true,
+            disconnected: true,
+        });
+        const configure = handler(SOURCE_SYNC_CONFIGURE);
+        const request = jest
+            .fn()
+            .mockResolvedValueOnce({
+                status: 200,
+                body: { ...instance, instanceId: 'replacement' },
+            })
+            .mockResolvedValueOnce({
+                status: 200,
+                body: { ...instance, instanceId },
+            })
+            .mockResolvedValueOnce({ status: 200, body: [] });
+
+        setHostedServerSession({
+            instanceId: 'replacement',
+            code: 'synthetic-code',
+            request,
+        });
+        await expect(
+            configure({}, apiUrl, '', true, instanceId)
+        ).rejects.toThrow('SOURCE_SYNC.SAVED_INSTANCE_CHANGED');
+        expect(saveSourceServerConfig).not.toHaveBeenCalled();
+        expect(sourceServerToken).not.toHaveBeenCalled();
+
+        setHostedServerSession({ instanceId, code: 'synthetic-code', request });
+        await expect(
+            configure({}, apiUrl, '', true, instanceId)
+        ).resolves.toMatchObject({
+            apiUrl,
+            instanceId,
+        });
+        expect(request.mock.calls.map(([value]) => value.path)).toEqual([
+            '/v1/instance',
+            '/v1/instance',
+            '/v1/sources',
+        ]);
+        expect(requestWithValidatedRedirects).not.toHaveBeenCalled();
     });
 
     it.each(['connect', 'disconnect'])(

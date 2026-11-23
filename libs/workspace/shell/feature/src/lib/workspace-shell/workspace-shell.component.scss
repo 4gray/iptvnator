@@ -1,3 +1,5 @@
+@use '../../../../../../ui/styles/app-controls' as controls;
+
 :host {
     display: block;
     width: 100%;
@@ -193,6 +195,7 @@ app-workspace-shell-context-sidebar {
         button {
             flex-shrink: 0;
             margin-left: auto;
+            @include controls.secondary-button(sm);
         }
     }
 }

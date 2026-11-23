@@ -107,6 +107,8 @@ the subsystem's document.
   `libs/ui/styles/_nav-list.scss`
 - Dialog shell and size presets (`ui-dialog`, `@iptvnator/ui/dialog`):
   `libs/ui/dialog/src/lib/dialog-shell/`
+- Empty, no-results, error and offline states and the spinner scale
+  (`ui-state`, `@iptvnator/ui/state`): `libs/ui/state/src/lib/`
 - Source row (Sources page and playlist switcher):
   `libs/playlist/shared/ui/src/lib/source-row/source-row.component.html`
 - UI-kit buttons, menus, segmented control and floating panels:
@@ -990,10 +992,10 @@ remain local when the meaning is explicit.
   `app-channel-list-hidden-state` (`@iptvnator/portal/shared/ui`) instead of
   the "select a channel" empty state: a title that says the list is hidden, a
   one-line hint naming the shortcut, and a full-size "Show channels list"
-  stroked button wired to the same toggle. The generic
-  `app-portal-empty-state` grew optional `hint`, `actionLabel`, `actionIcon`
-  inputs and an `action` output for this; the action keeps full opacity while
-  icon and copy stay muted, because it is the way out of the state.
+  button wired to the same toggle. `app-portal-empty-state` renders it
+  through the shared `app-state-view` (see Empty, Error And Offline States),
+  with its optional `hint`, `actionLabel`, `actionIcon` inputs and `action`
+  output.
 - A folded rail is 0px wide but still rendered, so it also carries `inert`
   (`isContextPanelInert` on the shell rail, `isSidebarCollapsed` on the
   Xtream/Stalker channels rail) to leave the Tab order and the accessibility
@@ -1355,7 +1357,7 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   experimental; `.settings-callout` (`--info`, `--warn`) sits under the row
   it explains inside `.setting-item__sub` and only while that choice is made.
 - Destructive actions keep the confirm dialog from the Dialogs section; the
-  row itself uses `.app-destructive-button` on a stroked button.
+  row itself uses `.app-destructive-button` on a flat button.
 - Ordinary settings actions use `mat-flat-button` with the shared secondary
   role from the lazy settings stylesheet; `.settings-primary-button` marks the accent
   action (install/download, browser import, or the empty EPG prompt). Text and
@@ -1415,7 +1417,9 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   on the inline end: the right in LTR, the left in RTL.
 - Body actions opt into the shell's `mat-flat-button.app-dialog__secondary`
   role (add `app-dialog__secondary--sm` for dense bulk tools), or
-  `mat-button.app-dialog__ghost` for a text action. The footer remains the
+  `mat-button.app-dialog__ghost` for a text action, or
+  `mat-icon-button.app-dialog__ghost-icon` (the kit's 32px square) for an
+  icon action such as copy or previous/next. The footer remains the
   decision row. A separate EPG save explicitly says “Save EPG sources”.
   The playlist editor's main Save also includes valid pending EPG rows, while
   the separate action applies only EPG changes immediately. Track draft rows by
@@ -1562,7 +1566,8 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   `floating-panel-title` the title: the kit's 12.5px uppercase label with an
   18px accent icon. Header actions are `ghost-icon-button(28px, 18px)`, row
   actions 24px; neither keeps Material's 48px touch target, which used to
-  push a horizontal scrollbar into the list.
+  push a horizontal scrollbar into the list. The PWA update notification gives
+  its dismiss action a 44px target on touch screens.
 - **Actions.** Buttons inside a panel follow the dialog footer: one accent
   action (`accent-button(sm)`), a secondary beside it (`secondary-button(sm)`
   on a `mat-flat-button`), never an outlined button. The update card's
@@ -1607,7 +1612,7 @@ active picker (refinements applied) takes the selected-row tint. A panel
 header's icon actions use `ghost-icon-button`, as the category panel's
 search and sort do; the channel lists' headers (All channels, the groups
 rail and its channel header) take it through `list-header-action` in
-`_channel-list-layout.scss`, at 32px (28px in the groups rail), and the
+`_channel-list-layout.scss`, at the categories header's 28px, and the
 favorites and recent page header at 32px beside its segmented toggles. In a row of filter chips (the VOD sources popover) the
 picker is a chip with the same chevron, so the row keeps one height; the
 language filter there opens a radio menu instead of a native `<select>`.
@@ -1692,12 +1697,54 @@ text) and `subject` (pasted text in the add flow). Use
 `getPlaylistSourceIcon()` for a stored playlist. An icon never stands for two
 providers, and the Dashboard rail icon is never a provider icon.
 
-## Search and Collection Empty States
+## Empty, Error And Offline States
 
-Search, Favorites and Recently Viewed use the shared no-data view from
-`@iptvnator/playlist/shared/ui` for their empty states. Supply the relevant
-icon and translated copy so they share typography and motion. The entrance
-animation respects reduced motion.
+Every page, pane, list, panel and dialog list that has nothing to show renders
+`app-state-view` (`@iptvnator/ui/state`, UI-44), in the dialog header's
+vocabulary: a 48px (page) or 40px (panel) icon tile, a heading in the heading
+ink, one short description and at most two actions, the first an accent
+button. There is no illustration, glow or gradient, and the entrance is a
+160 ms fade that reduced motion turns off.
+
+- `variant`: `empty` (nothing added or loaded yet), `no-results` (a search
+  or filter matched nothing), `error` (loading failed; warning tile,
+  `role="alert"`) or `offline` (the source or network is unreachable, or the
+  runtime lacks the feature; neutral tile). Each has a default icon.
+- `size`: `page` for a route or main pane, `panel` for a sidebar, list
+  column, drawer or dialog body (smaller tile, type and buttons).
+- An `error` or `offline` state whose caller can load again sets `retryable`
+  and handles `retry`: Retry then leads. The Stalker category list, the
+  catalog, search, the Xtream content gate and the EPG timeline all do.
+- `appStateIcon` replaces the tile (the first-run glyph); the default slot
+  takes extra content under the actions (source-type links, the source
+  error's Home and Delete). A host that must fit a short area sets
+  `--app-state-view-padding`, `--app-state-view-gap` or
+  `--app-state-view-icon-display` on the element, as the inline EPG panel
+  does.
+- Thin adapters keep their own APIs on top of it: `app-portal-empty-state`
+  (live prompts), `app-playlist-error-view` (a source that cannot load, with
+  its settings, Home and Delete) and `app-epg-timeline-empty-state` (EPG
+  reasons).
+
+The first-run welcome (`app-empty-state`, `welcome-dashboard` and
+`welcome-sources`, UI-70) is built on the same view: the IPTVnator glyph,
+one "Add source" action, a secondary action per source type and, on the
+dashboard, the feature list; flat token surfaces in every theme.
+
+`pnpm run ui:states:validate` (CI) counts the bespoke empty blocks left in
+templates, outermost elements whose static class names an `empty` or
+`no-results` block, against `tools/nx/state-blocks-baseline.json`, where
+each remaining file records why it stays bespoke. Counts only go down
+(`pnpm run ui:states:update` lowers them). Classes on `app-state-view` are
+hooks and do not count.
+
+### Spinner scale
+
+Spinners use one of three diameters, `SPINNER_DIAMETERS` in
+`@iptvnator/ui/state`: 16 (`sm`, inside a button, chip, row or line of
+text), 24 (`md`, a list footer, dialog section or panel) or 40 (`lg`, a page
+or main pane with nothing else to show). The same check rejects any other
+diameter, and Material's 100px default.
 
 ## Icon Names
 
@@ -1935,8 +1982,8 @@ The accent is also text (badges, selected labels), so it keeps 4.5:1 against
 every surface and its plain selection tint; the selection-text role keeps
 4.5:1 on the strongest tint too. One on-accent colour, used for
 `--app-selection-on-color` and `--mat-sys-on-primary`, keeps 4.5:1 on the
-accent, on Material primary and across the empty-state CTA gradient toward
-the heading ink; the accent darkens or lightens further until one does. The
+accent, on Material primary and on fills pulled 20–40% toward the heading
+ink; the accent darkens or lightens further until one does. The
 roles are re-derived on every theme change, including System's OS switches.
 The swatches preview each accent in the current theme. The "theme colour"
 swatch reads the preset's own colour from a `data-theme-preview` context.
@@ -2029,6 +2076,10 @@ the full-width row. `R` on a focused row refreshes it, as its menu item shows.
 the source with Enter, and deletes and undoes a source keyboard-only.
 
 ### Sources page and playlist switcher
+
+The empty Sources page centers its welcome content when the cards fit. On
+shorter screens the welcome content grows, and the Sources pane owns scrolling
+from the heading to the last source action.
 
 One `app-source-row` serves both lists: `size="regular"` on the Sources page
 (56px, 36px tile, hover actions Refresh, Edit and ⋯; a failing row keeps

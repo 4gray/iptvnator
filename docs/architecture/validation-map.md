@@ -90,6 +90,24 @@ Conventions the gate relies on:
   `Object.defineProperty` or a writable mapped type for read-only capability
   flags.
 
+## Hosted HTTP tests in restricted Windows sessions
+
+The hosted HTTP specs use loopback TCP by default. If the Windows sandbox
+denies client connections with `EACCES`, use the in-memory HTTP transport for
+the focused suite from the repository root:
+
+```powershell
+$env:IPTVNATOR_TEST_HTTP_TRANSPORT = 'memory'
+$env:TS_NODE_TRANSPILE_ONLY = 'true'
+$specs = git ls-files 'apps/web-backend/*spec.ts' |
+    Where-Object { $_ -match 'cloudflare|hosted|sources-router|tmdb-transfer|device-approval|device-pairing' }
+node node_modules/jest/bin/jest.js --config apps/web-backend/jest.config.ts --runInBand --runTestsByPath $specs
+```
+
+This exercises the HTTP parser, request handlers, and listener lifecycle over
+paired streams. Run the default suite in a session with loopback access to
+validate TCP connections.
+
 ## Lint
 
 ```bash
@@ -159,6 +177,11 @@ all pages before reload/close and merge their counters before writing the report
 The parent merges those reports into Jest without replacing objects cached by
 existing instrumentation. Missing reports fail the test; assertion failures still
 propagate. The helper never creates synthetic hits or changes coverage thresholds.
+Instrument only files the Jest process does not load itself: a source that is
+also covered in process (for example `connection.ts`) is instrumented twice with
+different statement maps, and the merged report keeps the in-process copy's
+misses. For such a source, run its real-SQLite scenarios in process instead, as
+`content-title-fts.spec.ts` does on `node:sqlite`.
 
 Some `electron-backend` and `database` specs run SQLite code in the Electron
 binary under `ELECTRON_RUN_AS_NODE`, resolving it with `require('electron')`.

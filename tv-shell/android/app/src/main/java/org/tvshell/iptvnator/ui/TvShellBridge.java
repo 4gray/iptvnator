@@ -74,7 +74,30 @@ final class TvShellBridge {
                 activity.showKeyboard();
                 break;
             case "openSettings":
-                activity.openSettings();
+                if (args.size() == 1) activity.openSettings();
+                else if (args.size() == 2) activity.openSettingsSection(stringAt(args, 1));
+                break;
+            case "scanLibraryQr":
+                if (args.size() == 1) activity.scanLibraryQr();
+                break;
+            case "inviteAccessDevice":
+                if (args.size() == 1) activity.inviteAccessDevice();
+                break;
+            case "disconnectLibrary":
+                if (args.size() == 1) activity.disconnectLibrary();
+                break;
+            case "removeLibraryPairing":
+                if (args.size() == 1) activity.removeLibraryPairing();
+                break;
+            case "pairLibrary":
+                if (args.size() == 3) activity.pairLibrary(stringAt(args, 1), stringAt(args, 2));
+                break;
+            case "connectNasLibrary":
+                if (args.size() == 3 && args.get(2) instanceof Boolean)
+                    activity.connectNasLibrary(stringAt(args, 1), (Boolean) args.get(2));
+                break;
+            case "connectLibrary":
+                if (args.size() == 2) activity.connectLibrary(stringAt(args, 1));
                 break;
         }
     }

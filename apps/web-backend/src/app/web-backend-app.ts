@@ -1,3 +1,5 @@
+import { xtreamJsonReply } from './hosted-xtream-reply';
+import type { HostedIngressState } from './hosted-ingress';
 import { mountTvSetup } from './tv-setup/pairing-router';
 import cors from 'cors';
 import express, { Express, Request, Response } from 'express';
@@ -80,6 +82,10 @@ export interface WebBackendAppOptions {
     readonly runtimeBackendUrl?: string;
     /** Optional bearer token for every non-public route. */
     readonly accessToken?: string | null;
+    readonly devicePairingEnabled?: boolean;
+    readonly hostedIngress?: HostedIngressState;
+    readonly cloudflareAccess?: import('./cloudflare-access').CloudflareAccessCheck;
+    readonly hostedMode?: 'lan' | 'https' | 'proxy' | 'cloudflare';
     /** Largest accepted playlist document in bytes. */
     readonly maxDocumentBytes?: number;
     readonly maxProviderResponseBytes?: number;
@@ -156,6 +162,10 @@ export function createWebBackendApp(
         corsMiddleware,
         storage: options.storage ?? null,
         accessToken: options.accessToken ?? null,
+        devicePairingEnabled: options.devicePairingEnabled,
+        hostedIngress: options.hostedIngress,
+        cloudflareAccess: options.cloudflareAccess,
+        hostedMode: options.hostedMode,
         maxDocumentBytes:
             options.maxDocumentBytes ?? DEFAULT_MAX_DOCUMENT_BYTES,
     });
@@ -289,6 +299,10 @@ export function createWebBackendApp(
             return;
         }
         const url = new URL(registeredUrl.href);
+        const reply = xtreamJsonReply(
+            res,
+            options.hostedMode === 'cloudflare' && req.method === 'GET'
+        );
         const upstream = new AbortController();
         const abortUpstream = () => upstream.abort();
         res.once('close', abortUpstream);
@@ -313,7 +327,7 @@ export function createWebBackendApp(
             if (!admission.allowed) {
                 // This route answers provider failures with HTTP 200 and an
                 // error body; a fast-fail is one of them.
-                res.json(admission.error);
+                reply(admission.error);
                 return;
             }
             guardToken = admission.token;
@@ -344,7 +358,7 @@ export function createWebBackendApp(
             guardToken = null;
             upstream.signal.throwIfAborted();
 
-            res.json({
+            reply({
                 action: getQueryString(req, 'action'),
                 payload: response.data,
             });
@@ -359,7 +373,7 @@ export function createWebBackendApp(
             if (getQueryString(req, 'connectionTest') === 'true') {
                 const wrapped =
                     error instanceof ProviderRequestError ? error : null;
-                res.json({
+                reply({
                     connectionFailure: wrapped?.policyError
                         ? { kind: 'connection', canTryHttp: false }
                         : describeXtreamConnectionFailure(
@@ -368,7 +382,7 @@ export function createWebBackendApp(
                           ),
                 });
             } else {
-                res.json(normalizeProviderError(error));
+                reply(normalizeProviderError(error));
             }
         } finally {
             res.off('close', abortUpstream);

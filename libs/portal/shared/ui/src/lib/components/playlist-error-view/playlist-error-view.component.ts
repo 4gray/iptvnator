@@ -1,8 +1,9 @@
 import {
+    ChangeDetectionStrategy,
     Component,
     inject,
     input,
-    ChangeDetectionStrategy,
+    output,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -26,13 +27,25 @@ import {
     sourceDialogSubtitle,
 } from '@iptvnator/shared/interfaces';
 import { DialogService } from '@iptvnator/ui/components';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
+/**
+ * A source that cannot show its content: the shared state view with Retry,
+ * the source's settings, Home and Delete. Empty and no-results states use
+ * `app-state-view` directly.
+ */
 @Component({
     selector: 'app-playlist-error-view',
     templateUrl: './playlist-error-view.component.html',
     styleUrls: ['./playlist-error-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatButtonModule, MatIconModule, RouterLink, TranslateModule],
+    imports: [
+        MatButtonModule,
+        MatIconModule,
+        RouterLink,
+        StateViewComponent,
+        TranslateModule,
+    ],
 })
 export class PlaylistErrorViewComponent {
     private dialog = inject(MatDialog);
@@ -48,12 +61,13 @@ export class PlaylistErrorViewComponent {
     private readonly currentPlaylist = this.playlistContext.activePlaylist;
 
     readonly description = input<string | undefined>(undefined);
-    readonly showIllustration = input(true);
     readonly showActionButtons = input(true);
     readonly title = input<string | undefined>(undefined);
-    readonly viewType = input<'ERROR' | 'EMPTY_CATEGORY' | 'NO_SEARCH_RESULTS'>(
-        'ERROR'
-    );
+    /** `offline` when the source is unreachable rather than failing. */
+    readonly variant = input<'error' | 'offline'>('error');
+    /** Leads with Retry; the host reloads on `retry`. */
+    readonly retryable = input(false);
+    readonly retry = output<void>();
 
     openPlaylistDetails() {
         const playlist = this.currentPlaylist();

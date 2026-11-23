@@ -43,6 +43,7 @@ describe('buildSettingsSectionNavItems', () => {
             supportsEpg: true,
             supportsRemoteControl: true,
             supportsServerStorage: true,
+            supportsAndroidSettings: true,
         });
         const unsupportedItems = buildSettingsSectionNavItems({
             supportsEpg: false,
@@ -58,6 +59,13 @@ describe('buildSettingsSectionNavItems', () => {
         ).toBe(false);
         expect(
             unsupportedItems.find((item) => item.id === 'remote-control')
+                ?.visible
+        ).toBe(false);
+        expect(
+            supportedItems.find((item) => item.id === 'android-device')
+        ).toMatchObject({ group: 'devices', visible: true });
+        expect(
+            unsupportedItems.find((item) => item.id === 'android-device')
                 ?.visible
         ).toBe(false);
     });
@@ -99,6 +107,7 @@ describe('buildSettingsSectionNavItems', () => {
             'dashboard',
             'tmdb',
             'parental',
+            'android-device',
             'remote-control',
             'server',
             'backup',

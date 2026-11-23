@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
 import {
+    getAndroidSettingsControls,
     RuntimeCapabilitiesService,
     ServerStorageStatusService,
 } from '@iptvnator/services';
@@ -63,6 +64,7 @@ export class SettingsSearchService {
                 runtime.supportsEpg ||
                 runtime.supportsProviderEpg,
             'remote-control': runtime.supportsRemoteControl,
+            'android-settings': !!getAndroidSettingsControls(),
             'startup-window-mode': runtime.supportsStartupWindowMode,
             'portal-connectivity-guard':
                 runtime.supportsPortalConnectivityGuard,

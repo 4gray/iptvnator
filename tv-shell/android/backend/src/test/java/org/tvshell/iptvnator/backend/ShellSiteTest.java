@@ -66,6 +66,22 @@ public class ShellSiteTest {
         assertEquals("body", "notices", new String(notices.body, UTF8));
     }
 
+    public void testTouchLayoutServesAResponsiveViewportWithoutTvNavigation() throws IOException {
+        ShellSite s = site();
+        s.setLayoutWidth(ShellSite.DEVICE_VIEWPORT);
+        s.setScreenWidth(360);
+        String portrait = new String(s.serve("/workspace/dashboard").body, UTF8);
+        s.setScreenWidth(720);
+        String landscape = new String(s.serve("/workspace/dashboard").body, UTF8);
+        assertEquals("rotating keeps the same responsive page", portrait, landscape);
+        assertTrue("uses device width", portrait.contains("content=\"width=device-width, initial-scale=1\""));
+        assertTrue("keeps shell lifecycle bridge", portrait.contains("<script src=\"tvshell/tv.js\" data-layout=\"touch\" defer>"));
+        s.setLayoutWidth(1280);
+        String tv = new String(s.serve("/workspace/dashboard").body, UTF8);
+        assertTrue("restores pinned TV viewport", tv.contains("width=1280, initial-scale=0.5625"));
+        assertTrue("restores remote navigation", tv.contains("<script src=\"tvshell/tv.js\" defer>"));
+    }
+
     public void testStaticFilesAndSpecialPaths() throws IOException {
         ShellSite s = site();
         ShellSite.Resource chunk = s.serve("/chunk-ABCDEFGH.js");

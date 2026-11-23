@@ -1,6 +1,19 @@
 {
     "$schema": "./node_modules/@angular/service-worker/config/schema.json",
     "index": "/index.html",
+    "navigationUrls": [
+        "/**",
+        "!/**/*.*",
+        "!/**/*__*",
+        "!/**/*__*/**",
+        "!/pair-device",
+        "!/approve-device",
+        "!/approve-device/**",
+        "!/cdn-cgi",
+        "!/cdn-cgi/**",
+        "!/.well-known",
+        "!/.well-known/**"
+    ],
     "assetGroups": [
         {
             "name": "app",

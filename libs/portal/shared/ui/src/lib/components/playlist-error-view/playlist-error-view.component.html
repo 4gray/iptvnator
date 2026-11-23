@@ -1,46 +1,37 @@
-<div
-    class="error-view"
-    [class.error-view--empty-category]="viewType() === 'EMPTY_CATEGORY'"
-    [class.error-view--text-only]="!showIllustration()"
+<app-state-view
+    [variant]="variant()"
+    [heading]="title() ?? ''"
+    [description]="description()"
+    [retryable]="retryable()"
+    [actionLabel]="
+        showActionButtons()
+            ? ('PORTALS.ERROR_VIEW.PLAYLIST_SETTINGS' | translate)
+            : null
+    "
+    actionIcon="settings"
+    (retry)="retry.emit()"
+    (action)="openPlaylistDetails()"
 >
-    @if (showIllustration()) {
-        @if (viewType() === 'ERROR') {
-            <img alt="" src="./assets/images/broken-tv.svg" />
-        } @else if (viewType() === 'EMPTY_CATEGORY') {
-            <img
-                alt=""
-                class="error-view__illustration"
-                src="./assets/images/empty-category.svg"
-            />
-        } @else if (viewType() === 'NO_SEARCH_RESULTS') {
-            <mat-icon class="icon">search_off</mat-icon>
-        }
-    }
-    <div class="error-view__copy">
-        <h3 class="error-view__title">{{ title() }}</h3>
-        @if (description()) {
-            <p class="error-view__description">{{ description() }}</p>
-        }
-    </div>
-
     @if (showActionButtons()) {
-        <div class="error-view__actions">
-            <button mat-flat-button routerLink="/">
-                <mat-icon>home</mat-icon>
+        <div class="error-view__links">
+            <button
+                mat-button
+                type="button"
+                class="error-view__link"
+                routerLink="/"
+            >
+                <mat-icon aria-hidden="true">home</mat-icon>
                 {{ 'PORTALS.ERROR_VIEW.HOME' | translate }}
             </button>
-            <button mat-flat-button (click)="openPlaylistDetails()">
-                <mat-icon>settings</mat-icon>
-                {{ 'PORTALS.ERROR_VIEW.PLAYLIST_SETTINGS' | translate }}
-            </button>
             <button
-                mat-stroked-button
-                class="app-destructive-button"
+                mat-button
+                type="button"
+                class="error-view__link app-destructive-button"
                 (click)="removeClicked()"
             >
-                <mat-icon>delete</mat-icon>
+                <mat-icon aria-hidden="true">delete</mat-icon>
                 {{ 'PORTALS.ERROR_VIEW.DELETE' | translate }}
             </button>
         </div>
     }
-</div>
+</app-state-view>

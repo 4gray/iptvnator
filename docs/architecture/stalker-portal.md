@@ -458,6 +458,9 @@ Internal structure to preserve:
   `isCategoryResourceFailed()` / `isPaginatedContentFailed()` for explicit
   error handling.
 
+The [category visibility contract](./category-management.md#stalker-category-visibility)
+explains how persisted genre IDs apply to navigation, All and search.
+
 Category arrays belong to `categoryPlaylistKey`, not just the content type.
 Every category reader checks that owner; a portal switch clears all four
 section caches before loading the destination. Aborted or foreign-portal

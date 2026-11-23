@@ -91,36 +91,6 @@
     color: #fff;
 }
 
-.no-results {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 48px 24px;
-    text-align: center;
-    height: calc(100vh - 220px);
-}
-
-.no-results-icon {
-    font-size: 48px;
-    width: 48px;
-    height: 48px;
-    opacity: 0.5;
-    margin-bottom: 16px;
-}
-
-.no-results-title {
-    font-size: 1.05rem;
-    font-weight: 500;
-    letter-spacing: -0.01em;
-    margin-bottom: 8px;
-}
-
-.no-results-hint {
-    opacity: 0.65;
-    font-size: 0.85rem;
-}
-
 @media only screen and (max-width: 599px) {
     /* Mobile responsive tweaks if needed */
 }

@@ -10,6 +10,7 @@ export type SettingsSearchRequirement =
     /** Any guide, XMLTV or a portal's own: the EPG page's display rows. */
     | 'epg-display'
     | 'remote-control'
+    | 'android-settings'
     | 'startup-window-mode'
     | 'portal-connectivity-guard'
     | 'managed-external-players'

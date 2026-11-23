@@ -23,7 +23,7 @@ describe('TMDB transfer', () => {
         withTempStorage((storage) =>
             withServer(
                 createWebBackendApp({ storage, accessToken: token }),
-                (base) =>
+                (base, fetch) =>
                     run((request, headers) =>
                         fetch(`${base}/v1/tmdb-transfer`, {
                             method: 'POST',

@@ -7,6 +7,7 @@ describe('isStalkerSearchRequestCurrent', () => {
         page: 2,
         playlistId: 'stalker-1',
         parentalLockVersion: 3,
+        hiddenKey: '[]',
     };
 
     it('accepts a response whose coordinates are unchanged', () => {
@@ -24,6 +25,7 @@ describe('isStalkerSearchRequestCurrent', () => {
 
     it.each([
         ['search', { search: 'famil' }],
+        ['hidden categories', { hiddenKey: '["9"]' }],
         ['contentType', { contentType: 'series' }],
         ['page', { page: 3 }],
         ['playlistId', { playlistId: 'stalker-2' }],

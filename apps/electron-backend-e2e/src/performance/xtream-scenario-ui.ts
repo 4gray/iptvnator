@@ -143,7 +143,7 @@ export async function waitForXtreamCancellationTerminal(
         ({ selector, text }) =>
             document.querySelector(selector)?.textContent?.trim() === text,
         {
-            selector: '.xtream-content-gate .error-view__title',
+            selector: '.xtream-content-gate .app-state-view__title',
             text: 'Import cancelled',
             waitFor: 'cancellation-terminal',
         },

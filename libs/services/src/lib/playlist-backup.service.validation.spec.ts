@@ -72,6 +72,26 @@ describe('Backup validation before writes', () => {
             { ...m3u, userState: { ...m3u.userState, favorites: 'abc' } },
         ],
         [
+            'invalid Stalker category IDs',
+            {
+                ...stalker,
+                userState: {
+                    ...stalker.userState,
+                    hiddenCategories: { itv: [1] },
+                },
+            },
+        ],
+        [
+            'wildcard Stalker category',
+            {
+                ...stalker,
+                userState: {
+                    ...stalker.userState,
+                    hiddenCategories: { vod: ['*'] },
+                },
+            },
+        ],
+        [
             'missing Stalker history',
             { ...stalker, userState: { favorites: [] } },
         ],

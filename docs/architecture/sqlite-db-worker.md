@@ -646,6 +646,11 @@ Xtream-only row shape:
    diacritics rebuild records that marker too, so it is never rebuilt twice;
    see [VOD multi-source](vod-multi-source.md#short-titles-and-unicode)); fresh
    inserts, deletes, and title updates stay synchronized through SQLite triggers.
+   On a catalog above 50,000 titles that rebuild runs in this worker after
+   startup, in 5,000-row transactions between requests, after main posts the
+   `content-title-fts-build` control message
+   (`workers/content-title-fts-build.ts`; contract in the
+   [database README](../../libs/shared/database/README.md#title-index-rebuild)).
 2. `source_type = "m3u"` rows come from M3U playlist payloads stored in
    `playlists.payload`. The worker uses SQL `payload LIKE` against channel
    `name`/`title` JSON fields only as a coarse candidate prefilter, then parses

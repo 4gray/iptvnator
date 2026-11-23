@@ -122,8 +122,8 @@ The counter is explicitly labelled "Total selected" and always uses the full
 catalog for both numerator and denominator.
 
 Save writes the complete draft using local database category IDs; closing the
-dialog without saving discards it. The existing PWA path does not expose this
-SQLite-backed dialog. Regression coverage lives in the dialog component spec
+dialog without saving discards it. Xtream in the PWA uses the same editor
+for parental locks. Its visibility controls require SQLite. Regression coverage lives in the dialog component spec
 and `apps/electron-backend-e2e/src/category-management.e2e.ts` (all three types,
 save/reopen, discard, no matches, and both existing refresh paths).
 
@@ -163,10 +163,24 @@ dialog renders a lock toggle per row and the whole dialog opens only after the
 PIN. Locks are a separate concept from `hidden`: they live in the renderer's
 lock store keyed by provider category id and are mirrored into
 `categories.locked` through `DB_SET_CATEGORY_LOCKS`, so a refresh keeps them
-the same way it keeps `hidden`. The dialog is the one entry point on every
-portal type (Stalker's "Manage categories" button opens its lock-only
-dialog); a right-click on a category row offers a single-row Lock/Unlock
-through the same lock store. Contract: [parental lock](parental-lock.md).
+the same way it keeps `hidden`. Stalker and Xtream share the category editor. A right-click on a category
+row offers a single-row Lock/Unlock through the same lock store. Contract: [parental lock](parental-lock.md).
+
+## Stalker category visibility
+
+Manage Categories is available in Stalker Live TV, Radio, Movies and Series on
+Electron and the PWA, including Android/Fire TV Shell. The editor lists all
+provider genres for the current section. The synthetic All category stays in
+the rail and cannot be hidden. Unchecking a genre removes it and its identified
+items from section browsing, All and portal search. The existing **Visible
+categories only** option controls Stalker matches in the desktop global search.
+
+The playlist stores hidden provider category IDs per section. An absent
+preference means all categories are visible. A rename keeps the preference
+when the ID is stable. New IDs are visible. Ordinary visibility changes leave
+favorites, history and playback progress available. A row without a category
+ID remains visible under ordinary hide/show rules. Parental locks still apply
+independently, including while the app cannot read the lock store.
 
 ## Files Changed
 
@@ -196,10 +210,10 @@ libs/workspace/shell/feature/src/lib/
     └── workspace-context-panel.component.ts # Tune button; lazy-loads the dialog, calls reloadCategories()
 
 libs/portal/xtream/feature/src/lib/
-└── category-management-dialog/        # Dialog component
-    ├── category-management-dialog.component.ts
-    ├── category-management-dialog.component.html
-    └── category-management-dialog.component.scss
+└── category-management-dialog/        # Xtream loading and persistence
+
+libs/portal/shared/ui/src/lib/components/
+└── category-editor/                   # Shared Xtream and Stalker form, list and styles
 
 libs/portal/xtream/data-access/src/lib/
 ├── data-sources/
