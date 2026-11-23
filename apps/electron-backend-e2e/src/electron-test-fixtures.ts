@@ -1736,7 +1736,11 @@ export async function deleteSource(page: Page, title: string): Promise<void> {
         .locator('.cdk-overlay-pane [mat-menu-item]')
         .filter({ hasText: 'Remove playlist' })
         .click();
-    const toast = page.locator('mat-snack-bar-container.app-notification');
+    // Every toast shares `.app-notification`; an earlier one (a backup
+    // export's success) can still be leaving, so pick the Undo toast.
+    const toast = page
+        .locator('mat-snack-bar-container.app-notification')
+        .filter({ has: page.locator('.source-removal-toast__undo') });
     await expect(toast).toContainText('Removed');
     await expect(toast).toBeHidden({ timeout: 15000 });
 }
