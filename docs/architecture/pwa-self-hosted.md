@@ -1780,9 +1780,17 @@ Authenticated, uncached `/v1/profiles` routes require the verified instance head
 recolours, or sets or clears (`pin: null`) a PIN; `DELETE /:id` removes a profile
 and its activity, favorites and history states and receipts in one transaction;
 `POST /:id/unlock` checks a PIN. PINs are 4 to 8 digits, stored as scrypt hashes
-and never returned; five wrong PINs lock a profile for 30 seconds. A PIN only
-guards against picking someone else's profile by accident: the server access token
-remains the security boundary.
+and never returned. Changing or removing a PIN (`PATCH` with `pin`) and deleting a
+PIN-protected profile take the current PIN as `currentPin` (`403 pin_required` or
+`403 wrong_pin` otherwise). Every wrong PIN, on any of these routes, counts towards
+the same lock: five lock the profile for 30 seconds (`429 pin_locked`), and a
+client can try at most 30 PINs a minute across all profiles.
+
+The PIN is a light lock. It keeps someone from picking another person's profile by
+accident, nothing more: anyone with the server access token can read and write
+every scope, and the server cannot tell which client is in which profile. A kids
+profile is therefore only as strong as the client that enforces it. The access
+token remains the security boundary.
 
 Every activity, favorites and history read or write checks that a `profile:`
 scope names an existing profile, answering `409 profile_missing` otherwise. The

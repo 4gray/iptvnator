@@ -268,7 +268,7 @@ describe('profiles routes', () => {
 
                 await call('/profiles/default', {
                     method: 'PATCH',
-                    body: { pin: null },
+                    body: { pin: null, currentPin: '2468' },
                 });
                 const cleared = await profilesIn(await call('/profiles'));
                 expect(cleared[0]).toMatchObject({
@@ -439,15 +439,113 @@ describe('profiles routes', () => {
                 });
                 expect(locked.status).toBe(429);
 
-                await call(`/profiles/${id}`, {
+                // The lock also holds back a PIN change, even with the
+                // right PIN.
+                const change = await call(`/profiles/${id}`, {
                     method: 'PATCH',
-                    body: { pin: '5678' },
+                    body: { pin: '5678', currentPin: '1234' },
                 });
-                const reset = await call(`/profiles/${id}/unlock`, {
+                expect(change.status).toBe(429);
+                expect(await codeOf(change)).toBe('pin_locked');
+            })
+        ));
+
+    it('takes the current PIN to change or remove a PIN', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const call = client(baseUrl, storage);
+                const { id } = (await (
+                    await call('/profiles', {
+                        method: 'POST',
+                        body: { name: 'Robin', pin: '1234' },
+                    })
+                ).json()) as ServerProfile;
+                const patch = (body: unknown) =>
+                    call(`/profiles/${id}`, { method: 'PATCH', body });
+
+                const none = await patch({ pin: null });
+                expect(none.status).toBe(403);
+                expect(await codeOf(none)).toBe('pin_required');
+                const wrong = await patch({ pin: '5678', currentPin: '0000' });
+                expect(wrong.status).toBe(403);
+                expect(await codeOf(wrong)).toBe('wrong_pin');
+                expect(storage.profiles.get(id)?.hasPin).toBe(true);
+
+                // A name or colour change needs no PIN.
+                expect((await patch({ colour: '#123456' })).status).toBe(200);
+
+                const changed = await patch({
+                    pin: '5678',
+                    currentPin: '1234',
+                });
+                expect(changed.status).toBe(200);
+                const unlock = await call(`/profiles/${id}/unlock`, {
                     method: 'POST',
                     body: { pin: '5678' },
                 });
-                expect(reset.status).toBe(200);
+                expect(unlock.status).toBe(200);
+                const removed = await patch({ pin: null, currentPin: '5678' });
+                expect(((await removed.json()) as ServerProfile).hasPin).toBe(
+                    false
+                );
+                // Without a PIN there is nothing to check.
+                expect((await patch({ pin: '2222' })).status).toBe(200);
+            })
+        ));
+
+    it('takes the PIN to delete a PIN-protected profile', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const call = client(baseUrl, storage);
+                const { id } = (await (
+                    await call('/profiles', {
+                        method: 'POST',
+                        body: { name: 'Robin', pin: '1234' },
+                    })
+                ).json()) as ServerProfile;
+                const remove = (body?: unknown) =>
+                    call(`/profiles/${id}`, { method: 'DELETE', body });
+
+                expect(await codeOf(await remove())).toBe('pin_required');
+                expect(await codeOf(await remove({ currentPin: '0000' }))).toBe(
+                    'wrong_pin'
+                );
+                expect(storage.profiles.get(id)).not.toBeNull();
+                expect((await remove({ currentPin: '1234' })).status).toBe(204);
+                expect(storage.profiles.get(id)).toBeNull();
+            })
+        ));
+
+    it('counts a wrong current PIN towards the lock', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const call = client(baseUrl, storage);
+                const { id } = (await (
+                    await call('/profiles', {
+                        method: 'POST',
+                        body: { name: 'Robin', pin: '1234' },
+                    })
+                ).json()) as ServerProfile;
+                for (let i = 0; i < 3; i++) {
+                    await call(`/profiles/${id}`, {
+                        method: 'PATCH',
+                        body: { pin: null, currentPin: '0000' },
+                    });
+                }
+                for (let i = 0; i < 2; i++) {
+                    await call(`/profiles/${id}`, {
+                        method: 'DELETE',
+                        body: { currentPin: '0000' },
+                    });
+                }
+                const locked = await call(`/profiles/${id}/unlock`, {
+                    method: 'POST',
+                    body: { pin: '1234' },
+                });
+                expect(locked.status).toBe(429);
+                expect(
+                    Number(locked.headers.get('retry-after'))
+                ).toBeGreaterThan(0);
             })
         ));
 });

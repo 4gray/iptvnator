@@ -10,9 +10,11 @@ export const PROFILE_NAME_MAX_LENGTH = 32;
 export const PROFILE_LIMIT = 12;
 
 /**
- * A person in the household. The PIN is only a light lock against picking
- * someone else's profile by accident; the server access token stays the
- * security boundary.
+ * A person in the household. The PIN is a light lock: the server checks it
+ * before the PIN is changed or removed and before the profile is deleted,
+ * but anyone with the access token can read and write every scope, so a
+ * profile is only as private as the client keeps it. The access token stays
+ * the security boundary.
  */
 export interface ServerProfile {
     readonly id: string;
@@ -49,11 +51,21 @@ export interface CreateServerProfileRequest {
     readonly pin?: string;
 }
 
-/** `pin: null` removes the PIN; an absent field is left unchanged. */
+/**
+ * `pin: null` removes the PIN; an absent field is left unchanged. Setting or
+ * removing the PIN of a profile that has one takes `currentPin`; a wrong one
+ * counts towards the profile's lock like a wrong unlock.
+ */
 export interface UpdateServerProfileRequest {
     readonly name?: string;
     readonly colour?: string;
     readonly pin?: string | null;
+    readonly currentPin?: string;
+}
+
+/** Body of `DELETE /v1/profiles/:id`; a PIN-protected profile takes its PIN. */
+export interface DeleteServerProfileRequest {
+    readonly currentPin?: string;
 }
 
 export interface UnlockServerProfileRequest {

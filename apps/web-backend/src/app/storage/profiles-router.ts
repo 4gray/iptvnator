@@ -1,31 +1,38 @@
-import express, { Router, type Request } from 'express';
+import express, { Router, type Response } from 'express';
 import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
 import {
     DEFAULT_PROFILE_ID,
     PROFILE_LIMIT,
-    PROFILE_NAME_MAX_LENGTH,
     type ServerProfile,
 } from '@iptvnator/shared/interfaces/profiles';
-import { hashProfilePin, PROFILE_PIN, verifyProfilePin } from './profile-pin';
+import {
+    missingProfile,
+    objectBody,
+    optionalColour,
+    optionalObjectBody,
+    optionalPin,
+    requireName,
+} from './profile-input';
+import { hashProfilePin } from './profile-pin';
+import { PinLockedError, ProfilePinAttempts } from './profile-pin-attempts';
 import type { ServerStorage } from './server-storage';
 import { StorageRequestError } from './storage-route-errors';
 
-const COLOUR = /^#[0-9a-f]{6}$/;
-/** Wrong PINs in a row before a profile is locked for a while. */
-const MAX_PIN_FAILURES = 5;
-const PIN_LOCK_MS = 30_000;
-/** PIN attempts per client per minute, across all profiles. */
+/** PIN attempts per client per minute, across all profiles and routes. */
 const UNLOCK_ATTEMPTS_PER_MINUTE = 30;
 
 /**
  * `/v1/profiles`: the people of the household. Behind the access guard like
- * every storage route; a PIN only stops picking someone else's profile by
- * accident.
+ * every storage route. A PIN is a light lock: the server checks it before the
+ * PIN is changed or removed and before the profile is deleted, but anyone
+ * with the access token can still read and write every scope.
  */
-export function createProfilesRouter(storage: ServerStorage): Router {
+export function createProfilesRouter(
+    storage: ServerStorage,
+    attempts = new ProfilePinAttempts()
+): Router {
     const router = Router();
     const profiles = storage.profiles;
-    const failures = new Map<string, { count: number; until: number }>();
 
     router.use('/profiles', (req, res, next) => {
         res.set('Cache-Control', 'no-store');
@@ -43,7 +50,7 @@ export function createProfilesRouter(storage: ServerStorage): Router {
     router.use('/profiles', express.json({ limit: 4 * 1024 }));
     // The per-profile lockout stops guessing one PIN; this caps a client
     // trying PINs across every profile.
-    const unlockLimit = rateLimit({
+    const pinLimit = rateLimit({
         windowMs: 60_000,
         limit: UNLOCK_ATTEMPTS_PER_MINUTE,
         standardHeaders: 'draft-8',
@@ -56,6 +63,15 @@ export function createProfilesRouter(storage: ServerStorage): Router {
             message: 'Too many PIN attempts. Try again shortly.',
         },
     });
+    // Edits and deletes share the budget when they carry a PIN, so they
+    // are no way around it.
+    const pinLimitIfPin: express.RequestHandler = (req, res, next) => {
+        const body = req.body as Record<string, unknown> | undefined;
+        if (body && typeof body === 'object' && 'currentPin' in body) {
+            return pinLimit(req, res, next);
+        }
+        next();
+    };
 
     router.get('/profiles', (_req, res) => {
         res.json(profiles.snapshot());
@@ -95,30 +111,33 @@ export function createProfilesRouter(storage: ServerStorage): Router {
         res.status(201).json(profiles.create(name, colour, pinHash));
     });
 
-    router.patch('/profiles/:id', async (req, res) => {
+    router.patch('/profiles/:id', pinLimitIfPin, async (req, res) => {
         const id = String(req.params['id']);
         requireProfile(id);
         const body = objectBody(req);
         const name =
             body['name'] === undefined ? undefined : requireName(body['name']);
         const colour = optionalColour(body['colour']);
-        let pinHash: string | null | undefined;
-        if (body['pin'] === null) pinHash = null;
-        else if (body['pin'] !== undefined) {
-            pinHash = await hashProfilePin(optionalPin(body['pin']) as string);
+        const changesPin = body['pin'] !== undefined;
+        const newPin = body['pin'] === null ? null : optionalPin(body['pin']);
+        // Changing or removing a PIN takes the current one.
+        const stored = profiles.pinHashOf(id);
+        if (changesPin && stored) {
+            await checkPin(res, id, body['currentPin'], stored);
         }
-        // Rechecked after hashing: the profile may have been deleted, or the
-        // name taken, while the hash was computed.
+        let pinHash: string | null | undefined;
+        if (changesPin) pinHash = newPin ? await hashProfilePin(newPin) : null;
+        // Rechecked after the awaits: the profile may have been deleted, its
+        // PIN changed or the name taken in the meantime.
         requireProfile(id);
+        if (changesPin) requireSamePin(id, stored);
         if (name !== undefined) requireFreeName(name, id);
         const updated = profiles.update(id, { name, colour, pinHash });
-        if (!updated) throw missing();
-        // A new or removed PIN ends a lockout; other edits leave it running.
-        if (pinHash !== undefined) failures.delete(id);
+        if (!updated) throw missingProfile();
         res.json(updated);
     });
 
-    router.delete('/profiles/:id', (req, res) => {
+    router.delete('/profiles/:id', pinLimitIfPin, async (req, res) => {
         const id = String(req.params['id']);
         if (id === DEFAULT_PROFILE_ID) {
             throw new StorageRequestError(
@@ -127,12 +146,20 @@ export function createProfilesRouter(storage: ServerStorage): Router {
                 'The Default profile cannot be deleted.'
             );
         }
-        if (!profiles.delete(id)) throw missing();
-        failures.delete(id);
+        const body = optionalObjectBody(req);
+        requireProfile(id);
+        // Deleting a PIN-protected profile takes its PIN.
+        const stored = profiles.pinHashOf(id);
+        if (stored) {
+            await checkPin(res, id, body['currentPin'], stored);
+            requireSamePin(id, stored);
+        }
+        if (!profiles.delete(id)) throw missingProfile();
+        attempts.clear(id);
         res.status(204).end();
     });
 
-    router.post('/profiles/:id/unlock', unlockLimit, async (req, res) => {
+    router.post('/profiles/:id/unlock', pinLimit, async (req, res) => {
         const id = String(req.params['id']);
         requireProfile(id);
         const pin = objectBody(req)['pin'];
@@ -141,38 +168,46 @@ export function createProfilesRouter(storage: ServerStorage): Router {
             res.json({ unlocked: true });
             return;
         }
-        const now = Date.now();
-        const state = failures.get(id);
-        if (state && state.until > now) {
-            res.set(
-                'Retry-After',
-                String(Math.ceil((state.until - now) / 1000))
-            );
-            throw new StorageRequestError(
-                429,
-                'pin_locked',
-                'Too many wrong PINs. Try again shortly.'
-            );
-        }
-        // Every attempt counts before the PIN is checked, so overlapping
-        // guesses cannot all start from the same count. A lockout that has
-        // run out starts the count again.
-        const expired = !!state?.until && state.until <= now;
-        const count = (expired ? 0 : (state?.count ?? 0)) + 1;
-        failures.set(id, {
-            count,
-            until: count >= MAX_PIN_FAILURES ? now + PIN_LOCK_MS : 0,
-        });
-        const ok =
-            typeof pin === 'string' &&
-            PROFILE_PIN.test(pin) &&
-            (await verifyProfilePin(pin, stored));
-        if (!ok) {
-            throw new StorageRequestError(403, 'wrong_pin', 'Wrong PIN.');
-        }
-        failures.delete(id);
+        await checkPin(res, id, pin, stored);
         res.json({ unlocked: true });
     });
+
+    /**
+     * Checks a PIN, counting a wrong one towards the profile's lock. A
+     * missing PIN is refused without counting: nothing was guessed.
+     */
+    async function checkPin(
+        res: Response,
+        id: string,
+        pin: unknown,
+        stored: string
+    ): Promise<void> {
+        if (pin === undefined) {
+            throw new StorageRequestError(
+                403,
+                'pin_required',
+                'This profile has a PIN. Send it as currentPin.'
+            );
+        }
+        try {
+            await attempts.verify(id, pin, stored);
+        } catch (error) {
+            if (error instanceof PinLockedError) {
+                res.set('Retry-After', String(error.retryAfterSeconds));
+            }
+            throw error;
+        }
+    }
+
+    function requireSamePin(id: string, stored: string | null): void {
+        if (profiles.pinHashOf(id) !== stored) {
+            throw new StorageRequestError(
+                409,
+                'pin_changed',
+                'The PIN changed in the meantime. Try again.'
+            );
+        }
+    }
 
     function requireFreeName(name: string, exceptId?: string): void {
         if (profiles.nameTaken(name, exceptId)) {
@@ -186,71 +221,9 @@ export function createProfilesRouter(storage: ServerStorage): Router {
 
     function requireProfile(id: string): ServerProfile {
         const profile = profiles.get(id);
-        if (!profile) throw missing();
+        if (!profile) throw missingProfile();
         return profile;
     }
 
     return router;
-}
-
-function missing(): StorageRequestError {
-    return new StorageRequestError(
-        404,
-        'profile_missing',
-        'The profile does not exist.'
-    );
-}
-
-function objectBody(req: Request): Record<string, unknown> {
-    const body = req.body as unknown;
-    if (!body || typeof body !== 'object' || Array.isArray(body)) {
-        throw new StorageRequestError(
-            400,
-            'invalid_body',
-            'Expected a JSON object.'
-        );
-    }
-    return body as Record<string, unknown>;
-}
-
-function requireName(value: unknown): string {
-    const name = typeof value === 'string' ? value.trim() : '';
-    if (
-        !name ||
-        name.length > PROFILE_NAME_MAX_LENGTH ||
-        Array.from(name).some(
-            (c) => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127
-        )
-    ) {
-        throw new StorageRequestError(
-            400,
-            'invalid_profile_name',
-            `A profile name has 1 to ${PROFILE_NAME_MAX_LENGTH} characters.`
-        );
-    }
-    return name;
-}
-
-function optionalColour(value: unknown): string | undefined {
-    if (value === undefined) return undefined;
-    if (typeof value !== 'string' || !COLOUR.test(value.toLowerCase())) {
-        throw new StorageRequestError(
-            400,
-            'invalid_profile_colour',
-            'A profile colour is #rrggbb.'
-        );
-    }
-    return value.toLowerCase();
-}
-
-function optionalPin(value: unknown): string | undefined {
-    if (value === undefined) return undefined;
-    if (typeof value !== 'string' || !PROFILE_PIN.test(value)) {
-        throw new StorageRequestError(
-            400,
-            'invalid_pin',
-            'A PIN has 4 to 8 digits.'
-        );
-    }
-    return value;
 }
