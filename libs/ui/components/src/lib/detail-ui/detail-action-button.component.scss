@@ -96,6 +96,9 @@
         justify-content: center;
         gap: 4px;
         padding-inline: 5px;
+        // A 375px phone carries the primary and four 44px icon actions on one
+        // row; a long label ("Воспроизвести") fits beside them at 13px only.
+        font-size: var(--app-text-sm);
 
         mat-icon {
             width: 18px;
