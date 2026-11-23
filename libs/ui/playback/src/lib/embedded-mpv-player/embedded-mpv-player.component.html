@@ -460,11 +460,30 @@
                         </button>
                     }
 
-                    <app-player-video-fit
-                [owner]="fullscreenTarget() ?? playerSurface()"
-                [command]="videoFitCommand()"
-            />
-            @if (capabilities().aspectOverride) {
+                    @if (videoFitCommand()) {
+                        <button
+                            mat-icon-button
+                            type="button"
+                            class="embedded-mpv-player__control-button"
+                            data-embedded-mpv-menu-button="fit"
+                            data-test-id="player-controls-video-fit"
+                            (click)="toggleFitMenu()"
+                            [attr.aria-expanded]="menus.fitOpen()"
+                            [attr.aria-label]="
+                                ('PLAYER_VIDEO_FIT.TITLE' | translate) +
+                                ': ' +
+                                ('PLAYER_VIDEO_FIT.' +
+                                    videoFitMode().toUpperCase()
+                                    | translate)
+                            "
+                            [matTooltip]="'PLAYER_VIDEO_FIT.TITLE' | translate"
+                            matTooltipPosition="above"
+                        >
+                            <mat-icon>aspect_ratio</mat-icon>
+                        </button>
+                    }
+
+                    @if (capabilities().aspectOverride) {
                         <button
                             mat-icon-button
                             type="button"

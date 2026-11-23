@@ -706,7 +706,9 @@ CSS handles resize/fullscreen without monitor-ratio assumptions. Embedded MPV
 uses its own `keepaspect` and `panscan` properties through the fit IPC command:
 Crop enables keepaspect and full panscan; Stretch disables keepaspect; Original
 restores keepaspect and zero panscan. Both frame-copy and native-view expose the
-menu; older native addons without `setVideoFit` hide it until rebuilt. External
+control; native-view shows it as in-dock chips, because a CDK menu backdrop
+would hide the native video. Older native addons without `setVideoFit` hide it
+until rebuilt. External
 MPV/VLC windows and Android Media3 own separate controls and are not changed.
 
 ### Multiview action

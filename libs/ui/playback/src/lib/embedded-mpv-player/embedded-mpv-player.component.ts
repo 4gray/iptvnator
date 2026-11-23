@@ -1,4 +1,4 @@
-import { PlayerVideoFitComponent } from '../player-controls/player-video-fit.component';
+import { videoFitModes, type VideoFitMode } from '../player-controls/video-fit';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -74,7 +74,6 @@ const RECORDING_MESSAGE_DISMISS_DELAY_MS = 5000;
     styleUrl: './embedded-mpv-player.component.scss',
     imports: [
         EmbeddedMpvDockPanelComponent,
-        PlayerVideoFitComponent,
         MatButtonModule,
         MatIconModule,
         MatProgressSpinnerModule,
@@ -140,6 +139,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             void this.controller.setVideoFit(mode);
         };
     });
+    readonly videoFitMode = signal<VideoFitMode>('original');
     readonly sharedControls = inject(EmbeddedMpvControlsAdapter);
     private readonly shortcuts = new EmbeddedMpvShortcuts();
     readonly menus = new EmbeddedMpvMenuState();
@@ -440,6 +440,8 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 void this.selectSubtitleTrack(trackId),
             selectSpeed: (speed) => void this.selectSpeed(speed),
             selectAspect: (aspect) => void this.selectAspect(aspect),
+            videoFitMode: this.videoFitMode,
+            selectVideoFit: (mode) => this.selectVideoFit(mode),
             closePanels: () => this.legacyInteractions.closePopovers(),
             playerRoot: () => this.playerRoot()?.nativeElement ?? null,
             revealControls: () => this.legacyInteractions.revealControls(),
@@ -585,6 +587,18 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         effect(() => {
             this.overlayVisibility.overlayActive();
             this.controller.triggerBoundsSync();
+        });
+
+        effect(() => {
+            const owner = this.fullscreenSurface();
+            untracked(() => this.videoFitMode.set((owner && videoFitModes.get(owner)) || 'original'));
+        });
+
+        effect(() => {
+            // Native dock only; frame-copy forwards through app-player-controls.
+            const command = this.isFrameCopyEngine() ? null : this.videoFitCommand();
+            const mode = this.videoFitMode();
+            if (command) untracked(() => command(mode));
         });
 
         effect(() => {
@@ -800,6 +814,18 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     }
     toggleAspectMenu(): void {
         this.dockPanels.toggle('aspect');
+    }
+    toggleFitMenu(): void {
+        this.dockPanels.toggle('fit');
+    }
+
+    /** Native-view fit picker lives in the dock: a CDK menu would hide MPV. */
+    selectVideoFit(mode: VideoFitMode): void {
+        this.videoFitMode.set(mode);
+        const owner = this.fullscreenSurface();
+        if (owner) videoFitModes.set(owner, mode);
+        this.menus.close('fit');
+        this.legacyInteractions.scheduleControlsHide();
     }
 
     async selectAudioTrack(trackId: number): Promise<void> {

@@ -252,6 +252,37 @@ describe('EmbeddedMpvPlayerComponent dock panels', () => {
         expect(setAspect).toHaveBeenCalledWith('16:9');
     });
 
+    it('picks video fit from in-dock chips without a CDK overlay', async () => {
+        const setVideoFit = jest
+            .spyOn(controller, 'setVideoFit')
+            .mockResolvedValue(undefined);
+        controller.support.update((support) => ({
+            ...support!,
+            capabilities: { ...support!.capabilities!, videoFit: true },
+        }));
+        fixture.detectChanges();
+        await fixture.whenStable();
+        setVideoFit.mockClear();
+
+        query('[data-embedded-mpv-menu-button="fit"]').nativeElement.click();
+        fixture.detectChanges();
+
+        expect(document.querySelector('.cdk-overlay-backdrop')).toBeNull();
+        expect(boundsProvider()(HOST_STUB)).toEqual(FULL_BOUNDS);
+        const chips = queryAll('.embedded-mpv-dock-panel__chip');
+        expect(chips).toHaveLength(3);
+        expect(chips[0].nativeElement.getAttribute('aria-checked')).toBe('true');
+
+        chips[1].nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(setVideoFit).toHaveBeenCalledWith('crop');
+        expect(player.videoFitMode()).toBe('crop');
+        expect(player.menus.fitOpen()).toBe(false);
+        expect(query('.embedded-mpv-player__transport')).not.toBeNull();
+    });
+
     it('expands volume inline without morphing the row', () => {
         player.menus.open('volume');
         fixture.detectChanges();

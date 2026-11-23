@@ -5,7 +5,8 @@ export type EmbeddedMpvMenu =
     | 'audio'
     | 'subtitle'
     | 'speed'
-    | 'aspect';
+    | 'aspect'
+    | 'fit';
 
 /**
  * Tracks which menu is currently open and exposes individual signals the
@@ -19,14 +20,10 @@ export class EmbeddedMpvMenuState {
     readonly subtitleOpen = signal(false);
     readonly speedOpen = signal(false);
     readonly aspectOpen = signal(false);
+    readonly fitOpen = signal(false);
 
     readonly anyOpen = computed(
-        () =>
-            this.volumeOpen() ||
-            this.audioOpen() ||
-            this.subtitleOpen() ||
-            this.speedOpen() ||
-            this.aspectOpen()
+        () => this.volumeOpen() || this.dockPanelOpen()
     );
 
     /**
@@ -39,7 +36,8 @@ export class EmbeddedMpvMenuState {
             this.audioOpen() ||
             this.subtitleOpen() ||
             this.speedOpen() ||
-            this.aspectOpen()
+            this.aspectOpen() ||
+            this.fitOpen()
     );
 
     toggle(menu: EmbeddedMpvMenu): void {
@@ -67,6 +65,7 @@ export class EmbeddedMpvMenuState {
         this.subtitleOpen.set(false);
         this.speedOpen.set(false);
         this.aspectOpen.set(false);
+        this.fitOpen.set(false);
     }
 
     private signalFor(menu: EmbeddedMpvMenu) {
@@ -81,6 +80,8 @@ export class EmbeddedMpvMenuState {
                 return this.speedOpen;
             case 'aspect':
                 return this.aspectOpen;
+            case 'fit':
+                return this.fitOpen;
         }
     }
 }
