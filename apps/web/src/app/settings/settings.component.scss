@@ -366,42 +366,21 @@
     margin-top: 10px;
 }
 
-// Segmented control (theme, cover size, guide layout): a pill.
+// Segmented control (cover size, guide layout): the kit's segmented track
+// with plain-button segments, 26px tall so the control is a small button's
+// 32px, as in the toolbars and headers.
 .theme-switcher {
-    display: inline-flex;
-    padding: 3px;
-    border: 1px solid var(--settings-control-border);
-    border-radius: 999px;
-    background: var(--settings-control-bg);
+    @include controls.segmented-track;
 }
 
 .theme-switcher__option {
-    display: inline-flex;
-    align-items: center;
+    @include controls.segment;
     justify-content: center;
-    gap: 6px;
-    height: 28px;
-    padding: 0 12px;
-    border: 0;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--app-on-surface);
-    font: inherit;
-    font-size: 12.5px;
-    font-weight: 500;
-    cursor: pointer;
-    transition:
-        background 0.15s ease,
-        color 0.15s ease;
 
     mat-icon {
         width: 14px;
         height: 14px;
         font-size: 14px;
-    }
-
-    &:hover {
-        color: var(--app-heading-color);
     }
 
     &:focus-visible {
@@ -410,8 +389,7 @@
 }
 
 .theme-switcher__option--selected {
-    background: var(--app-selection-surface);
-    color: var(--app-heading-color);
+    @include controls.segment-selected;
 }
 
 // ─── Buttons in rows ───────────────────────────────────────────────────────
@@ -586,12 +564,10 @@
         width: 100%;
     }
 
-    // Translated option labels (ru, de) do not fit a one-line pill on a
+    // Translated option labels (ru, de) do not fit one line on a
     // phone: the segments take the row and wrap when they must.
     .theme-switcher {
         width: 100%;
-        flex-wrap: wrap;
-        border-radius: 14px;
     }
 
     .theme-switcher__option {
@@ -630,34 +606,6 @@
     .settings-kbd {
         display: none;
     }
-}
-
-.server-state {
-    display: inline-flex;
-    align-items: center;
-    padding: 3px 10px;
-    border-radius: 999px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--app-selection-color);
-    background: var(--app-selection-surface);
-
-    &[data-state='offline'],
-    &[data-state='unauthorized'] {
-        color: var(--app-status-expiry);
-        background: var(--app-expiry-warn-surface);
-    }
-}
-
-.setting-item__meta .server-detail {
-    color: var(--app-muted-color);
-    overflow-wrap: anywhere;
-}
-
-.setting-item__meta .server-detail--path {
-    font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
-    font-weight: 500;
-    font-size: 0.78rem;
 }
 
 .settings-library-status {

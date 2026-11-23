@@ -581,7 +581,7 @@ async function withFloatingSurfaces(
             await expect(toast).toBeVisible();
             const successHairline = await resolveColor(
                 page,
-                'color-mix(in srgb, var(--app-success-color) 55%, var(--app-line-strong))'
+                'color-mix(in srgb, var(--app-status-success) 55%, var(--app-line-strong))'
             );
             await expect
                 .poll(() => frame(toast), {

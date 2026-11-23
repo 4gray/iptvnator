@@ -95,10 +95,14 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    min-height: 40px;
+    // As tall as the segmented toggles beside it.
+    min-height: 32px;
 
-    button {
+    // The kit's header actions (sort, hide list, clear all): square ghost
+    // icon buttons, as in the channel lists' headers.
+    .mat-mdc-icon-button {
         flex-shrink: 0;
+        @include controls.ghost-icon-button(32px, 18px);
     }
 }
 
