@@ -61,8 +61,7 @@ import { PlayerUpNextCardComponent } from './player-up-next-card.component';
         TranslatePipe,
         PlayerSettingsPanelComponent,
         PlayerTimelineComponent,
-        PlayerVideoFitComponent,
-        PlayerUpNextCardComponent,
+        PlayerVideoFitComponent, PlayerUpNextCardComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: {
@@ -92,11 +91,8 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly multiviewLayoutRequested = output<MultiviewLayout>();
     readonly multiviewMenuOpen = signal(false);
     readonly videoFitMenuOpen = signal(false);
-    /** Engine fit command, plus the remembered-fit key when multiview players share `fullscreenTarget`. */
-    readonly videoFit = input<{
-        command: ((mode: 'original' | 'crop' | 'stretch') => void) | null;
-        owner: HTMLElement | null;
-    } | null>(null);
+    /** Engine command and per-player fit key, independent of shared fullscreen target. */
+    readonly videoFit = input<{ command: ((mode: 'original' | 'crop' | 'stretch') => void) | null; owner: HTMLElement | null } | null>(null);
     readonly shortcutsEnabled = input(true);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
     /** Chapters / programmes drawn as track segments; null draws one. */
@@ -110,10 +106,7 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly menus = new ControlsMenuState();
     readonly feedback = new ControlsFeedback();
     readonly anyMenuOpen = computed(
-        () =>
-            this.menus.anyOpen() ||
-            this.multiviewMenuOpen() ||
-            this.videoFitMenuOpen()
+        () => this.menus.anyOpen() || this.multiviewMenuOpen() || this.videoFitMenuOpen()
     );
     private readonly shortcuts = new ControlsShortcuts();
     readonly transport = new ControlsTransport({

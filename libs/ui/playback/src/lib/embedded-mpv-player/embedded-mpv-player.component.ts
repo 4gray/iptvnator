@@ -138,7 +138,12 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         () => this.capabilities().videoFit === true
     );
     readonly videoFitCommand = computed(() => {
-        if (!this.videoFitSessionId() || !this.videoFitAvailable()) return null;
+        if (
+            !this.videoFitSessionId() ||
+            !this.videoFitAvailable() ||
+            !this.videoFitReady()
+        )
+            return null;
         return (mode: 'original' | 'crop' | 'stretch'): void => {
             void this.controller.setVideoFit(mode);
         };
@@ -153,6 +158,13 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         this.multiviewSlot() === 1
             ? this.fullscreenSurface()
             : this.playerSurface()
+    );
+    // Linux replaces its MPV process on load; wait until polling confirms IPC readiness.
+    readonly videoFitReady = computed(
+        () =>
+            this.support()?.platform !== 'linux' ||
+            this.session()?.status === 'playing' ||
+            this.session()?.status === 'paused'
     );
     readonly videoFitControls = computed(() => ({
         command: this.videoFitCommand(),

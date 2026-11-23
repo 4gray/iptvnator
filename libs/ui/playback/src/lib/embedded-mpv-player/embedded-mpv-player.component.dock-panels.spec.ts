@@ -338,6 +338,41 @@ describe('EmbeddedMpvPlayerComponent dock panels', () => {
         reopened.destroy();
     });
 
+    it('restores Linux fit only after each playback process becomes ready', () => {
+        const setVideoFit = jest
+            .spyOn(controller, 'setVideoFit')
+            .mockResolvedValue(undefined);
+        controller.support.update(
+            (support) =>
+                support && {
+                    ...support,
+                    platform: 'linux',
+                    capabilities: { ...support.capabilities, videoFit: true },
+                }
+        );
+        const snapshot = controller.session();
+        if (!snapshot) throw new Error('Expected ready session');
+        controller.session.set({ ...snapshot, status: 'loading' });
+        player.selectVideoFit('stretch');
+        fixture.detectChanges();
+        expect(setVideoFit).not.toHaveBeenCalled();
+
+        controller.session.set({ ...snapshot, status: 'playing' });
+        fixture.detectChanges();
+        expect(setVideoFit).toHaveBeenCalledTimes(1);
+        expect(setVideoFit).toHaveBeenLastCalledWith('stretch');
+        controller.session.set({ ...snapshot, positionSeconds: 31 });
+        fixture.detectChanges();
+        expect(setVideoFit).toHaveBeenCalledTimes(1);
+
+        controller.session.set({ ...snapshot, status: 'loading' });
+        fixture.detectChanges();
+        controller.session.set({ ...snapshot, status: 'playing' });
+        fixture.detectChanges();
+        expect(setVideoFit).toHaveBeenCalledTimes(2);
+        expect(setVideoFit).toHaveBeenLastCalledWith('stretch');
+    });
+
     it('expands volume inline without morphing the row', () => {
         player.menus.open('volume');
         fixture.detectChanges();
