@@ -80,13 +80,12 @@
     gap: 4px;
 }
 
-.groups-nav-action,
 .groups-nav-search {
     @include mat.form-field-density(-5);
 }
 
 .groups-nav-action {
-    @include controls.ghost-icon-button(28px, 18px);
+    @include layout.list-header-action(layout.$groups-nav-action-size);
 }
 
 .groups-nav-search {
@@ -144,8 +143,8 @@
     @include controls.ghost-icon-button(24px, 16px);
 }
 
-.groups-content-header button {
-    @include mat.form-field-density(-5);
+.groups-content-header__action {
+    @include layout.list-header-action;
 }
 
 .category-meta {

@@ -238,6 +238,7 @@ mat-card {
     }
 }
 
+// Load more and its retry after an error: the kit's secondary button.
 .grid-list__tail button {
     @include controls.secondary-button;
 }

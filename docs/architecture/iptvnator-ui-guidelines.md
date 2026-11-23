@@ -1353,8 +1353,8 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   against the templates.
 - Controls: `.settings-select` is a 220px outlined select without a floating
   label (the row title names it; pass `aria-labelledby`); boolean settings
-  are `mat-slide-toggle` switches; segmented choices use `.theme-switcher`
-  as a pill; `.settings-chip` marks rows that apply after a restart or are
+  are `mat-slide-toggle` switches; segmented choices use `.theme-switcher`,
+  the kit's segmented track built from `segmented-track` and `segment`; `.settings-chip` marks rows that apply after a restart or are
   experimental; `.settings-callout` (`--info`, `--warn`) sits under the row
   it explains inside `.setting-item__sub` and only while that choice is made.
 - Destructive actions keep the confirm dialog from the Dialogs section; the
@@ -1624,7 +1624,10 @@ current value where there is one; when the visible label is only the value,
 the accessible name adds what it picks ("Channels shown: Favorites"). An
 active picker (refinements applied) takes the selected-row tint. A panel
 header's icon actions use `ghost-icon-button`, as the category panel's
-search and sort do. In a row of filter chips (the VOD sources popover) the
+search and sort do; the channel lists' headers (All channels, the groups
+rail and its channel header) take it through `list-header-action` in
+`_channel-list-layout.scss`, at the categories header's 28px, and the
+favorites and recent page header at 32px beside its segmented toggles. In a row of filter chips (the VOD sources popover) the
 picker is a chip with the same chevron, so the row keeps one height; the
 language filter there opens a radio menu instead of a native `<select>`.
 
@@ -1637,8 +1640,9 @@ toggles, the list/grid switch, the playlist switcher's type filter);
 `segmented-track` and `segment` build it from plain buttons that are tabs
 (the season tabs). In a header row use 26px segments, so the control is
 32px tall like a small button. Unchosen labels use the body colour; the
-muted colour reads about 2.9:1 on the track. The settings theme switcher is
-still a pill switcher of its own.
+muted colour reads about 2.9:1 on the track. The settings rows' segmented
+choices (cover size, guide layout) are the same track built from plain
+buttons.
 
 Custom button-based radio choices use `appRadioGroup` and
 `[appRadioOption]="selected"` from the narrow
