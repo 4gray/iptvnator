@@ -14,6 +14,7 @@ description: Use when changing IPTVnator SCSS tokens, shared layout mixins, port
   `libs/ui/styles/_content-grid.scss`, `libs/ui/styles/_portal-sidebar.scss`,
   `libs/ui/styles/_panel-header.scss`, `libs/ui/styles/_detail-view.scss`, and
   `libs/ui/styles/_detail-view-actions.scss`
+- Scales: `libs/ui/styles/_scales.scss`
 - UI policy and migration debt: `docs/architecture/iptvnator-ui-guidelines.md`
 
 The index is a barrel; consumers `@use` partials by relative path.
@@ -32,7 +33,7 @@ The index is a barrel; consumers `@use` partials by relative path.
   do nothing and `pnpm run styles:material-tokens:validate` rejects them.
 - Destructive buttons use `.app-destructive-button` (the `warn` color input is
   a no-op with M3); provider icons come from `SOURCE_TYPE_ICONS`.
-- Local semantic status colors are acceptable. Existing hard-coded layout,
+- Status colors use `--app-status-*`. Existing hard-coded layout,
   selection, and EPG surface colors are migration debt, not precedent.
 
 ## Shared Layout Rules

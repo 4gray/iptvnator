@@ -1250,7 +1250,6 @@
         "IMPORT_SUMMARY_QUEUED": "{{count}} na fila",
         "TOTAL_CHANNELS": "Total de canais",
         "TOTAL_PROGRAMS": "Total de programas",
-        "UP_TO_DATE": "O EPG está atualizado. Não é necessário sincronizar.",
         "RETRY": "Tentar novamente",
         "ALLOW_PRIVATE_SOURCE": "Permitir fonte",
         "ALLOW_PRIVATE_SOURCE_TITLE": "Permitir fonte de EPG em rede privada?",
@@ -1696,8 +1695,8 @@
             "PLAYING_FROM": "A reproduzir a partir de:",
             "SWITCH_TITLE": "Fonte indisponível: a mudar para {{playlist}}",
             "SWITCH_DETAIL": "a retomar em {{timecode}}",
-            "SWITCH_AUDIO_WARNING": "a dobragem pode ser diferente",
             "SWITCHED_TO": "Fonte alterada para {{playlist}}",
+            "SWITCHED_TO_AUDIO_MAY_DIFFER": "Fonte alterada para {{playlist}} — a dobragem pode ser diferente",
             "UNDO": "Desfazer",
             "CHOOSE_OTHER": "Escolher outra",
             "TRY_ANOTHER_SOURCE": "Tentar outra fonte",
@@ -1762,10 +1761,9 @@
         "EPISODE_NAVIGATION": "Navegação de episódios",
         "INLINE_PLAYER": "Leitor",
         "REQUEST_ERRORS": {
-            "XTREAM": "O pedido Xtream falhou: {{message}}",
             "XTREAM_CONNECTION": "Falha ao ligar ao servidor Xtream",
-            "STALKER": "O pedido Stalker falhou: {{message}} (estado {{status}})",
-            "NOT_FOUND": "Não encontrado"
+            "XTREAM_FAILED": "O pedido ao servidor Xtream falhou.",
+            "STALKER_FAILED": "O pedido ao portal Stalker falhou."
         }
     },
     "INFORMATION": "Informação",
@@ -2475,7 +2473,7 @@
             "STREAM_NOT_FOUND": "Transmissão não encontrada. O URL pode estar incorreto ou ter expirado.",
             "TIMED_OUT": "O tempo de ligação esgotou-se. O servidor não está a responder.",
             "LAUNCH_FAILED": "Não foi possível iniciar o {{player}}.",
-            "UNKNOWN": "Erro do {{player}}: {{error}}"
+            "REPORTED": "O {{player}} comunicou um erro."
         },
         "INFO_DIALOG": {
             "PLAYING": "O vídeo está a ser reproduzido na janela do leitor externo.",

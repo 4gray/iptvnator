@@ -18,7 +18,6 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter, take } from 'rxjs';
 import { Store } from '@ngrx/store';
-import { TranslateService } from '@ngx-translate/core';
 import {
     PlaylistActions,
     selectPlaylistsLoadingFlag,
@@ -38,7 +37,6 @@ export class SettingsBackupFacade {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
     private readonly store = inject(Store);
-    private readonly translate = inject(TranslateService);
     private readonly injector = inject(Injector);
     private readonly destroyRef = inject(DestroyRef);
 
@@ -108,14 +106,9 @@ export class SettingsBackupFacade {
                 );
             }
 
-            this.settingsSnackbar.open(
-                this.translate.instant('SETTINGS.BACKUP_EXPORTED')
-            );
+            this.settingsSnackbar.success('SETTINGS.BACKUP_EXPORTED');
         } catch {
-            this.settingsSnackbar.error(
-                this.translate.instant('SETTINGS.BACKUP_EXPORT_FAILED'),
-                this.translate.instant('CLOSE')
-            );
+            this.settingsSnackbar.error('SETTINGS.BACKUP_EXPORT_FAILED');
         } finally {
             this.isExportingData.set(false);
         }

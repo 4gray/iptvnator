@@ -79,10 +79,10 @@
     background: var(--app-muted-color);
 
     &[data-state='ok'] {
-        background: var(--app-success-color);
+        background: var(--app-status-success);
     }
 
     &[data-state='bad'] {
-        background: var(--app-live-color);
+        background: var(--app-status-live);
     }
 }

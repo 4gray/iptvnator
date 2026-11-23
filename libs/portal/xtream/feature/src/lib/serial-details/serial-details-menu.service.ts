@@ -1,7 +1,6 @@
 import { computed, inject, Injectable, Signal, signal } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Router } from '@angular/router';
-import { TranslateService } from '@ngx-translate/core';
 import {
     createLogger,
     formatSeriesEpisodeCode,
@@ -72,8 +71,7 @@ export class SerialDetailsMenuService {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly router = inject(Router);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
     private readonly logger = createLogger('SerialDetailsMenu');
     private readonly bindings = signal<SerialDetailsMenuBindings | null>(null);
 
@@ -285,7 +283,7 @@ export class SerialDetailsMenuService {
             // lands after the viewer moved on (or came back) is not the
             // current visit's problem.
             if (bindings.pageToken() === token) {
-                this.notify('PORTALS.PLAYBACK_ERROR');
+                this.notifications.error('PORTALS.PLAYBACK_ERROR');
             }
         }
     }
@@ -297,10 +295,10 @@ export class SerialDetailsMenuService {
         }
         try {
             await copyTextToClipboard(playback.streamUrl);
-            this.notify('PORTALS.STREAM_URL_COPIED');
+            this.notifications.success('PORTALS.STREAM_URL_COPIED');
         } catch (error) {
             this.logger.warn('Copying the stream URL failed', error);
-            this.notify('DOWNLOADS.URL_COPY_FAILED');
+            this.notifications.error('DOWNLOADS.URL_COPY_FAILED');
         }
     }
 
@@ -351,15 +349,11 @@ export class SerialDetailsMenuService {
             // The refreshed list drops the row, and brings it back once the
             // series is played again.
             this.xtreamStore.loadRecentItems({ id: playlistId });
-            this.notify('PORTALS.DETAIL.HIDDEN_FROM_CONTINUE_WATCHING');
+            this.notifications.success(
+                'PORTALS.DETAIL.HIDDEN_FROM_CONTINUE_WATCHING'
+            );
         } catch (error) {
             this.logger.warn('Hiding the series from history failed', error);
         }
-    }
-
-    private notify(key: string): void {
-        this.snackBar.open(this.translate.instant(key), undefined, {
-            duration: 3000,
-        });
     }
 }

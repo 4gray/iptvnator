@@ -563,10 +563,23 @@ jobs:
             - name: Validate form-field defaults
               run: pnpm run ui:form-field-defaults:validate
 
+            # Toasts open only through NotificationService: one position,
+            # look and politeness, translated text only
+            # (tools/nx/check-notifications.mjs).
+            - name: Validate notifications
+              run: pnpm run ui:notifications:validate
+
             # m3-theme.scss themes only the Material components the app
             # imports; a new import without a theme entry renders unthemed.
             - name: Validate the Material theme scope
               run: pnpm run styles:material-theme-scope:validate
+
+            # Literal font sizes, radii, z-index values and box-shadows may
+            # only fall: new ones use the libs/ui/styles/_scales.scss tokens
+            # (tools/nx/check-style-scales.mjs, baseline in
+            # tools/nx/style-scales-baseline.json).
+            - name: Validate the style scales ratchet
+              run: pnpm run styles:scales:validate
 
             # Nx rejects a non-parallel task with continuous dependencies, and
             # the Playwright plugin infers serve dependencies only when CI is

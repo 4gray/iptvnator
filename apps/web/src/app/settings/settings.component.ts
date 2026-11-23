@@ -467,9 +467,7 @@ export class SettingsComponent
                 return false;
             }
             if (error instanceof EpgSourceReconciliationError) {
-                this.settingsSnackbar.open(
-                    this.translate.instant('SETTINGS.EPG_DATA_CLEAR_FAILED')
-                );
+                this.settingsSnackbar.error('SETTINGS.EPG_DATA_CLEAR_FAILED');
                 return false;
             }
             // A failed storage write still patches the in-memory store. Keep
@@ -496,9 +494,7 @@ export class SettingsComponent
     applyChangedSettings(): void {
         this.form.applySavedSettings();
         this.epg.fetchConfiguredEpg();
-        this.settingsSnackbar.open(
-            this.translate.instant('SETTINGS.SETTINGS_SAVED')
-        );
+        this.settingsSnackbar.success('SETTINGS.SETTINGS_SAVED');
     }
 
     async exportData(): Promise<void> {

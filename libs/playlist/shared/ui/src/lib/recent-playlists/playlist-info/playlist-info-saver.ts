@@ -7,10 +7,9 @@ import {
 } from '@angular/core';
 import { UntypedFormGroup } from '@angular/forms';
 import { MatDialogRef } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
     createXtreamConnectionTestState,
@@ -67,8 +66,7 @@ export class PlaylistInfoSaver {
     private readonly databaseService = inject(DatabaseService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly store = inject(Store);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
     private readonly injector = inject(Injector);
     private readonly destroyRef = inject(DestroyRef);
     private readonly stalkerConnectionEditor = inject(
@@ -162,11 +160,7 @@ export class PlaylistInfoSaver {
                         result.status !==
                         STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.RESOLVED
                     ) {
-                        this.snackBar.open(
-                            result.message,
-                            this.translate.instant('CLOSE'),
-                            { duration: 8000 }
-                        );
+                        this.notifications.error(result.messageKey);
                         return;
                     }
                     normalizedPlaylist = result.playlist;
@@ -278,15 +272,15 @@ export class PlaylistInfoSaver {
                 return;
             }
 
-            this.snackBar.open(
-                this.translate.instant(
-                    sourceNotLoaded
-                        ? 'HOME.PLAYLISTS.SOURCE_SAVED_NOT_LOADED'
-                        : 'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
-                ),
-                this.translate.instant('CLOSE'),
-                { duration: sourceNotLoaded ? 6000 : 3000 }
-            );
+            if (sourceNotLoaded) {
+                this.notifications.info(
+                    'HOME.PLAYLISTS.SOURCE_SAVED_NOT_LOADED'
+                );
+            } else {
+                this.notifications.success(
+                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
+                );
+            }
             this.dialogRef?.close();
             const target =
                 isXtream && this.runtime.supportsXtreamSqliteDataSource
@@ -313,14 +307,8 @@ export class PlaylistInfoSaver {
                 error instanceof Error
                     ? error.message.match(/SOURCE_SYNC\.[A-Z_]+/)?.[0]
                     : undefined;
-            this.snackBar.open(
-                this.translate.instant(
-                    sourceError ?? 'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED'
-                ),
-                this.translate.instant('CLOSE'),
-                {
-                    duration: 3000,
-                }
+            this.notifications.error(
+                sourceError ?? 'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED'
             );
         } finally {
             if (this.dialogRef) {

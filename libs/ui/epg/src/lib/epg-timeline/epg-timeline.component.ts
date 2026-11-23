@@ -161,12 +161,8 @@ export class EpgTimelineComponent {
         nowMs: () => this.nowMs(),
         viewDayKey: () => this.viewDayKey(),
         commitDay: (dayKey) => this.commitDay(dayKey),
-        hasProgramsForDay: (dayKey) =>
-            hasProgramsForDateKey(
-                this.programs(),
-                dayKey,
-                this.offsetMinutes()
-            ),
+        hasProgramsForDay: (key) =>
+            hasProgramsForDateKey(this.programs(), key, this.offsetMinutes()),
     });
 
     private readonly languageTick = injectTranslationTick();
@@ -320,7 +316,11 @@ export class EpgTimelineComponent {
         effect(() => {
             const scroller = this.ribbon()?.nativeElement;
             const programs = this.programs();
-            untracked(() => this.scroll.maybeAutoFocus(scroller, programs));
+            untracked(() => {
+                // Refresh even if the ribbon is not mounted yet.
+                if (programs.length) this.nowMs.set(Date.now());
+                this.scroll.maybeAutoFocus(scroller, programs);
+            });
         });
     }
 
@@ -434,6 +434,7 @@ export class EpgTimelineComponent {
     }
 
     jumpToNow(): void {
+        this.nowMs.set(Date.now());
         this.commitDay(getTodayEpgDateKey());
         // Deliberate user action → animate so the movement reads.
         this.scroll.focusCurrentProgram(true);

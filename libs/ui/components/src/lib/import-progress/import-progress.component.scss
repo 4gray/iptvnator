@@ -20,7 +20,7 @@
         ),
         rgba(8, 10, 16, 0.68);
     backdrop-filter: blur(14px);
-    z-index: 1000;
+    z-index: var(--app-z-overlay);
 }
 
 .workspace-loading-overlay__card {

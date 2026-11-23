@@ -497,7 +497,7 @@
 /* ── hover/focus popover (C) ── */
 .epg-timeline__pop {
     position: fixed;
-    z-index: 1200;
+    z-index: var(--app-z-popover);
     width: 248px;
     background: $surface-1;
     border: 1px solid $line-strong;

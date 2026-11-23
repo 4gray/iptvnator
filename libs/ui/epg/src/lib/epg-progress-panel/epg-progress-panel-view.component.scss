@@ -5,7 +5,7 @@
     // Status colours: the app's accent, success and danger text; the queue
     // keeps a violet no token covers yet.
     --epg-accent: var(--app-selection-color);
-    --epg-success: var(--app-success-color);
+    --epg-success: var(--app-status-success);
     --epg-error: var(--app-danger-text);
     --epg-queued: #a78bfa;
 }
@@ -17,7 +17,7 @@
     left: 76px;
     width: 300px;
     max-width: calc(100vw - 96px);
-    z-index: 900;
+    z-index: var(--app-z-floating);
     animation: slideInFromLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 

@@ -104,7 +104,7 @@
         // not from paint order), below the CDK overlay container (1000):
         // dialogs opened from inside the drawer, e.g. Manage categories,
         // must stack on top of it.
-        z-index: 951;
+        z-index: calc(var(--app-z-drawer) + 1);
         transform: translateX(-100%);
         visibility: hidden;
         transition:

@@ -1250,7 +1250,6 @@
         "IMPORT_SUMMARY_QUEUED": "{{count}} 件待機中",
         "TOTAL_CHANNELS": "総チャンネル数",
         "TOTAL_PROGRAMS": "総番組数",
-        "UP_TO_DATE": "EPGは最新です。同期は不要です",
         "RETRY": "再試行",
         "ALLOW_PRIVATE_SOURCE": "ソースを許可",
         "ALLOW_PRIVATE_SOURCE_TITLE": "プライベートネットワークの EPG ソースを許可しますか？",
@@ -1696,8 +1695,8 @@
             "PLAYING_FROM": "再生元：",
             "SWITCH_TITLE": "ソースを利用できません — {{playlist}} に切り替えます",
             "SWITCH_DETAIL": "{{timecode}} から再開します",
-            "SWITCH_AUDIO_WARNING": "吹き替えが異なる場合があります",
             "SWITCHED_TO": "{{playlist}} に切り替えました",
+            "SWITCHED_TO_AUDIO_MAY_DIFFER": "{{playlist}} に切り替えました — 吹き替えが異なる場合があります",
             "UNDO": "元に戻す",
             "CHOOSE_OTHER": "別のソースを選択",
             "TRY_ANOTHER_SOURCE": "別のソースを試す",
@@ -1762,10 +1761,9 @@
         "EPISODE_NAVIGATION": "エピソードナビゲーション",
         "INLINE_PLAYER": "プレーヤー",
         "REQUEST_ERRORS": {
-            "XTREAM": "Xtream リクエストに失敗しました：{{message}}",
             "XTREAM_CONNECTION": "Xtream サーバーに接続できませんでした",
-            "STALKER": "Stalker リクエストに失敗しました：{{message}}（ステータス {{status}}）",
-            "NOT_FOUND": "見つかりません"
+            "XTREAM_FAILED": "Xtream サーバーへのリクエストに失敗しました。",
+            "STALKER_FAILED": "Stalker ポータルへのリクエストに失敗しました。"
         }
     },
     "INFORMATION": "情報",
@@ -2475,7 +2473,7 @@
             "STREAM_NOT_FOUND": "ストリームが見つかりません。URL が正しくないか、期限切れの可能性があります。",
             "TIMED_OUT": "接続がタイムアウトしました。サーバーが応答していません。",
             "LAUNCH_FAILED": "{{player}} を起動できませんでした。",
-            "UNKNOWN": "{{player}} のエラー：{{error}}"
+            "REPORTED": "{{player}} がエラーを報告しました。"
         },
         "INFO_DIALOG": {
             "PLAYING": "動画は外部プレーヤーのウィンドウで再生中です。",

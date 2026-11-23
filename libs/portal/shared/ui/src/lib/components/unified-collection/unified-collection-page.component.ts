@@ -22,7 +22,7 @@ import { MatIconButton } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBar } from '@angular/material/progress-bar';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -113,8 +113,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     private readonly destroyRef = inject(DestroyRef);
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly data = inject(UnifiedCollectionDataService);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly liveSidebarStateService = inject(
@@ -381,9 +380,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
                 error.message === XTREAM_FAVORITE_IDENTITY_CONFLICT
                     ? 'PORTALS.FAVORITE_IDENTITY_CONFLICT'
                     : 'PORTALS.FAVORITE_SAVE_FAILED';
-            this.snackBar.open(this.translate.instant(key), undefined, {
-                duration: 6000,
-            });
+            this.notifications.error(key);
         }
     }
 

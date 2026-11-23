@@ -6,9 +6,8 @@ import {
     signal,
 } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Store } from '@ngrx/store';
-import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
@@ -56,8 +55,7 @@ export class StalkerCategoryLockDialogComponent {
     readonly parentalLock = inject(ParentalLockService);
     private readonly playlists = inject(PlaylistsService);
     private readonly store = inject(Store);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
 
     private readonly hiddenIds = new Set(this.data.hiddenIds);
     private readonly lockedIds = new Set(
@@ -156,10 +154,6 @@ export class StalkerCategoryLockDialogComponent {
     }
 
     private showError(key: string): void {
-        this.snackBar.open(
-            this.translate.instant(key),
-            this.translate.instant('CLOSE'),
-            { duration: 3000 }
-        );
+        this.notifications.error(key);
     }
 }

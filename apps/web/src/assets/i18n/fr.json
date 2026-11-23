@@ -1250,7 +1250,6 @@
         "IMPORT_SUMMARY_QUEUED": "{{count}} en attente",
         "TOTAL_CHANNELS": "Total des chaînes",
         "TOTAL_PROGRAMS": "Total des programmes",
-        "UP_TO_DATE": "L'EPG est à jour, aucune synchronisation nécessaire",
         "RETRY": "Réessayer",
         "ALLOW_PRIVATE_SOURCE": "Autoriser la source",
         "ALLOW_PRIVATE_SOURCE_TITLE": "Autoriser une source EPG de réseau privé ?",
@@ -1696,8 +1695,8 @@
             "PLAYING_FROM": "Lecture depuis :",
             "SWITCH_TITLE": "Source indisponible — bascule vers {{playlist}}",
             "SWITCH_DETAIL": "reprise à {{timecode}}",
-            "SWITCH_AUDIO_WARNING": "le doublage peut être différent",
             "SWITCHED_TO": "Basculé vers {{playlist}}",
+            "SWITCHED_TO_AUDIO_MAY_DIFFER": "Basculé vers {{playlist}} — le doublage peut être différent",
             "UNDO": "Annuler",
             "CHOOSE_OTHER": "Choisir une autre source",
             "TRY_ANOTHER_SOURCE": "Essayer une autre source",
@@ -1762,10 +1761,9 @@
         "EPISODE_NAVIGATION": "Navigation entre les épisodes",
         "INLINE_PLAYER": "Lecteur",
         "REQUEST_ERRORS": {
-            "XTREAM": "Échec de la requête Xtream : {{message}}",
             "XTREAM_CONNECTION": "Échec de la connexion au serveur Xtream",
-            "STALKER": "Échec de la requête Stalker : {{message}} (statut {{status}})",
-            "NOT_FOUND": "Introuvable"
+            "XTREAM_FAILED": "La requête au serveur Xtream a échoué.",
+            "STALKER_FAILED": "La requête au portail Stalker a échoué."
         }
     },
     "INFORMATION": "Information",
@@ -2475,7 +2473,7 @@
             "STREAM_NOT_FOUND": "Flux introuvable. L'URL est peut-être incorrecte ou expirée.",
             "TIMED_OUT": "Délai de connexion dépassé. Le serveur ne répond pas.",
             "LAUNCH_FAILED": "Impossible de démarrer {{player}}.",
-            "UNKNOWN": "Erreur {{player}} : {{error}}"
+            "REPORTED": "{{player}} a signalé une erreur."
         },
         "INFO_DIALOG": {
             "PLAYING": "La vidéo est lue dans la fenêtre du lecteur externe.",

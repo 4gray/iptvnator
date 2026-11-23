@@ -1250,7 +1250,6 @@
         "IMPORT_SUMMARY_QUEUED": "в черзі: {{count}}",
         "TOTAL_CHANNELS": "Загалом каналів",
         "TOTAL_PROGRAMS": "Загалом програм",
-        "UP_TO_DATE": "Телегід оновлено, синхронізація не потрібна",
         "RETRY": "Повторити",
         "ALLOW_PRIVATE_SOURCE": "Дозволити джерело",
         "ALLOW_PRIVATE_SOURCE_TITLE": "Дозволити джерело телегіда з приватної мережі?",
@@ -1696,8 +1695,8 @@
             "PLAYING_FROM": "Відтворюється з:",
             "SWITCH_TITLE": "Джерело недоступне — переключаємося на {{playlist}}",
             "SWITCH_DETAIL": "продовжуємо з {{timecode}}",
-            "SWITCH_AUDIO_WARNING": "озвучення може відрізнятися",
             "SWITCHED_TO": "Переключено на {{playlist}}",
+            "SWITCHED_TO_AUDIO_MAY_DIFFER": "Переключено на {{playlist}} — озвучення може відрізнятися",
             "UNDO": "Скасувати",
             "CHOOSE_OTHER": "Обрати інше",
             "TRY_ANOTHER_SOURCE": "Спробувати інше джерело",
@@ -1762,10 +1761,9 @@
         "EPISODE_NAVIGATION": "Навігація по серіях",
         "INLINE_PLAYER": "Плеєр",
         "REQUEST_ERRORS": {
-            "XTREAM": "Помилка запиту Xtream: {{message}}",
             "XTREAM_CONNECTION": "Не вдалося встановити з'єднання з сервером Xtream",
-            "STALKER": "Помилка запиту Stalker: {{message}} (статус {{status}})",
-            "NOT_FOUND": "Не знайдено"
+            "XTREAM_FAILED": "Запит до сервера Xtream не вдався.",
+            "STALKER_FAILED": "Запит до порталу Stalker не вдався."
         }
     },
     "INFORMATION": "Інформація",
@@ -2475,7 +2473,7 @@
             "STREAM_NOT_FOUND": "Потік не знайдено. Можливо, URL-адреса вказана неправильно або термін її дії минув.",
             "TIMED_OUT": "Час очікування з'єднання вичерпано. Сервер не відповідає.",
             "LAUNCH_FAILED": "Не вдалося запустити {{player}}.",
-            "UNKNOWN": "Помилка {{player}}: {{error}}"
+            "REPORTED": "{{player}} повідомив про помилку."
         },
         "INFO_DIALOG": {
             "PLAYING": "Відео відтворюється у вікні зовнішнього плеєра.",

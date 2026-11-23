@@ -1,13 +1,26 @@
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { DownloadsService } from '@iptvnator/services';
 import { TranslateService } from '@ngx-translate/core';
 import { EpgArchiveDownloadService } from './epg-archive-download.service';
 
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
+const INFO_TOAST = expect.objectContaining({
+    politeness: 'polite',
+    panelClass: expect.arrayContaining(['app-notification--info']),
+});
+const SUCCESS_TOAST = expect.objectContaining({
+    politeness: 'polite',
+    panelClass: expect.arrayContaining(['app-notification--success']),
+});
+
 describe('archive download feedback', () => {
     const startDownload = jest.fn();
     const isAvailable = jest.fn();
-    const open = jest.fn();
+    const open = jest.fn().mockResolvedValue(null);
     const input = {
         playlistId: 'p',
         xtreamId: 1,
@@ -22,14 +35,14 @@ describe('archive download feedback', () => {
     beforeEach(() => {
         startDownload.mockReset().mockResolvedValue({ success: true });
         isAvailable.mockReset().mockReturnValue(true);
-        open.mockReset();
+        open.mockReset().mockResolvedValue(null);
         TestBed.configureTestingModule({
             providers: [
                 {
                     provide: DownloadsService,
                     useValue: { startDownload, isAvailable },
                 },
-                { provide: MatSnackBar, useValue: { open } },
+                { provide: LazySnackBar, useValue: { open } },
                 {
                     provide: TranslateService,
                     useValue: { instant: (key: string) => key },
@@ -48,7 +61,7 @@ describe('archive download feedback', () => {
         expect(open).toHaveBeenCalledWith(
             'EPG.PROGRAM_DIALOG.ARCHIVE_DOWNLOAD_QUEUED',
             undefined,
-            { duration: 5000 }
+            SUCCESS_TOAST
         );
     });
     it('does not offer browser downloads or enqueue HLS', async () => {
@@ -57,7 +70,7 @@ describe('archive download feedback', () => {
         expect(open).toHaveBeenCalledWith(
             'EPG.PROGRAM_DIALOG.ARCHIVE_DOWNLOAD_TS_ONLY',
             undefined,
-            { duration: 5000 }
+            INFO_TOAST
         );
         isAvailable.mockReturnValue(false);
         const resolve = jest.fn();
@@ -99,8 +112,8 @@ describe('archive download feedback', () => {
         await first;
         expect(open).toHaveBeenCalledWith(
             'EPG.PROGRAM_DIALOG.ARCHIVE_DOWNLOAD_FAILED',
-            undefined,
-            { duration: 5000 }
+            'CLOSE',
+            ERROR_TOAST
         );
     });
 });

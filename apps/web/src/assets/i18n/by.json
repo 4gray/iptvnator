@@ -1250,7 +1250,6 @@
         "IMPORT_SUMMARY_QUEUED": "у чарзе: {{count}}",
         "TOTAL_CHANNELS": "Усяго каналаў",
         "TOTAL_PROGRAMS": "Усяго перадач",
-        "UP_TO_DATE": "EPG актуальны, сінхранізацыя не патрэбна",
         "RETRY": "Паўтарыць",
         "ALLOW_PRIVATE_SOURCE": "Дазволіць крыніцу",
         "ALLOW_PRIVATE_SOURCE_TITLE": "Дазволіць крыніцу EPG з прыватнай сеткі?",
@@ -1696,8 +1695,8 @@
             "PLAYING_FROM": "Прайграецца з:",
             "SWITCH_TITLE": "Крыніца недаступная — пераключаемся на {{playlist}}",
             "SWITCH_DETAIL": "працягваем з {{timecode}}",
-            "SWITCH_AUDIO_WARNING": "агучка можа адрознівацца",
             "SWITCHED_TO": "Пераключана на {{playlist}}",
+            "SWITCHED_TO_AUDIO_MAY_DIFFER": "Пераключана на {{playlist}} — агучка можа адрознівацца",
             "UNDO": "Вярнуць",
             "CHOOSE_OTHER": "Выбраць іншую",
             "TRY_ANOTHER_SOURCE": "Паспрабаваць іншую крыніцу",
@@ -1762,10 +1761,9 @@
         "EPISODE_NAVIGATION": "Навігацыя па эпізодах",
         "INLINE_PLAYER": "Плэер",
         "REQUEST_ERRORS": {
-            "XTREAM": "Памылка запыту Xtream: {{message}}",
             "XTREAM_CONNECTION": "Не ўдалося падключыцца да сервера Xtream",
-            "STALKER": "Памылка запыту Stalker: {{message}} (статус {{status}})",
-            "NOT_FOUND": "Не знойдзена"
+            "XTREAM_FAILED": "Запыт да сервера Xtream не ўдаўся.",
+            "STALKER_FAILED": "Запыт да партала Stalker не ўдаўся."
         }
     },
     "INFORMATION": "Інфармацыя",
@@ -2475,7 +2473,7 @@
             "STREAM_NOT_FOUND": "Паток не знойдзены. Магчыма, URL няправільны або больш не дзейнічае.",
             "TIMED_OUT": "Час чакання злучэння скончыўся. Сервер не адказвае.",
             "LAUNCH_FAILED": "Не ўдалося запусціць {{player}}.",
-            "UNKNOWN": "Памылка {{player}}: {{error}}"
+            "REPORTED": "{{player}} паведаміў пра памылку."
         },
         "INFO_DIALOG": {
             "PLAYING": "Відэа прайграецца ў акне знешняга плэера.",

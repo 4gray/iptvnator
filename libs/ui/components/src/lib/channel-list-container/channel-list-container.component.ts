@@ -17,7 +17,7 @@ import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { EpgService } from '@iptvnator/epg/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
@@ -116,8 +116,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     private readonly epgService = inject(EpgService);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly parentalLock = inject(ParentalLockService);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
     private readonly store = inject(Store);
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);
@@ -645,11 +644,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
             groupTitles
         );
         if (!saved) {
-            this.snackBar.open(
-                this.translate.instant('PARENTAL_LOCK.SAVE_FAILED'),
-                this.translate.instant('CLOSE'),
-                { duration: 5000 }
-            );
+            this.notifications.error('PARENTAL_LOCK.SAVE_FAILED');
         }
     }
 

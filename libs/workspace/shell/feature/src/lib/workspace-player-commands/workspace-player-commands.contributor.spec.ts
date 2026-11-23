@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { Observable, of } from 'rxjs';
 import {
@@ -76,7 +76,7 @@ describe('WorkspacePlayerCommandsContributor', () => {
             player: signal<VideoPlayer>(VideoPlayer.VideoJs),
             updateSettings: jest.fn().mockResolvedValue(undefined),
         };
-        snackBar = { open: jest.fn() };
+        snackBar = { open: jest.fn().mockResolvedValue(null) };
         runtime = {
             supportsManagedExternalPlayers:
                 options.supportsManagedExternalPlayers,
@@ -110,7 +110,7 @@ describe('WorkspacePlayerCommandsContributor', () => {
                 },
                 { provide: SettingsStore, useValue: settingsStore },
                 { provide: RuntimeCapabilitiesService, useValue: runtime },
-                { provide: MatSnackBar, useValue: snackBar },
+                { provide: LazySnackBar, useValue: snackBar },
                 { provide: TranslateService, useValue: translate },
             ],
         });

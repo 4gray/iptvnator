@@ -28,8 +28,8 @@
     }
 }
 .sync-status--success {
-    color: var(--app-success-color);
-    background: color-mix(in srgb, var(--app-success-color) 9%, transparent);
+    color: var(--app-status-success);
+    background: color-mix(in srgb, var(--app-status-success) 9%, transparent);
 }
 .sync-status--error {
     color: var(--app-danger-text);

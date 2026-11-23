@@ -143,7 +143,7 @@ in `apps/web/src/m3-theme.scss`):
 - `--app-widget-border` / `--app-rail-border` — hairlines
 - `--app-on-surface` — primary text
 - `--app-eyebrow-color` — secondary/muted text
-- `--app-success-color` — done/watched status (episode watched toggle)
+- `--app-status-*` — status hues (see Scales)
 - `--app-list-selected-bg` / `--app-list-selected-fg` /
   `--app-list-selected-outline` — the chosen row of a side list and the
   active source's row on Sources and in the switcher (see Selection Pattern)
@@ -207,16 +207,17 @@ in the overlay chunk. Everything else is lazy by these rules:
   and the workspace shell actions do; `openConfirmDialog` returns a promise
   that settles once the dialog is open. A component in a lazy chunk injects
   `MatDialog` directly.
-- **Toasts from services created with the app.** A root service or the app
-  shell opens its snack-bars through `LazySnackBar`
-  (`@iptvnator/services/lazy-snack-bar`), whose `open` takes
-  `MatSnackBar.open`'s arguments and returns a promise of the ref, or of
-  `null` after a failed chunk load, which it logs without the message (a
-  toast can carry a playlist URL). `snack-bar.mjs` statically imports
-  Material's button, the icon button chunk, ripple and the CDK a11y module,
-  so one eager `MatSnackBar` injection put about 110 KB on the initial
-  path. A component in a lazy chunk injects `MatSnackBar` directly; the
-  initial-bytes ratchet fails on a new eager importer.
+- **Toasts.** Every toast goes through `NotificationService`
+  (`@iptvnator/services/notifications`), which any root service or lazy
+  component may inject. It resolves the snack-bar through `LazySnackBar`
+  (`@iptvnator/services/lazy-snack-bar`) on the first toast:
+  `snack-bar.mjs` statically imports Material's button, the icon button
+  chunk, ripple and the CDK a11y module, so one eager `MatSnackBar`
+  injection put about 110 KB on the initial path. A failed chunk load is
+  logged without the message. `pnpm run ui:notifications:validate` (CI)
+  reports a `MatSnackBar` or `LazySnackBar` import, or a snack-bar `open`,
+  outside the service; the initial-bytes ratchet fails on a new eager
+  importer.
 - **Panels the shell mounts on every launch.** The EPG progress panel and the
   update notification are an eager host with `@defer (when visible)` around
   the view that imports Material; the startup status draws its spinner as
@@ -1090,7 +1091,7 @@ colour per context, and never a literal of its own:
   gets `PLAYER_PROGRESS_COLOR` (`player-palette.ts`), which a spec pins to the
   Sass value.
 - Live programme progress next to a LIVE marker (the dashboard's live rail and
-  live hero slides) keeps `--app-live-color`; EPG programme progress keeps the
+  live hero slides) keeps `--app-status-live`; EPG programme progress keeps the
   fill described below.
 
 Specs hold the rule in each owning project: `m3-theme.spec.ts` (web: the token
@@ -1572,18 +1573,31 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   action (`accent-button(sm)`), a secondary beside it (`secondary-button(sm)`
   on a `mat-flat-button`), never an outlined button. The update card's
   release notes and download/install buttons are the reference.
-- **Toasts.** Every `mat-snack-bar` takes the same look from one global rule
-  in `styles.scss`: the widget surface with the hairline and shadow on a
-  10px panel, 13px text in the heading colour, the action as accent text
-  without a ripple. Toasts sit at Material's default bottom centre; a caller
-  may add a panel class for spacing (`settings-snackbar` clears the save
-  bar) or the error tint (`settings-snackbar--error`), never a position of
-  its own. A failure the import panel already reports (a source's error row
+- **Toasts.** `NotificationService` has three variants, each a
+  translation key with optional values: `success` (2.5 s), `info` (5 s)
+  and `error` (5 s with Close; with an action such as Retry or Trust host it
+  stays until dismissed, and a lazily loaded component toast puts a Close
+  button beside the action, since a text snack-bar has room for one). A caller may pick another preset (`short`,
+  `default`, `sticky`) but never a position: every toast sits at the bottom
+  centre, and Settings lifts it above the save bar (`aboveSaveBar`). Errors
+  are assertive (`role="alert"`), the rest polite (`role="status"`).
+  Material skips the enter and exit animations under reduced motion
+  (`material-motion.e2e.ts`). The look comes from one global rule in
+  `styles.scss`: the widget surface with the hairline and shadow on a 10px
+  panel, 13px text in the heading colour, the action as accent text without
+  a ripple; `app-notification--success` tints the hairline with
+  `--app-success-color`, `app-notification--error` takes a danger-tinted
+  surface and hairline with the action in `--app-danger-text`. An error
+  never shows a provider's or an exception's text: the key names the
+  failure, values carry only names, counts and dates, and the `code` option
+  appends a bounded machine code such as `(ETIMEDOUT)`. A toast whose body
+  is a component (the source removal's Undo) opens through
+  `fromComponent`. No toast reports a non-event (the EPG being up to
+  date). A failure the import panel already reports (a source's error row
   with Retry) gets no toast; `EpgService` toasts only when the bridge call
   itself fails, a programme lookup errors, or the runtime imports without
   reporting progress (`supportsProgress` false: no row can carry the
-  failure), always with the translated generic message, never the
-  backend's text.
+  failure), always with the translated generic message.
 
 ## Forms
 
@@ -1928,6 +1942,50 @@ then apply the shared 14px/500 normal and 600 selected roles. Category
 consumers must not reset these with a later `font: inherit` shorthand. Different
 content rows retain their own typography and density.
 
+## Scales
+
+`libs/ui/styles/_scales.scss` owns the web app's type, spacing, radius,
+elevation and z-index scales. `custom-properties` emits them once on `html`
+from `apps/web/src/styles.scss`; components read the custom properties and
+never redeclare them. The TV app has its own scale (`apps/tv/src/tokens.css`)
+and shares nothing with this one.
+
+| Scale | Tokens | Values |
+| --- | --- | --- |
+| Type (rem) | `--app-text-2xs` … `--app-text-2xl` | 11, 12, 13, 14, 15, 18, 22px; 11px is the floor |
+| Display | `--app-text-display-sm/md/lg` | 28, 36, 48px |
+| Spacing | `--app-space-0-5` … `--app-space-12` | 4px base (`1` = 4px) plus 2, 6, 10px |
+| Radius | `--app-radius-2xs` … `--app-radius-4xl`, `--app-radius-full` | 2, 4, 6, 8, 10, 12, 14, 16, 20, 999px |
+| Elevation | `--app-elev-1` … `--app-elev-5` | media marks, card hover, menus, select/floating panels, sheets |
+| Z layers | `--app-z-floating/drawer/overlay/popover/drop-target/window-controls` | 900, 950, 1000, 1200, 9999, 10000 |
+
+- Type roles are mixins (`caption`, `label`, `body`, `title`,
+  `section-title`, `heading`, `display`, `mono`); they set size and weight,
+  and line height only when asked, so adopting one does not move a row.
+- `--app-z-overlay` equals the CDK overlay container (1000): an in-page
+  overlay ties with dialogs and menus and loses on DOM order. Only the hover
+  popover, the window drop target and the frameless window controls sit
+  above the CDK. Stacking inside a component keeps small local values.
+- Rings and inset hairlines are borders, not elevation. The theme-tuned
+  `--app-widget-shadow` and `--app-popover-shadow` stay with the palettes.
+- Material shapes read the scale: dialogs `--app-radius-3xl`, menus, selects,
+  form fields and toasts `--app-radius-lg`, menu items and options
+  `--app-radius-sm`; the select and kit menu panels use `--app-elev-4`.
+- Status hues: `--app-status-success`, `-warning`, `-danger`, `-info`,
+  `-live` and `-expiry`, text-grade (4.5:1) on the mode's surfaces and on a
+  10–16% tint of themselves. `status-light` and `status-dark` declare them;
+  the palettes include the pair for their mode, so every preset (High
+  Contrast included) inherits them, and an always-dark surface over video
+  (the playback diagnostic panel) declares the `status-dark` values itself.
+  `--app-danger-text` reads `--app-status-danger`. A status tint is
+  `color-mix(in srgb, var(--app-status-…) <n>%, transparent)`.
+- Existing literals map to the nearest step only within 0.5px; icon glyph
+  sizes and in-between values (12.5px, 13.5px, 1rem) stay until the full
+  migration (UI-32). `pnpm run styles:scales:validate` counts the distinct
+  literal font sizes, radii, z-index values and box-shadows outside the token
+  files and fails if any count grows; `tools/nx/style-scales-baseline.json`
+  only moves down (`pnpm run styles:scales:update` after removing literals).
+
 ## Theme Guidance
 
 The built-in catalog and theme-value normalization live in
@@ -2102,8 +2160,11 @@ in `@iptvnator/playlist/shared/util` (`source-display`, `source-format`,
 - **Delete with Undo.** A single delete has no confirmation: the row leaves
   every list at once (`SourceRemovalService.pendingIds`) and the delete runs
   when the four-second Undo window ends. The window is the service's own
-  timer, not the toast's: another message replacing the toast (a refresh
-  finishing elsewhere) does not shorten it. The toast's close button commits
+  timer, not the toast's: it starts once the Undo toast is on screen, and
+  another message replacing the toast (a refresh finishing elsewhere) does
+  not shorten it. If the toast cannot open (its chunk failed to load), the
+  source stays, and a second delete commits the first only once its Undo
+  was on screen (otherwise the first is cancelled). The toast's close button commits
   at once, and quitting within the four seconds keeps the source. Deleting the active source
   switches to the next row; Undo switches back only if no other source was
   chosen since. A desktop Xtream delete brings its row back as "Removing…"

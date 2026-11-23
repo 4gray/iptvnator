@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
@@ -72,7 +72,7 @@ export class ElectronService extends DataService {
     private eventListeners: { [key: string]: () => void } = {};
     private messageListeners = new Map<string, EventListener>();
     private readonly sourceActivity = inject(SourceActivityService);
-    private readonly snackBar = inject(LazySnackBar);
+    private readonly notifications = inject(NotificationService);
     private readonly dialogService = inject(DialogService);
     private readonly store = inject(Store);
     private readonly settingsStore = inject(SettingsStore);
@@ -99,18 +99,12 @@ export class ElectronService extends DataService {
         if (window.electron?.onPlayerError) {
             window.electron.onPlayerError((data: ElectronBridgePlayerError) => {
                 this.logger.error(`${data.player} Error:`, data.error);
-                void this.snackBar.open(
-                    this.translateService.instant(
-                        data.code
-                            ? EXTERNAL_PLAYER_ERROR_KEYS[data.code]
-                            : EXTERNAL_PLAYER_UNKNOWN_ERROR_KEY,
-                        { player: data.player, error: data.error }
-                    ),
-                    this.translateService.instant('CLOSE'),
-                    {
-                        duration: 7000,
-                        panelClass: ['error-snackbar'],
-                    }
+                // The player's own output stays in the log, never on screen.
+                this.notifications.error(
+                    data.code
+                        ? EXTERNAL_PLAYER_ERROR_KEYS[data.code]
+                        : EXTERNAL_PLAYER_UNKNOWN_ERROR_KEY,
+                    { player: data.player }
                 );
             });
         }
@@ -118,15 +112,11 @@ export class ElectronService extends DataService {
 
     private showPlayerLaunchError(player: 'MPV' | 'VLC', error: unknown): void {
         const code = readExternalPlayerErrorCode(error);
-        void this.snackBar.open(
-            this.translateService.instant(
-                code
-                    ? EXTERNAL_PLAYER_ERROR_KEYS[code]
-                    : EXTERNAL_PLAYER_LAUNCH_FAILED_KEY,
-                { player }
-            ),
-            this.translateService.instant('CLOSE'),
-            { duration: 5000 }
+        this.notifications.error(
+            code
+                ? EXTERNAL_PLAYER_ERROR_KEYS[code]
+                : EXTERNAL_PLAYER_LAUNCH_FAILED_KEY,
+            { player }
         );
     }
 
@@ -297,15 +287,11 @@ export class ElectronService extends DataService {
         }
 
         const feedback = buildAutoUpdatePlaylistsFeedback(result);
-        void this.snackBar.open(
-            this.translateService.instant(feedback.messageKey, feedback.params),
-            feedback.isError
-                ? this.translateService.instant('CLOSE')
-                : undefined,
-            feedback.isError
-                ? { duration: 6000, panelClass: ['error-snackbar'] }
-                : { duration: 2000 }
-        );
+        if (feedback.isError) {
+            this.notifications.error(feedback.messageKey, feedback.params);
+        } else {
+            this.notifications.success(feedback.messageKey, feedback.params);
+        }
     }
 
     private async fetchStalkerData(payload: {
@@ -351,28 +337,11 @@ export class ElectronService extends DataService {
                 );
                 throw err;
             }
-            const errorInfo = this.getErrorDetails(err);
             this.logger.error('Stalker request error:', err);
             if (!payload.silent) {
-                void this.snackBar.open(
-                    this.translateService.instant(
-                        'PORTALS.REQUEST_ERRORS.STALKER',
-                        {
-                            message:
-                                errorInfo?.message ??
-                                this.translateService.instant(
-                                    'PORTALS.REQUEST_ERRORS.NOT_FOUND'
-                                ),
-                            status:
-                                errorInfo?.status ??
-                                this.extractHttpStatusCode(err) ??
-                                '—',
-                        }
-                    ),
-                    this.translateService.instant('CLOSE'),
-                    {
-                        duration: 5000,
-                    }
+                // The portal's own text stays in the log above.
+                this.notifications.error(
+                    'PORTALS.REQUEST_ERRORS.STALKER_FAILED'
                 );
             }
             throw err;
@@ -421,11 +390,7 @@ export class ElectronService extends DataService {
                 } else if (statusCode === 401) {
                     messageKey = 'HOME.URL_UPLOAD.ERROR_401';
                 }
-                void this.snackBar.open(
-                    this.translateService.instant(messageKey),
-                    this.translateService.instant('CLOSE'),
-                    { duration: 5000 }
-                );
+                this.notifications.error(messageKey);
             });
     }
 
@@ -491,12 +456,8 @@ export class ElectronService extends DataService {
                 })
             );
 
-            void this.snackBar.open(
-                this.translateService.instant(
-                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
-                ),
-                undefined,
-                { duration: 2000 }
+            this.notifications.success(
+                'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
             );
         } catch (error: unknown) {
             this.logger.error('Playlist refresh error:', error);
@@ -508,15 +469,13 @@ export class ElectronService extends DataService {
             ) {
                 return;
             }
-            void this.snackBar.open(
-                this.getPlaylistRefreshErrorMessage(error, data),
-                this.translateService.instant('CLOSE'),
-                { duration: 5000 }
+            this.notifications.error(
+                this.getPlaylistRefreshErrorKey(error, data)
             );
         }
     }
 
-    private getPlaylistRefreshErrorMessage(
+    private getPlaylistRefreshErrorKey(
         error: unknown,
         data: { url?: string; filePath?: string }
     ): string {
@@ -530,35 +489,27 @@ export class ElectronService extends DataService {
                     errorMessage
                 )
             ) {
-                return this.translateService.instant(
-                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_NOT_FOUND'
-                );
+                return 'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_NOT_FOUND';
             }
 
             if (/(EACCES|EPERM|permission denied)/i.test(errorMessage)) {
-                return this.translateService.instant(
-                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_ACCESS_ERROR'
-                );
+                return 'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_ACCESS_ERROR';
             }
 
-            return this.translateService.instant(
-                'HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR'
-            );
+            return 'HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR';
         }
 
         const statusCode = this.extractHttpStatusCode(error);
         if (statusCode === 404) {
-            return this.translateService.instant('HOME.URL_UPLOAD.ERROR_404');
+            return 'HOME.URL_UPLOAD.ERROR_404';
         }
         if (statusCode === 403) {
-            return this.translateService.instant('HOME.URL_UPLOAD.ERROR_403');
+            return 'HOME.URL_UPLOAD.ERROR_403';
         }
         if (statusCode === 401) {
-            return this.translateService.instant('HOME.URL_UPLOAD.ERROR_401');
+            return 'HOME.URL_UPLOAD.ERROR_401';
         }
-        return this.translateService.instant(
-            'HOME.URL_UPLOAD.ERROR_FETCH_FAILED'
-        );
+        return 'HOME.URL_UPLOAD.ERROR_FETCH_FAILED';
     }
 
     private handlePlaylistSecurityError(
@@ -573,19 +524,20 @@ export class ElectronService extends DataService {
             return false;
         }
 
-        void this.snackBar
-            .open(
-                this.translateService.instant(
-                    'HOME.URL_UPLOAD.ERROR_INVALID_TLS'
-                ),
-                this.translateService.instant('HOME.URL_UPLOAD.TRUST_TLS_HOST'),
-                { duration: 10000 }
-            )
-            .then((ref) =>
-                ref?.onAction().subscribe(() => {
-                    this.confirmTrustPlaylistHost(securityError.host, retry);
-                })
-            );
+        this.notifications.error(
+            'HOME.URL_UPLOAD.ERROR_INVALID_TLS',
+            undefined,
+            {
+                action: {
+                    labelKey: 'HOME.URL_UPLOAD.TRUST_TLS_HOST',
+                    run: () =>
+                        this.confirmTrustPlaylistHost(
+                            securityError.host,
+                            retry
+                        ),
+                },
+            }
+        );
         return true;
     }
 
@@ -594,13 +546,7 @@ export class ElectronService extends DataService {
         retry: () => void
     ): void {
         if (!host) {
-            void this.snackBar.open(
-                this.translateService.instant(
-                    'HOME.URL_UPLOAD.ERROR_TLS_HOST_UNKNOWN'
-                ),
-                this.translateService.instant('CLOSE'),
-                { duration: 5000 }
-            );
+            this.notifications.error('HOME.URL_UPLOAD.ERROR_TLS_HOST_UNKNOWN');
             return;
         }
 
@@ -721,15 +667,8 @@ export class ElectronService extends DataService {
 
             // Only show snackbar for user-triggered Xtream requests
             if (!isSilentAction) {
-                void this.snackBar.open(
-                    this.translateService.instant(
-                        'PORTALS.REQUEST_ERRORS.XTREAM',
-                        { message: normalizedMessage }
-                    ),
-                    this.translateService.instant('CLOSE'),
-                    {
-                        duration: 5000,
-                    }
+                this.notifications.error(
+                    'PORTALS.REQUEST_ERRORS.XTREAM_FAILED'
                 );
             }
 

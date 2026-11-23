@@ -1250,7 +1250,6 @@
         "IMPORT_SUMMARY_QUEUED": "{{count}}개 대기 중",
         "TOTAL_CHANNELS": "전체 채널",
         "TOTAL_PROGRAMS": "전체 프로그램",
-        "UP_TO_DATE": "EPG가 최신 상태이며 동기화가 필요하지 않습니다",
         "RETRY": "다시 시도",
         "ALLOW_PRIVATE_SOURCE": "소스 허용",
         "ALLOW_PRIVATE_SOURCE_TITLE": "사설 네트워크 EPG 소스를 허용할까요?",
@@ -1696,8 +1695,8 @@
             "PLAYING_FROM": "재생 중인 소스:",
             "SWITCH_TITLE": "소스를 사용할 수 없습니다 — {{playlist}}(으)로 전환합니다",
             "SWITCH_DETAIL": "{{timecode}}부터 이어서 재생합니다",
-            "SWITCH_AUDIO_WARNING": "더빙이 다를 수 있습니다",
             "SWITCHED_TO": "{{playlist}}(으)로 전환했습니다",
+            "SWITCHED_TO_AUDIO_MAY_DIFFER": "{{playlist}}(으)로 전환했습니다 — 더빙이 다를 수 있습니다",
             "UNDO": "실행 취소",
             "CHOOSE_OTHER": "다른 소스 선택",
             "TRY_ANOTHER_SOURCE": "다른 소스로 시도",
@@ -1762,10 +1761,9 @@
         "EPISODE_NAVIGATION": "에피소드 탐색",
         "INLINE_PLAYER": "플레이어",
         "REQUEST_ERRORS": {
-            "XTREAM": "Xtream 요청에 실패했습니다: {{message}}",
             "XTREAM_CONNECTION": "Xtream 서버에 연결하지 못했습니다",
-            "STALKER": "Stalker 요청에 실패했습니다: {{message}} (상태 {{status}})",
-            "NOT_FOUND": "찾을 수 없음"
+            "XTREAM_FAILED": "Xtream 서버 요청에 실패했습니다.",
+            "STALKER_FAILED": "Stalker 포털 요청에 실패했습니다."
         }
     },
     "INFORMATION": "정보",
@@ -2475,7 +2473,7 @@
             "STREAM_NOT_FOUND": "스트림을 찾을 수 없습니다. URL이 잘못되었거나 만료되었을 수 있습니다.",
             "TIMED_OUT": "연결 시간이 초과되었습니다. 서버가 응답하지 않습니다.",
             "LAUNCH_FAILED": "{{player}}을(를) 시작할 수 없습니다.",
-            "UNKNOWN": "{{player}} 오류: {{error}}"
+            "REPORTED": "{{player}}에서 오류가 발생했습니다."
         },
         "INFO_DIALOG": {
             "PLAYING": "외부 플레이어 창에서 비디오를 재생하고 있습니다.",

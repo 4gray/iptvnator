@@ -1250,7 +1250,6 @@
         "IMPORT_SUMMARY_QUEUED": "{{count}} in Warteschlange",
         "TOTAL_CHANNELS": "Sender insgesamt",
         "TOTAL_PROGRAMS": "Programme insgesamt",
-        "UP_TO_DATE": "EPG ist aktuell, keine Synchronisation nötig",
         "RETRY": "Erneut versuchen",
         "ALLOW_PRIVATE_SOURCE": "Quelle erlauben",
         "ALLOW_PRIVATE_SOURCE_TITLE": "Private Netzwerk-EPG-Quelle erlauben?",
@@ -1696,8 +1695,8 @@
             "PLAYING_FROM": "Wiedergabe von:",
             "SWITCH_TITLE": "Quelle nicht verfügbar — Wechsel zu {{playlist}}",
             "SWITCH_DETAIL": "wird bei {{timecode}} fortgesetzt",
-            "SWITCH_AUDIO_WARNING": "die Synchronfassung kann abweichen",
             "SWITCHED_TO": "Zu {{playlist}} gewechselt",
+            "SWITCHED_TO_AUDIO_MAY_DIFFER": "Zu {{playlist}} gewechselt — die Synchronfassung kann abweichen",
             "UNDO": "Rückgängig",
             "CHOOSE_OTHER": "Andere wählen",
             "TRY_ANOTHER_SOURCE": "Andere Quelle versuchen",
@@ -1762,10 +1761,9 @@
         "EPISODE_NAVIGATION": "Episodennavigation",
         "INLINE_PLAYER": "Videoplayer",
         "REQUEST_ERRORS": {
-            "XTREAM": "Xtream-Anfrage fehlgeschlagen: {{message}}",
             "XTREAM_CONNECTION": "Verbindung zum Xtream-Server fehlgeschlagen",
-            "STALKER": "Stalker-Anfrage fehlgeschlagen: {{message}} (Status {{status}})",
-            "NOT_FOUND": "Nicht gefunden"
+            "XTREAM_FAILED": "Die Anfrage an den Xtream-Server ist fehlgeschlagen.",
+            "STALKER_FAILED": "Die Anfrage an das Stalker-Portal ist fehlgeschlagen."
         }
     },
     "INFORMATION": "Information",
@@ -2475,7 +2473,7 @@
             "STREAM_NOT_FOUND": "Stream nicht gefunden. Die URL ist möglicherweise falsch oder abgelaufen.",
             "TIMED_OUT": "Zeitüberschreitung der Verbindung. Der Server antwortet nicht.",
             "LAUNCH_FAILED": "{{player}} konnte nicht gestartet werden.",
-            "UNKNOWN": "{{player}}-Fehler: {{error}}"
+            "REPORTED": "{{player}} hat einen Fehler gemeldet."
         },
         "INFO_DIALOG": {
             "PLAYING": "Das Video wird im Fenster des externen Players wiedergegeben.",

@@ -1250,7 +1250,6 @@
         "IMPORT_SUMMARY_QUEUED": "{{count}} in coda",
         "TOTAL_CHANNELS": "Totale canali",
         "TOTAL_PROGRAMS": "Totale programmi",
-        "UP_TO_DATE": "L'EPG è aggiornato, nessuna sincronizzazione necessaria",
         "RETRY": "Riprova",
         "ALLOW_PRIVATE_SOURCE": "Consenti sorgente",
         "ALLOW_PRIVATE_SOURCE_TITLE": "Consentire una sorgente EPG di rete privata?",
@@ -1696,8 +1695,8 @@
             "PLAYING_FROM": "In riproduzione da:",
             "SWITCH_TITLE": "Sorgente non disponibile — passaggio a {{playlist}}",
             "SWITCH_DETAIL": "ripresa da {{timecode}}",
-            "SWITCH_AUDIO_WARNING": "il doppiaggio potrebbe essere diverso",
             "SWITCHED_TO": "Passato a {{playlist}}",
+            "SWITCHED_TO_AUDIO_MAY_DIFFER": "Passato a {{playlist}} — il doppiaggio potrebbe essere diverso",
             "UNDO": "Annulla",
             "CHOOSE_OTHER": "Scegli un'altra sorgente",
             "TRY_ANOTHER_SOURCE": "Prova un'altra sorgente",
@@ -1762,10 +1761,9 @@
         "EPISODE_NAVIGATION": "Navigazione episodi",
         "INLINE_PLAYER": "Lettore",
         "REQUEST_ERRORS": {
-            "XTREAM": "Richiesta Xtream non riuscita: {{message}}",
             "XTREAM_CONNECTION": "Impossibile connettersi al server Xtream",
-            "STALKER": "Richiesta Stalker non riuscita: {{message}} (stato {{status}})",
-            "NOT_FOUND": "Non trovato"
+            "XTREAM_FAILED": "La richiesta al server Xtream non è riuscita.",
+            "STALKER_FAILED": "La richiesta al portale Stalker non è riuscita."
         }
     },
     "INFORMATION": "Informazioni",
@@ -2475,7 +2473,7 @@
             "STREAM_NOT_FOUND": "Stream non trovato. L'URL potrebbe essere errato o scaduto.",
             "TIMED_OUT": "Tempo di connessione scaduto. Il server non risponde.",
             "LAUNCH_FAILED": "Impossibile avviare {{player}}.",
-            "UNKNOWN": "Errore di {{player}}: {{error}}"
+            "REPORTED": "{{player}} ha segnalato un errore."
         },
         "INFO_DIALOG": {
             "PLAYING": "Il video è in riproduzione nella finestra del lettore esterno.",

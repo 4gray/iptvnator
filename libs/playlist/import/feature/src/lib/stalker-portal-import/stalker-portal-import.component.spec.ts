@@ -1,6 +1,6 @@
 import { webcrypto } from 'node:crypto';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
@@ -10,6 +10,15 @@ import {
 } from '@iptvnator/portal/stalker/data-access';
 import { Playlist } from '@iptvnator/shared/interfaces';
 import { StalkerPortalImportComponent } from './stalker-portal-import.component';
+
+const INFO_TOAST = expect.objectContaining({
+    politeness: 'polite',
+    panelClass: expect.arrayContaining(['app-notification--info']),
+});
+const SUCCESS_TOAST = expect.objectContaining({
+    politeness: 'polite',
+    panelClass: expect.arrayContaining(['app-notification--success']),
+});
 
 describe('StalkerPortalImportComponent identity handling', () => {
     let component: StalkerPortalImportComponent;
@@ -47,7 +56,7 @@ describe('StalkerPortalImportComponent identity handling', () => {
         store = {
             dispatch: jest.fn(),
         };
-        snackBar = { open: jest.fn() };
+        snackBar = { open: jest.fn().mockResolvedValue(null) };
 
         TestBed.configureTestingModule({
             providers: [
@@ -57,7 +66,7 @@ describe('StalkerPortalImportComponent identity handling', () => {
                 },
                 { provide: Store, useValue: store },
                 {
-                    provide: MatSnackBar,
+                    provide: LazySnackBar,
                     useValue: snackBar,
                 },
                 {
@@ -466,7 +475,7 @@ describe('StalkerPortalImportComponent identity handling', () => {
         expect(snackBar.open).toHaveBeenCalledWith(
             'HOME.STALKER_PORTAL.ADDED_WITHOUT_VALIDATION',
             undefined,
-            expect.any(Object)
+            INFO_TOAST
         );
         expect(component.feedback()).toBeNull();
         expect(store.dispatch).toHaveBeenCalledTimes(1);
@@ -497,7 +506,7 @@ describe('StalkerPortalImportComponent identity handling', () => {
         expect(snackBar.open).toHaveBeenCalledWith(
             'HOME.STALKER_PORTAL.VALIDATED_EXPIRES',
             undefined,
-            expect.any(Object)
+            SUCCESS_TOAST
         );
     });
 
@@ -1198,7 +1207,10 @@ describe('StalkerPortalImportComponent form', () => {
                     useValue: portalDiscovery,
                 },
                 { provide: Store, useValue: { dispatch: jest.fn() } },
-                { provide: MatSnackBar, useValue: { open: jest.fn() } },
+                {
+                    provide: LazySnackBar,
+                    useValue: { open: jest.fn().mockResolvedValue(null) },
+                },
             ],
         });
         const translate = TestBed.inject(TranslateService);

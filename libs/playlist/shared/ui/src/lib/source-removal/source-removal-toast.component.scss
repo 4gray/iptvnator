@@ -1,5 +1,5 @@
-// The frame (`panelClass: 'app-toast'`) is the global kit toast in
-// `styles.scss`; only the content's own styles live here.
+// The frame is the global kit toast (`app-notification` in `styles.scss`,
+// opened through NotificationService); only the content's own styles live here.
 .source-removal-toast__undo {
     font-weight: 600;
 }

@@ -1250,7 +1250,6 @@
         "IMPORT_SUMMARY_QUEUED": "{{count}} in de wachtrij",
         "TOTAL_CHANNELS": "Totaal aantal kanalen",
         "TOTAL_PROGRAMS": "Totaal aantal programma's",
-        "UP_TO_DATE": "EPG is up-to-date, synchronisatie niet nodig",
         "RETRY": "Opnieuw proberen",
         "ALLOW_PRIVATE_SOURCE": "Bron toestaan",
         "ALLOW_PRIVATE_SOURCE_TITLE": "EPG-bron op privénetwerk toestaan?",
@@ -1696,8 +1695,8 @@
             "PLAYING_FROM": "Speelt af vanaf:",
             "SWITCH_TITLE": "Bron niet beschikbaar — overschakelen naar {{playlist}}",
             "SWITCH_DETAIL": "wordt hervat op {{timecode}}",
-            "SWITCH_AUDIO_WARNING": "de nasynchronisatie kan afwijken",
             "SWITCHED_TO": "Overgeschakeld naar {{playlist}}",
+            "SWITCHED_TO_AUDIO_MAY_DIFFER": "Overgeschakeld naar {{playlist}} — de nasynchronisatie kan afwijken",
             "UNDO": "Ongedaan maken",
             "CHOOSE_OTHER": "Andere bron kiezen",
             "TRY_ANOTHER_SOURCE": "Andere bron proberen",
@@ -1762,10 +1761,9 @@
         "EPISODE_NAVIGATION": "Afleveringsnavigatie",
         "INLINE_PLAYER": "Speler",
         "REQUEST_ERRORS": {
-            "XTREAM": "Xtream-verzoek mislukt: {{message}}",
             "XTREAM_CONNECTION": "Kan geen verbinding maken met de Xtream-server",
-            "STALKER": "Stalker-verzoek mislukt: {{message}} (status {{status}})",
-            "NOT_FOUND": "Niet gevonden"
+            "XTREAM_FAILED": "Het verzoek aan de Xtream-server is mislukt.",
+            "STALKER_FAILED": "Het verzoek aan het Stalker-portaal is mislukt."
         }
     },
     "INFORMATION": "Informatie",
@@ -2475,7 +2473,7 @@
             "STREAM_NOT_FOUND": "Stream niet gevonden. De URL is mogelijk onjuist of verlopen.",
             "TIMED_OUT": "Time-out van de verbinding. De server reageert niet.",
             "LAUNCH_FAILED": "Kan {{player}} niet starten.",
-            "UNKNOWN": "{{player}}-fout: {{error}}"
+            "REPORTED": "{{player}} heeft een fout gemeld."
         },
         "INFO_DIALOG": {
             "PLAYING": "De video wordt afgespeeld in het venster van de externe speler.",

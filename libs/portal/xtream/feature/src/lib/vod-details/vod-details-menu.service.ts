@@ -1,7 +1,6 @@
 import { computed, inject, Injectable, Signal, signal } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Router } from '@angular/router';
-import { TranslateService } from '@ngx-translate/core';
 import {
     createLogger,
     PORTAL_PLAYBACK_POSITIONS,
@@ -55,8 +54,7 @@ export class VodDetailsMenuService {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly router = inject(Router);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
     private readonly logger = createLogger('VodDetailsMenu');
     private readonly bindings = signal<VodDetailsMenuBindings | null>(null);
 
@@ -174,10 +172,10 @@ export class VodDetailsMenuService {
             await copyTextToClipboard(
                 this.xtreamStore.constructVodStreamUrl(item)
             );
-            this.notify('PORTALS.STREAM_URL_COPIED');
+            this.notifications.success('PORTALS.STREAM_URL_COPIED');
         } catch (error) {
             this.logger.warn('Copying the stream URL failed', error);
-            this.notify('DOWNLOADS.URL_COPY_FAILED');
+            this.notifications.error('DOWNLOADS.URL_COPY_FAILED');
         }
     }
 
@@ -238,7 +236,7 @@ export class VodDetailsMenuService {
         if (this.xtreamStore.currentPlaylist()?.id === playlistId) {
             this.refreshPositions(playlistId);
         }
-        this.notify('PORTALS.DETAIL.PROGRESS_RESET');
+        this.notifications.success('PORTALS.DETAIL.PROGRESS_RESET');
     }
 
     private refreshPositions(playlistId: string): void {
@@ -259,11 +257,5 @@ export class VodDetailsMenuService {
             'vod',
             String(categoryId),
         ]);
-    }
-
-    private notify(key: string): void {
-        this.snackBar.open(this.translate.instant(key), undefined, {
-            duration: 3000,
-        });
     }
 }

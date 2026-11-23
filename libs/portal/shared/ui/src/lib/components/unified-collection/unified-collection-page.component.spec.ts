@@ -6,9 +6,9 @@ import {
     signal,
     ViewChild,
 } from '@angular/core';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatButtonToggleGroup } from '@angular/material/button-toggle';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -43,6 +43,7 @@ import { UnifiedCollectionDetailDirective } from './unified-collection-detail.di
 import { UnifiedGridTabComponent } from './unified-grid-tab.component';
 import { UnifiedLiveTabComponent } from './unified-live-tab.component';
 
+const ERR = expect.objectContaining({ politeness: 'assertive' });
 @Component({
     selector: 'app-unified-live-tab',
     template: '',
@@ -161,7 +162,7 @@ describe('UnifiedCollectionPageComponent', () => {
     const dialogService = {
         openConfirmDialog: jest.fn(),
     };
-    const snackBar = { open: jest.fn() };
+    const snackBar = { open: jest.fn().mockResolvedValue(null) };
     const workspaceViewCommands = {
         registerCommand: jest.fn(),
     };
@@ -262,7 +263,7 @@ describe('UnifiedCollectionPageComponent', () => {
                 TranslateModule.forRoot(),
             ],
             providers: [
-                { provide: MatSnackBar, useValue: snackBar },
+                { provide: LazySnackBar, useValue: snackBar },
                 {
                     provide: ActivatedRoute,
                     useValue: route,
@@ -358,9 +359,7 @@ describe('UnifiedCollectionPageComponent', () => {
             await expect(
                 fixture.componentInstance.onFavoriteToggled(item)
             ).resolves.toBeUndefined();
-            expect(snackBar.open).toHaveBeenCalledWith(message, undefined, {
-                duration: 6000,
-            });
+            expect(snackBar.open).toHaveBeenCalledWith(message, 'CLOSE', ERR);
             const data = fixture.debugElement.injector.get(
                 UnifiedCollectionDataService
             );
