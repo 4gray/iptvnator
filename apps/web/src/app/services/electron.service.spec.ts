@@ -16,6 +16,7 @@ import {
     ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
     ERROR,
     PLAYLIST_PARSE_BY_URL,
+    PLAYLIST_UPDATE,
     STALKER_REQUEST,
     XTREAM_REQUEST,
     Playlist,
@@ -40,6 +41,7 @@ describe('ElectronService', () => {
         stalkerRequest: jest.Mock;
         autoUpdatePlaylists: jest.Mock;
         fetchPlaylistByUrl: jest.Mock;
+        updatePlaylistFromFilePath: jest.Mock;
         onPlayerError: jest.Mock;
         openInMpv: jest.Mock;
         openInVlc: jest.Mock;
@@ -59,6 +61,7 @@ describe('ElectronService', () => {
             stalkerRequest: jest.fn(),
             autoUpdatePlaylists: jest.fn(),
             fetchPlaylistByUrl: jest.fn(),
+            updatePlaylistFromFilePath: jest.fn(),
             onPlayerError: jest.fn(),
             openInMpv: jest.fn().mockResolvedValue(session),
             openInVlc: jest.fn().mockResolvedValue(session),
@@ -884,6 +887,106 @@ describe('ElectronService', () => {
                 'HOME.PLAYLISTS.AUTO_REFRESH_UPDATE_SKIPPED',
                 undefined,
                 SUCCESS_TOAST
+            );
+        });
+    });
+
+    describe('playlist refresh feedback', () => {
+        const fileSource = {
+            id: 'p1',
+            title: 'Synthetic list',
+            filePath: '/tmp/synthetic.m3u',
+        };
+        const urlSource = {
+            id: 'p1',
+            title: 'Synthetic list',
+            url: 'https://playlist.example.test/list.m3u',
+        };
+        const notify = (variant: 'error' | 'success') =>
+            jest
+                .spyOn(TestBed.inject(NotificationService), variant)
+                .mockImplementation(() => undefined);
+
+        it('confirms a refreshed playlist with a success toast', async () => {
+            const success = notify('success');
+            electronBridge.updatePlaylistFromFilePath.mockResolvedValue({
+                playlist: [],
+            });
+
+            await service.sendIpcEvent(PLAYLIST_UPDATE, fileSource);
+
+            expect(success).toHaveBeenCalledWith(
+                'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
+            );
+        });
+
+        it.each([
+            ['ENOENT: no such file', 'PLAYLIST_UPDATE_FILE_NOT_FOUND'],
+            ['EACCES: permission denied', 'PLAYLIST_UPDATE_FILE_ACCESS_ERROR'],
+            ['disk exploded', 'PLAYLIST_UPDATE_ERROR'],
+        ])(
+            'names a file refresh failure (%s) by key only',
+            async (message, key) => {
+                const error = notify('error');
+                electronBridge.updatePlaylistFromFilePath.mockRejectedValue(
+                    new Error(message)
+                );
+
+                await service.sendIpcEvent(PLAYLIST_UPDATE, fileSource);
+
+                expect(error).toHaveBeenCalledWith(`HOME.PLAYLISTS.${key}`);
+            }
+        );
+
+        it.each([
+            ['Request failed with status code 404', 'ERROR_404'],
+            ['Request failed with status code 403', 'ERROR_403'],
+            ['Request failed with status code 401', 'ERROR_401'],
+            ['socket hang up', 'ERROR_FETCH_FAILED'],
+        ])(
+            'names a URL refresh failure (%s) by key only',
+            async (message, key) => {
+                const error = notify('error');
+                electronBridge.fetchPlaylistByUrl.mockRejectedValue(
+                    new Error(message)
+                );
+
+                await service.sendIpcEvent(PLAYLIST_UPDATE, urlSource);
+
+                expect(error).toHaveBeenCalledWith(`HOME.URL_UPLOAD.${key}`);
+            }
+        );
+
+        it('names a failed URL import by its HTTP status', async () => {
+            const error = notify('error');
+            electronBridge.fetchPlaylistByUrl.mockRejectedValue(
+                new Error('Request failed with status code 404')
+            );
+
+            await service.sendIpcEvent(PLAYLIST_PARSE_BY_URL, {
+                url: urlSource.url,
+            });
+            await new Promise((resolve) => setTimeout(resolve));
+
+            expect(error).toHaveBeenCalledWith('HOME.URL_UPLOAD.ERROR_404');
+        });
+
+        it('says the host is unknown when a TLS error names none', async () => {
+            const error = notify('error');
+            electronBridge.fetchPlaylistByUrl.mockRejectedValue(
+                new Error(
+                    `${SECURITY_ERROR_PREFIX}${JSON.stringify({
+                        code: ELECTRON_BRIDGE_SECURITY_ERROR_CODES.InvalidTlsCertificate,
+                        message: 'Certificate is invalid.',
+                    })}`
+                )
+            );
+
+            await service.sendIpcEvent(PLAYLIST_UPDATE, urlSource);
+            error.mock.calls[0][2]?.action?.run();
+
+            expect(error).toHaveBeenLastCalledWith(
+                'HOME.URL_UPLOAD.ERROR_TLS_HOST_UNKNOWN'
             );
         });
     });
