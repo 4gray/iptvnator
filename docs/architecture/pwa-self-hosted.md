@@ -1802,3 +1802,15 @@ Every activity, favorites and history read or write checks that a `profile:`
 scope names an existing profile, answering `409 profile_missing` otherwise. The
 source item lists and `GET /v1/history/sources/:id` take `?scope=`; without it
 they return the Default profile, as earlier clients expect.
+
+Two older shared stores do not know about profiles yet:
+
+- `/v1/user-state`: Xtream favorites, recently viewed, collection snapshots and
+  playback positions, one value per namespace and playlist.
+- The whole playlist documents (`/v1/playlists`), which carry the M3U and Stalker
+  `favorites` and `recentlyViewed` arrays.
+
+Both stay household-wide whichever profile is active. Current clients use the three
+sync domains above for this state, so the server leaves these stores as they are;
+what clients do with these fields once profiles are on is an open item for phase 2,
+so that no part of the app quietly stays shared.
