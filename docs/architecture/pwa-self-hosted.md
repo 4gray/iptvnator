@@ -1833,3 +1833,71 @@ Both stay household-wide whichever profile is active. Current clients use the th
 sync domains above for this state, so the server leaves these stores as they are;
 what clients do with these fields once profiles are on is an open item for phase 2,
 so that no part of the app quietly stays shared.
+
+### Client contract (phase 2, PR A)
+
+Phase 2 adds the Angular client (web, PWA, Electron, Android `tv-shell/`; the React
+`apps/tv` client is out of scope). The first slice, PR A, is Settings > Profiles
+and the "Who's watching?" picker. It does not yet scope any per-profile state, so
+the whole UI is hidden (see "Hidden switch" below).
+
+**Transport.** `SourceServerRequest` is a closed union, so a caller cannot supply
+a path or header. The operations are `profiles-list` (its `revision` becomes
+`If-None-Match`, and a `304` means unchanged), `profiles-set-enabled`,
+`profiles-order`, `profile-create`, `profile-update`, `profile-delete` and
+`profile-unlock`. The browser routes them in `source-api.ts`; Electron validates
+every one in the main process (`source-sync-profile-route.ts`) before it reaches
+the network. `ProfilesClient` (`@iptvnator/services/profiles`) makes exactly one
+request per call, checks the response body and returns `{ ok, value }` or
+`{ ok: false, error }`, with the server's error codes as a small union plus
+`unavailable`, `offline` and `invalid_response`. Import profile types from
+`@iptvnator/shared/interfaces/profiles`, not the main barrel, to keep
+`initialBytes` down.
+
+**Errors that do not revoke the connection.** `403 pin_required` and
+`403 wrong_pin` are answers about a PIN, not about the access token, so they
+never mark the verified connection as lost. Every other `403` still does. A
+failed request carries no body or message to callers, only the code. `429
+pin_locked` and `pin_rate_limited` carry `retryAfter` in seconds (from the
+`Retry-After` header, `null` when it is missing or invalid), and the UI counts
+down from it. A `204` (delete) has no body and is a success, not a broken
+response. `5xx` and network errors map to `offline`.
+
+**Per-device preferences.** Two `localStorage` keys per server instance, never
+synced and removed with the site data:
+`iptvnator-server:<instanceId>:profiles-start-v1` (`'ask'` or `'last'`, default
+`'ask'`) and `iptvnator-server:<instanceId>:active-profile-v1` (a profile id).
+A stored id that is not in the current list, or any id while profiles are off,
+resolves to Default.
+
+**Start-up guard.** `profilePickerGuard` runs on `workspace` after
+`serverAccessGuard`. The source connection is restored in `main.ts` before
+Angular bootstraps, so it is known when the guard runs. The guard routes to
+`/profile-picker?returnUrl=...` only when `needsPicker` is true: the UI switch is
+on, a server is connected, the server has `profiles-v1`, profiles are enabled,
+there is more than one profile, and the device is on `'ask'` (or on `'last'` with
+no valid last profile, or a last profile that has a PIN). It asks once per session.
+It never blocks: an error, an offline server or no answer within 1.5 seconds
+(`PROFILES_GUARD_TIMEOUT_MS`) lets the user in as Default. The runtime loads lazily
+and only when the switch is on, so the static code on the start-up path stays
+small.
+
+**Hidden switch.** `PROFILES_UI_ENABLED` (`profiles-ui-enabled.ts`) is `false`.
+While it is, there is no Profiles section, no search entry, no command palette
+entry, no picker route and no `/v1/profiles` request at start-up. Tests flip
+`PROFILES_UI_ENABLED_TOKEN`, never the constant. PR B (per-profile client state)
+removes the constant and the token. `web-e2e/src/profiles-hidden.e2e.ts` pins the
+hidden state against a server that has profiles turned on, and
+`electron-backend-e2e/src/profiles-ipc.e2e.ts` drives every operation through the
+desktop IPC route.
+
+**Kids rules.** Leaving a kids profile (choosing another one in the picker) asks
+for the parental PIN. In Settings, clearing the kids flag and deleting a kids
+profile ask for it too, before the request is sent. Forcing the parental lock on
+while a kids profile is active belongs to PR B, because it is per-profile state.
+
+**The PIN is a light lock.** A profile PIN is checked by the server before it is
+changed or removed and before the profile is deleted, and the picker asks for it
+before it opens a profile that has one. It keeps a person from opening another
+person's profile by accident. It is not security: anyone with the access token can
+read every scope. The copy in Settings says so.
