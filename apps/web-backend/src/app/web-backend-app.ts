@@ -245,7 +245,8 @@ export function createWebBackendApp(
             res,
             options.hostedMode === 'cloudflare' &&
                 req.method === 'GET' &&
-                req.query.keepAlive === '1'
+                req.query.keepAlive === '1',
+            { escapeHtml: false }
         );
         const upstream = new AbortController();
         const abortUpstream = () => upstream.abort();

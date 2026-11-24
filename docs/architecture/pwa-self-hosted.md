@@ -145,7 +145,10 @@ requests. The playlist timeout allows the backend to download and parse the file
 before sending response headers. Cloudflare OAuth calls keep a separate
 deadline. In Cloudflare mode, the worker sends JSON whitespace every ten seconds
 while it prepares an Xtream catalog or an opted-in M3U response. The provider
-socket retains its own inactivity timeout.
+socket retains its own inactivity timeout. Android skips the leading newlines
+on replies marked with `X-IPTVnator-JSON-Heartbeat` before applying its 64 MiB
+response limit. The playlist JSON uses the same encoding with or without a
+heartbeat.
 
 Android callback, token renewal and playback still require a live Access
 application for end-to-end validation.

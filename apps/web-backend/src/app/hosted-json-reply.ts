@@ -3,7 +3,11 @@ import type { Response } from 'express';
 /** Leading JSON whitespace keeps a tunnel open while a response is prepared.
  * Callers must encode late errors in the body once the response starts.
  */
-export function hostedJsonReply(res: Response, throughTunnel: boolean) {
+export function hostedJsonReply(
+    res: Response,
+    throughTunnel: boolean,
+    { escapeHtml = true }: { escapeHtml?: boolean } = {}
+) {
     if (!throughTunnel)
         return (body: unknown, status = 200) => res.status(status).json(body);
 
@@ -13,6 +17,7 @@ export function hostedJsonReply(res: Response, throughTunnel: boolean) {
             res.type('json').set({
                 'Cache-Control': 'no-store, no-transform',
                 'X-Content-Type-Options': 'nosniff',
+                'X-IPTVnator-JSON-Heartbeat': '1',
             });
         }
         res.write('\n');
@@ -23,11 +28,14 @@ export function hostedJsonReply(res: Response, throughTunnel: boolean) {
     return (body: unknown, status = 200) => {
         clearInterval(heartbeat);
         if (!res.headersSent) return res.status(status).json(body);
-        // Headers are already on the wire. Escape HTML delimiters without changing JSON values.
-        const json = JSON.stringify(body)
-            .replace(/</g, '\\u003c')
-            .replace(/>/g, '\\u003e')
-            .replace(/&/g, '\\u0026');
-        return res.end(json);
+        const json = JSON.stringify(body);
+        return res.end(
+            escapeHtml
+                ? json
+                      .replace(/</g, '\\u003c')
+                      .replace(/>/g, '\\u003e')
+                      .replace(/&/g, '\\u0026')
+                : json
+        );
     };
 }

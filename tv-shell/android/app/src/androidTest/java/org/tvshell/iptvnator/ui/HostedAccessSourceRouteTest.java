@@ -5,7 +5,12 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import java.io.IOException;
 import junit.framework.TestCase;
 import okhttp3.HttpUrl;
+import okhttp3.Protocol;
+import okhttp3.Request;
 import okhttp3.RequestBody;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
+import okio.Okio;
 import org.json.JSONObject;
 
 public class HostedAccessSourceRouteTest extends TestCase {
@@ -31,6 +36,22 @@ public class HostedAccessSourceRouteTest extends TestCase {
         assertEquals(310000, HostedApiRequest.clientForPath("/api/parse").readTimeoutMillis());
         for (String path : new String[]{"/api/parse-xml", "/api/xtream", "/api/v1/sources"})
             assertEquals(45000, HostedApiRequest.clientForPath(path).readTimeoutMillis());
+    }
+
+    public void testHeartbeatNewlinesAreRemovedBeforeTheBridgeCountsBytes() throws Exception {
+        String json = "{\n\"url\":\"https://media.test/live?first=1&second=2\"}";
+        String wireBody = "\n\n" + json;
+        for (boolean heartbeat : new boolean[]{false, true}) {
+            Response.Builder builder = new Response.Builder()
+                .request(new Request.Builder().url(ORIGIN + "/api/parse").build())
+                .protocol(Protocol.HTTP_1_1).code(200).message("OK")
+                .body(ResponseBody.create(wireBody, null));
+            if (heartbeat) builder.header("X-IPTVnator-JSON-Heartbeat", "1");
+            try (Response response = builder.build()) {
+                assertEquals(heartbeat ? json : wireBody,
+                    Okio.buffer(Okio.source(HostedApiRequest.responseBody(response))).readUtf8());
+            }
+        }
     }
 
     public void testSourceOperationsKeepEncodedIdOnThePairedHost() throws Exception {

@@ -1,4 +1,5 @@
 import express from 'express';
+import assert from 'node:assert/strict';
 import { createWebBackendApp } from './web-backend-app';
 import {
     registerProviderTarget,
@@ -17,7 +18,7 @@ describe('hosted playlist responses', () => {
                     res.send(
                         oversized
                             ? 'x'.repeat(2048)
-                            : '#EXTM3U\n#EXTINF:-1,Synthetic <channel>\nhttps://media.test/live'
+                            : '#EXTM3U\n#EXTINF:-1,Synthetic <channel>\nhttps://media.test/live?first=1&second=2'
                     )
                 );
             });
@@ -26,32 +27,40 @@ describe('hosted playlist responses', () => {
                     allowPrivateNetworkTargets: true,
                     hostedMode: 'cloudflare',
                     maxProviderResponseBytes: 1024,
+                    guid: () => 'synthetic-id',
+                    now: () => new Date(0),
                 });
                 await withServer(app, async (backend) => {
                     const id = await registerProviderTarget(
                         backend,
                         `${origin}/synthetic.m3u`
                     );
-                    const legacy = oversized
-                        ? fetch(`${backend}/parse?targetId=${id}`, {
-                              signal: AbortSignal.timeout(18_000),
-                          })
-                        : undefined;
+                    const legacy = fetch(`${backend}/parse?targetId=${id}`, {
+                        signal: AbortSignal.timeout(18_000),
+                    });
                     const response = await fetch(
                         `${backend}/parse?targetId=${id}&keepAlive=1`,
                         {
                             signal: AbortSignal.timeout(18_000),
                         }
                     );
-                    const reader = response.body!.getReader();
+                    assert(response.body);
+                    const reader = response.body.getReader();
                     const first = await reader.read();
-                    expect(Buffer.from(first.value!).toString()).toMatch(
+                    assert(!first.done);
+                    expect(Buffer.from(first.value).toString()).toMatch(
                         /^\s+$/
                     );
                     expect(response.headers.get('cache-control')).toContain(
                         'no-transform'
                     );
-                    expect(finish).toHaveLength(oversized ? 2 : 1);
+                    expect(response.headers.get('x-content-type-options')).toBe(
+                        'nosniff'
+                    );
+                    expect(
+                        response.headers.get('x-iptvnator-json-heartbeat')
+                    ).toBe('1');
+                    expect(finish).toHaveLength(2);
                     for (const complete of finish) complete();
                     const chunks: Uint8Array[] = [];
                     for (
@@ -63,7 +72,6 @@ describe('hosted playlist responses', () => {
                     }
                     const json = Buffer.concat(chunks).toString();
                     expect(response.status).toBe(200);
-                    expect(json).not.toMatch(/[<>&]/);
                     expect(JSON.parse(json)).toMatchObject(
                         oversized
                             ? {
@@ -76,13 +84,12 @@ describe('hosted playlist responses', () => {
                                   },
                               }
                     );
-                    if (legacy) {
-                        const response = await legacy;
-                        expect(response.status).toBe(413);
-                        await expect(response.json()).resolves.toMatchObject({
-                            code: 'PROVIDER_RESPONSE_TOO_LARGE',
-                        });
-                    }
+                    const ordinary = await legacy;
+                    expect(ordinary.status).toBe(oversized ? 413 : 200);
+                    expect(
+                        ordinary.headers.has('x-iptvnator-json-heartbeat')
+                    ).toBe(false);
+                    expect(json.trimStart()).toBe(await ordinary.text());
                 });
             });
         },

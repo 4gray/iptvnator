@@ -1,6 +1,7 @@
 package org.tvshell.iptvnator.ui;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import okhttp3.Call;
@@ -9,6 +10,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import okio.BufferedSource;
 import org.json.JSONObject;
 
 /** Only the packaged client's API routes can be mapped onto the selected server. */
@@ -55,6 +57,15 @@ final class HostedApiRequest {
             if (value != null) headers.put(name, value);
         }
         return new JSONObject().put("status", response.code()).put("headers", headers);
+    }
+
+    static InputStream responseBody(Response response) throws IOException {
+        BufferedSource source = response.body().source();
+        if ("1".equals(response.header("X-IPTVnator-JSON-Heartbeat"))) {
+            // Only JSON bytes count toward the bridge's response limit.
+            while (source.request(1) && source.getBuffer().getByte(0) == '\n') source.skip(1);
+        }
+        return source.inputStream();
     }
 
     private static boolean allowed(String path, String method) {
