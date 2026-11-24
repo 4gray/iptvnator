@@ -94,29 +94,31 @@ function createPinnedLookup(addresses: readonly string[]): LookupFunction {
         family: isIP(address),
     }));
 
-    return (_hostname, options, callback) => {
-        const requestedFamily = options.family;
-        const eligibleRecords = requestedFamily
-            ? records.filter((record) => record.family === requestedFamily)
-            : records;
+    // Match dns.lookup's timing so a connect error cannot race TLS setup.
+    return (_hostname, options, callback) =>
+        queueMicrotask(() => {
+            const requestedFamily = options.family;
+            const eligibleRecords = requestedFamily
+                ? records.filter((record) => record.family === requestedFamily)
+                : records;
 
-        if (eligibleRecords.length === 0) {
-            const error = new Error(
-                'Validated URL has no connectable address'
-            ) as NodeJS.ErrnoException;
-            error.code = 'ENOTFOUND';
-            callback(error, []);
-            return;
-        }
+            if (eligibleRecords.length === 0) {
+                const error = new Error(
+                    'Validated URL has no connectable address'
+                ) as NodeJS.ErrnoException;
+                error.code = 'ENOTFOUND';
+                callback(error, []);
+                return;
+            }
 
-        if (options.all) {
-            callback(null, eligibleRecords);
-            return;
-        }
+            if (options.all) {
+                callback(null, eligibleRecords);
+                return;
+            }
 
-        const selected = eligibleRecords[0];
-        callback(null, selected.address, selected.family);
-    };
+            const selected = eligibleRecords[0];
+            callback(null, selected.address, selected.family);
+        });
 }
 
 function canonicalAddress(address: string): string {

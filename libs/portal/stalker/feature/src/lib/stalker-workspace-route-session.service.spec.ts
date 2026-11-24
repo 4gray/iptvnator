@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
+    convertToParamMap,
     NavigationCancel,
     NavigationEnd,
     NavigationStart,
@@ -71,6 +72,9 @@ describe('StalkerWorkspaceRouteSession', () => {
 
     const stalkerStore = {
         currentPlaylist,
+        setCategoryVisibility: jest.fn(),
+        selectedCategoryId: signal<string | null>(null),
+        selectedItem: signal<{ id: string } | null>(null),
         resetCategories: jest.fn(),
         reloadCategories: jest.fn(),
         setSelectedCategory: jest.fn(),
@@ -95,6 +99,12 @@ describe('StalkerWorkspaceRouteSession', () => {
     const router = {
         url: `/workspace/stalker/${PLAYLIST_ID}/vod`,
         events: routerEvents.asObservable(),
+        navigate: jest.fn(),
+        routerState: {
+            snapshot: {
+                root: { paramMap: convertToParamMap({ categoryId: '8' }) },
+            },
+        },
     };
     const sourceChanges = new Subject<void>();
 
@@ -102,6 +112,9 @@ describe('StalkerWorkspaceRouteSession', () => {
         router.url = `/workspace/stalker/${PLAYLIST_ID}/vod`;
         activePlaylist.set(ACTIVE_PLAYLIST);
         currentPlaylist.set(undefined);
+        stalkerStore.selectedCategoryId.set(null);
+        stalkerStore.selectedItem.set(null);
+        router.navigate.mockClear();
         selectedContentType.set('vod');
 
         playlistContext.syncFromUrl.mockImplementation((url: string) => ({
@@ -157,6 +170,43 @@ describe('StalkerWorkspaceRouteSession', () => {
             ],
         });
     });
+
+    it.each(['vod', 'series', 'itv', 'radio'] as const)(
+        'returns to All when the browsed %s genre becomes hidden, preserving the playing item',
+        async (section) => {
+            router.url = `/workspace/stalker/${PLAYLIST_ID}/${section}`;
+            TestBed.inject(StalkerWorkspaceRouteSession);
+            await flushEffects();
+            stalkerStore.clearSelectedItem.mockClear();
+            stalkerStore.selectedCategoryId.set('8');
+            stalkerStore.selectedItem.set({ id: 'playing' });
+            const hidden = { [section]: ['8'] };
+            activePlaylist.set({
+                ...ACTIVE_PLAYLIST,
+                hiddenStalkerCategories: hidden,
+            });
+            TestBed.flushEffects();
+            expect(stalkerStore.setCategoryVisibility).toHaveBeenCalledWith(
+                PLAYLIST_ID,
+                hidden
+            );
+            expect(stalkerStore.setSelectedCategory).toHaveBeenLastCalledWith(
+                '*'
+            );
+            expect(stalkerStore.clearSelectedItem).not.toHaveBeenCalled();
+            expect(router.navigate).not.toHaveBeenCalled();
+            stalkerStore.selectedItem.set(null);
+            TestBed.flushEffects();
+            if (section === 'itv' || section === 'radio') {
+                expect(router.navigate).not.toHaveBeenCalled();
+            } else {
+                expect(router.navigate).toHaveBeenCalledWith(
+                    ['/workspace', 'stalker', PLAYLIST_ID, section],
+                    expect.objectContaining({ replaceUrl: true })
+                );
+            }
+        }
+    );
 
     it('restarts an open Stalker session when a shared connection changes without navigation', async () => {
         const session = TestBed.inject(StalkerWorkspaceRouteSession);

@@ -1,4 +1,8 @@
 import { ControlsShortcuts } from './controls-shortcuts';
+import {
+    readLastAudibleVolume,
+    rememberAudibleVolume,
+} from './controls-format.utils';
 
 /**
  * Engine commands the vendor-chrome (shared-controls-off) web players expose
@@ -72,6 +76,7 @@ export class LegacyMuteMemory {
     rememberIfAudible(volume: number): void {
         if (Number.isFinite(volume) && volume > 0) {
             this.lastAudibleVolume = volume;
+            rememberAudibleVolume(volume);
         }
     }
 
@@ -79,6 +84,6 @@ export class LegacyMuteMemory {
         if (Number.isFinite(currentVolume) && currentVolume > 0) {
             return currentVolume;
         }
-        return this.lastAudibleVolume ?? 0.5;
+        return this.lastAudibleVolume || readLastAudibleVolume() || 0.5;
     }
 }

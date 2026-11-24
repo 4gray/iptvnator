@@ -1,5 +1,5 @@
 import { signal } from '@angular/core';
-import type { MatSnackBar } from '@angular/material/snack-bar';
+import type { NotificationService } from '@iptvnator/services/notifications';
 import type { TranslateService } from '@ngx-translate/core';
 import type { PortalPlaybackPositions } from '@iptvnator/portal/shared/util';
 import {
@@ -16,7 +16,7 @@ describe('createStalkerVodWatchedToggle', () => {
         const ownerSignal = signal(owner);
         const position = signal<PlaybackPositionData | null>(null);
         const save = jest.fn().mockResolvedValue(undefined);
-        const snackBar = { open: jest.fn() };
+        const notifications = { success: jest.fn(), error: jest.fn() };
         const toggle = createStalkerVodWatchedToggle({
             owner: () => ownerSignal(),
             playbackPositions: {
@@ -29,13 +29,13 @@ describe('createStalkerVodWatchedToggle', () => {
             applyPosition: (next) => position.set(next),
             playingNow: signal(false),
             positionReady: signal(true),
-            snackBar: snackBar as unknown as MatSnackBar,
+            notifications: notifications as unknown as NotificationService,
             translateService: {
                 instant: (key: string) => key,
             } as unknown as TranslateService,
             logger: { error: jest.fn() } as never,
         });
-        return { toggle, ownerSignal, position, save, snackBar };
+        return { toggle, ownerSignal, position, save, notifications };
     }
 
     const item = (id: string, playlistId = 'stalker-1') =>
@@ -54,10 +54,8 @@ describe('createStalkerVodWatchedToggle', () => {
             expect.objectContaining({ contentXtreamId: 42, contentType: 'vod' })
         );
         expect(t.toggle.isWatched()).toBe(true);
-        expect(t.snackBar.open).toHaveBeenCalledWith(
-            'XTREAM.MOVIE_MARKED_WATCHED',
-            undefined,
-            expect.anything()
+        expect(t.notifications.success).toHaveBeenCalledWith(
+            'XTREAM.MOVIE_MARKED_WATCHED'
         );
     });
 
@@ -91,6 +89,7 @@ describe('createStalkerVodWatchedToggle', () => {
         await expect(pending).resolves.toBe(true);
 
         expect(t.position()).toBeNull();
-        expect(t.snackBar.open).not.toHaveBeenCalled();
+        expect(t.notifications.success).not.toHaveBeenCalled();
+        expect(t.notifications.error).not.toHaveBeenCalled();
     });
 });

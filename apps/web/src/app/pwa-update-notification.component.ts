@@ -1,45 +1,54 @@
+import { DOCUMENT } from '@angular/common';
 import {
     ChangeDetectionStrategy,
     Component,
-    computed,
     inject,
+    linkedSignal,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PwaUpdateService } from './services/pwa-update.service';
 
 @Component({
     selector: 'app-pwa-update-notification',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatButtonModule, TranslatePipe],
+    imports: [MatButtonModule, MatIcon, TranslatePipe],
     template: `
-        @if (updates.notice()) {
+        @if (visibleNotice(); as notice) {
             <section
-                class="app-update-notification"
+                class="app-update-notification app-update-notification--pwa"
                 data-test-id="pwa-update-notification"
             >
                 <header class="app-update-notification__header">
                     <span class="app-update-notification__title">
                         {{ 'SETTINGS.APP_UPDATE_TITLE' | translate }}
                     </span>
+                    @if (notice !== 'unrecoverable') {
+                        <button
+                            mat-icon-button
+                            type="button"
+                            class="app-update-notification__close"
+                            [attr.aria-label]="'CLOSE' | translate"
+                            (click)="dismiss()"
+                        >
+                            <mat-icon aria-hidden="true">close</mat-icon>
+                        </button>
+                    }
                 </header>
                 <div class="app-update-notification__body" role="status">
-                    {{ message() | translate }}
+                    {{ updates.noticeMessage() | translate }}
                 </div>
                 <div class="app-update-notification__actions">
                     <button
                         mat-flat-button
                         type="button"
-                        [disabled]="
-                            updates.notice() === 'failed' && updates.checking()
-                        "
+                        [disabled]="notice === 'failed' && updates.checking()"
                         (click)="updates.act()"
                     >
                         {{
-                            (updates.notice() === 'failed'
-                                ? 'RETRY'
-                                : 'REFRESH'
-                            ) | translate
+                            (notice === 'failed' ? 'RETRY' : 'REFRESH')
+                                | translate
                         }}
                     </button>
                 </div>
@@ -47,30 +56,16 @@ import { PwaUpdateService } from './services/pwa-update.service';
         }
     `,
     styleUrl: './app-update-notification-card.component.scss',
-    // Keep the persistent action above the settings save bar and transient toasts.
-    styles: [
-        `
-            .app-update-notification {
-                bottom: calc(96px + env(safe-area-inset-bottom, 0px));
-            }
-            @media (max-width: 560px) {
-                .app-update-notification {
-                    bottom: calc(160px + env(safe-area-inset-bottom, 0px));
-                }
-            }
-        `,
-    ],
 })
 export class PwaUpdateNotificationComponent {
-    readonly updates = inject(PwaUpdateService);
-    readonly message = computed(() => {
-        switch (this.updates.notice()) {
-            case 'unrecoverable':
-                return 'PWA_RELOAD_REQUIRED';
-            case 'failed':
-                return 'PWA_UPDATE_FAILED';
-            default:
-                return 'PWA_UPDATE_READY';
-        }
-    });
+    private readonly document = inject(DOCUMENT);
+    protected readonly updates = inject(PwaUpdateService);
+    protected readonly visibleNotice = linkedSignal(this.updates.notice);
+
+    protected dismiss(): void {
+        this.visibleNotice.set(null);
+        this.document
+            .querySelector<HTMLElement>('main.workspace-content')
+            ?.focus({ preventScroll: true });
+    }
 }

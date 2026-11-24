@@ -17,6 +17,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
+import { StateViewComponent } from '@iptvnator/ui/state';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { EMPTY, ReplaySubject, of } from 'rxjs';
 import {
@@ -36,6 +37,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { CategoryContentViewComponent } from './category-content-view.component';
 import { registerHideWatchedCases } from './testing/category-hide-watched.cases';
+import { registerInfiniteScrollSnapshotCases } from '../../../testing/category-infinite-scroll-snapshot.cases';
 
 @Component({
     selector: 'app-grid-list',
@@ -67,19 +69,6 @@ class MockGridListComponent {
     readonly type = input<string>('');
     readonly itemClicked = output<unknown>();
     readonly retryLoadMore = output<void>();
-}
-
-@Component({
-    selector: 'app-playlist-error-view',
-    standalone: true,
-    changeDetection: ChangeDetectionStrategy.Eager,
-    template: '',
-})
-class MockPlaylistErrorViewComponent {
-    readonly title = input('');
-    readonly description = input('');
-    readonly showActionButtons = input(true);
-    readonly viewType = input('');
 }
 
 @Component({
@@ -197,7 +186,7 @@ describe('CategoryContentViewComponent', () => {
         catalog.selectItem.mockReturnValue(null);
         catalog.refreshSnapshotSelection.mockClear();
         router = {
-            navigate: jest.fn(),
+            navigate: jest.fn().mockResolvedValue(true),
         };
         paramMap$.next(convertToParamMap({}));
         queryParamMap$.next(convertToParamMap({}));
@@ -261,7 +250,7 @@ describe('CategoryContentViewComponent', () => {
                         NgComponentOutlet,
                         InfiniteScrollDirective,
                         MockGridListComponent,
-                        MockPlaylistErrorViewComponent,
+                        StateViewComponent,
                         MatIcon,
                         MatButtonModule,
                         MatMenuModule,
@@ -1240,62 +1229,11 @@ describe('CategoryContentViewComponent', () => {
             );
         });
 
-        it('saves the grid scroll position before opening a detail', () => {
-            const infiniteFixture = createInfiniteFixture();
-            infiniteFixture.detectChanges();
-            const grid = infiniteFixture.nativeElement.querySelector(
-                'app-grid-list'
-            ) as HTMLElement;
-            Object.defineProperty(grid, 'scrollTop', {
-                configurable: true,
-                value: 333,
-            });
-
-            infiniteFixture.componentInstance.onItemClick({ xtream_id: 42 });
-
-            expect(catalog.saveScrollPosition).toHaveBeenCalledWith(333);
-        });
-
-        it('saves the offset the grid last reported when it is destroyed detached', () => {
-            const infiniteFixture = createInfiniteFixture();
-            infiniteFixture.detectChanges();
-            const grid = infiniteFixture.nativeElement.querySelector(
-                'app-grid-list'
-            ) as HTMLElement;
-            // A detached element reports scrollTop 0, as in a browser.
-            Object.defineProperty(grid, 'scrollTop', {
-                configurable: true,
-                get: () => (grid.isConnected ? 420 : 0),
-            });
-            grid.dispatchEvent(new Event('scroll'));
-
-            // The view's DOM leaves the document before ngOnDestroy runs.
-            infiniteFixture.nativeElement.remove();
-            infiniteFixture.destroy();
-
-            expect(catalog.saveScrollPosition).toHaveBeenCalledWith(420);
-        });
-
-        it('consumes a saved scroll position once the list is rendered', () => {
-            catalog.consumeSavedScrollPosition.mockReturnValue(500);
-            const infiniteFixture = createInfiniteFixture();
-
-            infiniteFixture.detectChanges();
-
-            expect(catalog.consumeSavedScrollPosition).toHaveBeenCalledTimes(1);
-
-            const grid = infiniteFixture.nativeElement.querySelector(
-                'app-grid-list'
-            ) as HTMLElement;
-            const scrollTo = jest.fn();
-            Object.defineProperty(grid, 'scrollTo', {
-                configurable: true,
-                value: scrollTo,
-            });
-
-            flushAnimationFrames();
-
-            expect(scrollTo).toHaveBeenCalledWith({ top: 500 });
+        registerInfiniteScrollSnapshotCases({
+            createFixture: createInfiniteFixture,
+            catalog,
+            navigate: () => router.navigate,
+            flushAnimationFrames,
         });
 
         it('scrolls the grid to the top when the reset key changes', () => {

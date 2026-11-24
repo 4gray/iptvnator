@@ -78,7 +78,7 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    z-index: 1000;
+    z-index: var(--app-z-overlay);
     pointer-events: none;
 }
 
@@ -90,7 +90,7 @@
     background: rgba(0, 0, 0, 0.85);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     color: #fff;
-    font-family: 'DM Sans', sans-serif;
+    font-family: var(--app-font-family);
     font-size: 6rem;
     font-weight: 700;
     letter-spacing: 0.05em;

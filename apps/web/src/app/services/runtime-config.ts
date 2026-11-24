@@ -24,17 +24,33 @@ export function getRuntimeBackendUrl(): string {
 export interface ServiceWorkerRuntimeContext {
     readonly electronBridge?: unknown;
     readonly protocol?: string;
+    readonly tvShell?: boolean;
+}
+
+/** The native bridge exists at document start, before the layout script adds CSS classes. */
+export function isAndroidShellRuntime(): boolean {
+    const scope = globalThis.window as
+        | (Window & { TvShell?: { postMessage?: unknown } })
+        | undefined;
+    if (!scope) return false;
+    const classes = scope.document.documentElement.classList;
+    return (
+        typeof scope.TvShell?.postMessage === 'function' ||
+        'HostedAccessApi' in scope ||
+        classes.contains('android-tv-shell') ||
+        classes.contains('tv-shell')
+    );
 }
 
 function getDefaultServiceWorkerRuntimeContext(): ServiceWorkerRuntimeContext {
     const browserWindow = globalThis.window as
-        | (Window & { electron?: unknown })
-        | undefined;
+        (Window & { electron?: unknown }) | undefined;
 
     return {
         electronBridge: browserWindow?.electron,
         protocol:
             browserWindow?.location?.protocol ?? globalThis.location?.protocol,
+        tvShell: isAndroidShellRuntime(),
     };
 }
 
@@ -48,6 +64,7 @@ export function shouldEnableServiceWorker(
         !!navigatorRef &&
         'serviceWorker' in navigatorRef &&
         !runtimeContext.electronBridge &&
+        !runtimeContext.tvShell &&
         runtimeContext.protocol !== 'file:'
     );
 }

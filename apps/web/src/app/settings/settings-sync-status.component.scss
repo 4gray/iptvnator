@@ -17,7 +17,7 @@
     border-radius: 8px;
     background: var(--app-hover-overlay);
     color: var(--app-body-color);
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     line-height: 1.45;
     overflow-wrap: anywhere;
     mat-icon {
@@ -28,8 +28,8 @@
     }
 }
 .sync-status--success {
-    color: var(--app-success-color);
-    background: color-mix(in srgb, var(--app-success-color) 9%, transparent);
+    color: var(--app-status-success);
+    background: color-mix(in srgb, var(--app-status-success) 9%, transparent);
 }
 .sync-status--error {
     color: var(--app-danger-text);
@@ -39,11 +39,11 @@
     display: grid;
     gap: 2px;
     color: var(--app-eyebrow-color);
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     line-height: 1.5;
     time {
         color: var(--app-body-color);
-        font-size: 13px;
+        font-size: var(--app-text-sm);
         font-variant-numeric: tabular-nums;
     }
 }

@@ -1,6 +1,7 @@
 import type { Locator } from '@playwright/test';
 import {
     addXtreamPortal,
+    openAddPlaylistDialog,
     buildM3uContent,
     channelItemByTitle,
     closeElectronApp,
@@ -90,6 +91,28 @@ async function openAccountInfoDialog(
     return dialog;
 }
 
+/**
+ * The header geometry every dialog shares: the icon tile centred on the
+ * heading block (the title, one or more lines, over the subtitle).
+ */
+async function headerAlignment(dialog: Locator) {
+    return dialog.evaluate((container) => {
+        const centre = (selector: string) => {
+            const box = container
+                .querySelector(selector)
+                ?.getBoundingClientRect();
+            return box ? box.top + box.height / 2 : Number.NaN;
+        };
+        const subtitle = container.querySelector('.app-dialog__subtitle');
+        return {
+            offset: Math.abs(
+                centre('.app-dialog__icon') - centre('.app-dialog__heading')
+            ),
+            subtitle: subtitle?.textContent?.trim() ?? '',
+        };
+    });
+}
+
 async function serveUnbreakableChannel() {
     return createMutableTextServer(
         buildM3uContent([
@@ -106,6 +129,30 @@ async function serveUnbreakableChannel() {
 }
 
 test.describe('Dialog shell', () => {
+    test('centres the icon tile on a one-line title and its subtitle', async ({
+        dataDir,
+    }) => {
+        const app = await launchElectronApp(dataDir);
+        try {
+            await openAddPlaylistDialog(app.mainWindow);
+            const dialog = app.mainWindow
+                .locator('mat-dialog-container')
+                .last();
+            await expect(dialog.locator('.app-dialog__icon')).toBeVisible();
+            await expect(dialog.locator('.mat-mdc-dialog-surface')).toHaveCSS(
+                'transform',
+                'none'
+            );
+            const header = await headerAlignment(dialog);
+            expect(header.subtitle).toBe(
+                'Add an M3U playlist, Xtream account or Stalker portal'
+            );
+            expect(header.offset).toBeLessThanOrEqual(1);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
     test('scrolls account information with the keyboard while retaining the header', async ({
         dataDir,
         request,
@@ -122,6 +169,11 @@ test.describe('Dialog shell', () => {
                 name: 'Account Information',
             });
             await expect(body).toBeFocused();
+            // The header-end slot (status pills) leaves the tile centred
+            // on the title and the source subtitle.
+            const header = await headerAlignment(dialog);
+            expect(header.subtitle).not.toBe('');
+            expect(header.offset).toBeLessThanOrEqual(1);
             await page.keyboard.press('PageDown');
             await expect
                 .poll(() => body.evaluate((element) => element.scrollTop))
@@ -180,6 +232,10 @@ test.describe('Dialog shell', () => {
             expect(geometry.titleRight).toBeLessThanOrEqual(geometry.closeLeft);
             expect(geometry.titleRight).toBeLessThanOrEqual(
                 geometry.headerRight
+            );
+            // A wrapped title still keeps the tile centred on the block.
+            expect((await headerAlignment(dialog)).offset).toBeLessThanOrEqual(
+                1
             );
         } finally {
             if (app) await closeElectronApp(app);

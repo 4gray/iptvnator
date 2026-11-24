@@ -73,7 +73,7 @@
         }
 
         p {
-            font-size: 0.9375rem;
+            font-size: var(--app-text-lg);
             margin: 0;
         }
     }
@@ -84,7 +84,7 @@
         border-radius: 999px;
         color: #7ddb8a;
         display: inline-flex;
-        font-size: 0.6875rem;
+        font-size: var(--app-text-2xs);
         font-weight: 600;
         gap: 4px;
         left: 8px;
@@ -122,7 +122,7 @@
         border-radius: 999px;
         color: var(--text-muted);
         cursor: pointer;
-        font-size: 0.8125rem;
+        font-size: var(--app-text-sm);
         font-weight: 500;
         padding: 4px 14px;
 
@@ -135,7 +135,7 @@
 
     &__card-title {
         color: var(--text-primary);
-        font-size: 0.875rem;
+        font-size: var(--app-text-md);
         font-weight: 500;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -144,7 +144,7 @@
 
     &__card-sub {
         color: var(--text-muted);
-        font-size: 0.8125rem;
+        font-size: var(--app-text-sm);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;

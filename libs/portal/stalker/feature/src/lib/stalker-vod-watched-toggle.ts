@@ -1,5 +1,5 @@
 import type { Signal } from '@angular/core';
-import type { MatSnackBar } from '@angular/material/snack-bar';
+import type { NotificationService } from '@iptvnator/services/notifications';
 import type { TranslateService } from '@ngx-translate/core';
 import {
     type Logger,
@@ -31,7 +31,7 @@ export interface StalkerVodWatchedToggleConfig {
     applyPosition: (position: PlaybackPositionData | null) => void;
     playingNow: Signal<boolean>;
     positionReady: Signal<boolean>;
-    snackBar: MatSnackBar;
+    notifications: NotificationService;
     translateService: TranslateService;
     logger: Logger;
     onPersisted?: (playlistId: string) => void | Promise<void>;
@@ -51,12 +51,8 @@ export function createStalkerVodWatchedToggle(
         playingNow: config.playingNow,
         positionReady: config.positionReady,
         notify: (feedback) =>
-            config.snackBar.open(
-                config.translateService.instant(
-                    VOD_WATCHED_FEEDBACK_KEYS[feedback]
-                ),
-                undefined,
-                { duration: 5000 }
+            config.notifications[feedback === 'failed' ? 'error' : 'success'](
+                VOD_WATCHED_FEEDBACK_KEYS[feedback]
             ),
         onPersisted: config.onPersisted,
         logger: config.logger,

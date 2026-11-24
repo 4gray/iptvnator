@@ -11,12 +11,40 @@ export async function fillTvField(field: Locator, value: string) {
     await field.fill(value);
 }
 
+export async function backFromPlayback(page: Page) {
+    const player = page.locator('.native-player.fullscreen');
+    await page.keyboard.press('Escape');
+    if (await player.isVisible()) await page.keyboard.press('Escape');
+    await expect(player).toHaveCount(0);
+}
+
+export async function disableUpNextAndAutoplay(page: Page) {
+    await nav(page, 'Settings');
+    await page.getByRole('tab', { name: 'Playback' }).click();
+    await page.getByLabel('Autoplay next episode').uncheck();
+    await page.getByLabel('"Up next" card').uncheck();
+    await page.getByRole('button', { name: 'Save settings' }).click();
+    await expect(page.getByText('Settings saved')).toBeVisible();
+}
+
 export async function cardAction(
     page: Page,
     card: Locator,
     name: string | RegExp = /^(Resume|Watch again|Watch now|Watch live)$/
 ) {
     await card.click();
+    await page
+        .getByRole('dialog')
+        .getByRole('button', { name, exact: true })
+        .click();
+}
+/** Runs a rare viewing action from a detail page's ⋯ or episode options. */
+export async function moreAction(
+    page: Page,
+    name: string,
+    opener = '[data-focus="detail-more"]'
+) {
+    await page.locator(opener).click();
     await page
         .getByRole('dialog')
         .getByRole('button', { name, exact: true })

@@ -54,7 +54,7 @@
     border-radius: 6px;
     background: rgb(255 148 35 / 15%);
     color: #ffb24c;
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     font-weight: 700;
     letter-spacing: 0;
     line-height: 1.1;
@@ -96,8 +96,8 @@
 .web-player-diagnostic__meta {
     margin-top: 9px;
     color: rgb(255 255 255 / 48%);
-    font-family: monospace;
-    font-size: 0.82rem;
+    font-family: var(--app-font-mono, monospace);
+    font-size: var(--app-text-sm);
     line-height: 1.35;
     overflow-wrap: anywhere;
 }
@@ -111,7 +111,7 @@
     border-radius: 6px;
     background: rgb(255 255 255 / 5%);
     color: rgb(255 255 255 / 68%);
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     font-weight: 600;
     line-height: 1.3;
     overflow-wrap: anywhere;
@@ -140,11 +140,17 @@
     --playback-diagnostic-source-hover: #252d3b;
     --playback-diagnostic-source-selected: #243b5c;
     --playback-diagnostic-source-border: #657086;
-    --playback-diagnostic-source-ok-foreground: #4ade80;
+    /* The dark status hues whatever the app theme: `status-dark` in
+     * libs/ui/styles/_scales.scss, written out because the spec loads this
+     * stylesheet as raw CSS, where a Sass module cannot be used. */
+    --app-status-success: #4ade80;
+    --app-status-warning: #fbbf24;
+    --app-status-danger: #ff8d9b;
+    --playback-diagnostic-source-ok-foreground: var(--app-status-success);
     --playback-diagnostic-source-ok-surface: #173928;
-    --playback-diagnostic-source-warn-foreground: #ffcf99;
+    --playback-diagnostic-source-warn-foreground: var(--app-status-warning);
     --playback-diagnostic-source-warn-surface: #422e1d;
-    --playback-diagnostic-source-bad-foreground: #ff9aa6;
+    --playback-diagnostic-source-bad-foreground: var(--app-status-danger);
     --playback-diagnostic-source-bad-surface: #451f27;
     --app-on-surface: var(--playback-diagnostic-source-foreground);
     --app-eyebrow-color: var(--playback-diagnostic-source-muted);
@@ -191,14 +197,14 @@
     margin: 0;
     padding: 6px 12px 8px;
     color: var(--diagnostic-utility-text);
-    font-size: 0.75rem;
+    font-size: var(--app-text-xs);
 }
 
 .web-player-diagnostic__alternatives-title {
     margin: 0;
     padding: 8px 12px 4px;
     color: rgb(255 255 255 / 55%);
-    font-size: 0.594rem;
+    font-size: var(--app-text-2xs);
     font-weight: 600;
     letter-spacing: 0.12em;
     overflow-wrap: anywhere;
@@ -218,6 +224,9 @@
     background: rgb(0 0 0 / 22%);
     color: #f5f5f5;
     cursor: pointer;
+    /* Buttons do not inherit the font by default; without this the cards
+     * render in the user agent's system font instead of the app font. */
+    font: inherit;
     text-align: left;
     transition:
         background-color 140ms ease,
@@ -256,14 +265,16 @@
 }
 
 .web-player-diagnostic__player-card--primary {
-    border-color: transparent;
-    background: #fff;
-    color: #151515;
+    /* The theme's call-to-action pair. The overlay stays dark in every theme,
+     * so the edge keeps a light theme's dark CTA distinct from the backdrop. */
+    border-color: rgb(255 255 255 / 28%);
+    background: var(--app-cta-bg);
+    color: var(--app-cta-fg);
 }
 
 .web-player-diagnostic__player-card--primary:hover {
-    border-color: transparent;
-    background: rgb(255 255 255 / 88%);
+    border-color: rgb(255 255 255 / 40%);
+    background: var(--app-cta-hover-bg, var(--app-cta-bg));
 }
 
 .web-player-diagnostic__player-card mat-icon {
@@ -282,7 +293,7 @@
  * card column, so the label wraps instead of ellipsizing the action. */
 .web-player-diagnostic__player-label {
     min-width: 0;
-    font-size: 0.95rem;
+    font-size: var(--app-text-lg);
     font-weight: 700;
     line-height: 1.15;
     overflow-wrap: anywhere;
@@ -294,8 +305,8 @@
     overflow: visible;
     overflow-wrap: anywhere;
     color: currentColor;
-    font-size: 0.78rem;
-    line-height: 1.1;
+    font-size: var(--app-text-xs);
+    line-height: 1.35;
     opacity: 0.62;
     text-overflow: clip;
     white-space: normal;
@@ -304,9 +315,9 @@
 .web-player-diagnostic__player-status {
     min-width: 0;
     color: currentColor;
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     font-weight: 600;
-    line-height: 1.1;
+    line-height: 1.3;
     opacity: 0.82;
     overflow-wrap: anywhere;
 }
@@ -340,7 +351,7 @@
     color: inherit;
     cursor: pointer;
     font: inherit;
-    font-size: 0.86rem;
+    font-size: var(--app-text-md);
     font-weight: 600;
     line-height: 1.2;
 }
@@ -392,7 +403,7 @@
     border-radius: 8px;
     background: rgb(255 255 255 / 5%);
     color: rgb(255 255 255 / 68%);
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     line-height: 1.3;
 }
 
@@ -462,13 +473,13 @@
 
     .web-player-diagnostic__headline {
         margin-top: 14px;
-        font-size: 1.35rem;
+        font-size: var(--app-text-2xl);
         line-height: 1.08;
     }
 
     .web-player-diagnostic__description {
         margin-top: 8px;
-        font-size: 0.9rem;
+        font-size: var(--app-text-md);
         line-height: 1.38;
     }
 
@@ -507,7 +518,7 @@
     .web-player-diagnostic__badge {
         gap: 6px;
         padding: 4px 8px;
-        font-size: 0.7rem;
+        font-size: var(--app-text-2xs);
         white-space: normal;
     }
 
@@ -517,24 +528,24 @@
 
     .web-player-diagnostic__headline {
         margin-top: 14px;
-        font-size: 1.35rem;
+        font-size: var(--app-text-2xl);
         line-height: 1.08;
     }
 
     .web-player-diagnostic__description {
         margin-top: 10px;
-        font-size: 0.9rem;
+        font-size: var(--app-text-md);
         line-height: 1.38;
     }
 
     .web-player-diagnostic__meta {
         margin-top: 8px;
-        font-size: 0.74rem;
+        font-size: var(--app-text-xs);
     }
 
     .web-player-diagnostic__codec-hint {
         margin-top: 10px;
-        font-size: 0.72rem;
+        font-size: var(--app-text-xs);
     }
 
     .web-player-diagnostic__recommendations {
@@ -566,7 +577,7 @@
     .web-player-diagnostic__details summary {
         width: fit-content;
         min-height: 22px;
-        font-size: 0.82rem;
+        font-size: var(--app-text-sm);
     }
 
     .web-player-diagnostic__details[open] {
@@ -580,7 +591,7 @@
         gap: 6px;
         margin-top: 8px;
         padding: 10px;
-        font-size: 0.72rem;
+        font-size: var(--app-text-xs);
     }
 
     .web-player-diagnostic__detail-row {
@@ -603,10 +614,10 @@
     }
 
     .web-player-diagnostic__description {
-        font-size: 0.84rem;
+        font-size: var(--app-text-sm);
     }
 
     .web-player-diagnostic__player-label {
-        font-size: 0.88rem;
+        font-size: var(--app-text-md);
     }
 }

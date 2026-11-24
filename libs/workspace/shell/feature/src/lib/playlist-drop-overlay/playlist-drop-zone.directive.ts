@@ -8,8 +8,7 @@ import {
     signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { TranslateService } from '@ngx-translate/core';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { PlaylistFileImportService } from '@iptvnator/playlist/shared/util';
 import { fromEvent, merge } from 'rxjs';
 import type { PlaylistDropOverlayState } from './playlist-drop-overlay.component';
@@ -24,8 +23,7 @@ export class PlaylistDropZoneDirective implements OnInit {
     private readonly host = inject(ElementRef<HTMLElement>);
     private readonly destroyRef = inject(DestroyRef);
     private readonly importService = inject(PlaylistFileImportService);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
 
     private dragDepth = 0;
     private rejectionTimer: ReturnType<typeof setTimeout> | null = null;
@@ -88,14 +86,9 @@ export class PlaylistDropZoneDirective implements OnInit {
         const result = await this.importService.importFile(file);
         if (result.ok === true) {
             this.overlayState.set({ kind: 'idle' });
-            this.snackBar.open(
-                this.translate.instant(
-                    'WORKSPACE.SHELL.DROP_IMPORT_SUCCESS',
-                    { title: result.title }
-                ),
-                undefined,
-                { duration: 3000 }
-            );
+            this.notifications.success('WORKSPACE.SHELL.DROP_IMPORT_SUCCESS', {
+                title: result.title,
+            });
             return;
         }
 

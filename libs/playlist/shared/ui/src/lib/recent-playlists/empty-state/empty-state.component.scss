@@ -1,180 +1,184 @@
+@use '../../../../../../../ui/styles/app-controls' as controls;
+
+// The first-run welcome (UI-70) on the shared state view: the IPTVnator
+// glyph, one accent action ("Add source"), the source types as secondary
+// actions and, on the dashboard, what the app does. Flat token surfaces in
+// every theme; no gradient text, tilt, stripe grid, glow or text shadow,
+// and no motion beyond the state view's fade (off under reduced motion).
 :host {
     display: block;
     width: 100%;
     height: 100%;
-
-    // Every colour here follows the app theme class through --app-* tokens,
-    // never the OS colour scheme. The strong accent is the selection colour
-    // pulled toward the theme's heading ink: deeper in light, lighter in
-    // dark, so small accent text keeps 4.5:1 on the tinted cards in both
-    // themes, and so does --app-selection-on-color across the whole fill.
-    // Declared on the host, inside .dark-theme, so they resolve with that
-    // theme's values.
-    --empty-state-accent-strong: color-mix(
-        in srgb,
-        var(--app-selection-color) 60%,
-        var(--app-heading-color)
-    );
-    --empty-state-accent-fill: linear-gradient(
-        135deg,
-        color-mix(
-            in srgb,
-            var(--app-selection-color) 80%,
-            var(--app-heading-color)
-        ),
-        var(--empty-state-accent-strong)
-    );
 }
 
-.empty-state {
+// The welcome owns the pane's scroll: a short window scrolls the feature
+// list instead of clipping it.
+.welcome {
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
-    align-items: center;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+.welcome__state {
+    flex: 1 0 auto;
+}
+
+.welcome__glyph {
+    display: block;
+    width: 64px;
+    height: 64px;
+}
+
+.welcome__glyph-tile {
+    fill: var(--app-list-selected-bg);
+}
+
+.welcome__glyph-ink {
+    fill: var(--app-list-selected-fg);
+}
+
+.welcome__glyph-line {
+    stroke: var(--app-list-selected-fg);
+}
+
+ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.welcome__links {
+    display: flex;
+    flex-wrap: wrap;
     justify-content: center;
-    text-align: center;
-    animation: fadeIn 0.6s ease-out;
-
-    .content {
-        max-width: 480px;
-        animation: slideUp 0.8s ease-out;
-    }
-
-    .title {
-        font-family: inherit;
-        font-weight: 500;
-        margin: 0 0 12px 0;
-        background: linear-gradient(
-            135deg,
-            var(--app-selection-color) 0%,
-            var(--empty-state-accent-strong) 100%
-        );
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-
-        &.small {
-            font-size: 1.5rem;
-        }
-    }
-
-    .description {
-        font-family: inherit;
-        font-size: 0.95rem;
-        line-height: 1.6;
-        margin: 0 0 32px 0;
-        color: var(--app-body-color);
-    }
+    gap: 4px 8px;
 }
 
-.no-data-state {
-    padding: 56px 24px;
-
-    .empty-icon-container {
-        margin-bottom: 20px;
-        animation: gentleFloat 0.6s ease-out;
-    }
-
-    .empty-icon {
-        font-size: 72px;
-        width: 72px;
-        height: 72px;
-        color: var(--app-selection-color);
-        opacity: 0.85;
-    }
-
-    .content {
-        max-width: 460px;
-    }
-
-    .title {
-        font-size: 1.5rem;
-        margin-bottom: 8px;
-    }
-
-    .description {
-        margin-bottom: 24px;
-    }
-
-    .actions {
-        display: flex;
-        gap: 12px;
-        justify-content: center;
-        flex-wrap: wrap;
-
-        .primary-button {
-            background: var(--app-selection-color);
-            color: var(--app-selection-on-color, white);
-            font-weight: 500;
-            padding: 10px 24px;
-            border-radius: 10px;
-            text-transform: none;
-            letter-spacing: 0.01em;
-            box-shadow: 0 4px 14px var(--app-selection-glow);
-            transition: all 0.25s ease;
-
-            mat-icon {
-                margin-right: 6px;
-            }
-
-            &:hover {
-                transform: translateY(-1px);
-                box-shadow: 0 6px 18px var(--app-selection-border);
-            }
-        }
-
-        .secondary-button {
-            color: var(--app-selection-color);
-            font-weight: 500;
-            padding: 10px 18px;
-            text-transform: none;
-        }
-    }
+.welcome__link {
+    @include controls.ghost-button(md);
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .no-data-state,
-    .no-data-state .content,
-    .no-data-state .empty-icon-container {
-        animation: none;
-    }
+.welcome__features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(168px, 100%), 1fr));
+    gap: 12px;
+    width: min(100%, 760px);
+    margin-top: 16px;
+    padding-top: 24px;
+    border-top: 1px solid var(--app-separator);
+    text-align: start;
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
+.welcome__feature {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 10px;
+    row-gap: 2px;
+    align-items: start;
 }
 
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.welcome__feature-icon {
+    grid-row: span 2;
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
+    color: var(--app-list-selected-fg);
 }
 
-@keyframes gentleFloat {
-    from {
-        opacity: 0;
-        transform: scale(0.9);
-    }
-    to {
-        opacity: 0.85;
-        transform: scale(1);
-    }
+.welcome__feature-title {
+    color: var(--app-heading-color);
+    font-size: var(--app-text-md);
+    font-weight: 600;
+    line-height: 1.35;
 }
 
-@keyframes gridMove {
-    0% {
-        transform: translate(0, 0) rotate(0deg);
+.welcome__feature-desc {
+    color: var(--app-body-color);
+    font-size: var(--app-text-sm);
+    line-height: 1.45;
+}
+
+.welcome__sources {
+    display: grid;
+    gap: 8px;
+    width: min(100%, 600px);
+    margin-top: 8px;
+    text-align: start;
+}
+
+.welcome__source {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 16px;
+    border: 1px solid var(--app-widget-border);
+    border-radius: 12px;
+    background: var(--app-widget-bg);
+}
+
+.welcome__source-icon {
+    width: 24px;
+    height: 24px;
+    font-size: 24px;
+    color: var(--app-list-selected-fg);
+}
+
+.welcome__source-copy {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.welcome__source-name {
+    margin: 0;
+    color: var(--app-heading-color);
+    font-size: var(--app-text-md);
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.welcome__source-needs {
+    margin: 0;
+    color: var(--app-body-color);
+    font-size: var(--app-text-sm);
+    line-height: 1.45;
+}
+
+.welcome__source-content {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.welcome__source-chip {
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--app-neutral-tag-surface);
+    // The body colour is 4.05:1 on the tag surface in the dark theme
+    // (os-color-scheme.e2e.ts); the heading ink keeps 4.5:1 in every theme.
+    color: var(--app-heading-color);
+    font-size: var(--app-text-xs);
+    font-weight: 500;
+    line-height: 1.6;
+}
+
+.welcome__source-add {
+    @include controls.secondary-button(sm);
+}
+
+@media (max-width: 560px) {
+    .welcome__source {
+        grid-template-columns: auto minmax(0, 1fr);
     }
-    100% {
-        transform: translate(40px, 40px) rotate(0.5deg);
+
+    .welcome__source-add {
+        grid-column: 2;
+        justify-self: start;
     }
 }

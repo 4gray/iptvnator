@@ -1,6 +1,7 @@
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { getTodayEpgDateKey, parseEpgDateKey } from '../epg-date';
 import {
+    currentProgrammeFocusMs,
     dayKeyAtOffset,
     TIMELINE_MINUTE_MS,
     TimelineAxis,
@@ -44,20 +45,29 @@ export class TimelineScrollController {
 
     /** Centre the current programme (or "now" if none airing) in the viewport. */
     focusCurrentProgram(smooth: boolean): void {
-        const axis = this.ctx.axis();
         const current = this.ctx.blocks().find((block) => block.when === 'now');
-        const targetMs = current
-            ? (current.startMs + current.stopMs) / 2
-            : this.ctx.nowMs();
-        const offsetMin = (targetMs - axis.startMs) / TIMELINE_MINUTE_MS;
-        this.scrollToOffset(offsetMin, 0.5, smooth);
+        const targetMs = currentProgrammeFocusMs(current, this.ctx.nowMs());
+        this.scrollToTime(targetMs, 0.5, smooth);
+    }
+
+    focusCurrentTime(): void {
+        // At midnight the on-air programme's midpoint can still be on yesterday.
+        this.scrollToTime(this.ctx.nowMs(), 0.5, false);
     }
 
     scrollToDateKey(dateKey: string, frac: number, smooth = true): void {
-        const axis = this.ctx.axis();
         const noonMs =
             parseEpgDateKey(dateKey).getTime() + 12 * 60 * TIMELINE_MINUTE_MS;
-        const offsetMin = (noonMs - axis.startMs) / TIMELINE_MINUTE_MS;
+        this.scrollToTime(noonMs, frac, smooth);
+    }
+
+    private scrollToTime(
+        targetMs: number,
+        frac: number,
+        smooth: boolean
+    ): void {
+        const offsetMin =
+            (targetMs - this.ctx.axis().startMs) / TIMELINE_MINUTE_MS;
         this.scrollToOffset(offsetMin, frac, smooth);
     }
 

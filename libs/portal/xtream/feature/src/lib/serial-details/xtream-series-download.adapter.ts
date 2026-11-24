@@ -4,6 +4,7 @@ import {
     type DownloadMovieSnapshotInput,
 } from '@iptvnator/portal/shared/util';
 import {
+    normalizeXtreamServerUrl,
     XTREAM_CLIENT_USER_AGENT,
     type XtreamSerieEpisode,
     type XtreamSerieEpisodeInfo,
@@ -47,6 +48,28 @@ function downloadSeasonNumber(
     const normalizedFallback = fallbackSeasonKey?.trim();
     const fallback = Number(normalizedFallback || 1);
     return Number.isSafeInteger(fallback) && fallback >= 0 ? fallback : null;
+}
+
+/**
+ * The episode URL exactly as playback builds it
+ * (`XtreamUrlService.constructEpisodeUrl`): normalized server URL and
+ * percent-encoded credentials, so a password holding `#`, `?`, `/` or `%`
+ * downloads the same stream it plays. Null when the server URL is unusable.
+ */
+function episodeDownloadUrl(
+    serverUrl: string,
+    username: string,
+    password: string,
+    episodeId: string,
+    extension: string
+): string | null {
+    let server: string;
+    try {
+        server = normalizeXtreamServerUrl(serverUrl);
+    } catch {
+        return null;
+    }
+    return `${server}/series/${encodeURIComponent(username.trim())}/${encodeURIComponent(password.trim())}/${episodeId}.${extension}`;
 }
 
 function episodeInfo(
@@ -100,7 +123,16 @@ export function createXtreamSeriesDownloadAdapter(
                 prepare: async () => {
                     const info = episodeInfo(episode);
                     const extension = episode.container_extension || 'mp4';
-                    const normalizedServerUrl = serverUrl.replace(/\/$/, '');
+                    const url = episodeDownloadUrl(
+                        serverUrl,
+                        username,
+                        password,
+                        episode.id,
+                        extension
+                    );
+                    if (!url) {
+                        throw new Error('Invalid Xtream server URL');
+                    }
                     const episodeCode = `S${String(seasonNumber).padStart(
                         2,
                         '0'
@@ -109,7 +141,7 @@ export function createXtreamSeriesDownloadAdapter(
                     return {
                         ...identity,
                         title: `${options.title || 'Series'} - ${episodeCode} - ${episode.title}`,
-                        url: `${normalizedServerUrl}/series/${username}/${password}/${episode.id}.${extension}`,
+                        url,
                         posterUrl: info?.movie_image,
                         headers: {
                             userAgent:

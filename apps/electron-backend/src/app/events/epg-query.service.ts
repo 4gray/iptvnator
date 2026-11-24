@@ -1,5 +1,15 @@
 import { epgLogger } from '../util/epg-logger';
-import { and, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
+import {
+    and,
+    asc,
+    desc,
+    eq,
+    inArray,
+    isNull,
+    or,
+    sql,
+    type SQL,
+} from 'drizzle-orm';
 import {
     ElectronBridgeEpgLookupOptions,
     EpgChannelMetadata,
@@ -48,8 +58,16 @@ const SQLITE_MAX_BOUND_PARAMETERS = 32_766;
  */
 const CURRENT_PROGRAM_FIXED_PARAMETERS = 3;
 
+/** Maximum distinct programmes in the ordinary single-channel window. */
+export const CHANNEL_SCHEDULE_LIMIT = 500;
+/** Of those, the slots always left for the past (catch-up), nearest first. */
+export const CHANNEL_SCHEDULE_PAST_SLOTS = 250;
 export class EpgQueryService {
-    constructor(private readonly loggerLabel = '[EPG Events]') {}
+    constructor(
+        private readonly loggerLabel = '[EPG Events]',
+        /** The schedule window's clock; injectable for tests. */
+        private readonly nowMs: () => number = () => Date.now()
+    ) {}
 
     async getChannelPrograms(
         channelId: string,
@@ -72,18 +90,28 @@ export class EpgQueryService {
                 trimmedChannelId = mapped;
             }
 
-            let results = await this.selectChannelPrograms(
-                db,
-                trimmedChannelId,
-                sourceUrls
-            );
-            if (results.length === 0) {
-                results = await this.selectLegacyChannelPrograms(
+            const now = this.toAiringInstantIso(options.nowMs);
+            const archiveDays = options.archiveDays ?? 0;
+            const selectSchedule = async (id: string) => {
+                const programs = await this.selectChannelScheduleWindow(
                     db,
-                    trimmedChannelId,
-                    sourceUrls
+                    id,
+                    sourceUrls,
+                    now,
+                    { archiveDays }
                 );
-            }
+                if (programs.length > 0 || sourceUrls.length === 0)
+                    return programs;
+                return this.selectChannelScheduleWindow(
+                    db,
+                    id,
+                    sourceUrls,
+                    now,
+                    { archiveDays, legacyOnly: true }
+                );
+            };
+
+            let results = await selectSchedule(trimmedChannelId);
 
             if (results.length > 0) {
                 return this.toEpgPrograms(results);
@@ -103,18 +131,7 @@ export class EpgQueryService {
             }
 
             if (channel.length > 0) {
-                results = await this.selectChannelPrograms(
-                    db,
-                    channel[0].id,
-                    sourceUrls
-                );
-                if (results.length === 0) {
-                    results = await this.selectLegacyChannelPrograms(
-                        db,
-                        channel[0].id,
-                        sourceUrls
-                    );
-                }
+                results = await selectSchedule(channel[0].id);
 
                 if (results.length > 0) {
                     return this.toEpgPrograms(results);
@@ -154,18 +171,7 @@ export class EpgQueryService {
             }
 
             if (channel.length > 0) {
-                results = await this.selectChannelPrograms(
-                    db,
-                    channel[0].id,
-                    sourceUrls
-                );
-                if (results.length === 0) {
-                    results = await this.selectLegacyChannelPrograms(
-                        db,
-                        channel[0].id,
-                        sourceUrls
-                    );
-                }
+                results = await selectSchedule(channel[0].id);
 
                 return this.toEpgPrograms(results);
             }
@@ -524,59 +530,71 @@ export class EpgQueryService {
         return matchedCandidateIds;
     }
 
-    private async selectChannelPrograms(
+    /**
+     * A channel's schedule around now, oldest first: the upcoming programmes
+     * (the one airing included) and the nearest past ones, together capped
+     * at `CHANNEL_SCHEDULE_LIMIT`, with additional past slots for any
+     * larger advertised catch-up window. Identical slots collapse before
+     * applying either the time window or the row limits.
+     */
+    private async selectChannelScheduleWindow(
         db: EpgDatabase,
         channelId: string,
-        sourceUrls: string[]
+        sourceUrls: string[],
+        now: string,
+        options: { archiveDays: number; legacyOnly?: boolean }
     ): Promise<EpgProgramSelectRow[]> {
-        return (
+        const { channelId: channel, start, stop, title } = schema.epgPrograms;
+        // SQLite's single MAX picks the source row with the latest valid
+        // stop. A slot on both sides of now therefore belongs to one half.
+        const startTime = sql`julianday(${start})`;
+        const stopTime = sql`julianday(${stop})`;
+        const ended = sql`max(${stopTime}) < julianday(${now})`;
+        const select = (when: SQL, order: SQL) =>
             db
                 .select()
                 .from(schema.epgPrograms)
                 .where(
                     this.withProgramSourceScope(
-                        eq(schema.epgPrograms.channelId, channelId),
-                        sourceUrls
+                        sql`${eq(channel, channelId)}
+                            AND ${startTime} IS NOT NULL
+                            AND ${stopTime} IS NOT NULL`,
+                        sourceUrls,
+                        options
                     )
                 )
-                // Collapse identical slots from multiple sources in SQL so the
-                // 500-row cap counts distinct programmes, not duplicate rows.
-                .groupBy(
-                    schema.epgPrograms.channelId,
-                    schema.epgPrograms.start,
-                    schema.epgPrograms.title
-                )
-                .orderBy(schema.epgPrograms.start)
-                .limit(500)
+                .groupBy(channel, start, title)
+                .having(when)
+                .orderBy(order);
+        const upcoming = await select(
+            sql`NOT (${ended})`,
+            asc(startTime)
+        ).limit(CHANNEL_SCHEDULE_LIMIT);
+        const pastLimit =
+            CHANNEL_SCHEDULE_LIMIT -
+            Math.min(
+                upcoming.length,
+                CHANNEL_SCHEDULE_LIMIT - CHANNEL_SCHEDULE_PAST_SLOTS
+            );
+        const { archiveDays } = options;
+        const archive =
+            Number.isFinite(archiveDays) && archiveDays > 0
+                ? await select(
+                      sql`${ended} AND ${startTime} >= julianday(${now}) - ${archiveDays}`,
+                      desc(startTime)
+                  )
+                : [];
+        const past =
+            archive.length >= pastLimit
+                ? archive
+                : await select(ended, desc(startTime)).limit(pastLimit);
+        // An advertised archive can add past rows, keeping the ordinary
+        // window available for the airing and upcoming programmes.
+        const upcomingSlots =
+            CHANNEL_SCHEDULE_LIMIT - Math.min(past.length, pastLimit);
+        return [...past, ...upcoming.slice(0, upcomingSlots)].sort(
+            (a, b) => Date.parse(a.start) - Date.parse(b.start)
         );
-    }
-
-    private async selectLegacyChannelPrograms(
-        db: EpgDatabase,
-        channelId: string,
-        sourceUrls: string[]
-    ): Promise<EpgProgramSelectRow[]> {
-        if (sourceUrls.length === 0) {
-            return [];
-        }
-
-        return db
-            .select()
-            .from(schema.epgPrograms)
-            .where(
-                this.withProgramSourceScope(
-                    eq(schema.epgPrograms.channelId, channelId),
-                    sourceUrls,
-                    { legacyOnly: true }
-                )
-            )
-            .groupBy(
-                schema.epgPrograms.channelId,
-                schema.epgPrograms.start,
-                schema.epgPrograms.title
-            )
-            .orderBy(schema.epgPrograms.start)
-            .limit(500);
     }
 
     private async selectCurrentProgramsForChannelIds(
@@ -642,7 +660,7 @@ export class EpgQueryService {
             typeof nowMs === 'number' &&
             Number.isFinite(nowMs) &&
             Math.abs(nowMs) <= 8.64e15;
-        return new Date(usable ? nowMs : Date.now()).toISOString();
+        return new Date(usable ? nowMs : this.nowMs()).toISOString();
     }
 
     /**

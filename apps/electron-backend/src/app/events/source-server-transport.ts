@@ -10,7 +10,8 @@ type Send = (
     apiUrl: string,
     token: string,
     request: SourceServerRequest,
-    instanceId?: string
+    instanceId?: string,
+    useHosted?: boolean
 ) => Promise<SourceServerResponse>;
 
 /** Main-process proof is independent of renderer state and import previews. */
@@ -22,11 +23,15 @@ export class SourceServerTransport {
     constructor(private readonly send: Send) {}
 
     async execute(
-        connection: SourceServerConnection,
+        connection: SourceServerConnection & { hosted?: boolean },
         request: SourceServerRequest,
         token: () => string
     ): Promise<SourceServerResponse> {
-        const key = JSON.stringify([connection.apiUrl, connection.instanceId]);
+        const key = JSON.stringify([
+            connection.apiUrl,
+            connection.instanceId,
+            connection.hosted,
+        ]);
         if (this.selection !== key) {
             this.revoke(this.generation);
             this.selection = key;
@@ -58,7 +63,8 @@ export class SourceServerTransport {
                 connection.apiUrl,
                 token(),
                 request,
-                connection.instanceId
+                connection.instanceId,
+                ...(connection.hosted ? [true] : [])
             );
             if (
                 response.status === 401 ||
@@ -80,14 +86,15 @@ export class SourceServerTransport {
     }
 
     private async probe(
-        connection: SourceServerConnection,
+        connection: SourceServerConnection & { hosted?: boolean },
         generation: number
     ) {
         const response = await this.send(
             connection.apiUrl,
             '',
             { operation: 'instance' },
-            connection.instanceId
+            connection.instanceId,
+            ...(connection.hosted ? [true] : [])
         );
         this.assertCurrent(generation);
         const info = response.body as Partial<ServerInstanceInfo> | undefined;

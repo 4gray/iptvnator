@@ -25,7 +25,7 @@
 }
 
 .player-shell__eyebrow {
-    font-size: 0.75rem;
+    font-size: var(--app-text-xs);
     font-weight: 500;
     line-height: 1.4;
     color: var(--app-muted-color);
@@ -59,7 +59,7 @@
 
 .player-shell__episode-meta {
     color: var(--app-muted-color);
-    font-size: 0.95rem;
+    font-size: var(--app-text-lg);
     font-weight: 600;
 }
 

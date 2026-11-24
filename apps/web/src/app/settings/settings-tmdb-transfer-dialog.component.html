@@ -1,5 +1,7 @@
 <app-dialog-shell
+    icon="vpn_key"
     [heading]="'SETTINGS.TMDB_TRANSFER.ACTION' | translate"
+    [subtitle]="'DIALOGS.TMDB_TRANSFER' | translate"
     [showClose]="!busy()"
 >
     @if (server) {
@@ -52,9 +54,7 @@
             >
                 <code dir="ltr" class="transfer-code__value">
                     @if (codeCharacters().length) {
-                        <span class="visually-hidden">{{
-                            sendCode()
-                        }}</span>
+                        <span class="visually-hidden">{{ sendCode() }}</span>
                         @for (character of codeCharacters(); track $index) {
                             <span
                                 class="transfer-code__character"

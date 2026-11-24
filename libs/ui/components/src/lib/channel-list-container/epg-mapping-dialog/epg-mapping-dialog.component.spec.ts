@@ -20,10 +20,14 @@ describe('EPG mapping search recovery', () => {
     const bridge = {
         getEpgMapping: jest.fn().mockResolvedValue(null),
         searchEpgChannels: jest.fn(),
+        setEpgMapping: jest.fn().mockResolvedValue({ success: true }),
+        deleteEpgMapping: jest.fn().mockResolvedValue({ success: true }),
     };
+    const epgService = { refreshEpgData: jest.fn() };
 
     beforeEach(async () => {
         bridge.searchEpgChannels.mockReset().mockResolvedValue(matches);
+        epgService.refreshEpgData.mockClear();
         await TestBed.configureTestingModule({
             imports: [EpgMappingDialogComponent, TranslateModule.forRoot()],
             providers: [
@@ -34,7 +38,7 @@ describe('EPG mapping search recovery', () => {
                 { provide: MatDialogRef, useValue: { close: jest.fn() } },
                 { provide: MatSnackBar, useValue: { open: jest.fn() } },
                 { provide: EpgRuntimeBridgeService, useValue: bridge },
-                { provide: EpgService, useValue: { clearCache: jest.fn() } },
+                { provide: EpgService, useValue: epgService },
             ],
         }).compileComponents();
         fixture = TestBed.createComponent(EpgMappingDialogComponent);
@@ -49,12 +53,27 @@ describe('EPG mapping search recovery', () => {
         fixture.detectChanges();
     }
 
+    it.each(['save', 'remove'] as const)(
+        'reloads the open channel schedule after a mapping %s',
+        fakeAsync((action: 'save' | 'remove') => {
+            if (action === 'save') {
+                fixture.componentInstance.selectChannel('demo');
+                fixture.componentInstance.save();
+            } else {
+                fixture.componentInstance.removeMapping();
+            }
+            flushMicrotasks();
+
+            expect(epgService.refreshEpgData).toHaveBeenCalledTimes(1);
+        })
+    );
+
     it('distinguishes a rejected lookup from no matches and keeps accepting new queries', fakeAsync(() => {
         bridge.searchEpgChannels.mockRejectedValueOnce(new Error('offline'));
         search('news');
         expect(fixture.componentInstance.searchFailed()).toBe(true);
         expect(
-            fixture.nativeElement.querySelector('[role="status"]').textContent
+            fixture.nativeElement.querySelector('[role="alert"]').textContent
         ).toContain('PORTALS.SEARCH_VIEW.ERROR_TITLE');
         expect(fixture.nativeElement.textContent).not.toContain(
             'EPG_MAPPING_DIALOG.NO_RESULTS'
@@ -72,7 +91,9 @@ describe('EPG mapping search recovery', () => {
         });
         search('news');
         expect(fixture.componentInstance.searchFailed()).toBe(true);
-        fixture.nativeElement.querySelector('[role="status"] button').click();
+        fixture.nativeElement
+            .querySelector('[data-state-action="retry"]')
+            .click();
         tick(301);
         flushMicrotasks();
         expect(bridge.searchEpgChannels).toHaveBeenLastCalledWith('news');

@@ -458,7 +458,8 @@ describe('StalkerSeriesViewComponent dashboard resume handoff', () => {
 
         expect(fetchVodSeriesEpisodes).toHaveBeenCalledWith(
             '50001',
-            'season-1'
+            'season-1',
+            expect.any(Function)
         );
         expect(resolveVodPlayback).toHaveBeenCalledTimes(1);
         expect(resolveVodPlayback).toHaveBeenCalledWith(

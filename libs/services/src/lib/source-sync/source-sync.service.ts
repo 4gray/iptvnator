@@ -7,8 +7,7 @@ import {
     Injectable,
     signal,
 } from '@angular/core';
-import { LazySnackBar } from '../lazy-snack-bar/lazy-snack-bar';
-import { TranslateService } from '@ngx-translate/core';
+import { NotificationService } from '../notifications/notification.service';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { Subject } from 'rxjs';
 import {
@@ -23,6 +22,7 @@ import { requestSourceServer } from './source-api';
 import {
     assertSourceInstance,
     invalidateSourceVerification,
+    pairedBrowserTokenKey,
     sourceVerificationEpoch,
     sourceConnection,
     sourceConnectionReadFailed,
@@ -41,8 +41,7 @@ export class SourceSyncService {
     private readonly backend = inject(PlaylistStorageBackend);
     private readonly db = inject(NgxIndexedDBService);
     private readonly data = inject(DataService);
-    private readonly snackBar = inject(LazySnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
     private readonly destroy = inject(DestroyRef);
     private readonly cleanups =
         inject(PLAYLIST_DELETE_CLEANUP, { optional: true }) ?? [];
@@ -71,6 +70,7 @@ export class SourceSyncService {
     private failures = 0;
     private nextPollAt = 0;
     private browserProfile = false;
+    private offersBrowserPairing = false;
     private metadataDirty = false;
     private cleanupQueue?: SourceCleanupQueue;
 
@@ -200,6 +200,10 @@ export class SourceSyncService {
                         }
                     }
                     verifySourceInstance(probe.body, this.connection, epoch);
+                    this.offersBrowserPairing =
+                        this.browserProfile &&
+                        !!pairedBrowserTokenKey(this.connection!) &&
+                        !!probe.body.capabilities?.includes('browser-pairing-v1');
                     const response = await this.request({
                         operation: 'list',
                         revision: this.store!.pendingSources.size
@@ -275,14 +279,11 @@ export class SourceSyncService {
                     this.nextPollAt =
                         Date.now() +
                         Math.min(120000, 15000 * 2 ** this.failures++);
-                    this.errorKey.set(
-                        key.startsWith('SOURCE_SYNC.') ? key : null
-                    );
+                    this.reportError(key.startsWith('SOURCE_SYNC.') ? key : null);
                     if (key === 'SOURCE_SYNC.INSTANCE_CHANGED') {
-                        this.snackBar.open(
-                            this.translate.instant(key),
-                            this.translate.instant('CLOSE')
-                        );
+                        this.notifications.error(key, undefined, {
+                            duration: 'sticky',
+                        });
                     }
                 }
             })
@@ -345,23 +346,22 @@ export class SourceSyncService {
             if (key === 'SOURCE_SYNC.INSTANCE_CHANGED')
                 invalidateSourceVerification();
             if (mutation || key === 'SOURCE_SYNC.INSTANCE_CHANGED')
-                this.errorKey.set(key ?? 'SOURCE_SYNC.REQUEST_FAILED');
+                this.reportError(key ?? 'SOURCE_SYNC.REQUEST_FAILED');
             if (key === 'SOURCE_SYNC.LOCKED') this.state.set('locked');
             if (!['locked', 'conflict'].includes(this.state()))
                 this.state.set('offline');
             if (mutation) {
-                const message =
-                    error instanceof Error &&
-                    error.message.startsWith('SOURCE_SYNC.')
-                        ? error.message
-                        : 'SOURCE_SYNC.REQUEST_FAILED';
-                this.snackBar.open(
-                    this.translate.instant(message),
-                    this.translate.instant('CLOSE'),
-                    { duration: 7000 }
-                );
+                this.notifications.error(key ?? 'SOURCE_SYNC.REQUEST_FAILED');
             }
             throw new Error(key ?? 'SOURCE_SYNC.OFFLINE');
         }
+    }
+
+    private reportError(key: string | null): void {
+        this.errorKey.set(
+            key === 'SOURCE_SYNC.LOCKED' && this.offersBrowserPairing
+                ? 'SOURCE_SYNC.BROWSER_PAIRING_REQUIRED'
+                : key
+        );
     }
 }

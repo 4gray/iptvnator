@@ -47,50 +47,44 @@
                 <ng-content select="[results-prefix]" />
                 @if (isLoading()) {
                     <div class="loading-state">
-                        <mat-spinner diameter="48" />
+                        <mat-spinner diameter="40" />
                     </div>
                 } @else if (hasError()) {
-                    <div class="search-error" role="alert">
-                        <mat-icon aria-hidden="true">cloud_off</mat-icon>
-                        <div>
-                            <h3>
-                                {{
-                                    'PORTALS.SEARCH_VIEW.ERROR_TITLE'
-                                        | translate
-                                }}
-                            </h3>
-                            <p>
-                                {{
-                                    'PORTALS.SEARCH_VIEW.ERROR_DESCRIPTION'
-                                        | translate
-                                }}
-                            </p>
-                        </div>
-                        <button
-                            type="button"
-                            mat-flat-button
-                            (click)="retryClick.emit()"
-                        >
-                            {{ 'PORTALS.GRID.RETRY' | translate }}
-                        </button>
-                    </div>
+                    <app-state-view
+                        class="search-error"
+                        variant="error"
+                        icon="cloud_off"
+                        [heading]="
+                            'PORTALS.SEARCH_VIEW.ERROR_TITLE' | translate
+                        "
+                        [description]="
+                            'PORTALS.SEARCH_VIEW.ERROR_DESCRIPTION' | translate
+                        "
+                        [retryable]="true"
+                        (retry)="retryClick.emit()"
+                    />
                 } @else if (showResults) {
                     <!-- Results slot -->
                     <ng-content select="[results]" />
                 } @else if (showNoResults) {
-                    <app-empty-state
-                        type="no-data"
-                        icon="search_off"
-                        titleKey="PORTALS.SEARCH_VIEW.NO_RESULTS_FOR"
-                        [titleParams]="{ term: searchTerm() }"
-                        descriptionKey="PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS"
+                    <app-state-view
+                        variant="no-results"
+                        [heading]="
+                            'PORTALS.SEARCH_VIEW.NO_RESULTS_FOR'
+                                | translate: { term: searchTerm() }
+                        "
+                        [description]="
+                            'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS'
+                                | translate
+                        "
                     />
                 } @else if (showInitialState) {
-                    <app-empty-state
-                        type="no-data"
+                    <app-state-view
                         icon="search"
-                        titleKey="PORTALS.SEARCH_VIEW.INITIAL_TITLE"
-                        [descriptionKey]="initialDescriptionKey()"
+                        [heading]="
+                            'PORTALS.SEARCH_VIEW.INITIAL_TITLE' | translate
+                        "
+                        [description]="initialDescriptionKey() | translate"
                     />
                 }
                 <!-- Custom empty state slot (optional override) -->

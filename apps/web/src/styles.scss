@@ -2,6 +2,7 @@
 @use '../../../libs/ui/components/src/lib/resizable/resizable.scss';
 @use '../../../libs/ui/styles/focus-ring';
 @use '../../../libs/ui/styles/app-controls' as controls;
+@use '../../../libs/ui/styles/scales';
 @use './settings-theme';
 @use './cover-size';
 
@@ -13,27 +14,19 @@
 @tailwind utilities;
 
 // ─── Third-party ─────────────────────────────────────────────────────────────
-@import '@yangkghjh/videojs-aspect-ratio-panel/dist/videojs-aspect-ratio-panel.css';
 @import 'material-design-icons-iconfont/dist/material-design-icons.css';
 
 // ─── Bundled Fonts ────────────────────────────────────────────────────────────
-// DM Sans ships only Latin glyphs, so Cyrillic and Greek text (ru, by, el)
-// falls back to Roboto. Both load every weight on the UI scale
-// (400/500/600/700, enforced by `pnpm run styles:font-weights:check`): a 600
-// or 700 that finds nothing heavier than 500 gets Chromium's synthetic bold.
-// Load whole weights, not the single-script files: those carry no
-// unicode-range, so a Cyrillic-only 600 face would win the weight match for
-// Latin text in `Roboto, …` stacks and push it onto the next family.
+// Inter Variable is the one UI face for Latin, Cyrillic and Greek, so a name
+// that mixes scripts (`Канал 24 HD`) renders in a single family. Its weight
+// axis (100–900) covers the UI scale (400/500/600/700, enforced by
+// `pnpm run styles:font-weights:check`) without synthetic bold. Import the
+// package index: every subset's @font-face there carries its unicode-range,
+// so the browser fetches only the subsets the text on screen uses. The
+// single-subset files have no unicode-range and would claim every glyph.
 // JetBrains Mono stops at 500: its 600/700 faces would add more than the
 // initial-bytes ratchet allows, so monospace text stays at 400/500.
-@import '@fontsource/dm-sans/400.css';
-@import '@fontsource/dm-sans/500.css';
-@import '@fontsource/dm-sans/600.css';
-@import '@fontsource/dm-sans/700.css';
-@import '@fontsource/roboto/400.css';
-@import '@fontsource/roboto/500.css';
-@import '@fontsource/roboto/600.css';
-@import '@fontsource/roboto/700.css';
+@import '@fontsource-variable/inter/index.css';
 @import '@fontsource/jetbrains-mono/400.css';
 @import '@fontsource/jetbrains-mono/500.css';
 
@@ -88,7 +81,7 @@
     display: inline-flex;
     align-items: center;
     flex-shrink: 0;
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     font-weight: 500;
     line-height: 1;
     color: var(--app-muted-color, #8891a4);
@@ -127,18 +120,12 @@ html:has(> body.dark-theme) {
 
 body,
 html {
+    // Type, spacing, radius, elevation and z scales (`_scales.scss`).
+    @include scales.custom-properties;
     margin: 0;
     padding: 0;
     height: 100%;
-    font-family:
-        'DM Sans',
-        'Roboto',
-        -apple-system,
-        BlinkMacSystemFont,
-        'Segoe UI',
-        'Helvetica Neue',
-        Arial,
-        sans-serif;
+    font-family: var(--app-font-family);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -153,6 +140,15 @@ html:is(.electron, .tv-shell) > body {
 input,
 textarea {
     user-select: text;
+}
+
+// iOS WebKit zooms to a focused field when its text is too small. Keep the
+// viewport scalable and override the compact sizes set by component styles.
+@supports (-webkit-touch-callout: none) {
+    input:not([type='checkbox'], [type='radio'], [type='range'], [type='file']),
+    textarea {
+        font-size: max(1rem, 16px) !important;
+    }
 }
 
 @media (display-mode: standalone) {
@@ -288,15 +284,16 @@ body.dark-theme {
 
 // UI-kit toast for every snack-bar: the floating panel's surface, hairline
 // and shadow on a 10px panel, 13px text, the action in the accent colour
-// without a ripple. Toasts sit at Material's bottom centre; a caller adds a
-// panel class for spacing (the settings save bar), never another look.
+// without a ripple. Toasts open only through `NotificationService`
+// (`@iptvnator/services/notifications`), which sets the bottom-centre
+// position and one `app-notification--<variant>` class below.
 .mat-mdc-snack-bar-container {
     @include mat.snack-bar-overrides(
         (
             container-color: var(--app-widget-bg),
-            container-shape: 10px,
+            container-shape: var(--app-radius-lg),
             supporting-text-color: var(--app-heading-color),
-            supporting-text-size: 13px,
+            supporting-text-size: var(--app-text-sm),
             supporting-text-line-height: 20px,
             supporting-text-weight: 500,
             button-color: var(--app-selection-color),
@@ -316,6 +313,15 @@ body.dark-theme {
             )
         );
     }
+
+    // Material lays out only its own text toast's host as a row
+    // (`.mat-mdc-simple-snack-bar`). A component opened through
+    // `NotificationService.fromComponent` gets the same row, so its label
+    // and actions sit side by side instead of stacking.
+    :has(> .mat-mdc-snack-bar-label):not(.mat-mdc-simple-snack-bar) {
+        display: flex;
+        align-items: center;
+    }
 }
 
 // Command palette dialog — the palette-shell renders its own background, border,
@@ -330,20 +336,59 @@ body.dark-theme {
     overflow: visible;
 }
 
-.mat-mdc-snack-bar-container.settings-snackbar {
-    margin-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+// Success: the neutral toast with its hairline in the success colour.
+.mat-mdc-snack-bar-container.app-notification--success
+    .mat-mdc-snackbar-surface {
+    border-color: color-mix(
+        in srgb,
+        var(--app-status-success) 55%,
+        var(--app-line-strong)
+    );
 }
 
-// Failures (settings could not be saved/loaded) must not read as the usual
-// neutral confirmation toast.
-.mat-mdc-snack-bar-container.settings-snackbar--error {
+// Reserve room for active bottom controls, including wrapped save buttons on
+// narrow settings panes and settings toasts that already clear the save bar.
+body:has(.unsaved-bar, .mat-mdc-snack-bar-container)
+    app-pwa-update-notification {
+    --pwa-update-bottom-clearance: 96px;
+
+    @media (max-width: 960px) {
+        --pwa-update-bottom-clearance: 160px;
+    }
+}
+
+body:has(.app-notification--above-save-bar) app-pwa-update-notification {
+    --pwa-update-bottom-clearance: 160px;
+}
+
+// Errors must not read as the usual neutral confirmation: a danger-tinted
+// opaque surface, the danger hairline, and the action in the danger text
+// colour (measured against the tinted surface in all three themes).
+.mat-mdc-snack-bar-container.app-notification--error {
     @include mat.snack-bar-overrides(
         (
-            container-color: var(--mat-sys-error-container),
-            supporting-text-color: var(--mat-sys-on-error-container),
-            button-color: var(--mat-sys-on-error-container),
+            container-color: color-mix(
+                    in srgb,
+                    var(--app-danger-text) 12%,
+                    var(--app-widget-bg)
+                ),
+            supporting-text-color: var(--app-heading-color),
+            button-color: var(--app-danger-text),
         )
     );
+
+    .mat-mdc-snackbar-surface {
+        border-color: color-mix(
+            in srgb,
+            var(--app-danger-text) 55%,
+            var(--app-line-strong)
+        );
+    }
+}
+
+// Settings pages keep a save bar at the bottom; the toast clears it.
+.mat-mdc-snack-bar-container.app-notification--above-save-bar {
+    margin-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
 }
 
 // WCAG-friendly visually-hidden helper — content stays in the

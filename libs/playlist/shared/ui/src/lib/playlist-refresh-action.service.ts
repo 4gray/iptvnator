@@ -1,7 +1,7 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { DialogService } from '@iptvnator/ui/components';
 import {
     DataService,
@@ -9,6 +9,7 @@ import {
     type DbOperationEvent,
     isDbAbortError,
     PlaylistRefreshService,
+    PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
     SourceActivityService,
@@ -22,10 +23,14 @@ import {
     PlaylistMeta,
 } from '@iptvnator/shared/interfaces';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
+import { firstValueFrom } from 'rxjs';
 import {
     XtreamRefreshFlowService,
     type XtreamRefreshProgressReporter,
 } from './xtream-refresh-flow.service';
+
+/** What an M3U refresh did; a failure has already been reported. */
+export type M3uRefreshOutcome = 'refreshed' | 'failed' | 'skipped';
 
 export interface XtreamRefreshPreparationState {
     playlistId: string;
@@ -40,11 +45,12 @@ export class PlaylistRefreshActionService {
     private readonly store = inject(Store);
     private readonly activity = inject(SourceActivityService);
     private readonly translate = inject(TranslateService);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
     private readonly dialogService = inject(DialogService);
     private readonly databaseService = inject(DatabaseService);
     private readonly dataService = inject(DataService);
     private readonly playlistRefreshService = inject(PlaylistRefreshService);
+    private readonly playlistsService = inject(PlaylistsService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly playlistContext = inject(PlaylistContextFacade);
@@ -99,31 +105,55 @@ export class PlaylistRefreshActionService {
 
         if (playlist.serverUrl && this.runtime.supportsXtreamSqliteDataSource) {
             this.refreshXtream(playlist);
-        } else if (
+        } else {
+            void this.refreshM3uSource(playlist);
+        }
+    }
+
+    /**
+     * Fetches an M3U playlist again from its URL or file and settles with the
+     * outcome, so a caller that just changed the source can report it (#1677).
+     */
+    async refreshM3uSource(playlist: PlaylistMeta): Promise<M3uRefreshOutcome> {
+        if (this.isBlocked(playlist._id)) {
+            return 'skipped';
+        }
+        if (
             this.runtime.supportsPlaylistRefresh &&
             (playlist.url || playlist.filePath)
         ) {
-            void this.refreshM3u(playlist);
-        } else if (playlist.url) {
-            void this.refreshViaBackend(playlist, playlist.url);
+            return this.refreshM3u(playlist);
         }
+        if (playlist.url) {
+            return this.refreshViaBackend(playlist, playlist.url);
+        }
+        return 'skipped';
     }
 
     /** Keep the source busy until the browser refresh reports its result. */
     private async refreshViaBackend(
         item: PlaylistMeta,
         url: string
-    ): Promise<void> {
+    ): Promise<M3uRefreshOutcome> {
         this.m3uRefreshId.set(item._id);
         this.isRefreshing.set(true);
         const release = this.activity.begin([item._id]);
         try {
-            await this.dataService.sendIpcEvent(PLAYLIST_UPDATE, {
-                id: item._id,
-                title: item.title,
-                url,
-                ...(item.userAgent ? { userAgent: item.userAgent } : {}),
-            });
+            // The browser runtime reports and resolves false on failure.
+            const loaded = await this.dataService.sendIpcEvent<boolean>(
+                PLAYLIST_UPDATE,
+                {
+                    id: item._id,
+                    title: item.title,
+                    url,
+                    ...(item.userAgent ? { userAgent: item.userAgent } : {}),
+                }
+            );
+            return loaded === false ? 'failed' : 'refreshed';
+        } catch (error) {
+            console.error('Error refreshing playlist:', error);
+            this.notifications.error('HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR');
+            return 'failed';
         } finally {
             this.m3uRefreshId.set(null);
             this.isRefreshing.set(false);
@@ -167,7 +197,7 @@ export class PlaylistRefreshActionService {
         waitForVisibleProgress: () => this.waitForRefreshPreparationPaint(),
     };
 
-    private async refreshM3u(item: PlaylistMeta): Promise<void> {
+    private async refreshM3u(item: PlaylistMeta): Promise<M3uRefreshOutcome> {
         const isActiveM3uRoute =
             this.playlistContext.routeProvider() === 'playlists' &&
             this.playlistContext.resolvedPlaylistId() === item._id;
@@ -198,25 +228,30 @@ export class PlaylistRefreshActionService {
                             .trustedInsecureTlsHosts,
                 });
 
+            // Saved before it is published, as the browser refresh does, so
+            // success means the channels are stored and a write failure is
+            // reported instead of lost in the effect (#1677).
+            const saved = await firstValueFrom(
+                this.playlistsService.updatePlaylist(
+                    item._id,
+                    { ...refreshedPlaylist, _id: item._id },
+                    operationId
+                )
+            );
             this.store.dispatch(
                 PlaylistActions.updatePlaylist({
-                    playlist: {
-                        ...refreshedPlaylist,
-                        _id: item._id,
-                    },
+                    playlist: saved,
                     playlistId: item._id,
                     refreshEpg: true,
                     operationId,
+                    persist: false,
                 })
             );
 
-            this.snackBar.open(
-                this.translate.instant(
-                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
-                ),
-                undefined,
-                { duration: 2000 }
+            this.notifications.success(
+                'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
             );
+            return 'refreshed';
         } catch (error) {
             if (!isDbAbortError(error)) {
                 console.error('Error refreshing playlist:', error);
@@ -226,14 +261,11 @@ export class PlaylistRefreshActionService {
                         this.refresh(item)
                     )
                 ) {
-                    return;
+                    return 'failed';
                 }
-                this.snackBar.open(
-                    this.getRefreshErrorMessage(error, item),
-                    this.translate.instant('CLOSE'),
-                    { duration: 5000 }
-                );
+                this.notifications.error(this.getRefreshErrorKey(error, item));
             }
+            return 'failed';
         } finally {
             if (isActiveM3uRoute) {
                 this.store.dispatch(
@@ -246,18 +278,16 @@ export class PlaylistRefreshActionService {
         }
     }
 
-    private getRefreshErrorMessage(error: unknown, item: PlaylistMeta): string {
+    private getRefreshErrorKey(error: unknown, item: PlaylistMeta): string {
         if (
             error instanceof Error &&
             error.message?.includes('ENOENT') &&
             item.filePath
         ) {
-            return this.translate.instant(
-                'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_NOT_FOUND'
-            );
+            return 'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_NOT_FOUND';
         }
 
-        return this.translate.instant('HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR');
+        return 'HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR';
     }
 
     private handlePlaylistSecurityError(
@@ -272,14 +302,20 @@ export class PlaylistRefreshActionService {
             return false;
         }
 
-        const ref = this.snackBar.open(
-            this.translate.instant('HOME.URL_UPLOAD.ERROR_INVALID_TLS'),
-            this.translate.instant('HOME.URL_UPLOAD.TRUST_TLS_HOST'),
-            { duration: 10000 }
+        this.notifications.error(
+            'HOME.URL_UPLOAD.ERROR_INVALID_TLS',
+            undefined,
+            {
+                action: {
+                    labelKey: 'HOME.URL_UPLOAD.TRUST_TLS_HOST',
+                    run: () =>
+                        this.confirmTrustPlaylistHost(
+                            securityError.host,
+                            retry
+                        ),
+                },
+            }
         );
-        ref.onAction().subscribe(() => {
-            this.confirmTrustPlaylistHost(securityError.host, retry);
-        });
         return true;
     }
 
@@ -288,13 +324,7 @@ export class PlaylistRefreshActionService {
         retry: () => void
     ): void {
         if (!host) {
-            this.snackBar.open(
-                this.translate.instant(
-                    'HOME.URL_UPLOAD.ERROR_TLS_HOST_UNKNOWN'
-                ),
-                this.translate.instant('CLOSE'),
-                { duration: 5000 }
-            );
+            this.notifications.error('HOME.URL_UPLOAD.ERROR_TLS_HOST_UNKNOWN');
             return;
         }
 
@@ -302,6 +332,7 @@ export class PlaylistRefreshActionService {
             title: this.translate.instant(
                 'HOME.URL_UPLOAD.TRUST_TLS_HOST_TITLE'
             ),
+            subtitle: this.translate.instant('DIALOGS.TLS_HOST', { host }),
             message: this.translate.instant(
                 'HOME.URL_UPLOAD.TRUST_TLS_HOST_WARNING'
             ),

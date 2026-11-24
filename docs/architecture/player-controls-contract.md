@@ -112,11 +112,22 @@ ownership when the session, playback, engine, or component changes.
 
 ## Diagnostics And Recovery Ownership Boundary
 
+The Video.js component loads its aspect-ratio plugin stylesheet with the
+engine, so opening the workspace does not fetch those styles.
+
 The diagnostic panel publishes a bubbling `iptvnator:playback-issue` DOM event
 after rendering each issue, with only its bounded `code` in the detail. It contains
 no stream URL or provider credentials; the TV
-shell uses format/decode codes for its external-player offer without treating
-network failures as unsupported media.
+shell uses format/decode codes for its standalone external-player offer. With
+the Media3 pilot enabled, the shell waits for both engines to fail in the same
+playback attempt before offering an external player. It records a web failure
+by attempt, including network and browser access errors reported by the engine,
+and failures where the media element has only a blob URL. It uses the URL from
+Media3 for the offer.
+Android playback attempts and native launch requests use `createRandomId()`
+so they also work on plain HTTP home-network hosts.
+Turning Media3 off rechecks the current attempt for a deferred format or decode
+error and uses the web player's URL for the standalone offer.
 Delayed native media errors retain the media element, source and load-attempt
 identity. Removal, replacement, a changed source or another `loadstart` discards
 that error before it can offer recovery for a newer playback attempt.
@@ -143,12 +154,12 @@ project `playback-util`). `WebPlayerViewComponent` owns their in-memory,
 session-local application. No diagnostic or recommendation state or command is
 added to `PlayerController`.
 
-The only controls-layer participation is interaction gating. While the sibling
-diagnostic panel is visible, a web-player host disables shared surface and
-keyboard ownership and exits only the resolved fullscreen owner's DOM
-fullscreen (the host-supplied `fullscreenTarget`, else its own shell) so the
-recovery actions remain reachable. Clearing the diagnostic restores those paths; it
-does not make the controls contract an owner of the recovery lifecycle.
+While the sibling diagnostic panel is visible, a web-player host disables
+shared surface and keyboard ownership and exits the resolved fullscreen owner's
+DOM fullscreen (the host-supplied `fullscreenTarget`, else its own shell).
+When disabled, the shared Video.js controls also exit native fullscreen on
+their own video so the recovery actions remain reachable. Clearing the diagnostic
+restores surface and keyboard ownership.
 
 Video.js HLS has a separate nonterminal waiting notice. After 15 seconds of
 unpaused waiting with insufficient buffered data, it explains the delay and
@@ -296,16 +307,30 @@ Fullscreen is also outside the engine command contract. The landed component
 uses `ControlsFullscreen`, which operates on one DOM element through
 `requestFullscreen()` / `document.exitFullscreen()`: the optional
 `fullscreenTarget` input when the host supplies one, else the `playerSurface`.
-There is no fullscreen delegate or native-fullscreen IPC path.
 `ControlsFullscreen.sync()` reconciles state when that element attaches or
-changes, including when it is already fullscreen. The Embedded MPV host's
+changes, including when it is already fullscreen. If DOM fullscreen is
+unavailable, Video.js opts into WebKit's native fullscreen on the video
+inside its `nativeFullscreenSurface`. The button becomes available when the video
+reports support, and WebKit's video events keep the button state in sync.
+The WebKit presentation mode distinguishes fullscreen from Picture in Picture.
+In native fullscreen, Safari supplies the controls and the app's channel and
+episode panels are unavailable. Fullscreen stays outside the engine command
+contract and requires no IPC. The Embedded MPV host's
 existing `fullscreenchange` listener still triggers bounds sync so frame-copy
 render size follows the fullscreen DOM surface.
 
-In Embedded MPV side-by-side playback the fullscreen target contains both
-viewports and the stream strip. Only the selected viewport handles shared
-controls. Transport stays on that viewport, and the volume control applies to
-the separately selected audio session.
+Embedded MPV multiview keeps the fullscreen target on the player host,
+which contains all open viewports. The stream bar appears in windowed
+multiview and in fullscreen Grid and Focus. Regular single playback, and
+fullscreen Floating window and Side by side, have no stream bar. The
+fullscreen overlay container keeps the picker available from the bar,
+empty tiles or the floating window controls. Only the selected viewport
+handles shared controls. Transport stays on that viewport, and volume and
+mute apply to the designated audio session. In Grid and Focus, keys 1
+through 4 select occupied windows when the player owns keyboard input. Pointer clicks
+on the stream bar's window, sound, and layout toggles return focus to the grid
+stage so those shortcuts stay available. The selected window and audio session
+may differ.
 
 The owner matters because `WebPlayerViewComponent` remounts the engine
 component for every playback application (`@for ... track application.token`:
@@ -556,11 +581,28 @@ episode: `upNextThresholdSeconds` is 4% of the duration clamped to
 `timelineSegments` carry a closing-credits chapter in the last third
 (`creditsStartSeconds`: "Credits", "Outro", "Ending", an anime `ED`, and a
 few localized names), the card appears when it starts instead, at most
-5 min before the end. Embedded MPV under the frame-copy engine supplies
+5 min before the end. A credits start supplied through the optional `creditsStart`
+dependency (a metadata source such as TheIntroDB, #2239) wins over chapters.
+The timing lives in `upNextLeadSeconds` (`@iptvnator/shared/interfaces`,
+`up-next-timing.util.ts`), so the TV client uses the same adaptive timing when chapter data is unavailable.
+Embedded MPV under the frame-copy engine supplies
 file chapters (see the chapter producer above); every other engine, and a
 file without a credits chapter, uses the adaptive lead. The countdown shows
-whole minutes and switches to seconds in the last minute. It appears only when
-series autoplay is enabled and the next episode is in the current season.
+whole minutes and switches to seconds in the last minute, beside a ring that
+empties from the moment the card appears (`leadSeconds`). Both appear only when
+series autoplay is enabled. At a season's last episode autoplay continues into
+the next season: `PortalInlinePlayerComponent.onPlaybackEnded` emits
+`upNextEpisodeSelected` for the next rail entry instead of `playbackEnded`.
+The Stalker rail stops at the first season waiting for episode data. If an
+in-flight list arrives after playback ends, autoplay resumes the sequence while
+the same session is still at the end. Automatic rail selections carry a
+request-scoped `autoplaySignal`. Rewind, resume, manual episode choices and
+Close cancel that signal before a pending Stalker link can replace playback.
+Committed successors keep their autoplay count.
+Escape dismisses a visible card for the episode after any open menu closes
+(`ControlsUpNext.dismissIfVisible`). With the inline controls active, the card
+dismisses before Escape reaches the detail shell. Another Escape closes the
+inline player.
 A still that fails to load falls back to the label tile. A click emits
 `nextEpisodeRequested` directly — not through the
 transport's `canNextEpisode` guard, which is season-local — so the card
@@ -649,15 +691,17 @@ while at least one group exists. If the last group disappears, settings close.
 - **Colors** follow the color-as-state rule of the dock: cyan means "on",
   violet means "changed", and neutral rows/items read as the default.
 
-### Second-stream action
+### Multiview action
 
-The frame-copy host opts into `canAddSecondStream` and handles
-`secondStreamRequested` to open its channel picker. The
-`picture_in_picture_alt` action sits immediately before settings in the bottom
-controls and has the localized “Add second stream” tooltip. It is available
-while a single stream plays in the frame-copy host. Browser video engines can
-expose their native picture-in-picture action and leave `canAddSecondStream`
-disabled. The frame-copy host exposes no native video picture-in-picture.
+The frame-copy host sets `canOpenMultiview` during regular single-stream
+playback. The `grid_view` button sits immediately before Settings in the
+bottom controls and opens the localized Multiview menu. Its Add stream action
+emits `multiviewAddRequested` so the host opens its stream picker. Grid and
+Focus emit `multiviewLayoutRequested` with the selected layout so the host
+can open it with the current stream. The stream bar provides layout and
+stream actions in windowed multiview and in fullscreen Grid and Focus.
+Browser video engines can expose their native picture-in-picture action
+when available.
 
 ### Stream info popover
 
@@ -1062,7 +1106,11 @@ keyboard. `EmbeddedMpvShortcutHandlers` (the native-view legacy dock) and
 the radio audio player's document-level volume/mute keys apply the same
 rule. Shared and native-view player controls also yield every shortcut while
 an ancestor carries `data-player-shortcuts-suspended`, used by the programme
-guide while the player is docked.
+guide while the player is docked. Gaining that attribute also closes the
+shared controls' open popovers, as Escape would (`watchPlayerSuspension` in
+`controls-suspension.ts`, started by `ControlsShortcuts.attach`): the docked
+mini player shows only play/pause, and a settings sheet left open would keep
+the controls bar `inert` behind hidden chrome.
 
 Action-specific keys are prevented only when the active controller can handle
 them: seek requires both capability and current seekability, volume/mute
@@ -1154,9 +1202,10 @@ components bind that value to `showControls` and
 `shortcutsEnabled`. If the shared controls' fullscreen owner (the supplied
 `fullscreenTarget`, else the player shell) is in DOM fullscreen, the host
 exits fullscreen before hiding the controls so the diagnostic banner and its
-recovery actions remain visible; fullscreen owned by another element is left
-untouched. Retrying playback or clearing the diagnostic
-restores both interaction paths.
+recovery actions remain visible. If the Video.js video is in WebKit native
+fullscreen, the shared controls exit that presentation when hidden. Fullscreen
+owned by another element is left untouched. Retrying
+playback or clearing the diagnostic restores both interaction paths.
 
 Frame-copy recording transitions use the adapter's playback/session identity as
 their `transitionKey`. Session disposal, retry, channel changes, and engine
@@ -1228,8 +1277,11 @@ setter clamps against, so an unknown duration never jumps to zero); volume
 steps by ±5% and syncs muted state the way `applyVideoVolume` does (raising
 out of mute unmutes, reaching zero mutes); M mirrors `ControlsVolume`'s mute
 memory through `LegacyMuteMemory` — muting remembers the audible volume, and
-unmuting while the volume sits at zero restores it (same 0.5 fallback), so M
-can never leave the player silently "unmuted"; `isAvailable` is the host's
+unmuting while the volume sits at zero restores it (same 0.5 fallback).
+A positive shared-control slider setting is remembered across a later change
+to zero. The Android handoff uses that level for Unmute and falls back to 50%.
+A remounted player at zero volume is considered muted even if its engine
+initializes the mute flag to false. `isAvailable` is the host's
 `interactionEnabled`, so a visible playback diagnostic disables the keys; and
 Escape defaults to a no-op without consuming the key, because the vendor
 chrome owns its own overlays. Instances attach in the component's legacy
@@ -1337,6 +1389,9 @@ they differ in who owns the caption UI:
 - **Shared controls: authoritative.** The preference holds for the whole
   session; user intent arrives through `setSubtitleTrack`, which records an
   explicit override (including `-1` for off) that wins until the source changes.
+  During Video.js native fullscreen, Safari owns the native subtitle menu.
+  Track changes made there become the current source's override, so the
+  selection carries back to the shared controls.
 - **Vendor chrome: source-default.** The engine still renders its own caption
   menu, so the preference only seeds each new source and is released once the
   media element reports `playing`. Enforcing it for the whole session would

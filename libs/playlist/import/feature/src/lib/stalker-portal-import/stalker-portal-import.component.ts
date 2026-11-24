@@ -22,7 +22,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
@@ -114,8 +114,7 @@ export class StalkerPortalImportComponent {
     private readonly destroyRef = inject(DestroyRef);
     private importController: AbortController | null = null;
     private readonly store = inject(Store);
-    private readonly snackBar = inject(MatSnackBar);
-    readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
 
     readonly isLoading = signal(false);
 
@@ -474,13 +473,9 @@ export class StalkerPortalImportComponent {
                 );
                 if (expiresAt) {
                     const expireDate = new Date(expiresAt * 1000);
-                    this.snackBar.open(
-                        this.translate.instant(
-                            'HOME.STALKER_PORTAL.VALIDATED_EXPIRES',
-                            { date: expireDate.toLocaleDateString() }
-                        ),
-                        undefined,
-                        { duration: 3000 }
+                    this.notifications.success(
+                        'HOME.STALKER_PORTAL.VALIDATED_EXPIRES',
+                        { date: expireDate.toLocaleDateString() }
                     );
                 }
             } else if (discovery.status === 'auth-rejected') {
@@ -522,12 +517,8 @@ export class StalkerPortalImportComponent {
                     normalizeStalkerPortalInputUrl(originalUrl) ?? originalUrl
                 );
                 isFullStalkerPortal = false;
-                this.snackBar.open(
-                    this.translate.instant(
-                        'HOME.STALKER_PORTAL.ADDED_WITHOUT_VALIDATION'
-                    ),
-                    undefined,
-                    { duration: 5000 }
+                this.notifications.info(
+                    'HOME.STALKER_PORTAL.ADDED_WITHOUT_VALIDATION'
                 );
             }
 

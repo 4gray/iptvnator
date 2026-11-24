@@ -6,8 +6,8 @@
  * neither file has to grow past the 1200-line test limit to hold them.
  */
 
-import { AddressInfo } from 'node:net';
 import { Server } from 'node:http';
+import { fetchTestServer, serverOrigin } from './http-server.spec-helpers';
 import { STALKER_MAG_USER_AGENT } from '@iptvnator/shared/interfaces';
 import { createWebBackendApp, WebBackendHttpClient } from './web-backend-app';
 import {
@@ -164,15 +164,18 @@ export async function registerProviderTarget(
 
 export async function withServer<T>(
     app: ReturnType<typeof createWebBackendApp>,
-    callback: (baseUrl: string) => Promise<T>
+    callback: (
+        baseUrl: string,
+        send: ReturnType<typeof fetchTestServer>,
+        server: Server
+    ) => Promise<T>
 ): Promise<T> {
     const server = await new Promise<Server>((resolve) => {
         const started = app.listen(0, '127.0.0.1', () => resolve(started));
     });
 
     try {
-        const address = server.address() as AddressInfo;
-        return await callback(`http://127.0.0.1:${address.port}`);
+        return await callback(serverOrigin(server), fetchTestServer(server), server);
     } finally {
         server.closeAllConnections();
         await new Promise<void>((resolve, reject) => {

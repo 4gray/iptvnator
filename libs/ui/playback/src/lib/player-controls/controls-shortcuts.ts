@@ -1,3 +1,8 @@
+import {
+    PLAYER_SUSPENDED_ATTRIBUTE,
+    watchPlayerSuspension,
+} from './controls-suspension';
+
 export interface ControlsShortcutHandlers {
     isAvailable: () => boolean;
     /**
@@ -14,7 +19,12 @@ export interface ControlsShortcutHandlers {
     canSeek: () => boolean;
     canAdjustVolume: () => boolean;
     canToggleFullscreen: () => boolean;
-    onEscape: () => void;
+    /**
+     * Escape, before any other check. Return true when it closed something
+     * (a popover, the Up next card) so the key goes no further.
+     */
+    onEscape: () => boolean | void;
+    captureInlineEscape?: boolean;
     togglePaused: () => void;
     toggleFullscreen: () => void;
     seekBy: (deltaSeconds: number) => void;
@@ -22,8 +32,7 @@ export interface ControlsShortcutHandlers {
     toggleMute: () => void;
 }
 
-export const PLAYER_SHORTCUTS_SUSPENDED_SELECTOR =
-    '[inert], [data-player-shortcuts-suspended]';
+export const PLAYER_SHORTCUTS_SUSPENDED_SELECTOR = `[inert], [${PLAYER_SUSPENDED_ATTRIBUTE}]`;
 
 const INTERACTIVE_SELECTOR = [
     'a[href]',
@@ -48,18 +57,97 @@ const INTERACTIVE_SELECTOR = [
     '[role="textbox"]',
 ].join(',');
 
+export function targetsInteractivePlayerControl(event: KeyboardEvent): boolean {
+    const path =
+        typeof event.composedPath === 'function' ? event.composedPath() : [];
+    const nodes = path.length > 0 ? path : [event.target];
+    return nodes.some((node) => {
+        const element = node as HTMLElement | null;
+        if (!element || typeof element.tagName !== 'string') {
+            return false;
+        }
+        if (
+            typeof element.matches === 'function' &&
+            element.matches(INTERACTIVE_SELECTOR)
+        ) {
+            return true;
+        }
+        return element.isContentEditable === true;
+    });
+}
+
 export class ControlsShortcuts {
     private static readonly instances = new Set<ControlsShortcuts>();
     private static active: ControlsShortcuts | null = null;
 
     private handlers: ControlsShortcutHandlers | null = null;
+    private stopSuspensionWatch: (() => void) | null = null;
     private readonly listener = (event: KeyboardEvent) => this.handle(event);
+
+    // The inline detail shell sees a bubbling Escape before document listeners.
+    private readonly inlineEscapeListener = (event: KeyboardEvent) => {
+        if (
+            event.key !== 'Escape' ||
+            event.defaultPrevented ||
+            event.repeat ||
+            event.altKey ||
+            event.ctrlKey ||
+            event.metaKey ||
+            event.shiftKey ||
+            document.fullscreenElement ||
+            !this.handlers?.captureInlineEscape
+        )
+            return;
+        const host = this.handlers.hostElement?.();
+        if (
+            !host?.closest('app-portal-detail-shell') ||
+            ControlsShortcuts.resolvePlaybackOwner() !== this
+        )
+            return;
+        const target = event.target;
+        if (
+            target instanceof HTMLElement &&
+            (target.isContentEditable ||
+                target.closest('input, textarea, select'))
+        )
+            return;
+
+        const overlays = document.querySelectorAll<HTMLElement>(
+            '.cdk-overlay-backdrop, [role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]'
+        );
+        if (
+            Array.from(overlays).some(
+                (overlay) =>
+                    !host.contains(overlay) &&
+                    !overlay.closest(
+                        '[hidden], [inert], [aria-hidden="true"]'
+                    ) &&
+                    overlay.checkVisibility?.({ checkVisibilityCSS: true }) !==
+                        false
+            )
+        )
+            return;
+        this.handle(event);
+    };
 
     attach(handlers: ControlsShortcutHandlers): void {
         this.handlers = handlers;
+        // Being suspended acts like Escape for the popovers: the surface
+        // that takes over (the docked guide) owns the chrome, and a settings
+        // sheet left open would keep the bar inert under hidden controls.
+        this.stopSuspensionWatch?.();
+        const host = handlers.hostElement?.();
+        this.stopSuspensionWatch = host
+            ? watchPlayerSuspension(host, () => handlers.onEscape())
+            : null;
         ControlsShortcuts.instances.add(this);
         ControlsShortcuts.active ??= this;
         if (typeof document !== 'undefined') {
+            document.addEventListener(
+                'keydown',
+                this.inlineEscapeListener,
+                true
+            );
             document.addEventListener('keydown', this.listener);
         }
     }
@@ -71,7 +159,14 @@ export class ControlsShortcuts {
     }
 
     detach(): void {
+        this.stopSuspensionWatch?.();
+        this.stopSuspensionWatch = null;
         if (typeof document !== 'undefined') {
+            document.removeEventListener(
+                'keydown',
+                this.inlineEscapeListener,
+                true
+            );
             document.removeEventListener('keydown', this.listener);
         }
         this.handlers = null;
@@ -109,7 +204,9 @@ export class ControlsShortcuts {
         }
 
         if (event.key === 'Escape') {
-            handlers.onEscape();
+            if (handlers.onEscape() === true) {
+                event.preventDefault();
+            }
             return;
         }
 
@@ -188,24 +285,7 @@ export class ControlsShortcuts {
             return true;
         }
 
-        const path =
-            typeof event.composedPath === 'function'
-                ? event.composedPath()
-                : [];
-        const nodes = path.length > 0 ? path : [event.target];
-        return nodes.some((node) => {
-            const element = node as HTMLElement | null;
-            if (!element || typeof element.tagName !== 'string') {
-                return false;
-            }
-            if (
-                typeof element.matches === 'function' &&
-                element.matches(INTERACTIVE_SELECTOR)
-            ) {
-                return true;
-            }
-            return element.isContentEditable === true;
-        });
+        return targetsInteractivePlayerControl(event);
     }
 
     private static resolvePlaybackOwner(): ControlsShortcuts | null {

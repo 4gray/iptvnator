@@ -1,7 +1,5 @@
 import { effect, inject, Injectable, untracked } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
-import { TranslateService } from '@ngx-translate/core';
 import type {
     ServerInstanceInfo,
     ServerStorageStatusResponse,
@@ -19,6 +17,7 @@ import {
     createBrowserSessionStorage,
     createBrowserUserDataStorage,
 } from '../user-data-storage';
+import { NotificationService } from '../notifications/notification.service';
 import { markSlowStart } from '../server-slow-start';
 import { ServerApiClient, type ServerApiError } from './server-api-client';
 import { ServerPlaylistDocumentStore } from './server-playlist-document-store';
@@ -35,8 +34,7 @@ export class ServerStorageSession {
     private readonly config = inject(SERVER_STORAGE_CONFIG);
     private readonly status = inject(ServerStorageStatusService);
     private readonly backend = inject(PlaylistStorageBackend);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
     private readonly router = inject(Router);
     private reloading = false;
     private lastQuickCheck = 0;
@@ -255,8 +253,6 @@ export class ServerStorageSession {
             return;
         }
         this.lastNotice = { key, at: now };
-        this.snackBar.open(this.translate.instant(key), undefined, {
-            duration: 5000,
-        });
+        this.notifications.error(key);
     }
 }

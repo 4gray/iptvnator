@@ -22,7 +22,6 @@ import {
     RecordingsService,
     injectTranslationTick,
 } from '@iptvnator/services';
-import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
 import {
     PORTAL_SHELL_ACTIONS,
     PortalCollectionContextService,
@@ -54,7 +53,8 @@ import { RecordingLibraryComponent } from './recording-library.component';
 import { RecordingManagerActionsService } from './recording-manager-actions.service';
 import { buildRecordingManagerViewModel } from './recording-manager.viewmodel';
 import { RecordingQueueComponent } from './recording-queue.component';
-import { dialogSize } from '@iptvnator/ui/components/dialog-size';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 const FILTER_KEYS = {
     all: 'DOWNLOADS.FILTER.ALL',
@@ -78,9 +78,9 @@ const ACTIVE_RECORDING_REFRESH_MS = 15_000;
         RecordingManagerActionsService,
     ],
     imports: [
+        StateViewComponent,
         DownloadLibraryComponent,
         DownloadQueueComponent,
-        EmptyStateComponent,
         MatButtonModule,
         MatDialogModule,
         MatIcon,
@@ -344,7 +344,10 @@ export class DownloadsComponent {
             return;
         }
         if (!this.availablePlaylistIds().has(item.playlistId)) {
-            this.actions.showMessage('DOWNLOADS.SOURCE_PLAYLIST_MISSING', 3000);
+            this.actions.showMessage(
+                'DOWNLOADS.SOURCE_PLAYLIST_MISSING',
+                'error'
+            );
             return;
         }
         if (!this.navigation.canOpen(item, this.availablePlaylistIds())) {

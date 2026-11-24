@@ -2,7 +2,42 @@
     <header class="settings-group__header">
         <h2>{{ 'SETTINGS.GENERAL' | translate }}</h2>
         <p>{{ 'SETTINGS.GENERAL_SUBTITLE' | translate }}</p>
+        @if (canOpenAndroidSettings) {
+            <button
+                mat-flat-button
+                type="button"
+                class="android-shell-settings"
+                data-test-id="open-android-shell-settings"
+                (click)="openAndroidSettings()"
+            >
+                {{ 'SETTINGS.OPEN_ANDROID_APP_SETTINGS' | translate }}
+            </button>
+        }
     </header>
+
+    @if (legacyAndroidShellControls; as controls) {
+        <div class="settings-card">
+            <div class="setting-item">
+                <div class="setting-item__meta">
+                    <p id="android-device-settings-description">
+                        {{ 'SETTINGS.DEVICE_SETTINGS_DESCRIPTION' | translate }}
+                    </p>
+                </div>
+                <div class="setting-item__control">
+                    <button
+                        type="button"
+                        mat-flat-button
+                        data-test-id="android-device-settings"
+                        aria-haspopup="dialog"
+                        aria-describedby="android-device-settings-description"
+                        (click)="controls.openDeviceSettings()"
+                    >
+                        {{ 'SETTINGS.DEVICE_SETTINGS' | translate }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
 
     <section class="settings-section">
         <div class="settings-section__header">
@@ -220,4 +255,35 @@
             </div>
         </section>
     }
+    <section class="settings-section">
+        <div class="settings-section__header">
+            <h3>{{ 'SETTINGS.CARD_HELP' | translate }}</h3>
+        </div>
+        <div class="settings-card">
+            <div class="setting-item" data-setting-id="keyboard-shortcuts">
+                <div class="setting-item__meta">
+                    <h4 id="keyboard-shortcuts-label">
+                        {{ 'SETTINGS.KEYBOARD_SHORTCUTS' | translate }}
+                    </h4>
+                    <p>
+                        {{
+                            'SETTINGS.KEYBOARD_SHORTCUTS_DESCRIPTION'
+                                | translate
+                        }}
+                    </p>
+                </div>
+                <div class="setting-item__control">
+                    <button
+                        type="button"
+                        mat-flat-button
+                        data-test-id="settings-open-keyboard-shortcuts"
+                        aria-describedby="keyboard-shortcuts-label"
+                        (click)="openKeyboardShortcuts()"
+                    >
+                        {{ 'SETTINGS.KEYBOARD_SHORTCUTS_OPEN' | translate }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
 </section>

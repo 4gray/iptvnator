@@ -1,0 +1,30 @@
+<section class="settings-group" id="android-device">
+    <header class="settings-group__header">
+        <h2>{{ 'SETTINGS.ANDROID_DEVICE' | translate }}</h2>
+    </header>
+    <div class="settings-card">
+        <div class="setting-item" data-setting-id="android-device-advanced">
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.ANDROID_DEVICE_ADVANCED' | translate }}</h4>
+                <p id="android-device-advanced-description">
+                    {{
+                        'SETTINGS.ANDROID_DEVICE_ADVANCED_DESCRIPTION'
+                            | translate
+                    }}
+                </p>
+            </div>
+            <div class="setting-item__control">
+                <button
+                    type="button"
+                    mat-flat-button
+                    aria-haspopup="dialog"
+                    aria-describedby="android-device-advanced-description"
+                    data-test-id="android-device-advanced"
+                    (click)="openAdvanced.emit()"
+                >
+                    {{ 'MENU.SETTINGS_ARIA' | translate }}
+                </button>
+            </div>
+        </div>
+    </div>
+</section>

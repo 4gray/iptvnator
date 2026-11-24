@@ -1,22 +1,20 @@
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
+import { InlinePlaybackPlayer } from '@iptvnator/playback/util';
 import type { PlaybackActivityEvents } from '@iptvnator/services/activity-events';
-import type { WebPlayerViewComponent as WebPlayerViewInstance } from './web-player-view.component';
-let WebPlayerViewComponent: typeof import('./web-player-view.component').WebPlayerViewComponent;
-jest.unstable_mockModule('video.js', () => ({ default: jest.fn() }));
-jest.unstable_mockModule('@yangkghjh/videojs-aspect-ratio-panel', () => ({}));
-jest.unstable_mockModule('videojs-contrib-quality-levels', () => ({}));
-jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
-beforeAll(async () => {
-    ({ WebPlayerViewComponent } = await import('./web-player-view.component'));
-});
+import { PlaybackRecoverySession } from './playback-recovery-session';
 import { WebPlayerActivity } from './web-player-activity';
 import type { PlaybackApplicationOwnership } from './web-player-application-ownership';
+import { WebPlayerPlaybackEvents } from './web-player-playback-events';
 
-function harness(enabled = true) {
+type PlaybackEventDeps = ConstructorParameters<
+    typeof WebPlayerPlaybackEvents
+>[0];
+
+function harness(enabled = true, startTime = 60) {
     const playback: ResolvedPortalPlayback = {
         streamUrl: 'https://media.example.test/synthetic-episode',
         title: 'Synthetic fixture episode',
-        startTime: 60,
+        startTime,
         contentInfo: {
             playlistId: 'fixture-source',
             contentType: 'episode',
@@ -25,33 +23,78 @@ function harness(enabled = true) {
             activitySessionId: 'fixture-session',
         },
     };
+    const checkpoint = jest.fn(async () => undefined);
     const events: PlaybackActivityEvents = {
         active: () => enabled,
         begin: async () => undefined,
-        checkpoint: jest.fn(async () => undefined),
+        checkpoint,
         register: async () => undefined,
     };
     const activity = new WebPlayerActivity(events);
     activity.begin(playback);
     const emit = jest.fn();
-    const view = {
-        ownsApplication: () => true,
+    const recordHistory = jest.fn();
+    const recoverySession = new PlaybackRecoverySession();
+    const token = Symbol();
+    const playbackEvents = new WebPlayerPlaybackEvents({
+        owns: () => true,
         activity,
         playback: () => playback,
-        recovery: { recordTimeUpdate: () => false },
-        recoverySession: { recordTimeUpdate: jest.fn() },
-        historyConfirmation: { record: jest.fn() },
-        timeUpdate: { emit },
-    } as unknown as WebPlayerViewInstance;
-    const tick = (currentTime: number) =>
-        WebPlayerViewComponent.prototype.handleTimeUpdate.call(
-            view,
-            { currentTime, duration: 100, playing: false },
-            { isLive: false } as PlaybackApplicationOwnership
+        resolvedPlayback: () => playback,
+        isLive: () => false,
+        startTime: () => startTime,
+        token: () => token,
+        recovery: {
+            recordTimeUpdate: () => false,
+        } as unknown as PlaybackEventDeps['recovery'],
+        recoverySession,
+        history: {
+            record: recordHistory,
+        } as unknown as PlaybackEventDeps['history'],
+        timeUpdate: { emit } as unknown as PlaybackEventDeps['timeUpdate'],
+        started: { emit: jest.fn() } as unknown as PlaybackEventDeps['started'],
+        ended: { emit: jest.fn() } as unknown as PlaybackEventDeps['ended'],
+    });
+    const ownership: PlaybackApplicationOwnership = {
+        binding: null,
+        embeddedMpv: false,
+        isLive: false,
+        sourceRevision: Symbol(),
+        token,
+    };
+    const tick = (currentTime: number, playing = false) =>
+        playbackEvents.webPosition(
+            { currentTime, duration: 100, playing },
+            ownership
         );
-    return { tick, emit };
+    return {
+        tick,
+        emit,
+        checkpoint,
+        recordHistory,
+        returnFromMedia3: (currentTime: number) => {
+            const update = {
+                currentTime,
+                duration: 100,
+                playing: false,
+                checkpoint: true as const,
+            };
+            activity.record(playback, update);
+            recoverySession.recordTimeUpdate(update, false);
+            recoverySession.beginPlayback(InlinePlaybackPlayer.Html5);
+            checkpoint.mockClear();
+        },
+        handoffOffset: () =>
+            recoverySession.resumeStartTime(playback.startTime!, false),
+    };
 }
 describe('episode time-update forwarding during resume', () => {
+    it('forwards genuine playback to history while preserving the pending resume point', () => {
+        const { tick, emit, recordHistory } = harness(false);
+        tick(3, true);
+        expect(recordHistory).toHaveBeenCalledWith(3, true);
+        expect(emit).not.toHaveBeenCalled();
+    });
     it('does not forward pre-seek ticks to legacy episode writers and still accepts rewinds', () => {
         const { tick, emit } = harness();
         tick(0);
@@ -65,11 +108,28 @@ describe('episode time-update forwarding during resume', () => {
             expect.objectContaining({ currentTime: 10 })
         );
     });
-    it('preserves local writer events when activity consent is off', () => {
-        const { tick, emit } = harness(false);
-        tick(0);
-        expect(emit).toHaveBeenCalledWith(
-            expect.objectContaining({ currentTime: 0 })
-        );
-    });
+    it.each([true, false])(
+        'keeps the Media3 position until the web seek settles (Activity Sync: %s)',
+        (enabled) => {
+            const { tick, emit, checkpoint, handoffOffset, returnFromMedia3 } =
+                harness(enabled, 0);
+            returnFromMedia3(60);
+
+            tick(0);
+            expect(handoffOffset()).toBe(60);
+            expect(emit).not.toHaveBeenCalled();
+            expect(checkpoint).not.toHaveBeenCalled();
+
+            tick(60);
+            tick(10);
+            expect(handoffOffset()).toBe(10);
+            expect(emit).toHaveBeenLastCalledWith(
+                expect.objectContaining({ currentTime: 10 })
+            );
+            if (enabled)
+                expect(checkpoint).toHaveBeenLastCalledWith(
+                    expect.objectContaining({ positionSeconds: 10 })
+                );
+        }
+    );
 });

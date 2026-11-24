@@ -10,7 +10,7 @@ import {
     signal,
 } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { ActivatedRoute } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
@@ -27,6 +27,7 @@ import {
     SimilarRailComponent,
     type SimilarRailItem,
     VodMoreMenuComponent,
+    favoriteIcon,
     scrollToCastCrewRow,
 } from '@iptvnator/ui/components';
 import { createLogger } from '@iptvnator/portal/shared/util';
@@ -102,13 +103,14 @@ import { VodMultiSourceHostService } from './vod-multi-source-host.service';
     ],
 })
 export class VodDetailsRouteComponent implements OnInit, OnDestroy {
+    /** Filled heart when favourited, outline when not (UI-46). */
+    protected readonly favoriteIcon = favoriteIcon;
     private readonly settingsStore = inject(SettingsStore);
     private readonly route = inject(ActivatedRoute);
     private readonly navigation = injectXtreamDetailNavigation('movie');
     private readonly xtreamStore = inject(XtreamStore);
     private readonly downloadsService = inject(DownloadsService);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translateService = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
     private readonly playback = inject(VodDetailsPlaybackService);
     /** Alternative sources for this movie in the user's other playlists */
     readonly multiSource = inject(VodMultiSourceHostService);
@@ -231,11 +233,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             resetTarget: this.msUi.primaryTarget,
             reportExternalLaunchFailure: (error) => {
                 this.logger.error('External launch failed', error);
-                this.snackBar.open(
-                    this.translateService.instant('PORTALS.PLAYBACK_ERROR'),
-                    undefined,
-                    { duration: 3000 }
-                );
+                this.notifications.error('PORTALS.PLAYBACK_ERROR');
             },
         });
 
@@ -292,7 +290,8 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             if (this.lastInitKey() === initKey) return;
             this.lastInitKey.set(initKey);
 
-            this.inlinePlayback.set(null);
+            // Closing persists the previous movie's held position first.
+            this.playback.closeInlinePlayer();
             // Both, or the primary button keeps the previous movie's Resume
             // label until the new lookup lands — and starts the new stream
             // there. `loadPosition` is guarded on the same key, so an older
@@ -607,13 +606,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     }
 
     showCopyNotification(): void {
-        this.snackBar.open(
-            this.translateService.instant('PORTALS.STREAM_URL_COPIED'),
-            undefined,
-            {
-                duration: 2000,
-            }
-        );
+        this.notifications.success('PORTALS.STREAM_URL_COPIED');
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {

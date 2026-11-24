@@ -26,6 +26,10 @@ import {
  *   5. On a 640x360 landscape phone the live route keeps the channel
  *      sidebar at least 72px tall and the player container inside the
  *      viewport.
+ *   6. The phone dashboard hero: the slide covers the lower part of the
+ *      art, the art fades on under it into the first rail, the banner keeps
+ *      one height across slides, and the slide's action stays reachable on
+ *      portrait iPhones, a short landscape phone and an installed PWA.
  *
  * Conventions: docs/architecture/iptvnator-ui-guidelines.md, "Phone Layout"
  * (640px breakpoint, resizable rails stack full-width via `!important`).
@@ -36,6 +40,11 @@ import {
 
 const PHONE = { width: 375, height: 812 };
 const LANDSCAPE_PHONE = { width: 640, height: 360 };
+const HERO_VIEWPORTS = [
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+    LANDSCAPE_PHONE,
+];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -87,6 +96,75 @@ async function expectRailLinksInsideTopBar(page: Page): Promise<void> {
         expect(linkBox.y + linkBox.height).toBeLessThanOrEqual(
             railBox.y + railBox.height + 1
         );
+    }
+}
+
+/**
+ * The phone hero's geometry, relative to the hero box: the slides start 60%
+ * down an art area as tall as the hero is wide (at most 52% of the
+ * viewport), the art spans the whole hero, and the first rail's heading
+ * starts inside the hero's bottom fade.
+ */
+async function phoneHeroGeometry(page: Page) {
+    return page.evaluate(async () => {
+        const hero = document.querySelector('[data-test-id="dashboard-hero"]');
+        // The slide rises 12px into place (fadeInUp): measure once the
+        // running entry animations settle, not mid-entry. The paused
+        // rotation progress never finishes, so only running ones count.
+        const settled = Promise.all(
+            (hero?.getAnimations({ subtree: true }) ?? [])
+                .filter(
+                    (animation) =>
+                        animation.playState === 'running' &&
+                        animation.effect?.getComputedTiming().endTime !==
+                            Infinity
+                )
+                .map((animation) => animation.finished.catch(() => null))
+        );
+        await Promise.race([
+            settled,
+            new Promise((resolve) => setTimeout(resolve, 2_000)),
+        ]);
+        const stage = hero?.querySelector('.hero__stage');
+        // Every slide shares one grid cell, aligned to its bottom: the
+        // tallest one starts where the overlap begins.
+        const slides = [...(hero?.querySelectorAll('.hero__content') ?? [])];
+        const rail = document.querySelector('lib-dashboard-rail h2');
+        if (!hero || !stage || !slides.length || !rail) return null;
+        const box = hero.getBoundingClientRect();
+        const art = Math.min(box.width, innerHeight * 0.52);
+        return {
+            slideOffset: Math.abs(
+                Math.min(
+                    ...slides.map((slide) => slide.getBoundingClientRect().top)
+                ) -
+                    box.top -
+                    art * 0.6
+            ),
+            stageGap: Math.max(
+                Math.abs(stage.getBoundingClientRect().top - box.top),
+                Math.abs(stage.getBoundingClientRect().bottom - box.bottom)
+            ),
+            railInFade: rail.getBoundingClientRect().top - box.bottom,
+            heroHeight: box.height,
+        };
+    });
+}
+
+async function favoriteFirstMovies(page: Page, count: number): Promise<void> {
+    const catalog = page.url();
+    for (let index = 0; index < count; index++) {
+        await page.goto(catalog);
+        await page.locator('app-grid-list mat-card').nth(index).click();
+        await page
+            .getByRole('button', { name: 'Add to favorites', exact: true })
+            .click();
+        await expect(
+            page.getByRole('button', {
+                name: 'Remove from favorites',
+                exact: true,
+            })
+        ).toBeVisible();
     }
 }
 
@@ -293,6 +371,70 @@ test.describe('xtream portal routes on a phone', () => {
             ).toBeInViewport();
         }
         await expectNoHorizontalOverflow(page, PHONE.width);
+    });
+
+    test('@mobile @xtream dashboard hero slide overlaps its art and fades into the first rail', async ({
+        page,
+    }) => {
+        test.setTimeout(90_000);
+        await favoriteFirstMovies(page, 2);
+
+        const hero = page.locator('[data-test-id="dashboard-hero"]');
+        const pause = page.locator('[data-test-id="dashboard-hero-pause"]');
+        const dots = page.locator('[data-test-id="dashboard-hero-dot"]');
+        const primary = hero.locator(
+            '[data-test-id="dashboard-hero-primary-action"]'
+        );
+        for (const viewport of HERO_VIEWPORTS) {
+            await page.setViewportSize(viewport);
+            await page.goto('/workspace/dashboard');
+            await expect(hero).toBeVisible({ timeout: 20_000 });
+            await expect(dots).toHaveCount(2);
+            await pause.click();
+
+            const geometry = await phoneHeroGeometry(page);
+            expect(geometry).not.toBeNull();
+            const { slideOffset, stageGap, railInFade, heroHeight } =
+                geometry as NonNullable<typeof geometry>;
+            expect(slideOffset).toBeLessThan(1);
+            expect(stageGap).toBeLessThan(1);
+            // The rail's heading sits in the hero's last 64px (its tail).
+            expect(railInFade).toBeLessThan(0);
+            expect(railInFade).toBeGreaterThan(-64);
+
+            // Another slide keeps the banner's height: the rails stay put.
+            await dots.nth(1).click();
+            await expect
+                .poll(async () => (await boxOf(hero)).height)
+                .toBeCloseTo(heroHeight, 0);
+
+            await primary.scrollIntoViewIfNeeded();
+            await expect(primary).toBeInViewport({ ratio: 1 });
+            await expectNoHorizontalOverflow(page, viewport.width);
+        }
+
+        // An installed PWA pads the top bar below the status bar
+        // (`display-mode: standalone`, which Playwright cannot emulate):
+        // with an iPhone's 47px inset applied, the hero still starts right
+        // under the header and keeps its geometry.
+        await page.setViewportSize(HERO_VIEWPORTS[0]);
+        await page.goto('/workspace/dashboard');
+        await expect(hero).toBeVisible({ timeout: 20_000 });
+        const content = page.locator('main.workspace-content');
+        const offset = async () =>
+            (await boxOf(hero)).y - (await boxOf(content)).y;
+        const before = { hero: (await boxOf(hero)).y, offset: await offset() };
+        await page
+            .locator('app-workspace-shell-rail')
+            .evaluate((rail: HTMLElement) => (rail.style.paddingTop = '47px'));
+        await expect
+            .poll(async () => (await boxOf(hero)).y)
+            .toBe(before.hero + 47);
+        expect(await offset()).toBeCloseTo(before.offset, 0);
+        const inset = await phoneHeroGeometry(page);
+        expect(inset?.slideOffset).toBeLessThan(1);
+        expect(inset?.railInFade).toBeLessThan(0);
+        await expectNoHorizontalOverflow(page, HERO_VIEWPORTS[0].width);
     });
 
     test('@mobile @xtream landscape live route keeps the channel list and the player inside the viewport', async ({

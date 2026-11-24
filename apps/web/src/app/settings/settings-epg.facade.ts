@@ -41,7 +41,7 @@ export class SettingsEpgFacade {
             return;
         }
         const filePath = await this.epgBridge.pickEpgFile();
-        if (!filePath) {
+        if (!filePath || !this.formFacade.epgUrl.controls.includes(control)) {
             return;
         }
         control.setValue(filePath);
@@ -96,6 +96,7 @@ export class SettingsEpgFacade {
     clear(): void {
         this.dialogService.openConfirmDialog({
             title: this.translate.instant('SETTINGS.CLEAR_EPG_DIALOG.TITLE'),
+            subtitle: this.translate.instant('DIALOGS.CLEAR_EPG'),
             message: this.translate.instant(
                 'SETTINGS.CLEAR_EPG_DIALOG.MESSAGE'
             ),
@@ -115,14 +116,12 @@ export class SettingsEpgFacade {
                     if (result && result.success === false) {
                         throw new Error('Clear EPG returned success=false');
                     }
-                    this.settingsSnackbar.open(
-                        this.translate.instant('SETTINGS.EPG_DATA_CLEARED')
-                    );
+                    this.settingsSnackbar.success('SETTINGS.EPG_DATA_CLEARED');
                     this.refreshAll();
                 } catch (error) {
                     console.error('Failed to clear EPG data:', error);
-                    this.settingsSnackbar.open(
-                        this.translate.instant('SETTINGS.EPG_DATA_CLEAR_FAILED')
+                    this.settingsSnackbar.error(
+                        'SETTINGS.EPG_DATA_CLEAR_FAILED'
                     );
                 } finally {
                     this.isClearing.set(false);

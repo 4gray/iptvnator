@@ -2,7 +2,7 @@ import { inject, Injectable, Injector, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { DialogService } from '@iptvnator/ui/components';
 import {
     DataService,
@@ -18,6 +18,7 @@ import {
     PlaylistMeta,
     getXtreamContentRoute,
     normalizeXtreamContentTypes,
+    sourceDialogSubtitle,
     XTREAM_CONTENT_TYPES,
     type XtreamBackupRecentlyViewedItem,
     type XtreamPendingRestoreState,
@@ -78,7 +79,7 @@ export class XtreamRefreshFlowService {
     private readonly router = inject(Router);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
     private readonly dialogService = inject(DialogService);
     private readonly databaseService = inject(DatabaseService);
     private readonly dataService = inject(DataService);
@@ -137,6 +138,9 @@ export class XtreamRefreshFlowService {
             title: this.translate.instant(
                 'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.TITLE'
             ),
+            subtitle: sourceDialogSubtitle(item, (key) =>
+                this.translate.instant(key)
+            ),
             message: this.translate.instant(
                 'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.MESSAGE'
             ),
@@ -178,12 +182,10 @@ export class XtreamRefreshFlowService {
 
             // Show immediate feedback — deletion can take several seconds for
             // large playlists.
-            this.snackBar.open(
-                this.translate.instant(
-                    'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.STARTED'
-                ),
+            this.notifications.info(
+                'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.STARTED',
                 undefined,
-                { duration: 2000 }
+                { duration: 'short' }
             );
             await reporter.waitForVisibleProgress?.();
 
@@ -308,12 +310,8 @@ export class XtreamRefreshFlowService {
         } catch (error) {
             if (!isDbAbortError(error)) {
                 console.error('Error refreshing Xtream playlist:', error);
-                this.snackBar.open(
-                    this.translate.instant(
-                        'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.ERROR'
-                    ),
-                    undefined,
-                    { duration: 3000 }
+                this.notifications.error(
+                    'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.ERROR'
                 );
             }
         } finally {

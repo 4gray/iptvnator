@@ -11,6 +11,11 @@ import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { EpgRuntimeBridgeService } from './epg-runtime-bridge.service';
 import { EpgService } from './epg.service';
 
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
+
 /** Spec-only double: capability flags are read-only getters on the real class. */
 type WritablePartial<T> = { -readonly [K in keyof T]?: T[K] };
 
@@ -268,9 +273,11 @@ describe('EpgService', () => {
         // No panel row can carry the failure, and the backend's text is
         // still not what the user sees.
         expect(snackBar.open).toHaveBeenCalledTimes(1);
-        expect(snackBar.open).toHaveBeenCalledWith('EPG.ERROR', 'CLOSE', {
-            duration: 3000,
-        });
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'EPG.ERROR',
+            'CLOSE',
+            ERROR_TOAST
+        );
     });
 
     it('shows the generic toast at the default position when the bridge call itself fails', async () => {
@@ -284,9 +291,11 @@ describe('EpgService', () => {
         await new Promise((resolve) => setTimeout(resolve));
 
         expect(snackBar.open).toHaveBeenCalledTimes(1);
-        expect(snackBar.open).toHaveBeenCalledWith('EPG.ERROR', 'CLOSE', {
-            duration: 3000,
-        });
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'EPG.ERROR',
+            'CLOSE',
+            ERROR_TOAST
+        );
     });
 
     it('returns an empty batch result when the desktop bridge is unavailable', async () => {
@@ -322,7 +331,9 @@ describe('EpgService', () => {
             firstValueFrom(service.getCurrentProgramForChannel('channel-1'))
         ).resolves.toMatchObject({ title: 'Morning News' });
 
-        expect(epgBridge.getChannelPrograms).toHaveBeenCalledWith('channel-1');
+        expect(epgBridge.getChannelPrograms).toHaveBeenCalledWith('channel-1', {
+            nowMs: expect.any(Number),
+        });
         jest.useRealTimers();
     });
 
@@ -520,12 +531,18 @@ describe('EpgService', () => {
             expect(epgBridge.getChannelPrograms).toHaveBeenNthCalledWith(
                 1,
                 'guide-news',
-                { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+                {
+                    sourceUrls: ['https://playlist.example.com/guide.xml'],
+                    nowMs: expect.any(Number),
+                }
             );
             expect(epgBridge.getChannelPrograms).toHaveBeenNthCalledWith(
                 2,
                 'guide-news',
-                { sourceUrls: ['https://global.example.com/guide.xml'] }
+                {
+                    sourceUrls: ['https://global.example.com/guide.xml'],
+                    nowMs: expect.any(Number),
+                }
             );
         } finally {
             jest.useRealTimers();

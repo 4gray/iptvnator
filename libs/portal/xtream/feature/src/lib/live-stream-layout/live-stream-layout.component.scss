@@ -70,6 +70,12 @@
     padding-inline-start: 56px;
 }
 
+// With both rails folded the shared .sidebar-restore handle floats here
+// instead; it is anchored with a physical `left`, so the room is too.
+.category-content-header.category-content-header--panels-collapsed {
+    padding-left: 56px;
+}
+
 .category-title {
     @include panel.standard-panel-title();
 }
@@ -128,14 +134,14 @@ app-grid-list.live-all-items-grid {
 }
 
 .archive-unavailable-banner__title {
-    font-size: 0.85rem;
+    font-size: var(--app-text-md);
     font-weight: 600;
     letter-spacing: 0.01em;
 }
 
 .archive-unavailable-banner__description {
     margin-top: 4px;
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     line-height: 1.45;
     opacity: 0.74;
 }

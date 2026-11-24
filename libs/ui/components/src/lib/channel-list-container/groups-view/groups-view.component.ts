@@ -56,8 +56,9 @@ import {
     GroupManagementDialogComponent,
     GroupManagementDialogGroup,
 } from './group-management-dialog/group-management-dialog.component';
-import { dialogSize } from '../../dialog-shell/dialog-size';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 import { createGroupsRailReveal } from './groups-rail-reveal';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 const GROUP_CHANNEL_SORT_STORAGE_KEY = 'm3u-groups-channel-sort-mode';
 /** Rail width inside the fullscreen channel panel; see the `compact` input. */
@@ -82,6 +83,7 @@ interface FilteredGroupView {
     styleUrls: ['./groups-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        StateViewComponent,
         ChannelContextMenuComponent,
         CategoryLockMenuComponent,
         ChannelScrollFocusDirective,
@@ -243,6 +245,8 @@ export class GroupsViewComponent {
 
     private previousActiveChannelUrl: string | undefined;
     private preservedContentWidth = 0;
+    /** The outer sidebar's width when a rail resize started. */
+    private sidebarWidthAtResizeStart: number | null = null;
 
     constructor() {
         effect(() => {
@@ -580,7 +584,9 @@ export class GroupsViewComponent {
 
     onGroupsNavResizeStart(): void {
         if (this.compact()) return;
-        this.preservedContentWidth = this.measureContentPanelWidth();
+        this.preservedContentWidth =
+            this.measureContentPanelWidth() + this.measureSidebarChrome();
+        this.sidebarWidthAtResizeStart = this.sidebarWidth();
     }
 
     onGroupsNavWidthChange(width: number): void {
@@ -593,6 +599,21 @@ export class GroupsViewComponent {
         if (this.compact()) return;
         this.emitSidebarWidthRequest(width, this.sidebarWidthRequestEnded);
         this.preservedContentWidth = 0;
+    }
+
+    /**
+     * The rail's edge did not move (a click, or a drag the sidebar's
+     * responsive cap stopped): nothing is committed, and the live width the
+     * drag requested goes back to where it started.
+     */
+    onGroupsNavResizeCancel(): void {
+        if (this.compact()) return;
+        const width = this.sidebarWidthAtResizeStart;
+        if (width !== null && width > 0) {
+            this.sidebarWidthRequested.emit(width);
+        }
+        this.preservedContentWidth = 0;
+        this.sidebarWidthAtResizeStart = null;
     }
 
     trackByChannel(_: number, channel: Channel): string {
@@ -710,6 +731,23 @@ export class GroupsViewComponent {
         }
 
         return 0;
+    }
+
+    /**
+     * The part of the enclosing resizable sidebar's `width` that is neither
+     * rail nor channel pane (its padding and border). A requested sidebar
+     * width that left it out took that much from the rail on every commit
+     * once the rail's responsive cap followed the sidebar.
+     */
+    private measureSidebarChrome(): number {
+        const host: HTMLElement = this.hostEl.nativeElement;
+        const sidebar =
+            host.parentElement?.closest<HTMLElement>('.resizable-element');
+        if (!sidebar) return 0;
+        const sidebarWidth = parseFloat(getComputedStyle(sidebar).width);
+        const hostWidth = this.readWidth(host);
+        if (!Number.isFinite(sidebarWidth) || hostWidth <= 0) return 0;
+        return Math.max(0, sidebarWidth - hostWidth);
     }
 
     private readWidth(element: Element | null): number {

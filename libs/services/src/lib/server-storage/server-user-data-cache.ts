@@ -1,8 +1,8 @@
-import { XTREAM_RESTORE_RECEIPTS } from '../xtream-user-data-keys';
 import {
-    retainServerRestoreReceipts,
-    forgetServerRestoreReceipts,
-} from './server-user-data-receipts';
+    forgetXtreamRestoreReceipt,
+    XTREAM_RESTORE_RECEIPTS,
+} from '../xtream-user-data-keys';
+import { retainServerRestoreReceipts } from './server-user-data-receipts';
 import {
     SERVER_USER_STATE_NAMESPACES,
     type ServerUserStateNamespace,
@@ -114,7 +114,7 @@ export class UserDataCache {
                 this.write(namespace, null);
             } else {
                 delete map[playlistId];
-                forgetServerRestoreReceipts(map, playlistId);
+                forgetXtreamRestoreReceipt(map, playlistId);
                 this.write(namespace, JSON.stringify(map));
             }
         }

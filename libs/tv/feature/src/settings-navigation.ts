@@ -8,6 +8,7 @@ export const settingsCategories = [
     ['library', 'Library & sync', 'Shared sources'],
     ['appearance', 'Appearance', 'Home composition'],
     ['epg', 'Programme guide', 'Provider schedules'],
+    ['playback', 'Playback', 'Autoplay next episode'],
     ['metadata', 'Metadata · TMDB', 'Artwork & descriptions'],
     ['remote', 'Your remote', 'Buttons & navigation'],
     ['about', 'About', 'Version & device information'],

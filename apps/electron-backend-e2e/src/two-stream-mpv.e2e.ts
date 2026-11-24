@@ -176,19 +176,22 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
         await page
             .locator('.embedded-mpv-pair > app-embedded-mpv-player')
             .hover();
-        const addStream = page.getByTestId(
-            'player-controls-second-stream-button'
-        );
+        const multiview = page.getByRole('button', {
+            name: 'Multiview',
+            exact: true,
+        });
+        const addStream = page.getByRole('menuitem', {
+            name: 'Add stream',
+            exact: true,
+        });
         const streamInfo = page.getByTestId(
             'player-controls-stream-info-button'
         );
         const settings = page.getByTestId('player-controls-settings-button');
-        await expect(addStream.locator('mat-icon')).toHaveText(
-            'picture_in_picture_alt'
-        );
+        await expect(multiview.locator('mat-icon')).toHaveText('grid_view');
         await expect(settings).toBeVisible();
         await expect(streamInfo).toBeVisible();
-        const addBounds = await addStream.boundingBox();
+        const addBounds = await multiview.boundingBox();
         const settingsBounds = await settings.boundingBox();
         const infoBounds = await streamInfo.boundingBox();
         ok(addBounds && settingsBounds && infoBounds);
@@ -202,18 +205,17 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
                 name: /^(Enter|Exit) picture-in-picture$/,
             })
         ).toHaveCount(0);
-        await addStream.hover();
+        await multiview.hover();
         await expect(page.locator('.mat-mdc-tooltip-show')).toHaveText(
-            'Add second stream'
+            'Multiview'
         );
         await page.screenshot({
             path: testInfo.outputPath('second-stream-action.png'),
         });
-        await page
-            .getByRole('button', { name: 'Add second stream', exact: true })
-            .click();
+        await multiview.click();
+        await addStream.click();
         const picker = page.getByRole('dialog', {
-            name: 'Choose a second stream',
+            name: 'Choose a stream for window 2',
         });
         const pickerSearch = picker.getByRole('searchbox', {
             name: 'Search channels',
@@ -250,8 +252,8 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
         await app.electronApp.evaluate(({ BrowserWindow }) =>
             BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(2)
         );
-        await addStream.focus();
-        await page.keyboard.press('Enter');
+        await multiview.press('Enter');
+        await addStream.press('Enter');
         await expect(pickerSearch).toBeFocused();
         await expect(
             picker.getByRole('button', { name: 'Close dialog' })
@@ -259,10 +261,11 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
         await expect(liveRow.getByRole('button')).toBeInViewport();
         await page.keyboard.press('Escape');
         await expect(picker).toBeHidden();
-        await expect(addStream).toBeFocused();
+        await expect(multiview).toBeFocused();
         await app.electronApp.evaluate(({ BrowserWindow }) =>
             BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(1)
         );
+        await multiview.click();
         await addStream.click();
         await expect(liveRow.getByRole('button')).toBeVisible();
         await picker
@@ -563,6 +566,7 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
                 page.evaluate(() => Boolean(document.fullscreenElement))
             )
             .toBe(true);
+        await expect(page.locator('.second-stream__strip')).toHaveCount(0);
         await expect(canvases.first()).toHaveAttribute(
             'data-session-id',
             firstId!
@@ -571,11 +575,21 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
             'data-session-id',
             secondId!
         );
-        await tile.hover();
+        // The floating tile can move as native fullscreen settles. Focus
+        // keeps its controls open while Playwright waits for a stable target.
+        await tile.focus();
+        await expect(tile.locator('.second-stream__top')).toHaveCSS(
+            'opacity',
+            '1'
+        );
         await tile
             .getByRole('button', { name: 'Change second stream' })
             .click();
         await expect(pickerSearch).toBeFocused();
+        await expect(picker).toBeVisible();
+        await expect(liveRow.getByRole('button')).toBeDisabled();
+        await expect(liveRow).toContainText('already open in window 2');
+        await liveRow.getByRole('button').press('Enter');
         await expect(picker).toBeVisible();
         await page.keyboard.press('Escape');
         await expect(picker).toBeHidden();
@@ -608,13 +622,13 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
         const beside = strip.getByRole('button', { name: 'Side by side' });
         const floating = strip.getByRole('button', { name: 'Floating window' });
         const originalControls = strip.getByRole('button', {
-            name: 'Control Synthetic movie',
+            name: 'Control Synthetic movie · Window 1',
         });
         const originalSound = strip.getByRole('button', {
-            name: 'Sound from Synthetic movie',
+            name: 'Sound from Synthetic movie · Window 1',
         });
         const companionSound = strip.getByRole('button', {
-            name: 'Sound from Synthetic live',
+            name: 'Sound from Synthetic live · Window 2',
         });
         const floatingBeforeSideBySide = await tile.boundingBox();
         ok(firstId && secondId);
@@ -660,7 +674,7 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
         await expect(companionSound).toHaveAttribute('aria-pressed', 'true');
         await expect(beside).toBeFocused();
         await strip
-            .getByRole('button', { name: 'Control Synthetic live' })
+            .getByRole('button', { name: 'Control Synthetic live · Window 2' })
             .click();
         const companionStatus = async () => (await readSessions())[1]?.status;
         await page.keyboard.press('Space');
@@ -721,14 +735,14 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
         await expect(pair).toBeVisible();
         await expect
             .poll(() =>
-                strip.evaluate(
+                pair.evaluate(
                     (node) =>
                         document.fullscreenElement?.contains(node) ?? false
                 )
             )
             .toBe(true);
         await checkColumns();
-        await expect(beside).toBeVisible();
+        await expect(strip).toHaveCount(0);
         await pair
             .getByRole('button', { name: 'Exit fullscreen', exact: true })
             .click();
@@ -737,6 +751,7 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
                 page.evaluate(() => document.fullscreenElement === null)
             )
             .toBe(true);
+        await expect(beside).toBeVisible();
         await expect(pair.locator('[data-feedback-key]')).toHaveCount(0);
         for (const theme of ['dark', 'light'] as const) {
             await applyTheme(page, theme);
@@ -845,9 +860,11 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
             .locator('app-second-stream .embedded-mpv-player__stalled')
             .getByRole('button', { name: 'Retry', exact: true })
             .click();
-        await expect
-            .poll(() => canvases.nth(1).getAttribute('data-session-id'))
-            .not.toBe(previousSecondId);
+        await expect(canvases.nth(1)).not.toHaveAttribute(
+            'data-session-id',
+            previousSecondId
+        );
+        await expect(canvases.nth(1)).toHaveAttribute('data-session-id', /.+/);
         secondId = await canvases.nth(1).getAttribute('data-session-id');
         await expect
             .poll(() =>
@@ -922,9 +939,8 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
         await page
             .locator('.embedded-mpv-pair > app-embedded-mpv-player')
             .hover();
-        await page
-            .getByRole('button', { name: 'Add second stream', exact: true })
-            .click();
+        await multiview.click();
+        await addStream.click();
         await picker
             .getByLabel('Playlist', { exact: true })
             .selectOption({ label: 'synthetic-pair' });

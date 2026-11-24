@@ -75,14 +75,14 @@
 
     &__born {
         color: var(--text-muted);
-        font-size: 0.9375rem;
+        font-size: var(--app-text-lg);
         margin: 0 0 12px;
     }
 
     &__bio {
         color: var(--text-primary);
         display: -webkit-box;
-        font-size: 0.9375rem;
+        font-size: var(--app-text-lg);
         line-height: 1.5;
         margin: 0;
         max-width: 720px;

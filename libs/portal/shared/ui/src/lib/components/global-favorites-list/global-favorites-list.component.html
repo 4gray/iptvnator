@@ -7,26 +7,23 @@
     (cdkDropListDropped)="onDrop($event)"
 >
     @if (enrichedChannels().length === 0) {
-        <div class="empty-state">
-            <mat-icon class="empty-icon">star_border</mat-icon>
-            @if (hasSearchTerm()) {
-                <p class="empty-title">
-                    {{ 'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS' | translate }}
-                </p>
-                <p class="empty-hint">
-                    {{
-                        'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS_HINT' | translate
-                    }}
-                </p>
-            } @else {
-                <p class="empty-title">
-                    {{ 'WORKSPACE.GLOBAL_FAVORITES.EMPTY_TITLE' | translate }}
-                </p>
-                <p class="empty-hint">
-                    {{ 'WORKSPACE.GLOBAL_FAVORITES.EMPTY_HINT' | translate }}
-                </p>
-            }
-        </div>
+        <app-state-view
+            size="panel"
+            [variant]="hasSearchTerm() ? 'no-results' : 'empty'"
+            [icon]="hasSearchTerm() ? null : appIcons.favoriteOutline"
+            [heading]="
+                (hasSearchTerm()
+                    ? 'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS'
+                    : 'WORKSPACE.GLOBAL_FAVORITES.EMPTY_TITLE'
+                ) | translate
+            "
+            [description]="
+                (hasSearchTerm()
+                    ? 'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS_HINT'
+                    : 'WORKSPACE.GLOBAL_FAVORITES.EMPTY_HINT'
+                ) | translate
+            "
+        />
     }
 
     @for (ch of enrichedChannels(); track trackByUid($index, ch)) {

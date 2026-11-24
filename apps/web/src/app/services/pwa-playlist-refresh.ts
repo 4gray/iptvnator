@@ -2,38 +2,37 @@ import type { Injector } from '@angular/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import { PlaylistsService } from '@iptvnator/services';
-import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
+import {
+    type NotificationMessage,
+    NotificationService,
+} from '@iptvnator/services/notifications';
 import type { Playlist } from '@iptvnator/shared/interfaces';
 import { Store } from '@ngrx/store';
-import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 
 const logger = createLogger('PwaService');
 
+/** Resolves whether the playlist was loaded; a failed download is reported. */
 export async function refreshPwaPlaylist(
     injector: Injector,
     playlistId: string,
     url: string,
     savedUserAgent: string | undefined,
     download: (userAgent: string | undefined) => Promise<Playlist>,
-    describeDownloadError: (error: unknown) => string
-): Promise<void> {
+    describeDownloadError: (error: unknown) => NotificationMessage & {
+        code?: string;
+    }
+): Promise<boolean> {
     const userAgent = savedUserAgent?.trim() || undefined;
-    const snackBar = injector.get(LazySnackBar);
-    const translate = injector.get(TranslateService);
+    const notifications = injector.get(NotificationService);
     let playlist: Playlist;
     try {
         playlist = await download(userAgent);
     } catch (error) {
         logger.error('Playlist refresh download failed:', error);
-        void snackBar.open(
-            describeDownloadError(error),
-            translate.instant('CLOSE'),
-            {
-                duration: 5000,
-            }
-        );
-        return;
+        const { key, params, code } = describeDownloadError(error);
+        notifications.error(key, params, { code });
+        return false;
     }
 
     // The matching DataService is already constructed when a refresh runs.
@@ -54,9 +53,6 @@ export async function refreshPwaPlaylist(
             persist: false,
         })
     );
-    void snackBar.open(
-        translate.instant('HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'),
-        undefined,
-        { duration: 2000 }
-    );
+    notifications.success('HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS');
+    return true;
 }

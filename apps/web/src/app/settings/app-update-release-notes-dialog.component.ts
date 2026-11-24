@@ -91,11 +91,18 @@ function decorateReleaseNotesHtml(html: string): string {
         <app-dialog-shell
             icon="new_releases"
             [heading]="'SETTINGS.APP_UPDATE_RELEASE_NOTES' | translate"
+            [subtitle]="
+                shownVersion()
+                    ? ('DIALOGS.RELEASE_NOTES_VERSION'
+                      | translate: { version: shownVersion() })
+                    : ('DIALOGS.RELEASE_NOTES' | translate)
+            "
         >
             <div class="release-notes-dialog">
                 <div class="release-notes-dialog__toolbar">
                     <button
                         mat-icon-button
+                        class="app-dialog__ghost-icon"
                         type="button"
                         [disabled]="loading() || !notes()?.hasPrevious"
                         [attr.aria-label]="
@@ -119,6 +126,7 @@ function decorateReleaseNotesHtml(html: string): string {
 
                     <button
                         mat-icon-button
+                        class="app-dialog__ghost-icon"
                         type="button"
                         [disabled]="loading() || !notes()?.hasNext"
                         [attr.aria-label]="
@@ -134,7 +142,7 @@ function decorateReleaseNotesHtml(html: string): string {
 
                 @if (loading()) {
                     <div class="release-notes-dialog__loading">
-                        <mat-spinner diameter="28" />
+                        <mat-spinner diameter="24" />
                     </div>
                 } @else if (error(); as loadError) {
                     <div
@@ -218,7 +226,7 @@ function decorateReleaseNotesHtml(html: string): string {
         `
             .release-notes-dialog__toolbar {
                 display: grid;
-                grid-template-columns: 40px minmax(0, 1fr) 40px;
+                grid-template-columns: 32px minmax(0, 1fr) 32px;
                 align-items: center;
                 gap: 8px;
                 padding: 4px 0 12px;
@@ -342,15 +350,16 @@ export class AppUpdateReleaseNotesDialogComponent implements OnInit {
     readonly loading = signal(false);
     readonly error = signal<ReleaseNotesLoadError | null>(null);
     readonly notes = signal<ElectronBridgeAppUpdateReleaseNotes | null>(null);
+    /** The version shown, or the one the failed request was about. */
+    readonly shownVersion = computed(
+        () =>
+            this.error()?.version ??
+            this.notes()?.version ??
+            this.data.initialVersion
+    );
     /** Release list of the channel the failed request was about. */
     readonly releasesPageUrl = computed(() =>
-        appUpdateReleasesListUrl(
-            appVersionChannel(
-                this.error()?.version ??
-                    this.notes()?.version ??
-                    this.data.initialVersion
-            )
-        )
+        appUpdateReleasesListUrl(appVersionChannel(this.shownVersion()))
     );
     readonly renderedMarkdown = computed(() => {
         const markdown = this.notes()?.bodyMarkdown ?? '';

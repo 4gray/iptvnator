@@ -1,6 +1,6 @@
 import { XtreamDeferredCatalogRestoreService } from '@iptvnator/services/xtream-catalog-restore';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -21,6 +21,11 @@ import {
     type XtreamRefreshProgressReporter,
     type XtreamRefreshRun,
 } from './xtream-refresh-flow.service';
+
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
 
 function createAbortError(): Error {
     const error = new Error('Cancelled');
@@ -138,7 +143,7 @@ describe('XtreamRefreshFlowService', () => {
             getAllPlaybackPositions: jest.fn().mockResolvedValue([]),
         };
         router = { navigate: jest.fn().mockResolvedValue(true) };
-        snackBar = { open: jest.fn() };
+        snackBar = { open: jest.fn().mockResolvedValue(null) };
         store = { dispatch: jest.fn() };
 
         TestBed.configureTestingModule({
@@ -150,7 +155,7 @@ describe('XtreamRefreshFlowService', () => {
                     provide: TranslateService,
                     useValue: { instant: jest.fn((key: string) => key) },
                 },
-                { provide: MatSnackBar, useValue: snackBar },
+                { provide: LazySnackBar, useValue: snackBar },
                 { provide: DialogService, useValue: dialogService },
                 { provide: DatabaseService, useValue: databaseService },
                 { provide: DataService, useValue: dataService },
@@ -664,8 +669,8 @@ describe('XtreamRefreshFlowService', () => {
         expect(calls).toEqual(['begin', 'end']);
         expect(snackBar.open).toHaveBeenCalledWith(
             'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.ERROR',
-            undefined,
-            { duration: 3000 }
+            'CLOSE',
+            ERROR_TOAST
         );
         expect(router.navigate).not.toHaveBeenCalled();
         expect(consoleErrorSpy).toHaveBeenCalled();

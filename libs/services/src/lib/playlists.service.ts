@@ -12,8 +12,7 @@ import {
 } from './database-electron.service';
 import { SourceHealthEvidenceService } from './source-health-evidence.service';
 import { inject, Injectable } from '@angular/core';
-import { LazySnackBar } from './lazy-snack-bar/lazy-snack-bar';
-import { TranslateService } from '@ngx-translate/core';
+import { NotificationService } from './notifications/notification.service';
 import {
     createPlaylistObject,
     resolvePlaylistEpgSourceState,
@@ -40,6 +39,8 @@ import {
     PlaylistRecentlyViewedItem,
     PlaylistRecentIdentity,
     PlaylistUpdateState,
+    applyStalkerCategoryVisibility,
+    type StalkerCategoryVisibilityChanges,
     StalkerPortalItem,
     withExplicitStalkerPortalFlag,
 } from '@iptvnator/shared/interfaces';
@@ -92,8 +93,7 @@ export class PlaylistsService {
     });
     private readonly dbService = inject(NgxIndexedDBService);
     private readonly databaseService = inject(DatabaseService);
-    private readonly snackBar = inject(LazySnackBar);
-    private readonly translateService = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
     private readonly storageBackend = inject(PlaylistStorageBackend);
     private readonly playlistDeleteCleanups =
         inject(PLAYLIST_DELETE_CLEANUP, { optional: true }) ?? [];
@@ -1071,6 +1071,44 @@ export class PlaylistsService {
         });
     }
 
+    updateStalkerCategoryVisibility(
+        playlistId: string,
+        changes: StalkerCategoryVisibilityChanges
+    ): Observable<Playlist> {
+        const edit = (current: Playlist): Playlist => {
+            if (!current?.macAddress)
+                throw new Error('Stalker playlist no longer exists');
+            return {
+                ...current,
+                hiddenStalkerCategories: applyStalkerCategoryVisibility(
+                    current.hiddenStalkerCategories,
+                    changes
+                ),
+            };
+        };
+        return this.serializePlaylistWrite(playlistId, async () => {
+            if (!this.usesDocumentStore) {
+                await this.ensureIndexedDbPlaylistMigrations();
+                const saved = await this.transformIndexedDbPlaylistMeta(
+                    playlistId,
+                    edit
+                );
+                if (!saved)
+                    throw new Error('Stalker playlist no longer exists');
+                return saved;
+            }
+            const playlist = edit(
+                await firstValueFrom(this.getPlaylistById(playlistId))
+            );
+            this.startupMetas = null;
+            const saved =
+                await this.documentStore?.dbUpsertAppPlaylist(playlist);
+            if (!saved?.success)
+                throw new Error('Stalker category visibility write failed');
+            return saved.playlist ?? playlist;
+        });
+    }
+
     updateManyPlaylists(playlists: Playlist[]) {
         if (playlists.length === 0) {
             return of([]);
@@ -1231,11 +1269,7 @@ export class PlaylistsService {
                 uploadType
             );
         } catch (error) {
-            void this.snackBar.open(
-                this.translateService.instant('HOME.PARSING_ERROR'),
-                undefined,
-                { duration: 2000 }
-            );
+            this.notifications.error('HOME.PARSING_ERROR');
             throw new Error(`Parsing failed, not a valid playlist: ${error}`);
         }
     }

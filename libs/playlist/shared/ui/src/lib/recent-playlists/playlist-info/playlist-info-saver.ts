@@ -7,10 +7,9 @@ import {
 } from '@angular/core';
 import { UntypedFormGroup } from '@angular/forms';
 import { MatDialogRef } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
     createXtreamConnectionTestState,
@@ -48,6 +47,8 @@ interface PlaylistInfoSaveHost {
     playlistDetails: UntypedFormGroup;
     readonly isSaving: WritableSignal<boolean>;
     readonly isRefreshingSelectedCatalogs: WritableSignal<boolean>;
+    readonly isLoadingSource: WritableSignal<boolean>;
+    readonly sourceLoadFailed: WritableSignal<boolean>;
     readonly isHydratingStalkerPlaylist: Signal<boolean>;
     readonly stalkerPlaylistHydrationFailed: Signal<boolean>;
     readonly connectionTest: ReturnType<typeof createXtreamConnectionTestState>;
@@ -65,14 +66,15 @@ export class PlaylistInfoSaver {
     private readonly databaseService = inject(DatabaseService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly store = inject(Store);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
     private readonly injector = inject(Injector);
     private readonly destroyRef = inject(DestroyRef);
     private readonly stalkerConnectionEditor = inject(
         STALKER_PLAYLIST_CONNECTION_EDITOR
     );
     private readonly dialogRef = inject(MatDialogRef, { optional: true });
+    /** The saved source has not loaded yet, so the next save retries it. */
+    private retrySourceLoad = false;
 
     constructor(
         private readonly host: PlaylistInfoSaveHost,
@@ -86,6 +88,7 @@ export class PlaylistInfoSaver {
         }
 
         this.host.isSaving.set(true);
+        this.host.sourceLoadFailed.set(false);
         if (this.dialogRef) {
             this.dialogRef.disableClose = true;
         }
@@ -118,11 +121,14 @@ export class PlaylistInfoSaver {
             // refresh is running that fetch would be skipped and the old
             // channels kept, so refuse the save before anything is written,
             // as an Xtream edit already does.
-            if (
+            const loadSource =
+                this.retrySourceLoad ||
                 hasM3uSourceChanged(this.host.playlist, {
                     ...this.host.playlist,
                     ...normalizedPlaylist,
-                } as PlaylistMeta) &&
+                } as PlaylistMeta);
+            if (
+                loadSource &&
                 this.injector
                     .get(PlaylistRefreshActionService)
                     .isBlocked(this.host.playlist._id)
@@ -154,11 +160,7 @@ export class PlaylistInfoSaver {
                         result.status !==
                         STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.RESOLVED
                     ) {
-                        this.snackBar.open(
-                            result.message,
-                            this.translate.instant('CLOSE'),
-                            { duration: 8000 }
-                        );
+                        this.notifications.error(result.messageKey);
                         return;
                     }
                     normalizedPlaylist = result.playlist;
@@ -235,15 +237,29 @@ export class PlaylistInfoSaver {
             );
 
             // A new M3U source is fetched straight away, the same way a
-            // manual refresh does, so favorites and settings are kept.
-            const savedPlaylist = {
-                ...this.host.playlist,
-                ...normalizedPlaylist,
-            };
-            if (hasM3uSourceChanged(this.host.playlist, savedPlaylist)) {
-                this.injector
+            // manual refresh does, so favorites and settings are kept. Success
+            // is reported only once its channels have loaded (#1677).
+            let sourceNotLoaded = false;
+            if (loadSource) {
+                const savedPlaylist = {
+                    ...this.host.playlist,
+                    ...normalizedPlaylist,
+                };
+                this.host.isLoadingSource.set(true);
+                const outcome = await this.injector
                     .get(PlaylistRefreshActionService)
-                    .refresh(savedPlaylist);
+                    .refreshM3uSource(savedPlaylist);
+                // A failed load keeps the saved source (the user's choice, and
+                // possibly only down for now) and the previous channels; the
+                // refresh has said why. The dialog stays open on the saved
+                // state, so Save retries it without a stale sync revision.
+                this.retrySourceLoad = outcome === 'failed';
+                if (outcome === 'failed') {
+                    this.host.playlist = savedPlaylist;
+                    this.host.sourceLoadFailed.set(true);
+                    return;
+                }
+                sourceNotLoaded = outcome === 'skipped';
             }
 
             // Save already authorized this connection change, and a full
@@ -256,13 +272,15 @@ export class PlaylistInfoSaver {
                 return;
             }
 
-            this.snackBar.open(
-                this.translate.instant(
+            if (sourceNotLoaded) {
+                this.notifications.info(
+                    'HOME.PLAYLISTS.SOURCE_SAVED_NOT_LOADED'
+                );
+            } else {
+                this.notifications.success(
                     'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
-                ),
-                this.translate.instant('CLOSE'),
-                { duration: 3000 }
-            );
+                );
+            }
             this.dialogRef?.close();
             const target =
                 isXtream && this.runtime.supportsXtreamSqliteDataSource
@@ -289,20 +307,15 @@ export class PlaylistInfoSaver {
                 error instanceof Error
                     ? error.message.match(/SOURCE_SYNC\.[A-Z_]+/)?.[0]
                     : undefined;
-            this.snackBar.open(
-                this.translate.instant(
-                    sourceError ?? 'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED'
-                ),
-                this.translate.instant('CLOSE'),
-                {
-                    duration: 3000,
-                }
+            this.notifications.error(
+                sourceError ?? 'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED'
             );
         } finally {
             if (this.dialogRef) {
                 this.dialogRef.disableClose = false;
             }
             this.host.isRefreshingSelectedCatalogs.set(false);
+            this.host.isLoadingSource.set(false);
             this.host.isSaving.set(false);
         }
     }

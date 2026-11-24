@@ -2327,9 +2327,14 @@ describe('PlaylistsService', () => {
                         : null
                 ),
                 dbSetAppState: jest.fn(),
-                dbUpsertAppPlaylist: jest.fn(async (playlist: Playlist) => {
-                    store.current = playlist;
-                }),
+                dbUpsertAppPlaylist: jest.fn(
+                    async (
+                        playlist: Playlist
+                    ): Promise<{ success: boolean } | void> => {
+                        store.current = playlist;
+                        return { success: true };
+                    }
+                ),
                 dbUpsertAppPlaylists: jest.fn(async (playlists: Playlist[]) => {
                     const target = playlists.find(
                         (playlist) => playlist._id === store.current._id
@@ -2713,6 +2718,164 @@ describe('PlaylistsService', () => {
             const deleteOrder =
                 electron.dbDeletePlaylist.mock.invocationCallOrder[0];
             expect(deleteOrder).toBeGreaterThan(upsertOrder);
+        });
+
+        it('edits the browser cursor row without replacing other hidden genres', async () => {
+            testWindow.electron = undefined;
+            const current = {
+                ...createBasePlaylist('local-source'),
+                macAddress: '00:00:00:00:00:00',
+                hiddenStalkerCategories: { itv: ['01', '02'] },
+            };
+            const update = jest.fn();
+            const service = createService({
+                openCursor: ({ query }: { query?: string }) =>
+                    query === current._id
+                        ? of({ value: current, update })
+                        : EMPTY,
+            });
+            const saved = await firstValueFrom(
+                service.updateStalkerCategoryVisibility(current._id, {
+                    itv: { show: ['01'] },
+                })
+            );
+            expect(saved).toEqual({
+                ...current,
+                hiddenStalkerCategories: { itv: ['02'] },
+            });
+            expect(update).toHaveBeenCalledWith(saved);
+            await expect(
+                firstValueFrom(
+                    service.updateStalkerCategoryVisibility('removed-source', {
+                        itv: { hide: ['01'] },
+                    })
+                )
+            ).rejects.toThrow('Stalker playlist no longer exists');
+            expect(update).toHaveBeenCalledTimes(1);
+        });
+
+        it('aborts browser visibility edits if another source replaced the portal', async () => {
+            testWindow.electron = undefined;
+            const abort = jest.fn();
+            const update = jest.fn();
+            const service = createService({
+                openCursor: ({ query }: { query?: string }) =>
+                    query
+                        ? of({
+                              value: {
+                                  _id: query,
+                                  url: 'https://source.example/list',
+                              },
+                              update,
+                              request: { transaction: { abort } },
+                          })
+                        : EMPTY,
+            });
+            await expect(
+                firstValueFrom(
+                    service.updateStalkerCategoryVisibility('replaced-source', {
+                        vod: { hide: ['01'] },
+                    })
+                )
+            ).rejects.toThrow('Stalker playlist no longer exists');
+            expect(abort).toHaveBeenCalledTimes(1);
+            expect(update).not.toHaveBeenCalled();
+        });
+
+        it('merges Stalker visibility edits against the latest source and survives stale refreshes', async () => {
+            const original = {
+                ...createBasePlaylist('synthetic-categories'),
+                macAddress: '00:00:00:00:00:00',
+                hiddenStalkerCategories: {
+                    itv: ['shared', 'unlisted'],
+                    vod: ['shared'],
+                },
+            };
+            const { store, electron } = createStatefulElectronStore(original);
+            testWindow.electron = electron;
+            const service = createService();
+            await Promise.all([
+                firstValueFrom(
+                    service.updateStalkerCategoryVisibility(original._id, {
+                        itv: { show: ['shared'] },
+                        series: { hide: ['shared'] },
+                    })
+                ),
+                firstValueFrom(
+                    service.updateStalkerCategoryVisibility(original._id, {
+                        itv: { hide: ['new', 'new', '*', ''] },
+                    })
+                ),
+                firstValueFrom(service.updatePlaylist(original._id, original)),
+            ]);
+            expect(store.current.hiddenStalkerCategories).toEqual({
+                itv: ['unlisted', 'new'],
+                series: ['shared'],
+                vod: ['shared'],
+            });
+            expect(store.current.favorites).toEqual(original.favorites);
+        });
+
+        it('reapplies visibility deltas to a newer document after a server conflict', async () => {
+            const original = {
+                ...createBasePlaylist('synthetic-server-source'),
+                macAddress: '00:00:00:00:00:00',
+            };
+            const { store, electron } = createStatefulElectronStore(original);
+            const service = createService();
+            Object.assign(service, {
+                storageBackend: {
+                    kind: () => 'server',
+                    documentStore: () => electron,
+                },
+            });
+            electron.dbUpsertAppPlaylist.mockImplementationOnce(async () => {
+                store.current = {
+                    ...original,
+                    hiddenStalkerCategories: { vod: ['other-device'] },
+                };
+                throw new PlaylistWriteConflict(original._id);
+            });
+            const saved = await firstValueFrom(
+                service.updateStalkerCategoryVisibility(original._id, {
+                    vod: { hide: ['local'] },
+                    itv: { hide: ['local'] },
+                })
+            );
+            expect(saved.hiddenStalkerCategories).toEqual({
+                vod: ['other-device', 'local'],
+                itv: ['local'],
+            });
+        });
+
+        it('rejects a failed visibility write and leaves the next queued edit usable', async () => {
+            const original = {
+                ...createBasePlaylist('synthetic-categories'),
+                macAddress: '00:00:00:00:00:00',
+            };
+            const { store, electron } = createStatefulElectronStore(original);
+            testWindow.electron = electron;
+            const service = createService();
+            electron.dbUpsertAppPlaylist.mockResolvedValueOnce({
+                success: false,
+            });
+            await expect(
+                firstValueFrom(
+                    service.updateStalkerCategoryVisibility(original._id, {
+                        itv: { hide: ['one'] },
+                        vod: { hide: ['two'] },
+                    })
+                )
+            ).rejects.toThrow('Stalker category visibility write failed');
+            expect(store.current.hiddenStalkerCategories).toBeUndefined();
+            await firstValueFrom(
+                service.updateStalkerCategoryVisibility(original._id, {
+                    series: { hide: ['three'] },
+                })
+            );
+            expect(store.current.hiddenStalkerCategories).toEqual({
+                series: ['three'],
+            });
         });
 
         it('transformPlaylistMeta aborts without writing when the transform returns null', async () => {

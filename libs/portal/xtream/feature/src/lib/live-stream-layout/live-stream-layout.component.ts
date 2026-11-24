@@ -214,7 +214,17 @@ export class LiveStreamLayoutComponent
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
     readonly categoryItemCounts = this.xtreamStore.getCategoryItemCounts;
     readonly epgItems = this.xtreamStore.epgItems;
-    readonly currentEpgItem = this.xtreamStore.currentEpgItem;
+    /**
+     * The programme on air, re-selected on the 30 s tick: the store's
+     * `currentEpgItem` caches its Date.now() verdict until epgItems changes,
+     * so the panel summary and remote status would keep a finished show.
+     */
+    readonly currentEpgItem = computed(() =>
+        findCurrentEpgItem(
+            this.epgItems(),
+            epgProviderClockMs(this.currentTimeMs(), this.epgOffsetMinutes())
+        )
+    );
     readonly isSelectedTypeContentLoading =
         this.xtreamStore.selectedTypeContentLoading;
     readonly isLoadingEpg = this.xtreamStore.isLoadingEpg;
@@ -283,14 +293,9 @@ export class LiveStreamLayoutComponent
             return null;
         }
         const playlist = this.xtreamStore.currentPlaylist();
-        // Re-select against the 30 s tick: the store's `currentEpgItem`
-        // caches its Date.now() verdict until epgItems changes, so a
-        // recording started after an EPG boundary would snapshot the
-        // previous show.
-        const program = findCurrentEpgItem(
-            this.epgItems(),
-            epgProviderClockMs(this.currentTimeMs(), this.epgOffsetMinutes())
-        );
+        // Ticking, so a recording started after an EPG boundary does not
+        // snapshot the previous show.
+        const program = this.currentEpgItem();
         return {
             channelName: item.title?.trim() || item.name?.trim() || 'Live TV',
             channelLogoUrl:
@@ -1032,6 +1037,9 @@ export class LiveStreamLayoutComponent
             title: item.title ?? item.name ?? '',
             thumbnail: item.poster_url ?? item.stream_icon ?? null,
             isLive: true,
+            catalogIdentity: playlist
+                ? { playlistId: playlist.id, type: 'live', id: item.xtream_id }
+                : undefined,
         };
         if (!keepPanel) {
             this.panelCatchupProgram.set(null);
@@ -1479,6 +1487,8 @@ export class LiveStreamLayoutComponent
                 username: playlist.username,
                 password: playlist.password,
                 userAgent: playlist.userAgent?.trim() || undefined,
+                referrer: playlist.referrer,
+                origin: playlist.origin,
             },
             item.xtream_id,
             startTimestamp,
@@ -1492,11 +1502,16 @@ export class LiveStreamLayoutComponent
             return;
         }
 
+        // The archive is served by the same panel as the live stream, with
+        // the same header requirements.
         const playback: ResolvedPortalPlayback = {
             streamUrl: catchupUrl,
             title: this.getCatchupPlaybackTitle(item, program),
             thumbnail: item.poster_url ?? item.stream_icon ?? null,
             isLive: false,
+            userAgent: playlist.userAgent,
+            referer: playlist.referrer,
+            origin: playlist.origin,
         };
         const inline = this.usesEmbeddedPlayer();
         if (this.usesSelectionForRemote()) {

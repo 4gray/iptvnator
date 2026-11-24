@@ -1,38 +1,83 @@
-import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
-
-type Positions = Record<string, PlaybackPositionData[]>;
+import { playbackTimestamp } from '@iptvnator/shared/interfaces';
+import {
+    writeXtreamUserDataMap,
+    type UserDataStorage,
+} from '@iptvnator/services';
+import {
+    nativePlaybackMayHaveCheckpoint,
+    stampNativePlaybackReset,
+} from '@iptvnator/services/pwa-native-playback-resets';
+import type {
+    PlaybackPositionData,
+    PlaybackPositionResetScope,
+} from '@iptvnator/shared/interfaces';
+import {
+    nativePlaybackResetIn,
+    nativePlaybackResetId,
+    stampNativePlaybackEpisodeResets,
+} from './pwa-android-playback-resets';
+import {
+    type Positions,
+    readPlaybackPositions,
+    playbackPositionsStorageKey,
+} from './pwa-playback-position-storage';
 
 /** Loaded on demand. Every mutation reads fresh storage after loading the module. */
 export class PwaPlaybackPositions {
-    constructor(
-        private readonly getPlaybackPositionsFromStorage: () => Positions,
-        private readonly savePlaybackPositionsToStorage: (
-            positions: Positions
-        ) => void
-    ) {}
+    constructor(private readonly storage: UserDataStorage) {}
+
+    private getPlaybackPositionsFromStorage(): Positions {
+        try {
+            return readPlaybackPositions(this.storage);
+        } catch {
+            return {};
+        }
+    }
+
+    private savePlaybackPositionsToStorage(positions: Positions): void {
+        writeXtreamUserDataMap(
+            this.storage,
+            playbackPositionsStorageKey,
+            positions
+        );
+    }
+
     async savePlaybackPosition(
         playlistId: string,
         data: PlaybackPositionData
     ): Promise<void> {
-        const allPositions = this.getPlaybackPositionsFromStorage();
-        if (!allPositions[playlistId]) {
-            allPositions[playlistId] = [];
+        const { nativeCheckpointAt, nativeCheckpointSeasonGroup, ...position } =
+            data;
+        const allPositions = nativeCheckpointAt
+            ? readPlaybackPositions(this.storage)
+            : this.getPlaybackPositionsFromStorage();
+        const prior = allPositions[playlistId] ?? [];
+        const sameItem = (row: PlaybackPositionData) =>
+            row.contentXtreamId === data.contentXtreamId &&
+            row.contentType === data.contentType;
+        if (nativeCheckpointAt) {
+            const at = Date.parse(nativeCheckpointAt);
+            const latest = prior.find(sameItem);
+            const latestUpdate = playbackTimestamp(latest?.updatedAt);
+            if (
+                latestUpdate >= at ||
+                nativePlaybackResetIn(allPositions, playlistId, data) >= at
+            )
+                return;
         }
-
-        // Remove existing entry if present
-        allPositions[playlistId] = allPositions[playlistId].filter(
-            (p) =>
-                !(
-                    p.contentXtreamId === data.contentXtreamId &&
-                    p.contentType === data.contentType
-                )
-        );
-
-        // Add new entry
-        allPositions[playlistId].push({
-            ...data,
-            updatedAt: new Date().toISOString(),
-        });
+        allPositions[playlistId] = [
+            ...prior.filter((row) => !sameItem(row)),
+            {
+                ...position,
+                updatedAt:
+                    nativeCheckpointAt ??
+                    (position.activityPlayedAt
+                        ? position.updatedAt
+                        : undefined) ??
+                    new Date().toISOString(),
+            },
+        ];
+        void nativeCheckpointSeasonGroup;
 
         this.savePlaybackPositionsToStorage(allPositions);
     }
@@ -97,17 +142,9 @@ export class PwaPlaybackPositions {
         contentXtreamId: number,
         contentType: 'vod' | 'episode'
     ): Promise<void> {
-        const allPositions = this.getPlaybackPositionsFromStorage();
-        if (allPositions[playlistId]) {
-            allPositions[playlistId] = allPositions[playlistId].filter(
-                (p) =>
-                    !(
-                        p.contentXtreamId === contentXtreamId &&
-                        p.contentType === contentType
-                    )
-            );
-            this.savePlaybackPositionsToStorage(allPositions);
-        }
+        await this.clearPlaybackPositionsBatch(playlistId, [
+            { contentXtreamId, contentType },
+        ]);
     }
 
     async savePlaybackPositionsBatch(
@@ -133,7 +170,12 @@ export class PwaPlaybackPositions {
                 (p) =>
                     !replacedKeys.has(`${p.contentType}_${p.contentXtreamId}`)
             ),
-            ...items.map((item) => ({ ...item, updatedAt })),
+            ...items.map((item) => ({
+                ...item,
+                updatedAt:
+                    (item.activityPlayedAt ? item.updatedAt : undefined) ??
+                    updatedAt,
+            })),
         ];
 
         this.savePlaybackPositionsToStorage(allPositions);
@@ -141,7 +183,8 @@ export class PwaPlaybackPositions {
 
     async clearPlaybackPositionsBatch(
         playlistId: string,
-        items: { contentXtreamId: number; contentType: 'vod' | 'episode' }[]
+        items: { contentXtreamId: number; contentType: 'vod' | 'episode' }[],
+        scope?: PlaybackPositionResetScope
     ): Promise<void> {
         if (items.length === 0) {
             return;
@@ -149,17 +192,37 @@ export class PwaPlaybackPositions {
 
         const allPositions = this.getPlaybackPositionsFromStorage();
         const playlistPositions = allPositions[playlistId];
-        if (!playlistPositions) {
-            return;
+        const android = nativePlaybackMayHaveCheckpoint();
+        if (!playlistPositions && !android) return;
+        if (playlistPositions) {
+            const removedKeys = new Set(
+                items.map(
+                    (item) => `${item.contentType}_${item.contentXtreamId}`
+                )
+            );
+            allPositions[playlistId] = playlistPositions.filter(
+                (position) =>
+                    !removedKeys.has(
+                        `${position.contentType}_${position.contentXtreamId}`
+                    )
+            );
         }
-
-        const removedKeys = new Set(
-            items.map((item) => `${item.contentType}_${item.contentXtreamId}`)
-        );
-        allPositions[playlistId] = playlistPositions.filter(
-            (p) => !removedKeys.has(`${p.contentType}_${p.contentXtreamId}`)
-        );
-
+        if (android) {
+            if (scope)
+                stampNativePlaybackEpisodeResets(
+                    allPositions,
+                    playlistId,
+                    items
+                        .filter((item) => item.contentType === 'episode')
+                        .map((item) => item.contentXtreamId)
+                );
+            stampNativePlaybackReset(
+                allPositions,
+                ...items
+                    .filter((item) => !scope || item.contentType !== 'episode')
+                    .map((item) => nativePlaybackResetId(playlistId, item))
+            );
+        }
         this.savePlaybackPositionsToStorage(allPositions);
     }
 }

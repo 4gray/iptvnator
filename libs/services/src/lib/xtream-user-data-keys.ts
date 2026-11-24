@@ -104,6 +104,18 @@ export function writeXtreamUserDataMap(
     );
 }
 
+export function forgetXtreamRestoreReceipt(
+    map: Record<string, unknown>,
+    playlistId: string
+): void {
+    const receipts = map[XTREAM_RESTORE_RECEIPTS];
+    if (isRecord(receipts)) {
+        const next = { ...receipts };
+        delete next[playlistId];
+        map[XTREAM_RESTORE_RECEIPTS] = next;
+    }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
     return !!value && typeof value === 'object' && !Array.isArray(value);
 }

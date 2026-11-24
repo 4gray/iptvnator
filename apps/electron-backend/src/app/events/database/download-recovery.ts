@@ -13,6 +13,7 @@ import {
 import { inArray, sql } from 'drizzle-orm';
 import { statSync } from 'node:fs';
 import { getDatabase } from '../../database/connection';
+import { hasRuntimeDownload } from './download-runtime';
 import * as schema from '../../database/schema';
 import {
     getPartialDownloadSize,
@@ -147,7 +148,7 @@ async function removeCompletedPartial(
 export async function resetStaleDownloads(): Promise<void> {
     try {
         const db = await getDatabase();
-        const rows = await db
+        const selected = await db
             .select({
                 filePath: schema.downloads.filePath,
                 contentType: schema.downloads.contentType,
@@ -163,6 +164,10 @@ export async function resetStaleDownloads(): Promise<void> {
                     'completed',
                 ])
             );
+        // Rows this process already queued or runs are live, not leftovers
+        // of a crashed session: startup can open the database after a
+        // retry, once IPC has started downloads (see database-startup.ts).
+        const rows = selected.filter((row) => !hasRuntimeDownload(row.id));
         const proofs = await readArchiveFinalizations(
             db,
             rows

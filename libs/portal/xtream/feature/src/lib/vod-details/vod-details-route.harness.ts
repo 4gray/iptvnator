@@ -1,7 +1,7 @@
 import { Location } from '@angular/common';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { ActivatedRoute } from '@angular/router';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
@@ -74,7 +74,9 @@ export function createVodDetailsRouteStubs() {
         isEmbeddedPlayer: jest.fn().mockReturnValue(false),
         openResolvedPlayback: jest.fn(),
         openExternalPlayback: jest.fn(),
-        snackBarOpen: jest.fn(),
+        notifySuccess: jest.fn(),
+        notifyInfo: jest.fn(),
+        notifyError: jest.fn(),
         startDownload: jest.fn().mockResolvedValue(undefined),
         locationBack: jest.fn(),
         selectedPlayer: signal<VideoPlayer>(VideoPlayer.Html5Player),
@@ -255,7 +257,14 @@ export async function configureVodDetailsRouteTestBed(
                     openExternalPlayback: stubs.openExternalPlayback,
                 },
             },
-            { provide: MatSnackBar, useValue: { open: stubs.snackBarOpen } },
+            {
+                provide: NotificationService,
+                useValue: {
+                    success: stubs.notifySuccess,
+                    info: stubs.notifyInfo,
+                    error: stubs.notifyError,
+                },
+            },
             { provide: Location, useValue: { back: stubs.locationBack } },
         ],
     }).compileComponents();

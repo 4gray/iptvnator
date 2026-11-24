@@ -1,5 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { TranslateService } from '@ngx-translate/core';
 import { type RecordingItem, RecordingsService } from '@iptvnator/services';
 import { DialogService } from '@iptvnator/ui/components';
@@ -19,7 +19,7 @@ export class RecordingManagerActionsService {
     private readonly recordings = inject(RecordingsService);
     private readonly dialogs = inject(DialogService);
     private readonly translate = inject(TranslateService);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
 
     readonly pendingIds = signal<ReadonlySet<number>>(new Set());
 
@@ -44,17 +44,13 @@ export class RecordingManagerActionsService {
         }
     }
 
-    showActionError(error?: string): void {
-        const base = this.translate.instant('DOWNLOADS.ACTION_FAILED');
-        this.snackBar.open(error ? `${base}: ${error}` : base, undefined, {
-            duration: 4000,
-        });
+    /** The failure's own text (a path, a system error) is not shown. */
+    showActionError(): void {
+        this.notifications.error('DOWNLOADS.ACTION_FAILED');
     }
 
-    private showMessage(key: string, duration: number): void {
-        this.snackBar.open(this.translate.instant(key), undefined, {
-            duration,
-        });
+    private showMessage(key: string, variant: 'success' | 'error'): void {
+        this.notifications[variant](key);
     }
 
     private confirmRemove(item: RecordingItem): void {
@@ -62,6 +58,7 @@ export class RecordingManagerActionsService {
             title: this.translate.instant(
                 'DOWNLOADS.REMOVE_RECORDING_DIALOG.TITLE'
             ),
+            subtitle: item.programTitle || item.channelName,
             message: this.translate.instant(
                 'DOWNLOADS.REMOVE_RECORDING_DIALOG.MESSAGE'
             ),
@@ -82,7 +79,7 @@ export class RecordingManagerActionsService {
     ): Promise<RecordingActionResult> {
         const filePath = item.filePath;
         if (!filePath) {
-            this.showMessage('DOWNLOADS.FILE_NOT_FOUND', 3000);
+            this.showMessage('DOWNLOADS.FILE_NOT_FOUND', 'error');
             return 'file-missing';
         }
         return this.withPending(
@@ -100,7 +97,7 @@ export class RecordingManagerActionsService {
                     error === 'File not found'
                         ? 'DOWNLOADS.FILE_NOT_FOUND'
                         : 'DOWNLOADS.FILE_ACTION_ERROR',
-                    3000
+                    'error'
                 );
             },
             (error) => (error === 'File not found' ? 'file-missing' : 'failed')
@@ -110,8 +107,8 @@ export class RecordingManagerActionsService {
     private async withPending(
         itemId: number,
         operation: () => Promise<RecordingOperationResult>,
-        onFailure: (error?: string) => void | Promise<void> = (error) =>
-            this.showActionError(error),
+        onFailure: (error?: string) => void | Promise<void> = () =>
+            this.showActionError(),
         failureResult: (error?: string) => RecordingActionResult = () =>
             'failed'
     ): Promise<RecordingActionResult> {
@@ -135,9 +132,7 @@ export class RecordingManagerActionsService {
                 try {
                     await onFailure(failure);
                 } catch (error) {
-                    this.showActionError(
-                        error instanceof Error ? error.message : String(error)
-                    );
+                    this.showActionError();
                 }
                 return failureResult(failure);
             }

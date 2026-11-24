@@ -1,6 +1,5 @@
 import { Injectable, Signal, inject, signal } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { TranslateService } from '@ngx-translate/core';
+import { NotificationService } from '@iptvnator/services/notifications';
 import {
     createLogger,
     isPortalPlaybackWatched,
@@ -52,8 +51,7 @@ interface StalkerSeriesWatchToggleBindings {
 export class StalkerSeriesWatchToggleService {
     private readonly stalkerStore = inject(StalkerStore);
     private readonly positions = inject(StalkerSeriesPositionsService);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translateService = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
     // Optional: absent in collection-detail mounts outside the catalog.
     private readonly catalogFacade = inject(StalkerCatalogFacadeService, {
         optional: true,
@@ -314,10 +312,10 @@ export class StalkerSeriesWatchToggleService {
     }
 
     private notifySeasonWatchToggle(key: string, params?: object): void {
-        this.snackBar.open(
-            this.translateService.instant(key, params),
-            undefined,
-            { duration: 5000 }
-        );
+        if (key === SERIES_WATCH_FEEDBACK.failed) {
+            this.notifications.error(key, params);
+        } else {
+            this.notifications.success(key, params);
+        }
     }
 }

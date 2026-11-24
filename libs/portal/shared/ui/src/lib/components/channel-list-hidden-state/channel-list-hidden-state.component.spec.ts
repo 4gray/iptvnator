@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslateModule, TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { ChannelListHiddenStateComponent } from './channel-list-hidden-state.component';
 
@@ -8,7 +8,10 @@ describe('ChannelListHiddenStateComponent', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [ChannelListHiddenStateComponent],
+            imports: [
+                ChannelListHiddenStateComponent,
+                TranslateModule.forRoot(),
+            ],
         })
             .overrideComponent(ChannelListHiddenStateComponent, {
                 remove: { imports: [TranslatePipe] },
@@ -25,12 +28,12 @@ describe('ChannelListHiddenStateComponent', () => {
     it('explains that the list is hidden instead of asking to pick a channel', () => {
         const host: HTMLElement = fixture.nativeElement;
 
-        expect(host.querySelector('.empty-state-title')?.textContent).toContain(
-            'LAYOUT.CHANNELS_LIST_HIDDEN'
-        );
-        expect(host.querySelector('.empty-state-hint')?.textContent).toContain(
-            'LAYOUT.CHANNELS_LIST_HIDDEN_HINT'
-        );
+        expect(
+            host.querySelector('.app-state-view__title')?.textContent
+        ).toContain('LAYOUT.CHANNELS_LIST_HIDDEN');
+        expect(
+            host.querySelector('.app-state-view__description')?.textContent
+        ).toContain('LAYOUT.CHANNELS_LIST_HIDDEN_HINT');
         expect(host.textContent).not.toContain('SELECT_CHANNEL_PLAYBACK');
     });
 
@@ -38,7 +41,9 @@ describe('ChannelListHiddenStateComponent', () => {
         const restore = jest.fn();
         fixture.componentInstance.restore.subscribe(restore);
         const button: HTMLButtonElement | null =
-            fixture.nativeElement.querySelector('button.empty-state-action');
+            fixture.nativeElement.querySelector(
+                'button[data-state-action="action"]'
+            );
 
         expect(button?.textContent).toContain('LAYOUT.SHOW_CHANNELS_LIST');
 

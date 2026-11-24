@@ -5,6 +5,7 @@ import type {
     ActivityLocalRequest,
 } from '@iptvnator/shared/interfaces/activity-sync';
 import { ActivitySyncClient } from './activity-sync-client';
+import { ActivitySupersededError } from './activity-action-fence';
 import { ElectronActivityLocalStore } from './electron-activity-local';
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -16,11 +17,12 @@ describe('checkpoint invocation order through Electron CAS retries', () => {
         jest.useRealTimers();
     });
     it.each([
-        [20, 30],
-        [30, 20],
+        [20, 30, 1000],
+        [30, 20, 1000],
+        [80, 20, -1000],
     ])(
-        'keeps the newer checkpoint or rewind (%s → %s)',
-        async (older, newer) => {
+        'orders checkpoint captures (%s → %s with timestamp offset %s)',
+        async (firstPosition, secondPosition, offset) => {
             let record: ActivityLocalRecord | null = null;
             let address!: ActivityAddress;
             let release!: () => void;
@@ -48,7 +50,7 @@ describe('checkpoint invocation order through Electron CAS retries', () => {
                 if (
                     !blocked &&
                     last?.kind === 'checkpoint' &&
-                    last.resume.positionSeconds === older
+                    last.resume.positionSeconds === firstPosition
                 ) {
                     blocked = true;
                     entered();
@@ -91,23 +93,47 @@ describe('checkpoint invocation order through Electron CAS retries', () => {
             };
             await client.begin('synthetic-source', position);
             await client.flush();
+            const webCheckpointAt = new Date().toISOString();
+            const nativeCheckpointAt = new Date(
+                Date.now() + offset
+            ).toISOString();
             const delayed = client.save('synthetic-source', {
                 ...position,
-                positionSeconds: older,
+                positionSeconds: firstPosition,
             });
             await waiting;
-            await client.save('synthetic-source', {
+            const nativePosition = {
                 ...position,
-                positionSeconds: newer,
-            });
+                positionSeconds: secondPosition,
+                nativeCheckpointAt,
+            };
+            const nativeSave = client.save('synthetic-source', nativePosition);
+            if (offset < 0) {
+                await expect(nativeSave).rejects.toBeInstanceOf(
+                    ActivitySupersededError
+                );
+            } else {
+                await nativeSave;
+            }
             await client.flush();
             release();
             await delayed;
             await client.flush();
-            expect(conflicts).toBeGreaterThan(0);
+            if (offset < 0) {
+                await client.save('synthetic-source', nativePosition);
+                expect(conflicts).toBe(0);
+            } else {
+                expect(conflicts).toBeGreaterThan(0);
+            }
+            const expectedPosition =
+                offset < 0 ? firstPosition : secondPosition;
+            expect(
+                (await client.positions('synthetic-source'))[0].position
+                    .updatedAt
+            ).toBe(offset < 0 ? webCheckpointAt : nativeCheckpointAt);
             expect(
                 (await store.read(address))?.state.resume?.positionSeconds
-            ).toBe(newer);
+            ).toBe(expectedPosition);
             expect(
                 (await store.pending())
                     .filter((intent) => intent.operation.kind === 'checkpoint')
@@ -116,7 +142,7 @@ describe('checkpoint invocation order through Electron CAS retries', () => {
                             ? intent.operation.resume.positionSeconds
                             : undefined
                     )
-            ).toEqual([newer]);
+            ).toEqual([expectedPosition]);
         }
     );
 });

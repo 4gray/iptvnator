@@ -13,6 +13,7 @@ export * from './lib/confirm-dialog/dialog.service';
 export * from './lib/content-hero/content-hero.component';
 export * from './lib/expandable-text/expandable-text.component';
 export * from './lib/form-field-defaults/form-field-defaults';
+export * from './lib/ime-input.directive';
 export * from './lib/external-playback-dock/external-playback-dock.component';
 export * from './lib/lazy-dialog/lazy-mat-dialog';
 export * from './lib/portal-detail-shell/content-about.component';
@@ -60,8 +61,9 @@ export * from './lib/detail-ui/vod-more-menu.component';
 export * from './lib/detail-ui/vod-more-menu.model';
 export * from './lib/detail-ui/series-hero.state';
 export * from './lib/detail-ui/hero-trailer-backdrop.component';
-export * from './lib/dialog-shell/dialog-shell.component';
-export * from './lib/dialog-shell/dialog-shell.directives';
-export * from './lib/dialog-shell/dialog-size';
+// The dialog shell lives in @iptvnator/ui/dialog so lower UI libraries
+// (the EPG dialogs) can use it; re-exported here for existing consumers.
+export * from '@iptvnator/ui/dialog';
+export * from './lib/app-icons/app-icons';
 
 export * from './lib/detail-ui/age-rating-chip.component';

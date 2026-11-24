@@ -38,6 +38,7 @@ import {
     xtreamPlaylistIdFromUrl,
 } from './xtream-import-wait';
 import { findMainWindow } from './electron-main-window';
+import { widenToDefaultDesktopWidth } from './electron-window-size';
 
 export const workspaceRoot = resolve(__dirname, '../../..');
 export const electronMainPath = join(
@@ -253,6 +254,7 @@ export async function launchElectronApp(
             attachElectronProcessDiagnostics(electronProcess);
             const mainWindow = await findMainWindow(application);
             await waitForAppReady(mainWindow);
+            await widenToDefaultDesktopWidth(application, mainWindow, dataDir);
             await startPortalDebugCapture(mainWindow);
             await startDbOperationCapture(mainWindow);
             await startRendererFrameCapture(mainWindow);
@@ -1734,7 +1736,11 @@ export async function deleteSource(page: Page, title: string): Promise<void> {
         .locator('.cdk-overlay-pane [mat-menu-item]')
         .filter({ hasText: 'Remove playlist' })
         .click();
-    const toast = page.locator('mat-snack-bar-container.app-toast');
+    // Every toast shares `.app-notification`; an earlier one (a backup
+    // export's success) can still be leaving, so pick the Undo toast.
+    const toast = page
+        .locator('mat-snack-bar-container.app-notification')
+        .filter({ has: page.locator('.source-removal-toast__undo') });
     await expect(toast).toContainText('Removed');
     await expect(toast).toBeHidden({ timeout: 15000 });
 }

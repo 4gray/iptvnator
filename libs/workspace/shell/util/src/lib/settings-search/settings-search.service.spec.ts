@@ -124,6 +124,9 @@ describe('SettingsSearchService', () => {
 
         expect(sections).not.toContain('epg');
         expect(sections).not.toContain('remote-control');
+        expect(sections).not.toContain('android-device');
+        expect(entries).not.toContain('android-external-player');
+        expect(entries).not.toContain('android-device-advanced');
         expect(entries).not.toContain('epg-view-mode');
         expect(entries).not.toContain('recording-folder');
         expect(entries).not.toContain('mpv-player-path');
@@ -160,7 +163,31 @@ describe('SettingsSearchService', () => {
         expect(entries).not.toContain('embedded-mpv-frame-copy');
         // Connecting a server is available before any connection exists.
         expect(entries).toContain('source-server');
-        expect(entries.length).toBe(SETTINGS_SEARCH_ENTRIES.length - 4);
+        expect(entries.length).toBe(SETTINGS_SEARCH_ENTRIES.length - 6);
+    });
+
+    it('indexes Android settings when the handheld shell can open them', () => {
+        const shellWindow = window as Window & { __tvShell?: unknown };
+        shellWindow.__tvShell = {
+            handheld: true,
+            openDeviceSettings: jest.fn(),
+            openSettingsSection: jest.fn(),
+            openExternal: jest.fn(),
+        };
+        try {
+            const { service } = setup();
+            expect(service.visibleSections().map(({ id }) => id)).toContain(
+                'android-device'
+            );
+            expect(service.visibleEntries().map(({ id }) => id)).toEqual(
+                expect.arrayContaining([
+                    'android-external-player',
+                    'android-device-advanced',
+                ])
+            );
+        } finally {
+            delete shellWindow.__tvShell;
+        }
     });
 
     it('offers the server section and rows with server storage', () => {

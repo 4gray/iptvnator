@@ -8,7 +8,6 @@ import {
 } from '@angular/cdk/scrolling';
 import {
     afterRenderEffect,
-    AfterViewInit,
     ChangeDetectionStrategy,
     ChangeDetectorRef,
     Component,
@@ -22,6 +21,7 @@ import {
     untracked,
     viewChild,
 } from '@angular/core';
+import { toObservable } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
@@ -74,6 +74,7 @@ import {
     xtreamCredentialsOf,
 } from './epg-refresh-coordinator.service';
 import { XtreamFavoriteMarksService } from './xtream-favorite-marks.service';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 export interface XtreamChannelListItem {
     readonly category_id?: string | number;
@@ -100,6 +101,7 @@ interface XtreamCategoryLike {
     styleUrls: ['./portal-channels-list.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        StateViewComponent,
         ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,
@@ -110,7 +112,7 @@ interface XtreamCategoryLike {
         TranslatePipe,
     ],
 })
-export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
+export class PortalChannelsListComponent implements OnDestroy {
     readonly playClicked = output<XtreamChannelListItem>();
     readonly playbackRequested = output<XtreamChannelListItem>();
     readonly sortMode = input<PortalChannelSortMode>('server');
@@ -190,6 +192,8 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     favorites = new Map<string, boolean>();
     epgPrograms = new Map<number, EpgProgram>();
     currentProgramsProgress = new Map<number, number>();
+    /** The playlist `epgPrograms` was filled for. */
+    private previewsPlaylistId: string | null = null;
 
     /** Leaves the shared refresh tick; called from `ngOnDestroy`. */
     private leaveEpgRefresh?: () => void;
@@ -210,6 +214,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     private readonly settingsStore = inject(SettingsStore);
 
     constructor(private cdr: ChangeDetectorRef) {
+        this.watchVisibleRowsForEpg();
         this.subscriptions.add(
             inject(EpgSourceSettingsService).changed$.subscribe(() => {
                 this.repickPreviewsForOffsetChange();
@@ -383,19 +388,29 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
         if (this.runtime.supportsProviderEpg) {
             this.subscriptions.add(
-                this.epgQueueService.epgResult$.subscribe(
-                    ({ streamId, items }) => {
-                        if (!this.supportsProviderEpg) return;
-                        // The earliest-item fallback belongs to a row that has
-                        // nothing to show yet. Once a row holds a programme,
-                        // only one on air or upcoming may replace it: a refill
-                        // answered with the same finished window would
-                        // otherwise walk the row back to an older programme,
-                        // the very thing the refresh exists to prevent (#767).
-                        const program = this.pickProgramFor(streamId, items);
-                        if (program) this.applyProgram(streamId, program);
-                    }
-                )
+                this.epgQueueService.epgResult$.subscribe((result) => {
+                    if (!this.supportsProviderEpg) return;
+                    // A late answer for the playlist shown before: stream
+                    // ids repeat across accounts.
+                    const playlist = this.xtreamStore.currentPlaylist();
+                    if (
+                        playlist &&
+                        !this.epgQueueService.isResultFor(
+                            result,
+                            xtreamCredentialsOf(playlist)
+                        )
+                    )
+                        return;
+                    const { streamId, items } = result;
+                    // The earliest-item fallback belongs to a row that has
+                    // nothing to show yet. Once a row holds a programme,
+                    // only one on air or upcoming may replace it: a refill
+                    // answered with the same finished window would
+                    // otherwise walk the row back to an older programme,
+                    // the very thing the refresh exists to prevent (#767).
+                    const program = this.pickProgramFor(streamId, items);
+                    if (program) this.applyProgram(streamId, program);
+                })
             );
 
             // Nothing else re-evaluates the shown "current program" as
@@ -409,25 +424,37 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         }
     }
 
-    ngAfterViewInit() {
-        const vp = this.viewport();
-        if (
-            this.runtime.supportsProviderEpg &&
-            vp &&
-            this.xtreamStore.selectedContentType() === 'live'
-        ) {
-            this.subscriptions.add(
-                vp.renderedRangeStream
-                    .pipe(debounceTime(300))
-                    .subscribe((range) => {
-                        const visibleChannels = this.filteredChannels().slice(
-                            range.start,
-                            range.end
-                        );
-                        this.loadEpgForVisibleChannels(visibleChannels);
-                    })
-            );
-        }
+    /**
+     * Loads the EPG of the rows on screen whenever they change. Follows the
+     * CURRENT viewport: it is recreated each time the list leaves the DOM
+     * (loading skeleton, a search without results), so a subscription to
+     * the first one would go deaf, or never start when the list opened
+     * while loading. And a new category, search or sort can keep the same
+     * index range, which `renderedRangeStream` does not re-emit, so the
+     * list itself is watched too.
+     */
+    private watchVisibleRowsForEpg(): void {
+        this.subscriptions.add(
+            merge(
+                toObservable(this.viewport).pipe(
+                    switchMap(
+                        (viewport) => viewport?.renderedRangeStream ?? EMPTY
+                    )
+                ),
+                toObservable(this.filteredChannels)
+            )
+                .pipe(debounceTime(300))
+                .subscribe(() => {
+                    if (
+                        !this.runtime.supportsProviderEpg ||
+                        this.xtreamStore.selectedContentType() !== 'live' ||
+                        !this.viewport()
+                    ) {
+                        return;
+                    }
+                    this.loadEpgForVisibleChannels(this.visibleChannelsNow());
+                })
+        );
     }
 
     /**
@@ -472,6 +499,20 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         );
     }
 
+    /**
+     * Drop the previews on screen when the list now shows another playlist.
+     * Stream ids repeat across providers, so a kept preview would both show
+     * the other playlist's programme and keep the row from being requested.
+     */
+    private retirePreviewsOfOtherPlaylist(playlistId: string): void {
+        if (this.previewsPlaylistId === playlistId) return;
+        this.previewsPlaylistId = playlistId;
+        this.epgPrograms.clear();
+        this.currentProgramsProgress.clear();
+        // OnPush: the rows must drop it even if no replacement arrives.
+        this.cdr.markForCheck();
+    }
+
     private repickPreviewsForOffsetChange(): void {
         this.epgPrograms.clear();
         this.currentProgramsProgress.clear();
@@ -484,13 +525,20 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             return;
         }
 
-        if (!this.xtreamStore.currentPlaylist()) return;
+        const playlist = this.xtreamStore.currentPlaylist();
+        if (!playlist) return;
+        this.retirePreviewsOfOtherPlaylist(playlist.id);
+        // The queue is shared: only this account's cached previews apply.
+        const credentials = xtreamCredentialsOf(playlist);
 
         const uncachedChannels: XtreamChannelListItem[] = [];
 
         // Apply cached results immediately
         for (const channel of channels) {
-            const cached = this.epgQueueService.getCached(channel.xtream_id);
+            const cached = this.epgQueueService.getCached(
+                channel.xtream_id,
+                credentials
+            );
             if (cached !== null) {
                 const previewProgram = pickEpgPreviewItem(
                     cached,
@@ -539,6 +587,8 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
         const playlist = this.xtreamStore.currentPlaylist();
         if (!playlist) return null;
+        this.retirePreviewsOfOtherPlaylist(playlist.id);
+        const credentials = xtreamCredentialsOf(playlist);
 
         const now = this.epgClockMs();
         const wallClockNow = Date.now();
@@ -554,7 +604,10 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 continue;
             }
 
-            const cached = this.epgQueueService.getCached(streamId);
+            const cached = this.epgQueueService.getCached(
+                streamId,
+                credentials
+            );
             if (cached === null) {
                 staleChannels.push(channel);
                 continue;
@@ -596,7 +649,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
         return {
             playlistId: playlist.id,
-            credentials: xtreamCredentialsOf(playlist),
+            credentials,
             // The whole slice, not just what is being fetched: the queue drops
             // anything outside the visible set it was last handed.
             visibleStreamIds: channels.map((channel) => channel.xtream_id),

@@ -71,7 +71,7 @@
     min-width: 0;
 }
 .gt b {
-    font-size: 13.5px;
+    font-size: var(--app-text-md);
     font-weight: 600;
     color: $text-primary;
     white-space: nowrap;
@@ -79,10 +79,7 @@
     text-overflow: ellipsis;
 }
 .gt .src {
-    font-family: $font-mono;
-    font-size: 10px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    font-size: var(--app-text-2xs);
     color: $text-tertiary;
 }
 .g-spacer {
@@ -99,7 +96,7 @@
     background: rgba(255, 91, 110, 0.14);
     border: 1px solid rgba(255, 91, 110, 0.32);
     color: $live-text;
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     font-weight: 600;
     cursor: pointer;
     flex: 0 0 auto;
@@ -123,7 +120,7 @@
     background: $surface-2;
     border: 1px solid $line-strong;
     color: $text-secondary;
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     font-weight: 600;
     cursor: pointer;
     flex: 0 0 auto;
@@ -194,7 +191,7 @@
     font-size: 20px;
 }
 .g-date .d {
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     font-weight: 500;
     color: $text-primary;
     padding: 0 8px;
@@ -207,7 +204,7 @@
 .g-date .d small {
     display: block;
     font-family: $font-mono;
-    font-size: 9.5px;
+    font-size: var(--app-text-2xs);
     letter-spacing: 0.05em;
     text-transform: uppercase;
     color: $text-tertiary;
@@ -223,7 +220,7 @@
     background: var(--app-selection-surface);
     border-bottom: 1px solid $line;
     color: $text-secondary;
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     flex: 0 0 auto;
 }
 .g-notice mat-icon {
@@ -242,7 +239,7 @@
     align-items: center;
     gap: 6px;
     font-family: $font-mono;
-    font-size: 9.5px;
+    font-size: var(--app-text-2xs);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -268,7 +265,7 @@
     font-size: 12px;
 }
 .cn-title {
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     font-weight: 600;
     color: $text-primary;
     white-space: nowrap;
@@ -296,7 +293,7 @@
 }
 .cn-meta {
     font-family: $font-mono;
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     color: $text-tertiary;
     flex: 0 0 auto;
 }
@@ -356,7 +353,7 @@
 }
 .ns-lbl {
     font-family: $font-mono;
-    font-size: 9.5px;
+    font-size: var(--app-text-2xs);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -364,7 +361,7 @@
     flex: 0 0 auto;
 }
 .ns-title {
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     font-weight: 600;
     color: $text-primary;
     white-space: nowrap;
@@ -388,7 +385,7 @@
 }
 .ns-left {
     font-family: $font-mono;
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     color: $text-tertiary;
     flex: 0 0 auto;
 }
@@ -396,7 +393,7 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 11.5px;
+    font-size: var(--app-text-xs);
     font-weight: 600;
     color: $accent-text;
     flex: 0 0 auto;

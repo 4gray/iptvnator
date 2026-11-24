@@ -1,42 +1,27 @@
 import { inject, Injectable } from '@angular/core';
-import { MatSnackBar, MatSnackBarConfig } from '@angular/material/snack-bar';
 import { SettingsStorageFailure } from '@iptvnator/services';
-import { TranslateService } from '@ngx-translate/core';
+import { NotificationService } from '@iptvnator/services/notifications';
 
+/** Settings toasts: the shared notifications, lifted above the save bar. */
 @Injectable()
 export class SettingsSnackbarService {
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
 
-    open(message: string, config: MatSnackBarConfig = {}): void {
-        this.snackBar.open(message, undefined, {
-            duration: 2000,
-            horizontalPosition: 'center',
-            verticalPosition: 'bottom',
-            panelClass: ['settings-snackbar'],
-            ...config,
-        });
+    success(key: string): void {
+        this.notifications.success(key, undefined, { aboveSaveBar: true });
+    }
+
+    /** A dismissible error with Close; it stays for the default duration. */
+    error(key: string): void {
+        this.notifications.error(key, undefined, { aboveSaveBar: true });
     }
 
     tmdbKeySaved(): void {
-        this.open(this.translate.instant('SETTINGS.TMDB_TRANSFER.SAVED'));
+        this.success('SETTINGS.TMDB_TRANSFER.SAVED');
     }
 
     runtimeUpdateFailure(messageKey: string): void {
-        this.open(this.translate.instant(messageKey), { duration: 10000 });
-    }
-
-    /**
-     * Failures need more reading time than the 2s confirmation toast, and a
-     * dismiss action so the message can stay up until it is acknowledged.
-     */
-    error(message: string, dismissLabel: string): void {
-        this.snackBar.open(message, dismissLabel, {
-            duration: 10000,
-            horizontalPosition: 'center',
-            verticalPosition: 'bottom',
-            panelClass: ['settings-snackbar', 'settings-snackbar--error'],
-        });
+        this.error(messageKey);
     }
 
     /**
@@ -46,12 +31,9 @@ export class SettingsSnackbarService {
      */
     storageFailure(failure: SettingsStorageFailure): void {
         this.error(
-            this.translate.instant(
-                failure === 'save'
-                    ? 'SETTINGS.SETTINGS_SAVE_FAILED'
-                    : 'SETTINGS.SETTINGS_LOAD_FAILED'
-            ),
-            this.translate.instant('CLOSE')
+            failure === 'save'
+                ? 'SETTINGS.SETTINGS_SAVE_FAILED'
+                : 'SETTINGS.SETTINGS_LOAD_FAILED'
         );
     }
 }

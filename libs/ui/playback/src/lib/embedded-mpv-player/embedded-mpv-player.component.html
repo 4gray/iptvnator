@@ -43,7 +43,7 @@
                     isReconnecting() ? 'sync' : 'error_outline'
                 }}</mat-icon>
                 <p>{{ statusLabel() }}</p>
-                <button mat-stroked-button type="button" [disabled]="!retryEnabled()" (click)="retry()">
+                <button mat-flat-button class="embedded-mpv-player__retry" type="button" [disabled]="!retryEnabled()" (click)="retry()">
                     <mat-icon>refresh</mat-icon>
                     <span>{{ 'EMBEDDED_MPV.PLAYER.RETRY' | translate }}</span>
                 </button>
@@ -56,7 +56,7 @@
             >
                 <mat-progress-spinner
                     mode="indeterminate"
-                    diameter="48"
+                    diameter="40"
                     strokeWidth="3"
                 />
                 @if (statusLabel()) {
@@ -71,7 +71,7 @@
             >
                 <mat-icon>warning_amber</mat-icon>
                 <p>{{ 'EMBEDDED_MPV.PLAYER.STALLED' | translate }}</p>
-                <button mat-stroked-button type="button" [disabled]="!retryEnabled()" (click)="retry()">
+                <button mat-flat-button class="embedded-mpv-player__retry" type="button" [disabled]="!retryEnabled()" (click)="retry()">
                     <mat-icon>refresh</mat-icon>
                     <span>{{ 'EMBEDDED_MPV.PLAYER.RETRY' | translate }}</span>
                 </button>
@@ -107,8 +107,9 @@
             [upNext]="upNext()"
             [timelineSegments]="controlsTimelineSegments()"
             [showControls]="showControls()"
-            [canAddSecondStream]="canAddSecondStream()"
-            (secondStreamRequested)="secondStreamRequested.emit()"
+            [canOpenMultiview]="canOpenMultiview()"
+            (multiviewAddRequested)="multiviewAddRequested.emit()"
+            (multiviewLayoutRequested)="multiviewLayoutRequested.emit($event)"
             [shortcutsEnabled]="sharedShortcutsEnabled()"
             (previousEpisodeRequested)="requestPreviousEpisode()"
             (nextEpisodeRequested)="requestNextEpisode()"

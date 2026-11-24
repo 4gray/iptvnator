@@ -46,22 +46,23 @@
             />
         }
     } @else {
-        <div class="empty-favorites">
-            <strong>
-                @if (hasSearchTerm()) {
-                    {{ 'CHANNELS.NO_SEARCH_RESULTS' | translate }}
-                } @else {
-                    {{ 'CHANNELS.NO_FAVORITES' | translate }}
-                }
-            </strong>
-        </div>
-        <div class="empty-favorites-hint">
-            @if (hasSearchTerm()) {
-                {{ 'CHANNELS.TRY_DIFFERENT_SEARCH' | translate }}
-            } @else {
-                {{ 'CHANNELS.USE_STAR_TO_FAVORITE' | translate }}
-            }
-        </div>
+        <app-state-view
+            size="panel"
+            [variant]="hasSearchTerm() ? 'no-results' : 'empty'"
+            [icon]="hasSearchTerm() ? null : appIcons.favoriteOutline"
+            [heading]="
+                (hasSearchTerm()
+                    ? 'CHANNELS.NO_SEARCH_RESULTS'
+                    : 'CHANNELS.NO_FAVORITES'
+                ) | translate
+            "
+            [description]="
+                (hasSearchTerm()
+                    ? 'CHANNELS.TRY_DIFFERENT_SEARCH'
+                    : 'CHANNELS.USE_STAR_TO_FAVORITE'
+                ) | translate
+            "
+        />
     }
 </div>
 

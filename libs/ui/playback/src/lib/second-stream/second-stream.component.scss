@@ -6,7 +6,7 @@
     inset: 0;
     pointer-events: none;
 }
-:host(.second-stream--side-by-side) {
+:host(.second-stream--tiled) {
     display: contents;
 }
 button,
@@ -44,13 +44,66 @@ button,
     z-index: 0;
     outline: none;
 }
-.second-stream__video--beside {
-    grid-area: 1 / 2;
+.second-stream__video--beside,
+.second-stream__grid-cell,
+.second-stream__focus-cell {
     position: relative;
     inset: auto;
     width: auto;
     height: auto;
+    min-width: 0;
+    min-height: 0;
     z-index: auto;
+}
+
+.second-stream__video--beside,
+.second-stream__grid-cell[data-multiview-slot='2'] {
+    grid-area: 1 / 2;
+}
+
+.second-stream__grid-cell[data-multiview-slot='3'] {
+    grid-area: 2 / 1;
+}
+
+.second-stream__grid-cell[data-multiview-slot='4'] {
+    grid-area: 2 / 2;
+}
+
+.second-stream__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid var(--app-widget-header-border);
+    background: var(--app-widget-bg);
+    color: var(--app-body-color);
+    font: inherit;
+    font-weight: 500;
+    text-align: start;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+
+    .second-stream__number {
+        position: absolute;
+        inset-block-start: 8px;
+        inset-inline-start: 8px;
+        padding: 2px 4px;
+        font-size: var(--app-text-xs);
+    }
+
+    mat-icon {
+        flex: none;
+        width: 20px;
+        height: 20px;
+        font-size: 20px;
+    }
+
+    &:hover:not([aria-disabled='true']) {
+        border-color: var(--app-list-selected-outline);
+        background: var(--app-list-selected-bg);
+        color: var(--app-list-selected-fg);
+    }
 }
 .second-stream__tile {
     z-index: 5;
@@ -150,7 +203,7 @@ button,
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 12px;
+    font-size: var(--app-text-xs);
 }
 .second-stream__top > span {
     font-weight: 500;
@@ -218,20 +271,27 @@ button,
     min-width: 0;
     margin: 0;
     padding: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
     list-style: none;
 
     li {
         display: flex;
         align-items: center;
-        gap: 6px;
-        min-width: 0;
-        max-width: min(48%, 214px);
-        padding: 4px 7px;
+        gap: 2px;
+        flex: 0 1 auto;
+        min-width: 48px;
+        max-width: 214px;
+        padding: 2px;
         border: 1px solid var(--app-widget-header-border);
         border-radius: 7px;
         background: var(--app-widget-bg);
         color: var(--app-body-color);
-        font-size: 12px;
+        font-size: var(--app-text-xs);
+    }
+
+    .second-stream__stream--has-actions {
+        min-width: 104px;
     }
 
     .second-stream__stream--selected {
@@ -246,11 +306,6 @@ button,
         height: 15px;
         font-size: 15px;
     }
-}
-
-.second-stream--side-by-side .second-stream__streams li {
-    gap: 2px;
-    padding: 2px;
 }
 
 .second-stream__select,
@@ -291,7 +346,7 @@ button,
     color: inherit;
 }
 
-.second-stream__select:hover,
+.second-stream__select:hover:not([aria-disabled='true']),
 .second-stream__strip-button:hover:not(:disabled, [aria-disabled='true']),
 .second-stream__sound[aria-pressed='true'] {
     background: var(--app-hover-overlay);
@@ -325,6 +380,11 @@ button,
     opacity: 0.65;
 }
 
+// The PiP labels stay readable even though its transport follows the main view.
+.second-stream__strip .second-stream__select[tabindex='-1'] {
+    opacity: 1;
+}
+
 .second-stream__beside-icon {
     rotate: 90deg;
 }
@@ -338,8 +398,36 @@ button,
     font-weight: 600;
 }
 
+.second-stream__action {
+    flex: none;
+    gap: 5px;
+    min-width: 28px;
+    padding-inline: 4px;
+    font-size: var(--app-text-xs);
+    white-space: nowrap;
+}
+
+.second-stream__strip button:focus-visible,
+.second-stream__empty:focus-visible {
+    outline: 2px solid var(--app-focus-ring);
+    outline-offset: -2px;
+}
+
 .second-stream__title {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+@container (max-width: 940px) {
+    .second-stream__action span {
+        display: none;
+    }
+}
+
+@container (max-width: 600px) {
+    .second-stream__title {
+        display: none;
+    }
 }

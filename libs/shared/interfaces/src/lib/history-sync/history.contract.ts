@@ -3,11 +3,17 @@ import type {
     FavoriteSnapshot,
     FavoriteSourceContext,
 } from '../favorites-sync/favorites-sync.contract';
+import type { PersonalScope } from '../profiles/profile-scope';
 export const HISTORY_SYNC_CAPABILITY = 'history-v1';
 export type HistoryReference = FavoriteReference;
 export type HistorySnapshot = FavoriteSnapshot;
 export interface HistoryScope extends FavoriteSourceContext {
     instanceId: string;
+    /**
+     * Whose history: `profile:<id>`, or absent for the Default profile
+     * (`'shared'` is normalized away, so Default keys stay unchanged).
+     */
+    personalScope?: PersonalScope;
 }
 export interface HistoryItem {
     reference: HistoryReference;

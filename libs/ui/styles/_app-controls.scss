@@ -13,27 +13,27 @@
 @use 'sass:map';
 @use '@angular/material' as mat;
 
-$radius: 10px;
-$radius-sm: 8px;
+$radius: var(--app-radius-lg);
+$radius-sm: var(--app-radius-md);
 
 $_sizes: (
     md: (
         height: 40px,
         radius: $radius,
-        padding: 16px,
+        padding: var(--app-space-4),
         icon-padding: 14px,
-        text: 13.5px,
+        text: var(--app-text-md),
         icon: 16px,
-        gap: 8px,
+        gap: var(--app-space-2),
     ),
     sm: (
         height: 32px,
         radius: $radius-sm,
-        padding: 12px,
+        padding: var(--app-space-3),
         icon-padding: 10px,
-        text: 12.5px,
+        text: var(--app-text-sm),
         icon: 14px,
-        gap: 6px,
+        gap: var(--app-space-1-5),
     ),
 );
 
@@ -214,7 +214,7 @@ $_sizes: (
     height: 12px;
     font-size: 12px;
     line-height: 12px;
-    margin-inline-start: 2px;
+    margin-inline-start: var(--app-space-0-5);
     color: var(--app-body-color);
 }
 
@@ -229,7 +229,7 @@ $_sizes: (
             container-color: var(--app-widget-bg),
             container-shape: $radius,
             item-label-text-color: var(--app-heading-color),
-            item-label-text-size: 13px,
+            item-label-text-size: var(--app-text-sm),
             item-label-text-weight: 400,
             item-icon-color: var(--app-body-color),
             item-icon-size: 16px,
@@ -257,15 +257,15 @@ $_sizes: (
     max-width: min(360px, calc(100vw - 24px));
     max-height: min(480px, calc(100vh - 32px));
     border: 1px solid var(--app-line-strong);
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+    box-shadow: var(--app-elev-4);
 
     .mat-mdc-menu-content {
-        padding: 6px;
+        padding: var(--app-space-1-5);
     }
 
     .mat-mdc-menu-item {
         min-height: 36px;
-        border-radius: 6px;
+        border-radius: var(--app-radius-sm);
 
         .mat-icon {
             font-size: 16px;
@@ -297,9 +297,9 @@ $_sizes: (
 
     .app-menu-item__kbd {
         margin-inline-start: auto;
-        padding-inline-start: 16px;
+        padding-inline-start: var(--app-space-4);
         font-family: var(--app-font-mono);
-        font-size: 11px;
+        font-size: var(--app-text-2xs);
         font-weight: 500;
         color: var(--app-muted-color);
     }
@@ -310,7 +310,7 @@ $_sizes: (
 // `segmented-track` and `segment` build the same look from plain buttons
 // (the season tabs, which are a tab list). An unchosen segment is text in the
 // body colour: the muted colour reads about 2.9:1 on the track, under the
-// 4.5:1 its 12.5px label needs.
+// 4.5:1 its 13px label needs.
 $_segment-text: var(--app-body-color);
 $_segment-selected-text: var(--app-heading-color);
 $_segment-selected-fill: color-mix(
@@ -319,7 +319,7 @@ $_segment-selected-fill: color-mix(
     transparent
 );
 $_segment-hover-fill: color-mix(in srgb, var(--app-on-surface) 6%, transparent);
-$_segment-text-size: 12.5px;
+$_segment-text-size: var(--app-text-sm);
 
 /// The track: 2px padding inside a 1px border, so it adds 6px to the
 /// segments' height (26px segments give a 32px control, a small button's
@@ -333,7 +333,7 @@ $_segment-text-size: 12.5px;
     box-sizing: border-box;
     max-width: 100%;
     gap: 1px;
-    padding: 2px;
+    padding: var(--app-space-0-5);
     border: 1px solid var(--app-line-strong);
     border-radius: $radius;
     background: var(--app-content-bg);
@@ -344,9 +344,9 @@ $_segment-text-size: 12.5px;
 @mixin segment($height: 26px) {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--app-space-1-5);
     height: $height;
-    padding: 0 10px;
+    padding: 0 var(--app-space-2-5);
     border: 0;
     border-radius: $radius-sm;
     background: transparent;
@@ -423,9 +423,9 @@ $_segment-text-size: 12.5px;
         .mat-button-toggle-label-content {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: var(--app-space-1-5);
             height: $height;
-            padding: 0 10px;
+            padding: 0 var(--app-space-2-5);
             vertical-align: top;
         }
 
@@ -453,7 +453,7 @@ $_segment-text-size: 12.5px;
 @mixin floating-panel {
     overflow: hidden;
     border: 1px solid var(--app-line-strong);
-    border-radius: 12px;
+    border-radius: var(--app-radius-xl);
     background: var(--app-widget-bg);
     box-shadow: var(--app-popover-shadow);
     color: var(--app-body-color);
@@ -465,7 +465,7 @@ $_segment-text-size: 12.5px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: var(--app-space-2);
     padding: 8px 8px 8px 12px;
     border-bottom: 1px solid var(--app-widget-header-border);
 }
@@ -474,9 +474,9 @@ $_segment-text-size: 12.5px;
 @mixin floating-panel-title {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--app-space-2);
     min-width: 0;
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;

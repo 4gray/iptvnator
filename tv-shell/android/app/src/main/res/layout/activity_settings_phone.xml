@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/settings_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/phone_settings_background"
+    android:orientation="vertical"
+    android:focusableInTouchMode="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="64dp"
+        android:background="@color/phone_settings_surface"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp">
+
+        <TextView
+            android:id="@+id/phone_settings_title"
+            style="@style/PhoneSettingsText.Section"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="12dp"
+            android:text="@string/settings_title"
+            android:textSize="22sp"
+            android:accessibilityHeading="true" />
+
+        <Button
+            android:id="@+id/done"
+            style="@style/PhoneSettingsButton"
+            android:layout_width="wrap_content"
+            android:minWidth="64dp"
+            android:text="@string/done" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:id="@+id/settings_content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:id="@+id/phone_connection_card"
+                style="@style/PhoneSettingsCard">
+
+                <TextView
+                    android:id="@+id/phone_connection_heading"
+                    style="@style/PhoneSettingsText.Section"
+                    android:text="@string/connection_title"
+                    android:accessibilityHeading="true" />
+
+                <TextView
+                    android:id="@+id/connection_status"
+                    style="@style/PhoneSettingsText.Hint"
+                    android:layout_marginTop="4dp"
+                    android:accessibilityLiveRegion="polite" />
+
+                <TextView
+                    style="@style/PhoneSettingsText.Label"
+                    android:layout_marginTop="16dp"
+                    android:labelFor="@id/host_address"
+                    android:text="@string/phone_server_address" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <EditText
+                        android:id="@+id/host_address"
+                        style="@style/PhoneSettingsField"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="8dp"
+                        android:imeOptions="actionDone"
+                        android:importantForAutofill="no" />
+
+                    <ImageButton
+                        android:id="@+id/scan_tv"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:minWidth="48dp"
+                        android:minHeight="48dp"
+                        android:padding="12dp"
+                        android:background="@drawable/phone_settings_secondary"
+                        android:src="@drawable/ic_qr_code_scanner"
+                        android:tint="@color/phone_settings_button_text"
+                        android:contentDescription="@string/scan_qr"
+                        android:tooltipText="@string/scan_qr"
+                        android:visibility="gone" />
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/pair_host"
+                    style="@style/PhoneSettingsButton.Primary"
+                    android:layout_marginTop="12dp"
+                    android:minHeight="52dp"
+                    android:text="@string/phone_pair_device" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:baselineAligned="false">
+
+                    <Button
+                        android:id="@+id/local_library"
+                        style="@style/PhoneSettingsButton"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:layout_marginTop="8dp"
+                        android:visibility="gone"
+                        android:text="@string/phone_use_local"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/connection_options"
+                    style="@style/PhoneSettingsButton.Disclosure"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/phone_connection_options" />
+
+                <LinearLayout
+                    android:id="@+id/connection_details"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <Button
+                        android:id="@+id/connect_host"
+                        style="@style/PhoneSettingsButton"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/phone_connect_with_code" />
+
+                    <TextView
+                        style="@style/PhoneSettingsText.Label"
+                        android:layout_marginTop="16dp"
+                        android:labelFor="@id/approval_address"
+                        android:text="@string/phone_approval_address" />
+
+                    <EditText
+                        android:id="@+id/approval_address"
+                        style="@style/PhoneSettingsField"
+                        android:layout_marginTop="6dp"
+                        android:imeOptions="actionDone"
+                        android:importantForAutofill="no" />
+
+                    <TextView
+                        style="@style/PhoneSettingsText.Hint"
+                        android:layout_marginTop="6dp"
+                        android:text="@string/phone_approval_hint" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/phone_playback_card"
+                style="@style/PhoneSettingsCard"
+                android:layout_marginTop="12dp">
+
+                <TextView
+                    android:id="@+id/phone_playback_heading"
+                    style="@style/PhoneSettingsText.Section"
+                    android:text="@string/phone_playback"
+                    android:accessibilityHeading="true" />
+
+                <Switch
+                    android:id="@+id/native_playback"
+                    style="@style/PhoneSettingsChoice"
+                    android:layout_marginTop="4dp"
+                    android:switchPadding="16dp"
+                    android:text="@string/setting_native_playback" />
+
+                <Switch
+                    android:id="@+id/prompt_external"
+                    style="@style/PhoneSettingsChoice"
+                    android:layout_marginTop="4dp"
+                    android:switchPadding="16dp"
+                    android:text="@string/setting_prompt_external" />
+
+                <Button
+                    android:id="@+id/phone_player_picker"
+                    style="@style/PhoneSettingsButton"
+                    android:layout_marginTop="4dp"
+                    android:gravity="start|center_vertical"
+                    android:text="@string/phone_preferred_player" />
+
+                <TextView
+                    android:id="@+id/player_hint"
+                    style="@style/PhoneSettingsText.Hint"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/no_external_player"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/phone_advanced_card"
+                style="@style/PhoneSettingsCard"
+                android:layout_marginTop="12dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp">
+
+                <Button
+                    android:id="@+id/advanced_options"
+                    style="@style/PhoneSettingsButton.Disclosure"
+                    android:text="@string/setting_advanced" />
+
+                <LinearLayout
+                    android:id="@+id/advanced_details"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingBottom="12dp"
+                    android:visibility="gone">
+
+                    <LinearLayout
+                        android:id="@+id/phone_layout_group"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/PhoneSettingsText.Label"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/setting_layout_mode" />
+
+                        <RadioGroup
+                            android:id="@+id/layout_mode_group"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <RadioButton
+                                android:id="@+id/layout_auto"
+                                style="@style/PhoneSettingsChoice"
+                                android:text="@string/layout_auto" />
+
+                            <RadioButton
+                                android:id="@+id/layout_touch"
+                                style="@style/PhoneSettingsChoice"
+                                android:text="@string/layout_touch" />
+
+                            <RadioButton
+                                android:id="@+id/layout_tv"
+                                style="@style/PhoneSettingsChoice"
+                                android:text="@string/layout_tv" />
+                        </RadioGroup>
+
+                        <TextView
+                            android:id="@+id/width_heading"
+                            style="@style/PhoneSettingsText.Label"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/setting_width" />
+
+                        <TextView
+                            android:id="@+id/width_hint"
+                            style="@style/PhoneSettingsText.Hint"
+                            android:layout_marginTop="4dp"
+                            android:text="@string/setting_width_hint" />
+
+                        <RadioGroup
+                            android:id="@+id/width_group"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <RadioButton
+                                android:id="@+id/width_960"
+                                style="@style/PhoneSettingsChoice"
+                                android:text="@string/width_960" />
+
+                            <RadioButton
+                                android:id="@+id/width_1280"
+                                style="@style/PhoneSettingsChoice"
+                                android:text="@string/width_1280" />
+
+                            <RadioButton
+                                android:id="@+id/width_1600"
+                                style="@style/PhoneSettingsChoice"
+                                android:text="@string/width_1600" />
+                        </RadioGroup>
+                    </LinearLayout>
+
+                    <Switch
+                        android:id="@+id/web_debug"
+                        style="@style/PhoneSettingsChoice"
+                        android:switchPadding="16dp"
+                        android:text="@string/setting_web_debug" />
+
+                    <Button
+                        android:id="@+id/diagnostics_toggle"
+                        style="@style/PhoneSettingsButton.Disclosure"
+                        android:text="@string/setting_diagnostics" />
+
+                    <TextView
+                        android:id="@+id/diagnostics"
+                        style="@style/PhoneSettingsText.Hint"
+                        android:layout_marginBottom="8dp"
+                        android:visibility="gone" />
+
+                    <Button
+                        android:id="@+id/reset_data"
+                        style="@style/PhoneSettingsButton.Danger"
+                        android:text="@string/reset_title" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

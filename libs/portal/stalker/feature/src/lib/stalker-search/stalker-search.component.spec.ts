@@ -530,6 +530,26 @@ describe('StalkerSearchComponent result paging', () => {
         }
     );
 
+    it('rebuilds search after a visibility edit and advances through a hidden first page', async () => {
+        const row = { id: 'film', category_id: '09', name: 'Fixture film' };
+        const other = { id: 'other', category_id: '5', name: 'Other fixture' };
+        dataService.sendIpcEvent.mockImplementation(
+            async (_event, { params }) => ({
+                js: { data: [params.p === 1 ? row : other], total_items: 2 },
+            })
+        );
+        queryParamMap.next(convertToParamMap({ q: 'fixture' }));
+        await waitFor(() => component.searchResults()[0]?.id === row.id);
+        activePlaylist.update((playlist) => ({
+            ...playlist,
+            hiddenStalkerCategories: { vod: ['09'] },
+        }));
+        await waitFor(() => component.searchResults()[0]?.id === other.id);
+        expect(component.searchResults()).toHaveLength(1);
+        expect(component.searchHasMore()).toBe(false);
+        expect(parentalLock.lockedStalkerIds).not.toHaveBeenCalled();
+    });
+
     it('starts a prefilled two-character search in the series catalog', async () => {
         queryParamMap.next(convertToParamMap({ q: 'up', kind: 'series' }));
         await waitFor(() => dataService.sendIpcEvent.mock.calls.length > 0);
@@ -653,7 +673,7 @@ describe('StalkerSearchComponent result paging', () => {
         );
         expect(component.searchResults()).toHaveLength(2);
 
-        component.paging.applyRelockToResults(new Set(['9']), 'vod');
+        component.paging.applyVisibilityToResults(new Set(['9']), 'vod');
 
         expect(component.searchResults().map((item) => item.id)).toEqual([
             'news-1',

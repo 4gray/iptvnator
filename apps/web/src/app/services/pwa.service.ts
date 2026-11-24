@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable, Injector } from '@angular/core';
-import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
@@ -60,7 +60,7 @@ interface ProviderTargetRegistration {
 export class PwaService extends DataService {
     private messageListeners = new Map<string, EventListener>();
     private readonly http = inject(HttpClient);
-    private readonly snackBar = inject(LazySnackBar);
+    private readonly notifications = inject(NotificationService);
     private readonly store = inject(Store);
     private readonly injector = inject(Injector);
     private readonly translateService = inject(TranslateService);
@@ -202,45 +202,39 @@ export class PwaService extends DataService {
 
     async refreshPlaylist(
         payload?: Partial<Playlist & { id: string }>
-    ): Promise<void> {
+    ): Promise<boolean> {
         if (!payload?.url || !payload?.id) {
-            return;
+            return false;
         }
 
         const { id, url, userAgent } = payload;
         try {
             const { refreshPwaPlaylist } =
                 await import('./pwa-playlist-refresh');
-            await refreshPwaPlaylist(
+            return await refreshPwaPlaylist(
                 this.injector,
                 id,
                 url,
                 userAgent,
                 (agent) => this.fetchPlaylistDefinition(url, agent),
-                (error) =>
-                    this.appendProviderErrorCode(
-                        this.getPlaylistRefreshErrorMessage(error),
-                        error
-                    )
+                (error) => ({
+                    key: this.getPlaylistRefreshErrorKey(error),
+                    code: this.providerErrorCode(error),
+                })
             );
         } catch (error) {
             this.logger.error('Playlist refresh could not finish:', error);
-            void this.snackBar.open(
-                this.translateService.instant(
-                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED'
-                ),
-                this.translateService.instant('CLOSE'),
-                { duration: 5000 }
-            );
+            this.notifications.error('HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED');
+            return false;
         }
     }
 
-    private getPlaylistRefreshErrorMessage(error: unknown): string {
+    private getPlaylistRefreshErrorKey(error: unknown): string {
         const statusCode =
             this.getErrorDetails(error)?.status ??
             this.extractHttpStatusCode(error);
 
-        return this.getErrorMessageByStatusCode(
+        return this.getErrorKeyByStatusCode(
             statusCode === 413 ? null : statusCode
         );
     }
@@ -259,17 +253,12 @@ export class PwaService extends DataService {
         this.getPlaylistFromUrl(payload.url, payload.userAgent)
             .pipe(
                 catchError((error) => {
-                    void this.snackBar.open(
-                        this.appendProviderErrorCode(
-                            this.getErrorMessageByStatusCode(
-                                this.extractHttpStatusCode(error)
-                            ),
-                            error
+                    this.notifications.error(
+                        this.getErrorKeyByStatusCode(
+                            this.extractHttpStatusCode(error)
                         ),
-                        this.translateService.instant('CLOSE'),
-                        {
-                            duration: 5000,
-                        }
+                        undefined,
+                        { code: this.providerErrorCode(error) }
                     );
                     return throwError(() => error);
                 })
@@ -292,7 +281,7 @@ export class PwaService extends DataService {
             });
     }
 
-    getErrorMessageByStatusCode(status: number | null | undefined) {
+    getErrorKeyByStatusCode(status: number | null | undefined): string {
         let messageKey = 'HOME.URL_UPLOAD.ERROR_FETCH_FAILED';
         switch (status) {
             case 413:
@@ -310,20 +299,18 @@ export class PwaService extends DataService {
             default:
                 break;
         }
-        return this.translateService.instant(messageKey);
+        return messageKey;
     }
 
     /**
      * The web backend attaches the underlying Node network code (ETIMEDOUT,
      * ENETUNREACH, ...) to proxy error bodies; without it the toast collapses
      * every connection failure into the same generic fetch error (#1400).
+     * The notification shows it only when it is a bounded upper-case code.
      */
-    private appendProviderErrorCode(message: string, error: unknown): string {
+    private providerErrorCode(error: unknown): string | undefined {
         const body = (error as { error?: { code?: unknown } } | null)?.error;
-        const code = typeof body?.code === 'string' ? body.code : '';
-        return code && !message.includes(`(${code})`)
-            ? `${message} (${code})`
-            : message;
+        return typeof body?.code === 'string' ? body.code : undefined;
     }
 
     private extractHttpStatusCode(error: unknown): number | null {
@@ -357,7 +344,7 @@ export class PwaService extends DataService {
                 providerTargets: this.providerTargets,
                 logger: this.logger,
                 translate: this.translateService,
-                snackBar: this.snackBar,
+                notifications: this.notifications,
                 errorStatus: (error) => this.getErrorDetails(error)?.status,
             },
             payload,
@@ -496,30 +483,13 @@ export class PwaService extends DataService {
             );
             return responseBody.payload;
         } catch (err: unknown) {
-            const errorInfo = this.getErrorDetails(err);
             logPortalDebugEvent(createPortalDebugErrorEvent(context, err));
             this.logger.error('Stalker request error:', err);
 
             if (!payload.silent) {
-                void this.snackBar.open(
-                    this.translateService.instant(
-                        'PORTALS.REQUEST_ERRORS.STALKER',
-                        {
-                            message:
-                                errorInfo?.message ??
-                                this.translateService.instant(
-                                    'PORTALS.REQUEST_ERRORS.NOT_FOUND'
-                                ),
-                            status:
-                                errorInfo?.status ??
-                                this.extractHttpStatusCode(err) ??
-                                '—',
-                        }
-                    ),
-                    this.translateService.instant('CLOSE'),
-                    {
-                        duration: 5000,
-                    }
+                // The portal's own text stays in the log above.
+                this.notifications.error(
+                    'PORTALS.REQUEST_ERRORS.STALKER_FAILED'
                 );
             }
             throw err;

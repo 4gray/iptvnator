@@ -33,7 +33,7 @@
 
     // Favorited: the glyph fills and turns red, the surface stays a ghost.
     &--favorite.is-active {
-        color: var(--app-live-color, #ff5b6e);
+        color: var(--app-status-live, #ff5b6e);
     }
 
     &--favorite.is-pulsing mat-icon {

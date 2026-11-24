@@ -323,7 +323,7 @@ describe('PwaUpdateNotificationComponent', () => {
         fixture.detectChanges();
         await fixture.whenStable();
         const button = fixture.nativeElement.querySelector(
-            '[data-test-id="pwa-update-notification"] button'
+            '.app-update-notification__actions button'
         ) as HTMLButtonElement;
         expect(button.textContent).toContain('REFRESH');
         button.click();
@@ -331,6 +331,37 @@ describe('PwaUpdateNotificationComponent', () => {
         button.click();
         expect(updates.reloadWindow).toHaveBeenCalledTimes(2);
         expect(button.isConnected).toBe(true);
+    });
+
+    it('hides the dismissed status until it changes and keeps recovery visible', () => {
+        const updates = TestBed.inject(PwaUpdateService);
+        const root = fixture.nativeElement as HTMLElement;
+        const closeButton = () =>
+            root.querySelector<HTMLButtonElement>(
+                '.app-update-notification__close'
+            );
+
+        updates.notice.set('failed');
+        fixture.detectChanges();
+        expect(closeButton()).not.toBeNull();
+        closeButton()?.click();
+        updates.notice.set('failed');
+        fixture.detectChanges();
+        expect(root.querySelector('section')).toBeNull();
+        expect(updates.notice()).toBe('failed');
+
+        updates.notice.set('ready');
+        fixture.detectChanges();
+        expect(root.textContent).toContain('PWA_UPDATE_READY');
+        closeButton()?.click();
+        fixture.detectChanges();
+        expect(root.querySelector('section')).toBeNull();
+        expect(updates.canReload()).toBe(true);
+
+        updates.notice.set('unrecoverable');
+        fixture.detectChanges();
+        expect(root.textContent).toContain('PWA_RELOAD_REQUIRED');
+        expect(closeButton()).toBeNull();
     });
 
     it.each([
@@ -347,7 +378,11 @@ describe('PwaUpdateNotificationComponent', () => {
         );
         expect(panel.textContent).toContain(message);
         expect(
-            (panel.querySelector('button') as HTMLButtonElement).disabled
+            (
+                panel.querySelector(
+                    '.app-update-notification__actions button'
+                ) as HTMLButtonElement
+            ).disabled
         ).toBe(state === 'failed');
     });
 });

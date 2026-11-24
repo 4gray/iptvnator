@@ -35,12 +35,22 @@ export function buildSerialEpisodePlayback(
     request: SerialEpisodePlaybackRequest
 ): SerialEpisodePlayback {
     const { episode, selectedItem } = request;
+    const episodeState = resolveSeriesPlaybackEpisodeState({
+        episodesBySeason: selectedItem.episodes,
+        currentEpisodeId: episode.id,
+        fallbackSeasonNumber: Number(episode.season),
+        fallbackEpisodeNumber: Number(episode.episode_num),
+    });
+    const seasonGroup = episodeState ? Number(episodeState.seasonKey) : NaN;
     const contentInfo: PlayerContentInfo = {
         playlistId: request.playlist.id,
         contentXtreamId: Number(episode.id),
         contentType: 'episode',
         seriesXtreamId: Number(selectedItem.series_id),
         seasonNumber: Number(episode.season),
+        ...(Number.isSafeInteger(seasonGroup)
+            ? { nativeCheckpointSeasonGroup: seasonGroup }
+            : {}),
         episodeNumber: Number(episode.episode_num),
     };
 
@@ -55,11 +65,5 @@ export function buildSerialEpisodePlayback(
         origin: request.playlist.origin,
     };
 
-    const episodeState = resolveSeriesPlaybackEpisodeState({
-        episodesBySeason: selectedItem.episodes,
-        currentEpisodeId: episode.id,
-        fallbackSeasonNumber: Number(episode.season),
-        fallbackEpisodeNumber: Number(episode.episode_num),
-    });
     return { playback, episodeState };
 }

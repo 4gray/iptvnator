@@ -14,9 +14,9 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
+    createInlinePlaybackPositionWriter,
     createLogger,
     getSeriesQuickStartAction,
-    inlineProgressPosition,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
@@ -27,6 +27,7 @@ import {
     ExternalPlayerName,
     ExternalPlayerSession,
     PlaybackPositionData,
+    PlaybackPositionUpdate,
     ResolvedPortalPlayback,
     XtreamSerieDetails,
     XtreamSerieEpisode,
@@ -36,6 +37,7 @@ import {
     SeasonContainerSeriesPlaybackToggleRequest,
 } from '@iptvnator/ui/components';
 import {
+    AutoplayStreakService,
     getSeriesEpisodeMetadata,
     getSeriesPlaybackNavigation,
     inlineSeriesEpisodeState,
@@ -82,6 +84,7 @@ export class SerialDetailsPlaybackService {
     private readonly route = inject(ActivatedRoute);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly autoplayStreak = inject(AutoplayStreakService);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly playbackPositionBridge = inject(
         PlaybackPositionRuntimeBridgeService
@@ -114,9 +117,21 @@ export class SerialDetailsPlaybackService {
         reloadStorePositions: (playlistId) =>
             this.xtreamStore.loadAllPositions(playlistId),
     });
-    private lastSaveTime = 0;
-
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
+    /**
+     * The shared writer, as the other inline hosts use: its resume latch
+     * keeps a resuming episode's ~0 ticks off the stored row, and closing or
+     * switching episodes persists the position its throttle still holds.
+     */
+    private readonly positionWriter = createInlinePlaybackPositionWriter({
+        playback: this.inlinePlayback,
+        save: (playlistId, position) =>
+            void this.savePosition(playlistId, position),
+        onSaved: (position) => this.playbackPositionState.update(position),
+        // A switch to another series closes the player after the page
+        // already shows it; its episode map must not take the old row.
+        ownerKey: () => this.pageToken(),
+    });
     readonly inlinePlaybackSessionEpisodeState =
         signal<SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null>(null);
     readonly episodePlaybackPositions = this.playbackPositionState.positions;
@@ -299,7 +314,11 @@ export class SerialDetailsPlaybackService {
 
     handleInlinePlaybackEnded(): void {
         const navigation = this.inlineSeriesNavigation();
-        if (!navigation?.autoplayEnabled || !navigation.canNext) {
+        if (
+            !navigation?.autoplayEnabled ||
+            !navigation.canNext ||
+            !this.autoplayStreak.beginAutoplay()
+        ) {
             return;
         }
         this.playNextEpisode();
@@ -308,20 +327,11 @@ export class SerialDetailsPlaybackService {
     closeInlinePlayer(): void {
         this.inlinePlayback.set(null);
         this.inlinePlaybackSessionEpisodeState.set(null);
-        this.lastSaveTime = 0;
+        this.positionWriter.reset();
     }
 
-    handleInlineTimeUpdate(event: {
-        currentTime: number;
-        duration: number;
-    }): void {
-        const playback = this.inlinePlayback();
-        const now = Date.now();
-        if (!playback?.contentInfo || now - this.lastSaveTime <= 15000) return;
-        this.lastSaveTime = now;
-        const position = inlineProgressPosition(playback.contentInfo, event);
-        void this.savePosition(playback.contentInfo.playlistId, position);
-        this.playbackPositionState.update(position);
+    handleInlineTimeUpdate(event: PlaybackPositionUpdate): void {
+        this.positionWriter.handleTimeUpdate(event);
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
@@ -398,7 +408,7 @@ export class SerialDetailsPlaybackService {
         episodeState: SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null,
         player?: ExternalPlayerName
     ): Promise<ExternalPlayerSession | void> | void {
-        this.lastSaveTime = 0;
+        this.positionWriter.reset();
         if (!player && this.portalPlayer.isEmbeddedPlayer()) {
             this.inlinePlaybackSessionEpisodeState.set(episodeState);
             this.inlinePlayback.set(playback);

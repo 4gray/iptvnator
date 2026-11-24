@@ -87,32 +87,23 @@
                 [count]="selectedSeasonEpisodes().length"
             />
         } @else if (showSeriesEmptyState()) {
-            <div class="empty-state-panel" role="status">
-                <div class="empty-state-panel__icon" aria-hidden="true">
-                    <mat-icon>video_library</mat-icon>
-                </div>
-                <h4 class="empty-state-panel__title">
-                    {{ 'PORTALS.NO_EPISODES_AVAILABLE' | translate }}
-                </h4>
-                <p class="empty-state-panel__message">
-                    {{ 'PORTALS.NO_EPISODES_AVAILABLE_MESSAGE' | translate }}
-                </p>
-            </div>
+            <app-state-view
+                class="empty-state-panel"
+                size="panel"
+                icon="video_library"
+                [heading]="'PORTALS.NO_EPISODES_AVAILABLE' | translate"
+                [description]="
+                    'PORTALS.NO_EPISODES_AVAILABLE_MESSAGE' | translate
+                "
+            />
         } @else if (showSeasonEmptyState()) {
-            <div
+            <app-state-view
                 class="empty-state-panel empty-state-panel--season"
-                role="status"
-            >
-                <div class="empty-state-panel__icon" aria-hidden="true">
-                    <mat-icon>video_library</mat-icon>
-                </div>
-                <h4 class="empty-state-panel__title">
-                    {{ 'PORTALS.SEASON_EMPTY' | translate }}
-                </h4>
-                <p class="empty-state-panel__message">
-                    {{ 'PORTALS.SEASON_EMPTY_MESSAGE' | translate }}
-                </p>
-            </div>
+                size="panel"
+                icon="video_library"
+                [heading]="'PORTALS.SEASON_EMPTY' | translate"
+                [description]="'PORTALS.SEASON_EMPTY_MESSAGE' | translate"
+            />
         } @else {
             <div
                 [class.episodes-grid]="effectiveViewMode() === 'grid'"

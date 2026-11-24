@@ -14,7 +14,7 @@
 // The stack is declared once on html; every Material typography token and the
 // typography hierarchy read it through the variable. Inlined, the 103-char
 // stack was copied into ~90 declarations (about 7 KB of the initial CSS).
-$app-font-stack-value: "'DM Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
+$app-font-stack-value: "'Inter Variable', Inter, system-ui, sans-serif";
 $app-font-stack: var(--app-font-family);
 
 html {
@@ -203,7 +203,7 @@ html {
         @include mat.form-field-overrides(
             (
                 outlined-focus-outline-color: var(--app-selection-color),
-                outlined-container-shape: 10px,
+                outlined-container-shape: var(--app-radius-lg),
                 outlined-label-text-color: var(--app-muted-color),
                 outlined-hover-label-text-color: var(--app-muted-color),
                 outlined-focus-label-text-color: var(--app-selection-text-color),
@@ -219,12 +219,12 @@ html {
     // locked to the light-mode value at html-level inheritance.
     .mat-form-field-appearance-outline .mat-mdc-text-field-wrapper {
         background: color-mix(in srgb, var(--app-widget-bg) 85%, white 7%);
-        border-radius: 10px;
+        border-radius: var(--app-radius-lg);
     }
 
     .mat-mdc-form-field .mat-mdc-input-element,
     .mat-mdc-form-field .mat-mdc-select-value {
-        font-size: 13.5px;
+        font-size: var(--app-text-md);
     }
 
     // A select stays inside a form; its option panel follows the kit menu:
@@ -240,7 +240,7 @@ html {
         @include mat.select-overrides(
             (
                 panel-background-color: var(--app-widget-bg),
-                container-elevation-shadow: 0 18px 40px rgba(0, 0, 0, 0.35),
+                container-elevation-shadow: var(--app-elev-4),
             )
         );
         @include mat.option-overrides(
@@ -263,12 +263,12 @@ html {
         );
         padding: 6px;
         border: 1px solid var(--app-line-strong);
-        border-radius: 10px;
+        border-radius: var(--app-radius-lg);
 
         .mat-mdc-option {
             min-height: 36px;
             padding: 0 10px;
-            border-radius: 6px;
+            border-radius: var(--app-radius-sm);
         }
     }
 
@@ -280,7 +280,7 @@ html {
     .mat-mdc-dialog-container {
         @include mat.dialog-overrides(
             (
-                container-shape: 16px,
+                container-shape: var(--app-radius-3xl),
                 container-color: var(--app-widget-bg),
                 container-elevation-shadow: var(--app-popover-shadow),
                 subhead-color: var(--app-heading-color),
@@ -358,7 +358,7 @@ html {
     }
 
     .mat-mdc-form-field-subscript-wrapper {
-        font-size: 11px;
+        font-size: var(--app-text-2xs);
         letter-spacing: 0.01em;
         margin-top: 2px;
 

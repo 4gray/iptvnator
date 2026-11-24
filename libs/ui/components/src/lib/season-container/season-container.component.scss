@@ -4,65 +4,6 @@
     width: 100%;
 }
 
-.empty-state-panel {
-    display: grid;
-    justify-items: center;
-    gap: 14px;
-    width: min(100%, 520px);
-    margin: 0 auto;
-    padding: 32px 28px;
-    // The theme's panel surface (white in light, raised slate in dark) and
-    // on-surface hairlines, so the panel shows in both themes; white tints
-    // vanished on the light content background.
-    border: 1px solid color-mix(in srgb, var(--app-on-surface) 8%, transparent);
-    border-radius: 16px;
-    background: var(--app-widget-bg);
-    box-shadow: var(--app-widget-shadow);
-    text-align: center;
-
-    &__icon {
-        display: grid;
-        place-items: center;
-        width: 64px;
-        height: 64px;
-        border-radius: 50%;
-        background: color-mix(in srgb, var(--app-on-surface) 5%, transparent);
-        border: 1px solid
-            color-mix(in srgb, var(--app-on-surface) 8%, transparent);
-        color: color-mix(in srgb, var(--app-on-surface) 52%, transparent);
-
-        mat-icon {
-            font-size: 30px;
-            width: 30px;
-            height: 30px;
-        }
-    }
-
-    &__title {
-        margin: 0;
-        color: var(--text-primary);
-        font-size: 1.125rem;
-        font-weight: 600;
-        letter-spacing: -0.02em;
-    }
-
-    &__message {
-        max-width: 40ch;
-        margin: 0;
-        color: var(--text-secondary);
-        font-size: 0.9375rem;
-        line-height: 1.6;
-    }
-
-    &--season {
-        border-color: color-mix(
-            in srgb,
-            var(--app-on-surface) 10%,
-            transparent
-        );
-    }
-}
-
 // Episodes header: the shared section header with the season picker after
 // the title and the view toggle at the far edge.
 .episodes-header {
@@ -87,7 +28,7 @@
     max-width: 72ch;
     margin: 4px 0 24px;
     padding-left: 52px;
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     line-height: 1.55;
     color: var(--text-secondary);
 }

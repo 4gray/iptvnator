@@ -1,13 +1,11 @@
 import { inject, Injectable } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { DownloadsService, type DownloadStartInput } from '@iptvnator/services';
-import { TranslateService } from '@ngx-translate/core';
 
 @Injectable({ providedIn: 'root' })
 export class EpgArchiveDownloadService {
     private readonly downloads = inject(DownloadsService);
-    private readonly snackbar = inject(MatSnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
     private readonly pending = new Set<string>();
 
     async start(
@@ -52,10 +50,13 @@ export class EpgArchiveDownloadService {
         } finally {
             this.pending.delete(key);
         }
-        this.snackbar.open(
-            this.translate.instant(`EPG.PROGRAM_DIALOG.${message}`),
-            undefined,
-            { duration: 5000 }
-        );
+        const messageKey = `EPG.PROGRAM_DIALOG.${message}`;
+        if (message === 'ARCHIVE_DOWNLOAD_QUEUED') {
+            this.notifications.success(messageKey);
+        } else if (message === 'ARCHIVE_DOWNLOAD_FAILED') {
+            this.notifications.error(messageKey);
+        } else {
+            this.notifications.info(messageKey);
+        }
     }
 }

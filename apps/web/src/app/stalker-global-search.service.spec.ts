@@ -12,7 +12,7 @@ import {
     type PlaylistMeta,
 } from '@iptvnator/shared/interfaces';
 import { EMPTY, of, Subject } from 'rxjs';
-import type { StalkerGlobalSearchContext } from './stalker-global-search.service';
+import type { StalkerGlobalSearchContext } from './stalker-global-search.types';
 
 type LoadSearchPage = typeof stalker.loadStalkerSearchPage;
 const loadPage = jest.fn<
@@ -51,6 +51,7 @@ describe('StalkerGlobalSearchService', () => {
         movies: true,
         series: true,
         lockVersion: 0,
+        excludeHidden: false,
         sources: [portalA, portalB, portalC],
     });
     const sendIpcEvent = jest.fn();
@@ -73,6 +74,7 @@ describe('StalkerGlobalSearchService', () => {
             movies: true,
             series: true,
             lockVersion: 0,
+            excludeHidden: false,
             sources: [portalA, portalB, portalC],
         });
         requests = [];
@@ -480,6 +482,27 @@ describe('StalkerGlobalSearchService', () => {
         withholdsEverything.set(true);
         expect(preview.canOpen(items[0])).toBe(false);
         expect(preview.groups()[0].items).toEqual([]);
+    });
+
+    it('applies the visibility toggle by catalog origin to pending and cached pages', async () => {
+        setContext({ sources: [portalA] });
+        setContext({
+            sources: [{ ...portalA, hiddenStalkerCategories: { vod: ['9'] } }],
+        });
+        await search();
+        setContext({ excludeHidden: true });
+        await resolve(0, [{ id: 7, category_id: '9', is_series: 1 }]);
+        await resolve(1, [{ id: 7, category_id: '9' }]);
+        expect(preview.groups()[0].items).toMatchObject([{ origin: 'series' }]);
+        setContext({ excludeHidden: false });
+        const [movie] = preview.groups()[0].items;
+        expect(movie.origin).toBe('vod');
+        expect(preview.canOpen(movie)).toBe(true);
+        setContext({ excludeHidden: true });
+        expect(preview.canOpen(movie)).toBe(false);
+        setContext({ sources: [{ ...portalA, hiddenStalkerCategories: {} }] });
+        expect(preview.canOpen(movie)).toBe(true);
+        expect(loadPage).toHaveBeenCalledTimes(2);
     });
 
     it('withholds rows with and without a category when locks are unreadable', async () => {

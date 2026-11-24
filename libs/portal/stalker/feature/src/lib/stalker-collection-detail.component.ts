@@ -11,7 +11,7 @@ import {
     signal,
     untracked,
 } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import {
@@ -144,7 +144,7 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
     readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
     private readonly translateService = inject(TranslateService);
     private readonly logger = createLogger('StalkerCollectionDetail');
     private readonly originalState = captureStalkerCollectionStoreState(
@@ -163,7 +163,7 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
         playbackPositions: this.playbackPositions,
         portalPlayer: this.portalPlayer,
         externalPlayback: this.externalPlayback,
-        snackBar: this.snackBar,
+        notifications: this.notifications,
         translateService: this.translateService,
         logger: this.logger,
     });

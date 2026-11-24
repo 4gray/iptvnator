@@ -1,3 +1,4 @@
+import { isSettingsSaveShortcut } from './settings-save-shortcut';
 import { Store } from '@ngrx/store';
 import {
     PlaylistActions,
@@ -26,12 +27,13 @@ import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     EpgSourceReconciliationError,
+    getAndroidSettingsControls,
     RuntimeCapabilitiesService,
     ServerStorageStatusService,
     injectTranslationTick,
 } from '@iptvnator/services';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
-import { dialogSize } from '@iptvnator/ui/components/dialog-size';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 import {
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     Language,
@@ -39,7 +41,9 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { firstValueFrom, map } from 'rxjs';
 import { BUILD_COMMIT } from '../../environments/build-commit';
+import { shouldEnableServiceWorker } from '../services/runtime-config';
 import { SettingsAboutSectionComponent } from './settings-about-section.component';
+import { SettingsAndroidDeviceSectionComponent } from './settings-android-device-section.component';
 import { SettingsAppUpdateFacade } from './settings-app-update.facade';
 import { SettingsBackupSectionComponent } from './settings-backup-section.component';
 import {
@@ -111,6 +115,7 @@ import { SettingsSnackbarService } from './settings-snackbar.service';
         ReactiveFormsModule,
         TranslateModule,
         SettingsAboutSectionComponent,
+        SettingsAndroidDeviceSectionComponent,
         SettingsBackupSectionComponent,
         SettingsDashboardSectionComponent,
         SettingsEpgSectionComponent,
@@ -179,6 +184,7 @@ export class SettingsComponent
 
     /** Flag that indicates whether the app runs in electron environment */
     readonly isDesktop = this.runtime.isElectron;
+    protected readonly androidSettingsControls = getAndroidSettingsControls();
     readonly isPwa = this.runtime.isPwa;
     readonly supportsDesktopFileSave = this.runtime.supportsDesktopFileSave;
     readonly supportsEpg = this.form.supportsEpg;
@@ -256,6 +262,7 @@ export class SettingsComponent
         supportsEpg: this.form.supportsEpgDisplay,
         supportsRemoteControl: this.supportsRemoteControl,
         supportsServerStorage: this.supportsServerStorage,
+        supportsAndroidSettings: !!this.androidSettingsControls,
     });
 
     get sectionNav(): SettingsSection[] {
@@ -351,17 +358,7 @@ export class SettingsComponent
     @HostListener('document:keydown', ['$event'])
     onSaveShortcut(event: KeyboardEvent): void {
         const host = this.hostElement.nativeElement;
-        if (
-            event.defaultPrevented ||
-            !(event.metaKey || event.ctrlKey) ||
-            event.altKey ||
-            event.shiftKey ||
-            event.key.toLowerCase() !== 's' ||
-            host.closest('[inert]') ||
-            host.ownerDocument.querySelector('.cdk-overlay-backdrop')
-        ) {
-            return;
-        }
+        if (!isSettingsSaveShortcut(event, host)) return;
         event.preventDefault();
         if (!this.settingsForm.pristine && this.settingsForm.valid) {
             this.onSubmit();
@@ -386,7 +383,7 @@ export class SettingsComponent
         this.form.bindDashboardControlsEnabledState();
         this.formReady.set(true);
         void this.embeddedMpv.load();
-        this.appUpdate.checkAppVersion();
+        if (!shouldEnableServiceWorker()) this.appUpdate.checkAppVersion();
         this.appUpdate.init();
         void this.remoteControl.fetchLocalIpAddresses();
 
@@ -470,9 +467,7 @@ export class SettingsComponent
                 return false;
             }
             if (error instanceof EpgSourceReconciliationError) {
-                this.settingsSnackbar.open(
-                    this.translate.instant('SETTINGS.EPG_DATA_CLEAR_FAILED')
-                );
+                this.settingsSnackbar.error('SETTINGS.EPG_DATA_CLEAR_FAILED');
                 return false;
             }
             // A failed storage write still patches the in-memory store. Keep
@@ -499,9 +494,7 @@ export class SettingsComponent
     applyChangedSettings(): void {
         this.form.applySavedSettings();
         this.epg.fetchConfiguredEpg();
-        this.settingsSnackbar.open(
-            this.translate.instant('SETTINGS.SETTINGS_SAVED')
-        );
+        this.settingsSnackbar.success('SETTINGS.SETTINGS_SAVED');
     }
 
     async exportData(): Promise<void> {
@@ -511,7 +504,7 @@ export class SettingsComponent
 
     importData(): void {
         if (this.playlistReset.isRemovingAllPlaylists()) return;
-        this.backup.importData(() => this.discardChanges());
+        this.backup.importData(() => this.form.syncWithStore());
     }
 
     removeAll(): void {

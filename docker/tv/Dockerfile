@@ -5,6 +5,8 @@ FROM ${BASE_IMAGE}
 # A pinned base can predate a Node security release. Reject it even when the
 # backend assets were rebuilt with a patched development runtime.
 RUN node -e 'const [major, minor, patch] = process.versions.node.split(".").map(Number); if (major !== 24 || minor < 22 || (minor === 22 && patch < 1)) throw new Error("TV base requires Node 24.22.1 or newer within 24.x; rebuild docker/Dockerfile and pass BASE_IMAGE")'
+RUN apk info --exists 'nginx>=1.30.7-r0' >/dev/null \
+    || { echo 'TV base requires patched nginx (Alpine package 1.30.7-r0 or newer). Rebuild docker/Dockerfile and pass BASE_IMAGE.' >&2; exit 1; }
 COPY web-backend/ /opt/iptvnator/web-backend/
 COPY nginx.conf /etc/nginx/http.d/tv.conf.template
 COPY start.sh /usr/local/bin/iptvnator-tv-entrypoint
