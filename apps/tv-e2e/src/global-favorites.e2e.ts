@@ -399,7 +399,27 @@ for (const provider of ['stalker', 'm3u'] as const)
                 release();
             }
         }
-        await card.click();
+        if (provider === 'm3u') {
+            let held = false;
+            let release!: () => void;
+            const gate = new Promise<void>((resolve) => (release = resolve));
+            await page.clock.install();
+            await page.route('**/parse?**', async (route) => {
+                held = true;
+                await gate;
+                await route.fallback();
+            });
+            try {
+                await card.click();
+                await expect.poll(() => held).toBe(true);
+                await page.clock.fastForward(41_000);
+                await expect(
+                    page.getByRole('button', { name: 'Cancel opening title' })
+                ).toBeVisible();
+            } finally {
+                release();
+            }
+        } else await card.click();
         await expect(page.locator('.native-player.fullscreen')).toBeVisible();
         await expect(page.locator('.player-source-name')).toHaveText(sourceA);
         await expect

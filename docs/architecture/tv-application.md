@@ -706,9 +706,11 @@ readiness and preserves the initiating Home control and scroll. A newer Home
 selection queues behind any source save that has already started, even after
 its previous intent is cancelled. Playback waits for the latest source write and
 matching provider readiness instead of trusting a briefly stale active source.
-A newer Home action, navigation away, Back/Cancel, changed source configuration or backend,
-and a 40-second deadline retire the pending intent; late connection completion
-cannot launch it. Failed activation offers Retry Home title or Retry favorite
+A newer Home action, navigation away, Back/Cancel, or a changed source configuration
+or backend retires the pending intent. The 40-second deadline applies to source
+saves and portal activation. After an M3U source is selected, activation waits
+for its playlist transport result. A retired connection cannot launch playback.
+Failed activation offers Retry Home title or Retry favorite
 for its initiating surface. Retained activity
 whose source is no longer available remains visible with an unavailable-source
 label and a recovery message, without borrowing another source's provider.

@@ -39,6 +39,24 @@ export function requestTestServer(
     return outbound;
 }
 
+export function streamTestServer(
+    server: Server,
+    origin: string,
+    path: string,
+    signal: AbortSignal
+): Promise<IncomingMessage> {
+    return new Promise((resolve, reject) => {
+        const outbound = requestTestServer(
+            server,
+            origin,
+            { path, signal },
+            resolve
+        );
+        outbound.once('error', reject);
+        outbound.end();
+    });
+}
+
 export function fetchTestServer(server: Server) {
     return async (url: string, init?: RequestInit): Promise<Response> => {
         if (!useMemoryTransport()) return fetch(url, init);
