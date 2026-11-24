@@ -26,9 +26,11 @@ export interface PlaylistFetchOptions {
  * Idle timeout for every playlist download hop. Without it a host that accepts
  * the connection and then goes silent keeps the request pending forever, which
  * stalled the unattended startup auto-update indefinitely (issue #931).
- * Mirrored by the playlist refresh worker.
+ * Some Xtream panels build the M3U on demand and send the first byte only
+ * after about a minute, so the budget leaves room for that wait.
+ * Mirrored by the playlist refresh worker and the web backend.
  */
-export const PLAYLIST_FETCH_TIMEOUT_MS = 30000;
+export const PLAYLIST_FETCH_TIMEOUT_MS = 120000;
 
 function countPlaylistItems(value: unknown): number | undefined {
     try {

@@ -450,10 +450,11 @@ Two paths re-download an M3U playlist from its original source:
 Both share one download contract, because this path is unattended and a hostile or
 dead source must never stall startup (issue #931):
 
-- Every HTTP hop uses the idle timeout `PLAYLIST_FETCH_TIMEOUT_MS` (30s, exported by
+- Every HTTP hop uses the idle timeout `PLAYLIST_FETCH_TIMEOUT_MS` (120s, exported by
   `playlist-source.ts`). Without it a host that accepts the connection and then goes
-  silent keeps the request pending forever. Redirects are followed one hop at a time,
-  so each hop is bounded separately.
+  silent keeps the request pending forever. Some Xtream panels generate the M3U on
+  demand and send the first byte only after about a minute, so 30s rejected them.
+  Redirects are followed one hop at a time, so each hop is bounded separately.
 - Auto-update refreshes at most `AUTO_UPDATE_CONCURRENCY` (3) playlists at a time.
   Sequential refreshes let one slow host delay every remaining playlist; an unbounded
   fan-out would download and parse arbitrarily many large M3U files in the main
