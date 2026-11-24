@@ -313,6 +313,15 @@ body.dark-theme {
             )
         );
     }
+
+    // Material lays out only its own text toast's host as a row
+    // (`.mat-mdc-simple-snack-bar`). A component opened through
+    // `NotificationService.fromComponent` gets the same row, so its label
+    // and actions sit side by side instead of stacking.
+    :has(> .mat-mdc-snack-bar-label):not(.mat-mdc-simple-snack-bar) {
+        display: flex;
+        align-items: center;
+    }
 }
 
 // Command palette dialog — the palette-shell renders its own background, border,
