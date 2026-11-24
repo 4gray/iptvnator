@@ -97,7 +97,7 @@
 
 .drop-overlay__body {
     font-family: inherit;
-    font-size: 0.9rem;
+    font-size: var(--app-text-md);
     margin: 0;
     opacity: 0.78;
     line-height: 1.45;

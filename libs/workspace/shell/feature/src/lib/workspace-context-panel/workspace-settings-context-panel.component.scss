@@ -49,7 +49,7 @@
 
 .settings-nav__group-label {
     padding: 14px 10px 6px;
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     font-weight: 600;
     letter-spacing: 0.7px;
     text-transform: uppercase;
@@ -80,7 +80,7 @@
     border-radius: 8px;
     box-sizing: border-box;
     color: var(--mat-sys-on-surface-variant);
-    font-size: 0.875rem;
+    font-size: var(--app-text-md);
     font-weight: 500;
     text-decoration: none;
     cursor: pointer;
@@ -130,7 +130,7 @@
 .nav-item-meta {
     flex-shrink: 0;
     min-width: 2ch;
-    font-size: 0.8rem;
+    font-size: var(--app-text-sm);
     text-align: right;
     opacity: 0.7;
 }
@@ -155,7 +155,7 @@
     white-space: nowrap;
     text-overflow: ellipsis;
     font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
 }
 
@@ -165,7 +165,7 @@
     border-radius: 999px;
     background: var(--app-expiry-warn-surface);
     color: var(--app-status-expiry);
-    font-size: 10.5px;
+    font-size: var(--app-text-2xs);
     font-weight: 600;
 }
 

@@ -152,7 +152,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.96rem;
+    font-size: var(--app-text-lg);
     font-weight: 600;
     letter-spacing: -0.01em;
     line-height: 1.2;
@@ -184,7 +184,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.82rem;
+    font-size: var(--app-text-sm);
     line-height: 1.2;
     opacity: 0.84;
 }
@@ -211,7 +211,7 @@
 }
 
 .epg-time {
-    font-size: 0.75rem;
+    font-size: var(--app-text-xs);
     line-height: 1;
     opacity: 0.72;
     font-variant-numeric: tabular-nums;
@@ -258,7 +258,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     line-height: 1.2;
     // A muted colour, not opacity: dimming the row text dropped it under
     // 4.5:1 on the light list.

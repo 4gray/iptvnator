@@ -29,7 +29,7 @@
         top: 4px;
         left: 7px;
         font-family: $font-mono;
-        font-size: 11px;
+        font-size: var(--app-text-2xs);
         line-height: 14px;
         color: $text-tertiary;
     }
@@ -42,7 +42,7 @@
         position: absolute;
         top: 4px;
         left: 8px;
-        font-size: 11px;
+        font-size: var(--app-text-2xs);
         font-weight: 600;
         line-height: 14px;
         color: $accent-text;
@@ -184,7 +184,7 @@
 }
 
 .epg-timeline__block-time {
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     font-variant-numeric: tabular-nums;
     line-height: 14px;
     color: $text-tertiary;
@@ -192,7 +192,7 @@
 }
 
 .epg-timeline__block-title {
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     font-weight: 500;
     line-height: 1.3;
     color: $text-primary;
@@ -215,7 +215,7 @@
     min-height: 0;
     margin: 0;
     color: $text-secondary;
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     line-height: 1.35;
     display: -webkit-box;
     -webkit-line-clamp: 3;
@@ -273,7 +273,7 @@
         text-overflow: ellipsis;
         overflow: hidden;
         max-height: 100%;
-        font-size: 11px;
+        font-size: var(--app-text-2xs);
         color: $text-secondary;
         display: block;
         -webkit-line-clamp: initial;
@@ -321,7 +321,7 @@
 .epg-timeline__tag {
     display: block;
     max-width: 100%;
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     font-weight: 600;
     line-height: 14px;
     white-space: nowrap;
@@ -359,7 +359,7 @@
     border: 1px solid $line-strong;
     color: $text-primary;
     font: inherit;
-    font-size: 11.5px;
+    font-size: var(--app-text-xs);
     font-weight: 600;
     cursor: pointer;
 
@@ -446,20 +446,20 @@
 }
 
 .epg-timeline__group-count {
-    font-size: 15px;
+    font-size: var(--app-text-lg);
     font-weight: 700;
     color: $text-primary;
 }
 
 .epg-timeline__group-label {
-    font-size: 10.5px;
+    font-size: var(--app-text-2xs);
     color: $text-tertiary;
     line-height: 1.2;
 }
 
 .epg-timeline__group-hint {
     margin-top: auto;
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     color: $accent-text;
     white-space: nowrap;
 }
@@ -483,7 +483,7 @@
         left: 50%;
         transform: translateX(-50%);
         font-family: $font-mono;
-        font-size: 11px;
+        font-size: var(--app-text-2xs);
         line-height: 14px;
         font-weight: 700;
         color: var(--app-widget-bg);
@@ -509,13 +509,13 @@
 
 .epg-timeline__pop-time {
     font-family: $font-mono;
-    font-size: 10.5px;
+    font-size: var(--app-text-2xs);
     color: $accent-text;
     margin-bottom: 5px;
 }
 
 .epg-timeline__pop-title {
-    font-size: 13.5px;
+    font-size: var(--app-text-md);
     font-weight: 600;
     line-height: 1.3;
     color: $text-primary;
@@ -523,7 +523,7 @@
 }
 
 .epg-timeline__pop-desc {
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     color: $text-secondary;
     line-height: 1.45;
     display: -webkit-box;

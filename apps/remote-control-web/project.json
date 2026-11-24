@@ -10,6 +10,7 @@
         }
     },
     "tags": ["scope:remote-control", "domain:playback", "type:app"],
+    "implicitDependencies": ["ui-styles"],
     "targets": {
         "build": {
             "executor": "@angular/build:application",

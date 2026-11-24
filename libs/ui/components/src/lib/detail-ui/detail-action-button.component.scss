@@ -38,7 +38,7 @@
         overflow: hidden;
         margin-top: 1px;
         color: var(--app-cta-meta-fg, #5a6274);
-        font-size: 11px;
+        font-size: var(--app-text-2xs);
         font-weight: 500;
         line-height: 1.2;
         text-overflow: ellipsis;
@@ -96,6 +96,9 @@
         justify-content: center;
         gap: 4px;
         padding-inline: 5px;
+        // A 375px phone carries the primary and four 44px icon actions on one
+        // row; a long label ("Воспроизвести") fits beside them at 13px only.
+        font-size: var(--app-text-sm);
 
         mat-icon {
             width: 18px;

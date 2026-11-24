@@ -1358,8 +1358,8 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   `.setting-item__sub` under the row they report on.
 - Controls: `.settings-select` is a 220px outlined select without a floating
   label (the row title names it; pass `aria-labelledby`); boolean settings
-  are `mat-slide-toggle` switches; segmented choices use `.theme-switcher`
-  as a pill; `.settings-chip` marks rows that apply after a restart or are
+  are `mat-slide-toggle` switches; segmented choices use `.theme-switcher`,
+  the kit's segmented track built from `segmented-track` and `segment`; `.settings-chip` marks rows that apply after a restart or are
   experimental; `.settings-callout` (`--info`, `--warn`) sits under the row
   it explains inside `.setting-item__sub` and only while that choice is made.
 - Destructive actions keep the confirm dialog from the Dialogs section; the
@@ -1629,7 +1629,10 @@ current value where there is one; when the visible label is only the value,
 the accessible name adds what it picks ("Channels shown: Favorites"). An
 active picker (refinements applied) takes the selected-row tint. A panel
 header's icon actions use `ghost-icon-button`, as the category panel's
-search and sort do. In a row of filter chips (the VOD sources popover) the
+search and sort do; the channel lists' headers (All channels, the groups
+rail and its channel header) take it through `list-header-action` in
+`_channel-list-layout.scss`, at the categories header's 28px, and the
+favorites and recent page header at 32px beside its segmented toggles. In a row of filter chips (the VOD sources popover) the
 picker is a chip with the same chevron, so the row keeps one height; the
 language filter there opens a radio menu instead of a native `<select>`.
 
@@ -1642,8 +1645,9 @@ toggles, the list/grid switch, the playlist switcher's type filter);
 `segmented-track` and `segment` build it from plain buttons that are tabs
 (the season tabs). In a header row use 26px segments, so the control is
 32px tall like a small button. Unchosen labels use the body colour; the
-muted colour reads about 2.9:1 on the track. The settings theme switcher is
-still a pill switcher of its own.
+muted colour reads about 2.9:1 on the track. The settings rows' segmented
+choices (cover size, guide layout) are the same track built from plain
+buttons.
 
 Custom button-based radio choices use `appRadioGroup` and
 `[appRadioOption]="selected"` from the narrow
@@ -1980,12 +1984,22 @@ and shares nothing with this one.
   (the playback diagnostic panel) declares the `status-dark` values itself.
   `--app-danger-text` reads `--app-status-danger`. A status tint is
   `color-mix(in srgb, var(--app-status-…) <n>%, transparent)`.
-- Existing literals map to the nearest step only within 0.5px; icon glyph
-  sizes and in-between values (12.5px, 13.5px, 1rem) stay until the full
-  migration (UI-32). `pnpm run styles:scales:validate` counts the distinct
-  literal font sizes, radii, z-index values and box-shadows outside the token
-  files and fails if any count grows; `tools/nx/style-scales-baseline.json`
-  only moves down (`pnpm run styles:scales:update` after removing literals).
+- Text sizes read `--app-text-*`. A size between two steps takes the nearer
+  one, and a tie rounds up (12.5px is `sm`, 13.5px is `md`). Sizes with no
+  step (16px, 20px, `clamp()` heroes), `em` sizes and icon glyph sizes stay
+  literal; the ratchet counts them. Sass size parameters (the kit's size map,
+  `standard-panel-title`, the dashboard rail geometry) pass tokens too; a
+  line box computed from one is a `calc()`.
+- 11px is a hard floor: no literal `font-size`, nor the size in a `font`
+  shorthand, may be below it. Dense labels (badges, kbd hints, EPG ticks) use
+  `--app-text-2xs` and stay small through weight, case and colour.
+- `pnpm run styles:scales:validate` fails on text below the floor, and counts
+  the distinct literal font sizes, radii, z-index values and box-shadows
+  outside the token files, failing if any count grows;
+  `tools/nx/style-scales-baseline.json` only moves down
+  (`pnpm run styles:scales:update` after removing literals).
+- A separate app that renders `libs/ui` components declares the scales in its
+  own global stylesheet (`apps/remote-control-web/src/styles.scss`).
 
 ## Theme Guidance
 

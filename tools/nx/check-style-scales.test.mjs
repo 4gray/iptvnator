@@ -6,6 +6,7 @@ import {
     compareToBaseline,
     countDistinct,
     findLiterals,
+    findUndersized,
     isLiteral,
     listScannedFiles,
     normalizeValue,
@@ -95,6 +96,29 @@ test('counts distinct normalized values per category', () => {
         zIndex: 1,
         boxShadow: 0,
     });
+});
+
+test('flags text below the 11px floor, in font-size and the font shorthand', () => {
+    const source = [
+        '.a { font-size: 10.5px; }',
+        '.b { font-size: 0.62rem !important; }',
+        '.c { font: 600 9px $font-mono; }',
+        '.d { font: 500 var(--app-text-2xs) $font-mono; }',
+        '.e { font-size: 11px; font-size: 0.6875rem; }',
+        '.f { font-size: clamp(9px, 2vw, 14px); font-size: 0.8em; }',
+        '.g { font-size: var(--app-text-2xs); --tiny: 8px; }',
+    ].join('\n');
+    assert.deepEqual(
+        findUndersized('a.scss', source).map(({ line, value }) => [
+            line,
+            value,
+        ]),
+        [
+            [1, '10.5px'],
+            [2, '0.62rem'],
+            [3, '600 9px $font-mono'],
+        ]
+    );
 });
 
 test('the baseline only moves down', () => {

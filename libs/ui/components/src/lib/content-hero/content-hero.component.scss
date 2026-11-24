@@ -263,7 +263,7 @@
 
     &__kind {
         margin: 0;
-        font-size: 11px;
+        font-size: var(--app-text-2xs);
         font-weight: 600;
         letter-spacing: 1.4px;
         line-height: 1;
@@ -298,7 +298,7 @@
 
     &__description {
         margin: 0;
-        font-size: 13.5px;
+        font-size: var(--app-text-md);
         line-height: 1.55;
         color: color-mix(
             in srgb,
@@ -332,7 +332,7 @@
         cursor: pointer;
         color: var(--text-secondary);
         font: inherit;
-        font-size: 11px;
+        font-size: var(--app-text-2xs);
         font-weight: 600;
         letter-spacing: 0.8px;
         text-transform: uppercase;
@@ -390,7 +390,7 @@
 
     // Legacy `.details__meta-item` projected by hosts not yet on credits.
     ::ng-deep .details__meta-item {
-        font-size: 0.875rem;
+        font-size: var(--app-text-md);
 
         .label {
             color: var(--text-muted);

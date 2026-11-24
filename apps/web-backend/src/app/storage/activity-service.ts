@@ -12,6 +12,7 @@ import type {
 } from '@iptvnator/shared/interfaces/activity-sync';
 import type { ServerStorage } from './server-storage';
 import { StorageRequestError } from './storage-route-errors';
+import { requireProfileScope } from './profile-scope-guard';
 
 /** Source lifecycle metadata is independent of source revisions, which reset at process startup. */
 export class ServerActivityService {
@@ -72,6 +73,7 @@ export class ServerActivityService {
     }
 
     private authorize(address: ActivityAddress): void {
+        requireProfileScope(this.storage, address.scope);
         if (address.instanceId !== this.storage.database.instanceId) {
             throw new StorageRequestError(
                 409,

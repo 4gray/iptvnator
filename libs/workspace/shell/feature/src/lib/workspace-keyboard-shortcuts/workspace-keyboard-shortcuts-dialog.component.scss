@@ -38,7 +38,7 @@
     );
     border: 1px solid var(--shortcut-border);
     border-radius: 8px;
-    font-size: 0.76rem;
+    font-size: var(--app-text-xs);
     font-weight: 600;
     line-height: 1;
     white-space: nowrap;
@@ -98,7 +98,7 @@
 .shortcuts-dialog__group h3 {
     margin: 0;
     color: var(--shortcut-text);
-    font-size: 0.74rem;
+    font-size: var(--app-text-xs);
     font-weight: 700;
     line-height: 1.2;
     text-transform: uppercase;
@@ -116,7 +116,7 @@
     align-items: center;
     min-height: 42px;
     padding: 7px 10px;
-    font-size: 0.88rem;
+    font-size: var(--app-text-md);
     line-height: 1.35;
     transition:
         background-color 140ms ease,
@@ -147,7 +147,7 @@
 .shortcuts-dialog__label {
     min-width: 0;
     color: var(--shortcut-text);
-    font-size: 0.85rem;
+    font-size: var(--app-text-md);
 }
 
 .shortcuts-dialog__chords {
@@ -166,7 +166,7 @@
 
 .shortcuts-dialog__joiner {
     color: var(--shortcut-muted);
-    font-size: 0.68rem;
+    font-size: var(--app-text-2xs);
     font-weight: 700;
 }
 
@@ -185,7 +185,7 @@
         inset 0 -2px 0 var(--shortcut-key-shadow),
         0 1px 0 color-mix(in srgb, white 28%, transparent);
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.72rem;
+    font-size: var(--app-text-xs);
     font-weight: 700;
     line-height: 1;
     white-space: nowrap;

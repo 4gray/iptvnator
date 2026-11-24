@@ -89,7 +89,7 @@ button,
         inset-block-start: 8px;
         inset-inline-start: 8px;
         padding: 2px 4px;
-        font-size: 12px;
+        font-size: var(--app-text-xs);
     }
 
     mat-icon {
@@ -203,7 +203,7 @@ button,
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 12px;
+    font-size: var(--app-text-xs);
 }
 .second-stream__top > span {
     font-weight: 500;
@@ -287,7 +287,7 @@ button,
         border-radius: 7px;
         background: var(--app-widget-bg);
         color: var(--app-body-color);
-        font-size: 12px;
+        font-size: var(--app-text-xs);
     }
 
     .second-stream__stream--has-actions {
@@ -403,7 +403,7 @@ button,
     gap: 5px;
     min-width: 28px;
     padding-inline: 4px;
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     white-space: nowrap;
 }
 

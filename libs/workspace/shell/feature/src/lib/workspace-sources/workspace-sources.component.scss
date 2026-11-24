@@ -36,7 +36,7 @@
 
 .sources-title {
     margin: 0;
-    font-size: 28px;
+    font-size: var(--app-text-display-sm);
     font-weight: 700;
     letter-spacing: -0.4px;
     line-height: 1.2;
@@ -47,7 +47,7 @@
 }
 
 .sources-count {
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     font-variant-numeric: tabular-nums;
     color: var(--app-muted-color);
 }
@@ -70,7 +70,7 @@
     border-radius: 999px;
     background: var(--app-danger-surface);
     color: var(--app-danger-text);
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
 }
@@ -109,7 +109,7 @@
     }
 
     .sources-title {
-        font-size: 22px;
+        font-size: var(--app-text-2xl);
     }
 
     .sources-content {

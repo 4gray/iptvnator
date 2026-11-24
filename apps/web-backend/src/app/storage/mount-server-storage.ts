@@ -20,6 +20,7 @@ import {
     cloudflareDeviceError,
     cloudflareDeviceState,
 } from './cloudflare-device-access';
+import { createProfilesRouter } from './profiles-router';
 import { createTmdbTransferRouter } from '../tmdb-transfer/tmdb-transfer-router';
 
 export const DEFAULT_MAX_DOCUMENT_BYTES = 64 * 1024 * 1024;
@@ -136,6 +137,7 @@ export function mountServerStorage(
             '/v1',
             createTmdbTransferRouter(options.storage.database.instanceId)
         );
+        app.use('/v1', createProfilesRouter(options.storage));
         app.use('/v1', createActivityRouter(options.storage));
         app.use('/v1', createFavoriteRouter(options.storage));
         app.use('/v1', createHistoryRouter(options.storage));
