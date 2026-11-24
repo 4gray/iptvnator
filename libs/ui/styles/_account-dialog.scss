@@ -5,6 +5,7 @@
 // The provider accent is injected via the `--account-dialog-accent` custom
 // property, set on :host by each consumer. Provider-specific structural
 // tweaks (e.g. the stats column count) stay in the consumer stylesheet.
+@use 'app-controls' as controls;
 
 :host {
     --app-dialog-close-top: 24px;
@@ -366,6 +367,11 @@
 .account-dialog__error-state h3,
 .account-dialog__error-state p {
     margin: 0;
+}
+
+// Retry: the state's one action, the kit's accent button.
+.account-dialog__error-state .mat-mdc-unelevated-button {
+    @include controls.accent-button;
 }
 
 .account-dialog__error-state p {
