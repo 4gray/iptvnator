@@ -1,3 +1,4 @@
+import { editPwaXtreamVisibility } from './pwa-xtream-category-visibility';
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import {
@@ -467,8 +468,17 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
             ).toBeNull();
         });
 
-        it('round-trips the stored lists through export and import', async () => {
+        it('round-trips visibility and stored lists through export and import', async () => {
+            editPwaXtreamVisibility(
+                localStorage,
+                'xtream-1',
+                'movies',
+                new Map([[7, false]])
+            );
             const manifest = await exportSeeded();
+            expect(xtreamEntry(manifest).userState.hiddenCategories).toEqual([
+                { categoryType: 'movies', xtreamId: 7 },
+            ]);
             localStorage.clear();
             const service = createPlaylistBackupService({
                 playlistsService: playlistsService([]),

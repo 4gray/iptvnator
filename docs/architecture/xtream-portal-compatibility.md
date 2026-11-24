@@ -63,8 +63,12 @@ public write path.
 Destructive refresh belongs to `XtreamRefreshFlowService`; the data-source
 contract has no separate clear-and-snapshot entry point. Browser backup tests
 use `PwaXtreamBackupStorage` export/restore to preserve typed collection identity,
-saved snapshots and artwork. Category visibility writes remain owned by the
-category-management flow through `DatabaseService`, with no PWA no-op wrapper.
+saved snapshots and artwork. Manage Categories writes explicit SQLite choices
+through `DatabaseService` on desktop. The browser stores changed provider IDs
+per playlist and content type in `USER_DATA_STORAGE` and exports them in the
+same backup field as desktop. Its data source filters the raw session cache
+for browsing and visible-only portal search, which defaults on. The editor
+and saved-item lookups retain access to raw rows, subject to the parental lock.
 Global recent-item collection reads and clears belong to
 `UnifiedRecentDataService`; `withRecentItems` retains playlist-local history and
 played-content metadata work only.
