@@ -17,6 +17,7 @@
         "DUPLICATE_WINDOW": "Bu video {{slot}}. pencerede zaten açık.",
         "PICK_SOURCE": "İkinci bir yayın seçin",
         "CONTENT_TYPE": "İçerik türü",
+        "SOURCE": "Kaynak",
         "LOADING_TITLES": "Başlıklar yükleniyor…",
         "LOAD_TITLES_ERROR": "Liste yüklenemedi. Tekrar deneyin.",
         "NO_TITLES": "Başlık bulunamadı.",

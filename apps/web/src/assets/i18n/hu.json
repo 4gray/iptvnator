@@ -17,6 +17,7 @@
         "DUPLICATE_WINDOW": "{{slot}}. ablak: ez a videó már meg van nyitva.",
         "PICK_SOURCE": "Második videó kiválasztása",
         "CONTENT_TYPE": "Tartalomtípus",
+        "SOURCE": "Forrás",
         "LOADING_TITLES": "Címek betöltése…",
         "LOAD_TITLES_ERROR": "A címek betöltése nem sikerült. Próbálja újra.",
         "NO_TITLES": "Nincs találat.",

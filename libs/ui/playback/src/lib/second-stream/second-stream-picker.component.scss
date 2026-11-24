@@ -1,5 +1,6 @@
 @use '../../../../styles/focus-ring';
 @use '../../../../styles/side-list' as side-list;
+@use '../../../../styles/app-controls' as controls;
 
 :host {
     flex: 1 1 auto;
@@ -32,29 +33,29 @@
     font-size: var(--app-text-sm);
 }
 
+// The kit's toolbar picker: a small secondary button with a chevron. A long
+// playlist name ends in an ellipsis instead of pushing the search field.
 .picker__source {
-    display: flex;
-    flex: 0 1 40%;
+    flex: 0 1 auto;
     min-width: 0;
+    max-width: 40%;
+    @include controls.secondary-button(sm);
+
+    ::ng-deep .mdc-button__label {
+        min-width: 0;
+    }
 }
 
-.picker__source select {
-    width: 100%;
-    min-width: 0;
-    height: 30px;
-    padding-inline: 8px;
-    border: 1px solid transparent;
-    border-radius: 7px;
-    background: var(--app-widget-bg);
-    color: var(--app-on-surface);
-    font: inherit;
-    font-size: var(--app-text-sm);
-    font-weight: 500;
+.picker__source-label {
+    display: block;
+    overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+}
 
-    &:focus-visible {
-        @include focus-ring.focus-ring-declarations($offset: -2px);
-    }
+.picker__source-chevron {
+    flex: none;
+    @include controls.trigger-chevron;
 }
 
 .picker__search {

@@ -21,6 +21,7 @@ import {
     workspaceRoot,
     xtreamMockServer,
 } from './electron-test-fixtures';
+import { chooseSecondStreamSource } from './second-stream-source-picker';
 import {
     createLocalMediaServer,
     getLatestSession,
@@ -346,9 +347,7 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                 exact: true,
             });
             const selectSource = () =>
-                picker
-                    .getByLabel('Playlist', { exact: true })
-                    .selectOption({ label: sourceName });
+                chooseSecondStreamSource(picker, sourceName);
             const assertResume = async (
                 video: Locator,
                 minimum: number,
@@ -413,18 +412,14 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
             await expect(openStreams).toHaveCount(0);
             await addFromDock();
             await expect(openStreams).toHaveCount(0);
-            await picker
-                .getByLabel('Playlist', { exact: true })
-                .selectOption({ label: 'synthetic-primary' });
+            await chooseSecondStreamSource(picker, 'synthetic-primary');
             const primaryRow = picker.getByRole('button', {
                 name: /Synthetic primary.*open in window 1/,
             });
             await expect(primaryRow).toBeDisabled();
             await primaryRow.press('Enter');
             await expect(picker).toBeVisible();
-            await picker
-                .getByLabel('Playlist', { exact: true })
-                .selectOption({ label: 'Recently viewed' });
+            await chooseSecondStreamSource(picker, 'Recently viewed');
             await picker
                 .getByRole('button', { name: 'Movies', exact: true })
                 .click();
@@ -449,9 +444,7 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                     has: page.getByText(movieTitle, { exact: true }),
                 })
             ).toHaveCount(0);
-            await picker
-                .getByLabel('Playlist', { exact: true })
-                .selectOption('');
+            await chooseSecondStreamSource(picker, 'Global favorites');
             await picker
                 .getByRole('button', { name: 'Series', exact: true })
                 .click();
@@ -718,8 +711,7 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
             ).toBeGreaterThanOrEqual(episodeSaved - 1);
 
             await addFromDock();
-            const source = picker.getByLabel('Playlist', { exact: true });
-            await source.selectOption({ label: stalkerName });
+            await chooseSecondStreamSource(picker, stalkerName);
             await picker
                 .getByRole('button', { name: 'Movies', exact: true })
                 .click();
@@ -735,7 +727,7 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
             await tile
                 .getByRole('button', { name: 'Change second stream' })
                 .click();
-            await source.selectOption({ label: 'Recently viewed' });
+            await chooseSecondStreamSource(picker, 'Recently viewed');
             await picker
                 .getByRole('button', { name: 'Movies', exact: true })
                 .click();
@@ -744,7 +736,7 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                     has: page.getByText(stalkerMovie, { exact: true }),
                 })
             ).toBeVisible();
-            await source.selectOption({ label: stalkerName });
+            await chooseSecondStreamSource(picker, stalkerName);
             await picker
                 .getByRole('button', { name: 'Series', exact: true })
                 .click();

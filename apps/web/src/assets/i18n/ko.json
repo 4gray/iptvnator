@@ -17,6 +17,7 @@
         "DUPLICATE_WINDOW": "이 영상은 이미 창 {{slot}}에서 열려 있습니다.",
         "PICK_SOURCE": "두 번째 스트림 선택",
         "CONTENT_TYPE": "콘텐츠 유형",
+        "SOURCE": "소스",
         "LOADING_TITLES": "제목 불러오는 중…",
         "LOAD_TITLES_ERROR": "목록을 불러올 수 없습니다. 다시 시도하세요.",
         "NO_TITLES": "검색 결과가 없습니다.",

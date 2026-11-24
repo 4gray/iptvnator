@@ -17,6 +17,7 @@
         "DUPLICATE_WINDOW": "Cette vidéo est déjà ouverte dans la fenêtre {{slot}}.",
         "PICK_SOURCE": "Choisir un deuxième flux",
         "CONTENT_TYPE": "Type de contenu",
+        "SOURCE": "Source",
         "LOADING_TITLES": "Chargement des titres…",
         "LOAD_TITLES_ERROR": "Impossible de charger la liste. Réessayez.",
         "NO_TITLES": "Aucun titre trouvé.",

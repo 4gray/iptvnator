@@ -17,6 +17,7 @@
         "DUPLICATE_WINDOW": "هاد الفيديو راه محلول فالنافذة {{slot}}.",
         "PICK_SOURCE": "اختار بث ثاني",
         "CONTENT_TYPE": "نوع المحتوى",
+        "SOURCE": "مصدر",
         "LOADING_TITLES": "كنحمّلو اللائحة…",
         "LOAD_TITLES_ERROR": "ما قدرناش نحمّلو اللائحة. عاود جرّب.",
         "NO_TITLES": "ما لقينا والو.",

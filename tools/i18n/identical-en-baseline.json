@@ -479,6 +479,7 @@
         "SETTINGS.VERSION": "Version",
         "THEMES.ACCENT_MAGENTA": "Magenta",
         "THEMES.ACCENT_VIOLET": "Violet",
+        "TWO_STREAMS.SOURCE": "Source",
         "WORKSPACE.DASHBOARD.M3U": "M3U",
         "WORKSPACE.DASHBOARD.SEASON_EPISODE_BADGE": "S{{season}}·E{{episode}}",
         "WORKSPACE.DASHBOARD.STALKER": "Stalker",

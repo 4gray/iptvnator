@@ -17,6 +17,7 @@
         "DUPLICATE_WINDOW": "This video is already open in window {{slot}}.",
         "PICK_SOURCE": "Choose a second stream",
         "CONTENT_TYPE": "Content type",
+        "SOURCE": "Source",
         "LOADING_TITLES": "Loading titles…",
         "LOAD_TITLES_ERROR": "Could not load titles. Try again.",
         "NO_TITLES": "No titles found.",
