@@ -184,7 +184,7 @@
     margin: 0;
     overflow: hidden;
     color: inherit;
-    font-size: 14.5px;
+    font-size: var(--app-text-lg);
     font-weight: 600;
     line-height: 1.35;
     text-overflow: ellipsis;
@@ -194,7 +194,7 @@
 .episode-item__meta {
     flex: none;
     color: var(--ep-text-tertiary);
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
@@ -205,7 +205,7 @@
     margin: 4px 0 0;
     overflow: hidden;
     color: var(--ep-description);
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     line-height: 1.45;
     text-wrap: pretty;
     -webkit-box-orient: vertical;
@@ -312,7 +312,7 @@
     display: grid;
     place-items: center;
     color: var(--ep-text-tertiary);
-    font-size: 15px;
+    font-size: var(--app-text-lg);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     text-align: center;
@@ -342,7 +342,7 @@
     padding: 0 12px 0 8px;
 
     .episode-item__title {
-        font-size: 13.5px;
+        font-size: var(--app-text-md);
         font-weight: 500;
     }
 }
@@ -395,16 +395,16 @@
     }
 
     .episode-item__title {
-        font-size: 13.5px;
+        font-size: var(--app-text-md);
     }
 
     .episode-item__meta {
-        font-size: 11.5px;
+        font-size: var(--app-text-xs);
     }
 
     .episode-item__description {
         color: var(--ep-text-tertiary);
-        font-size: 12px;
+        font-size: var(--app-text-xs);
     }
 
     // The actions ride on the artwork's top-right corner in a dark pill.
@@ -464,7 +464,7 @@
     border-radius: 5px;
     background: rgba(5, 7, 11, 0.72);
     color: #e7ecf3;
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
 }

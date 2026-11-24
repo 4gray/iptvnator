@@ -126,7 +126,7 @@
     background: transparent;
     color: var(--mat-sys-on-surface);
     font: inherit;
-    font-size: 0.84rem;
+    font-size: var(--app-text-sm);
 
     &::placeholder {
         color: var(--mat-sys-on-surface-variant);
@@ -156,7 +156,7 @@
 }
 
 .category-title {
-    @include panel.standard-panel-title(0.94rem);
+    @include panel.standard-panel-title(var(--app-text-lg));
 }
 
 .category-subtitle {
@@ -228,7 +228,7 @@
     background: transparent;
     color: var(--app-body-color);
     font: inherit;
-    font-size: 0.8125rem;
+    font-size: var(--app-text-sm);
     text-align: left;
     cursor: pointer;
 
@@ -260,7 +260,7 @@
     }
 
     &__hint {
-        font-size: 0.6875rem;
+        font-size: var(--app-text-2xs);
         opacity: 0.8;
         white-space: nowrap;
     }

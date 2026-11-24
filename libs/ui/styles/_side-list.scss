@@ -16,7 +16,7 @@
 
 @mixin title {
     margin: 0;
-    font-size: 18px;
+    font-size: var(--app-text-xl);
     font-weight: 600;
     letter-spacing: -0.2px;
     line-height: 1.3;

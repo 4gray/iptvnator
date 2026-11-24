@@ -21,7 +21,7 @@
     border: 1px solid var(--app-separator);
     color: color-mix(in srgb, var(--app-on-surface) 82%, transparent);
     font: inherit;
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     font-weight: 600;
     cursor: pointer;
 

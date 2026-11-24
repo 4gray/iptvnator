@@ -73,13 +73,13 @@
     align-items: baseline;
     gap: 6px;
     padding: 0 8px;
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     font-weight: 500;
     white-space: nowrap;
     color: var(--app-heading-color);
 
     small {
-        font-size: 11px;
+        font-size: var(--app-text-2xs);
         font-weight: 400;
         color: $text-tertiary;
     }
@@ -128,7 +128,7 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     cursor: pointer;
     white-space: nowrap;
 
@@ -223,7 +223,7 @@
         border: 0;
         background: transparent;
         color: $text-primary;
-        font-size: 12px;
+        font-size: var(--app-text-xs);
         outline: none;
 
         &::placeholder {
@@ -267,7 +267,7 @@
 }
 
 .guide-toolbar__count {
-    font: 10.5px $font-mono;
+    font: var(--app-text-2xs) $font-mono;
     color: $text-tertiary;
     white-space: nowrap;
 }

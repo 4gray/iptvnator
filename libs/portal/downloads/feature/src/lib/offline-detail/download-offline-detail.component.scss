@@ -71,7 +71,7 @@ button,
 
 .offline-detail__season-count {
     color: var(--app-body-color);
-    font-size: 0.75rem;
+    font-size: var(--app-text-xs);
 }
 
 .offline-detail__episode-list {
@@ -101,7 +101,7 @@ button,
 
 .offline-detail__coordinate {
     color: var(--mat-sys-primary, var(--text-primary));
-    font-size: 0.75rem;
+    font-size: var(--app-text-xs);
     font-weight: 700;
     letter-spacing: 0.04em;
 }
@@ -109,7 +109,7 @@ button,
 .offline-detail__episode-title {
     overflow: hidden;
     color: var(--app-heading-color);
-    font-size: 0.9375rem;
+    font-size: var(--app-text-lg);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -120,7 +120,7 @@ button,
     flex-wrap: wrap;
     gap: 6px 14px;
     color: var(--app-body-color);
-    font-size: 0.75rem;
+    font-size: var(--app-text-xs);
 }
 
 .offline-detail__episode-actions {

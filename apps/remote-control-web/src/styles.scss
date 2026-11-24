@@ -1,4 +1,10 @@
-/* You can add global styles to this file, and also import other style files */
+@use '../../../libs/ui/styles/scales';
+
+// The remote-control library reads the shared --app-text-* scale; this
+// standalone app declares the scales the way the web app does.
+html {
+    @include scales.custom-properties;
+}
 
 html,
 body {

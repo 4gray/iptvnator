@@ -81,7 +81,7 @@
     display: inline-flex;
     align-items: center;
     flex-shrink: 0;
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     font-weight: 500;
     line-height: 1;
     color: var(--app-muted-color, #8891a4);

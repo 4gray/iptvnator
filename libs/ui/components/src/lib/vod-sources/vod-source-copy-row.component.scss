@@ -50,7 +50,7 @@ $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
     flex: none;
     font-family: $font-mono;
     font-weight: 600;
-    font-size: 10px;
+    font-size: var(--app-text-2xs);
     line-height: 1.5;
     border-radius: 4px;
     padding: 1px 6px;
@@ -62,7 +62,7 @@ $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
 .copy-row__title {
     font-family: $font-mono;
     font-weight: 500;
-    font-size: 11.5px;
+    font-size: var(--app-text-xs);
     line-height: 1.4;
     color: var(--app-on-surface);
     overflow: hidden;
@@ -74,7 +74,7 @@ $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
     flex: none;
     font-family: $font-mono;
     font-weight: 600;
-    font-size: 9px;
+    font-size: var(--app-text-2xs);
     line-height: 1.3;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -96,7 +96,7 @@ $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
 .copy-row__same {
     font-family: $font-mono;
     font-weight: 500;
-    font-size: 10px;
+    font-size: var(--app-text-2xs);
     color: var(--app-eyebrow-color);
 }
 

@@ -22,7 +22,7 @@ $_sizes: (
         radius: $radius,
         padding: var(--app-space-4),
         icon-padding: 14px,
-        text: 13.5px,
+        text: var(--app-text-md),
         icon: 16px,
         gap: var(--app-space-2),
     ),
@@ -31,7 +31,7 @@ $_sizes: (
         radius: $radius-sm,
         padding: var(--app-space-3),
         icon-padding: 10px,
-        text: 12.5px,
+        text: var(--app-text-sm),
         icon: 14px,
         gap: var(--app-space-1-5),
     ),
@@ -310,7 +310,7 @@ $_sizes: (
 // `segmented-track` and `segment` build the same look from plain buttons
 // (the season tabs, which are a tab list). An unchosen segment is text in the
 // body colour: the muted colour reads about 2.9:1 on the track, under the
-// 4.5:1 its 12.5px label needs.
+// 4.5:1 its 13px label needs.
 $_segment-text: var(--app-body-color);
 $_segment-selected-text: var(--app-heading-color);
 $_segment-selected-fill: color-mix(
@@ -319,7 +319,7 @@ $_segment-selected-fill: color-mix(
     transparent
 );
 $_segment-hover-fill: color-mix(in srgb, var(--app-on-surface) 6%, transparent);
-$_segment-text-size: 12.5px;
+$_segment-text-size: var(--app-text-sm);
 
 /// The track: 2px padding inside a 1px border, so it adds 6px to the
 /// segments' height (26px segments give a 32px control, a small button's
@@ -476,7 +476,7 @@ $_segment-text-size: 12.5px;
     align-items: center;
     gap: var(--app-space-2);
     min-width: 0;
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;

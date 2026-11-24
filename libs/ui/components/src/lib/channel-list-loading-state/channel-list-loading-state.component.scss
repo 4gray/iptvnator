@@ -185,7 +185,7 @@
 }
 
 .groups-loading-content__title {
-    @include panel.standard-panel-title(0.94rem);
+    @include panel.standard-panel-title(var(--app-text-lg));
     @extend %line-placeholder;
     width: 100%;
     max-width: 156px;

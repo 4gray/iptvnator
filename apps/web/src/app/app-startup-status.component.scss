@@ -38,7 +38,7 @@ section > :not(svg) {
 }
 h1 {
     margin: 0;
-    font-size: 18px;
+    font-size: var(--app-text-xl);
     font-weight: 500;
 }
 p {
@@ -62,7 +62,7 @@ button {
     background: var(--app-selection-color);
     color: var(--app-selection-on-color);
     font: inherit;
-    font-size: 13.5px;
+    font-size: var(--app-text-md);
     font-weight: 600;
     cursor: pointer;
 }

@@ -30,7 +30,7 @@
 }
 
 .selection-info {
-    font-size: 0.8125rem;
+    font-size: var(--app-text-sm);
     color: var(--app-body-color);
 
     strong {
@@ -80,7 +80,7 @@
     background: transparent;
     color: var(--app-heading-color);
     font: inherit;
-    font-size: 0.84rem;
+    font-size: var(--app-text-sm);
     width: 100%;
     min-width: 0;
 
@@ -148,7 +148,7 @@
 .category-name {
     flex: 1;
     min-width: 0;
-    font-size: 0.8125rem;
+    font-size: var(--app-text-sm);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -187,7 +187,7 @@
 }
 
 .censored-chip {
-    font-size: 0.6875rem;
+    font-size: var(--app-text-2xs);
     font-weight: 600;
     padding: 1px 6px;
     border-radius: 999px;

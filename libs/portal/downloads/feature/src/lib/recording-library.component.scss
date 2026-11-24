@@ -15,7 +15,7 @@
         margin: 0;
         padding: 0 2px;
         color: var(--app-heading-color);
-        font-size: 1.125rem;
+        font-size: var(--app-text-xl);
         font-weight: 600;
         letter-spacing: -0.012em;
         line-height: 1.2;
@@ -116,7 +116,7 @@
         border-radius: 6px;
         background: color-mix(in srgb, var(--mat-sys-error) 28%, rgb(0 0 0 / 62%));
         color: var(--mat-sys-on-error, #fff);
-        font-size: 0.6rem;
+        font-size: var(--app-text-2xs);
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -131,7 +131,7 @@
         border-radius: 6px;
         background: rgb(0 0 0 / 62%);
         color: #d6dde4;
-        font-size: 0.68rem;
+        font-size: var(--app-text-2xs);
         font-variant-numeric: tabular-nums;
         font-weight: 600;
         backdrop-filter: blur(4px);
@@ -176,7 +176,7 @@
         background: none;
         color: var(--mat-sys-on-surface);
         font: inherit;
-        font-size: 0.9rem;
+        font-size: var(--app-text-md);
         font-weight: 600;
         line-height: 1.3;
         text-align: start;
@@ -190,7 +190,7 @@
     &__facts {
         overflow: hidden;
         color: var(--mat-sys-on-surface-variant);
-        font-size: 0.78rem;
+        font-size: var(--app-text-xs);
         text-overflow: ellipsis;
         white-space: nowrap;
     }
