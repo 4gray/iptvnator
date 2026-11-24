@@ -569,6 +569,13 @@ jobs:
             - name: Validate notifications
               run: pnpm run ui:notifications:validate
 
+            # Buttons and pickers follow the UI kit: no raised or fab
+            # buttons, stroked only when destructive, no palette color, no
+            # native select, mat-select inside a form field
+            # (tools/nx/check-kit-controls.mjs).
+            - name: Validate UI-kit buttons and pickers
+              run: pnpm run ui:kit-controls:validate
+
             # m3-theme.scss themes only the Material components the app
             # imports; a new import without a theme entry renders unthemed.
             - name: Validate the Material theme scope

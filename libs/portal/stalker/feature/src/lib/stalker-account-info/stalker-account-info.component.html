@@ -105,7 +105,7 @@
                         ) | translate
                     }}
                 </p>
-                <button mat-flat-button color="primary" (click)="reload()">
+                <button mat-flat-button type="button" (click)="reload()">
                     {{
                         (requestsPaused()
                             ? 'PORTALS.REQUESTS_PAUSED.RETRY'
