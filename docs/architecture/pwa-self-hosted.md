@@ -1860,15 +1860,17 @@ never mark the verified connection as lost. Every other `403` still does. A
 failed request carries no body or message to callers, only the code. `429
 pin_locked` and `pin_rate_limited` carry `retryAfter` in seconds (from the
 `Retry-After` header, `null` when it is missing or invalid), and the UI counts
-down from it. A `204` (delete) has no body and is a success, not a broken
-response. `5xx` and network errors map to `offline`.
+down from it. The server lists `Retry-After` in `Access-Control-Expose-Headers`
+on `/v1/profiles`, so a browser on another origin can read it. A `204` (delete)
+has no body and is a success, not a broken response. `5xx` and network errors map to `offline`.
 
 **Per-device preferences.** Two `localStorage` keys per server instance, never
 synced and removed with the site data:
 `iptvnator-server:<instanceId>:profiles-start-v1` (`'ask'` or `'last'`, default
 `'ask'`) and `iptvnator-server:<instanceId>:active-profile-v1` (a profile id).
 A stored id that is not in the current list, or any id while profiles are off,
-resolves to Default.
+resolves to Default. Blocked storage costs only the next launch's last profile: a
+choice still applies for the session.
 
 **Start-up guard.** `profilePickerGuard` runs on `workspace` after
 `serverAccessGuard`. The source connection is restored in `main.ts` before
@@ -1880,7 +1882,11 @@ no valid last profile, or a last profile that has a PIN). It asks once per sessi
 It never blocks: an error, an offline server or no answer within 1.5 seconds
 (`PROFILES_GUARD_TIMEOUT_MS`) lets the user in as Default. The runtime loads lazily
 and only when the switch is on, so the static code on the start-up path stays
-small.
+small. `/profile-picker` itself needs a connected server, and a server that has
+no profiles shows the picker's "continue" state rather than a spinner.
+Settings > Profiles waits for the server's answer before a direct visit to its
+URL can be redirected away: the section counts as available while a connected
+server has not answered.
 
 **Hidden switch.** `PROFILES_UI_ENABLED` (`profiles-ui-enabled.ts`) is `false`.
 While it is, there is no Profiles section, no search entry, no command palette
@@ -1893,7 +1899,9 @@ desktop IPC route.
 
 **Kids rules.** Leaving a kids profile (choosing another one in the picker) asks
 for the parental PIN. In Settings, clearing the kids flag and deleting a kids
-profile ask for it too, before the request is sent. Forcing the parental lock on
+profile ask for it too, before the request is sent. The PIN is asked even when a
+parent has already unlocked the app (`ParentalLockService.confirmPin`), and the
+unlock state stays as it was. Forcing the parental lock on
 while a kids profile is active belongs to PR B, because it is per-profile state.
 
 **The PIN is a light lock.** A profile PIN is checked by the server before it is

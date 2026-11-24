@@ -33,13 +33,22 @@ export function profileInitial(name: string): string {
     return (graphemes(name.trim())[0] ?? '?').toLocaleUpperCase();
 }
 
+const EMOJI_MAX_LENGTH = 32;
+/** The server's pictograph rule: flags (regional indicators) and keycaps count. */
+const PICTOGRAPH = /\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20e3/u;
+
 /**
- * A light client-side check: one grapheme that contains an emoji. The server
- * validates the same rule and stays the authority.
+ * A light client-side check, the same rule as the server's: one grapheme of
+ * at most 32 code units that contains an emoji. The server stays the authority.
  */
 export function isSingleEmoji(value: string): boolean {
-    const parts = graphemes(value);
-    return parts.length === 1 && /\p{Extended_Pictographic}/u.test(value);
+    return (
+        value.length <= EMOJI_MAX_LENGTH &&
+        // Without Intl.Segmenter a flag or keycap cannot be counted as one
+        // grapheme here; the server counts it.
+        (!segmenter || graphemes(value).length === 1) &&
+        PICTOGRAPH.test(value)
+    );
 }
 
 function channel(value: number): number {

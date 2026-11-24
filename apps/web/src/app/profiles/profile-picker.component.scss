@@ -97,3 +97,36 @@
     color: var(--mat-sys-primary);
     text-underline-offset: 3px;
 }
+
+// Phone breakpoint (see the UI guidelines): two tiles per row, no sideways
+// scroll, long names clamp to two lines, targets stay at least 44px.
+@media (max-width: 640px) {
+    .profile-picker {
+        gap: 24px;
+        padding: 24px 16px;
+    }
+
+    .profile-picker__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        width: 100%;
+    }
+
+    .profile-picker__tile {
+        min-width: 0;
+        min-height: 44px;
+        padding: 12px 4px;
+    }
+
+    .profile-picker__avatar {
+        --profile-avatar-size: 72px;
+    }
+
+    .profile-picker__name {
+        display: -webkit-box;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+    }
+}

@@ -63,3 +63,23 @@
 .profile-dialog__note {
     margin: 0;
 }
+
+.profile-dialog__failure {
+    margin: 0;
+    padding: 8px 24px 0;
+    font-size: var(--app-text-sm);
+    color: var(--mat-sys-error);
+}
+
+// Phone breakpoint: the colour swatches get a 44px target.
+@media (max-width: 640px) {
+    .profile-dialog__swatch {
+        position: relative;
+
+        &::after {
+            content: '';
+            position: absolute;
+            inset: -6px;
+        }
+    }
+}

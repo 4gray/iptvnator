@@ -16,6 +16,7 @@ import {
     MatDialogRef,
 } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { ErrorStateMatcher } from '@angular/material/core';
 import { MatInputModule } from '@angular/material/input';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
@@ -36,7 +37,12 @@ import {
     DialogShellComponent,
 } from '@iptvnator/ui/dialog';
 import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
+import type { ProfilesError } from '@iptvnator/services/profiles';
 import { isSingleEmoji } from '../profiles/profile-appearance';
+import {
+    profileErrorMessage,
+    type ProfileErrorMessage,
+} from '../profiles/profile-error-message';
 import { ProfileAvatarComponent } from '../profiles/profile-avatar.component';
 
 export interface SettingsProfileDialogData {
@@ -44,6 +50,13 @@ export interface SettingsProfileDialogData {
     readonly profile?: ServerProfile;
     /** The colour a new profile starts with. */
     readonly suggestedColour: string;
+    /**
+     * Sends the form. `null` closes the dialog; an error keeps it open with
+     * the draft and shows the message; `'cancelled'` keeps it open silently.
+     */
+    readonly submit: (
+        form: SettingsProfileFormResult
+    ) => Promise<ProfilesError | 'cancelled' | null>;
 }
 
 /** What the form decided; `pin` undefined = unchanged, null = remove. */
@@ -82,7 +95,7 @@ type FieldError = 'name' | 'emoji' | 'pin';
 export class SettingsProfileDialogComponent {
     readonly data = inject<SettingsProfileDialogData>(MAT_DIALOG_DATA);
     private readonly dialogRef = inject(
-        MatDialogRef<SettingsProfileDialogComponent, SettingsProfileFormResult>
+        MatDialogRef<SettingsProfileDialogComponent, boolean>
     );
     private readonly imeInput = viewChild(ImeInputDirective);
 
@@ -106,6 +119,14 @@ export class SettingsProfileDialogComponent {
     readonly pin = signal('');
     readonly removePin = signal(false);
     readonly refused = signal<FieldError | null>(null);
+    readonly busy = signal(false);
+    readonly failure = signal<ProfileErrorMessage | null>(null);
+    /** Shows a field's error once the form refused it; the fields carry no validators. */
+    readonly matcher: Record<FieldError, ErrorStateMatcher> = {
+        name: { isErrorState: () => this.refused() === 'name' },
+        emoji: { isErrorState: () => this.refused() === 'emoji' },
+        pin: { isErrorState: () => this.refused() === 'pin' },
+    };
 
     readonly hasPin = this.existing?.hasPin ?? false;
     readonly trimmedName = computed(() => this.name().trim());
@@ -142,10 +163,7 @@ export class SettingsProfileDialogComponent {
     static open(
         dialog: MatDialog,
         data: SettingsProfileDialogData
-    ): MatDialogRef<
-        SettingsProfileDialogComponent,
-        SettingsProfileFormResult | undefined
-    > {
+    ): MatDialogRef<SettingsProfileDialogComponent, boolean | undefined> {
         return dialog.open(SettingsProfileDialogComponent, {
             ...dialogSize('md'),
             data,
@@ -154,26 +172,39 @@ export class SettingsProfileDialogComponent {
         });
     }
 
-    save(): void {
+    async save(): Promise<void> {
+        if (this.busy()) return;
         const name = this.trimmedName();
         const emoji = this.emoji().trim();
         const pin = this.pin();
         if (!name || name.length > this.nameMax) return this.refuse('name');
         if (emoji && !isSingleEmoji(emoji)) return this.refuse('emoji');
         if (pin && !isValidParentalLockPin(pin)) return this.refuse('pin');
-        this.dialogRef.close({
-            name,
-            colour: this.colour(),
-            emoji: emoji || null,
-            kids: this.kids(),
-            pin: this.kids()
-                ? this.hasPin
-                    ? null
-                    : undefined
-                : this.removePin()
-                  ? null
-                  : pin || undefined,
-        });
+        this.failure.set(null);
+        this.busy.set(true);
+        // Closing now would hide a write that may still succeed.
+        this.dialogRef.disableClose = true;
+        try {
+            const outcome = await this.data.submit({
+                name,
+                colour: this.colour(),
+                emoji: emoji || null,
+                kids: this.kids(),
+                pin: this.kids()
+                    ? this.hasPin
+                        ? null
+                        : undefined
+                    : this.removePin()
+                      ? null
+                      : pin || undefined,
+            });
+            if (outcome === null) this.dialogRef.close(true);
+            else if (outcome !== 'cancelled')
+                this.failure.set(profileErrorMessage(outcome));
+        } finally {
+            this.busy.set(false);
+            this.dialogRef.disableClose = false;
+        }
     }
 
     cancel(): void {

@@ -28,6 +28,7 @@ import {
 } from '../services/profiles-preferences';
 import {
     SettingsProfileDialogComponent,
+    type SettingsProfileDialogData,
     type SettingsProfileFormResult,
 } from './settings-profile-dialog.component';
 
@@ -68,45 +69,53 @@ export class SettingsProfilesFacade {
         const taken = new Set(
             this.runtime.list()?.profiles.map((profile) => profile.colour)
         );
-        const form = await this.askForm(undefined, taken);
-        if (!form) return;
-        const request: CreateServerProfileRequest = {
-            name: form.name,
-            colour: form.colour,
-            ...(form.emoji ? { emoji: form.emoji } : {}),
-            ...(form.kids ? { kids: true } : {}),
-            ...(typeof form.pin === 'string' ? { pin: form.pin } : {}),
-        };
-        await this.run(() => this.runtime.client().create(request));
+        await this.askForm(undefined, taken, async (form) => {
+            await this.verified();
+            const request: CreateServerProfileRequest = {
+                name: form.name,
+                colour: form.colour,
+                ...(form.emoji ? { emoji: form.emoji } : {}),
+                ...(form.kids ? { kids: true } : {}),
+                ...(typeof form.pin === 'string' ? { pin: form.pin } : {}),
+            };
+            return this.outcome(await this.runtime.client().create(request));
+        });
     }
 
     async edit(profile: ServerProfile): Promise<void> {
-        const form = await this.askForm(profile);
-        if (!form) return;
-        const changes = this.changesOf(profile, form);
-        if (!changes) return;
-        // Parental PIN first: an adult profile in a kids' hands must not lose
-        // its kids flag by a plain click.
-        if (profile.kids && changes.kids === false && !(await this.unlock()))
-            return;
-        const needsCurrentPin = profile.hasPin && changes.pin !== undefined;
-        if (!needsCurrentPin) {
-            await this.run(() =>
-                this.runtime.client().update(profile.id, changes)
+        await this.askForm(profile, new Set(), async (form) => {
+            await this.verified();
+            const changes = this.changesOf(profile, form);
+            if (!changes) return null;
+            // Parental PIN first: an adult profile in a kids' hands must not
+            // lose its kids flag by a plain click.
+            if (
+                profile.kids &&
+                changes.kids === false &&
+                !(await this.unlock())
+            )
+                return 'cancelled';
+            if (!(profile.hasPin && changes.pin !== undefined))
+                return this.outcome(
+                    await this.runtime.client().update(profile.id, changes),
+                    profile.id
+                );
+            const failure: { error: ProfilesError | null } = { error: null };
+            const done = await this.askPin(
+                profile,
+                'SETTINGS.PROFILES.PIN_CHANGE_TITLE',
+                'SETTINGS.PROFILES.PIN_CHANGE_DESCRIPTION',
+                'SETTINGS.PROFILES.SAVE',
+                async (currentPin) => {
+                    const result = await this.runtime
+                        .client()
+                        .update(profile.id, { ...changes, currentPin });
+                    if (!result.ok) failure.error = result.error;
+                    return result;
+                }
             );
-            return;
-        }
-        const done = await this.askPin(
-            profile,
-            'SETTINGS.PROFILES.PIN_CHANGE_TITLE',
-            'SETTINGS.PROFILES.PIN_CHANGE_DESCRIPTION',
-            'SETTINGS.PROFILES.SAVE',
-            (currentPin) =>
-                this.runtime
-                    .client()
-                    .update(profile.id, { ...changes, currentPin })
-        );
-        if (done) await this.settle();
+            return done ? null : (failure.error ?? 'cancelled');
+        });
     }
 
     async remove(profile: ServerProfile): Promise<void> {
@@ -135,7 +144,10 @@ export class SettingsProfilesFacade {
             confirmLabel: this.translate.instant('SETTINGS.PROFILES.DELETE'),
             tone: 'destructive',
             onConfirm: () =>
-                void this.run(() => this.runtime.client().remove(profile.id)),
+                void this.run(
+                    () => this.runtime.client().remove(profile.id),
+                    profile.id
+                ),
         });
     }
 
@@ -167,18 +179,41 @@ export class SettingsProfilesFacade {
         return Object.keys(changes).length > 0 ? changes : null;
     }
 
+    /** Opens the form; it stays open on a failed save and refreshes on success. */
     private async askForm(
         profile: ServerProfile | undefined,
-        takenColours: ReadonlySet<string> = new Set()
-    ): Promise<SettingsProfileFormResult | undefined> {
+        takenColours: ReadonlySet<string>,
+        submit: SettingsProfileDialogData['submit']
+    ): Promise<void> {
         const suggestedColour =
             PROFILE_SWATCHES.find((colour) => !takenColours.has(colour)) ??
             PROFILE_SWATCHES[0];
         const ref = SettingsProfileDialogComponent.open(this.dialog, {
             profile,
             suggestedColour,
+            submit,
         });
-        return firstValueFrom(ref.afterClosed());
+        if ((await firstValueFrom(ref.afterClosed())) === true)
+            await this.settle();
+    }
+
+    /** A failed request clears the browser's server check: redo it before the next write. */
+    private offlineBefore = false;
+
+    private async verified(): Promise<void> {
+        if (!this.offlineBefore) return;
+        this.offlineBefore = false;
+        await this.runtime.recheck();
+    }
+
+    private outcome(
+        result: ProfilesResult<unknown>,
+        profileId?: string
+    ): ProfilesError | null {
+        if (result.ok) return null;
+        if (result.error.code === 'offline') this.offlineBefore = true;
+        this.runtime.handleProfileError(result.error.code, profileId);
+        return result.error;
     }
 
     private async askPin(
@@ -194,9 +229,15 @@ export class SettingsProfilesFacade {
             descriptionKey,
             submitKey,
             submit: async (pin) => {
+                await this.verified();
                 const result = await send(pin);
+                if (!result.ok && result.error.code === 'offline')
+                    this.offlineBefore = true;
                 if (!result.ok)
-                    this.runtime.handleProfileError(result.error.code);
+                    this.runtime.handleProfileError(
+                        result.error.code,
+                        profile.id
+                    );
                 return result;
             },
         });
@@ -204,30 +245,36 @@ export class SettingsProfilesFacade {
     }
 
     private unlock(): Promise<boolean> {
-        return this.parentalLock.requestUnlock({
+        return this.parentalLock.confirmPin({
             titleKey: 'SETTINGS.PROFILES.PARENTAL_TITLE',
             descriptionKey: 'SETTINGS.PROFILES.PARENTAL_DESCRIPTION',
         });
     }
 
     private async run(
-        operation: () => Promise<ProfilesResult<unknown>>
+        operation: () => Promise<ProfilesResult<unknown>>,
+        profileId?: string
     ): Promise<void> {
         if (this.busy()) return;
         this.busy.set(true);
         this.error.set(null);
         try {
+            await this.verified();
             const result = await operation();
             if (result.ok) await this.settle();
-            else await this.fail(result.error);
+            else await this.fail(result.error, profileId);
         } finally {
             this.busy.set(false);
         }
     }
 
-    private async fail(error: ProfilesError): Promise<void> {
+    private async fail(
+        error: ProfilesError,
+        profileId?: string
+    ): Promise<void> {
         this.error.set(profileErrorMessage(error));
-        this.runtime.handleProfileError(error.code);
+        if (error.code === 'offline') this.offlineBefore = true;
+        this.runtime.handleProfileError(error.code, profileId);
         // A changed list (another device, a stale order) shows as it is now.
         await this.runtime.refresh();
     }

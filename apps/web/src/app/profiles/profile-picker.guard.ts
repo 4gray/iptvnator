@@ -34,6 +34,11 @@ export const profilePickerGuard: CanActivateFn = async (_route, state) => {
         shouldAsk(injector, instanceId),
         PROFILES_GUARD_TIMEOUT_MS
     );
+    if (ask === null) {
+        void loadProfilesRuntime(injector)
+            .then((runtime) => runtime.holdDefault())
+            .catch(() => undefined);
+    }
     return ask
         ? router.createUrlTree([PROFILE_PICKER_PATH], {
               queryParams: { returnUrl: sanitizeReturnUrl(state.url) },
@@ -41,40 +46,44 @@ export const profilePickerGuard: CanActivateFn = async (_route, state) => {
         : true;
 };
 
-/** `/profile-picker` exists only while the UI switch is on. */
+/** `/profile-picker` exists only while the UI switch is on and a server is connected. */
 export const profilePickerRouteGuard: CanActivateFn = () =>
-    inject(PROFILES_UI_ENABLED_TOKEN)
+    inject(PROFILES_UI_ENABLED_TOKEN) && sourceConnection()
         ? true
         : inject(Router).parseUrl('/workspace');
 
 async function shouldAsk(
     injector: EnvironmentInjector,
     instanceId: string
-): Promise<boolean> {
+): Promise<boolean | null> {
     try {
         const runtime = await loadProfilesRuntime(injector);
         await runtime.refresh();
-        return (
-            runtime.state() === 'ready' &&
-            needsPicker({
-                uiEnabled: true,
-                connected: true,
-                capable: runtime.capable(),
-                enabled: runtime.enabled(),
-                startPref: readProfilesStart(instanceId),
-                lastId: readActiveProfileId(instanceId),
-                profiles: runtime.list()?.profiles ?? [],
-            })
-        );
+        // No verified answer (offline, refused, checking): stay on Default
+        // for the session, so a later poll cannot switch the viewer.
+        if (runtime.state() !== 'ready') return null;
+        return needsPicker({
+            uiEnabled: true,
+            connected: true,
+            capable: runtime.capable(),
+            enabled: runtime.enabled(),
+            startPref: readProfilesStart(instanceId),
+            lastId: readActiveProfileId(instanceId),
+            profiles: runtime.list()?.profiles ?? [],
+        });
     } catch {
-        return false;
+        return null;
     }
 }
 
-function withTimeout(work: Promise<boolean>, ms: number): Promise<boolean> {
+/** `null` means no answer in time (or a failure): carry on as Default. */
+function withTimeout(
+    work: Promise<boolean | null>,
+    ms: number
+): Promise<boolean | null> {
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const timeout = new Promise<boolean>((resolve) => {
-        timer = setTimeout(() => resolve(false), ms);
+    const timeout = new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), ms);
     });
     return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
 }

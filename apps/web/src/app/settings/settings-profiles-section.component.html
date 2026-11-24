@@ -47,7 +47,10 @@
                             data-test-id="profiles-enabled"
                             [checked]="enabled()"
                             [disabled]="facade.busy()"
-                            (change)="facade.setEnabled($event.checked)"
+                            (change)="
+                                facade.setEnabled($event.checked);
+                                $event.source.checked = enabled()
+                            "
                         ></mat-slide-toggle>
                     </div>
                 </div>
@@ -75,6 +78,8 @@
                             role="radio"
                             data-test-id="profiles-start-ask"
                             [attr.aria-checked]="startPref() === 'ask'"
+                            [tabIndex]="startPref() === 'ask' ? 0 : -1"
+                            (keydown)="onStartKey($event)"
                             [class.profiles-choice--on]="startPref() === 'ask'"
                             (click)="setStart('ask')"
                         >
@@ -86,6 +91,8 @@
                             role="radio"
                             data-test-id="profiles-start-last"
                             [attr.aria-checked]="startPref() === 'last'"
+                            [tabIndex]="startPref() === 'last' ? 0 : -1"
+                            (keydown)="onStartKey($event)"
                             [class.profiles-choice--on]="startPref() === 'last'"
                             (click)="setStart('last')"
                         >

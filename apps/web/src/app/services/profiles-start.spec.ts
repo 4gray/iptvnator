@@ -13,6 +13,7 @@ const PIN_ADULT = '22222222-2222-4222-8222-222222222222';
 const STALE = '33333333-3333-4333-8333-333333333333';
 
 const onlyDefault = [{ id: DEFAULT_PROFILE_ID, hasPin: false }];
+const onlyDefaultPin = [{ id: DEFAULT_PROFILE_ID, hasPin: true }];
 const household = [
     { id: DEFAULT_PROFILE_ID, hasPin: false },
     { id: ADULT, hasPin: false },
@@ -34,7 +35,8 @@ function expected(input: ProfilesStartInput): boolean {
     const gate =
         input.uiEnabled && input.connected && input.capable && input.enabled;
     if (!gate) return false;
-    if (input.profiles.length < 2) return false;
+    // A lone Default skips the picker unless it has a PIN to ask.
+    if (input.profiles.length < 2) return input.profiles[0]?.hasPin === true;
     if (input.startPref === 'ask') return true;
     switch (input.lastId) {
         case DEFAULT_PROFILE_ID:
@@ -61,7 +63,7 @@ describe('needsPicker', () => {
                             PIN_ADULT,
                             STALE,
                         ])
-                            for (const profiles of [onlyDefault, household])
+                            for (const profiles of [onlyDefault, onlyDefaultPin, household])
                                 cases.push({
                                     uiEnabled,
                                     connected,
@@ -73,7 +75,7 @@ describe('needsPicker', () => {
                                 });
 
     it('covers the whole input space', () => {
-        expect(cases).toHaveLength(2 * 2 * 2 * 2 * 2 * 5 * 2);
+        expect(cases).toHaveLength(2 * 2 * 2 * 2 * 2 * 5 * 3);
     });
 
     it.each(cases)('matches the truth table for %j', (input) => {
@@ -105,6 +107,18 @@ describe('needsPicker', () => {
         expect(
             needsPicker({ ...base, profiles: onlyDefault, startPref: 'ask' })
         ).toBe(false);
+    });
+
+    it('asks when the only profile is a Default with a PIN', () => {
+        for (const startPref of ['ask', 'last'] as const)
+            expect(
+                needsPicker({
+                    ...base,
+                    profiles: onlyDefaultPin,
+                    startPref,
+                    lastId: DEFAULT_PROFILE_ID,
+                })
+            ).toBe(true);
     });
 
     it('asks on "ask" even with a valid last profile', () => {

@@ -127,6 +127,8 @@ export class ProfilePinDialogComponent {
             return;
         }
         this.busy.set(true);
+        // Closing now would hide a write that may still succeed.
+        this.dialogRef.disableClose = true;
         try {
             const result = await this.data.submit(pin);
             if (result.ok) {
@@ -145,6 +147,7 @@ export class ProfilePinDialogComponent {
             }
         } finally {
             this.busy.set(false);
+            this.dialogRef.disableClose = false;
             queueMicrotask(() => this.pinInput()?.nativeElement.focus());
         }
     }
@@ -156,8 +159,10 @@ export class ProfilePinDialogComponent {
     private startCountdown(seconds: number): void {
         this.stopTimer();
         this.waitSeconds.set(seconds);
+        // Background tabs slow timers: count from the clock, not the ticks.
+        const deadline = Date.now() + seconds * 1000;
         this.timer = setInterval(() => {
-            const left = this.waitSeconds() - 1;
+            const left = Math.ceil((deadline - Date.now()) / 1000);
             this.waitSeconds.set(Math.max(0, left));
             if (left <= 0) {
                 this.stopTimer();

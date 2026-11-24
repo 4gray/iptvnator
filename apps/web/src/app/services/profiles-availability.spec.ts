@@ -53,10 +53,16 @@ describe('profilesAvailabilityFactory', () => {
         const available = TestBed.runInInjectionContext(
             profilesAvailabilityFactory
         );
+        fake.runtime.state.set('checking');
         await settle();
+        TestBed.tick();
+        // Not answered yet: a direct visit to the section waits.
+        expect(available()).toBe(true);
+        fake.runtime.state.set('unsupported');
         TestBed.tick();
         expect(available()).toBe(false);
         fake.runtime.capable.set(true);
+        fake.runtime.state.set('ready');
         TestBed.tick();
         expect(available()).toBe(true);
     });

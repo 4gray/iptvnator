@@ -84,6 +84,29 @@ export class SettingsProfilesSectionComponent {
         this.startPref.set(value);
     }
 
+    /**
+     * The start-up choices are one radio group: one Tab stop, and the arrow
+     * keys (the TV D-pad sends the same ones) move and select.
+     */
+    onStartKey(event: KeyboardEvent): void {
+        const steps: Readonly<Record<string, number>> = {
+            ArrowLeft: -1,
+            ArrowUp: -1,
+            ArrowRight: 1,
+            ArrowDown: 1,
+        };
+        const step = steps[event.key];
+        if (!step || event.altKey || event.ctrlKey || event.metaKey) return;
+        event.preventDefault();
+        const next = this.startPref() === 'ask' ? 'last' : 'ask';
+        this.setStart(next);
+        this.host.nativeElement
+            .querySelector<HTMLElement>(
+                `[data-test-id="profiles-start-${next}"]`
+            )
+            ?.focus();
+    }
+
     async move(profile: ServerProfile, delta: -1 | 1): Promise<void> {
         await this.facade.move(profile, delta);
         this.restoreMoveFocus(profile.id, delta);

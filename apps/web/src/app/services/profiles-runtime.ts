@@ -10,7 +10,11 @@ import {
     ProfilesClient,
     type ProfilesError,
 } from '@iptvnator/services/profiles';
-import { sourceConnection } from '@iptvnator/services/source-sync/connection';
+import { verifySourceInstance } from '@iptvnator/services/source-sync/authorization';
+import {
+    sourceConnection,
+    sourceVerificationEpoch,
+} from '@iptvnator/services/source-sync/connection';
 import type { SourceServerResponse } from '@iptvnator/shared/interfaces';
 import {
     DEFAULT_PROFILE_ID,
@@ -19,7 +23,6 @@ import {
     type ServerProfileList,
 } from '@iptvnator/shared/interfaces/profiles';
 import {
-    activeProfileKey,
     clearActiveProfileId,
     readActiveProfileId,
     writeActiveProfileId,
@@ -43,7 +46,16 @@ export class ProfilesRuntime {
     private currentInstanceId: string | null = null;
     private probedInstanceId: string | null = null;
     private revision: number | undefined;
+    /** This session's choice, kept when storage cannot hold it. */
+    private sessionChoice: string | null = null;
+    /** Start-up gave up waiting: stay on Default for this session. */
+    private heldOnDefault = false;
+    private startupRead = false;
+    /** This session's choice came from the picker, so its PIN was asked. */
+    private choiceUnlocked = false;
     private refreshing?: Promise<void>;
+    /** Bumped when a deletion is learned: a list requested before it is stale. */
+    private deletions = 0;
     private profilesClient?: ProfilesClient;
 
     readonly uiEnabled = inject(PROFILES_UI_ENABLED_TOKEN);
@@ -71,14 +83,8 @@ export class ProfilesRuntime {
         const visibility = () => {
             if (!document.hidden) refresh();
         };
-        const storage = (event: StorageEvent) => {
-            const instanceId = sourceConnection()?.instanceId ?? null;
-            if (event.key && event.key === activeProfileKey(instanceId))
-                this.reconcile(instanceId);
-        };
         window.addEventListener('focus', refresh);
         window.addEventListener('online', refresh);
-        window.addEventListener('storage', storage);
         document.addEventListener('visibilitychange', visibility);
         // Profile changes are rare and a matching revision is a 304; focus and
         // visibility cover the usual cross-device change. Playback sync polls
@@ -96,7 +102,6 @@ export class ProfilesRuntime {
             clearInterval(timer);
             window.removeEventListener('focus', refresh);
             window.removeEventListener('online', refresh);
-            window.removeEventListener('storage', storage);
             document.removeEventListener('visibilitychange', visibility);
         });
         queueMicrotask(refresh);
@@ -114,6 +119,15 @@ export class ProfilesRuntime {
         ));
     }
 
+    /** After a failed call: the next refresh probes the instance again. */
+    async recheck(): Promise<void> {
+        // An in-flight refresh was not preceded by a fresh identity check:
+        // let it finish rather than join it.
+        while (this.refreshing) await this.refreshing.catch(() => undefined);
+        this.probedInstanceId = null;
+        return this.refresh();
+    }
+
     select(id: string): boolean {
         const list = this.listState();
         if (
@@ -122,9 +136,24 @@ export class ProfilesRuntime {
             (id !== DEFAULT_PROFILE_ID && !list.enabled)
         )
             return false;
-        if (!writeActiveProfileId(this.currentInstanceId, id)) return false;
+        // Blocked storage only costs the next launch's "last profile": the
+        // choice still applies to this session.
+        writeActiveProfileId(this.currentInstanceId, id);
+        this.sessionChoice = id;
+        this.choiceUnlocked = true;
+        this.heldOnDefault = false;
         this.activeIdValue.set(id);
         return true;
+    }
+
+    /**
+     * The start-up guard let the user in as Default without an answer. A
+     * late list must not switch to a saved profile (and skip its PIN); the
+     * saved choice stays for the next launch.
+     */
+    holdDefault(): void {
+        this.heldOnDefault = true;
+        this.activeIdValue.set(DEFAULT_PROFILE_ID);
     }
 
     /**
@@ -132,11 +161,20 @@ export class ProfilesRuntime {
      * call: show Default at once, then catch up with the server. A missing
      * profile is forgotten; a disabled household keeps the stored id, so
      * turning profiles back on restores this device's last profile.
+     * `profileId` is the profile the failed call named: another device
+     * deleting that one must not change this device's choice unless it is
+     * the active profile.
      */
-    handleProfileError(code: ProfilesError['code']): void {
-        if (code === 'profile_missing')
+    handleProfileError(code: ProfilesError['code'], profileId?: string): void {
+        if (code === 'profile_missing') {
+            if (profileId !== undefined && profileId !== this.activeIdValue()) {
+                void this.refresh();
+                return;
+            }
             clearActiveProfileId(this.currentInstanceId);
-        else if (code === 'profiles_disabled') this.showDisabled();
+            this.sessionChoice = null;
+            this.deletions++;
+        } else if (code === 'profiles_disabled') this.showDisabled();
         else return;
         this.activeIdValue.set(DEFAULT_PROFILE_ID);
         void this.refresh();
@@ -165,8 +203,11 @@ export class ProfilesRuntime {
             if (!this.isCurrent(instanceId) || !capable) return;
         }
         if (!this.capableState() || !this.isCurrent(instanceId)) return;
+        const deletions = this.deletions;
         const result = await this.client().list(this.revision);
         if (!this.isCurrent(instanceId)) return;
+        // Asked before a deletion was learned: it may still list that profile.
+        if (deletions !== this.deletions) return this.refreshNow();
         if (result.ok) {
             if (result.value.changed) {
                 this.listState.set(result.value.list);
@@ -180,6 +221,9 @@ export class ProfilesRuntime {
         } else {
             // Offline, refused or a body this client cannot read: keep the
             // last list and active profile until a later refresh succeeds.
+            // A failed request clears the browser's identity check, so the
+            // next refresh probes the instance again before asking for the list.
+            this.probedInstanceId = null;
             this.stateValue.set('offline');
         }
     }
@@ -190,6 +234,7 @@ export class ProfilesRuntime {
      */
     private async probe(instanceId: string): Promise<boolean> {
         let response: SourceServerResponse;
+        const epoch = sourceVerificationEpoch();
         try {
             response = await this.request({ operation: 'instance' });
         } catch {
@@ -198,7 +243,17 @@ export class ProfilesRuntime {
         if (!this.isCurrent(instanceId)) return false;
         const info = response.body as
             { instanceId?: unknown; capabilities?: unknown } | undefined;
-        if (response.status !== 200 || info?.instanceId !== instanceId) {
+        // A browser verifies the instance before it sends anything else; the
+        // source sync may not have done so yet at start-up.
+        let verified = response.status === 200;
+        if (verified) {
+            try {
+                verifySourceInstance(info, sourceConnection(), epoch);
+            } catch {
+                verified = false;
+            }
+        }
+        if (!verified || info?.instanceId !== instanceId) {
             this.probedInstanceId = null;
             this.capableState.set(false);
             this.stateValue.set('offline');
@@ -214,15 +269,38 @@ export class ProfilesRuntime {
     }
 
     private reconcile(instanceId: string | null): void {
+        if (this.heldOnDefault) return;
         const list = this.listState();
-        const storedId = readActiveProfileId(instanceId);
-        this.activeIdValue.set(resolveActiveProfileId(list, storedId));
+        // The saved id is read once, at start-up; after that each tab keeps
+        // its own choice. A saved PIN profile is never adopted without its PIN.
+        if (!this.startupRead && list) {
+            this.startupRead = true;
+            const saved = readActiveProfileId(instanceId);
+            if (
+                !this.sessionChoice &&
+                !list.profiles.find((profile) => profile.id === saved)?.hasPin
+            )
+                this.sessionChoice = saved;
+        }
+        // A PIN added to a profile after it was restored at launch applies
+        // too: only a choice made through the picker skips the PIN.
+        if (
+            this.sessionChoice &&
+            !this.choiceUnlocked &&
+            list?.profiles.find((profile) => profile.id === this.sessionChoice)
+                ?.hasPin
+        )
+            this.sessionChoice = null;
+        const id = this.sessionChoice;
+        this.activeIdValue.set(resolveActiveProfileId(list, id));
         if (
             list?.enabled &&
-            storedId &&
-            !list.profiles.some((profile) => profile.id === storedId)
-        )
+            id &&
+            !list.profiles.some((profile) => profile.id === id)
+        ) {
+            this.sessionChoice = null;
             clearActiveProfileId(instanceId);
+        }
     }
 
     private isCurrent(instanceId: string): boolean {
@@ -233,6 +311,10 @@ export class ProfilesRuntime {
         this.currentInstanceId = null;
         this.probedInstanceId = null;
         this.revision = undefined;
+        this.sessionChoice = null;
+        this.choiceUnlocked = false;
+        this.startupRead = false;
+        this.heldOnDefault = false;
         this.capableState.set(false);
         this.listState.set(null);
         this.activeIdValue.set(DEFAULT_PROFILE_ID);

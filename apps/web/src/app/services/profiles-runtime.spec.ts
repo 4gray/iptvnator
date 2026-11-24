@@ -259,6 +259,119 @@ describe('ProfilesRuntime', () => {
         expect(runtime.list()?.profiles).toHaveLength(1);
     });
 
+    it('ignores a poll asked before a deletion and does not restore the profile', async () => {
+        writeActiveProfileId(NAS, ADULT);
+        const runtime = await start();
+        expect(runtime.activeId()).toBe(ADULT);
+        const original = fake.request.getMockImplementation()!;
+        let release!: () => void;
+        const gate = new Promise<void>((resolve) => (release = resolve));
+        fake.server.revision = 2;
+        fake.request.mockImplementationOnce(async (input) => {
+            const stale = await original(input);
+            await gate;
+            return stale;
+        });
+        const poll = runtime.refresh();
+        await jest.advanceTimersByTimeAsync(0);
+        fake.server.revision = 3;
+        fake.server.profiles = [profile(DEFAULT_PROFILE_ID, 0)];
+        runtime.handleProfileError('profile_missing', ADULT);
+        release();
+        await poll;
+        expect(runtime.list()?.profiles).toHaveLength(1);
+        expect(runtime.activeId()).toBe(DEFAULT_PROFILE_ID);
+    });
+
+    it("keeps this device's choice when another profile goes missing", async () => {
+        writeActiveProfileId(NAS, ADULT);
+        const runtime = await start();
+        runtime.handleProfileError('profile_missing', STALE);
+        expect(runtime.activeId()).toBe(ADULT);
+        expect(readActiveProfileId(NAS)).toBe(ADULT);
+        runtime.handleProfileError('profile_missing', ADULT);
+        expect(runtime.activeId()).toBe(DEFAULT_PROFILE_ID);
+        expect(readActiveProfileId(NAS)).toBeNull();
+    });
+
+    it('applies a choice for the session when storage is blocked', async () => {
+        const runtime = await start();
+        const blocked = jest
+            .spyOn(Storage.prototype, 'setItem')
+            .mockImplementation(() => {
+                throw new Error('Synthetic blocked storage');
+            });
+        try {
+            expect(runtime.select(ADULT)).toBe(true);
+            expect(runtime.activeId()).toBe(ADULT);
+        } finally {
+            blocked.mockRestore();
+        }
+    });
+
+    it('keeps a session choice across a refresh when storage is blocked', async () => {
+        const runtime = await start();
+        const blocked = jest
+            .spyOn(Storage.prototype, 'setItem')
+            .mockImplementation(() => {
+                throw new Error('Synthetic blocked storage');
+            });
+        try {
+            runtime.select(ADULT);
+            fake.server.revision = 2;
+            await runtime.refresh();
+            expect(runtime.activeId()).toBe(ADULT);
+        } finally {
+            blocked.mockRestore();
+        }
+    });
+
+    it('stays on Default after start-up gave up, and keeps the saved choice', async () => {
+        writeActiveProfileId(NAS, ADULT);
+        const runtime = await start();
+        runtime.holdDefault();
+        fake.server.revision = 2;
+        await runtime.refresh();
+        expect(runtime.activeId()).toBe(DEFAULT_PROFILE_ID);
+        expect(readActiveProfileId(NAS)).toBe(ADULT);
+        runtime.select(ADULT);
+        expect(runtime.activeId()).toBe(ADULT);
+    });
+
+    it('does not trust an instance answer that fails verification', async () => {
+        fake.server.capabilities = [];
+        const runtime = await start();
+        expect(runtime.capable()).toBe(false);
+    });
+
+    it('never restores a saved PIN profile without its PIN', async () => {
+        fake.server.profiles = [
+            profile(DEFAULT_PROFILE_ID, 0),
+            { ...profile(ADULT, 1), hasPin: true },
+        ];
+        writeActiveProfileId(NAS, ADULT);
+        const runtime = await start();
+        expect(runtime.activeId()).toBe(DEFAULT_PROFILE_ID);
+        expect(readActiveProfileId(NAS)).toBe(ADULT);
+        runtime.select(ADULT);
+        fake.server.revision = 2;
+        await runtime.refresh();
+        expect(runtime.activeId()).toBe(ADULT);
+    });
+
+    it('asks the PIN of a restored profile that gained one after launch', async () => {
+        writeActiveProfileId(NAS, ADULT);
+        const runtime = await start();
+        expect(runtime.activeId()).toBe(ADULT);
+        fake.server.profiles = [
+            profile(DEFAULT_PROFILE_ID, 0),
+            { ...profile(ADULT, 1), hasPin: true },
+        ];
+        fake.server.revision = 2;
+        await runtime.refresh();
+        expect(runtime.activeId()).toBe(DEFAULT_PROFILE_ID);
+    });
+
     it('falls back to Default when profiles were turned off elsewhere', async () => {
         writeActiveProfileId(NAS, ADULT);
         const runtime = await start();
@@ -273,6 +386,32 @@ describe('ProfilesRuntime', () => {
         const runtime = await start();
         runtime.handleProfileError('wrong_pin');
         expect(runtime.activeId()).toBe(ADULT);
+    });
+
+    it('probes the instance again on retry after a failure', async () => {
+        const runtime = await start();
+        expect(fake.calls('instance')).toHaveLength(1);
+        fake.server.listStatus = 503;
+        await runtime.refresh();
+        expect(runtime.state()).toBe('offline');
+        fake.server.listStatus = 200;
+        await runtime.refresh();
+        expect(fake.calls('instance')).toHaveLength(2);
+        expect(runtime.state()).toBe('ready');
+    });
+
+    it('recheck probes the instance again', async () => {
+        const runtime = await start();
+        await runtime.recheck();
+        expect(fake.calls('instance')).toHaveLength(2);
+    });
+
+    it('recheck does not join a refresh that started without an identity check', async () => {
+        const runtime = await start();
+        const probes = fake.calls('instance').length;
+        const poll = runtime.refresh();
+        await Promise.all([poll, runtime.recheck()]);
+        expect(fake.calls('instance')).toHaveLength(probes + 1);
     });
 
     it('keeps the last list while offline or refused', async () => {
@@ -360,17 +499,16 @@ describe('ProfilesRuntime', () => {
         expect(runtime.activeId()).toBe(DEFAULT_PROFILE_ID);
     });
 
-    it('follows a profile selected in another tab', async () => {
+    it("keeps this tab's choice when another tab picks a profile", async () => {
         const runtime = await start();
+        runtime.select(DEFAULT_PROFILE_ID);
         writeActiveProfileId(NAS, ADULT);
         window.dispatchEvent(
             new StorageEvent('storage', { key: activeProfileKey(NAS) })
         );
-        expect(runtime.activeId()).toBe(ADULT);
-        window.dispatchEvent(
-            new StorageEvent('storage', { key: 'unrelated-key' })
-        );
-        expect(runtime.activeId()).toBe(ADULT);
+        fake.server.revision = 2;
+        await runtime.refresh();
+        expect(runtime.activeId()).toBe(DEFAULT_PROFILE_ID);
     });
 
     it('removes its listeners and timer when destroyed', async () => {

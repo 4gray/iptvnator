@@ -75,8 +75,10 @@ export function fakeRuntime(
                 null
         ),
         refresh: jest.fn(async () => undefined),
+        holdDefault: jest.fn(() => undefined),
+        recheck: jest.fn(async () => undefined),
         select: jest.fn((_id: string) => true),
-        handleProfileError: jest.fn((_code: string) => undefined),
+        handleProfileError: jest.fn((_code: string, _id?: string) => undefined),
         client: () => client,
     };
     return { runtime, client, list, state, activeId };

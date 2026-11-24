@@ -14,7 +14,10 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 import { ParentalLockService } from '@iptvnator/services';
-import type { ServerProfile } from '@iptvnator/shared/interfaces/profiles';
+import {
+    DEFAULT_PROFILE_ID,
+    type ServerProfile,
+} from '@iptvnator/shared/interfaces/profiles';
 import { StateViewComponent } from '@iptvnator/ui/state';
 import { ProfilesRuntime } from '../services/profiles-runtime';
 import { ProfileAvatarComponent } from './profile-avatar.component';
@@ -62,21 +65,25 @@ export class ProfilePickerComponent {
         viewChildren<ElementRef<HTMLButtonElement>>('tile');
     private focused = false;
 
-    readonly profiles = computed<readonly ServerProfile[]>(
-        () => this.runtime.list()?.profiles ?? []
-    );
+    /** Only Default can be picked while profiles are off. */
+    readonly profiles = computed<readonly ServerProfile[]>(() => {
+        const list = this.runtime.list();
+        return list?.enabled
+            ? list.profiles
+            : (list?.profiles.filter(
+                  (profile) => profile.id === DEFAULT_PROFILE_ID
+              ) ?? []);
+    });
     readonly activeId = this.runtime.activeId;
-    readonly loading = computed(
-        () => !this.runtime.list() && this.runtime.state() !== 'offline'
-    );
-    readonly failed = computed(
-        () => !this.runtime.list() && this.runtime.state() === 'offline'
-    );
+    /** The first refresh has answered; a server without profiles never gives a list. */
+    private readonly answered = signal(false);
+    readonly loading = computed(() => !this.runtime.list() && !this.answered());
+    readonly failed = computed(() => !this.runtime.list() && this.answered());
     readonly busy = signal(false);
     readonly error = signal<string | null>(null);
 
     constructor() {
-        void this.runtime.refresh();
+        void this.refresh();
         effect(() => {
             const tiles = this.tiles();
             if (this.focused || tiles.length === 0) return;
@@ -92,11 +99,19 @@ export class ProfilePickerComponent {
     markPicked = markProfilePicked;
 
     retry(): void {
-        void this.runtime.refresh();
+        this.answered.set(false);
+        void this.refresh();
+    }
+
+    private async refresh(): Promise<void> {
+        await this.runtime.refresh();
+        this.answered.set(true);
     }
 
     /** No answer from the server: carry on as Default. */
     continueAsDefault(): void {
+        // A later answer from the server must not switch the viewer.
+        this.runtime.holdDefault();
         markProfilePicked();
         void this.router.navigateByUrl(this.returnUrl);
     }
@@ -120,7 +135,7 @@ export class ProfilePickerComponent {
             if (
                 current?.kids &&
                 current.id !== profile.id &&
-                !(await this.parentalLock.requestUnlock({
+                !(await this.parentalLock.confirmPin({
                     titleKey: 'PROFILES.PICKER.LEAVE_KIDS_TITLE',
                     descriptionKey: 'PROFILES.PICKER.LEAVE_KIDS_DESCRIPTION',
                 }))
@@ -138,6 +153,9 @@ export class ProfilePickerComponent {
         }
     }
 
+    /** A failed request clears the browser's server check: redo it before the next PIN try. */
+    private offlineBefore = false;
+
     private async askPin(profile: ServerProfile): Promise<boolean> {
         const ref = ProfilePinDialogComponent.open(this.dialog, {
             titleKey: 'PROFILES.PIN_DIALOG.UNLOCK_TITLE',
@@ -145,11 +163,20 @@ export class ProfilePickerComponent {
             descriptionKey: 'PROFILES.PIN_DIALOG.UNLOCK_DESCRIPTION',
             submitKey: 'PROFILES.PIN_DIALOG.UNLOCK',
             submit: async (pin) => {
+                if (this.offlineBefore) {
+                    this.offlineBefore = false;
+                    await this.runtime.recheck();
+                }
                 const result = await this.runtime
                     .client()
                     .unlock(profile.id, pin);
+                if (!result.ok && result.error.code === 'offline')
+                    this.offlineBefore = true;
                 if (!result.ok)
-                    this.runtime.handleProfileError(result.error.code);
+                    this.runtime.handleProfileError(
+                        result.error.code,
+                        profile.id
+                    );
                 return result;
             },
         });

@@ -148,6 +148,12 @@ export async function requestSourceServer(
                     request.operation === 'tmdb-transfer'))
                 ? undefined
                 : await response.json().catch((error) => {
+                      // A proxy's HTML or empty 403 is a refusal, not downtime.
+                      if (
+                          response.status === 403 &&
+                          isProfileOperation(request.operation)
+                      )
+                          rejectSourceInstance(403, connection);
                       if (request.operation === 'instance') {
                           const { status } = response;
                           discoveryRefusal =

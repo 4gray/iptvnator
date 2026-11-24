@@ -133,6 +133,8 @@ describe('profilePickerGuard', () => {
         const offline = setup(true);
         offline.fake.state.set('offline');
         await expect(offline.run()).resolves.toBe(true);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(offline.fake.runtime.holdDefault).toHaveBeenCalled();
         TestBed.resetTestingModule();
         const old = setup(true);
         old.fake.runtime.capable.set(false);
@@ -154,6 +156,9 @@ describe('profilePickerGuard', () => {
         const result = run();
         await jest.advanceTimersByTimeAsync(PROFILES_GUARD_TIMEOUT_MS + 1);
         await expect(result).resolves.toBe(true);
+        await jest.advanceTimersByTimeAsync(0);
+        // A late list must not switch to a saved profile without its PIN.
+        expect(fake.runtime.holdDefault).toHaveBeenCalled();
     });
 
     it('does not build the runtime for a state other than ready', async () => {
@@ -183,7 +188,8 @@ describe('profilePickerRouteGuard', () => {
         );
     });
 
-    it('opens it while the switch is on', () => {
+    it('opens it while the switch is on and a server is connected', async () => {
+        await connect(NAS);
         TestBed.configureTestingModule({
             providers: [
                 provideRouter([]),
@@ -198,5 +204,23 @@ describe('profilePickerRouteGuard', () => {
                 )
             )
         ).toBe(true);
+    });
+
+    it('stays closed without a connected server', async () => {
+        await connect(null);
+        TestBed.configureTestingModule({
+            providers: [
+                provideRouter([]),
+                { provide: PROFILES_UI_ENABLED_TOKEN, useValue: true },
+            ],
+        });
+        expect(
+            TestBed.runInInjectionContext(() =>
+                profilePickerRouteGuard(
+                    {} as ActivatedRouteSnapshot,
+                    {} as RouterStateSnapshot
+                )
+            )
+        ).toBeInstanceOf(UrlTree);
     });
 });

@@ -26,7 +26,7 @@ async function setup(
     const fake = fakeRuntime();
     const navigateByUrl = jest.fn(async () => true);
     const dialogOpen = jest.fn();
-    const requestUnlock = jest.fn(async () => options.parental ?? true);
+    const confirmPin = jest.fn(async () => options.parental ?? true);
     TestBed.configureTestingModule({
         imports: [TranslateModule.forRoot(), ProfilePickerComponent],
         providers: [
@@ -54,7 +54,7 @@ async function setup(
                 },
             },
             { provide: MatDialog, useValue: { open: dialogOpen } },
-            { provide: ParentalLockService, useValue: { requestUnlock } },
+            { provide: ParentalLockService, useValue: { confirmPin } },
         ],
     });
     const fixture = TestBed.createComponent(ProfilePickerComponent);
@@ -94,7 +94,7 @@ async function setup(
         choose,
         navigateByUrl,
         dialogOpen,
-        requestUnlock,
+        confirmPin,
     };
 }
 
@@ -142,7 +142,15 @@ describe('ProfilePickerComponent', () => {
             imports: [TranslateModule.forRoot(), ProfilePickerComponent],
             providers: [
                 { provide: ProfilesRuntime, useValue: fake.runtime },
-                { provide: Router, useValue: { navigateByUrl: jest.fn() } },
+                {
+                    provide: Router,
+                    useValue: {
+                        navigateByUrl: jest.fn(),
+                        createUrlTree: jest.fn(),
+                        serializeUrl: () => '',
+                        events: of(),
+                    },
+                },
                 {
                     provide: ActivatedRoute,
                     useValue: {
@@ -152,7 +160,7 @@ describe('ProfilePickerComponent', () => {
                 { provide: MatDialog, useValue: { open: jest.fn() } },
                 {
                     provide: ParentalLockService,
-                    useValue: { requestUnlock: jest.fn() },
+                    useValue: { confirmPin: jest.fn() },
                 },
             ],
         });
@@ -233,8 +241,24 @@ describe('ProfilePickerComponent', () => {
             await expect(submit('1234')).resolves.toEqual(fail(error));
         }
         expect(fake.runtime.handleProfileError).toHaveBeenCalledWith(
-            'profile_missing'
+            'profile_missing',
+            PIN_ID
         );
+    });
+
+    it('re-verifies the server before retrying a PIN after a network failure', async () => {
+        const { fake, choose, dialogOpen } = await setup();
+        dialogOpen.mockReturnValue({ afterClosed: () => of(undefined) });
+        await choose(PIN_ID);
+        const submit = dialogOpen.mock.calls[0][1].data.submit;
+        fake.client.unlock.mockResolvedValueOnce(fail({ code: 'offline' }));
+        await submit('1234');
+        expect(fake.runtime.recheck).not.toHaveBeenCalled();
+        fake.client.unlock.mockResolvedValue(ok(undefined));
+        await submit('1234');
+        expect(fake.runtime.recheck).toHaveBeenCalledTimes(1);
+        await submit('1234');
+        expect(fake.runtime.recheck).toHaveBeenCalledTimes(1);
     });
 
     it('stays on the picker when the PIN prompt is closed with Back or Escape', async () => {
@@ -246,26 +270,26 @@ describe('ProfilePickerComponent', () => {
     });
 
     it('asks the parental PIN before leaving a kids profile and stays when it is refused', async () => {
-        const { fake, choose, requestUnlock, navigateByUrl } = await setup({
+        const { fake, choose, confirmPin, navigateByUrl } = await setup({
             parental: false,
         });
         fake.activeId.set(KIDS_ID);
         await choose(ADULT_ID);
-        expect(requestUnlock).toHaveBeenCalledTimes(1);
+        expect(confirmPin).toHaveBeenCalledTimes(1);
         expect(fake.runtime.select).not.toHaveBeenCalled();
         expect(navigateByUrl).not.toHaveBeenCalled();
     });
 
     it('leaves a kids profile once the parental PIN is accepted, and does not ask to stay on it', async () => {
-        const { fake, choose, requestUnlock } = await setup();
+        const { fake, choose, confirmPin } = await setup();
         fake.activeId.set(KIDS_ID);
         await choose(ADULT_ID);
-        expect(requestUnlock).toHaveBeenCalledTimes(1);
+        expect(confirmPin).toHaveBeenCalledTimes(1);
         expect(fake.runtime.select).toHaveBeenCalledWith(ADULT_ID);
-        requestUnlock.mockClear();
+        confirmPin.mockClear();
         fake.runtime.select.mockClear();
         await choose(KIDS_ID);
-        expect(requestUnlock).not.toHaveBeenCalled();
+        expect(confirmPin).not.toHaveBeenCalled();
         expect(fake.runtime.select).toHaveBeenCalledWith(KIDS_ID);
     });
 
@@ -278,5 +302,24 @@ describe('ProfilePickerComponent', () => {
         fixture.componentInstance.continueAsDefault();
         expect(navigateByUrl).toHaveBeenCalledWith('/workspace/dashboard');
         expect(profilePickedThisSession()).toBe(true);
+        expect(fake.runtime.holdDefault).toHaveBeenCalled();
+    });
+
+    it('does not load forever when the server has no profiles', async () => {
+        const { fake, fixture, el, navigateByUrl } = await setup();
+        fake.list.set(null);
+        fake.state.set('unsupported');
+        fixture.detectChanges();
+        expect(el.querySelector('.profile-picker__status')).toBeNull();
+        expect(el.querySelector('app-state-view')).toBeTruthy();
+        fixture.componentInstance.continueAsDefault();
+        expect(navigateByUrl).toHaveBeenCalledWith('/workspace/dashboard');
+    });
+
+    it('offers only Default while profiles are off', async () => {
+        const { fake, fixture, el } = await setup();
+        fake.list.update((list) => ({ ...list!, enabled: false }));
+        fixture.detectChanges();
+        expect(el.querySelectorAll('.profile-picker__tile')).toHaveLength(1);
     });
 });

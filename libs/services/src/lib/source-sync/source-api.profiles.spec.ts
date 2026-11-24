@@ -228,6 +228,24 @@ describe('profile browser source transport', () => {
         }
     );
 
+    it('treats an unreadable 403 (a proxy page) as an access refusal, not downtime', async () => {
+        globalThis.fetch = jest.fn().mockResolvedValue({
+            status: 403,
+            headers: new Headers(),
+            json: async () => {
+                throw new SyntaxError('Synthetic HTML page');
+            },
+        });
+        await expect(
+            requestSourceServer({
+                operation: 'profile-unlock',
+                id: profileId,
+                profile: { pin: '1234' },
+            })
+        ).resolves.toEqual({ status: 403 });
+        expect(sourceAuthorization(`${connection.apiUrl}/stalker`)).toEqual({});
+    });
+
     it('keeps authorization for a PIN refusal returned by Electron IPC', async () => {
         window.electron = {
             sourceSyncRequest: jest.fn().mockResolvedValue({

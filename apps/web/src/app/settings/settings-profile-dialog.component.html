@@ -8,6 +8,7 @@
             ) | translate
         "
         [subtitle]="'SETTINGS.PROFILES.DIALOG_SUBTITLE' | translate"
+        [showClose]="!busy()"
     >
         <div class="profile-dialog">
             <div class="profile-dialog__preview">
@@ -27,6 +28,7 @@
                     matInput
                     appImeInput
                     name="name"
+                    [errorStateMatcher]="matcher.name"
                     autocomplete="off"
                     data-test-id="profile-name"
                     [attr.maxlength]="nameMax"
@@ -66,9 +68,10 @@
                 <input
                     matInput
                     name="emoji"
+                    [errorStateMatcher]="matcher.emoji"
                     autocomplete="off"
                     data-test-id="profile-emoji"
-                    maxlength="16"
+                    maxlength="32"
                     [ngModel]="emoji()"
                     (ngModelChange)="emoji.set($event); clearRefusal('emoji')"
                 />
@@ -110,6 +113,7 @@
                 <input
                     matInput
                     name="pin"
+                    [errorStateMatcher]="matcher.pin"
                     type="password"
                     inputmode="numeric"
                     autocomplete="new-password"
@@ -145,11 +149,30 @@
                 {{ 'SETTINGS.PROFILES.PIN_NOTE' | translate }}
             </p>
         </div>
+        @if (failure(); as text) {
+            <p
+                class="profile-dialog__failure"
+                role="alert"
+                data-test-id="profile-form-error"
+            >
+                {{ text.key | translate: text.params }}
+            </p>
+        }
         <div appDialogFooter>
-            <button mat-button type="button" (click)="cancel()">
+            <button
+                mat-button
+                type="button"
+                [disabled]="busy()"
+                (click)="cancel()"
+            >
                 {{ 'CANCEL' | translate }}
             </button>
-            <button mat-flat-button type="submit" data-test-id="profile-save">
+            <button
+                mat-flat-button
+                type="submit"
+                data-test-id="profile-save"
+                [disabled]="busy()"
+            >
                 {{ 'SETTINGS.PROFILES.SAVE' | translate }}
             </button>
         </div>

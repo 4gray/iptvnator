@@ -110,6 +110,19 @@ describe('ProfilePinDialogComponent', () => {
         expect(text()).not.toContain('PIN_LOCKED');
     });
 
+    it('counts from the clock when the timer runs late', async () => {
+        jest.useFakeTimers();
+        const { type, submit, fixture } = setup(async () =>
+            fail({ code: 'pin_locked', retryAfter: 30 })
+        );
+        await type('1234');
+        await submit();
+        // One throttled tick after 31 s: a tick counter would still show 29.
+        jest.setSystemTime(Date.now() + 31_000);
+        jest.advanceTimersByTime(1000);
+        expect(fixture.componentInstance.locked()).toBe(false);
+    });
+
     it('shows the rate limit with its countdown', async () => {
         jest.useFakeTimers();
         const { type, submit, fixture } = setup(async () =>

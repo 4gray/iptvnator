@@ -20,7 +20,8 @@ export function needsPicker(input: ProfilesStartInput): boolean {
         !input.connected ||
         !input.capable ||
         !input.enabled ||
-        input.profiles.length <= 1
+        // A lone Default needs no choice, unless its PIN must be asked.
+        (input.profiles.length <= 1 && !input.profiles[0]?.hasPin)
     )
         return false;
     if (input.startPref === 'ask') return true;

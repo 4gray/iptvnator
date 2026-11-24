@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { from, of } from 'rxjs';
 import { ParentalLockService } from '@iptvnator/services';
 import { prepareSourceConnection } from '@iptvnator/services/source-sync/connection';
 import {
@@ -36,7 +36,7 @@ async function setup(
     await prepareSourceConnection();
     const fake = fakeRuntime(options.profiles);
     const dialogOpen = jest.fn();
-    const requestUnlock = jest.fn(async () => options.parental ?? true);
+    const confirmPin = jest.fn(async () => options.parental ?? true);
     const openConfirmDialog = jest.fn(async (data: { onConfirm: () => void }) =>
         data.onConfirm()
     );
@@ -45,7 +45,7 @@ async function setup(
         providers: [
             { provide: ProfilesRuntime, useValue: fake.runtime },
             { provide: MatDialog, useValue: { open: dialogOpen } },
-            { provide: ParentalLockService, useValue: { requestUnlock } },
+            { provide: ParentalLockService, useValue: { confirmPin } },
             { provide: DialogService, useValue: { openConfirmDialog } },
         ],
     });
@@ -68,7 +68,28 @@ async function setup(
     };
     /** The next dialog the section opens closes with `result`. */
     const answerDialog = (result: unknown) =>
-        dialogOpen.mockReturnValueOnce({ afterClosed: () => of(result) });
+        dialogOpen.mockImplementationOnce(
+            (
+                _component: unknown,
+                config: {
+                    data: {
+                        submit?: (form: unknown) => Promise<unknown>;
+                    };
+                }
+            ) => ({
+                // A profile form is submitted like the real dialog does.
+                afterClosed: () =>
+                    result && typeof result === 'object' && config.data.submit
+                        ? from(
+                              config.data
+                                  .submit(result)
+                                  .then((outcome) =>
+                                      outcome === null ? true : undefined
+                                  )
+                          )
+                        : of(result),
+            })
+        );
     return {
         fake,
         fixture,
@@ -77,7 +98,7 @@ async function setup(
         click,
         answerDialog,
         dialogOpen,
-        requestUnlock,
+        confirmPin,
         openConfirmDialog,
     };
 }
@@ -238,7 +259,7 @@ describe('SettingsProfilesSectionComponent', () => {
     });
 
     it('asks for the parental PIN before clearing kids, and stops when it is refused', async () => {
-        const { fake, click, answerDialog, requestUnlock } = await setup({
+        const { fake, click, answerDialog, confirmPin } = await setup({
             parental: false,
         });
         answerDialog({
@@ -249,12 +270,12 @@ describe('SettingsProfilesSectionComponent', () => {
             pin: undefined,
         });
         await click(`profile-edit-${KIDS_ID}`);
-        expect(requestUnlock).toHaveBeenCalledTimes(1);
+        expect(confirmPin).toHaveBeenCalledTimes(1);
         expect(fake.client.update).not.toHaveBeenCalled();
     });
 
     it('clears kids once the parental PIN is accepted', async () => {
-        const { fake, click, answerDialog, requestUnlock } = await setup();
+        const { fake, click, answerDialog, confirmPin } = await setup();
         fake.client.update.mockResolvedValue(ok({}));
         answerDialog({
             name: 'Synthetic 2',
@@ -264,7 +285,7 @@ describe('SettingsProfilesSectionComponent', () => {
             pin: undefined,
         });
         await click(`profile-edit-${KIDS_ID}`);
-        expect(requestUnlock).toHaveBeenCalled();
+        expect(confirmPin).toHaveBeenCalled();
         expect(fake.client.update).toHaveBeenCalledWith(KIDS_ID, {
             kids: false,
         });
@@ -288,11 +309,11 @@ describe('SettingsProfilesSectionComponent', () => {
     });
 
     it('asks the parental PIN before deleting a kids profile and aborts when refused', async () => {
-        const { fake, click, requestUnlock, openConfirmDialog } = await setup({
+        const { fake, click, confirmPin, openConfirmDialog } = await setup({
             parental: false,
         });
         await click(`profile-delete-${KIDS_ID}`);
-        expect(requestUnlock).toHaveBeenCalled();
+        expect(confirmPin).toHaveBeenCalled();
         expect(openConfirmDialog).not.toHaveBeenCalled();
         expect(fake.client.remove).not.toHaveBeenCalled();
     });
@@ -310,29 +331,35 @@ describe('SettingsProfilesSectionComponent', () => {
     });
 
     it.each([
-        [{ code: 'profile_name_taken' as const }, 'PROFILES.ERRORS.NAME_TAKEN'],
-        [{ code: 'profile_limit' as const }, 'PROFILES.ERRORS.LIMIT'],
-        [{ code: 'offline' as const }, 'PROFILES.ERRORS.OFFLINE'],
-        [
-            { code: 'default_profile' as const },
-            'PROFILES.ERRORS.DEFAULT_PROFILE',
-        ],
-    ])('shows a translated message for %p', async (error, key) => {
-        const { fake, click, answerDialog, q } = await setup();
-        fake.client.create.mockResolvedValue(fail(error));
-        answerDialog({
-            name: 'X',
-            colour: '#3b82f6',
-            emoji: null,
-            kids: false,
-            pin: undefined,
-        });
-        await click('profile-add');
-        expect(q('profiles-error')!.textContent).toContain(key);
-        expect(fake.runtime.handleProfileError).toHaveBeenCalledWith(
-            error.code
-        );
-    });
+        [{ code: 'profile_name_taken' as const }],
+        [{ code: 'profile_limit' as const }],
+        [{ code: 'offline' as const }],
+        [{ code: 'default_profile' as const }],
+    ])(
+        'keeps the form open and returns %p when the save fails',
+        async (error) => {
+            const { fake, click, dialogOpen } = await setup();
+            fake.client.create.mockResolvedValue(fail(error));
+            dialogOpen.mockReturnValueOnce({
+                afterClosed: () => of(undefined),
+            });
+            await click('profile-add');
+            const submit = dialogOpen.mock.calls[0][1].data.submit;
+            await expect(
+                submit({
+                    name: 'X',
+                    colour: '#3b82f6',
+                    emoji: null,
+                    kids: false,
+                    pin: undefined,
+                })
+            ).resolves.toEqual(error);
+            expect(fake.runtime.handleProfileError).toHaveBeenCalledWith(
+                error.code,
+                undefined
+            );
+        }
+    );
 
     it('shows an offline state with retry when the list never loaded', async () => {
         const { fake, fixture, el } = await setup();
@@ -342,5 +369,28 @@ describe('SettingsProfilesSectionComponent', () => {
         expect(
             el.querySelector('app-state-view[variant="offline"]')
         ).toBeTruthy();
+    });
+
+    it('moves through the start-up options with the arrow keys', async () => {
+        const { q, fixture } = await setup();
+        const ask = q('profiles-start-ask')!;
+        const last = q('profiles-start-last')!;
+        expect(ask.tabIndex).toBe(0);
+        expect(last.tabIndex).toBe(-1);
+        ask.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: 'ArrowRight',
+                cancelable: true,
+            })
+        );
+        fixture.detectChanges();
+        expect(last.getAttribute('aria-checked')).toBe('true');
+        expect(last.tabIndex).toBe(0);
+        expect(document.activeElement).toBe(last);
+        last.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'ArrowUp', cancelable: true })
+        );
+        fixture.detectChanges();
+        expect(ask.getAttribute('aria-checked')).toBe('true');
     });
 });
