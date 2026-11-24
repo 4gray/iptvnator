@@ -327,6 +327,19 @@ describe('SecondStreamPickerComponent', () => {
         expect(component.hasContentTypes()).toBe(true);
     });
 
+    it('keeps the search, group and catalogue view when the current source is picked again', () => {
+        component.changeSource('p');
+        load.mockClear();
+        component.vod.type.set('movie');
+        component.search.set('kept query');
+        component.group.set('News');
+        component.changeSource('p');
+        expect(component.vod.type()).toBe('movie');
+        expect(component.search()).toBe('kept query');
+        expect(component.group()).toBe('News');
+        expect(load).not.toHaveBeenCalled();
+    });
+
     it('returns a failed group load to a selectable state', async () => {
         loadGroup.mockRejectedValueOnce(new Error('Group load failed'));
         await component.selectGroup('Sports');

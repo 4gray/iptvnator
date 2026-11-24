@@ -202,6 +202,8 @@ export class SecondStreamPickerComponent {
     }
 
     changeSource(id: string): void {
+        // The menu offers the checked source too; picking it keeps the view.
+        if (id === this.source()) return;
         this.vod.reset();
         this.source.set(id);
         this.group.set(null);
