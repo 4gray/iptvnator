@@ -1631,6 +1631,16 @@ favorites and recent page header at 32px beside its segmented toggles. In a row 
 picker is a chip with the same chevron, so the row keeps one height; the
 language filter there opens a radio menu instead of a native `<select>`.
 
+`pnpm run ui:kit-controls:validate` (CI) holds these roles in every runtime
+template: no raised, tonal or fab button, an outlined one only with
+`app-destructive-button` (both spellings: `mat-stroked-button` and
+`matButton="outlined"`, `mat-fab` and `matFab`), no `color` on a Material element (the mixins set
+the look, not an M3 palette role), no native `<select>`, and no `mat-select`
+outside a `mat-form-field`. A file that keeps a finding is listed in
+`ALLOWED` in `tools/nx/check-kit-controls.mjs` with its reason; an entry that
+no longer matches fails too. The split-view source picker's native select
+is the one entry left.
+
 A single choice among a few options shown side by side is the kit's
 segmented control: a 1px-bordered track with 2px padding and a 10px radius,
 8px segments, no dividers, the chosen segment filled and in the heading
