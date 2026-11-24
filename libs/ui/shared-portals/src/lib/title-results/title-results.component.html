@@ -6,6 +6,7 @@
                 <button
                     type="button"
                     class="title-results__filter-chip"
+                    [attr.aria-pressed]="scope() === 'portal'"
                     [class.title-results__filter-chip--active]="
                         scope() === 'portal'
                     "
@@ -16,6 +17,7 @@
                 <button
                     type="button"
                     class="title-results__filter-chip"
+                    [attr.aria-pressed]="scope() === 'global'"
                     [class.title-results__filter-chip--active]="
                         scope() === 'global'
                     "
@@ -28,24 +30,33 @@
         @if (showAvailabilityFilter()) {
             <span class="title-results__filter">
                 <button
+                    #allResults
                     type="button"
                     class="title-results__filter-chip"
+                    [attr.aria-pressed]="!availableOnly()"
                     [class.title-results__filter-chip--active]="
                         filterMode() === 'all'
                     "
                     (click)="filterMode.set('all')"
                 >
                     {{ 'XTREAM.ACTOR_FILTER_ALL' | translate }}
+                    @if (!matchingVisible()) {
+                        ({{ items().length }})
+                    }
                 </button>
                 <button
                     type="button"
                     class="title-results__filter-chip"
+                    [attr.aria-pressed]="availableOnly()"
                     [class.title-results__filter-chip--active]="
                         filterMode() === 'available'
                     "
                     (click)="filterMode.set('available')"
                 >
                     {{ 'XTREAM.ACTOR_IN_LIBRARY' | translate }}
+                    @if (!matchingVisible()) {
+                        ({{ availableItems().length }})
+                    }
                 </button>
             </span>
         }
@@ -57,7 +68,21 @@
     } @else if (visibleItems().length === 0) {
         <div class="title-results__empty">
             <mat-icon>search_off</mat-icon>
-            <p>{{ emptyMessageKey() | translate }}</p>
+            @if (availableOnly() && items().length) {
+                <p role="status">
+                    {{ 'XTREAM.DISCOVER_NO_LIBRARY_MATCHES' | translate }}
+                </p>
+                <button
+                    type="button"
+                    mat-flat-button
+                    class="title-results__show-all"
+                    (click)="showAllResults()"
+                >
+                    {{ 'XTREAM.DISCOVER_SHOW_ALL' | translate }}
+                </button>
+            } @else {
+                <p role="status">{{ emptyMessageKey() | translate }}</p>
+            }
         </div>
     } @else {
         <!-- Hidden while matching on purpose: until the matches land every
@@ -71,7 +96,9 @@
                 <button
                     type="button"
                     class="title-results__card"
-                    [class.title-results__card--unavailable]="!item.available"
+                    [class.title-results__card--unavailable]="
+                        item.available === false
+                    "
                     [title]="
                         item.character
                             ? item.title + ' — ' + item.character
@@ -98,9 +125,7 @@
                             <mat-icon>check_circle</mat-icon>
                             {{ item.availableIn }}
                         </span>
-                    } @else if (
-                        item.available && filterMode() !== 'available'
-                    ) {
+                    } @else if (item.available && !availableOnly()) {
                         <span class="title-results__badge">
                             <mat-icon>check_circle</mat-icon>
                             {{ 'XTREAM.ACTOR_IN_LIBRARY' | translate }}

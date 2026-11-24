@@ -5,7 +5,9 @@ import {
     input,
     output,
 } from '@angular/core';
+import { MatButton } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { registerWorkspaceBack } from '@iptvnator/portal/shared/data-access';
 import {
@@ -23,7 +25,9 @@ import { DiscoverRouteParams } from './discover-params';
 @Component({
     selector: 'app-discover-view',
     imports: [
+        MatButton,
         MatProgressSpinnerModule,
+        RouterLink,
         TranslatePipe,
         TitleResultsComponent,
     ],
@@ -35,6 +39,8 @@ export class DiscoverViewComponent<T extends TitleResultItem> {
     readonly facets = input.required<DiscoverRouteParams>();
     readonly items = input<T[]>([]);
     readonly isLoading = input(false);
+    readonly tmdbEnabled = input(true);
+    readonly loadFailed = input(false);
     /** Cross-playlist matching in flight (All-portals scope) */
     readonly isMatching = input(false);
     /** Shows the all/in-library filter (portals with a local catalog) */
@@ -47,6 +53,7 @@ export class DiscoverViewComponent<T extends TitleResultItem> {
     /** The workspace header's Back on this page. */
     readonly backClicked = output<void>();
     readonly scopeChanged = output<TitleResultsScope>();
+    readonly retryRequested = output<void>();
 
     readonly mediaTypeLabelKey = computed(() =>
         this.facets().type === 'tv'
