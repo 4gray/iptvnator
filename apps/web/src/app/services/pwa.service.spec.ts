@@ -222,7 +222,11 @@ describe('PwaService', () => {
             ).flush({ targetId: 'target-default' });
             await new Promise((resolve) => setTimeout(resolve));
             const parse = http.expectOne((req) => req.url.endsWith('/parse'));
-            expect(parse.request.params.keys()).toEqual(['targetId']);
+            expect(parse.request.params.keys()).toEqual([
+                'targetId',
+                'keepAlive',
+            ]);
+            expect(parse.request.params.get('keepAlive')).toBe('1');
             expect(parse.request.headers.has('User-Agent')).toBe(false);
             parse.flush({});
         }
@@ -248,6 +252,27 @@ describe('PwaService', () => {
         expect(parse.request.params.get('background')).toBe('1');
         parse.flush({});
         await pending;
+    });
+
+    it('rejects a provider failure received after the tunnel starts its JSON response', async () => {
+        const pending = service.fetchPlaylistDefinition(
+            'https://provider.test/synthetic.m3u'
+        );
+        const failure = {
+            status: 413,
+            message: 'Synthetic response exceeds the limit',
+            code: 'PROVIDER_RESPONSE_TOO_LARGE',
+        };
+        const rejected = expect(pending).rejects.toMatchObject({
+            status: 413,
+            error: failure,
+        });
+        http.expectOne((req) => req.url.endsWith('/provider-targets')).flush({
+            targetId: 'synthetic-target',
+        });
+        await new Promise((resolve) => setTimeout(resolve));
+        http.expectOne((req) => req.url.endsWith('/parse')).flush(failure);
+        await rejected;
     });
 
     it('appends the proxy network code to the URL-import failure toast', async () => {

@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *   GET  /config.js
  *   POST /provider-targets          { url }  -> { targetId }
  *   POST /connectivity-guard/reset  { url }  -> { reset }
- *   GET  /parse?targetId&userAgent           -> Playlist record (M3U)
+ *   GET  /parse?targetId&userAgent&background -> Playlist record (M3U)
  *   GET  /xtream?targetId&...                -> { action, payload } | error body
  *   GET  /stalker?targetId&macAddress&token&serialNumber&... -> { action, payload } | error body
  *   GET  /parse-xml                          -> 501 (EPG is not part of the PWA)
@@ -29,7 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class WebBackend {
 
-    public static final int TIMEOUT_PLAYLIST_MS = 30_000;
+    public static final int TIMEOUT_PLAYLIST_MS = 120_000;
+    private static final int TIMEOUT_BACKGROUND_PLAYLIST_MS = 30_000;
     public static final int TIMEOUT_XTREAM_MS = 30_000;
     public static final int TIMEOUT_STALKER_MS = 15_000;
     public static final int TIMEOUT_STALKER_CREATE_LINK_MS = 30_000;
@@ -166,7 +167,8 @@ public class WebBackend {
         if (userAgent != null) headers.put("User-Agent", userAgent);
         String text;
         try {
-            text = fetcher.get(url, headers, TIMEOUT_PLAYLIST_MS).body;
+            int timeout = "1".equals(query.get("background")) ? TIMEOUT_BACKGROUND_PLAYLIST_MS : TIMEOUT_PLAYLIST_MS;
+            text = fetcher.get(url, headers, timeout).body;
         } catch (ProviderException e) {
             Map<String, Object> err = Json.object();
             if (e.hasHttpStatus()) {

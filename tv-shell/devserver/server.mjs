@@ -10,7 +10,7 @@
  *       GET  /api/config.js
  *       POST /api/provider-targets        { url } -> { targetId }
  *       POST /api/connectivity-guard/reset { url } -> { reset }
- *       GET  /api/parse?targetId=&userAgent=
+ *       GET  /api/parse?targetId=&userAgent=&background=
  *       GET  /api/xtream?targetId=&...params
  *       GET  /api/stalker?targetId=&macAddress=&token=&serialNumber=&...params
  *
@@ -218,7 +218,8 @@ export async function handleApi(req, res, url, allowedOrigins = PROVIDER_ORIGINS
         if (!target) return;
         const userAgent = (query.get('userAgent') || '').trim() || undefined;
         try {
-            const text = await fetchText(target, allowedOrigins, { headers: userAgent ? { 'User-Agent': userAgent } : {}, timeoutMs: 60000 });
+            const timeoutMs = query.get('background') === '1' ? 30_000 : 120_000;
+            const text = await fetchText(target, allowedOrigins, { headers: userAgent ? { 'User-Agent': userAgent } : {}, timeoutMs });
             let parsed;
             try {
                 parsed = parser.parse(text);

@@ -1,10 +1,11 @@
 import type { Response } from 'express';
 
-/** A catalog is validated and buffered before it can be returned as JSON.
- * Leading JSON whitespace keeps the tunnel and Android reader active meantime.
+/** Leading JSON whitespace keeps a tunnel open while a response is prepared.
+ * Callers must encode late errors in the body once the response starts.
  */
-export function xtreamJsonReply(res: Response, throughTunnel: boolean) {
-    if (!throughTunnel) return (body: unknown) => res.json(body);
+export function hostedJsonReply(res: Response, throughTunnel: boolean) {
+    if (!throughTunnel)
+        return (body: unknown, status = 200) => res.status(status).json(body);
 
     const heartbeat = setInterval(() => {
         if (res.destroyed || res.writableNeedDrain) return;
@@ -19,9 +20,9 @@ export function xtreamJsonReply(res: Response, throughTunnel: boolean) {
     heartbeat.unref();
     res.once('close', () => clearInterval(heartbeat));
 
-    return (body: unknown) => {
+    return (body: unknown, status = 200) => {
         clearInterval(heartbeat);
-        if (!res.headersSent) return res.json(body);
+        if (!res.headersSent) return res.status(status).json(body);
         // Headers are already on the wire. Escape HTML delimiters without changing JSON values.
         const json = JSON.stringify(body)
             .replace(/</g, '\\u003c')

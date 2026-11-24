@@ -1,4 +1,4 @@
-import { xtreamJsonReply } from './hosted-xtream-reply';
+import { hostedJsonReply } from './hosted-json-reply';
 import type { HostedIngressState } from './hosted-ingress';
 import { mountTvSetup } from './tv-setup/pairing-router';
 import cors from 'cors';
@@ -241,27 +241,40 @@ export function createWebBackendApp(
         // request rather than a catalog fan-out, it is usually the direct
         // result of the user asking for it, and it can legitimately run far
         // longer than any portal call.
-        const result = await handlePlaylistParse({
-            guid,
-            httpClient,
-            now,
-            url: url.href,
-            timeout:
-                req.query.background === '1'
-                    ? PROVIDER_REQUEST_TIMEOUT_MS.backgroundPlaylist
-                    : PROVIDER_REQUEST_TIMEOUT_MS.playlist,
-            userAgent:
-                typeof req.query.userAgent === 'string'
-                    ? req.query.userAgent.trim() || undefined
-                    : undefined,
-        });
-
-        if (isPlaylistParseError(result)) {
-            res.status(result.status).json(result);
-            return;
+        const reply = hostedJsonReply(
+            res,
+            options.hostedMode === 'cloudflare' &&
+                req.method === 'GET' &&
+                req.query.keepAlive === '1'
+        );
+        const upstream = new AbortController();
+        const abortUpstream = () => upstream.abort();
+        res.once('close', abortUpstream);
+        try {
+            const result = await handlePlaylistParse({
+                guid,
+                httpClient,
+                now,
+                url: url.href,
+                signal: upstream.signal,
+                timeout:
+                    req.query.background === '1'
+                        ? PROVIDER_REQUEST_TIMEOUT_MS.backgroundPlaylist
+                        : PROVIDER_REQUEST_TIMEOUT_MS.playlist,
+                userAgent:
+                    typeof req.query.userAgent === 'string'
+                        ? req.query.userAgent.trim() || undefined
+                        : undefined,
+            });
+            if (result) {
+                reply(
+                    result,
+                    isPlaylistParseError(result) ? result.status : 200
+                );
+            }
+        } finally {
+            res.off('close', abortUpstream);
         }
-
-        res.json(result);
     });
 
     app.get('/parse-xml', corsMiddleware, async (req, res) => {
@@ -303,7 +316,7 @@ export function createWebBackendApp(
             return;
         }
         const url = new URL(registeredUrl.href);
-        const reply = xtreamJsonReply(
+        const reply = hostedJsonReply(
             res,
             options.hostedMode === 'cloudflare' && req.method === 'GET'
         );
@@ -609,16 +622,19 @@ async function handlePlaylistParse(options: {
     readonly httpClient: WebBackendHttpClient;
     readonly now: () => Date;
     readonly url: string;
+    readonly signal: AbortSignal;
     readonly timeout: number;
     readonly userAgent?: string;
-}): Promise<Record<string, unknown> | PlaylistParseError> {
+}): Promise<Record<string, unknown> | PlaylistParseError | undefined> {
     try {
         const response = await options.httpClient.get<string>(options.url, {
             timeout: options.timeout,
+            signal: options.signal,
             ...(options.userAgent
                 ? { headers: { 'User-Agent': options.userAgent } }
                 : {}),
         });
+        options.signal.throwIfAborted();
         const parsedPlaylist = parser.parse(response.data);
         const title = getLastUrlSegment(options.url);
         return {
@@ -632,6 +648,7 @@ async function handlePlaylistParse(options: {
             ...(options.userAgent ? { userAgent: options.userAgent } : {}),
         };
     } catch (error) {
+        if (options.signal.aborted) return;
         logProviderRequestFailure({ error, route: '/parse', url: options.url });
         if (
             error instanceof ProviderRequestError &&

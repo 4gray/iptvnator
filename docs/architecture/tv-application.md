@@ -89,7 +89,8 @@ credential, portal URL or resolved stream URL is logged by the TV application.
 The TV client allows 310 seconds for an M3U `parse` response, including the
 backend download, parsing and response transfer. Target registration and portal
 requests use 35 seconds. The accompanying Docker proxy allows 300 seconds to
-receive the backend's response after a playlist request.
+receive the backend's response after a playlist request. The TV transport opts
+into playlist heartbeats when its backend is hosted through Cloudflare.
 
 Xtream retains URL normalization, account status, complete VOD stream-ID and
 extension or explicit HTTP(S) direct-address candidates, Unicode/base64 EPG and

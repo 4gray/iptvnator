@@ -16,12 +16,14 @@ public class WebBackendTest {
     static final class FakeFetcher extends HttpFetcher {
         final List<String> urls = new ArrayList<String>();
         final List<Map<String, String>> headers = new ArrayList<Map<String, String>>();
+        final List<Integer> timeouts = new ArrayList<Integer>();
         final Map<String, String> answers = new LinkedHashMap<String, String>();
         ProviderException failure;
 
         @Override
         public Result get(String url, Map<String, String> requestHeaders, int timeoutMs) throws ProviderException {
             urls.add(url);
+            timeouts.add(timeoutMs);
             headers.add(requestHeaders == null ? new LinkedHashMap<String, String>() : requestHeaders);
             if (failure != null) throw failure;
             for (Map.Entry<String, String> entry : answers.entrySet()) {
@@ -121,6 +123,17 @@ public class WebBackendTest {
         assertEquals("normalized playlist is fetched", normalized, fetcher.urls.get(0));
         assertEquals("playlist import", 200, response.status);
         assertEquals("playlist count", 1, ((Number) body(response).get("count")).intValue());
+    }
+
+    public void testPlaylistTimeoutDependsOnWhetherTheDownloadIsInTheBackground() {
+        FakeFetcher fetcher = new FakeFetcher();
+        String source = "https://provider.test/synthetic.m3u";
+        fetcher.answers.put(source, "#EXTM3U\n#EXTINF:-1,Synthetic Channel\nhttps://media.test/live\n");
+        WebBackend backend = new WebBackend(fetcher, "/api");
+        String id = register(backend, source);
+        assertEquals("manual import", 200, backend.handle("GET", "/parse", query("targetId", id), null).status);
+        assertEquals("background import", 200, backend.handle("GET", "/parse", query("targetId", id, "background", "1"), null).status);
+        assertEquals("download timeouts", java.util.Arrays.asList(120_000, 30_000), fetcher.timeouts);
     }
 
     @SuppressWarnings("unchecked")

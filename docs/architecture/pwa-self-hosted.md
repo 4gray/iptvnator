@@ -143,9 +143,9 @@ The Android bridge streams hosted API responses in bounded chunks, with an
 inactivity timeout of 310 seconds for `/api/parse` and 45 seconds for other API
 requests. The playlist timeout allows the backend to download and parse the file
 before sending response headers. Cloudflare OAuth calls keep a separate
-deadline. While the hosted worker buffers an Xtream response in Cloudflare mode,
-it sends JSON whitespace every ten seconds so the bridge can distinguish a slow
-catalog from a stalled connection. The provider socket retains its own inactivity timeout.
+deadline. In Cloudflare mode, the worker sends JSON whitespace every ten seconds
+while it prepares an Xtream catalog or an opted-in M3U response. The provider
+socket retains its own inactivity timeout.
 
 Android callback, token renewal and playback still require a live Access
 application for end-to-end validation.
@@ -300,6 +300,11 @@ The current self-hosted PWA uses these `apps/web-backend` routes:
 
 Source synchronization adds `background=1` to `/parse` so each provider hop
 uses the 30-second background idle timeout. On-demand downloads use 120 seconds.
+Current browser, Android and TV clients send `keepAlive=1` to accept a streamed
+JSON response through Cloudflare. Registration failures and provider errors that
+arrive before the first heartbeat retain their HTTP status. After a heartbeat,
+the client reads the error status and code from the JSON body. Clients using the
+default request continue to receive the HTTP status with the final JSON.
 
 Server storage adds versioned routes under `/v1`. Source synchronization uses
 the source-specific routes below; the older whole-document/user-state routes

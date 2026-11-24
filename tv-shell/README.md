@@ -20,6 +20,9 @@ APK
 > outside the project, apply [`TRADEMARK.md`](../TRADEMARK.md) (distinct name
 > and icon).
 
+The local library gives manual M3U imports and refreshes a 120-second provider
+idle timeout per HTTP hop. Background playlist downloads use 30 seconds.
+
 ## Hosted library connection
 
 Native Settings offers **Local library** and **Connect to hosted library**. Enter

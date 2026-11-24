@@ -11,13 +11,17 @@ const source: Source = {
 
 test('only playlist parsing waits through the backend download budget', async (t) => {
     const timeout = t.mock.method(globalThis, 'setTimeout');
-    t.mock.method(globalThis, 'fetch', async (url: string) => ({
-        ok: true,
-        json: async () =>
-            url.endsWith('/provider-targets')
-                ? { targetId: 'synthetic-target' }
-                : { playlist: { items: [] } },
-    }));
+    const keepAlive: Array<string | null> = [];
+    t.mock.method(globalThis, 'fetch', async (url: string) => {
+        keepAlive.push(new URL(url).searchParams.get('keepAlive'));
+        return {
+            ok: true,
+            json: async () =>
+                url.endsWith('/provider-targets')
+                    ? { targetId: 'synthetic-target' }
+                    : { playlist: { items: [] } },
+        };
+    });
     const transport = new ProviderTransport('https://backend.invalid');
     const signal = new AbortController().signal;
     await transport.request(source, 'parse', {}, signal);
@@ -26,6 +30,7 @@ test('only playlist parsing waits through the backend download budget', async (t
         timeout.mock.calls.map((call) => call.arguments[1]),
         [35_000, 310_000, 35_000]
     );
+    assert.deepEqual(keepAlive, [null, '1', null]);
 });
 
 test('backend restart repairs a missing registered target once without changing source credentials', async (t) => {

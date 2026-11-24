@@ -95,8 +95,10 @@ export class ProviderTransport {
         const targetId = await this.target(endpoint, signal);
         if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
         const query = new URLSearchParams({ targetId });
-        if (route === 'parse' && source.userAgent)
-            query.set('userAgent', source.userAgent);
+        if (route === 'parse') {
+            query.set('keepAlive', '1');
+            if (source.userAgent) query.set('userAgent', source.userAgent);
+        }
         Object.keys(params).forEach((k) => query.set(k, String(params[k])));
         let result: { payload?: unknown };
         try {

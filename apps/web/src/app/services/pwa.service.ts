@@ -1,10 +1,10 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable, Injector } from '@angular/core';
 import { NotificationService } from '@iptvnator/services/notifications';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { catchError, firstValueFrom, Observable, throwError } from 'rxjs';
+import { catchError, firstValueFrom, map, Observable, throwError } from 'rxjs';
 import {
     DataService,
     isBackendUrl,
@@ -505,15 +505,30 @@ export class PwaService extends DataService {
     ): Observable<Playlist> {
         const normalizedUserAgent = userAgent?.trim();
         return this.providerTargets.request(url, (targetId) =>
-            this.http.get<Playlist>(`${this.corsProxyUrl}/parse`, {
-                params: {
-                    targetId,
-                    ...(options?.background ? { background: '1' } : {}),
-                    ...(normalizedUserAgent
-                        ? { userAgent: normalizedUserAgent }
-                        : {}),
-                },
-            })
+            this.http
+                .get<Playlist>(`${this.corsProxyUrl}/parse`, {
+                    params: {
+                        targetId,
+                        keepAlive: '1',
+                        ...(options?.background ? { background: '1' } : {}),
+                        ...(normalizedUserAgent
+                            ? { userAgent: normalizedUserAgent }
+                            : {}),
+                    },
+                })
+                .pipe(
+                    map((body) => {
+                        // A tunnel heartbeat can send the HTTP status before the provider fails.
+                        const status = this.getErrorDetails(body)?.status;
+                        if (typeof status === 'number') {
+                            throw new HttpErrorResponse({
+                                error: body,
+                                status,
+                            });
+                        }
+                        return body;
+                    })
+                )
         );
     }
 
