@@ -122,7 +122,10 @@ export function buildStalkerPortalPageCandidates(pageUrl: string): string[] {
 
     const parsed = new URL(normalized);
     const pageDir = parsed.pathname.replace(/\/index\.html?$/i, '');
-    if (!/\/c$/i.test(pageDir)) {
+    if (
+        (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') ||
+        !/\/c$/i.test(pageDir)
+    ) {
         return [];
     }
 

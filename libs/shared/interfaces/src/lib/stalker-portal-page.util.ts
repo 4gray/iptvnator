@@ -17,17 +17,19 @@ export interface StalkerPortalPageMarker {
 
 /** `…/c`, `…/c/` or `…/c/index.html` — the browser entry point of a portal. */
 const PORTAL_PAGE_PATH = /\/c(?:\/(?:index\.html?)?)?$/i;
+const HTML_PAGE_START =
+    /^\s*(?:<!doctype\s+html\b|<(?:html|head|body|title|meta|script)[\s/>])/i;
 
 /**
- * Builds the marker when a non-JSON body was served from a portal page
+ * Builds the marker when an HTML body was served from a portal page
  * address. Returns null for everything else, so API answers, auth-failure
  * bodies and unrelated HTML keep their existing handling.
  */
-export function createStalkerPortalPageMarker(
+function createStalkerPortalPageMarker(
     body: unknown,
     finalUrl: string | undefined
 ): StalkerPortalPageMarker | null {
-    if (typeof body !== 'string' || !finalUrl) {
+    if (typeof body !== 'string' || !finalUrl || !HTML_PAGE_START.test(body)) {
         return null;
     }
 
@@ -46,6 +48,23 @@ export function createStalkerPortalPageMarker(
     }
 
     return { stalkerPortalPage: `${parsed.origin}${parsed.pathname}` };
+}
+
+/** Only the transport can report where a portal request landed. */
+export function normalizeStalkerPortalPageResponse(
+    body: unknown,
+    finalUrl: string | undefined
+): unknown {
+    if (
+        body !== null &&
+        typeof body === 'object' &&
+        'stalkerPortalPage' in body
+    ) {
+        const payload: Record<string, unknown> = { ...body };
+        delete payload['stalkerPortalPage'];
+        return payload;
+    }
+    return createStalkerPortalPageMarker(body, finalUrl) ?? body;
 }
 
 /** The landing page address carried by a portal-page marker, if any. */

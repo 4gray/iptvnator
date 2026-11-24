@@ -18,7 +18,7 @@ import {
 import {
     buildStalkerIdentityRequestContext,
     buildStalkerRequestUrl,
-    createStalkerPortalPageMarker,
+    normalizeStalkerPortalPageResponse,
     normalizeXtreamServerUrl,
     describeXtreamConnectionFailure,
     type ParsedPlaylist,
@@ -490,11 +490,10 @@ export function createWebBackendApp(
                 action: getQueryString(req, 'action'),
                 // Same marker as the Electron transport: an HTML portal page
                 // reached through redirects names the real installation.
-                payload:
-                    createStalkerPortalPageMarker(
-                        response.data,
-                        response.finalUrl
-                    ) ?? response.data,
+                payload: normalizeStalkerPortalPageResponse(
+                    response.data,
+                    response.finalUrl
+                ),
             });
         } catch (error) {
             // Always reported, even for exempt discovery probes: a failure

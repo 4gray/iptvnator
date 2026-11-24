@@ -66,4 +66,28 @@ describe('/stalker portal page reached through redirects', () => {
             payload: '<html><body>Welcome</body></html>',
         });
     });
+
+    it('preserves an authentication refusal at a portal page address', async () => {
+        const transport = new StubHttpClient();
+        transport.queueRedirect('https://node.example.invalid/c/');
+        transport.queueResponse('Authorization failed.');
+
+        expect(await probe(transport)).toEqual({
+            action: 'get_genres',
+            payload: 'Authorization failed.',
+        });
+    });
+
+    it('keeps redirect metadata separate from fields in a provider reply', async () => {
+        const transport = new StubHttpClient();
+        transport.queueResponse({
+            js: [],
+            stalkerPortalPage: 'https://node.example.invalid/c/',
+        });
+
+        expect(await probe(transport)).toEqual({
+            action: 'get_genres',
+            payload: { js: [] },
+        });
+    });
 });

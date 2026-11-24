@@ -11,7 +11,7 @@ import {
     classifyStalkerAuthFailureBody,
     createPortalRequestFailureEnvelope,
     createStalkerAuthFailureMarker,
-    createStalkerPortalPageMarker,
+    normalizeStalkerPortalPageResponse,
     PortalDebugEvent,
     STALKER_REQUEST,
     buildStalkerIdentityRequestContext,
@@ -179,10 +179,10 @@ ipcMain.handle(
             // from that address.
             const responseData = authFailureBody
                 ? createStalkerAuthFailureMarker(authFailureBody)
-                : (createStalkerPortalPageMarker(
+                : normalizeStalkerPortalPageResponse(
                       response.data,
                       response.finalUrl
-                  ) ?? response.data);
+                  );
 
             // Return the response data
             if (

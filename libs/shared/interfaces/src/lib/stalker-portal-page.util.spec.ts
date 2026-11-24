@@ -1,12 +1,12 @@
 import {
-    createStalkerPortalPageMarker,
+    normalizeStalkerPortalPageResponse,
     readStalkerPortalPageUrl,
 } from './stalker-portal-page.util';
 
 const HTML =
     '<html><head><script src="xpcom.common.js"></script></head></html>';
 
-describe('createStalkerPortalPageMarker', () => {
+describe('normalizeStalkerPortalPageResponse', () => {
     it.each([
         [
             'http://node.example.invalid/stalker_portal/c/',
@@ -21,14 +21,14 @@ describe('createStalkerPortalPageMarker', () => {
             'https://node.example.invalid/c/index.html',
         ],
     ])('marks an HTML body served from %s', (finalUrl, expected) => {
-        expect(createStalkerPortalPageMarker(HTML, finalUrl)).toEqual({
+        expect(normalizeStalkerPortalPageResponse(HTML, finalUrl)).toEqual({
             stalkerPortalPage: expected,
         });
     });
 
     it('drops the query, fragment and credentials from the landing address', () => {
         expect(
-            createStalkerPortalPageMarker(
+            normalizeStalkerPortalPageResponse(
                 HTML,
                 'http://user:secret@node.example.invalid/stalker_portal/c/?mac=00:1A:79:00:00:01#top'
             )
@@ -43,21 +43,44 @@ describe('createStalkerPortalPageMarker', () => {
         'http://portal.example.invalid/cdn/page.html',
         'http://portal.example.invalid/abc/',
     ])('ignores bodies served from a non-portal-page address (%s)', (url) => {
-        expect(createStalkerPortalPageMarker(HTML, url)).toBeNull();
+        expect(normalizeStalkerPortalPageResponse(HTML, url)).toBe(HTML);
+    });
+
+    it.each(['Authorization failed.', 'Service unavailable', ''])(
+        'preserves a non-HTML body served from a portal page (%j)',
+        (body) => {
+            expect(
+                normalizeStalkerPortalPageResponse(
+                    body,
+                    'https://node.example.invalid/c/'
+                )
+            ).toBe(body);
+        }
+    );
+
+    it('recognizes a portal page whose HTML starts with a doctype', () => {
+        expect(
+            normalizeStalkerPortalPageResponse(
+                '\uFEFF\n<!DOCTYPE html><title>Portal</title>',
+                'https://node.example.invalid/c/'
+            )
+        ).toEqual({ stalkerPortalPage: 'https://node.example.invalid/c/' });
     });
 
     it('ignores JSON answers and missing or invalid final addresses', () => {
         expect(
-            createStalkerPortalPageMarker(
+            normalizeStalkerPortalPageResponse(
                 { js: [] },
                 'http://node.example.invalid/stalker_portal/c/'
             )
-        ).toBeNull();
-        expect(createStalkerPortalPageMarker(HTML, undefined)).toBeNull();
-        expect(createStalkerPortalPageMarker(HTML, 'not a url')).toBeNull();
-        expect(
-            createStalkerPortalPageMarker(HTML, 'file:///tmp/c/')
-        ).toBeNull();
+        ).toEqual({ js: [] });
+        expect(normalizeStalkerPortalPageResponse(HTML, undefined)).toBe(HTML);
+        expect(normalizeStalkerPortalPageResponse(HTML, 'not a url')).toBe(
+            HTML
+        );
+        expect(normalizeStalkerPortalPageResponse(HTML, 'file:///tmp/c/')).toBe(
+            HTML
+        );
     });
 });
 

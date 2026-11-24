@@ -742,6 +742,75 @@ describe('StalkerPortalDiscoveryService', () => {
             expect(probeCalls()).toHaveLength(2);
         });
 
+        it('tries the learned endpoint after an entered candidate fails to connect', async () => {
+            mockProbes({
+                'http://entry.example.invalid/portal.php': PAGE,
+                'http://entry.example.invalid/server/load.php': {
+                    reject: new Error('connect ECONNREFUSED'),
+                },
+                'http://entry.example.invalid/stalker_portal/server/load.php':
+                    PAGE,
+                'http://node.example.invalid/stalker_portal/server/load.php': {
+                    resolve: { js: [] },
+                },
+            });
+
+            expect(
+                await service.discover('http://entry.example.invalid/c', MAC)
+            ).toEqual({
+                status: 'resolved',
+                portalUrl:
+                    'http://node.example.invalid/stalker_portal/server/load.php',
+                isFullStalkerPortal: false,
+            });
+            expect(probeCalls()).toHaveLength(4);
+        });
+
+        it.each([
+            [
+                'a different host when login credentials are configured',
+                'https://node.example.invalid',
+                { username: 'test-user', password: 'test-password' },
+            ],
+            [
+                'an HTTPS-to-HTTP downgrade',
+                'http://entry.example.invalid',
+                undefined,
+            ],
+        ])(
+            'does not probe %s',
+            async (_scenario, landingOrigin, credentials) => {
+                const page = {
+                    resolve: {
+                        stalkerPortalPage: `${landingOrigin}/stalker_portal/c/`,
+                    },
+                };
+                mockProbes({
+                    'https://entry.example.invalid/portal.php': page,
+                    'https://entry.example.invalid/server/load.php': page,
+                    'https://entry.example.invalid/stalker_portal/server/load.php':
+                        page,
+                    [`${landingOrigin}/stalker_portal/server/load.php`]: {
+                        resolve: {
+                            stalkerAuthFailure: 'Authorization failed.',
+                        },
+                    },
+                });
+                authenticate.mockResolvedValue({ token: 'TOKEN-PAGE' });
+
+                expect(
+                    await service.discover(
+                        'https://entry.example.invalid/c',
+                        MAC,
+                        {},
+                        { credentials }
+                    )
+                ).toEqual({ status: 'unreachable' });
+                expect(probeCalls()).toHaveLength(3);
+                expect(authenticate).not.toHaveBeenCalled();
+            }
+        );
+
         it('derives candidates from one portal page only', async () => {
             // Every derived candidate lands on yet another portal page; that
             // must not start another round of derivation.
