@@ -14,3 +14,16 @@ export async function chooseSecondStreamSource(
     await row.click();
     await row.waitFor({ state: 'hidden' });
 }
+
+/**
+ * A content-type toggle of the split-view picker. A playlist can have a
+ * channel group with the same name, so the lookup stays inside the toggles.
+ */
+export function contentType(
+    picker: Locator,
+    name: 'Live TV' | 'Movies' | 'Series'
+): Locator {
+    return picker
+        .getByRole('group', { name: 'Content type' })
+        .getByRole('button', { name, exact: true });
+}

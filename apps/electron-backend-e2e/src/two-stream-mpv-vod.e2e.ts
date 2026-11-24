@@ -21,7 +21,10 @@ import {
     workspaceRoot,
     xtreamMockServer,
 } from './electron-test-fixtures';
-import { chooseSecondStreamSource } from './second-stream-source-picker';
+import {
+    chooseSecondStreamSource,
+    contentType,
+} from './second-stream-source-picker';
 import {
     createLocalMediaServer,
     getLatestSession,
@@ -420,9 +423,7 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
             await primaryRow.press('Enter');
             await expect(picker).toBeVisible();
             await chooseSecondStreamSource(picker, 'Recently viewed');
-            await picker
-                .getByRole('button', { name: 'Movies', exact: true })
-                .click();
+            await contentType(picker, 'Movies').click();
             await expect(
                 picker.getByRole('button').filter({
                     has: page.getByText(movieTitle, { exact: true }),
@@ -431,9 +432,7 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
             await expect(
                 picker.locator('.picker__poster img').first()
             ).toBeVisible();
-            await picker
-                .getByRole('button', { name: 'Series', exact: true })
-                .click();
+            await contentType(picker, 'Series').click();
             await expect(
                 picker.getByRole('button').filter({
                     has: page.getByText(seriesTitle, { exact: true }),
@@ -445,9 +444,7 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                 })
             ).toHaveCount(0);
             await chooseSecondStreamSource(picker, 'Global favorites');
-            await picker
-                .getByRole('button', { name: 'Series', exact: true })
-                .click();
+            await contentType(picker, 'Series').click();
             const favoriteSeries = picker.getByRole('button').filter({
                 has: page.getByText(seriesTitle, { exact: true }),
             });
@@ -469,9 +466,7 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
             });
             const showMovies = async () => {
                 await selectSource();
-                await picker
-                    .getByRole('button', { name: 'Movies', exact: true })
-                    .click();
+                await contentType(picker, 'Movies').click();
             };
             const chooseMovie = async () => {
                 await showMovies();
@@ -506,9 +501,7 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
             });
             const chooseSeries = async () => {
                 await selectSource();
-                await picker
-                    .getByRole('button', { name: 'Series', exact: true })
-                    .click();
+                await contentType(picker, 'Series').click();
                 await picker
                     .getByRole('button', {
                         name: seriesTitle,
@@ -712,9 +705,7 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
 
             await addFromDock();
             await chooseSecondStreamSource(picker, stalkerName);
-            await picker
-                .getByRole('button', { name: 'Movies', exact: true })
-                .click();
+            await contentType(picker, 'Movies').click();
             const stalkerMovie = stalkerMovies[0].name;
             if (!stalkerMovie)
                 throw new Error('Missing synthetic Stalker movie');
@@ -728,18 +719,14 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                 .getByRole('button', { name: 'Change second stream' })
                 .click();
             await chooseSecondStreamSource(picker, 'Recently viewed');
-            await picker
-                .getByRole('button', { name: 'Movies', exact: true })
-                .click();
+            await contentType(picker, 'Movies').click();
             await expect(
                 picker.getByRole('button').filter({
                     has: page.getByText(stalkerMovie, { exact: true }),
                 })
             ).toBeVisible();
             await chooseSecondStreamSource(picker, stalkerName);
-            await picker
-                .getByRole('button', { name: 'Series', exact: true })
-                .click();
+            await contentType(picker, 'Series').click();
             const stalkerShow = stalkerSeries[0].name;
             if (!stalkerShow)
                 throw new Error('Missing synthetic Stalker series');
