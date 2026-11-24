@@ -220,6 +220,22 @@ describe('playlist IPC events', () => {
         expect(result).toEqual(playlist);
     });
 
+    it('gives source synchronization a 30-second provider timeout', async () => {
+        mockAxiosGet.mockResolvedValue({ data: '#EXTM3U' });
+        mockParse.mockReturnValue({ items: [] });
+        mockCreatePlaylistObject.mockReturnValue(createPlaylist());
+        await getHandler('fetch-playlist-by-url')(
+            createIpcEvent(),
+            'https://example.test/synthetic.m3u',
+            undefined,
+            { background: true }
+        );
+
+        expect(mockAxiosGet).toHaveBeenCalledWith(
+            expect.objectContaining({ timeout: 30_000 })
+        );
+    });
+
     it.each(['  IPTVnator-Test/1.0  ', '', '   '])(
         'uses and persists the optional initial download User-Agent: %s',
         async (userAgent) => {

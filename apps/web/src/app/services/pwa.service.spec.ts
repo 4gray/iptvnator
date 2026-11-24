@@ -234,6 +234,22 @@ describe('PwaService', () => {
         );
     });
 
+    it('flags background playlist downloads in the proxy request', async () => {
+        const pending = service.fetchPlaylistDefinition(
+            'https://provider.test/synthetic.m3u',
+            undefined,
+            { background: true }
+        );
+        http.expectOne((req) => req.url.endsWith('/provider-targets')).flush({
+            targetId: 'synthetic-target',
+        });
+        await new Promise((resolve) => setTimeout(resolve));
+        const parse = http.expectOne((req) => req.url.endsWith('/parse'));
+        expect(parse.request.params.get('background')).toBe('1');
+        parse.flush({});
+        await pending;
+    });
+
     it('appends the proxy network code to the URL-import failure toast', async () => {
         // The /parse proxy reports connection-level failures as HTTP 500 with
         // a `code` field in the body (#1400). The toast must carry that code —

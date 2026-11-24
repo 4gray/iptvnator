@@ -16,6 +16,8 @@ final class HostedApiRequest {
     private HostedApiRequest() {}
     private static final OkHttpClient API = HostedAccessOAuth.HTTP.newBuilder()
         .callTimeout(0, TimeUnit.SECONDS).readTimeout(45, TimeUnit.SECONDS).build();
+    private static final OkHttpClient PLAYLIST_API = API.newBuilder()
+        .readTimeout(310, TimeUnit.SECONDS).build();
 
     static Call call(String appBase, String instance, String token, String deviceKey, JSONObject input,
                      RequestBody upload) throws Exception {
@@ -39,7 +41,11 @@ final class HostedApiRequest {
         boolean read = "GET".equals(method) || "HEAD".equals(method);
         if (read && upload.contentLength() != 0) throw new IOException("Unexpected hosted request body");
         RequestBody body = read || ("DELETE".equals(method) && upload.contentLength() == 0) ? null : upload;
-        return API.newCall(request.method(method, body).build());
+        return clientForPath(path).newCall(request.method(method, body).build());
+    }
+
+    static OkHttpClient clientForPath(String path) {
+        return "/api/parse".equals(path) ? PLAYLIST_API : API;
     }
 
     static JSONObject responseHeaders(Response response) throws Exception {

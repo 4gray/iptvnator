@@ -6,6 +6,7 @@ import { PlaylistActions } from '@iptvnator/m3u-state';
 import { DialogService } from '@iptvnator/ui/components/confirm-dialog';
 import {
     DataService,
+    type PlaylistDefinitionFetchOptions,
     type PlaylistImportRecovery,
     SettingsStore,
     SourceActivityService,
@@ -148,11 +149,13 @@ export class ElectronService extends DataService {
 
     override fetchPlaylistDefinition(
         url: string,
-        userAgent?: string
+        userAgent?: string,
+        options?: PlaylistDefinitionFetchOptions
     ): Promise<Playlist> {
         return window.electron.fetchPlaylistByUrl(url, undefined, {
             ...this.settingsStore.getTrustOptions(),
             userAgent,
+            ...(options?.background ? { background: true } : {}),
         });
     }
 

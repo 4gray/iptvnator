@@ -84,7 +84,8 @@ describe('source projection into a local runtime', () => {
         } as unknown as DataService);
         expect(fetchPlaylistDefinition).toHaveBeenCalledWith(
             source.url,
-            source.userAgent
+            source.userAgent,
+            { background: true }
         );
         expect(projected.count).toBe(1);
         expect(projected.playlist?.items[0].name).toBe('Shared');

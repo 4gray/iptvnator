@@ -41,11 +41,13 @@ import type { NormalizedProviderError } from './provider-error';
  *   longer because the portal mints a stream URL before answering
  * - `playlist` — `PLAYLIST_FETCH_TIMEOUT_MS` in `playlist-source.ts` (120 s:
  *   some panels build the M3U on demand before sending the first byte)
+ * - `backgroundPlaylist` — the 30 s idle timeout for source synchronization
  * - `epg` — the EPG worker streams its download with no explicit timeout, so
  *   there is no number to copy; it keeps 30 s, which bounds a silent host
  *   without capping a healthy long transfer (see the note above).
  */
 export const PROVIDER_REQUEST_TIMEOUT_MS = {
+    backgroundPlaylist: 30_000,
     epg: 30_000,
     playlist: 120_000,
     stalker: 15_000,

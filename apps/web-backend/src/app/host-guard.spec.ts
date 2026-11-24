@@ -7,6 +7,7 @@ describe('provider request timeouts', () => {
 
     it('keeps the portal and EPG budgets unchanged', () => {
         expect(PROVIDER_REQUEST_TIMEOUT_MS).toEqual({
+            backgroundPlaylist: 30_000,
             epg: 30_000,
             playlist: 120_000,
             stalker: 15_000,

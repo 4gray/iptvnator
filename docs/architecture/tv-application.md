@@ -86,6 +86,11 @@ must allow their actual Origin in the backend's `CLIENT_URL` setting. A backend
 is an explicit credential destination; use one you control. No API response,
 credential, portal URL or resolved stream URL is logged by the TV application.
 
+The TV client allows 310 seconds for an M3U `parse` response, including the
+backend download, parsing and response transfer. Target registration and portal
+requests use 35 seconds. The accompanying Docker proxy allows 300 seconds to
+receive the backend's response after a playlist request.
+
 Xtream retains URL normalization, account status, complete VOD stream-ID and
 extension or explicit HTTP(S) direct-address candidates, Unicode/base64 EPG and
 panel timezone conversion. Direct addresses from loaded details, catalog rows or

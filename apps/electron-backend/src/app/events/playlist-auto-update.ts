@@ -5,6 +5,7 @@ import type {
 } from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import {
+    BACKGROUND_PLAYLIST_FETCH_TIMEOUT_MS,
     fetchPlaylistFromFile,
     fetchPlaylistFromUrl,
     preserveAutoUpdatedPlaylistFields,
@@ -18,8 +19,6 @@ import {
  * and parse arbitrarily many large M3U files in the main process at once.
  */
 export const AUTO_UPDATE_CONCURRENCY = 3;
-// Manual refresh and removal wait for the startup batch to finish.
-const AUTO_UPDATE_FETCH_TIMEOUT_MS = 30_000;
 
 /**
  * Refreshes a single playlist from its original source.
@@ -41,7 +40,7 @@ async function refreshPlaylist(
             {
                 ...options,
                 userAgent: playlist.userAgent,
-                timeoutMs: AUTO_UPDATE_FETCH_TIMEOUT_MS,
+                timeoutMs: BACKGROUND_PLAYLIST_FETCH_TIMEOUT_MS,
             }
         );
     } else if (playlist.filePath) {

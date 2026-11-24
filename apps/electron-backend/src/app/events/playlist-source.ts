@@ -29,6 +29,7 @@ export interface PlaylistFetchOptions {
  * The playlist refresh worker and web backend use the same timeout.
  */
 export const PLAYLIST_FETCH_TIMEOUT_MS = 120_000;
+export const BACKGROUND_PLAYLIST_FETCH_TIMEOUT_MS = 30_000;
 
 function countPlaylistItems(value: unknown): number | undefined {
     try {

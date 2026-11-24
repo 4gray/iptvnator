@@ -246,6 +246,10 @@ export function createWebBackendApp(
             httpClient,
             now,
             url: url.href,
+            timeout:
+                req.query.background === '1'
+                    ? PROVIDER_REQUEST_TIMEOUT_MS.backgroundPlaylist
+                    : PROVIDER_REQUEST_TIMEOUT_MS.playlist,
             userAgent:
                 typeof req.query.userAgent === 'string'
                     ? req.query.userAgent.trim() || undefined
@@ -605,11 +609,12 @@ async function handlePlaylistParse(options: {
     readonly httpClient: WebBackendHttpClient;
     readonly now: () => Date;
     readonly url: string;
+    readonly timeout: number;
     readonly userAgent?: string;
 }): Promise<Record<string, unknown> | PlaylistParseError> {
     try {
         const response = await options.httpClient.get<string>(options.url, {
-            timeout: PROVIDER_REQUEST_TIMEOUT_MS.playlist,
+            timeout: options.timeout,
             ...(options.userAgent
                 ? { headers: { 'User-Agent': options.userAgent } }
                 : {}),

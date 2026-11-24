@@ -29,6 +29,7 @@ import type {
 } from '../workers/playlist-refresh.worker.types';
 import { autoUpdatePlaylists } from './playlist-auto-update';
 import {
+    BACKGROUND_PLAYLIST_FETCH_TIMEOUT_MS,
     derivePlaylistTitleFromFilePath,
     fetchPlaylistFromFile,
     fetchPlaylistFromUrl,
@@ -106,6 +107,10 @@ ipcMain.handle(
                 performanceCapture,
                 userAgent: options?.userAgent,
                 trustedInsecureTlsHosts: options?.trustedInsecureTlsHosts,
+                timeoutMs:
+                    options?.background === true
+                        ? BACKGROUND_PLAYLIST_FETCH_TIMEOUT_MS
+                        : undefined,
             });
         } catch (error) {
             console.error(

@@ -27,6 +27,12 @@ public class HostedAccessSourceRouteTest extends TestCase {
         session.forget();
     }
 
+    public void testLongReadTimeoutIsLimitedToPlaylistParsing() {
+        assertEquals(310000, HostedApiRequest.clientForPath("/api/parse").readTimeoutMillis());
+        for (String path : new String[]{"/api/parse-xml", "/api/xtream", "/api/v1/sources"})
+            assertEquals(45000, HostedApiRequest.clientForPath(path).readTimeoutMillis());
+    }
+
     public void testSourceOperationsKeepEncodedIdOnThePairedHost() throws Exception {
         for (String method : new String[]{"GET", "PUT", "PATCH", "DELETE"})
             assertResource("sources/" + ID, method);

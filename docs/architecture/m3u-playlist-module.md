@@ -455,6 +455,7 @@ and goes silent could otherwise leave the download pending forever (issue #931).
   take about a minute to send the first byte.
 - Startup auto-update uses a 30-second idle timeout per hop. Manual refresh and
   removal are unavailable for the selected sources until the whole batch settles.
+  Source synchronization uses the same timeout when it downloads a URL playlist.
 - Auto-update refreshes at most `AUTO_UPDATE_CONCURRENCY` (3) playlists at a time.
   Sequential refreshes let one slow host delay every remaining playlist; an unbounded
   fan-out would download and parse arbitrarily many large M3U files in the main

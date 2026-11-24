@@ -398,6 +398,7 @@ export interface ElectronBridgeTrustOptions {
 
 export interface ElectronBridgePlaylistFetchOptions extends ElectronBridgeTrustOptions {
     userAgent?: string;
+    background?: boolean;
 }
 
 export interface ElectronBridgeEpgFreshnessResult {

@@ -140,7 +140,9 @@ Cloudflare token renewal can retry the request. The bridge accepts up to
 worker applies its own document limit, which defaults to 64 MiB.
 
 The Android bridge streams hosted API responses in bounded chunks, with an
-inactivity timeout for the transfer. Cloudflare OAuth calls keep a separate
+inactivity timeout of 310 seconds for `/api/parse` and 45 seconds for other API
+requests. The playlist timeout allows the backend to download and parse the file
+before sending response headers. Cloudflare OAuth calls keep a separate
 deadline. While the hosted worker buffers an Xtream response in Cloudflare mode,
 it sends JSON whitespace every ten seconds so the bridge can distinguish a slow
 catalog from a stalled connection. The provider socket retains its own inactivity timeout.
@@ -295,6 +297,9 @@ The current self-hosted PWA uses these `apps/web-backend` routes:
 - `GET /parse?targetId=<id>`
 - `GET /xtream?targetId=<id>&username=<u>&password=<p>&action=<action>`
 - `GET /stalker?targetId=<id>&macAddress=<mac>&action=<action>`
+
+Source synchronization adds `background=1` to `/parse` so each provider hop
+uses the 30-second background idle timeout. On-demand downloads use 120 seconds.
 
 Server storage adds versioned routes under `/v1`. Source synchronization uses
 the source-specific routes below; the older whole-document/user-state routes
@@ -485,7 +490,9 @@ has its own marker so one tab cannot overwrite another deletion's pending work.
 Bootstrap waits only for local profile readiness, then starts network
 refresh in the background. Slow URL providers cannot hold the app behind its
 splash: cached sources and settings remain accessible. An uninitialized cache
-defers its first inventory read until refresh settles. Before awaiting cleanup
+defers its first inventory read until refresh settles. Electron and the web
+backend use a 30-second provider idle timeout per hop when synchronization
+downloads a missing or pending URL playlist. Before awaiting cleanup
 hooks, an incomplete profile releases the initialization wait so settings/EPG
 reconciliation cannot deadlock parental cleanup. The store's ready flag keeps
 rejecting incomplete inventory after a failed projection, preserving the loading

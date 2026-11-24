@@ -466,6 +466,22 @@ describe('ElectronService', () => {
         );
     });
 
+    it('flags background playlist downloads in the Electron request', async () => {
+        const url = 'https://example.test/synthetic.m3u';
+        await service.fetchPlaylistDefinition(url, 'SyntheticAgent', {
+            background: true,
+        });
+
+        expect(electronBridge.fetchPlaylistByUrl).toHaveBeenCalledWith(
+            url,
+            undefined,
+            expect.objectContaining({
+                userAgent: 'SyntheticAgent',
+                background: true,
+            })
+        );
+    });
+
     it('redacts credentials from backend player errors before logging', () => {
         const secret = 'player-error-token-secret';
         const listener = electronBridge.onPlayerError.mock.calls[0][0];

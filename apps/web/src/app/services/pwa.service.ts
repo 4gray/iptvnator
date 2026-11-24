@@ -10,6 +10,7 @@ import {
     isBackendUrl,
     isGatewayOutage,
     isServerAccessChallenge,
+    type PlaylistDefinitionFetchOptions,
     ServerStorageStatusService,
 } from '@iptvnator/services';
 import {
@@ -92,9 +93,10 @@ export class PwaService extends DataService {
 
     override fetchPlaylistDefinition(
         url: string,
-        userAgent?: string
+        userAgent?: string,
+        options?: PlaylistDefinitionFetchOptions
     ): Promise<Playlist> {
-        return firstValueFrom(this.getPlaylistFromUrl(url, userAgent));
+        return firstValueFrom(this.getPlaylistFromUrl(url, userAgent, options));
     }
 
     /**
@@ -496,12 +498,17 @@ export class PwaService extends DataService {
         }
     }
 
-    getPlaylistFromUrl(url: string, userAgent?: string): Observable<Playlist> {
+    getPlaylistFromUrl(
+        url: string,
+        userAgent?: string,
+        options?: PlaylistDefinitionFetchOptions
+    ): Observable<Playlist> {
         const normalizedUserAgent = userAgent?.trim();
         return this.providerTargets.request(url, (targetId) =>
             this.http.get<Playlist>(`${this.corsProxyUrl}/parse`, {
                 params: {
                     targetId,
+                    ...(options?.background ? { background: '1' } : {}),
                     ...(normalizedUserAgent
                         ? { userAgent: normalizedUserAgent }
                         : {}),
