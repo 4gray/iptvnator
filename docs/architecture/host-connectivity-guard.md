@@ -45,7 +45,8 @@ A breaker keyed on "the endpoint did not answer" is only useful once _not
 answering_ is bounded. `apps/web-backend` originally passed no `timeout` at all,
 so a silent host hung on OS-level TCP timeouts. Both runtimes now use the same
 budgets: Xtream 30 s, Stalker 15 s (30 s for `create_link`, which mints a stream
-URL before answering), playlist and XMLTV downloads 30 s.
+URL before answering), playlist downloads 120 s (some panels build the M3U on
+demand before the first byte) and XMLTV downloads 30 s.
 
 Those numbers are safe for large downloads. On axios 1.20's native HTTP
 transport (`maxRedirects: 0`) each hop's `timeout` is **not** a wall-clock deadline for the

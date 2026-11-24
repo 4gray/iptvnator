@@ -39,14 +39,15 @@ import type { NormalizedProviderError } from './provider-error';
  * - `xtream` — `xtream.events.ts` (30 s for the Xtream API)
  * - `stalker` / `stalkerCreateLink` — `stalker.events.ts`; `create_link` gets
  *   longer because the portal mints a stream URL before answering
- * - `playlist` — `PLAYLIST_FETCH_TIMEOUT_MS` in `playlist-source.ts`
+ * - `playlist` — `PLAYLIST_FETCH_TIMEOUT_MS` in `playlist-source.ts` (120 s:
+ *   some panels build the M3U on demand before sending the first byte)
  * - `epg` — the EPG worker streams its download with no explicit timeout, so
- *   there is no number to copy; it takes the playlist budget, which bounds a
- *   silent host without capping a healthy long transfer (see the note above).
+ *   there is no number to copy; it keeps 30 s, which bounds a silent host
+ *   without capping a healthy long transfer (see the note above).
  */
 export const PROVIDER_REQUEST_TIMEOUT_MS = {
     epg: 30_000,
-    playlist: 30_000,
+    playlist: 120_000,
     stalker: 15_000,
     stalkerCreateLink: 30_000,
     xtream: 30_000,

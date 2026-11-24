@@ -148,7 +148,7 @@ https://stream.example/news.m3u8`);
                     {
                         headers: undefined,
                         params: undefined,
-                        timeout: 30000,
+                        timeout: 120000,
                         url: 'https://provider.example/list.m3u',
                     },
                 ]);
