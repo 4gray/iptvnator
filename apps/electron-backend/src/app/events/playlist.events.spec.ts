@@ -478,7 +478,7 @@ describe('playlist IPC events', () => {
                 httpsAgent: expect.any(Object),
                 maxRedirects: 0,
                 method: 'GET',
-                timeout: 120000,
+                timeout: 30_000,
                 url: 'https://example.test/list.m3u',
             })
         );

@@ -3,4 +3,4 @@ type: fix
 area: playlist
 ---
 
-M3U playlists from providers that take up to two minutes to start sending the file now import instead of failing with "Failed to fetch the playlist".
+M3U URL imports and manual refreshes give slow providers up to two minutes to start sending the playlist. Docker installs allow extra time for the download and parsing.

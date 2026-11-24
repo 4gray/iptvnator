@@ -18,6 +18,8 @@ import {
  * and parse arbitrarily many large M3U files in the main process at once.
  */
 export const AUTO_UPDATE_CONCURRENCY = 3;
+// Manual refresh and removal wait for the startup batch to finish.
+const AUTO_UPDATE_FETCH_TIMEOUT_MS = 30_000;
 
 /**
  * Refreshes a single playlist from its original source.
@@ -36,7 +38,11 @@ async function refreshPlaylist(
         playlistObject = await fetchPlaylistFromUrl(
             playlist.url,
             playlist.title,
-            { ...options, userAgent: playlist.userAgent }
+            {
+                ...options,
+                userAgent: playlist.userAgent,
+                timeoutMs: AUTO_UPDATE_FETCH_TIMEOUT_MS,
+            }
         );
     } else if (playlist.filePath) {
         console.log(

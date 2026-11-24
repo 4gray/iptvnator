@@ -92,7 +92,7 @@ describe('autoUpdatePlaylists', () => {
         expect(mockFetchPlaylistFromUrl).toHaveBeenCalledWith(
             'https://reachable.test/list.m3u',
             'reachable',
-            {}
+            { timeoutMs: 30_000 }
         );
 
         unresponsive.resolve(createPlaylist({ title: 'Slow but refreshed' }));
@@ -227,7 +227,7 @@ describe('autoUpdatePlaylists', () => {
         expect(mockFetchPlaylistFromUrl).toHaveBeenCalledWith(
             playlist.url,
             playlist.title,
-            { userAgent: playlist.userAgent }
+            { userAgent: playlist.userAgent, timeoutMs: 30_000 }
         );
     });
 
@@ -263,7 +263,7 @@ describe('autoUpdatePlaylists', () => {
         expect(mockFetchPlaylistFromUrl).toHaveBeenCalledWith(
             'https://reachable.test/list.m3u',
             'reachable',
-            { trustedInsecureTlsHosts: ['self-signed.test'] }
+            { trustedInsecureTlsHosts: ['self-signed.test'], timeoutMs: 30_000 }
         );
     });
 

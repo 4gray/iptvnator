@@ -1136,6 +1136,12 @@ better-sqlite3 is a native addon, so the Dockerfile builds it in a separate
 produce it for each target platform. nginx raises `client_max_body_size` to
 64 MB for `/api/` and gzips JSON responses.
 
+The bundled nginx uses a 300-second read timeout for `/api/parse` and 120
+seconds for other API routes. The playlist route sends its first response bytes
+after the provider download and parsing finish. The backend allows up to 120
+seconds of provider inactivity per HTTP hop, so the proxy needs room for the
+rest of the transfer and parsing.
+
 When hosting behind another domain, set `CLIENT_URL` to the browser origin and
 keep `BACKEND_URL=/api` unless the reverse proxy exposes the backend elsewhere.
 Only set `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS=1` when the self-hosted
