@@ -2864,6 +2864,16 @@
             "UNAVAILABLE": "此服务器不支持个人资料。",
             "OFFLINE": "服务器无响应。请重试。",
             "GENERIC": "出了点问题。请重试。"
+        },
+        "PICKER": {
+            "TITLE": "谁在观看？",
+            "MANAGE": "管理个人资料",
+            "LOADING": "正在打开个人资料…",
+            "CONTINUE": "继续",
+            "OFFLINE_TITLE": "服务器无响应",
+            "OFFLINE_DESCRIPTION": "你可以继续使用默认个人资料。",
+            "LEAVE_KIDS_TITLE": "退出儿童个人资料",
+            "LEAVE_KIDS_DESCRIPTION": "输入家长 PIN 码以切换到其他个人资料。"
         }
     }
 }

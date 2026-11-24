@@ -2864,6 +2864,16 @@
             "UNAVAILABLE": "Dieser Server unterstützt keine Profile.",
             "OFFLINE": "Der Server antwortet nicht. Versuche es erneut.",
             "GENERIC": "Etwas ist schiefgelaufen. Versuche es erneut."
+        },
+        "PICKER": {
+            "TITLE": "Wer schaut zu?",
+            "MANAGE": "Profile verwalten",
+            "LOADING": "Profile werden geöffnet …",
+            "CONTINUE": "Weiter",
+            "OFFLINE_TITLE": "Der Server antwortet nicht",
+            "OFFLINE_DESCRIPTION": "Du kannst mit dem Standardprofil fortfahren.",
+            "LEAVE_KIDS_TITLE": "Kinderprofil verlassen",
+            "LEAVE_KIDS_DESCRIPTION": "Gib die Kindersicherungs-PIN ein, um zu einem anderen Profil zu wechseln."
         }
     }
 }

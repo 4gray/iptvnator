@@ -2864,6 +2864,16 @@
             "UNAVAILABLE": "Deze server ondersteunt geen profielen.",
             "OFFLINE": "De server reageert niet. Probeer het opnieuw.",
             "GENERIC": "Er is iets misgegaan. Probeer het opnieuw."
+        },
+        "PICKER": {
+            "TITLE": "Wie kijkt er?",
+            "MANAGE": "Profielen beheren",
+            "LOADING": "Profielen openen…",
+            "CONTINUE": "Doorgaan",
+            "OFFLINE_TITLE": "De server reageert niet",
+            "OFFLINE_DESCRIPTION": "Je kunt doorgaan met het standaardprofiel.",
+            "LEAVE_KIDS_TITLE": "Kinderprofiel verlaten",
+            "LEAVE_KIDS_DESCRIPTION": "Voer de ouderpincode in om naar een ander profiel te wisselen."
         }
     }
 }

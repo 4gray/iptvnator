@@ -2864,6 +2864,16 @@
             "UNAVAILABLE": "此伺服器不支援個人檔案。",
             "OFFLINE": "伺服器沒有回應。請再試一次。",
             "GENERIC": "發生了一些問題。請再試一次。"
+        },
+        "PICKER": {
+            "TITLE": "誰在觀看？",
+            "MANAGE": "管理個人檔案",
+            "LOADING": "正在開啟個人檔案…",
+            "CONTINUE": "繼續",
+            "OFFLINE_TITLE": "伺服器沒有回應",
+            "OFFLINE_DESCRIPTION": "你可以繼續使用預設個人檔案。",
+            "LEAVE_KIDS_TITLE": "退出兒童個人檔案",
+            "LEAVE_KIDS_DESCRIPTION": "輸入家長 PIN 碼以切換至其他個人檔案。"
         }
     }
 }

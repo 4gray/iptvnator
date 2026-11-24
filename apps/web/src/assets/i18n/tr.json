@@ -2864,6 +2864,16 @@
             "UNAVAILABLE": "Bu sunucu profilleri desteklemiyor.",
             "OFFLINE": "Sunucu yanıt vermiyor. Tekrar deneyin.",
             "GENERIC": "Bir şeyler ters gitti. Tekrar deneyin."
+        },
+        "PICKER": {
+            "TITLE": "Kim izliyor?",
+            "MANAGE": "Profilleri yönet",
+            "LOADING": "Profiller açılıyor…",
+            "CONTINUE": "Devam",
+            "OFFLINE_TITLE": "Sunucu yanıt vermiyor",
+            "OFFLINE_DESCRIPTION": "Varsayılan profille devam edebilirsiniz.",
+            "LEAVE_KIDS_TITLE": "Çocuk profilinden çık",
+            "LEAVE_KIDS_DESCRIPTION": "Başka bir profile geçmek için ebeveyn PIN'ini girin."
         }
     }
 }

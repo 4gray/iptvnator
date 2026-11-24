@@ -2864,6 +2864,16 @@
             "UNAVAILABLE": "Ten serwer nie obsługuje profili.",
             "OFFLINE": "Serwer nie odpowiada. Spróbuj ponownie.",
             "GENERIC": "Coś poszło nie tak. Spróbuj ponownie."
+        },
+        "PICKER": {
+            "TITLE": "Kto ogląda?",
+            "MANAGE": "Zarządzaj profilami",
+            "LOADING": "Otwieranie profili…",
+            "CONTINUE": "Dalej",
+            "OFFLINE_TITLE": "Serwer nie odpowiada",
+            "OFFLINE_DESCRIPTION": "Możesz kontynuować z profilem domyślnym.",
+            "LEAVE_KIDS_TITLE": "Wyjdź z profilu dziecka",
+            "LEAVE_KIDS_DESCRIPTION": "Wpisz rodzicielski kod PIN, aby przełączyć się na inny profil."
         }
     }
 }

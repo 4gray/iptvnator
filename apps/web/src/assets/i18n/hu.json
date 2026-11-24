@@ -2864,6 +2864,16 @@
             "UNAVAILABLE": "Ez a kiszolgáló nem támogatja a profilokat.",
             "OFFLINE": "A kiszolgáló nem válaszol. Próbálja újra.",
             "GENERIC": "Valami hiba történt. Próbálja újra."
+        },
+        "PICKER": {
+            "TITLE": "Ki nézi?",
+            "MANAGE": "Profilok kezelése",
+            "LOADING": "Profilok megnyitása…",
+            "CONTINUE": "Tovább",
+            "OFFLINE_TITLE": "A kiszolgáló nem válaszol",
+            "OFFLINE_DESCRIPTION": "Folytathatja az alapértelmezett profillal.",
+            "LEAVE_KIDS_TITLE": "Kilépés a gyerekprofilból",
+            "LEAVE_KIDS_DESCRIPTION": "Adja meg a szülői PIN-kódot, hogy másik profilra váltson."
         }
     }
 }

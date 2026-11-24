@@ -2864,6 +2864,16 @@
             "UNAVAILABLE": "이 서버는 프로필을 지원하지 않습니다.",
             "OFFLINE": "서버가 응답하지 않습니다. 다시 시도하세요.",
             "GENERIC": "문제가 발생했습니다. 다시 시도하세요."
+        },
+        "PICKER": {
+            "TITLE": "누가 시청하나요?",
+            "MANAGE": "프로필 관리",
+            "LOADING": "프로필 여는 중…",
+            "CONTINUE": "계속",
+            "OFFLINE_TITLE": "서버가 응답하지 않습니다",
+            "OFFLINE_DESCRIPTION": "기본 프로필로 계속할 수 있습니다.",
+            "LEAVE_KIDS_TITLE": "어린이 프로필 나가기",
+            "LEAVE_KIDS_DESCRIPTION": "다른 프로필로 전환하려면 보호자 PIN을 입력하세요."
         }
     }
 }

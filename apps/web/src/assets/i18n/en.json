@@ -2864,6 +2864,16 @@
             "UNAVAILABLE": "This server does not support profiles.",
             "OFFLINE": "The server is not answering. Try again.",
             "GENERIC": "Something went wrong. Try again."
+        },
+        "PICKER": {
+            "TITLE": "Who's watching?",
+            "MANAGE": "Manage profiles",
+            "LOADING": "Opening profiles…",
+            "CONTINUE": "Continue",
+            "OFFLINE_TITLE": "The server is not answering",
+            "OFFLINE_DESCRIPTION": "You can continue with the Default profile.",
+            "LEAVE_KIDS_TITLE": "Leave the kids profile",
+            "LEAVE_KIDS_DESCRIPTION": "Enter the parental PIN to switch to another profile."
         }
     }
 }

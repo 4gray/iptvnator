@@ -1,0 +1,99 @@
+@use '../../../../../libs/ui/styles/focus-ring';
+
+:host {
+    display: block;
+    min-height: 100vh;
+    background: var(--mat-sys-surface);
+    color: var(--app-body-color);
+}
+
+.profile-picker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    min-height: 100vh;
+    padding: 32px 24px;
+    box-sizing: border-box;
+}
+
+.profile-picker__title {
+    margin: 0;
+    font-size: var(--app-text-xl);
+    font-weight: 600;
+    text-align: center;
+}
+
+.profile-picker__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, 160px);
+    justify-content: center;
+    gap: 24px;
+    width: min(100%, 780px);
+}
+
+.profile-picker__tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 8px;
+    border: 0;
+    border-radius: var(--app-radius-lg, 16px);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+        background: var(--app-hover-overlay);
+    }
+
+    &:focus-visible {
+        @include focus-ring.focus-ring-declarations($offset: 2px);
+        background: var(--app-hover-overlay);
+    }
+
+    &--active .profile-picker__name {
+        font-weight: 700;
+    }
+}
+
+.profile-picker__avatar {
+    --profile-avatar-size: 96px;
+}
+
+.profile-picker__name {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    text-align: center;
+}
+
+.profile-picker__meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--app-text-sm);
+    color: var(--mat-sys-on-surface-variant);
+
+    mat-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+    }
+}
+
+.profile-picker__status,
+.profile-picker__error {
+    margin: 0;
+}
+
+.profile-picker__error {
+    color: var(--app-danger-text);
+}
+
+.profile-picker__manage {
+    color: var(--mat-sys-primary);
+    text-underline-offset: 3px;
+}

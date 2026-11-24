@@ -2864,6 +2864,16 @@
             "UNAVAILABLE": "このサーバーはプロフィールに対応していません。",
             "OFFLINE": "サーバーが応答しません。もう一度お試しください。",
             "GENERIC": "問題が発生しました。もう一度お試しください。"
+        },
+        "PICKER": {
+            "TITLE": "誰が見ていますか？",
+            "MANAGE": "プロフィールを管理",
+            "LOADING": "プロフィールを開いています…",
+            "CONTINUE": "続ける",
+            "OFFLINE_TITLE": "サーバーが応答しません",
+            "OFFLINE_DESCRIPTION": "デフォルトのプロフィールで続行できます。",
+            "LEAVE_KIDS_TITLE": "キッズプロフィールを終了",
+            "LEAVE_KIDS_DESCRIPTION": "別のプロフィールに切り替えるには、ペアレンタル PIN を入力してください。"
         }
     }
 }

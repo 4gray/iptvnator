@@ -2864,6 +2864,16 @@
             "UNAVAILABLE": "Este servidor não suporta perfis.",
             "OFFLINE": "O servidor não está a responder. Tenta novamente.",
             "GENERIC": "Algo correu mal. Tenta novamente."
+        },
+        "PICKER": {
+            "TITLE": "Quem está a ver?",
+            "MANAGE": "Gerir perfis",
+            "LOADING": "A abrir perfis…",
+            "CONTINUE": "Continuar",
+            "OFFLINE_TITLE": "O servidor não está a responder",
+            "OFFLINE_DESCRIPTION": "Podes continuar com o perfil Predefinido.",
+            "LEAVE_KIDS_TITLE": "Sair do perfil infantil",
+            "LEAVE_KIDS_DESCRIPTION": "Introduz o PIN parental para mudar para outro perfil."
         }
     }
 }
