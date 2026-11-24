@@ -74,6 +74,9 @@ import {
     ],
     templateUrl: './settings-server-section.component.html',
     styleUrl: './settings-server-section.component.scss',
+    // Connectivity and the synced-data groups below it keep the gap the
+    // shared `.settings-group` puts between sections.
+    styles: [':host { display: grid; gap: 28px; }'],
 })
 export class SettingsServerSectionComponent {
     private readonly dialog = inject(MatDialog);

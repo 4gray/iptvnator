@@ -1,119 +1,43 @@
-.device-list {
-    width: 100%;
+// Paired-device rows use the shared settings rows (see
+// `settings-server-section.component.scss`); these rules cover the rest.
+
+// It joins the Connectivity group's column of sections.
+:host {
+    display: contents;
 }
 
+// The shared list row sets `display: block`, which beats the `hidden`
+// attribute the collapsed device list relies on.
 .device-list[hidden] {
     display: none;
 }
 
-.device-rows {
-    width: 100%;
-    padding: 0;
-    margin: 0;
-    list-style: none;
-}
-
-.device-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 12px;
-    padding-block: 4px;
-    border-block-start: 1px solid var(--app-widget-border);
-}
-
-.device-name {
-    flex: 1 1 10ch;
-    min-width: 0;
-    overflow-wrap: anywhere;
-    color: var(--app-heading-color);
-}
-
-.pairing-requests {
-    width: 100%;
-
-    h4 {
-        margin: 0;
-        color: var(--app-heading-color);
-        font-size: var(--app-text-md);
-        font-weight: 600;
-    }
-}
-
-.pairing-request-list {
-    display: grid;
-    gap: 8px;
-}
-
-.pairing-request {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: end;
-    justify-content: space-between;
-    gap: 12px 20px;
-    min-width: 0;
-    padding: 12px;
-    border: 1px solid var(--app-selection-border);
-    border-radius: 8px;
-    background: var(--app-selection-surface);
-
-    button {
-        max-inline-size: 100%;
-        min-block-size: 36px;
-        block-size: auto;
-        white-space: normal;
-    }
-}
-
-.pairing-request-identity {
-    flex: 1 1 12ch;
-    display: grid;
-    gap: 8px;
-    min-width: 0;
-}
-
-.pairing-device-name {
-    color: var(--app-heading-color);
-    font-weight: 600;
+// Device names come from the devices themselves (up to 80 characters,
+// possibly without spaces); the shared row title does not wrap them.
+.device-row h4,
+.pairing-request h4 {
     overflow-wrap: anywhere;
 }
 
-.pairing-code-group {
-    display: grid;
-    justify-items: start;
-    gap: 2px;
+// The QR code is an inline SVG; without this it sits on a text baseline
+// and gains a descender gap under it.
+.hosted-qr {
+    display: block;
+    line-height: 0;
 }
 
-.pairing-code-label {
-    color: var(--app-heading-color);
-    font-size: var(--app-text-2xs);
-    font-weight: 600;
-}
-
+// The confirmation code is read aloud and compared between two screens,
+// so it is set large, mono and with tabular digits.
 .pairing-code {
+    display: block;
+    margin-block-start: var(--app-space-1);
     color: var(--app-selection-text-color);
     font-family: var(--app-font-mono);
-    font-size: clamp(28px, 7cqi, 44px);
+    font-size: var(--app-text-display-sm);
     font-weight: 500;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.14em;
     line-height: 1.2;
     white-space: nowrap;
     user-select: text;
-}
-
-.phone-pairing {
-    width: 100%;
-
-    summary {
-        cursor: pointer;
-        color: var(--app-heading-color);
-        font-size: var(--app-text-sm);
-        font-weight: 600;
-        line-height: 1.5;
-    }
-}
-
-.phone-pairing-content {
-    margin-block-start: 8px;
 }

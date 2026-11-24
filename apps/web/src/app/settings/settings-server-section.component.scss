@@ -1,162 +1,70 @@
-:host {
-    display: grid;
-    gap: 28px;
-}
+// Settings → Server is built from the shared settings rows in
+// `settings.component.scss` (group header, sections, cards, setting-item).
+// The server, hosted-server and hosted-devices components share this file;
+// each rule below covers something those shared classes cannot express.
 
-.server-page-header {
+// The group header carries the About action beside its h2; the shared
+// group header has no trailing action slot.
+.server-group__header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 4px 16px;
-
-    h1 {
-        margin: 0;
-        color: var(--app-heading-color);
-        font-size: 26px;
-        font-weight: 600;
-        line-height: 1.2;
-    }
+    gap: var(--app-space-1) var(--app-space-4);
 }
 
-.server-group {
-    gap: 12px;
-}
-
-.server-header {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: baseline;
-    gap: 4px 16px;
-
-    h2 {
-        font-size: var(--app-text-2xl);
-    }
-
-    p {
-        grid-column: 1 / -1;
-        margin: 0;
-        max-width: 75ch;
-    }
-}
-
-.server-fields {
-    display: grid;
-    gap: 12px;
-    padding: 16px;
-    min-width: 0;
-
-    mat-hint,
-    mat-error {
-        font-size: var(--app-text-xs);
-    }
-}
-
-.android-library-address {
-    display: grid;
-    gap: 4px;
-    margin: 0;
-    min-width: 0;
-
-    dd {
-        margin: 0;
-        overflow-wrap: anywhere;
-    }
-
-    code {
-        color: var(--app-heading-color);
-        font-family: var(--app-font-mono);
-        font-size: var(--app-text-sm);
-    }
-}
-
-.android-connection-options {
-    border-top: 1px solid var(--app-widget-border);
-    padding-block-start: 12px;
-
-    summary {
-        color: var(--app-heading-color);
-        cursor: pointer;
-    }
-}
-
-.android-connection-fields {
-    display: grid;
-    gap: 12px;
-    margin-block-start: 12px;
-    min-width: 0;
-}
-.server-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-.server-message {
-    margin: 0;
-    color: var(--app-body-color);
-    font-size: var(--app-text-sm);
+// Addresses are read-only values people copy: mono and selectable even
+// where the shell suppresses text selection.
+.server-value {
+    color: var(--app-heading-color);
+    font-family: var(--app-font-mono);
     overflow-wrap: anywhere;
-    line-height: 1.5;
+    user-select: text;
 }
-.server-import-preview {
-    display: grid;
-    gap: 12px;
-    padding-block-start: 12px;
-    border-block-start: 1px solid var(--app-widget-border);
-    p,
-    ul {
-        margin: 0;
-        line-height: 1.5;
-        overflow-wrap: anywhere;
-    }
-    ul {
-        display: grid;
-        gap: 8px;
-        padding-inline-start: 20px;
-    }
-}
-.server-import-empty {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    color: var(--app-body-color);
-    button {
-        flex-shrink: 0;
-    }
-}
+
+// Shared meta paragraphs are muted; a failure reads in the danger colour.
 .server-message--error {
     color: var(--app-danger-text);
 }
-.server-help {
-    grid-area: 1 / 2;
-    justify-self: start;
-    color: var(--app-selection-text-color);
-    font-size: var(--app-text-sm);
-    text-underline-offset: 3px;
+
+// Advanced options (Android connection, LAN sharing, phone approval) fold
+// into a disclosure inside a full-width row. The settings kit has no
+// disclosure, so its summary and spacing live here.
+.server-disclosure {
+    min-width: 0;
+
+    // Reads as a row title (`setting-item__meta h4`), not body text.
+    > summary {
+        color: var(--app-heading-color);
+        font-size: var(--app-text-md);
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    > * + * {
+        margin-block-start: var(--app-space-3);
+    }
 }
+
+// The import preview lists source titles under the shared meta text, which
+// only styles paragraphs.
+.server-import-list {
+    margin: var(--app-space-1) 0 0;
+    padding-inline-start: var(--app-space-5);
+    color: var(--settings-muted);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+// Lists of rows (pairing requests, paired devices) keep list semantics;
+// the shared `setting-item--list` row does not reset list margins.
+.server-list {
+    margin: 0;
+    list-style: none;
+}
+
 button,
 input,
 a {
     app-region: no-drag;
-}
-
-.server-local-shortcut {
-    padding-block-end: 12px;
-    border-block-end: 1px solid var(--app-widget-border);
-}
-
-.server-connect {
-    margin-inline-start: auto;
-}
-
-@container (max-width: 580px) {
-    .server-header {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
-    .server-help {
-        grid-area: auto;
-    }
 }
