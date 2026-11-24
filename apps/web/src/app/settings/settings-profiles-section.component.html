@@ -1,0 +1,257 @@
+<section class="settings-group" data-test-id="profiles-settings">
+    <header class="settings-group__header">
+        <h2>{{ 'SETTINGS.PROFILES.TITLE' | translate }}</h2>
+        <p>{{ 'SETTINGS.PROFILES.SUBTITLE' | translate }}</p>
+    </header>
+
+    @if (failed()) {
+        <app-state-view
+            size="panel"
+            variant="error"
+            [heading]="'SETTINGS.PROFILES.LOAD_ERROR_TITLE' | translate"
+            [description]="
+                'SETTINGS.PROFILES.LOAD_ERROR_DESCRIPTION' | translate
+            "
+        />
+    } @else if (offline()) {
+        <app-state-view
+            size="panel"
+            variant="offline"
+            [heading]="'SETTINGS.PROFILES.OFFLINE_TITLE' | translate"
+            [description]="'SETTINGS.PROFILES.OFFLINE_DESCRIPTION' | translate"
+            [retryable]="true"
+            (retry)="reload()"
+        />
+    } @else if (!loaded()) {
+        <p role="status" class="profiles-status">
+            {{ 'SETTINGS.PROFILES.LOADING' | translate }}
+        </p>
+    } @else {
+        <section class="settings-section">
+            <div class="settings-card">
+                <div class="setting-item" data-setting-id="profiles-enabled">
+                    <div class="setting-item__meta">
+                        <h4 id="profiles-enabled-label">
+                            {{ 'SETTINGS.PROFILES.ENABLED' | translate }}
+                        </h4>
+                        <p>
+                            {{
+                                'SETTINGS.PROFILES.ENABLED_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control setting-item__toggle">
+                        <mat-slide-toggle
+                            aria-labelledby="profiles-enabled-label"
+                            data-test-id="profiles-enabled"
+                            [checked]="enabled()"
+                            [disabled]="facade.busy()"
+                            (change)="facade.setEnabled($event.checked)"
+                        ></mat-slide-toggle>
+                    </div>
+                </div>
+
+                <div class="setting-item" data-setting-id="profiles-start">
+                    <div class="setting-item__meta">
+                        <h4 id="profiles-start-label">
+                            {{ 'SETTINGS.PROFILES.START' | translate }}
+                        </h4>
+                        <p>
+                            {{
+                                'SETTINGS.PROFILES.START_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                    </div>
+                    <div
+                        class="setting-item__control"
+                        role="radiogroup"
+                        aria-labelledby="profiles-start-label"
+                    >
+                        <button
+                            mat-stroked-button
+                            type="button"
+                            role="radio"
+                            data-test-id="profiles-start-ask"
+                            [attr.aria-checked]="startPref() === 'ask'"
+                            [class.profiles-choice--on]="startPref() === 'ask'"
+                            (click)="setStart('ask')"
+                        >
+                            {{ 'SETTINGS.PROFILES.START_ASK' | translate }}
+                        </button>
+                        <button
+                            mat-stroked-button
+                            type="button"
+                            role="radio"
+                            data-test-id="profiles-start-last"
+                            [attr.aria-checked]="startPref() === 'last'"
+                            [class.profiles-choice--on]="startPref() === 'last'"
+                            (click)="setStart('last')"
+                        >
+                            {{ 'SETTINGS.PROFILES.START_LAST' | translate }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="settings-section">
+            <div class="settings-section__header">
+                <h3>{{ 'SETTINGS.PROFILES.LIST_TITLE' | translate }}</h3>
+            </div>
+            <div class="settings-card">
+                <ul class="profiles-list" data-test-id="profiles-list">
+                    @for (
+                        profile of profiles();
+                        track profile.id;
+                        let index = $index;
+                        let last = $last
+                    ) {
+                        <li
+                            class="profiles-row"
+                            [attr.data-test-id]="'profile-row-' + profile.id"
+                        >
+                            <app-profile-avatar
+                                [name]="profile.name"
+                                [colour]="profile.colour"
+                                [emoji]="profile.emoji"
+                            />
+                            <span class="profiles-row__name">{{
+                                profile.name
+                            }}</span>
+                            @if (profile.id === defaultId) {
+                                <span class="profiles-badge">{{
+                                    'PROFILES.BADGE_DEFAULT' | translate
+                                }}</span>
+                            }
+                            @if (profile.kids) {
+                                <span
+                                    class="profiles-badge"
+                                    data-test-id="profile-badge-kids"
+                                    >{{
+                                        'PROFILES.BADGE_KIDS' | translate
+                                    }}</span
+                                >
+                            }
+                            @if (profile.hasPin) {
+                                <span
+                                    class="profiles-badge"
+                                    data-test-id="profile-badge-pin"
+                                    >{{
+                                        'PROFILES.BADGE_PIN' | translate
+                                    }}</span
+                                >
+                            }
+                            <span class="profiles-row__actions">
+                                @if (profile.id !== defaultId) {
+                                    <button
+                                        mat-icon-button
+                                        type="button"
+                                        [attr.data-test-id]="
+                                            'profile-move-up-' + profile.id
+                                        "
+                                        [attr.aria-label]="
+                                            'SETTINGS.PROFILES.MOVE_UP'
+                                                | translate
+                                                    : { name: profile.name }
+                                        "
+                                        [disabled]="
+                                            facade.busy() ||
+                                            isFirstMovable(index)
+                                        "
+                                        (click)="move(profile, -1)"
+                                    >
+                                        <mat-icon aria-hidden="true"
+                                            >arrow_upward</mat-icon
+                                        >
+                                    </button>
+                                    <button
+                                        mat-icon-button
+                                        type="button"
+                                        [attr.data-test-id]="
+                                            'profile-move-down-' + profile.id
+                                        "
+                                        [attr.aria-label]="
+                                            'SETTINGS.PROFILES.MOVE_DOWN'
+                                                | translate
+                                                    : { name: profile.name }
+                                        "
+                                        [disabled]="facade.busy() || last"
+                                        (click)="move(profile, 1)"
+                                    >
+                                        <mat-icon aria-hidden="true"
+                                            >arrow_downward</mat-icon
+                                        >
+                                    </button>
+                                }
+                                <button
+                                    mat-icon-button
+                                    type="button"
+                                    [attr.data-test-id]="
+                                        'profile-edit-' + profile.id
+                                    "
+                                    [attr.aria-label]="
+                                        'SETTINGS.PROFILES.EDIT'
+                                            | translate: { name: profile.name }
+                                    "
+                                    [disabled]="facade.busy()"
+                                    (click)="facade.edit(profile)"
+                                >
+                                    <mat-icon aria-hidden="true">edit</mat-icon>
+                                </button>
+                                @if (profile.id !== defaultId) {
+                                    <button
+                                        mat-icon-button
+                                        type="button"
+                                        [attr.data-test-id]="
+                                            'profile-delete-' + profile.id
+                                        "
+                                        [attr.aria-label]="
+                                            'SETTINGS.PROFILES.DELETE_NAME'
+                                                | translate
+                                                    : { name: profile.name }
+                                        "
+                                        [disabled]="facade.busy()"
+                                        (click)="facade.remove(profile)"
+                                    >
+                                        <mat-icon aria-hidden="true"
+                                            >delete</mat-icon
+                                        >
+                                    </button>
+                                }
+                            </span>
+                        </li>
+                    }
+                </ul>
+                @if (facade.error(); as message) {
+                    <p
+                        class="profiles-error"
+                        role="alert"
+                        data-test-id="profiles-error"
+                    >
+                        {{ message.key | translate: message.params }}
+                    </p>
+                }
+                <div class="profiles-add">
+                    <button
+                        mat-flat-button
+                        type="button"
+                        data-test-id="profile-add"
+                        [disabled]="facade.busy() || atLimit()"
+                        (click)="facade.add()"
+                    >
+                        <mat-icon aria-hidden="true">add</mat-icon>
+                        {{ 'SETTINGS.PROFILES.ADD' | translate }}
+                    </button>
+                    @if (atLimit()) {
+                        <span data-test-id="profiles-limit">{{
+                            'SETTINGS.PROFILES.LIMIT_REACHED'
+                                | translate: { max: limit }
+                        }}</span>
+                    }
+                </div>
+            </div>
+        </section>
+    }
+</section>

@@ -1,0 +1,157 @@
+<form (ngSubmit)="save()" novalidate>
+    <app-dialog-shell
+        icon="person"
+        [heading]="
+            (existing
+                ? 'SETTINGS.PROFILES.EDIT_TITLE'
+                : 'SETTINGS.PROFILES.ADD_TITLE'
+            ) | translate
+        "
+        [subtitle]="'SETTINGS.PROFILES.DIALOG_SUBTITLE' | translate"
+    >
+        <div class="profile-dialog">
+            <div class="profile-dialog__preview">
+                <app-profile-avatar
+                    [name]="trimmedName() || '?'"
+                    [colour]="colour()"
+                    [emoji]="emoji().trim() || null"
+                    style="--profile-avatar-size: 56px"
+                />
+            </div>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>{{
+                    'SETTINGS.PROFILES.NAME' | translate
+                }}</mat-label>
+                <input
+                    matInput
+                    appImeInput
+                    name="name"
+                    autocomplete="off"
+                    data-test-id="profile-name"
+                    [attr.maxlength]="nameMax"
+                    [ngModel]="name()"
+                    (ngModelChange)="name.set($event); clearRefusal('name')"
+                    (keydown.enter)="onNameEnter($event)"
+                />
+                @if (refused() === 'name') {
+                    <mat-error data-test-id="profile-name-error">{{
+                        'SETTINGS.PROFILES.NAME_REQUIRED'
+                            | translate: { max: nameMax }
+                    }}</mat-error>
+                }
+            </mat-form-field>
+
+            <fieldset class="profile-dialog__swatches">
+                <legend>{{ 'SETTINGS.PROFILES.COLOUR' | translate }}</legend>
+                <div class="profile-dialog__swatch-row">
+                    @for (swatch of swatches; track swatch.id) {
+                        <button
+                            type="button"
+                            class="profile-dialog__swatch"
+                            [style.background-color]="swatch.hex"
+                            [attr.aria-pressed]="colour() === swatch.hex"
+                            [attr.aria-label]="swatch.labelKey | translate"
+                            [attr.data-test-id]="'profile-colour-' + swatch.id"
+                            (click)="colour.set(swatch.hex)"
+                        ></button>
+                    }
+                </div>
+            </fieldset>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>{{
+                    'SETTINGS.PROFILES.EMOJI' | translate
+                }}</mat-label>
+                <input
+                    matInput
+                    name="emoji"
+                    autocomplete="off"
+                    data-test-id="profile-emoji"
+                    maxlength="16"
+                    [ngModel]="emoji()"
+                    (ngModelChange)="emoji.set($event); clearRefusal('emoji')"
+                />
+                <mat-hint>{{
+                    'SETTINGS.PROFILES.EMOJI_HINT' | translate
+                }}</mat-hint>
+                @if (refused() === 'emoji') {
+                    <mat-error data-test-id="profile-emoji-error">{{
+                        'PROFILES.ERRORS.INVALID_EMOJI' | translate
+                    }}</mat-error>
+                }
+            </mat-form-field>
+
+            <div class="profile-dialog__kids">
+                <mat-checkbox
+                    [checked]="kids()"
+                    [disabled]="isDefault"
+                    (change)="setKids($event.checked)"
+                    data-test-id="profile-kids"
+                    >{{ 'SETTINGS.PROFILES.KIDS' | translate }}</mat-checkbox
+                >
+                <p>
+                    {{
+                        (isDefault
+                            ? 'SETTINGS.PROFILES.KIDS_DEFAULT_HINT'
+                            : 'SETTINGS.PROFILES.KIDS_HINT'
+                        ) | translate
+                    }}
+                </p>
+            </div>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>{{
+                    (hasPin
+                        ? 'SETTINGS.PROFILES.PIN_NEW'
+                        : 'SETTINGS.PROFILES.PIN'
+                    ) | translate
+                }}</mat-label>
+                <input
+                    matInput
+                    name="pin"
+                    type="password"
+                    inputmode="numeric"
+                    autocomplete="new-password"
+                    data-test-id="profile-pin"
+                    [attr.maxlength]="pinMax"
+                    [disabled]="pinDisabled()"
+                    [ngModel]="pin()"
+                    (ngModelChange)="onPinInput($event)"
+                />
+                <mat-hint>{{
+                    (pinDisabled()
+                        ? 'SETTINGS.PROFILES.PIN_KIDS_HINT'
+                        : 'SETTINGS.PROFILES.PIN_HINT'
+                    ) | translate: { min: pinMin, max: pinMax }
+                }}</mat-hint>
+                @if (refused() === 'pin') {
+                    <mat-error data-test-id="profile-pin-error">{{
+                        'PROFILES.ERRORS.INVALID_PIN' | translate
+                    }}</mat-error>
+                }
+            </mat-form-field>
+            @if (showRemovePin && !kids()) {
+                <mat-checkbox
+                    [checked]="removePin()"
+                    (change)="setRemovePin($event.checked)"
+                    data-test-id="profile-remove-pin"
+                    >{{
+                        'SETTINGS.PROFILES.PIN_REMOVE' | translate
+                    }}</mat-checkbox
+                >
+            }
+            <p class="profile-dialog__note">
+                {{ 'SETTINGS.PROFILES.PIN_NOTE' | translate }}
+            </p>
+        </div>
+        <div appDialogFooter>
+            <button mat-button type="button" (click)="cancel()">
+                {{ 'CANCEL' | translate }}
+            </button>
+            <button mat-flat-button type="submit" data-test-id="profile-save">
+                {{ 'SETTINGS.PROFILES.SAVE' | translate }}
+            </button>
+        </div>
+    </app-dialog-shell>
+</form>

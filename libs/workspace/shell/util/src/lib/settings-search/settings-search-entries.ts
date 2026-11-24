@@ -331,6 +331,22 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         keywords: ['backup', 'restore', 'import', 'export', 'migrate'],
     },
     {
+        id: 'profiles-enabled',
+        section: 'profiles',
+        labelKey: 'SETTINGS.PROFILES.ENABLED',
+        descriptionKey: 'SETTINGS.PROFILES.ENABLED_DESCRIPTION',
+        keywords: ['profiles', 'household', 'family', 'kids', 'users'],
+        requires: ['profiles'],
+    },
+    {
+        id: 'profiles-start',
+        section: 'profiles',
+        labelKey: 'SETTINGS.PROFILES.START',
+        descriptionKey: 'SETTINGS.PROFILES.START_DESCRIPTION',
+        keywords: ['profiles', "who's watching", 'picker', 'startup', 'last'],
+        requires: ['profiles'],
+    },
+    {
         id: 'source-server',
         section: 'server',
         labelKey: 'SOURCE_SYNC.TITLE',
