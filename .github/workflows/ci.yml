@@ -35,6 +35,7 @@ jobs:
         outputs:
             run: ${{ steps.scope.outputs.run }}
             e2e: ${{ steps.e2e.outputs.run }}
+            e2e-cross-platform: ${{ steps.e2e.outputs.cross-platform }}
 
         steps:
             - name: Checkout code
@@ -50,9 +51,9 @@ jobs:
               run: node tools/release/build-release-notes.mjs --validate
 
             # Labels are fetched live rather than read from the (stale) event
-            # payload, so applying `no-release-note` and re-running the check
-            # works without a new push. Policy lives in a unit-tested script,
-            # not in workflow bash.
+            # payload, so applying `no-release-note` or `cross-platform-e2e`
+            # and re-running works without a new push. Policy lives in
+            # unit-tested scripts, not in workflow bash.
             - name: Require a release note for user-visible changes
               if: github.event_name == 'pull_request'
               env:
@@ -63,8 +64,9 @@ jobs:
 
                   gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/labels?per_page=100" \
                       --paginate --jq '[.[].name]' |
-                      jq -s 'add // []' |
-                      node tools/release/check-release-note-gate.mjs --merge-checkout
+                      jq -s 'add // []' > "${RUNNER_TEMP}/pr-labels.json"
+
+                  node tools/release/check-release-note-gate.mjs --merge-checkout < "${RUNNER_TEMP}/pr-labels.json"
 
             # Image pinned by digest (tag 1.7.12). False positives are
             # suppressed in .github/actionlint.yaml; shellcheck runs at
@@ -107,20 +109,10 @@ jobs:
                   fi
                   echo "run=true" >> "$GITHUB_OUTPUT"
 
-            - name: Preserve PR E2E path exclusions
+            - name: Select PR E2E scope
               id: e2e
               if: github.event_name == 'pull_request'
-              run: |
-                  set -euo pipefail
-                  # Match the former pull_request paths-ignore, including renames.
-                  if relevant="$(git diff --name-only --no-renames --ignore-submodules=none HEAD^1 HEAD -- . \
-                      ':(exclude,glob)**/*.md' ':(exclude,top)docs/' \
-                      ':(exclude,top).plans/' ':(exclude,top).agents/' ':(exclude,top).codex/' \
-                      ':(exclude,top).claude/' ':(exclude,top)apps/website/')" && [ -z "$relevant" ]; then
-                      echo "run=false" >> "$GITHUB_OUTPUT"
-                  else
-                      echo "run=true" >> "$GITHUB_OUTPUT"
-                  fi
+              run: node tools/packaging/pr-e2e-scope.mjs --labels-file "${RUNNER_TEMP}/pr-labels.json"
 
     lint:
         name: Lint
@@ -200,6 +192,8 @@ jobs:
                 needs.lint.result == 'success' &&
                 needs.fast-gates.outputs.e2e == 'true' }}
         uses: ./.github/workflows/e2e-tests.yaml
+        with:
+            cross_platform: ${{ needs.fast-gates.outputs.e2e-cross-platform == 'true' }}
 
     initial-bytes-ratchet:
         needs: [fast-gates, lint]
