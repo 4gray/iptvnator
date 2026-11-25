@@ -19,6 +19,8 @@ import {
     recordCatalogRequests,
 } from './xtream-selection.e2e-support';
 
+import { navigateWithinWorkspace } from './workspace-route.e2e-support';
+
 const title = 'Startup test portal';
 const liveRequests = ['get_live_categories', 'get_live_streams'];
 
@@ -137,20 +139,15 @@ test('refreshes opted-in Xtream live channels on restart and keeps the saved cat
         // The live sidebar normally selects a category in place. Enter a
         // category deep link to exercise the URL and browser-history path.
         const oldUrl = `${app.mainWindow.url()}/${oldCategoryId}?q=Favorite`;
-        await app.mainWindow.evaluate(async (url) => {
-            const debug = Reflect.get(window, 'ng');
-            const root = document.querySelector('app-root');
-            const app = debug.getComponent(root) as {
-                router: { navigateByUrl(path: string): Promise<boolean> };
-            };
-            const route = new URL(url);
-            const path = route.pathname.slice(
-                route.pathname.indexOf('/workspace/')
-            );
-            if (!(await app.router.navigateByUrl(path + route.search))) {
-                throw new Error('Could not open the test category route.');
-            }
-        }, oldUrl);
+        const categoryRoute = new URL(oldUrl);
+        const workspacePath = categoryRoute.pathname.slice(
+            categoryRoute.pathname.indexOf('/workspace/')
+        );
+        await navigateWithinWorkspace(
+            app.mainWindow,
+            workspacePath,
+            categoryRoute.search
+        );
         const channelItem = (name: string) =>
             app.mainWindow
                 .getByTestId('channel-item')

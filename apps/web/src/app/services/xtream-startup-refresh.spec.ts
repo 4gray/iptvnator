@@ -1,6 +1,8 @@
 import { Injector } from '@angular/core';
+import { TranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
 import { of } from 'rxjs';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { PlaylistsService } from '@iptvnator/services';
 import { XtreamStartupRefreshService } from '@iptvnator/services/xtream-startup-refresh';
 import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
@@ -59,3 +61,63 @@ it.each([true, false])(
         }
     }
 );
+
+it('continues after an unavailable source and publishes only a saved refresh', async () => {
+    const portal = {
+        ...source,
+        _id: 'synthetic-live',
+        serverUrl: 'https://provider.example',
+        username: 'synthetic-user',
+        password: 'synthetic-password',
+        userAgent: 'Synthetic client',
+    };
+    const refreshLive = jest
+        .fn()
+        .mockRejectedValueOnce(new Error('Offline'))
+        .mockResolvedValue(true);
+    const recordUpdate = jest.fn();
+    const dispatch = jest.fn();
+    const open = jest.fn().mockResolvedValue(null);
+    const updatePlaylistMetaIfCurrent = jest.fn((_patch, matches) => {
+        expect(matches(portal)).toBe(true);
+        expect(matches({ ...portal, userAgent: 'Changed client' })).toBe(false);
+        return of(portal);
+    });
+    const injector = Injector.create({
+        providers: [
+            {
+                provide: XtreamStartupRefreshService,
+                useValue: { refreshLive, recordUpdate },
+            },
+            {
+                provide: PlaylistsService,
+                useValue: { updatePlaylistMetaIfCurrent },
+            },
+            { provide: Store, useValue: { dispatch } },
+            { provide: LazySnackBar, useValue: { open } },
+            {
+                provide: TranslateService,
+                useValue: { instant: (key: string) => key },
+            },
+        ],
+    });
+    try {
+        await refreshXtreamPlaylistsOnStartup(injector, [source, portal]);
+        expect(refreshLive.mock.calls).toEqual([[source], [portal]]);
+        expect(updatePlaylistMetaIfCurrent).toHaveBeenCalledTimes(1);
+        expect(recordUpdate).toHaveBeenCalledWith(
+            portal._id,
+            expect.any(Number)
+        );
+        expect(dispatch).toHaveBeenCalledWith(
+            expect.objectContaining({ playlistId: portal._id })
+        );
+        expect(open).toHaveBeenCalledWith(
+            'HOME.PLAYLISTS.XTREAM_STARTUP_REFRESH_FAILED',
+            'CLOSE',
+            { duration: 8000 }
+        );
+    } finally {
+        injector.destroy();
+    }
+});

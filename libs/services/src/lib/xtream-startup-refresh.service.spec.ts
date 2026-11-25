@@ -21,10 +21,12 @@ describe('Xtream startup refresh', () => {
     let service: XtreamStartupRefreshService;
     let activity: SourceActivityService;
     const db = { getAllXtreamCategories: jest.fn() };
+    const locksReadable = jest.fn(() => true);
     const fetcher = { categories: jest.fn(), content: jest.fn() };
     const refresh = { refreshLiveOnStartup: jest.fn(), progress: () => null };
 
     beforeEach(() => {
+        locksReadable.mockReturnValue(true);
         db.getAllXtreamCategories
             .mockReset()
             .mockResolvedValue([{ id: 11, xtream_id: 4 }]);
@@ -50,7 +52,7 @@ describe('Xtream startup refresh', () => {
                     provide: ParentalLockService,
                     useValue: {
                         initialize: async () => undefined,
-                        locksReadable: () => true,
+                        locksReadable,
                     },
                 },
             ],
@@ -72,6 +74,7 @@ describe('Xtream startup refresh', () => {
 
         const result = service.refreshLive(source);
         await fetched;
+        await Promise.resolve();
         expect(fetcher.categories).toHaveBeenCalledWith(source, 'live');
         expect(fetcher.content).toHaveBeenCalledWith(source, 'live');
         expect(refresh.refreshLiveOnStartup).not.toHaveBeenCalled();
@@ -106,6 +109,33 @@ describe('Xtream startup refresh', () => {
         expect(service.wasLiveCategoryRemoved(source._id, 43, 22)).toBe(false);
         expect(service.wasLiveCategoryRemoved(source._id, 42, 22)).toBe(true);
     });
+
+    it('leaves the catalog alone when parental locks cannot be read', async () => {
+        locksReadable.mockReturnValue(false);
+        await expect(service.refreshLive(source)).rejects.toThrow(
+            'parental locks'
+        );
+        expect(fetcher.categories).not.toHaveBeenCalled();
+        expect(refresh.refreshLiveOnStartup).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        {
+            category_id: 'invalid',
+            category_name: 'Synthetic category',
+            parent_id: 0,
+        },
+        { category_id: '4', parent_id: 0 },
+    ])(
+        'leaves the cached catalog in place for malformed categories',
+        async (category) => {
+            fetcher.categories.mockResolvedValue([category]);
+            await expect(service.refreshLive(source)).rejects.toThrow(
+                'usable live catalog'
+            );
+            expect(refresh.refreshLiveOnStartup).not.toHaveBeenCalled();
+        }
+    );
 
     it('keeps the saved lineup when the provider returns no live channels', async () => {
         fetcher.content.mockResolvedValue([]);

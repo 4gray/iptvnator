@@ -848,6 +848,11 @@ describe('UnifiedRecentDataService', () => {
                         : { id: 200 }
             );
 
+            dbService.removeRecentItem.mockResolvedValueOnce(refreshed);
+            dbService.removeRecentItemsBatch.mockResolvedValueOnce(refreshed);
+            const change = jest.fn();
+            window.addEventListener('iptvnator-history-changed', change, { once: true });
+
             const result =
                 kind === 'single'
                     ? service.removeRecentItem(item)
@@ -886,6 +891,8 @@ describe('UnifiedRecentDataService', () => {
                 expect(dbService.removeRecentItemsBatch).toHaveBeenCalledWith([
                     { contentId: rowId, playlistId },
                 ]);
+            window.removeEventListener('iptvnator-history-changed', change);
+            expect(change).toHaveBeenCalledTimes(Number(refreshed));
             expect(activity.isBusy(playlistId)).toBe(false);
         }
     );
