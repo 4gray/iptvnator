@@ -398,7 +398,8 @@ Before replacing live rows, the selected-catalog service waits for source
 activity to finish and rechecks the saved connection, preference and catalog
 selection. A successful refresh publishes the catalog timestamp so an open
 Xtream view can reread live rows and refresh its search without resetting
-playback. If saving the timestamp fails, the view still reloads for the same
+playback. The Electron second-stream picker waits for the live replacement
+before reading or filling the cache. If saving the timestamp fails, the view still reloads for the same
 source in the current session. Open Favorites and Recently
 Viewed reload their rows after the commit. SQLite live favorite toggles,
 playback history writes and item removals wait for in-flight source work.

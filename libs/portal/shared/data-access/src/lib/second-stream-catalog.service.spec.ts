@@ -6,6 +6,7 @@ import {
     ParentalLockService,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    SourceActivityService,
 } from '@iptvnator/services';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import {
@@ -224,6 +225,36 @@ describe('SecondStreamCatalogService', () => {
             expect.objectContaining({ channelId: 'c', m3uChannel: channel })
         );
     });
+    it.each([false, true])(
+        'defers a companion Xtream catalog during replacement (cancelled: %s)',
+        async (cancelled) => {
+            playlists.getPlaylistById.mockReturnValue(
+                of({ ...playlist, serverUrl: 'https://portal.example.test' })
+            );
+            const release = TestBed.inject(SourceActivityService).begin([
+                playlist._id,
+            ]);
+            const controller = new AbortController();
+            const result = service.load(playlist._id, controller.signal);
+            await Promise.resolve();
+            const readWhileReplacing = xtream.getPlaylist.mock.calls.length;
+            if (cancelled) controller.abort();
+            release();
+
+            if (cancelled) {
+                await expect(result).rejects.toMatchObject({
+                    name: 'AbortError',
+                });
+                expect(xtream.getCategories).not.toHaveBeenCalled();
+            } else {
+                expect((await result).groups).toEqual([
+                    { id: '50', name: 'News', providerId: 900 },
+                ]);
+            }
+            expect(readWhileReplacing).toBe(0);
+        }
+    );
+
     it('keeps Xtream database category ids separate from provider stream and category ids', async () => {
         playlists.getPlaylistById.mockReturnValue(
             of({ ...playlist, serverUrl: 'https://portal.example.test' })
