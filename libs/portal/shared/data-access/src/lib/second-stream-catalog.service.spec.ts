@@ -269,6 +269,7 @@ describe('SecondStreamCatalogService', () => {
             item: {
                 xtreamId: 7,
                 categoryId: 900,
+                xtreamCategoryRowId: 50,
                 uid: 'xtream::synthetic-source::live:7',
             },
         });
@@ -353,6 +354,7 @@ describe('SecondStreamCatalogService', () => {
         const data = await service.load('', new AbortController().signal);
         expect(data.channels).toHaveLength(1);
         expect(data.channels[0].item.categoryId).toBe(900);
+        expect(data.channels[0].item.xtreamCategoryRowId).toBe(50);
         await service.resolve(data.channels[0]);
         expect(resolve).toHaveBeenCalled();
     });

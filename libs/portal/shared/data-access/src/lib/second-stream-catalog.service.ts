@@ -311,6 +311,11 @@ export class SecondStreamCatalogService {
                             : 'stream_id' in c
                               ? c.stream_id
                               : undefined,
+                    xtreamCategoryRowId:
+                        this.runtime.supportsXtreamSqliteDataSource &&
+                        'xtream_id' in c
+                            ? Number(c.category_id)
+                            : undefined,
                     categoryId: allowed.get(String(c.category_id))!.providerId,
                 },
             }));

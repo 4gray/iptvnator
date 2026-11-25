@@ -85,6 +85,9 @@ export interface UnifiedCollectionItem {
     /** Category ID for VOD/Series navigation */
     categoryId?: string | number;
 
+    /** SQLite category identity when the picker exposes a provider category ID. */
+    xtreamCategoryRowId?: number;
+
     /** Content rating (VOD) */
     rating?: string;
 

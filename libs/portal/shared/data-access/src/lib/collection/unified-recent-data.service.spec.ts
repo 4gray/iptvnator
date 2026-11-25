@@ -322,6 +322,35 @@ describe('UnifiedRecentDataService', () => {
         expect(recorded.viewedAt).toBeTruthy();
     });
 
+    it('records a duplicated companion channel using its SQLite category', async () => {
+        jest.spyOn(
+            TestBed.inject(RuntimeCapabilitiesService),
+            'supportsXtreamSqliteDataSource',
+            'get'
+        ).mockReturnValue(true);
+        dbService.getContentByXtreamId.mockImplementation(
+            async (_id, _playlistId, _type, _identity, categoryId) =>
+                categoryId === 50 ? { id: 123 } : null
+        );
+
+        await service.recordPlayback({
+            uid: 'xtream::synthetic-source::live:7',
+            name: 'Synthetic channel',
+            contentType: 'live',
+            sourceType: 'xtream',
+            playlistId: 'synthetic-source',
+            playlistName: 'Synthetic source',
+            xtreamId: 7,
+            categoryId: 900,
+            xtreamCategoryRowId: 50,
+        });
+
+        expect(dbService.addRecentItem).toHaveBeenCalledWith(
+            123,
+            'synthetic-source'
+        );
+    });
+
     it('records Xtream playback with a type-aware fallback lookup', async () => {
         dbService.getContentByXtreamId.mockResolvedValue({
             id: 3867578,

@@ -626,8 +626,9 @@ export class UnifiedRecentDataService {
             item.playlistId,
             item.contentType,
         ];
-        if (this.isSqliteLive(item) && typeof item.categoryId === 'number') {
-            args[4] = item.categoryId;
+        const categoryRowId = item.xtreamCategoryRowId ?? item.categoryId;
+        if (this.isSqliteLive(item) && typeof categoryRowId === 'number') {
+            args[4] = categoryRowId;
             args[6] = true;
         }
         if (!this.hasPortalActivityStorage) {

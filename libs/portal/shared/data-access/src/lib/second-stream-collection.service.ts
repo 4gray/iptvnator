@@ -84,7 +84,12 @@ export class SecondStreamCollectionService {
                 .get(item.playlistId)
                 ?.get(String(item.categoryId));
             if (!category?.hidden)
-                normalized.push({ ...item, categoryId: category?.xtream_id });
+                normalized.push({
+                    ...item,
+                    categoryId: category?.xtream_id,
+                    xtreamCategoryRowId:
+                        type === 'live' ? category?.id : undefined,
+                });
         }
         return normalized;
     }
