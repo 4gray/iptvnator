@@ -500,6 +500,22 @@ export class ParentalLockLockStore {
         this.revisionState.update((value) => value + 1);
     }
 
+    /** Keep a category insert and lock edits in the same write order. */
+    withXtreamCategoryLocks(
+        playlistId: string,
+        categoryType: ParentalLockXtreamCategoryType,
+        save: (lockedIds: number[]) => Promise<void>
+    ): Promise<void> {
+        return this.enqueue(async () => {
+            if (!(await this.ensureReadable())) {
+                throw new Error(
+                    'Could not read parental locks for the refresh.'
+                );
+            }
+            await save(this.lockedXtreamIds(playlistId, categoryType));
+        });
+    }
+
     /**
      * Re-stamps the Electron `categories.locked` index for a playlist from
      * the store, e.g. after a refresh recreated the rows.

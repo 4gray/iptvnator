@@ -73,8 +73,10 @@ is the source of truth for all three portal types. Xtream additionally keeps
 re-stamps one playlist/type from a provider-id list (idempotent, so the store
 can be replayed after a refresh or a backup restore), and `DB_SAVE_CATEGORIES`
 takes `lockedCategoryXtreamIds` so a refresh recreates the rows already
-stamped. Locks are keyed by provider ids, never by SQLite row ids, because a
-refresh deletes and re-inserts the rows.
+stamped. Xtream startup inserts categories in the lock store's write queue,
+so concurrent edits and inserts apply in order. Locks are keyed by provider
+ids, never by SQLite row ids, because a refresh deletes and re-inserts the
+rows.
 
 ## Enforcement — two layers, both default-closed
 

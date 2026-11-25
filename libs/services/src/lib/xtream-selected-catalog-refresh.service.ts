@@ -7,7 +7,7 @@ import {
     xtreamHistoryRecoveryKey,
 } from '@iptvnator/shared/interfaces';
 import { DatabaseService } from './database-electron.service';
-import { ParentalLockService } from './parental-lock';
+import { ParentalLockLockStore } from './parental-lock';
 import { SourceActivityService } from './source-activity.service';
 import {
     sameXtreamCatalogConnection,
@@ -49,7 +49,7 @@ export interface XtreamSelectedCatalogProgress {
 export class XtreamSelectedCatalogRefreshService {
     private readonly fetcher = inject(XtreamCatalogFetchService);
     private readonly db = inject(DatabaseService);
-    private readonly locks = inject(ParentalLockService);
+    private readonly locks = inject(ParentalLockLockStore);
     private readonly pending = inject(XtreamPendingRestoreService);
     private readonly deferred = inject(XtreamDeferredCatalogRestoreService);
     private readonly activity = inject(SourceActivityService);
@@ -154,12 +154,11 @@ export class XtreamSelectedCatalogRefreshService {
             }
             publish(null, 'preparing');
             // Park user state BEFORE deletion so storage failure cannot erase history.
-            const available = types;
             const prepared = await captureCatalogCacheRecoveryState(
                 this.db,
                 this.deferred,
                 playlist._id,
-                available
+                types
             );
             const saved = prepared.state;
             snapshot = this.pending.set(playlist._id, saved);
@@ -221,20 +220,27 @@ export class XtreamSelectedCatalogRefreshService {
                 await this.markUnfinished(playlist._id, type);
                 const categoryType = type === 'movie' ? 'movies' : type;
                 publish(type, 'saving-categories');
-                await this.db.saveXtreamCategories(
-                    playlist._id,
-                    categories,
-                    categoryType,
-                    saved.hiddenCategories
-                        .filter(
-                            (category) => category.categoryType === categoryType
-                        )
-                        .map((category) => category.xtreamId),
-                    this.locks.lockedXtreamIds(playlist._id, categoryType),
-                    ...(retainedCategoryIds
-                        ? ([retainedCategoryIds] as const)
-                        : [])
-                );
+                const hiddenIds = saved.hiddenCategories
+                    .filter(({ categoryType: kind }) => kind === categoryType)
+                    .map(({ xtreamId }) => xtreamId);
+                const saveCategories = (lockedIds: number[]) =>
+                    this.db.saveXtreamCategories(
+                        playlist._id,
+                        categories,
+                        categoryType,
+                        hiddenIds,
+                        lockedIds,
+                        retainedCategoryIds
+                    );
+                await (startup
+                    ? this.locks.withXtreamCategoryLocks(
+                          playlist._id,
+                          categoryType,
+                          saveCategories
+                      )
+                    : saveCategories(
+                          this.locks.lockedXtreamIds(playlist._id, categoryType)
+                      ));
                 publish(type, 'saving-content', 0, content.length);
                 const count = await this.db.saveXtreamContent(
                     playlist._id,
@@ -277,7 +283,7 @@ export class XtreamSelectedCatalogRefreshService {
                         this.deferred,
                         playlist._id,
                         prepared.snapshot,
-                        available,
+                        types,
                         () =>
                             this.commit.setState(
                                 playlist,

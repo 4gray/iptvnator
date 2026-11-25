@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { DataService } from './data.service';
 import { DatabaseService } from './database-electron.service';
-import { ParentalLockService } from './parental-lock';
+import { ParentalLockLockStore } from './parental-lock';
 import { SourceActivityService } from './source-activity.service';
 import {
     XtreamPendingRestoreService,
@@ -58,6 +58,8 @@ describe('edit-time Xtream catalog refresh', () => {
     let commitState: jest.Mock;
     let assertCurrent: jest.Mock;
     let readCurrent: jest.Mock;
+    let lockedXtreamIds: jest.Mock;
+    let withXtreamCategoryLocks: jest.Mock;
 
     beforeEach(() => {
         data = { sendIpcEvent: jest.fn().mockResolvedValue({ payload: [] }) };
@@ -124,6 +126,11 @@ describe('edit-time Xtream catalog refresh', () => {
         release = jest.fn();
         assertCurrent = jest.fn().mockResolvedValue(undefined);
         readCurrent = jest.fn().mockResolvedValue(playlist);
+        lockedXtreamIds = jest.fn().mockReturnValue([]);
+        withXtreamCategoryLocks = jest.fn(
+            async (_id, _type, save: (lockedIds: number[]) => Promise<void>) =>
+                save([])
+        );
         commitState = jest.fn(async (_playlist, key, value) => {
             const saved =
                 value === 'completed'
@@ -149,8 +156,11 @@ describe('edit-time Xtream catalog refresh', () => {
                     },
                 },
                 {
-                    provide: ParentalLockService,
-                    useValue: { lockedXtreamIds: () => [] },
+                    provide: ParentalLockLockStore,
+                    useValue: {
+                        lockedXtreamIds,
+                        withXtreamCategoryLocks,
+                    },
                 },
                 {
                     provide: SourceActivityService,
@@ -175,6 +185,30 @@ describe('edit-time Xtream catalog refresh', () => {
         ).resolves.toBe(false);
         expect(db.deleteXtreamPlaylistContent).not.toHaveBeenCalled();
         expect(release).toHaveBeenCalledTimes(1);
+    });
+
+    it('stamps startup categories with the lock list committed after an overlapping edit', async () => {
+        lockedXtreamIds.mockReturnValue([7]);
+        const optedIn = { ...playlist, autoRefresh: true };
+        readCurrent.mockResolvedValue(optedIn);
+        const categories = [{ category_id: '7', category_name: 'Synthetic' }];
+        const retained: [number, number][] = [[7, 17]];
+        await expect(
+            service.refreshLiveOnStartup(
+                optedIn,
+                { type: 'live', categories, content: [] },
+                async () => retained
+            )
+        ).resolves.toBe(true);
+
+        expect(db.saveXtreamCategories).toHaveBeenCalledWith(
+            'p',
+            categories,
+            'live',
+            [],
+            [],
+            retained
+        );
     });
 
     it('immediately refreshes Movies only and restores history including other types', async () => {

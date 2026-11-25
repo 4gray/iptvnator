@@ -439,6 +439,29 @@ describe('ParentalLockLockStore', () => {
         expect(store.readable()).toBe(true);
         expect(store.lockedXtreamIds('pl-1', 'live')).toEqual([7]);
     });
+    it('stamps startup categories only after the final lock removal persists', async () => {
+        await store.load();
+        let finishWrite: (ok: boolean) => void = () => undefined;
+        storage.writeLocks.mockImplementationOnce(
+            () => new Promise<boolean>((resolve) => (finishWrite = resolve))
+        );
+        const removing = store.setXtreamLocks('pl-1', 'live', []);
+        await waitFor(() => storage.writeLocks.mock.calls.length > 0);
+        expect(setCategoryLocks).toHaveBeenLastCalledWith('pl-1', 'live', []);
+        expect(store.lockedXtreamIds('pl-1', 'live')).toEqual([7]);
+
+        const save = jest.fn().mockResolvedValue(undefined);
+        const inserting = store.withXtreamCategoryLocks('pl-1', 'live', save);
+        await Promise.resolve();
+        const savedBeforeRemoval = save.mock.calls.length;
+        finishWrite(true);
+        await expect(removing).resolves.toBe(true);
+        await inserting;
+
+        expect(savedBeforeRemoval).toBe(0);
+        expect(save).toHaveBeenCalledWith([]);
+    });
+
     it('refuses, at commit time, an edit that removes a lock while removal is gated', async () => {
         await store.load();
         await store.ensureReadable();
