@@ -77,6 +77,7 @@ export function fakeRuntime(
                 null
         ),
         refresh: jest.fn(async () => undefined),
+        idle: jest.fn(async () => undefined),
         holdDefault: jest.fn(() => undefined),
         recheck: jest.fn(async () => undefined),
         select: jest.fn((_id: string) => true),

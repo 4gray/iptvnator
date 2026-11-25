@@ -34,6 +34,8 @@ import { resolveActiveProfileId } from './profiles-start';
 import { PROFILES_UI_ENABLED_TOKEN } from './profiles-ui-enabled';
 
 export const PROFILES_POLL_MS = 30_000;
+/** A server without profiles may be upgraded later: ask again after this long. */
+export const PROFILES_REPROBE_MS = 5 * 60_000;
 
 @Injectable({ providedIn: 'root' })
 export class ProfilesRuntime {
@@ -47,6 +49,7 @@ export class ProfilesRuntime {
     private readonly activeIdValue = signal(DEFAULT_PROFILE_ID);
     private currentInstanceId: string | null = null;
     private probedInstanceId: string | null = null;
+    private unsupportedAt = 0;
     private revision: number | undefined;
     /** This session's choice, kept when storage cannot hold it. */
     private sessionChoice: string | null = null;
@@ -102,7 +105,9 @@ export class ProfilesRuntime {
             if (
                 !document.hidden &&
                 instanceId &&
-                (this.capableState() || this.probedInstanceId !== instanceId)
+                (this.capableState() ||
+                    this.probedInstanceId !== instanceId ||
+                    this.reprobeDue())
             )
                 refresh();
         }, PROFILES_POLL_MS);
@@ -127,11 +132,19 @@ export class ProfilesRuntime {
         ));
     }
 
+    /**
+     * Resolves once no refresh is running, without joining one: a refresh that
+     * began earlier may predate the change its caller just made.
+     */
+    async idle(): Promise<void> {
+        while (this.refreshing) await this.refreshing.catch(() => undefined);
+    }
+
     /** After a failed call: the next refresh probes the instance again. */
     async recheck(): Promise<void> {
         // An in-flight refresh was not preceded by a fresh identity check:
         // let it finish rather than join it.
-        while (this.refreshing) await this.refreshing.catch(() => undefined);
+        await this.idle();
         this.probedInstanceId = null;
         return this.refresh();
     }
@@ -205,7 +218,7 @@ export class ProfilesRuntime {
             this.reset();
             this.currentInstanceId = instanceId;
         }
-        if (this.probedInstanceId !== instanceId) {
+        if (this.probedInstanceId !== instanceId || this.reprobeDue()) {
             this.stateValue.set('checking');
             const capable = await this.probe(instanceId);
             if (!this.isCurrent(instanceId) || !capable) return;
@@ -271,6 +284,7 @@ export class ProfilesRuntime {
             Array.isArray(info.capabilities) &&
             info.capabilities.includes(PROFILES_CAPABILITY);
         this.probedInstanceId = instanceId;
+        this.unsupportedAt = capable ? 0 : Date.now();
         this.capableState.set(capable);
         this.stateValue.set(capable ? 'checking' : 'unsupported');
         return capable;
@@ -309,6 +323,13 @@ export class ProfilesRuntime {
             this.sessionChoice = null;
             clearActiveProfileId(instanceId);
         }
+    }
+
+    private reprobeDue(): boolean {
+        return (
+            this.stateValue() === 'unsupported' &&
+            Date.now() - this.unsupportedAt >= PROFILES_REPROBE_MS
+        );
     }
 
     private isCurrent(instanceId: string): boolean {

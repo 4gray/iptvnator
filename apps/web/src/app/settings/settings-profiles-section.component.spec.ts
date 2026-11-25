@@ -258,6 +258,51 @@ describe('SettingsProfilesSectionComponent', () => {
         expect(el.textContent).not.toContain('1234');
     });
 
+    it('asks for the current PIN when another device set one since the list loaded', async () => {
+        const { fake, click, answerDialog, dialogOpen } = await setup();
+        fake.client.update
+            .mockResolvedValueOnce(fail({ code: 'pin_required' }))
+            .mockResolvedValue(ok({}));
+        answerDialog({
+            name: 'Renamed',
+            colour: '#3b82f6',
+            emoji: null,
+            kids: false,
+            pin: undefined,
+        });
+        dialogOpen.mockReturnValueOnce({ afterClosed: () => of(true) });
+        await click(`profile-edit-${ADULT_ID}`);
+        expect(fake.client.update).toHaveBeenCalledTimes(1);
+        const pinDialog = dialogOpen.mock.calls[1][1].data;
+        await pinDialog.submit('1234');
+        expect(fake.client.update).toHaveBeenLastCalledWith(ADULT_ID, {
+            name: 'Renamed',
+            currentPin: '1234',
+        });
+        expect(fake.runtime.handleProfileError).not.toHaveBeenCalled();
+    });
+
+    it('waits out a refresh already in flight before it asks afresh', async () => {
+        const { fake, click, answerDialog } = await setup();
+        fake.client.update.mockResolvedValue(ok({}));
+        const order: string[] = [];
+        fake.runtime.idle.mockImplementation(async () => {
+            order.push('idle');
+        });
+        fake.runtime.refresh.mockImplementation(async () => {
+            order.push('refresh');
+        });
+        answerDialog({
+            name: 'Renamed',
+            colour: '#3b82f6',
+            emoji: null,
+            kids: false,
+            pin: undefined,
+        });
+        await click(`profile-edit-${ADULT_ID}`);
+        expect(order.slice(-2)).toEqual(['idle', 'refresh']);
+    });
+
     it('asks for the parental PIN before clearing kids, and stops when it is refused', async () => {
         const { fake, click, answerDialog, confirmPin } = await setup({
             parental: false,

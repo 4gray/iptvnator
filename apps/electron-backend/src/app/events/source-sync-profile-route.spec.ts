@@ -39,6 +39,15 @@ describe('profile source request route', () => {
             },
         ],
         [
+            { operation: 'profiles-order', profile: { ids: [] } },
+            {
+                path: '/v1/profiles/order',
+                method: 'PUT',
+                headers: {},
+                body: { ids: [] },
+            },
+        ],
+        [
             { operation: 'profile-create', profile: { name: 'Synthetic' } },
             {
                 path: '/v1/profiles',

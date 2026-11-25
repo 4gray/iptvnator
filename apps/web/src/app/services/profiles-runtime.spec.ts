@@ -16,7 +16,11 @@ import {
     writeActiveProfileId,
 } from './profiles-preferences';
 import { PROFILES_REQUEST } from './profiles-request.token';
-import { PROFILES_POLL_MS, ProfilesRuntime } from './profiles-runtime';
+import {
+    PROFILES_POLL_MS,
+    PROFILES_REPROBE_MS,
+    ProfilesRuntime,
+} from './profiles-runtime';
 import { loadProfilesRuntime } from './profiles-runtime.providers';
 import {
     PROFILES_UI_ENABLED,
@@ -171,6 +175,29 @@ describe('ProfilesRuntime', () => {
         expect(fake.calls('profiles-list')).toHaveLength(0);
         await runtime.refresh();
         expect(fake.calls('instance')).toHaveLength(1);
+    });
+
+    it('asks an unsupported instance again after a while', async () => {
+        fake.server.capabilities = ['sources-v1'];
+        const runtime = await start();
+        expect(runtime.state()).toBe('unsupported');
+        fake.server.capabilities = ['sources-v1', PROFILES_CAPABILITY];
+        await jest.advanceTimersByTimeAsync(PROFILES_POLL_MS);
+        expect(runtime.capable()).toBe(false);
+        expect(fake.calls('instance')).toHaveLength(1);
+        await jest.advanceTimersByTimeAsync(PROFILES_REPROBE_MS);
+        expect(fake.calls('instance')).toHaveLength(2);
+        expect(runtime.capable()).toBe(true);
+        expect(runtime.state()).toBe('ready');
+    });
+
+    it('lets a running refresh finish without joining it', async () => {
+        const runtime = await start();
+        let finished = false;
+        const running = runtime.refresh().then(() => (finished = true));
+        await runtime.idle();
+        expect(finished).toBe(true);
+        await running;
     });
 
     it('does not trust a probe answered by another instance', async () => {
