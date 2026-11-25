@@ -119,7 +119,12 @@ describe('withRecentItems', () => {
         await store.prepareRecentActions();
         const activity = TestBed.inject(SourceActivityService);
         const finishReplacement = activity.begin([oldSource]);
-        dataSource.getContentByXtreamId.mockResolvedValue({ id: 502 });
+        const playedContent = { title: 'Synthetic live item', categoryId: 19 };
+        dataSource.getContentByXtreamId.mockImplementation(
+            async (_id, _playlist, _type, _identity, categoryId) => ({
+                id: categoryId === playedContent.categoryId ? 502 : 200,
+            })
+        );
         dataSource.getRecentItems.mockImplementation(
             async (playlistId: string) =>
                 playlistId === oldSource
@@ -145,6 +150,7 @@ describe('withRecentItems', () => {
             xtreamId: 42,
             contentType: 'live',
             playlist: signal({ id: oldSource }),
+            playedContent,
         });
         try {
             patchState(store, { playlistId: newSource });
@@ -165,7 +171,17 @@ describe('withRecentItems', () => {
         expect(dataSource.addRecentItem).toHaveBeenCalledWith(
             { id: 502, type: 'live', providerId: 42 },
             oldSource,
-            undefined
+            undefined,
+            playedContent
+        );
+        expect(dataSource.getContentByXtreamId).toHaveBeenCalledWith(
+            42,
+            oldSource,
+            'live',
+            undefined,
+            19,
+            undefined,
+            true
         );
         expect(store.recentItems()).toEqual([
             expect.objectContaining({ playlist_id: newSource, xtream_id: 99 }),

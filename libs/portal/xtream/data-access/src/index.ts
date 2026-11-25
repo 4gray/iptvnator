@@ -11,3 +11,6 @@ export * from './lib/xtream-state';
 // Keep VOD recovery out of the startup bundle with the details request.
 export const loadXtreamVodDetailsRequest = () =>
     import('./lib/stores/xtream-details-request');
+
+export const loadXtreamRecentOperations = () =>
+    import('./lib/xtream-recent-operations');

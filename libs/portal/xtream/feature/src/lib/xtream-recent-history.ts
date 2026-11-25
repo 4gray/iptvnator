@@ -1,6 +1,5 @@
 import { captureHistoryOwner } from '@iptvnator/services/history-events';
 import { sourceConnection } from '@iptvnator/services/source-sync/connection';
-import { normalizeContentMetadataPatch } from '@iptvnator/shared/interfaces';
 import { inject, Injector, signal } from '@angular/core';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import {
@@ -8,10 +7,10 @@ import {
     SourceActivityService,
 } from '@iptvnator/services';
 import {
-    type IXtreamDataSource,
     type XtreamPlayedContent,
     type XtreamDetailMetadataSource,
     xtreamDetailContentMetadata,
+    loadXtreamRecentOperations,
     XTREAM_DATA_SOURCE,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
@@ -77,14 +76,16 @@ export function injectXtreamRecentHistory(): (
                     const sqlite = injector.get(
                         RuntimeCapabilitiesService
                     ).supportsXtreamSqliteDataSource;
-                    const write = () =>
-                        saveWithoutListRefresh(
+                    const write = async () => {
+                        const { saveXtreamRecent } =
+                            await loadXtreamRecentOperations();
+                        await saveXtreamRecent(
                             dataSource,
-                            !sqlite,
-                            playlistId,
-                            captured,
+                            sqlite,
+                            { ...captured, playlistId },
                             current
                         );
+                    };
                     void (sqlite && captured.contentType === 'live'
                         ? activity.runWhenIdle(playlistId, write)
                         : write());
@@ -92,58 +93,6 @@ export function injectXtreamRecentHistory(): (
             }
         );
     };
-}
-
-/**
- * The save half of `withRecentItems.addRecentItem` (same content lookup;
- * the API-only data source keys cold content by its Xtream id), without
- * reloading the store's recent list. Kept here rather than shared with the store: the
- * store and its library barrel ship in the initial bundle, this path is
- * only reached from lazy detail pages.
- */
-async function saveWithoutListRefresh(
-    dataSource: IXtreamDataSource,
-    keysByXtreamId: boolean,
-    playlistId: string,
-    {
-        xtreamId,
-        contentType,
-        backdropUrl,
-        playedContent,
-    }: XtreamRecentItemRequest,
-    current: () => boolean
-): Promise<void> {
-    const id = Number(xtreamId);
-    if (!current() || !Number.isFinite(id) || id <= 0) {
-        return;
-    }
-    const identity = playedContent
-        ? normalizeContentMetadataPatch({
-              tmdbId: playedContent.tmdbId ?? undefined,
-              releaseYear: playedContent.releaseYear ?? undefined,
-          })
-        : null;
-    const content = await dataSource.getContentByXtreamId(
-        id,
-        playlistId,
-        contentType,
-        ...(!keysByXtreamId && identity ? [identity] : [])
-    );
-    const contentId =
-        content?.id ??
-        (keysByXtreamId ||
-        (await dataSource.supportsPortableHistory?.(playlistId))
-            ? id
-            : null);
-    if (!current()) return;
-    if (contentId != null) {
-        await dataSource.addRecentItem(
-            { id: contentId, type: contentType, providerId: id },
-            playlistId,
-            backdropUrl,
-            ...(playedContent ? ([playedContent] as const) : [])
-        );
-    }
 }
 
 /** Capture displayed detail metadata before playback confirmation or navigation. */
