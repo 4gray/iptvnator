@@ -4,12 +4,14 @@ on:
     pull_request:
         paths:
             - '.github/workflows/docker.yml'
-            - 'apps/web/**'
+            - '.npmrc'
             - 'apps/web-backend/**'
             - 'docker/**'
-            - 'libs/**'
             - 'package.json'
+            - 'patches/**'
             - 'pnpm-lock.yaml'
+            - 'pnpm-workspace.yaml'
+            - 'tools/build/inject-build-commit.mjs'
     push:
         branches:
             - master
