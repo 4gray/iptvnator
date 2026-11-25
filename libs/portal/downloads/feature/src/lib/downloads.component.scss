@@ -67,7 +67,7 @@
     border-radius: 999px;
     color: var(--app-list-selected-fg);
     background: var(--app-list-selected-bg);
-    font-size: 0.75rem;
+    font-size: var(--app-text-xs);
     font-weight: 700;
     white-space: nowrap;
 }
@@ -78,7 +78,7 @@
     gap: 6px;
     min-width: 0;
     color: var(--app-body-color, var(--mat-sys-on-surface-variant));
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
 
     strong {
         color: var(--app-heading-color, var(--mat-sys-on-surface));
@@ -128,7 +128,7 @@
 
     > span {
         font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
-        font-size: 0.74rem;
+        font-size: var(--app-text-xs);
     }
 }
 
@@ -200,7 +200,7 @@
     border-radius: 999px;
     color: inherit;
     background: color-mix(in srgb, currentColor 10%, transparent);
-    font-size: 0.7rem;
+    font-size: var(--app-text-2xs);
     font-variant-numeric: tabular-nums;
 }
 

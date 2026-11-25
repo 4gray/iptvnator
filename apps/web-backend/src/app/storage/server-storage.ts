@@ -5,12 +5,14 @@ import {
 import { PlaylistRevisions } from './playlist-revisions';
 import { openServerDatabase, type ServerDatabase } from './server-database';
 import { ServerPlaylistRepository } from './server-playlist-repository';
+import { ServerProfileRepository } from './server-profile-repository';
 import { ServerUserStateRepository } from './server-user-state-repository';
 
 export interface ServerStorage {
     readonly database: ServerDatabase;
     readonly playlists: ServerPlaylistRepository;
     readonly userState: ServerUserStateRepository;
+    readonly profiles: ServerProfileRepository;
     readonly revisions: PlaylistRevisions;
     readonly startedAt: Date;
 }
@@ -27,6 +29,7 @@ export async function openServerStorage(): Promise<ServerStorage> {
         database,
         playlists,
         userState: new ServerUserStateRepository(database.db),
+        profiles: new ServerProfileRepository(database.sqlite),
         revisions: new PlaylistRevisions(),
         startedAt: new Date(),
     };

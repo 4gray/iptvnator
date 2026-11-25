@@ -25,6 +25,10 @@ import {
     type HostedServerStatus,
 } from '@iptvnator/shared/interfaces';
 import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
+import {
+    RadioGroupDirective,
+    RadioOptionDirective,
+} from '@iptvnator/ui/components/radio-group';
 import { SERVER_GUIDES } from './settings-server-about-dialog.component';
 import { SettingsHostedDevicesComponent } from './settings-hosted-devices.component';
 import { SettingsSyncStatusComponent } from './settings-sync-status.component';
@@ -82,17 +86,21 @@ class HostedServerDrafts {
         MatFormFieldModule,
         MatInputModule,
         MatSelectModule,
+        RadioGroupDirective,
+        RadioOptionDirective,
         TranslateModule,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './settings-hosted-server.component.html',
-    styleUrls: [
-        './settings-server-section.component.scss',
-        './settings-hosted-server.component.scss',
-    ],
+    styleUrl: './settings-server-section.component.scss',
+    // Its sections join the Connectivity group's column of sections.
+    styles: [':host { display: contents; }'],
 })
 export class SettingsHostedServerComponent {
     readonly guides = SERVER_GUIDES;
+    readonly modeOptions = (Object.keys(ACCESS_MODE_LABELS) as Mode[]).map(
+        (mode) => ({ mode, labelKey: ACCESS_MODE_LABELS[mode] })
+    );
     readonly status = signal<HostedServerStatus>({ state: 'unavailable' });
     readonly connector = signal<HostedCloudflareStatus | undefined>(undefined);
     readonly canManageConnector = computed(() => {

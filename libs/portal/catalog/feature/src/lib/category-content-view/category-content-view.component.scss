@@ -97,7 +97,7 @@
     padding: 0 10px;
     background: var(--mat-sys-surface-container);
     border: 1px solid color-mix(in srgb, var(--app-on-surface) 6%, transparent);
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     font-weight: 600;
 
     mat-icon {
@@ -172,7 +172,7 @@
     height: 18px;
     padding: 0 5px;
     border-radius: 999px;
-    font-size: 0.68rem;
+    font-size: var(--app-text-2xs);
     font-weight: 700;
     line-height: 1;
     color: var(--mat-sys-on-primary);
@@ -182,7 +182,7 @@
 // The kit's menu section label and divider, aligned with its 10px rows.
 .refine-menu-section-title {
     padding: 8px 10px 6px;
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     font-weight: 600;
     line-height: 1.2;
     color: var(--app-muted-color);
@@ -273,7 +273,7 @@ app-grid-list {
     h3 {
         margin: 0 0 8px;
         color: var(--app-heading-color);
-        font-size: 1.125rem;
+        font-size: var(--app-text-xl);
         font-weight: 600;
     }
 

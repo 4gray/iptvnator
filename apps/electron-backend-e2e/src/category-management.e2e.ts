@@ -132,7 +132,7 @@ test.describe('Electron Xtream Category Management', () => {
                     await applyTheme(app.mainWindow, theme);
                     const bulk = dialog.locator('.bulk-actions button');
                     await expect(bulk.first()).toHaveCSS('height', '32px');
-                    await expect(bulk.first()).toHaveCSS('font-size', '12.5px');
+                    await expect(bulk.first()).toHaveCSS('font-size', '13px');
                     await expect(bulk.last()).toHaveCSS(
                         'border-top-left-radius',
                         '8px'

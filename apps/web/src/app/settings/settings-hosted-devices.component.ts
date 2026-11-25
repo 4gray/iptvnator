@@ -57,7 +57,6 @@ import { timer } from 'rxjs';
     templateUrl: './settings-hosted-devices.component.html',
     styleUrls: [
         './settings-server-section.component.scss',
-        './settings-hosted-server.component.scss',
         './settings-hosted-devices.component.scss',
     ],
 })

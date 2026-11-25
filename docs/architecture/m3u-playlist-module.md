@@ -1810,9 +1810,9 @@ does not change the saved player preference. Clear DASH needs this routing too.
 
 - `ShakaVideoSession` (`libs/ui/playback/src/lib/shaka-engine/`) owns the
   engine: lazy `import('shaka-player')` on first use (the module is a separate
-  lazy chunk, ~217 KB transfer), `drm.clearKeys` configuration, an operation
-  queue + generation guard against channel-switch races. The DOM-free Shaka
-  `5.2.12` public-error boundary lives in `libs/playback/util`; it version-locks
+  lazy chunk, ~223 kB estimated transfer), `drm.clearKeys` configuration, and
+  an operation queue + generation guard against channel-switch races. The DOM-free Shaka
+  `5.2.19` public-error boundary lives in `libs/playback/util`; it version-locks
   its allowlisted
   severity/category/code values, emits only structured sanitized
   `PlaybackDiagnosticSource.Shaka` evidence, ignores recoverable error events,

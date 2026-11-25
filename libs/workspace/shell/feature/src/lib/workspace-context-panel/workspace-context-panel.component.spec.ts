@@ -102,6 +102,7 @@ describe('WorkspaceContextPanelComponent', () => {
         setSelectedItem: jest.fn(),
         setSelectedCategory: jest.fn(),
         reloadCategories: jest.fn(),
+        reloadCachedContent: jest.fn(),
     };
     const stalkerStore = {
         currentPlaylist: signal({
@@ -163,6 +164,7 @@ describe('WorkspaceContextPanelComponent', () => {
         xtreamStore.setSelectedItem.mockClear();
         xtreamStore.setSelectedCategory.mockClear();
         xtreamStore.reloadCategories.mockClear();
+        xtreamStore.reloadCachedContent.mockClear();
         stalkerStore.selectedContentType.set('itv');
         stalkerStore.getCategoryResource.set([]);
         stalkerStore.selectedCategoryId.set(null);
@@ -1144,7 +1146,7 @@ describe('WorkspaceContextPanelComponent', () => {
         expect(dialog.open).not.toHaveBeenCalled();
     });
 
-    it('opens the Xtream category dialog capped at the viewport width', async () => {
+    it('opens a viewport-capped Xtream editor and reloads the browser catalog on Save', async () => {
         fixture.componentRef.setInput('context', {
             provider: 'xtreams',
             playlistId: 'xtream-1',
@@ -1163,9 +1165,11 @@ describe('WorkspaceContextPanelComponent', () => {
         component.loadXtreamCategoryDialog = jest.fn(
             async () => class DialogStub {}
         );
-        dialog.open.mockReturnValueOnce({ afterClosed: () => of(false) });
+        dialog.open.mockReturnValueOnce({ afterClosed: () => of(true) });
 
         await component.openManageCategories();
+        expect(xtreamStore.reloadCategories).toHaveBeenCalledTimes(1);
+        expect(xtreamStore.reloadCachedContent).toHaveBeenCalledTimes(1);
 
         // A 500px panel on a 375px phone would scroll sideways.
         expect(dialog.open).toHaveBeenCalledWith(

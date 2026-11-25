@@ -109,7 +109,7 @@
         );
         border: 1px solid
             color-mix(in srgb, var(--mat-sys-outline-variant) 82%, transparent);
-        font-size: 0.75rem;
+        font-size: var(--app-text-xs);
         font-weight: 600;
         line-height: 1;
         white-space: nowrap;
@@ -202,7 +202,7 @@
         background: transparent;
         color: var(--mat-sys-on-surface);
         font: inherit;
-        font-size: 0.875rem;
+        font-size: var(--app-text-md);
 
         &:disabled {
             cursor: not-allowed;
@@ -240,7 +240,7 @@
             color-mix(in srgb, var(--mat-sys-outline-variant) 70%, transparent);
         border-radius: 5px;
         font-family: inherit;
-        font-size: 0.7rem;
+        font-size: var(--app-text-2xs);
         font-weight: 600;
         letter-spacing: 0.02em;
         line-height: 1;
@@ -362,7 +362,7 @@
     color: var(--mat-sys-on-primary);
     background: var(--mat-sys-primary);
     box-shadow: 0 2px 8px var(--app-selection-glow);
-    font-size: 0.6875rem;
+    font-size: var(--app-text-2xs);
     font-weight: 700;
     line-height: 1;
     pointer-events: none;

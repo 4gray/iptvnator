@@ -102,11 +102,14 @@ describe('SecondStreamPicker presentation', () => {
         const translate = TestBed.inject(TranslateService);
         translate.setTranslation('en', {
             XTREAM: { WATCHED: 'Watched' },
+            HOME: { PLAYLISTS: { GLOBAL_FAVORITES: 'Global favorites' } },
             TWO_STREAMS: {
                 DUPLICATE_WINDOW: 'Already open in window {{slot}}',
+                SOURCE: 'Source',
             },
             WORKSPACE: { DASHBOARD: { PERCENT_WATCHED: '{{value}}% watched' } },
             PORTALS: {
+                RECENTLY_VIEWED: 'Recently viewed',
                 SEASON_TAB: 'Season {{number}}',
                 DETAIL: {
                     EPISODE_NUMBER: 'Episode {{episode}}',
@@ -262,5 +265,67 @@ describe('SecondStreamPicker presentation', () => {
         component.backToSeries();
         fixture.detectChanges();
         expect(document.activeElement).toBe(root.querySelector('input'));
+    });
+
+    it('picks the source from a radio menu named by its current value', async () => {
+        component.sources.set([{ id: 'fixture', name: 'Fixture playlist' }]);
+        fixture.detectChanges();
+        expect(root.querySelector('select')).toBeNull();
+        const trigger =
+            root.querySelector<HTMLButtonElement>('.picker__source');
+        if (!trigger) throw new Error('Missing source picker');
+        expect(trigger.getAttribute('aria-label')).toBe(
+            'Source: Global favorites'
+        );
+        expect(trigger.getAttribute('aria-haspopup')).toBe('menu');
+        expect(trigger.textContent).toContain('Global favorites');
+
+        const open = async () => {
+            trigger.focus();
+            trigger.click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+            return Array.from(
+                document.querySelectorAll<HTMLButtonElement>(
+                    '.mat-mdc-menu-panel [role="menuitemradio"]'
+                )
+            );
+        };
+        const describeRows = (rows: HTMLButtonElement[]) =>
+            rows.map((row) => [
+                row
+                    .querySelector('.mat-mdc-menu-item-text')
+                    ?.textContent?.trim(),
+                row.getAttribute('aria-checked'),
+            ]);
+
+        let rows = await open();
+        expect(describeRows(rows)).toEqual([
+            ['Global favorites', 'true'],
+            ['Recently viewed', 'false'],
+            ['Fixture playlist', 'false'],
+        ]);
+        rows[2].click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(component.source()).toBe('fixture');
+        expect(trigger.getAttribute('aria-label')).toBe(
+            'Source: Fixture playlist'
+        );
+        expect(trigger.textContent).toContain('Fixture playlist');
+        expect(document.activeElement).toBe(trigger);
+
+        rows = await open();
+        expect(describeRows(rows).map(([, checked]) => checked)).toEqual([
+            'false',
+            'false',
+            'true',
+        ]);
+        rows[1].click();
+        fixture.detectChanges();
+        expect(component.source()).toBe(component.historySource);
+        expect(trigger.getAttribute('aria-label')).toBe(
+            'Source: Recently viewed'
+        );
     });
 });

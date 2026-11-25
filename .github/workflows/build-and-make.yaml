@@ -169,10 +169,12 @@ jobs:
         timeout-minutes: 120
         # Concurrency lives on the build jobs, not the workflow: cancelling a
         # whole run could interrupt action-gh-release mid-update and leave the
-        # rolling draft with missing assets. Build slots cancel superseded PR
-        # work; the release job only serializes and is never cancelled.
+        # rolling draft with missing assets. PR build slots cancel superseded
+        # work; non-PR builds use run_id so back-to-back master pushes do not
+        # replace queued nightly builds, while create-release stays serialized
+        # per ref.
         concurrency:
-            group: ${{ github.workflow }}-build-linux-runtime-${{ github.event.pull_request.number || github.ref }}
+            group: ${{ github.workflow }}-build-linux-runtime-${{ github.event.pull_request.number || github.run_id }}
             cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
         steps:
@@ -471,7 +473,7 @@ jobs:
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 120
         concurrency:
-            group: ${{ github.workflow }}-build-${{ matrix.os }}-${{ matrix.arch }}-${{ github.event.pull_request.number || github.ref }}
+            group: ${{ github.workflow }}-build-${{ matrix.os }}-${{ matrix.arch }}-${{ github.event.pull_request.number || github.run_id }}
             cancel-in-progress: ${{ github.event_name == 'pull_request' }}
         strategy:
             fail-fast: false
@@ -1548,7 +1550,7 @@ jobs:
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 120
         concurrency:
-            group: ${{ github.workflow }}-build-${{ matrix.os }}-${{ matrix.linux_profile }}-${{ github.event.pull_request.number || github.ref }}
+            group: ${{ github.workflow }}-build-${{ matrix.os }}-${{ matrix.linux_profile }}-${{ github.event.pull_request.number || github.run_id }}
             cancel-in-progress: ${{ github.event_name == 'pull_request' }}
         strategy:
             fail-fast: false

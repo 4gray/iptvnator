@@ -1,4 +1,5 @@
 import { nativePlaybackResetAt } from './pwa-native-playback-resets';
+import { editPwaXtreamVisibility } from './pwa-xtream-category-visibility';
 import { PwaXtreamBackupStorage } from './pwa-xtream-backup-storage';
 import {
     XTREAM_USER_DATA_KEYS as KEYS,
@@ -588,6 +589,32 @@ describe('PWA restore list receipts', () => {
             'receipt is unreadable'
         );
         expect(storage.getItem(KEYS.collectionItems)).toBeNull();
+    });
+
+    it('preserves explicit visibility edits on export and replay of an applied archive', async () => {
+        const { storage } = fixture();
+        const backup = new PwaXtreamBackupStorage(storage);
+        const pending = {
+            ...state,
+            hiddenCategories: [
+                { categoryType: 'movies' as const, xtreamId: 7 },
+            ],
+        };
+        await backup.restore('p', pending);
+        editPwaXtreamVisibility(storage, 'p', 'movies', new Map([[7, true]]));
+        expect(
+            backup.exportInto(entry, pending).userState.hiddenCategories
+        ).toEqual([]);
+        await backup.restore('p', pending);
+        expect(backup.exportInto(entry).userState.hiddenCategories).toEqual([]);
+
+        await backup.restore('p', {
+            ...pending,
+            favoritesRestoreId: 'import-2',
+        });
+        expect(backup.exportInto(entry).userState.hiddenCategories).toEqual(
+            pending.hiddenCategories
+        );
     });
 
     it('treats a deliberate new import as a new operation', async () => {

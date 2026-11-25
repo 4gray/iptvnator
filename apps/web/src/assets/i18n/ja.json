@@ -17,6 +17,7 @@
         "DUPLICATE_WINDOW": "この動画はすでにウィンドウ {{slot}} で開いています。",
         "PICK_SOURCE": "2つ目のストリームを選択",
         "CONTENT_TYPE": "コンテンツの種類",
+        "SOURCE": "ソース",
         "LOADING_TITLES": "タイトルを読み込み中…",
         "LOAD_TITLES_ERROR": "リストを読み込めませんでした。もう一度お試しください。",
         "NO_TITLES": "タイトルが見つかりません。",

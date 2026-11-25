@@ -10,6 +10,10 @@ import type {
     HistoryState,
     HistoryRecord,
 } from './history.contract';
+import {
+    DEFAULT_PERSONAL_SCOPE,
+    parsePersonalScope,
+} from '../profiles/profile-scope';
 const count = (v: unknown) => {
     if (!Number.isSafeInteger(v) || Number(v) < 0)
         throw new Error('Invalid history number');
@@ -21,20 +25,31 @@ export function parseHistoryScope(input: unknown): HistoryScope {
         assertActivityToken(v[key]);
     if (!['m3u', 'xtream', 'stalker'].includes(v.provider))
         throw new Error('Invalid history provider');
+    let personalScope;
+    try {
+        personalScope = parsePersonalScope(
+            v.personalScope ?? DEFAULT_PERSONAL_SCOPE
+        );
+    } catch {
+        throw new Error('Invalid history scope');
+    }
     return {
         instanceId: v.instanceId,
         sourceId: v.sourceId,
         sourceIncarnation: v.sourceIncarnation,
         provider: v.provider,
+        ...(personalScope === DEFAULT_PERSONAL_SCOPE ? {} : { personalScope }),
     };
 }
 export const historyScopeKey = (scope: HistoryScope) => {
     const v = parseHistoryScope(scope);
+    // The Default profile keeps the original four-field key.
     return JSON.stringify([
         v.instanceId,
         v.sourceId,
         v.sourceIncarnation,
         v.provider,
+        ...(v.personalScope ? [v.personalScope] : []),
     ]);
 };
 export function parseHistoryOperation(input: unknown): HistoryOperation {

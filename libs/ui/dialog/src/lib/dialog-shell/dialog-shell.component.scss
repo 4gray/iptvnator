@@ -94,7 +94,7 @@ app-dialog-shell {
 .app-dialog__subtitle {
     margin: 3px 0 0;
     color: var(--app-body-color);
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     line-height: 1.45;
     overflow-wrap: anywhere;
 }
@@ -263,7 +263,7 @@ app-dialog-shell {
         box-sizing: border-box;
         color: var(--app-heading-color);
         cursor: pointer;
-        font-size: 13.5px;
+        font-size: var(--app-text-md);
         font-weight: 600;
         line-height: 1.5;
         app-region: no-drag;

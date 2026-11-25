@@ -17,6 +17,7 @@
         "DUPLICATE_WINDOW": "Este vídeo ya está abierto en la ventana {{slot}}.",
         "PICK_SOURCE": "Elige una segunda emisión",
         "CONTENT_TYPE": "Tipo de contenido",
+        "SOURCE": "Fuente",
         "LOADING_TITLES": "Cargando títulos…",
         "LOAD_TITLES_ERROR": "No se pudo cargar la lista. Inténtalo de nuevo.",
         "NO_TITLES": "No se encontraron títulos.",

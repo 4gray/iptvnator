@@ -106,8 +106,25 @@ async function expectRailLinksInsideTopBar(page: Page): Promise<void> {
  * starts inside the hero's bottom fade.
  */
 async function phoneHeroGeometry(page: Page) {
-    return page.evaluate(() => {
+    return page.evaluate(async () => {
         const hero = document.querySelector('[data-test-id="dashboard-hero"]');
+        // The slide rises 12px into place (fadeInUp): measure once the
+        // running entry animations settle, not mid-entry. The paused
+        // rotation progress never finishes, so only running ones count.
+        const settled = Promise.all(
+            (hero?.getAnimations({ subtree: true }) ?? [])
+                .filter(
+                    (animation) =>
+                        animation.playState === 'running' &&
+                        animation.effect?.getComputedTiming().endTime !==
+                            Infinity
+                )
+                .map((animation) => animation.finished.catch(() => null))
+        );
+        await Promise.race([
+            settled,
+            new Promise((resolve) => setTimeout(resolve, 2_000)),
+        ]);
         const stage = hero?.querySelector('.hero__stage');
         // Every slide shares one grid cell, aligned to its bottom: the
         // tallest one starts where the overlap begins.

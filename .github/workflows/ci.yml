@@ -22,14 +22,49 @@ permissions:
     contents: read
 
 jobs:
-    actionlint:
-        name: Workflow lint
+    # Combines the dependency-free PR/workflow gates and merge-diff scope
+    # checks into one fast runner so they do not each queue for a runner slot
+    # or require an extra fan-in job before expensive checks start.
+    fast-gates:
+        name: Fast gates
         runs-on: ubuntu-latest
         timeout-minutes: 10
+        permissions:
+            contents: read
+            pull-requests: read
+        outputs:
+            run: ${{ steps.scope.outputs.run }}
+            e2e: ${{ steps.e2e.outputs.run }}
 
         steps:
             - name: Checkout code
               uses: actions/checkout@v7
+              with:
+                  # The first parent is the base of the tested PR merge tree.
+                  fetch-depth: 2
+
+            # The gate scripts are dependency-free Node, so this job skips
+            # pnpm install entirely and stays cheap.
+            - name: Validate release note format
+              if: github.event_name == 'pull_request'
+              run: node tools/release/build-release-notes.mjs --validate
+
+            # Labels are fetched live rather than read from the (stale) event
+            # payload, so applying `no-release-note` and re-running the check
+            # works without a new push. Policy lives in a unit-tested script,
+            # not in workflow bash.
+            - name: Require a release note for user-visible changes
+              if: github.event_name == 'pull_request'
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+              run: |
+                  set -euo pipefail
+
+                  gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/labels?per_page=100" \
+                      --paginate --jq '[.[].name]' |
+                      jq -s 'add // []' |
+                      node tools/release/check-release-note-gate.mjs --merge-checkout
 
             # Image pinned by digest (tag 1.7.12). False positives are
             # suppressed in .github/actionlint.yaml; shellcheck runs at
@@ -42,42 +77,50 @@ jobs:
               env:
                   SHELLCHECK_OPTS: --severity=warning
 
-    release-note-gate:
-        name: Release note gate
-        if: github.event_name == 'pull_request'
-        runs-on: ubuntu-latest
-        timeout-minutes: 10
-        permissions:
-            contents: read
-            pull-requests: read
-
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v7
-              with:
-                  # The first parent is the base of the tested PR merge tree.
-                  fetch-depth: 2
-
-            # The gate scripts are dependency-free Node, so this job skips
-            # pnpm install entirely and stays cheap.
-            - name: Validate release note format
-              run: node tools/release/build-release-notes.mjs --validate
-
-            # Labels are fetched live rather than read from the (stale) event
-            # payload, so applying `no-release-note` and re-running the check
-            # works without a new push. Policy lives in a unit-tested script,
-            # not in workflow bash.
-            - name: Require a release note for user-visible changes
+            # Anything can move a journey (application code, the harness, root
+            # build inputs such as .nvmrc, nx.json or tsconfig.base.json), so
+            # the filter lists what cannot: the same paths the E2E workflow
+            # ignores, plus release notes.
+            - name: Detect journey-relevant changes
+              id: scope
               env:
-                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  EVENT_NAME: ${{ github.event_name }}
               run: |
                   set -euo pipefail
+                  if [ "$EVENT_NAME" != "pull_request" ]; then
+                      echo "run=true" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+                  # Treat a move across the boundary as a deletion and addition.
+                  if ! relevant="$(git diff --name-only --no-renames --ignore-submodules=none HEAD^1 HEAD -- . \
+                      ':(exclude,glob)**/*.md' ':(exclude,top)docs/' \
+                      ':(exclude,top).plans/' ':(exclude,top).agents/' ':(exclude,top).codex/' \
+                      ':(exclude,top).claude/' ':(exclude,top).changes/' ':(exclude,top)apps/website/')"; then
+                      echo "::warning::Could not compare the PR with its base; running the performance journeys."
+                  elif [ -z "$relevant" ]; then
+                      echo "No journey-relevant changes; skipping the performance journeys."
+                      echo "run=false" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  else
+                      echo "Journey-relevant changes:"
+                      echo "$relevant"
+                  fi
+                  echo "run=true" >> "$GITHUB_OUTPUT"
 
-                  gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/labels?per_page=100" \
-                      --paginate --jq '[.[].name]' |
-                      jq -s 'add // []' |
-                      node tools/release/check-release-note-gate.mjs --merge-checkout
+            - name: Preserve PR E2E path exclusions
+              id: e2e
+              if: github.event_name == 'pull_request'
+              run: |
+                  set -euo pipefail
+                  # Match the former pull_request paths-ignore, including renames.
+                  if relevant="$(git diff --name-only --no-renames --ignore-submodules=none HEAD^1 HEAD -- . \
+                      ':(exclude,glob)**/*.md' ':(exclude,top)docs/' \
+                      ':(exclude,top).plans/' ':(exclude,top).agents/' ':(exclude,top).codex/' \
+                      ':(exclude,top).claude/' ':(exclude,top)apps/website/')" && [ -z "$relevant" ]; then
+                      echo "run=false" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "run=true" >> "$GITHUB_OUTPUT"
+                  fi
 
     lint:
         name: Lint
@@ -148,37 +191,22 @@ jobs:
             - name: Typecheck web and Electron entry points
               run: pnpm run typecheck:ci
 
-    # A skipped PR-only note gate is valid on master/manual runs; failures are not.
-    preflight:
-        name: Fast validation
-        needs: [actionlint, release-note-gate, lint]
-        if: ${{ !cancelled() }}
-        runs-on: ubuntu-latest
-        timeout-minutes: 5
-        steps:
-            - name: Require successful fast checks
-              run: |
-                  test '${{ needs.actionlint.result }}' = success
-                  test '${{ needs.lint.result }}' = success
-                  case '${{ needs.release-note-gate.result }}' in
-                      success|skipped) ;;
-                      *) exit 1 ;;
-                  esac
-
     pr-e2e:
         name: PR E2E
-        needs: [preflight, initial-bytes-ratchet, performance-journeys-scope]
+        needs: [fast-gates, lint]
         if: >-
             ${{ !cancelled() && github.event_name == 'pull_request' &&
-                needs.preflight.result == 'success' &&
-                needs.initial-bytes-ratchet.result == 'success' &&
-                needs.performance-journeys-scope.result == 'success' &&
-                needs.performance-journeys-scope.outputs.e2e == 'true' }}
+                needs.fast-gates.result == 'success' &&
+                needs.lint.result == 'success' &&
+                needs.fast-gates.outputs.e2e == 'true' }}
         uses: ./.github/workflows/e2e-tests.yaml
 
     initial-bytes-ratchet:
-        needs: preflight
-        if: ${{ !cancelled() && needs.preflight.result == 'success' }}
+        needs: [fast-gates, lint]
+        if: >-
+            ${{ !cancelled() &&
+                needs.fast-gates.result == 'success' &&
+                needs.lint.result == 'success' }}
         name: Initial bytes ratchet
         runs-on: ubuntu-latest
         timeout-minutes: 30
@@ -319,80 +347,16 @@ jobs:
                   path: dist/performance/
                   retention-days: 14
 
-    # Decides whether a pull request can move the performance journeys, so
-    # the journeys job below does not spend a runner on docs-only changes.
-    # Pushes to master and manual dispatches always run them.
-    performance-journeys-scope:
-        name: Performance journeys scope
-        runs-on: ubuntu-latest
-        timeout-minutes: 5
-        outputs:
-            run: ${{ steps.scope.outputs.run }}
-            e2e: ${{ steps.e2e.outputs.run }}
-
-        steps:
-            # The PR checkout is the merge commit: its first parent is the
-            # target branch, so two commits are enough to diff the PR.
-            - name: Checkout code
-              if: github.event_name == 'pull_request'
-              uses: actions/checkout@v7
-              with:
-                  fetch-depth: 2
-
-            # Anything can move a journey (application code, the harness, root
-            # build inputs such as .nvmrc, nx.json or tsconfig.base.json), so
-            # the filter lists what cannot: the same paths the E2E workflow
-            # ignores, plus release notes.
-            - name: Detect journey-relevant changes
-              id: scope
-              env:
-                  EVENT_NAME: ${{ github.event_name }}
-              run: |
-                  set -euo pipefail
-                  if [ "$EVENT_NAME" != "pull_request" ]; then
-                      echo "run=true" >> "$GITHUB_OUTPUT"
-                      exit 0
-                  fi
-                  # Treat a move across the boundary as a deletion and addition.
-                  if ! relevant="$(git diff --name-only --no-renames --ignore-submodules=none HEAD^1 HEAD -- . \
-                      ':(exclude,glob)**/*.md' ':(exclude,top)docs/' \
-                      ':(exclude,top).plans/' ':(exclude,top).agents/' ':(exclude,top).codex/' \
-                      ':(exclude,top).claude/' ':(exclude,top).changes/' ':(exclude,top)apps/website/')"; then
-                      echo "::warning::Could not compare the PR with its base; running the performance journeys."
-                  elif [ -z "$relevant" ]; then
-                      echo "No journey-relevant changes; skipping the performance journeys."
-                      echo "run=false" >> "$GITHUB_OUTPUT"
-                      exit 0
-                  else
-                      echo "Journey-relevant changes:"
-                      echo "$relevant"
-                  fi
-                  echo "run=true" >> "$GITHUB_OUTPUT"
-
-            - name: Preserve PR E2E path exclusions
-              id: e2e
-              if: github.event_name == 'pull_request'
-              run: |
-                  set -euo pipefail
-                  # Match the former pull_request paths-ignore, including renames.
-                  if relevant="$(git diff --name-only --no-renames --ignore-submodules=none HEAD^1 HEAD -- . \
-                      ':(exclude,glob)**/*.md' ':(exclude,top)docs/' \
-                      ':(exclude,top).plans/' ':(exclude,top).agents/' ':(exclude,top).codex/' \
-                      ':(exclude,top).claude/' ':(exclude,top)apps/website/')" && [ -z "$relevant" ]; then
-                      echo "run=false" >> "$GITHUB_OUTPUT"
-                  else
-                      echo "run=true" >> "$GITHUB_OUTPUT"
-                  fi
-
     # Runs the journey benchmarks (docs/architecture/performance-journeys.md)
     # on the canonical Linux runner and uploads the summary as evidence.
     performance-journeys:
         name: Performance journeys
-        needs: [preflight, performance-journeys-scope]
+        needs: [fast-gates, lint]
         if: >-
-            ${{ !cancelled() && needs.preflight.result == 'success' &&
-                needs.performance-journeys-scope.result == 'success' &&
-                needs.performance-journeys-scope.outputs.run == 'true' }}
+            ${{ !cancelled() &&
+                needs.fast-gates.result == 'success' &&
+                needs.lint.result == 'success' &&
+                needs.fast-gates.outputs.run == 'true' }}
         runs-on: ubuntu-latest
         # The electron-performance build is the bulk of the time; each journey
         # (launch, open-source, playback, search) is six fresh Electron
@@ -472,8 +436,11 @@ jobs:
                   retention-days: 14
 
     unit-and-typecheck:
-        needs: preflight
-        if: ${{ !cancelled() && needs.preflight.result == 'success' }}
+        needs: [fast-gates, lint]
+        if: >-
+            ${{ !cancelled() &&
+                needs.fast-gates.result == 'success' &&
+                needs.lint.result == 'success' }}
         name: Unit Tests and Typechecks
         runs-on: ubuntu-latest
         timeout-minutes: 45
@@ -496,9 +463,6 @@ jobs:
 
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
-
-            - name: Install Chromium for IndexedDB unit contracts
-              run: pnpm exec playwright install --with-deps chromium
 
             - name: Validate agent guidance
               run: pnpm run agents:validate
@@ -568,6 +532,13 @@ jobs:
             # (tools/nx/check-notifications.mjs).
             - name: Validate notifications
               run: pnpm run ui:notifications:validate
+
+            # Buttons and pickers follow the UI kit: no raised or fab
+            # buttons, stroked only when destructive, no palette color, no
+            # native select, mat-select inside a form field
+            # (tools/nx/check-kit-controls.mjs).
+            - name: Validate UI-kit buttons and pickers
+              run: pnpm run ui:kit-controls:validate
 
             # m3-theme.scss themes only the Material components the app
             # imports; a new import without a theme entry renders unthemed.
@@ -643,6 +614,13 @@ jobs:
               env:
                   GH_TOKEN: ${{ github.token }}
               run: node tools/testing/electron/ensure-electron-binary.mjs
+
+            # Only Tier A IndexedDB unit contracts launch Playwright Chromium,
+            # so skip the ~50s download when the suite is out of scope or when
+            # an earlier validation step fails.
+            - name: Install Chromium for IndexedDB unit contracts
+              if: steps.scope.outputs.run == 'true'
+              run: pnpm exec playwright install --with-deps chromium
 
             # Jest's transform cache (TypeScript/Angular transpilation plus
             # coverage instrumentation, keyed by file content) is persisted

@@ -20,7 +20,7 @@ button {
     gap: 8px;
 }
 .startup-version {
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     color: var(--app-body-color);
     margin: 16px 0 0;
 }

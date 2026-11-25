@@ -19,7 +19,7 @@ app-settings-remote-control-section {
 
 .remote-control-url {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     color: var(--app-heading-color);
     text-decoration: none;
 

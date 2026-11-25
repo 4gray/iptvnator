@@ -23,13 +23,13 @@
 }
 
 .category-title {
-    @include panel.standard-panel-title(0.94rem);
+    @include panel.standard-panel-title(var(--app-text-lg));
     color: var(--mat-sys-on-surface);
 }
 
 .category-subtitle {
     @include panel.standard-panel-subtitle(
-        $font-size: 0.72rem,
+        $font-size: var(--app-text-xs),
         $padding: 2px 8px,
         $color: var(--mat-sys-on-surface-variant),
         $background: var(--mat-sys-surface-container)
@@ -41,7 +41,7 @@
     align-items: center;
     gap: 8px;
     padding: 6px 12px;
-    font-size: 0.72rem;
+    font-size: var(--app-text-xs);
     line-height: 1.2;
     color: var(--mat-sys-on-surface-variant);
     background: var(--mat-sys-surface-container);

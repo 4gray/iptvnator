@@ -21,7 +21,7 @@ app-settings-backup-section {
     border-radius: 999px;
     background: var(--settings-chip-bg);
     color: var(--app-heading-color);
-    font-size: 11.5px;
+    font-size: var(--app-text-xs);
 
     .danger-zone__summary-icon {
         width: 14px;
@@ -39,7 +39,7 @@ app-settings-backup-section {
 .danger-zone__progress {
     margin: 8px 0 0;
     color: var(--settings-muted);
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
 }
 
 .danger-zone__button {

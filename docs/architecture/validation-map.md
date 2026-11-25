@@ -23,14 +23,15 @@ using its result as evidence. Docker validation can use
 
 ## Fast validation before expensive PR checks
 
-CI runs workflow lint, the PR release-note gate, affected lint and entry-point
-typechecks first. `Fast validation` requires those checks to pass (the note
-gate is intentionally skipped on master/manual runs). Unit validation, the
-production byte-budget build and performance journeys depend on that gate.
-PR E2E runs through `ci.yml` after fast validation and the byte-budget check,
-using `e2e-tests.yaml` as a reusable workflow. The full matrix is unchanged;
-master pushes and manual E2E dispatches still run directly. Caller/callee
-concurrency groups differ so the reusable workflow cannot cancel its caller.
+CI runs `Fast gates` (the PR release-note gate, workflow lint, and journey/E2E
+merge-diff scope detection in one dependency-free runner) in parallel with
+`Lint` (affected lint and entry-point typechecks). Unit validation, the
+production byte-budget build, performance journeys, and PR E2E depend directly
+on both jobs succeeding without queuing an intermediate fan-in runner.
+PR E2E runs through `ci.yml` using `e2e-tests.yaml` as a reusable workflow.
+The full matrix is unchanged; master pushes and manual E2E dispatches still
+run directly. Caller/callee concurrency groups differ so the reusable workflow
+cannot cancel its caller.
 
 Packaging stays independent to protect rolling draft publication from CI
 cancellation. Selected packaging PRs run affected lint and entry-point

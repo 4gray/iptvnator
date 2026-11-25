@@ -17,6 +17,7 @@
         "DUPLICATE_WINDOW": "這部影片已在視窗 {{slot}} 中開啟。",
         "PICK_SOURCE": "選擇第二個串流",
         "CONTENT_TYPE": "內容類型",
+        "SOURCE": "來源",
         "LOADING_TITLES": "正在載入標題…",
         "LOAD_TITLES_ERROR": "無法載入清單，請再試一次。",
         "NO_TITLES": "找不到標題。",
