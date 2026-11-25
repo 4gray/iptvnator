@@ -91,6 +91,9 @@ export function installAndroidPlaybackCheckpoint(
         )
             return;
         pending.add(data.id);
+        // The write is queued: a switch before it runs must not move it into another profile.
+        const ownsScope = () =>
+            !position || position.personalScope === activePersonalScope();
         const key =
             position &&
             JSON.stringify([
@@ -101,7 +104,7 @@ export function installAndroidPlaybackCheckpoint(
         if (key) newest.set(key, Math.max(data.savedAt, newest.get(key) ?? 0));
         writes = writes
             .then(async () => {
-                if (!ownsProfile()) return;
+                if (!ownsProfile() || !ownsScope()) return;
                 if (position && key) {
                     // A failing newer checkpoint must still take priority over an older one.
                     if ((newest.get(key) ?? 0) > data.savedAt) return;
@@ -115,7 +118,11 @@ export function installAndroidPlaybackCheckpoint(
                                   record.contentXtreamId,
                                   record.contentType
                               );
-                    if (!ownsProfile() || (newest.get(key) ?? 0) > data.savedAt)
+                    if (
+                        !ownsProfile() ||
+                        !ownsScope() ||
+                        (newest.get(key) ?? 0) > data.savedAt
+                    )
                         return;
                     const previousSavedAt = playbackTimestamp(
                         previous?.updatedAt

@@ -141,10 +141,8 @@ describe('ProfileSwitchService', () => {
         const flushes = log.filter((entry) =>
             entry.startsWith('activity.flush')
         );
-        expect(flushes).toEqual([
-            'activity.flush@shared',
-            `activity.flush@${KIDS}`,
-        ]);
+        // The first switch gave way: it never reached the kids scope.
+        expect(flushes).toEqual(['activity.flush@shared']);
         scope.set(KIDS);
         TestBed.tick();
         await service.apply(KIDS);

@@ -26,6 +26,8 @@ export class ProfileSwitchService {
     private readonly injector = inject(EnvironmentInjector);
     private readonly profiles = inject(ProfilesRuntime);
     private queue: Promise<void> = Promise.resolve();
+    /** The newest scope asked for; an older switch still draining gives way to it. */
+    private target: PersonalScope = activePersonalScope();
 
     constructor() {
         // Later changes of the active profile (picker, switcher, a deleted profile).
@@ -34,6 +36,7 @@ export class ProfileSwitchService {
 
     /** Runs switches one at a time; resolves once this device is on `scope`. */
     apply(scope: PersonalScope): Promise<void> {
+        this.target = scope;
         this.queue = this.queue.catch(noop).then(() => this.switchTo(scope));
         return this.queue;
     }
@@ -44,6 +47,9 @@ export class ProfileSwitchService {
         const favorites = this.injector.get(FavoritesSyncRuntime);
         const history = this.injector.get(HistorySyncRuntime);
         await this.drain(activity, favorites, history);
+        // The choice moved on while this device drained (start-up gave up and
+        // fell back to Default): the newer apply owns the switch.
+        if (this.target !== scope) return;
         setActivePersonalScope(scope);
         // Readers that outlive the switch drop the old profile's data now.
         window.dispatchEvent(new Event('iptvnator-profile-switched'));

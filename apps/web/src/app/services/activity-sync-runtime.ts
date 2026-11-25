@@ -22,6 +22,7 @@ import { SourceSyncService } from '@iptvnator/services/source-sync';
 import { activePersonalScope } from '@iptvnator/services/profiles';
 import { DEFAULT_PERSONAL_SCOPE } from '@iptvnator/shared/interfaces/profiles';
 import { ActivitySessionScopes } from './activity-session-scopes';
+import { personalPositionsUnavailable } from './activity-personal-positions';
 import {
     ActivitySyncClient,
     ActivitySupersededError,
@@ -240,6 +241,14 @@ export class ActivitySyncRuntime {
         method: string,
         args: unknown[]
     ): Promise<unknown> {
+        // The raw store is the household's: another profile has no progress
+        // without its own activity sync, and must not overwrite the household's.
+        if (
+            !activityEnabled() &&
+            ActivityPositionAdapter.handles(method) &&
+            activePersonalScope() !== DEFAULT_PERSONAL_SCOPE
+        )
+            return personalPositionsUnavailable(method);
         if (!activityEnabled() || !ActivityPositionAdapter.handles(method)) {
             this.adapter?.supersede(method, args);
             return Reflect.get(raw, method).apply(raw, args);

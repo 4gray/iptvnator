@@ -436,6 +436,23 @@ describe('activity runtime lifecycle and settings orchestration', () => {
         expect(f.runtime.error()).toBe(true);
     });
 
+    it('keeps a profile off the household positions while activity sync is off', async () => {
+        const f = fixture();
+        localStorage.removeItem(consentKey);
+        setActivePersonalScope('profile:00000000-0000-4000-8000-000000000001');
+        try {
+            const raw = f.raw as unknown as IXtreamDataSource;
+            await expect(
+                f.runtime.invoke(raw, 'getAllPlaybackPositions', ['s'])
+            ).resolves.toEqual([]);
+            await expect(
+                f.runtime.invoke(raw, 'savePlaybackPosition', ['s', position])
+            ).rejects.toThrow('sync turned on');
+        } finally {
+            setActivePersonalScope('shared');
+        }
+    });
+
     it('drops a late checkpoint of a session that began in another profile', async () => {
         const f = fixture();
         f.activate();

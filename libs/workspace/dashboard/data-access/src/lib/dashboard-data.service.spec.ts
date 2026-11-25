@@ -2004,6 +2004,14 @@ describe('DashboardDataService', () => {
                 expect(titles()).toEqual([]);
             });
 
+            it('ignores the completion of a load that began before a switch', async () => {
+                await loadDashboard();
+                const stale = service.reloadGlobalRecentItems();
+                window.dispatchEvent(new Event('iptvnator-profile-switched'));
+                await stale;
+                expect(service.globalRecentLoaded()).toBe(false);
+            });
+
             it('looks a failed list up again only when positions reload', async () => {
                 const key = dashboardSeriesEpisodesKey(PLAYLIST, 200);
                 seriesEpisodeAnswers.set(key, { status: 'failed' });

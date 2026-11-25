@@ -561,8 +561,7 @@ export class DashboardDataService {
                     err
                 );
             } finally {
-                this.globalRecentDbLoadedState.set(true);
-                this.finishInitialGlobalRecentLoadIfReady();
+                this.finishRecentLoad(epoch);
             }
             return;
         }
@@ -581,9 +580,15 @@ export class DashboardDataService {
             );
             this.xtreamGlobalRecentItems.set([]);
         } finally {
-            this.globalRecentDbLoadedState.set(true);
-            this.finishInitialGlobalRecentLoadIfReady();
+            this.finishRecentLoad(epoch);
         }
+    }
+
+    /** A load that began before a profile switch must not mark the new profile's data as loaded. */
+    private finishRecentLoad(epoch: number): void {
+        if (epoch !== this.profileEpoch()) return;
+        this.globalRecentDbLoadedState.set(true);
+        this.finishInitialGlobalRecentLoadIfReady();
     }
 
     async reloadGlobalFavorites(): Promise<void> {
@@ -593,13 +598,16 @@ export class DashboardDataService {
             this.playlistBackedGlobalFavoritesLoadedState.set(false);
         }
 
+        const epoch = this.profileEpoch();
         const xtreamReload = this.reloadXtreamGlobalFavorites().finally(() => {
+            if (epoch !== this.profileEpoch()) return;
             this.xtreamGlobalFavoritesLoadedState.set(true);
             this.finishInitialGlobalFavoritesLoadIfReady();
         });
         const m3uReload = this.reloadPlaylistBackedGlobalFavorites();
 
         await Promise.all([xtreamReload, m3uReload]);
+        if (epoch !== this.profileEpoch()) return;
         if (
             this.playlistsLoaded() &&
             !this.playlistBackedGlobalFavoritesLoadedState()
@@ -789,8 +797,9 @@ export class DashboardDataService {
     }
 
     private async reloadPlaylistBackedGlobalFavorites(): Promise<void> {
+        const epoch = this.profileEpoch();
         const loaded = await this.refreshPlaylistBackedGlobalFavorites();
-        if (!loaded) {
+        if (!loaded || epoch !== this.profileEpoch()) {
             return;
         }
 

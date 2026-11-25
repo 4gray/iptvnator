@@ -247,6 +247,28 @@ describe('restoring Android playback checkpoints', () => {
         }
     });
 
+    it('leaves a queued checkpoint pending when the profile switches before its write runs', async () => {
+        const kids = 'profile:11111111-1111-4111-8111-111111111111';
+        try {
+            setActivePersonalScope(kids);
+            getPlaybackPosition.mockImplementationOnce(async () => {
+                setActivePersonalScope('shared');
+                return null;
+            });
+            await deliver({
+                content: JSON.stringify({
+                    profile: 'iptvnator',
+                    ...content,
+                    personalScope: kids,
+                }),
+            });
+            expect(savePlaybackPositionOrThrow).not.toHaveBeenCalled();
+            expect(postMessage).not.toHaveBeenCalled();
+        } finally {
+            setActivePersonalScope('shared');
+        }
+    });
+
     it('keeps a newer position from the same episode', async () => {
         getPlaybackPosition.mockResolvedValue({
             updatedAt: new Date(savedAt + 1000).toISOString(),
