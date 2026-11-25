@@ -1,4 +1,4 @@
-export default {
+module.exports = {
     displayName: '@iptvnator/shared/m3u-utils',
     preset: '../../../jest.preset.js',
     testEnvironment: 'node',

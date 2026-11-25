@@ -1,4 +1,4 @@
-export default {
+module.exports = {
     displayName: 'shared-logging',
     preset: '../../../jest.preset.js',
     testEnvironment: 'node',

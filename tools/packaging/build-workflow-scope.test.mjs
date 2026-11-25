@@ -148,7 +148,7 @@ test(
                     'utf8'
                 )
             );
-            const e2eScope = ci.jobs['performance-journeys-scope'].steps.find(
+            const e2eScope = ci.jobs['fast-gates'].steps.find(
                 ({ id }) => id === 'e2e'
             );
             assert.ok(e2eScope, 'PR E2E needs the original path filter');
@@ -383,55 +383,114 @@ test(
             );
         const ci = readWorkflow('ci.yml');
         const e2e = readWorkflow('e2e-tests.yaml');
-        const gate = ci.jobs.preflight;
-        assert.ok(gate, 'CI needs a fast validation gate');
-        assert.deepEqual(gate.needs, [
-            'actionlint',
-            'release-note-gate',
-            'lint',
-        ]);
-        assert.match(gate.if, /!cancelled\(\)/);
-        assert.match(gate.steps[0].run, /needs\.release-note-gate\.result/);
-        for (const [lint, note, actionlint, success] of [
-            ['success', 'success', 'success', true],
-            ['success', 'skipped', 'success', true],
-            ['failure', 'success', 'success', false],
-            ['success', 'failure', 'success', false],
-            ['success', 'success', 'failure', false],
-            ['cancelled', 'success', 'success', false],
-            ['skipped', 'success', 'success', false],
+        const docker = readWorkflow('docker.yml');
+        const codeql = readWorkflow('codeql-analysis.yml');
+        const gate = ci.jobs['fast-gates'];
+        assert.ok(gate, 'CI needs a consolidated fast-gates job');
+        assert.equal(
+            ci.jobs.preflight,
+            undefined,
+            'CI should not queue a separate fan-in preflight runner'
+        );
+        assert.ok(
+            gate.steps.some(({ name }) => name === 'Run actionlint'),
+            'fast-gates runs actionlint'
+        );
+        for (const stepName of [
+            'Validate release note format',
+            'Require a release note for user-visible changes',
+            'Preserve PR E2E path exclusions',
         ]) {
-            const script = gate.steps[0].run
-                .replaceAll('${{ needs.lint.result }}', lint)
-                .replaceAll('${{ needs.release-note-gate.result }}', note)
-                .replaceAll('${{ needs.actionlint.result }}', actionlint);
-            assert.equal(
-                spawnSync('bash', ['-e', '-c', script]).status === 0,
-                success
-            );
+            const step = gate.steps.find(({ name }) => name === stepName);
+            assert.ok(step, stepName);
+            assert.equal(step.if, "github.event_name == 'pull_request'");
         }
+        assert.ok(
+            gate.steps.some(({ id }) => id === 'scope'),
+            'fast-gates computes performance journey scope'
+        );
 
         for (const id of [
             'unit-and-typecheck',
             'initial-bytes-ratchet',
+            'performance-journeys',
             'pr-e2e',
         ]) {
-            assert.ok([ci.jobs[id].needs].flat().includes('preflight'), id);
+            assert.deepEqual(ci.jobs[id].needs, ['fast-gates', 'lint'], id);
             assert.match(ci.jobs[id].if, /!cancelled\(\)/);
             assert.match(
                 ci.jobs[id].if,
-                /needs\.preflight\.result == 'success'/
+                /needs\.fast-gates\.result == 'success'/
             );
+            assert.match(ci.jobs[id].if, /needs\.lint\.result == 'success'/);
         }
-        assert.ok(ci.jobs['performance-journeys'].needs.includes('preflight'));
-        assert.match(ci.jobs['performance-journeys'].if, /!cancelled\(\)/);
-        assert.match(
-            ci.jobs['performance-journeys'].if,
-            /needs\.preflight\.result == 'success'/
+        assert.doesNotMatch(
+            ci.jobs['pr-e2e'].if,
+            /initial-bytes-ratchet/,
+            'PR E2E starts after fast gates and lint without waiting on initial-bytes-ratchet'
         );
         assert.match(
             ci.jobs['pr-e2e'].if,
-            /needs\.initial-bytes-ratchet\.result == 'success'/
+            /needs\.fast-gates\.outputs\.e2e == 'true'/
+        );
+        assert.match(
+            ci.jobs['performance-journeys'].if,
+            /needs\.fast-gates\.outputs\.run == 'true'/
+        );
+
+        const unitSteps = ci.jobs['unit-and-typecheck'].steps;
+        const scopeIndex = unitSteps.findIndex(({ id }) => id === 'scope');
+        const chromiumIndex = unitSteps.findIndex(
+            ({ name }) => name === 'Install Chromium for IndexedDB unit contracts'
+        );
+        assert.ok(scopeIndex >= 0 && chromiumIndex > scopeIndex);
+        assert.equal(
+            unitSteps[chromiumIndex].if,
+            "steps.scope.outputs.run == 'true'"
+        );
+
+        const dockerSteps = docker.jobs.build.steps;
+        const qemuStep = dockerSteps.find(
+            ({ name }) => name === 'Set up QEMU'
+        );
+        assert.equal(qemuStep.if, "steps.docker-meta.outputs.publish == 'true'");
+        const dockerBuildStep = dockerSteps.find(
+            ({ name }) => name === 'Build Docker image'
+        );
+        assert.match(
+            dockerBuildStep.with['cache-to'],
+            /steps\.docker-meta\.outputs\.publish == 'true'/
+        );
+        assert.equal(dockerBuildStep.with['cache-from'], 'type=gha');
+
+        for (const event of ['push', 'pull_request']) {
+            assert.ok(
+                codeql.on[event]['paths-ignore'].includes('**/*.md'),
+                `codeql ${event} ignores docs`
+            );
+            assert.ok(
+                codeql.on[event]['paths-ignore'].includes(
+                    'apps/web/src/assets/i18n/**'
+                ),
+                `codeql ${event} ignores locale json`
+            );
+        }
+
+        for (const id of [
+            'linux-embedded-mpv-runtime',
+            'build-cross-platform',
+            'build-linux',
+        ]) {
+            assert.match(
+                buildWorkflowConfig.jobs[id].concurrency.group,
+                /github\.run_id/,
+                `${id} non-PR builds use github.run_id so rapid master pushes do not evict queued runs`
+            );
+        }
+        assert.match(
+            buildWorkflowConfig.jobs['create-release'].concurrency.group,
+            /github\.ref/,
+            'create-release stays serialized per ref'
         );
 
         assert.ok(
