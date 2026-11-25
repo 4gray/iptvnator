@@ -46,7 +46,7 @@ const CROSS_PLATFORM_PATTERNS = [
 ];
 
 const PLATFORM_TOKEN_PATTERN =
-    /(^|[/._-])(electron|native|embedded-mpv)([/._-]|$)/;
+    /(^|[/._-])(electron|native|embedded-mpv|macos|darwin|win32|windows|traffic-lights|window-controls)([/._-]|$)/i;
 
 const LINUX_ONLY_SAFE_PATTERNS = [
     ...E2E_IGNORED_PATTERNS,
