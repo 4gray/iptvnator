@@ -26,6 +26,9 @@ describe('validated HTTP redirect chain', () => {
                 }
             );
             expect(result.data).toBe('done');
+            expect(result.finalUrl).toBe(
+                'https://provider.example/next?ticket=provider'
+            );
             expect(transport.requests[0].params).toEqual({
                 username: 'demo',
                 password: 'secret',

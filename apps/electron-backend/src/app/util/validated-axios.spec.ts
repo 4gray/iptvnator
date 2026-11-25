@@ -83,6 +83,7 @@ describe('requestWithValidatedRedirects', () => {
             { resolveHostname: publicResolver }
         );
         expect(response.data).toBe(final);
+        expect(response.finalUrl).toBe('https://example.com/final');
         expect(final.destroyed).toBe(false);
         final.destroy();
     });

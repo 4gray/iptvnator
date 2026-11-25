@@ -1,6 +1,7 @@
 import { buildHostConnectivityFastFailMessage } from '@iptvnator/shared/interfaces';
 import {
     buildStalkerEndpointCandidates,
+    buildStalkerPortalPageCandidates,
     classifyStalkerProbeResponse,
     getStalkerRequestErrorStatus,
     isStalkerAuthFailureBody,
@@ -140,6 +141,52 @@ describe('buildStalkerEndpointCandidates', () => {
     it('returns no candidates for empty or unparseable URLs', () => {
         expect(buildStalkerEndpointCandidates('   ')).toEqual([]);
         expect(buildStalkerEndpointCandidates('not-a-url')).toEqual([]);
+    });
+});
+
+describe('buildStalkerPortalPageCandidates', () => {
+    it('probes the API beside a /stalker_portal/c/ page first', () => {
+        expect(
+            buildStalkerPortalPageCandidates(
+                'http://node.example.invalid/stalker_portal/c/'
+            )
+        ).toEqual([
+            'http://node.example.invalid/stalker_portal/server/load.php',
+            'http://node.example.invalid/stalker_portal/portal.php',
+        ]);
+    });
+
+    it('derives the standard candidates for a root /c page', () => {
+        expect(
+            buildStalkerPortalPageCandidates(
+                'https://node.example.invalid:8443/c/index.html'
+            )
+        ).toEqual([
+            'https://node.example.invalid:8443/server/load.php',
+            'https://node.example.invalid:8443/portal.php',
+            'https://node.example.invalid:8443/stalker_portal/server/load.php',
+        ]);
+    });
+
+    it('keeps a tenant directory in front of the page', () => {
+        expect(
+            buildStalkerPortalPageCandidates(
+                'http://node.example.invalid/tenant/c'
+            )
+        ).toEqual([
+            'http://node.example.invalid/tenant/server/load.php',
+            'http://node.example.invalid/tenant/portal.php',
+            'http://node.example.invalid/tenant/stalker_portal/server/load.php',
+        ]);
+    });
+
+    it.each([
+        'http://node.example.invalid/',
+        'http://node.example.invalid/stalker_portal/',
+        'http://node.example.invalid/cabinet/',
+        'not a url',
+    ])('returns no candidates for %s', (url) => {
+        expect(buildStalkerPortalPageCandidates(url)).toEqual([]);
     });
 });
 

@@ -202,8 +202,23 @@ is absent, a 5xx can be one broken handler beside a healthy sibling — and
 401/403 specifically classify as auth-required (the handshake is attempted,
 for middlewares that answer HTTP auth codes instead of the stock 200 +
 plain-text body). Status-less TIMEOUTS also continue (a single handler can
-hang); only connection-level failures (refused, unresolvable host) abort
-discovery, since every candidate shares the host.
+hang). A connection-level failure (refused, unresolvable host) aborts discovery
+if it has yet to learn any new candidates from a redirect.
+
+Some hosts redirect every API path to the site root, and the root redirects to
+the HTML portal page (`…/stalker_portal/c/`), sometimes on another host. Both
+transports (Electron main and the PWA `/stalker` proxy) answer an HTML body
+whose final address after redirects is such a page (`…/c`, `…/c/`,
+`…/c/index.html`) with a `StalkerPortalPageMarker` carrying that address
+(`libs/shared/interfaces/src/lib/stalker-portal-page.util.ts`; no query or
+credentials). Discovery still classifies it as not-a-portal, but the first such
+page appends `buildStalkerPortalPageCandidates()` to the queue: the page's
+sibling `server/load.php` first, then the usual candidates for that `…/c`
+address. The entered address keeps priority. After discovery adds candidates,
+it tries them even if an earlier probe fails to connect, and a second landing
+page cannot extend discovery. An HTTPS source only learns HTTPS candidates.
+When a source has a login or password, discovery only learns candidates on
+the entered hostname.
 
 For a new source, the Add dialog owns the discovery result. Cancel, dismissal,
 navigation or destroying its import form aborts further discovery/authentication
