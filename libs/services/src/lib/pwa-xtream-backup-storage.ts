@@ -12,7 +12,7 @@ import { XTREAM_USER_DATA_KEYS } from './xtream-user-data-keys';
 import { PwaXtreamRestoreProgress } from './pwa-xtream-restore-progress';
 import {
     readPwaXtreamVisibility,
-    writePwaXtreamVisibility,
+    restorePwaXtreamVisibility,
 } from './pwa-xtream-category-visibility';
 import {
     favoriteWithSnapshot,
@@ -127,10 +127,17 @@ export class PwaXtreamBackupStorage {
             ...entry,
             userState: {
                 ...entry.userState,
-                hiddenCategories: pending
-                    ? pending.hiddenCategories
-                    : (readPwaXtreamVisibility(this.storage, playlistId) ??
-                      entry.userState.hiddenCategories),
+                hiddenCategories:
+                    readPwaXtreamVisibility(
+                        this.storage,
+                        playlistId,
+                        progress && pending
+                            ? {
+                                  id: progress.id,
+                                  hiddenCategories: pending.hiddenCategories,
+                              }
+                            : undefined
+                    ) ?? entry.userState.hiddenCategories,
                 favorites: [...favorites.values()],
                 recentlyViewed: [...recent.values()],
                 playbackPositions: listFor('playbackPositions')
@@ -232,6 +239,12 @@ export class PwaXtreamBackupStorage {
                 snapshots,
                 required
             );
+            restorePwaXtreamVisibility(
+                this.storage,
+                playlistId,
+                state.hiddenCategories,
+                progress.id
+            );
         } catch (error) {
             if (!isQuotaExceeded(error)) {
                 try {
@@ -251,11 +264,6 @@ export class PwaXtreamBackupStorage {
             progress.pendingSnapshots(required)
         );
         await progress.confirmServer();
-        writePwaXtreamVisibility(
-            this.storage,
-            playlistId,
-            state.hiddenCategories
-        );
     }
 
     private async replaceLists(

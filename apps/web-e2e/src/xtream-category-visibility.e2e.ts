@@ -57,6 +57,10 @@ for (const section of [
         await expect(result).toHaveCount(0);
         await visibleOnly.uncheck();
         await expect(result).toBeVisible();
+        if (section.type === 'live') {
+            await result.click();
+            await expect(page.locator('app-web-player-view')).toBeVisible();
+        }
 
         if (section.type === 'movie') {
             await page.addInitScript({

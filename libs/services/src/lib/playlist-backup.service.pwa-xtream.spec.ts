@@ -932,6 +932,7 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
             KEYS.favorites,
             KEYS.recentItems,
             KEYS.playbackPositions,
+            'xtream-category-visibility:xtream-1',
         ];
 
         /** Storage that refuses a write once all values exceed `budget`. */
