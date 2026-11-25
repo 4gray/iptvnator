@@ -31,20 +31,22 @@ on both jobs succeeding without queuing an intermediate fan-in runner.
 PR E2E runs through `ci.yml` using `e2e-tests.yaml` as a reusable workflow.
 `tools/packaging/pr-e2e-scope.mjs` scopes pure renderer/UI/library PRs to
 Ubuntu Electron E2E and sharded Web Chromium E2E, while PRs touching Electron
-main, SQLite/database, `web-backend`, native/embedded-mpv, root build/lockfile
-configs, E2E workflows/fixtures, or carrying the `cross-platform-e2e` label run
-the full Ubuntu/macOS/Windows matrix and Windows hosted-server smoke. Master
-pushes and manual E2E dispatches always run the full cross-platform matrix.
-Caller/callee concurrency groups differ so the reusable workflow cannot cancel
-its caller.
+main, SQLite/database, `web-backend`, desktop window controls,
+native/embedded-mpv, root build/lockfile configs, E2E workflows/fixtures, or
+carrying the `cross-platform-e2e` label run the full Ubuntu/macOS/Windows
+matrix and Windows hosted-server smoke. Master pushes and manual E2E dispatches
+always run the full cross-platform matrix. Caller/callee concurrency groups
+differ so the reusable workflow cannot cancel its caller.
 
 Packaging stays independent to protect rolling draft publication from CI
 cancellation. Selected packaging PRs run affected lint and entry-point
 typechecks before their matrix; selection and manual packaging are documented
 in [Release pipeline](release-pipeline.md#rolling-test-drafts). CodeQL retains
 its independent trigger (skipping docs/i18n-only paths), and Docker PR builds
-trigger only on Docker/backend/dependency/build-script inputs while `master`
-and tag pushes always build and publish multi-arch images.
+trigger on Docker, `web-backend` (including its `libs/shared/**`,
+`libs/tv/util/**`, and `apps/tv-setup/**` inputs), dependency, and build-script
+changes while `master` and tag pushes always build and publish multi-arch
+images.
 
 ## Unit And Type Checks
 

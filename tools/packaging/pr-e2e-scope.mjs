@@ -37,11 +37,12 @@ const CROSS_PLATFORM_PATTERNS = [
     /^apps\/electron-backend\//,
     /^apps\/web-backend\//,
     /^libs\/shared\/database\//,
+    /^libs\/ui\/components\/src\/lib\/window-controls\//,
     /^tools\/(embedded-mpv|packaging|testing\/electron)\//,
     /^patches\//,
     /^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.nvmrc|nx\.json|tsconfig\.base\.json|electron-builder\.json)$/,
     /^\.github\/workflows\/(e2e-tests\.yaml|ci\.yml)$/,
-    /^apps\/electron-backend-e2e\/(playwright\.config\.ts|project\.json|src\/hosted-server\.e2e\.ts|src\/electron-test-fixtures\.ts|src\/performance\/electron-)/,
+    /^apps\/electron-backend-e2e\/(playwright\.config\.ts|project\.json|src\/hosted-server\.e2e\.ts|src\/electron-test-fixtures\.ts|src\/performance\/electron-|src\/(window-controls|window-visibility|window-zoom-level|back-gestures|settings)\.e2e\.ts$)/,
 ];
 
 const PLATFORM_TOKEN_PATTERN =

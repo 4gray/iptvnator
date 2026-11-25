@@ -479,6 +479,9 @@ test(
         for (const requiredPath of [
             'docker/**',
             'apps/web-backend/**',
+            'apps/tv-setup/**',
+            'libs/shared/**',
+            'libs/tv/util/**',
             'package.json',
             'pnpm-lock.yaml',
         ]) {
@@ -682,6 +685,7 @@ test('PR E2E scope selects Ubuntu-only for renderer changes and cross-platform f
         'apps/electron-backend/src/app/api/main.preload.ts',
         'apps/web-backend/src/main.ts',
         'libs/shared/database/src/lib/connection.ts',
+        'libs/ui/components/src/lib/window-controls/window-controls.component.ts',
         'libs/services/src/lib/player-electron.service.ts',
         'tools/embedded-mpv/stage-runtime.mjs',
         'patches/vite@8.1.5.patch',
@@ -689,6 +693,8 @@ test('PR E2E scope selects Ubuntu-only for renderer changes and cross-platform f
         'pnpm-lock.yaml',
         '.github/workflows/e2e-tests.yaml',
         'apps/electron-backend-e2e/src/hosted-server.e2e.ts',
+        'apps/electron-backend-e2e/src/window-controls.e2e.ts',
+        'apps/electron-backend-e2e/src/settings.e2e.ts',
         'apps/electron-backend-e2e/src/embedded-mpv-smoke.e2e.ts',
         'unknown-root-file.txt',
         'libs/portal/weird\nname.ts',

@@ -5,8 +5,11 @@ on:
         paths:
             - '.github/workflows/docker.yml'
             - '.npmrc'
+            - 'apps/tv-setup/**'
             - 'apps/web-backend/**'
             - 'docker/**'
+            - 'libs/shared/**'
+            - 'libs/tv/util/**'
             - 'package.json'
             - 'patches/**'
             - 'pnpm-lock.yaml'
