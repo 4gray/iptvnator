@@ -46,7 +46,7 @@ describe('recently-viewed.operations', () => {
             await expect(getRecentlyViewed(db)).resolves.toEqual(rows);
 
             expect(mockDrizzle.desc).toHaveBeenCalledWith(
-                schema.recentlyViewed.viewedAt
+                expect.objectContaining({ kind: 'sql' })
             );
             expect(queries[0].orderBy).toHaveBeenCalledWith(
                 expect.objectContaining({ kind: 'desc' })
@@ -76,7 +76,7 @@ describe('recently-viewed.operations', () => {
                 'playlist-1'
             );
             expect(mockDrizzle.desc).toHaveBeenCalledWith(
-                schema.recentlyViewed.viewedAt
+                expect.objectContaining({ kind: 'sql' })
             );
             expect(queries[0].limit).toHaveBeenCalledWith(100);
             expect(select).toHaveBeenCalledWith(

@@ -27,10 +27,16 @@ handleWorkerRequest(
 
 handleWorkerRequest(
     'DB_ADD_RECENT_ITEM',
-    (contentId: number, playlistId: string, backdropUrl?: string) => ({
+    (
+        contentId: number,
+        playlistId: string,
+        backdropUrl?: string,
+        viewedAt?: string
+    ) => ({
         contentId,
         playlistId,
         backdropUrl,
+        ...(viewedAt === undefined ? {} : { viewedAt }),
     })
 );
 

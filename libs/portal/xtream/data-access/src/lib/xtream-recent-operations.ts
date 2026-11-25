@@ -14,6 +14,7 @@ interface RecentPlayback {
     contentType: 'live' | 'movie' | 'series';
     backdropUrl?: string;
     playedContent?: XtreamPlayedContent;
+    viewedAt?: string;
 }
 
 /** History writes run after playback confirmation, outside the startup bundle. */
@@ -50,12 +51,14 @@ export async function saveXtreamRecent(
             ? xtreamId
             : null);
     if (!current() || contentId == null) return false;
-    await dataSource.addRecentItem(
+    const args: Parameters<IXtreamDataSource['addRecentItem']> = [
         { id: contentId, type: contentType, providerId: xtreamId },
         playlistId,
         backdropUrl,
-        ...(playedContent ? ([playedContent] as const) : [])
-    );
+    ];
+    if (playedContent) args[3] = playedContent;
+    if (sqlite && item.viewedAt) args[4] = item.viewedAt;
+    await dataSource.addRecentItem(...args);
     return true;
 }
 

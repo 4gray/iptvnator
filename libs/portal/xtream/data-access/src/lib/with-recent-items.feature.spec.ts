@@ -89,7 +89,9 @@ describe('withRecentItems', () => {
         dataSource.getContentByXtreamId.mockResolvedValue(null);
         dataSource.getRecentItems.mockResolvedValue([]);
 
+        const viewedAt = '2026-01-01T00:00:00.123Z';
         store.addRecentItem({
+            viewedAt,
             xtreamId: 42,
             contentType: 'live',
             playlist: signal({ id: 'synthetic-source' }),
@@ -106,7 +108,9 @@ describe('withRecentItems', () => {
         expect(dataSource.addRecentItem).toHaveBeenCalledWith(
             { id: 502, type: 'live', providerId: 42 },
             'synthetic-source',
-            undefined
+            undefined,
+            undefined,
+            viewedAt
         );
         expect(activity.isBusy('synthetic-source')).toBe(false);
     });

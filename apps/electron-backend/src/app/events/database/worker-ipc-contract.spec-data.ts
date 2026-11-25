@@ -443,6 +443,16 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         },
     },
     {
+        operation: 'DB_ADD_RECENT_ITEM',
+        args: [13, playlistId, undefined, '2026-01-01T00:00:00.123Z'],
+        payload: {
+            contentId: 13,
+            playlistId,
+            backdropUrl: undefined,
+            viewedAt: '2026-01-01T00:00:00.123Z',
+        },
+    },
+    {
         operation: 'DB_CLEAR_PLAYLIST_RECENT_ITEMS',
         args: [playlistId],
         payload: { playlistId },

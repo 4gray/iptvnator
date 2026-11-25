@@ -379,7 +379,8 @@ export interface IXtreamDataSource {
         contentId: XtreamCollectionRef,
         playlistId: string,
         backdropUrl?: string,
-        playedContent?: XtreamPlayedContent
+        playedContent?: XtreamPlayedContent,
+        viewedAt?: string
     ): Promise<void>;
 
     /**

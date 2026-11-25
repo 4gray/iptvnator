@@ -93,6 +93,7 @@ export const withRecentItems = function () {
                     playlist: Signal<{ id: string } | null | undefined>;
                     backdropUrl?: string;
                     playedContent?: XtreamPlayedContent;
+                    viewedAt?: string;
                 }>(
                     pipe(
                         switchMap(async ({ playlist, ...item }) => {

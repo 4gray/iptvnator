@@ -14,7 +14,7 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
         const schema = await import('@iptvnator/shared/database/schema');
         const { __databaseConnectionTestHooks: hooks } = await import(${JSON.stringify(connection)});
         const { setAppState, getAppState, deletePlaylist, deleteAllPlaylists } = await import(${JSON.stringify(url('playlist.operations.ts'))});
-        const { addRecentItem, removeRecentItem, removeRecentItemsBatch, clearPlaylistRecentItems, clearRecentlyViewed, getRecentItems } = await import(${JSON.stringify(url('recently-viewed.operations.ts'))});
+        const { addRecentItem, removeRecentItem, removeRecentItemsBatch, clearPlaylistRecentItems, clearRecentlyViewed, getRecentItems, getRecentlyViewed } = await import(${JSON.stringify(url('recently-viewed.operations.ts'))});
         const { restoreXtreamUserData } = await import(${JSON.stringify(url('xtream.operations.ts'))});
         const sqlite = new Database(':memory:');
         sqlite.pragma('foreign_keys = ON');
@@ -27,6 +27,14 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
         db.insert(schema.content).values([1,2,3,4].map(id => ({ id, categoryId: 1, xtreamId: id * 10, title: 'P ' + id, type: 'live' }))).run();
         db.insert(schema.content).values({ id: 5, categoryId: 2, xtreamId: 50, title: 'Q', type: 'live' }).run();
         db.insert(schema.recentlyViewed).values([1,2,3,5].map(contentId => ({ contentId, playlistId: contentId === 5 ? 'q' : 'p', viewedAt: '2026-01-01 00:00:00' }))).run();
+        sqlite.prepare('UPDATE recently_viewed SET viewed_at = ? WHERE content_id = 2').run('2026-01-01 00:00:01');
+        await addRecentItem(db, 5, 'q', { viewedAt: '2026-01-01T00:00:00.200Z' });
+        await addRecentItem(db, 4, 'p', { viewedAt: '2026-01-01T00:00:00.100Z' });
+        await addRecentItem(db, 5, 'q', { viewedAt: '2026-01-01T00:00:00.050Z' });
+        const confirmationOrder = (await getRecentlyViewed(db)).slice(0, 3)
+            .map(row => [row.playlist_id, row.viewed_at]);
+        sqlite.prepare('DELETE FROM recently_viewed WHERE content_id = 4').run();
+        sqlite.prepare('UPDATE recently_viewed SET viewed_at = ?').run('2026-01-01 00:00:00');
         const key = id => 'xtream-history-recovery:' + id;
         const journal = (recentlyViewed = []) => JSON.stringify({ version: 1, contentTypes: ['movie'], recentlyViewed });
         const stale = [{ contentType: 'live', xtreamId: 10, viewedAt: '2020-01-01' }, { contentType: 'live', xtreamId: 20, viewedAt: '2020-01-01' }];
@@ -130,7 +138,7 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
         await deleteAllPlaylists(db);
         const allDeleted = await getAppState(db, key('q'));
         const setting = await getAppState(db, 'unrelated-setting');
-        console.log(JSON.stringify({ kept, currentTimestamp, returned, resolvedReplay, rejected, rollback, cleared, other, explicit, largeExplicit, lookupRejected, lookupPreserved, globalClear, deleted, qJournal: !!qJournal, restoredCopy, removedCopy, movedCopy, resolvedMoves: movedJournal.resolved.map(row => row.xtreamId), allDeleted, setting }));
+        console.log(JSON.stringify({ kept, currentTimestamp, confirmationOrder, returned, resolvedReplay, rejected, rollback, cleared, other, explicit, largeExplicit, lookupRejected, lookupPreserved, globalClear, deleted, qJournal: !!qJournal, restoredCopy, removedCopy, movedCopy, resolvedMoves: movedJournal.resolved.map(row => row.xtreamId), allDeleted, setting }));
         sqlite.close();
     `;
     const result = JSON.parse(
@@ -154,6 +162,11 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
     expect(result).toEqual({
         kept: [10, 40],
         currentTimestamp: true,
+        confirmationOrder: [
+            ['p', '2026-01-01 00:00:01'],
+            ['q', '2026-01-01T00:00:00.200Z'],
+            ['p', '2026-01-01T00:00:00.100Z'],
+        ],
         returned: [10, 40, 99],
         resolvedReplay: [10, 40, 99],
         rejected: true,

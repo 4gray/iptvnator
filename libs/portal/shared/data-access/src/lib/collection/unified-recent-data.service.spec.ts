@@ -347,7 +347,9 @@ describe('UnifiedRecentDataService', () => {
 
         expect(dbService.addRecentItem).toHaveBeenCalledWith(
             123,
-            'synthetic-source'
+            'synthetic-source',
+            undefined,
+            expect.any(String)
         );
     });
 

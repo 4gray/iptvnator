@@ -1241,7 +1241,8 @@ export interface ElectronBridgeApi {
     dbAddRecentItem: (
         contentId: number,
         playlistId: string,
-        backdropUrl?: string
+        backdropUrl?: string,
+        viewedAt?: string
     ) => Promise<ElectronBridgeResult>;
     dbClearPlaylistRecentItems: (
         playlistId: string

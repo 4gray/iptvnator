@@ -64,8 +64,9 @@ export function injectXtreamRecentHistory(): (
             },
             () => {
                 const playlistId = playlist()?.id;
+                const viewedAt = new Date().toISOString();
                 if (store.currentPlaylist()?.id === playlistId) {
-                    store.addRecentItem({ ...captured, playlist });
+                    store.addRecentItem({ ...captured, playlist, viewedAt });
                 } else if (playlistId) {
                     const current = captureHistoryOwner(
                         sourceConnection()?.instanceId,
@@ -82,7 +83,7 @@ export function injectXtreamRecentHistory(): (
                         await saveXtreamRecent(
                             dataSource,
                             sqlite,
-                            { ...captured, playlistId },
+                            { ...captured, playlistId, viewedAt },
                             current
                         );
                     };

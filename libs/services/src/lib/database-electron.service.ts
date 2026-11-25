@@ -1016,7 +1016,8 @@ export class DatabaseService {
     async addRecentItem(
         contentId: number,
         playlistId: string,
-        backdropUrl?: string
+        backdropUrl?: string,
+        viewedAt?: string
     ): Promise<boolean> {
         if (typeof window.electron?.dbAddRecentItem !== 'function') {
             return false;
@@ -1026,7 +1027,8 @@ export class DatabaseService {
             await window.electron.dbAddRecentItem(
                 contentId,
                 playlistId,
-                backdropUrl
+                backdropUrl,
+                ...(viewedAt === undefined ? [] : [viewedAt])
             );
             return true;
         } catch (error) {

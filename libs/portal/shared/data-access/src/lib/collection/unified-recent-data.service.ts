@@ -572,8 +572,15 @@ export class UnifiedRecentDataService {
         if (!current()) return item;
 
         if (contentId != null) {
+            const storeConfirmationTime =
+                this.runtime.supportsXtreamSqliteDataSource;
             if (this.hasPortalActivityStorage) {
-                await this.dbService.addRecentItem(contentId, item.playlistId);
+                const args: Parameters<DatabaseService['addRecentItem']> = [
+                    contentId,
+                    item.playlistId,
+                ];
+                if (storeConfirmationTime) args[3] = viewedAt;
+                await this.dbService.addRecentItem(...args);
             } else {
                 await this.xtreamDataSource.addRecentItem(
                     {
@@ -583,7 +590,8 @@ export class UnifiedRecentDataService {
                     },
                     item.playlistId,
                     undefined,
-                    playedContent
+                    playedContent,
+                    ...(storeConfirmationTime ? ([viewedAt] as const) : [])
                 );
             }
         }

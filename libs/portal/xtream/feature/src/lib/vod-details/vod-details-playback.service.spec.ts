@@ -428,7 +428,8 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
                     },
                     ROUTE_PLAYLIST,
                     undefined,
-                    expect.objectContaining({ title: 'Slow external launch' })
+                    expect.objectContaining({ title: 'Slow external launch' }),
+                    ...(sqlite ? [expect.any(String)] : [])
                 );
             }
         }

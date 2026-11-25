@@ -1093,13 +1093,15 @@ const electronApi: ElectronBridgeApi = {
     dbAddRecentItem: (
         contentId: number,
         playlistId: string,
-        backdropUrl?: string
+        backdropUrl?: string,
+        viewedAt?: string
     ) =>
         ipcRenderer.invoke(
             'DB_ADD_RECENT_ITEM',
             contentId,
             playlistId,
-            backdropUrl
+            backdropUrl,
+            ...(viewedAt === undefined ? [] : [viewedAt])
         ),
     dbClearPlaylistRecentItems: (playlistId: string) =>
         ipcRenderer.invoke('DB_CLEAR_PLAYLIST_RECENT_ITEMS', playlistId),

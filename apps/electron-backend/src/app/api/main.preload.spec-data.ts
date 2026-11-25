@@ -356,6 +356,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: [13, playlistId, 'https://image.example/recent.jpg'],
     },
     {
+        method: 'dbAddRecentItem',
+        args: [13, playlistId, undefined, '2026-01-01T00:00:00.123Z'],
+        channel: 'DB_ADD_RECENT_ITEM',
+        forwardedArgs: [13, playlistId, undefined, '2026-01-01T00:00:00.123Z'],
+    },
+    {
         method: 'dbClearPlaylistRecentItems',
         args: [playlistId],
         channel: 'DB_CLEAR_PLAYLIST_RECENT_ITEMS',

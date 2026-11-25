@@ -1199,9 +1199,11 @@ async function executeRequest(
                 contentId: number;
                 playlistId: string;
                 backdropUrl?: string;
+                viewedAt?: string;
             };
             return addRecentItem(db, payload.contentId, payload.playlistId, {
                 backdropUrl: payload.backdropUrl,
+                viewedAt: payload.viewedAt,
             });
         }
 

@@ -42,7 +42,7 @@ export async function getRecentlyViewed(db: AppDatabase) {
             schema.playlists,
             eq(schema.categories.playlistId, schema.playlists.id)
         )
-        .orderBy(desc(schema.recentlyViewed.viewedAt))
+        .orderBy(desc(sql`julianday(${schema.recentlyViewed.viewedAt})`))
         .limit(100);
 }
 
@@ -85,7 +85,7 @@ export async function getRecentItems(
             eq(schema.recentlyViewed.contentId, schema.content.id)
         )
         .where(eq(schema.recentlyViewed.playlistId, playlistId))
-        .orderBy(desc(schema.recentlyViewed.viewedAt));
+        .orderBy(desc(sql`julianday(${schema.recentlyViewed.viewedAt})`));
     // Recovery must retain every entry; the ordinary browsing read stays capped.
     return all ? query : query.limit(100);
 }
@@ -94,8 +94,16 @@ export async function addRecentItem(
     db: AppDatabase,
     contentId: number,
     playlistId: string,
-    options?: { backdropUrl?: string }
+    options?: { backdropUrl?: string; viewedAt?: string }
 ): Promise<{ success: boolean }> {
+    const confirmation =
+        typeof options?.viewedAt === 'string'
+            ? new Date(options.viewedAt)
+            : null;
+    const viewedAt =
+        confirmation && Number.isFinite(confirmation.getTime())
+            ? confirmation.toISOString()
+            : undefined;
     db.transaction((tx) => {
         const existing = tx
             .select()
@@ -111,7 +119,15 @@ export async function addRecentItem(
 
         if (existing.length > 0) {
             tx.update(schema.recentlyViewed)
-                .set({ viewedAt: sql`CURRENT_TIMESTAMP` })
+                .set({
+                    viewedAt: viewedAt
+                        ? sql`CASE
+                            WHEN julianday(${schema.recentlyViewed.viewedAt}) > julianday(${viewedAt})
+                            THEN ${schema.recentlyViewed.viewedAt}
+                            ELSE ${viewedAt}
+                          END`
+                        : sql`CURRENT_TIMESTAMP`,
+                })
                 .where(
                     and(
                         eq(schema.recentlyViewed.contentId, contentId),
@@ -124,6 +140,7 @@ export async function addRecentItem(
                 .values({
                     contentId,
                     playlistId,
+                    ...(viewedAt ? { viewedAt } : {}),
                 })
                 .run();
         }

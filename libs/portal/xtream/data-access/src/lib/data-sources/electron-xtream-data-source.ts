@@ -30,6 +30,7 @@ import {
 import {
     DbCategoryType,
     IXtreamDataSource,
+    XtreamPlayedContent,
     XtreamCollectionRef,
     xtreamCollectionId,
     mapCategoryTypeToDbType,
@@ -543,12 +544,15 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     async addRecentItem(
         contentId: XtreamCollectionRef,
         playlistId: string,
-        backdropUrl?: string
+        backdropUrl?: string,
+        _playedContent?: XtreamPlayedContent,
+        viewedAt?: string
     ): Promise<void> {
         await this.dbService.addRecentItem(
             xtreamCollectionId(contentId),
             playlistId,
-            backdropUrl
+            backdropUrl,
+            ...(viewedAt === undefined ? [] : [viewedAt])
         );
     }
 
