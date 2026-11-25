@@ -1,11 +1,10 @@
 import type { Injector } from '@angular/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { PlaylistsService } from '@iptvnator/services';
-import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { XtreamStartupRefreshService } from '@iptvnator/services/xtream-startup-refresh';
 import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { Store } from '@ngrx/store';
-import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 
 export async function refreshXtreamPlaylistsOnStartup(
@@ -48,16 +47,8 @@ export async function refreshXtreamPlaylistsOnStartup(
             failed = true;
         }
     }
-    if (failed) showRefreshFailure(injector);
-}
-
-function showRefreshFailure(injector: Injector): void {
-    const translate = injector.get(TranslateService);
-    void injector
-        .get(LazySnackBar)
-        .open(
-            translate.instant('HOME.PLAYLISTS.XTREAM_STARTUP_REFRESH_FAILED'),
-            translate.instant('CLOSE'),
-            { duration: 8000 }
-        );
+    if (failed)
+        injector
+            .get(NotificationService)
+            .error('HOME.PLAYLISTS.XTREAM_STARTUP_REFRESH_FAILED');
 }

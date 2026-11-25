@@ -1,8 +1,7 @@
 import { Injector } from '@angular/core';
-import { TranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
 import { of } from 'rxjs';
-import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { PlaylistsService } from '@iptvnator/services';
 import { XtreamStartupRefreshService } from '@iptvnator/services/xtream-startup-refresh';
 import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
@@ -77,7 +76,7 @@ it('continues after an unavailable source and publishes only a saved refresh', a
         .mockResolvedValue(true);
     const recordUpdate = jest.fn();
     const dispatch = jest.fn();
-    const open = jest.fn().mockResolvedValue(null);
+    const error = jest.fn();
     const updatePlaylistMetaIfCurrent = jest.fn((_patch, matches) => {
         expect(matches(portal)).toBe(true);
         expect(matches({ ...portal, userAgent: 'Changed client' })).toBe(false);
@@ -94,11 +93,7 @@ it('continues after an unavailable source and publishes only a saved refresh', a
                 useValue: { updatePlaylistMetaIfCurrent },
             },
             { provide: Store, useValue: { dispatch } },
-            { provide: LazySnackBar, useValue: { open } },
-            {
-                provide: TranslateService,
-                useValue: { instant: (key: string) => key },
-            },
+            { provide: NotificationService, useValue: { error } },
         ],
     });
     try {
@@ -112,10 +107,8 @@ it('continues after an unavailable source and publishes only a saved refresh', a
         expect(dispatch).toHaveBeenCalledWith(
             expect.objectContaining({ playlistId: portal._id })
         );
-        expect(open).toHaveBeenCalledWith(
-            'HOME.PLAYLISTS.XTREAM_STARTUP_REFRESH_FAILED',
-            'CLOSE',
-            { duration: 8000 }
+        expect(error).toHaveBeenCalledWith(
+            'HOME.PLAYLISTS.XTREAM_STARTUP_REFRESH_FAILED'
         );
     } finally {
         injector.destroy();

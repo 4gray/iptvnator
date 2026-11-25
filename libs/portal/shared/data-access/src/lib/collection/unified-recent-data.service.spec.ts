@@ -46,6 +46,7 @@ describe('UnifiedRecentDataService', () => {
         getContentByXtreamId: jest.Mock;
         getRecentItems: jest.Mock;
         removeRecentItem: jest.Mock;
+        supportsPortableHistory: jest.Mock;
     };
 
     const playlistMeta = {
@@ -183,6 +184,7 @@ describe('UnifiedRecentDataService', () => {
             getContentByXtreamId: jest.fn().mockResolvedValue(null),
             getRecentItems: jest.fn().mockResolvedValue([]),
             removeRecentItem: jest.fn().mockResolvedValue(undefined),
+            supportsPortableHistory: jest.fn().mockResolvedValue(false),
         };
 
         TestBed.configureTestingModule({
@@ -851,7 +853,9 @@ describe('UnifiedRecentDataService', () => {
             dbService.removeRecentItem.mockResolvedValueOnce(refreshed);
             dbService.removeRecentItemsBatch.mockResolvedValueOnce(refreshed);
             const change = jest.fn();
-            window.addEventListener('iptvnator-history-changed', change, { once: true });
+            window.addEventListener('iptvnator-history-changed', change, {
+                once: true,
+            });
 
             const result =
                 kind === 'single'
@@ -894,6 +898,54 @@ describe('UnifiedRecentDataService', () => {
             window.removeEventListener('iptvnator-history-changed', change);
             expect(change).toHaveBeenCalledTimes(Number(refreshed));
             expect(activity.isBusy(playlistId)).toBe(false);
+        }
+    );
+
+    it.each([true, false])(
+        'only removes missing catalog rows by provider ID when history is portable (%s)',
+        async (portable) => {
+            const synced = jest
+                .spyOn(TestBed.inject(HISTORY_PLAYLIST_BRIDGE), 'active')
+                .mockReturnValue(true);
+            const sqlite = jest
+                .spyOn(
+                    TestBed.inject(RuntimeCapabilitiesService),
+                    'supportsXtreamSqliteDataSource',
+                    'get'
+                )
+                .mockReturnValue(true);
+            const item: UnifiedCollectionItem = {
+                uid: 'xtream::synthetic-source::live:42',
+                name: 'Synthetic live item',
+                contentType: 'live',
+                sourceType: 'xtream',
+                playlistId: 'synthetic-source',
+                playlistName: 'Synthetic source',
+                categoryId: 8,
+                contentId: 501,
+                xtreamId: 42,
+            };
+            xtreamDataSource.supportsPortableHistory.mockResolvedValue(
+                portable
+            );
+            try {
+                await service.removeRecentItemsBatch([
+                    item,
+                    { ...item, xtreamId: 43 },
+                ]);
+                expect(dbService.removeRecentItemsBatch).not.toHaveBeenCalled();
+                expect(xtreamDataSource.removeRecentItem.mock.calls).toEqual(
+                    portable
+                        ? [42, 43].map((id) => [
+                              { id, type: 'live', providerId: id },
+                              item.playlistId,
+                          ])
+                        : []
+                );
+            } finally {
+                synced.mockRestore();
+                sqlite.mockRestore();
+            }
         }
     );
 
