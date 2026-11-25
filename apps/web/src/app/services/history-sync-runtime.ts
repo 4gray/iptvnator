@@ -28,6 +28,7 @@ import {
     SourceSyncService,
 } from '@iptvnator/services/source-sync';
 import { sourceConnection } from '@iptvnator/services/source-sync/connection';
+import { activePersonalScope } from '@iptvnator/services/profiles';
 import {
     HistorySyncClient,
     IndexedDbHistoryStore,
@@ -114,6 +115,7 @@ export class HistorySyncRuntime {
             !this.capabilities.supportsHistoryStorage
         )
             throw new Error('History profile unavailable');
+        const scope = activePersonalScope();
         const key = `iptvnator-server:${instanceId}:history-contexts-v1`;
         const retirementKey = favoriteSourceRetirementKey(instanceId);
         const epoch = localStorage.getItem(retirementKey);
@@ -122,23 +124,24 @@ export class HistorySyncRuntime {
         ) as HistoryScope[];
         const owners = new Map<string, () => boolean>();
         const rememberOwners = (contexts: HistoryScope[]) => {
-            for (const scope of contexts)
-                if (!owners.has(scope.sourceId))
+            for (const context of contexts)
+                if (!owners.has(context.sourceId))
                     owners.set(
-                        scope.sourceId,
+                        context.sourceId,
                         captureHistoryOwner(
                             instanceId,
-                            scope.sourceId,
+                            context.sourceId,
                             () => sourceConnection()?.instanceId
                         )
                     );
         };
         rememberOwners(saved);
         // Retirement renews the context cache; verified writes retain their own source fence.
-        const active = (scope?: HistoryScope) =>
+        const active = (source?: HistoryScope) =>
             sourceConnection()?.instanceId === instanceId &&
-            (scope
-                ? (owners.get(scope.sourceId)?.() ?? false)
+            activePersonalScope() === scope &&
+            (source
+                ? (owners.get(source.sourceId)?.() ?? false)
                 : localStorage.getItem(retirementKey) === epoch);
         this.client = new HistorySyncClient(
             this.capabilities.isElectron
@@ -148,11 +151,13 @@ export class HistorySyncRuntime {
                 : new IndexedDbHistoryStore(instanceId),
             {
                 instanceId,
+                scope,
                 deviceId: consent.deviceId,
                 contexts: saved,
                 active,
                 consent: () =>
                     sourceConnection()?.instanceId === instanceId &&
+                    activePersonalScope() === scope &&
                     historyEnabled()
                         ? readHistoryConsent()!.generation
                         : null,

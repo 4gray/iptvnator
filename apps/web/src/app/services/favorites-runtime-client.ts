@@ -7,6 +7,7 @@ import {
 } from '@iptvnator/services/favorites-sync';
 import { requestSourceServer } from '@iptvnator/services/source-sync';
 import { sourceConnection } from '@iptvnator/services/source-sync/connection';
+import { activePersonalScope } from '@iptvnator/services/profiles';
 import type { RuntimeCapabilitiesService } from '@iptvnator/services';
 import type { FavoriteSourceContext } from '@iptvnator/shared/interfaces/favorites-sync';
 import type { Playlist } from '@iptvnator/shared/interfaces';
@@ -27,6 +28,7 @@ export function createFavoritesRuntimeClient(
     if (!instanceId || !consent || !capabilities.supportsFavoritesStorage)
         throw new Error('Favorite storage unavailable');
 
+    const scope = activePersonalScope();
     const key = favoriteSourceContextsKey(instanceId);
     const retirementKey = favoriteSourceRetirementKey(instanceId);
     const epoch = localStorage.getItem(retirementKey);
@@ -47,14 +49,18 @@ export function createFavoritesRuntimeClient(
         : new IndexedDbFavoriteLocalStore(instanceId);
     const client = new FavoritesSyncClient(local, {
         instanceId,
+        scope,
         profileActive: () =>
             sourceConnection()?.instanceId === instanceId &&
+            activePersonalScope() === scope &&
             localStorage.getItem(retirementKey) === epoch,
         deviceId: consent.deviceId,
         contexts,
         request: requestSourceServer,
         consent: () =>
-            sourceConnection()?.instanceId === instanceId && favoritesEnabled()
+            sourceConnection()?.instanceId === instanceId &&
+            activePersonalScope() === scope &&
+            favoritesEnabled()
                 ? readFavoritesConsent()!.generation
                 : null,
         remember: (value) => {

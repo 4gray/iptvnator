@@ -11,6 +11,7 @@ import type {
 import type { ActivitySourceContext } from '@iptvnator/shared/interfaces/activity-sync';
 import { requestSourceServer } from '@iptvnator/services/source-sync';
 import { sourceConnection } from '@iptvnator/services/source-sync/connection';
+import { activePersonalScope } from '@iptvnator/services/profiles';
 import { readActivityConsent } from './activity-consent-state';
 import { ActivityPositionAdapter } from './activity-position-adapter';
 import { ActivityLocalOnlyPositions } from './activity-local-only-positions';
@@ -23,6 +24,8 @@ export function createActivityRuntimeClient(
     paused: () => boolean = () => false
 ) {
     const instanceId = sourceConnection()?.instanceId;
+    const scope = activePersonalScope();
+    const current = () => activePersonalScope() === scope;
     const consent = readActivityConsent();
     if (!instanceId || !consent || !capabilities.supportsActivityStorage)
         throw new Error('Activity profile unavailable');
@@ -67,12 +70,14 @@ export function createActivityRuntimeClient(
                 localOnly.mark(sourceId, position);
         },
         instanceId,
-        profileActive: () => sourceConnection()?.instanceId === instanceId,
+        profileActive: () =>
+            sourceConnection()?.instanceId === instanceId && current(),
+        scope,
         deviceId: consent.deviceId,
         contexts,
         consent: () => {
             const value = readActivityConsent();
-            return value?.enabled && !value.disabling && !paused()
+            return current() && value?.enabled && !value.disabling && !paused()
                 ? value.generation
                 : null;
         },

@@ -19,6 +19,7 @@ import {
     PlaybackPositionRuntimeBridgeService,
 } from '@iptvnator/services';
 import { SourceSyncService } from '@iptvnator/services/source-sync';
+import { activePersonalScope } from '@iptvnator/services/profiles';
 import {
     ActivitySyncClient,
     ActivitySupersededError,
@@ -315,6 +316,11 @@ export class ActivitySyncRuntime {
     }
 
     private ensureClient(): ActivitySyncClient {
+        // A scope change retires the client; its delivery was drained first.
+        if (this.client && this.client.scope !== activePersonalScope()) {
+            void this.client.stopDelivery().catch(() => undefined);
+            this.client = this.adapter = undefined;
+        }
         if (!this.client) {
             const created = createActivityRuntimeClient(
                 this.capabilities,

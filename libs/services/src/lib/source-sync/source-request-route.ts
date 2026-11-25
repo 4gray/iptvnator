@@ -1,5 +1,16 @@
 import type { SourceServerRequest } from '@iptvnator/shared/interfaces';
 
+/** `?cursor=` and `?scope=`; a Default-profile request sends neither extra. */
+function scopeSuffix(request: SourceServerRequest, cursor?: string): string {
+    const query = [
+        ...(cursor ? [`cursor=${encodeURIComponent(cursor)}`] : []),
+        ...(request.scope
+            ? [`scope=${encodeURIComponent(request.scope)}`]
+            : []),
+    ].join('&');
+    return query ? `?${query}` : '';
+}
+
 export function sourceRequestRoute(request: SourceServerRequest): {
     path: string;
     method: string;
@@ -23,14 +34,17 @@ export function sourceRequestRoute(request: SourceServerRequest): {
         case 'clear':
             return { path: '/v1/sources', method: 'DELETE' };
         case 'history-read':
-            return { path: `/v1/history/sources/${id}`, method: 'GET' };
+            return {
+                path: `/v1/history/sources/${id}${scopeSuffix(request)}`,
+                method: 'GET',
+            };
         case 'history-apply':
             return { path: '/v1/history/operations', method: 'POST' };
         case 'favorites-context':
             return { path: `/v1/favorites/sources/${id}`, method: 'GET' };
         case 'favorites-list':
             return {
-                path: `/v1/favorites/sources/${id}/items${request.cursor ? '?cursor=' + encodeURIComponent(request.cursor) : ''}`,
+                path: `/v1/favorites/sources/${id}/items${scopeSuffix(request, request.cursor)}`,
                 method: 'GET',
             };
         case 'favorites-read':
@@ -41,7 +55,7 @@ export function sourceRequestRoute(request: SourceServerRequest): {
             return { path: `/v1/activity/sources/${id}`, method: 'GET' };
         case 'activity-list':
             return {
-                path: `/v1/activity/sources/${id}/items${request.cursor ? '?cursor=' + encodeURIComponent(request.cursor) : ''}`,
+                path: `/v1/activity/sources/${id}/items${scopeSuffix(request, request.cursor)}`,
                 method: 'GET',
             };
         case 'activity-read':

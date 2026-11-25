@@ -17,6 +17,11 @@ import {
     type HistoryResult,
     type HistoryState,
 } from '@iptvnator/shared/interfaces/history-sync';
+import {
+    DEFAULT_PERSONAL_SCOPE,
+    type PersonalScope,
+} from '@iptvnator/shared/interfaces/profiles';
+import { parkHistory } from './history-parked';
 export interface HistoryOptions {
     instanceId: string;
     deviceId: string;
@@ -26,16 +31,20 @@ export interface HistoryOptions {
     changed(): void;
     contexts?: HistoryScope[];
     remember(contexts: HistoryScope[]): void;
+    /** Whose history this client reads and writes; fixed for the client's life. */
+    scope?: PersonalScope;
 }
 export class HistorySyncClient {
     readonly contexts = new Map<string, HistoryScope>();
     private readonly reads = new Map<string, number>();
     private readonly sending = new Map<string, Promise<void>>();
     private readonly writes = new Map<string, Promise<void>>();
+    readonly personalScope: PersonalScope;
     constructor(
         readonly store: HistoryStore,
         readonly options: HistoryOptions
     ) {
+        this.personalScope = options.scope ?? DEFAULT_PERSONAL_SCOPE;
         for (const scope of options.contexts ?? [])
             this.contexts.set(scope.sourceId, parseHistoryScope(scope));
     }
@@ -61,6 +70,9 @@ export class HistorySyncClient {
         const response = await this.options.request({
             operation: 'history-read',
             id: sourceId,
+            ...(this.personalScope === DEFAULT_PERSONAL_SCOPE
+                ? {}
+                : { scope: this.personalScope }),
         });
         this.current();
         if (
@@ -87,7 +99,9 @@ export class HistorySyncClient {
         assertHistoryState(body.state);
         if (
             scope.sourceId !== sourceId ||
-            scope.instanceId !== this.options.instanceId
+            scope.instanceId !== this.options.instanceId ||
+            (scope.personalScope ?? DEFAULT_PERSONAL_SCOPE) !==
+                this.personalScope
         )
             throw new Error('History response scope mismatch');
         this.contexts.set(sourceId, scope);
@@ -309,89 +323,7 @@ export class HistorySyncClient {
             this.options.changed();
         }
     }
-    async parked(sourceId: string, send: boolean): Promise<void> {
-        const scope = await this.scope(sourceId);
-        const generation = this.options.consent();
-        const snapshot = await this.store.read(scope);
-        this.current(scope);
-        if (!snapshot?.pending.some((p) => p.consent !== generation)) return;
-        await this.store.mutate(scope, (current) => {
-            this.current(scope);
-            const record = current ?? emptyHistoryRecord();
-            if (generation !== this.options.consent())
-                throw new Error('History consent changed');
-            const parked = record.pending.filter(
-                (p) => p.consent !== generation
-            );
-            if (!parked.length) return record;
-            if (send) {
-                if (!generation || generation !== this.options.consent())
-                    throw new Error('History consent changed');
-                return {
-                    ...record,
-                    pending: record.pending.map((p) => ({
-                        ...p,
-                        consent: generation,
-                    })),
-                };
-            }
-            const parkedIds = new Set(
-                parked.map((p) => p.operation.operationId)
-            );
-            const pending = record.pending
-                .filter((p) => p.consent === generation)
-                .map((p) => {
-                    if (!p.operation.after || !parkedIds.has(p.operation.after))
-                        return p;
-                    // The parked head blocked delivery, so this successor has never been sent.
-                    const operation = { ...p.operation };
-                    delete operation.after;
-                    return { ...p, operation };
-                });
-            const all = parked.map((p) => p.operation);
-            const references = new Map(
-                [
-                    ...record.base.items.map((item) => item.reference),
-                    ...[...all, ...record.local].reduce<
-                        NonNullable<HistoryOperation['reference']>[]
-                    >((refs, op) => {
-                        if (op.reference) refs.push(op.reference);
-                        return refs;
-                    }, []),
-                ].map((ref) => [favoriteReferenceKey(ref), ref])
-            );
-            const converted = all
-                .reduce<HistoryOperation[]>(
-                    (kept, op) =>
-                        op.kind === 'clear'
-                            ? [...references.values()].map((reference) => ({
-                                  ...op,
-                                  kind: 'remove',
-                                  reference,
-                              }))
-                            : retainLocalHistory(kept, op),
-                    []
-                )
-                .filter(
-                    (op) =>
-                        !pending.some(
-                            (p) =>
-                                p.operation.kind === 'clear' ||
-                                (p.operation.reference &&
-                                    op.reference &&
-                                    favoriteReferenceKey(
-                                        p.operation.reference
-                                    ) === favoriteReferenceKey(op.reference))
-                        )
-                );
-            const local = [...converted, ...record.local].reduce(
-                retainLocalHistory,
-                [] as HistoryOperation[]
-            );
-            return { ...record, pending, local };
-        });
-        this.options.changed();
-        if (send) await this.flush(sourceId);
-        else void this.flush(sourceId).catch(() => undefined);
+    parked(sourceId: string, send: boolean): Promise<void> {
+        return parkHistory(this, sourceId, send);
     }
 }

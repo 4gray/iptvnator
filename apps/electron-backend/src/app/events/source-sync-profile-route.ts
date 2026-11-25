@@ -117,7 +117,8 @@ function validateProfileRequest(request: SourceServerRequest): void {
         request.favorite !== undefined ||
         request.activity !== undefined ||
         request.tmdbTransfer !== undefined ||
-        request.cursor !== undefined
+        request.cursor !== undefined ||
+        request.scope !== undefined
     ) {
         invalidRequest();
     }
