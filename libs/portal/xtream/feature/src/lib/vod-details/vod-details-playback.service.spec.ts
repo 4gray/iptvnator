@@ -363,10 +363,14 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         detail.name = 'Later detail';
         detail.tmdb_id = 999;
 
+        const saved = deferred<void>();
+        xtreamDataSource.addRecentItem.mockImplementationOnce(async () => {
+            saved.resolve();
+        });
         TestBed.inject(PlaybackHistoryGate).confirm({
             streamUrls: ['https://example.com/route.mkv'],
         });
-        await Promise.resolve();
+        await saved.promise;
 
         expect(addRecentItem).not.toHaveBeenCalled();
         expect(xtreamDataSource.getContentByXtreamId).toHaveBeenCalledWith(
