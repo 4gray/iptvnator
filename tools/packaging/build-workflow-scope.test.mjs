@@ -684,9 +684,14 @@ test('PR E2E scope selects Ubuntu-only for renderer changes and cross-platform f
     for (const file of [
         'apps/electron-backend/src/app/api/main.preload.ts',
         'apps/web-backend/src/main.ts',
+        'apps/web/src/app/app.component.ts',
+        'libs/services/src/lib/runtime-capabilities.service.ts',
         'libs/shared/database/src/lib/connection.ts',
         'libs/shared/interfaces/src/lib/macos-traffic-lights.ts',
+        'libs/shared/interfaces/src/lib/zoom-level.util.ts',
         'libs/ui/components/src/lib/window-controls/window-controls.component.ts',
+        'libs/workspace/shell/feature/src/lib/workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service.ts',
+        'libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.ts',
         'libs/workspace/shell/feature/src/lib/workspace-shell/traffic-lights-clearance.directive.ts',
         'libs/services/src/lib/player-electron.service.ts',
         'tools/embedded-mpv/stage-runtime.mjs',
@@ -705,6 +710,13 @@ test('PR E2E scope selects Ubuntu-only for renderer changes and cross-platform f
         assert.equal(result.run, true, file);
         assert.equal(result.crossPlatform, true, file);
     }
+
+    const contentTrigger = evaluatePrE2EScope({
+        files: ['apps/web/src/app/settings/settings.component.ts'],
+        readFileContent: () => 'const mac = this.capabilities.isMacOS;',
+    });
+    assert.equal(contentTrigger.run, true);
+    assert.equal(contentTrigger.crossPlatform, true);
 
     assert.equal(
         evaluatePrE2EScope({ files: [], diffFailed: true }).crossPlatform,

@@ -36,8 +36,12 @@ const CROSS_PLATFORM_PATTERNS = [
     /[\r\n]/,
     /^apps\/electron-backend\//,
     /^apps\/web-backend\//,
+    /^apps\/web\/src\/app\/app\.component\.(ts|html|scss)$/,
+    /^libs\/services\/src\/lib\/runtime-capabilities\.service\.ts$/,
     /^libs\/shared\/database\//,
+    /^libs\/shared\/interfaces\/src\/lib\/(zoom-level\.util|ipc-commands)\.ts$/,
     /^libs\/ui\/components\/src\/lib\/window-controls\//,
+    /^libs\/workspace\/shell\/feature\/src\/lib\/(workspace-shell|workspace-keyboard-shortcuts)\//,
     /^tools\/(embedded-mpv|packaging|testing\/electron)\//,
     /^patches\//,
     /^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.nvmrc|nx\.json|tsconfig\.base\.json|electron-builder\.json)$/,
@@ -47,6 +51,9 @@ const CROSS_PLATFORM_PATTERNS = [
 
 const PLATFORM_TOKEN_PATTERN =
     /(^|[/._-])(electron|native|embedded-mpv|macos|darwin|win32|windows|traffic-lights|window-controls)([/._-]|$)/i;
+
+const PLATFORM_CONTENT_PATTERN =
+    /\b(isMacOS|isWindows|usesCustomWindowControls|macOsTrafficLights|trafficLights|windowControls|setZoomLevel|getZoomLevel)\b|process\.platform|navigator\.platform|['"](darwin|win32)['"]|app-window-controls/;
 
 const LINUX_ONLY_SAFE_PATTERNS = [
     ...E2E_IGNORED_PATTERNS,
@@ -64,7 +71,7 @@ export function isIgnoredForE2E(file) {
     return E2E_IGNORED_PATTERNS.some((pattern) => pattern.test(file));
 }
 
-export function needsCrossPlatformE2E(file) {
+export function needsCrossPlatformE2E(file, content = '') {
     if (isIgnoredForE2E(file)) return false;
     if (CROSS_PLATFORM_PATTERNS.some((pattern) => pattern.test(file))) {
         return true;
@@ -75,10 +82,18 @@ export function needsCrossPlatformE2E(file) {
     if (PLATFORM_TOKEN_PATTERN.test(tokenTarget)) {
         return true;
     }
+    if (content && PLATFORM_CONTENT_PATTERN.test(content)) {
+        return true;
+    }
     return !LINUX_ONLY_SAFE_PATTERNS.some((pattern) => pattern.test(file));
 }
 
-export function evaluatePrE2EScope({ files, labels = [], diffFailed = false }) {
+export function evaluatePrE2EScope({
+    files,
+    labels = [],
+    diffFailed = false,
+    readFileContent = () => '',
+}) {
     if (diffFailed) {
         return {
             run: true,
@@ -104,7 +119,9 @@ export function evaluatePrE2EScope({ files, labels = [], diffFailed = false }) {
         };
     }
 
-    const triggers = relevant.filter(needsCrossPlatformE2E);
+    const triggers = relevant.filter((file) =>
+        needsCrossPlatformE2E(file, readFileContent(file))
+    );
     if (triggers.length > 0) {
         return {
             run: true,
@@ -139,6 +156,29 @@ function readLabels(argv) {
     return [];
 }
 
+function readChangedFileContent(file) {
+    const parts = [];
+    if (existsSync(file)) {
+        try {
+            parts.push(readFileSync(file, 'utf8'));
+        } catch {
+            // Unreadable binary or special entry: fall back to git diff check.
+        }
+    }
+    try {
+        parts.push(
+            execFileSync('git', ['diff', '--unified=0', 'HEAD^1', 'HEAD', '--', file], {
+                encoding: 'utf8',
+                stdio: ['ignore', 'pipe', 'ignore'],
+                maxBuffer: 16 * 1024 * 1024,
+            })
+        );
+    } catch {
+        // Missing base or binary diff; path rules still apply.
+    }
+    return parts.join('\n');
+}
+
 function main() {
     const labels = readLabels(process.argv.slice(2));
     let files = [];
@@ -167,7 +207,12 @@ function main() {
         );
     }
 
-    const result = evaluatePrE2EScope({ files, labels, diffFailed });
+    const result = evaluatePrE2EScope({
+        files,
+        labels,
+        diffFailed,
+        readFileContent: readChangedFileContent,
+    });
     if (process.env.GITHUB_OUTPUT) {
         appendFileSync(
             process.env.GITHUB_OUTPUT,

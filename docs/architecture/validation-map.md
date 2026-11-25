@@ -31,7 +31,8 @@ on both jobs succeeding without queuing an intermediate fan-in runner.
 PR E2E runs through `ci.yml` using `e2e-tests.yaml` as a reusable workflow.
 `tools/packaging/pr-e2e-scope.mjs` scopes pure renderer/UI/library PRs to
 Ubuntu Electron E2E and sharded Web Chromium E2E, while PRs touching Electron
-main, SQLite/database, `web-backend`, desktop window controls,
+main, SQLite/database, `web-backend`, desktop window/shell/shortcut/capability
+adapters (or diffs referencing OS-specific desktop branches),
 native/embedded-mpv, root build/lockfile configs, E2E workflows/fixtures, or
 carrying the `cross-platform-e2e` label run the full Ubuntu/macOS/Windows
 matrix and Windows hosted-server smoke. Master pushes and manual E2E dispatches
