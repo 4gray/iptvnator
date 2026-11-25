@@ -9,6 +9,7 @@ import {
     type Channel,
 } from '@iptvnator/shared/interfaces';
 import type { HistorySyncClient } from '@iptvnator/services/history-sync';
+import { DEFAULT_PERSONAL_SCOPE } from '@iptvnator/shared/interfaces/profiles';
 import type { HistoryPlaylistAction } from '@iptvnator/services/history-events';
 import {
     visibleHistory,
@@ -78,11 +79,16 @@ export class HistoryPlaylistAdapter {
         if (!playlist || playlist.serverUrl) return playlist;
         const scope = this.client.contexts.get(playlist._id);
         const state = await this.client.state(playlist._id);
-        if (!state) return playlist;
+        // The archive on the playlist is the household's; a profile never sees it.
+        const household = this.client.personalScope === DEFAULT_PERSONAL_SCOPE;
+        if (!state)
+            return household ? playlist : { ...playlist, recentlyViewed: [] };
         const source = await this.catalog(playlist);
-        const local = await this.local(source);
+        const local = household
+            ? await this.local(source)
+            : { items: [], unresolved: 0 };
         const mapped = new Map(
-            state.hideArchive
+            state.hideArchive || !household
                 ? []
                 : local.items.map((item) => [
                       favoriteReferenceKey(item.reference),
@@ -90,11 +96,12 @@ export class HistoryPlaylistAdapter {
                   ])
         );
         const originals = new Set(local.items.map((item) => item.original));
-        const unresolved = state.hideArchive
-            ? []
-            : (playlist.recentlyViewed ?? []).filter(
-                  (item) => !originals.has(item)
-              );
+        const unresolved =
+            state.hideArchive || !household
+                ? []
+                : (playlist.recentlyViewed ?? []).filter(
+                      (item) => !originals.has(item)
+                  );
         const urls = state.items.some(
             (item) => item.reference.provider === 'm3u'
         )

@@ -20,6 +20,7 @@ import {
 } from '@iptvnator/services';
 import { SourceSyncService } from '@iptvnator/services/source-sync';
 import { activePersonalScope } from '@iptvnator/services/profiles';
+import { DEFAULT_PERSONAL_SCOPE } from '@iptvnator/shared/interfaces/profiles';
 import {
     ActivitySyncClient,
     ActivitySupersededError,
@@ -145,6 +146,9 @@ export class ActivitySyncRuntime {
                     refreshSources: () => this.sources.refresh(),
                     client: () => this.ensureClient(),
                     mirror: async () => {
+                        // Only the household's raw store may receive a mirror.
+                        if (activePersonalScope() !== DEFAULT_PERSONAL_SCOPE)
+                            return;
                         for (const sourceId of await this.sourceIds())
                             await this.adapter!.keepLocal(this.raw, sourceId);
                     },
@@ -303,10 +307,13 @@ export class ActivitySyncRuntime {
     }
 
     async previewImport(): Promise<ActivityImportPreview> {
+        // Device positions are the household's; a profile never imports them.
+        if (activePersonalScope() !== DEFAULT_PERSONAL_SCOPE) return [];
         return previewLocalActivity(this.raw, await this.sourceIds());
     }
 
     async importPositions(preview: ActivityImportPreview): Promise<number> {
+        if (activePersonalScope() !== DEFAULT_PERSONAL_SCOPE) return 0;
         const unresolved = await importLocalActivity(
             this.ensureClient(),
             preview

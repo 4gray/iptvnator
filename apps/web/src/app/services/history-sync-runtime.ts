@@ -59,6 +59,7 @@ import {
     historyConsentKey,
     readHistoryConsent,
 } from './history-consent';
+import { historyContextsKey } from './history-contexts-key';
 import { HistoryPlaylistAdapter } from './history-playlist-adapter';
 import { HistoryXtreamAdapter } from './history-xtream-adapter';
 import { FavoritesM3uCatalog } from './favorites-m3u-catalog';
@@ -116,7 +117,7 @@ export class HistorySyncRuntime {
         )
             throw new Error('History profile unavailable');
         const scope = activePersonalScope();
-        const key = `iptvnator-server:${instanceId}:history-contexts-v1`;
+        const key = historyContextsKey(instanceId, scope);
         const retirementKey = favoriteSourceRetirementKey(instanceId);
         const epoch = localStorage.getItem(retirementKey);
         const saved = JSON.parse(

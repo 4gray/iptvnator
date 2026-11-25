@@ -1,10 +1,12 @@
 import type { FavoritesLocalOrder } from './favorites-local-order';
 import type { Playlist } from '@iptvnator/shared/interfaces';
+import { DEFAULT_PERSONAL_SCOPE } from '@iptvnator/shared/interfaces/profiles';
 import {
     favoriteReferenceKey,
     m3uFavoriteReference,
     type FavoriteEntry,
 } from '@iptvnator/shared/interfaces/favorites-sync';
+import { ProfileStateUnavailableError } from '@iptvnator/services/profiles';
 import {
     captureFavoriteOwner,
     FavoriteSupersededError,
@@ -47,12 +49,19 @@ export class FavoritesPlaylistAdapter {
         }
         return { items, unresolved };
     }
+    /** The playlist's own favorites are the household's; a profile starts from an empty base. */
+    private base<T extends Playlist>(playlist: T): T {
+        return this.client.scope === DEFAULT_PERSONAL_SCOPE
+            ? playlist
+            : { ...playlist, favorites: [] };
+    }
     async project<T extends Playlist>(playlist: T): Promise<T> {
         if (!playlist || playlist.serverUrl) return playlist;
+        const base = this.base(playlist);
         const entries = await this.client.entries(playlist._id);
         const localOrder = this.order?.read(playlist._id) ?? [];
-        if (!entries.length && !localOrder.length) return playlist;
-        const source = await this.catalog(playlist);
+        if (!entries.length && !localOrder.length) return base;
+        const source = await this.catalog(base);
         const local = await this.local(source);
         const mapped = new Map(
             local.items.map((item) => [
@@ -60,7 +69,7 @@ export class FavoritesPlaylistAdapter {
                 item.resolvedUrl ?? item.original,
             ])
         );
-        const unresolved = (playlist.favorites ?? []).filter(
+        const unresolved = (base.favorites ?? []).filter(
             (original) =>
                 !local.items.some((item) => item.original === original)
         );
@@ -93,7 +102,7 @@ export class FavoritesPlaylistAdapter {
                     (order.get(a) ?? Infinity) - (order.get(b) ?? Infinity)
             )
             .map(([, item]) => item);
-        return { ...playlist, favorites: [...favorites, ...unresolved] };
+        return { ...base, favorites: [...favorites, ...unresolved] };
     }
     private m3uUrls(
         source: Playlist,
@@ -213,6 +222,9 @@ export class FavoritesPlaylistAdapter {
         );
         let retained = playlist;
         if (JSON.stringify(unknownBefore) !== JSON.stringify(unknownAfter)) {
+            // Unresolved legacy entries live in the household's playlist document.
+            if (this.client.scope !== DEFAULT_PERSONAL_SCOPE)
+                throw new ProfileStateUnavailableError();
             if (!persistLocal)
                 throw new Error('Local favorite persistence unavailable');
             const favorites = [

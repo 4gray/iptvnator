@@ -91,6 +91,7 @@ function fixture() {
         async (_address: ActivityAddress, _local: boolean) => undefined
     );
     const client = {
+        scope: 'shared',
         contexts: new Map([
             [
                 address.sourceId,

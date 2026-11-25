@@ -4,6 +4,10 @@ import {
     type PlaybackPositionData,
 } from '@iptvnator/shared/interfaces';
 import type { ActivitySourceContext } from '@iptvnator/shared/interfaces/activity-sync';
+import {
+    DEFAULT_PERSONAL_SCOPE,
+    type PersonalScope,
+} from '@iptvnator/shared/interfaces/profiles';
 
 type PositionKey = Partial<
     Pick<
@@ -32,14 +36,21 @@ export interface LocalActivitySnapshot {
 export class ActivityLocalOnlyPositions {
     private readonly storage: LocalStorage;
     private readonly firstScopes = new Map<string, string>();
+    private readonly namespace: string;
     constructor(
         private readonly instanceId = 'memory',
         storage?: LocalStorage,
         private readonly incarnation: (
             sourceId: string
         ) => string | undefined = () => undefined,
-        contexts: ActivitySourceContext[] = []
+        contexts: ActivitySourceContext[] = [],
+        personalScope: PersonalScope = DEFAULT_PERSONAL_SCOPE
     ) {
+        // The Default profile keeps its historic key; any other scope gets its own namespace.
+        this.namespace =
+            personalScope === DEFAULT_PERSONAL_SCOPE
+                ? 'activity-local-only-v1'
+                : `activity-local-only-v1:${personalScope}`;
         const memory = new Map<string, string>();
         this.storage = storage ?? {
             getItem: (key) => memory.get(key) ?? null,
@@ -87,7 +98,7 @@ export class ActivityLocalOnlyPositions {
             position.contentXtreamId === undefined
         )
             return null;
-        return `iptvnator-server:${this.instanceId}:activity-local-only-v1:${JSON.stringify([sourceId, position.contentType, position.contentXtreamId])}`;
+        return `iptvnator-server:${this.instanceId}:${this.namespace}:${JSON.stringify([sourceId, position.contentType, position.contentXtreamId])}`;
     }
     private read(sourceId: string, key: string | null): Ownership | null {
         if (!key) return null;
@@ -249,7 +260,7 @@ export class ActivityLocalOnlyPositions {
             : null;
     }
     snapshots(sourceId: string): LocalActivitySnapshot[] {
-        const prefix = `iptvnator-server:${this.instanceId}:activity-local-only-v1:${JSON.stringify([sourceId]).slice(0, -1)},`;
+        const prefix = `iptvnator-server:${this.instanceId}:${this.namespace}:${JSON.stringify([sourceId]).slice(0, -1)},`;
         const result: LocalActivitySnapshot[] = [];
         const keys = Array.from(
             { length: this.storage.length ?? 0 },

@@ -34,6 +34,7 @@ describe('activity projection local preservation', () => {
             },
         };
         const client = {
+            scope: 'shared',
             actions: { position: () => () => true },
             options: { changed: () => undefined },
             aliases: new Map(),
@@ -128,6 +129,7 @@ describe('activity projection local preservation', () => {
                 release = resolve;
             });
             const client = {
+                scope: 'shared',
                 sessions: new Map(),
                 aliases: new Map(),
                 localSessions: new Map(),
@@ -214,6 +216,7 @@ describe('activity projection local preservation', () => {
         const reset = jest.fn(async () => undefined);
         const save = jest.fn(async () => undefined);
         const client = {
+            scope: 'shared',
             actions: { position: () => () => true },
             options: {},
             aliases: new Map(),
@@ -260,6 +263,7 @@ describe('activity projection local preservation', () => {
             }
         );
         const client = {
+            scope: 'shared',
             save,
             positions: async () => [
                 { position: shared, reset: false, conflict: false },
@@ -295,6 +299,7 @@ describe('activity projection local preservation', () => {
             activityAction: 'mark-watched' as const,
         };
         const client = {
+            scope: 'shared',
             positions: async () => [
                 { position: shared, reset: false },
                 { position: { ...shared, contentXtreamId: 2 }, reset: true },
@@ -351,6 +356,7 @@ describe('activity projection local preservation', () => {
                 durationSeconds: 100,
             };
             const client = {
+                scope: 'shared',
                 positions: async () => [{ position, reset, conflict: false }],
             } as unknown as ActivitySyncClient;
             const raw = {

@@ -1,3 +1,4 @@
+import { DEFAULT_PERSONAL_SCOPE } from '@iptvnator/shared/interfaces/profiles';
 import type { HistorySyncClient } from '@iptvnator/services/history-sync';
 import {
     projectHistory,
@@ -44,7 +45,10 @@ export async function previewLocalHistory(
         sources: [],
         unresolved: 0,
     };
-    for (const source of sources) {
+    // Device history is the household's; a profile has nothing to import.
+    for (const source of client.personalScope === DEFAULT_PERSONAL_SCOPE
+        ? sources
+        : []) {
         const scope = await client.refresh(source._id);
         const archive = source.serverUrl
             ? {
@@ -89,6 +93,7 @@ export async function importLocalHistory(
     client: HistorySyncClient,
     preview: HistoryPreview
 ): Promise<void> {
+    if (client.personalScope !== DEFAULT_PERSONAL_SCOPE) return;
     for (const source of preview.sources) {
         const scope = await client.refresh(source.scope.sourceId);
         const record = await client.store.read(scope);

@@ -55,7 +55,8 @@ export function createActivityRuntimeClient(
         instanceId,
         localStorage,
         (sourceId) => client?.contexts.get(sourceId)?.sourceIncarnation,
-        contexts
+        contexts,
+        scope
     );
     const client = new ActivitySyncClient(store, {
         committed: (sourceId, position, kind) =>

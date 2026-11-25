@@ -82,7 +82,7 @@ export function createFavoritesRuntimeClient(
         client,
         favoritesEnabled,
         (source) => catalogs.resolve(source),
-        new FavoritesLocalOrder(instanceId, localStorage)
+        new FavoritesLocalOrder(instanceId, localStorage, scope)
     );
     const xtreamAdapter = new FavoritesXtreamAdapter(
         client,

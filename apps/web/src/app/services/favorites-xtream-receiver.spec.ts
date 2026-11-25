@@ -57,6 +57,7 @@ function fixture() {
     ];
     const set = jest.fn();
     const client = {
+        scope: 'shared',
         options: { consent: () => 'consent', profileActive: () => true },
         contexts: new Map([
             [
