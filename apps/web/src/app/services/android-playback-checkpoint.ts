@@ -9,6 +9,12 @@ import {
     nativePlaybackResetKey,
 } from '@iptvnator/services/pwa-native-playback-resets';
 import { sourceProfileName } from '@iptvnator/services/source-sync/connection';
+import { activePersonalScope } from '@iptvnator/services/profiles';
+import {
+    DEFAULT_PERSONAL_SCOPE,
+    parsePersonalScope,
+    type PersonalScope,
+} from '@iptvnator/shared/interfaces/profiles';
 import type {
     PlaybackPositionData,
     PlayerContentInfo,
@@ -76,7 +82,13 @@ export function installAndroidPlaybackCheckpoint(
         )
             return;
         const position = readCheckpoint(data);
-        if (!ownsProfile() || (position && position.profile !== profile))
+        // A checkpoint belongs to the profile that launched it, never to whoever is active now.
+        if (
+            !ownsProfile() ||
+            (position &&
+                (position.profile !== profile ||
+                    position.personalScope !== activePersonalScope()))
+        )
             return;
         pending.add(data.id);
         const key =
@@ -139,6 +151,7 @@ export function installAndroidPlaybackCheckpoint(
 
 function readCheckpoint(data: Checkpoint): {
     profile: string;
+    personalScope: PersonalScope;
     playlistId: string;
     record: PlaybackPositionData;
 } | null {
@@ -158,7 +171,11 @@ function readCheckpoint(data: Checkpoint): {
         return null;
     try {
         const info = JSON.parse(data.content) as
-            | (PlayerContentInfo & { profile?: string; seasonGroup?: number })
+            | (PlayerContentInfo & {
+                  profile?: string;
+                  personalScope?: string;
+                  seasonGroup?: number;
+              })
             | null;
         if (
             !info ||
@@ -181,6 +198,10 @@ function readCheckpoint(data: Checkpoint): {
             }).content;
         return {
             profile: info.profile,
+            // A launch before profiles carries no scope: it is the Default's.
+            personalScope: parsePersonalScope(
+                info.personalScope ?? DEFAULT_PERSONAL_SCOPE
+            ),
             playlistId: info.playlistId,
             record: {
                 playlistId: info.playlistId,

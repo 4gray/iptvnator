@@ -5,6 +5,7 @@ import type {
 } from '@iptvnator/services/profiles';
 import {
     DEFAULT_PROFILE_ID,
+    type PersonalScope,
     type ServerProfile,
     type ServerProfileList,
 } from '@iptvnator/shared/interfaces/profiles';
@@ -68,6 +69,7 @@ export function fakeRuntime(
         state,
         activeId,
         capable: signal(true),
+        scope: signal<PersonalScope>('shared'),
         enabled: computed(() => list()?.enabled ?? false),
         active: computed(
             () =>

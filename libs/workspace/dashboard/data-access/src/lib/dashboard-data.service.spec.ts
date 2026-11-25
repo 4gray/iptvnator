@@ -1987,6 +1987,23 @@ describe('DashboardDataService', () => {
                 expect(titles()).toEqual(['The Penguin']);
             });
 
+            it('settles afresh and drops the previous profile after a switch', async () => {
+                seriesEpisodeAnswers.set(
+                    dashboardSeriesEpisodesKey(PLAYLIST, 200),
+                    { status: 'failed' }
+                );
+                await loadDashboard();
+                expect(service.continueWatchingSettled()).toBe(true);
+                expect(titles()).toEqual(['The Penguin']);
+
+                window.dispatchEvent(new Event('iptvnator-profile-switched'));
+
+                expect(service.continueWatchingSettled()).toBe(false);
+                expect(service.globalRecentLoaded()).toBe(false);
+                expect(service.globalFavoritesLoaded()).toBe(false);
+                expect(titles()).toEqual([]);
+            });
+
             it('looks a failed list up again only when positions reload', async () => {
                 const key = dashboardSeriesEpisodesKey(PLAYLIST, 200);
                 seriesEpisodeAnswers.set(key, { status: 'failed' });

@@ -1,12 +1,18 @@
 import type { ActivityApplyResult } from '@iptvnator/shared/interfaces/activity-sync';
 import type { ActivitySyncClient } from './activity-sync-client';
 import { commitActivityDelivery } from './activity-delivery-response';
+import {
+    ActivityRequestError,
+    parkRefusedActivity,
+} from './activity-scope-refusal';
 
 export async function sendPendingActivity(
     this: ActivitySyncClient
 ): Promise<void> {
     try {
         let conflict = false;
+        // Scopes the server refused this pass; their queues wait without blocking the others.
+        const refused = new Set<string>();
         for (const source of this.contexts.keys()) {
             for (const entry of await this.store.entries(source)) {
                 if (
@@ -38,13 +44,27 @@ export async function sendPendingActivity(
                     const next = record.pending[0];
                     if (next.consentGeneration !== this.options.consent())
                         break;
-                    const result = (await this.request({
-                        operation: 'activity-apply',
-                        activity: {
-                            address: next.address,
-                            operation: next.operation,
-                        },
-                    })) as ActivityApplyResult;
+                    let result: ActivityApplyResult;
+                    try {
+                        result = (await this.request({
+                            operation: 'activity-apply',
+                            activity: {
+                                address: next.address,
+                                operation: next.operation,
+                            },
+                        })) as ActivityApplyResult;
+                    } catch (error) {
+                        if (!(error instanceof ActivityRequestError))
+                            throw error;
+                        if (!error.refusal) throw error;
+                        refused.add(entry.address.scope);
+                        await parkRefusedActivity(
+                            this,
+                            entry.address,
+                            error.refusal
+                        );
+                        break;
+                    }
                     const response = await commitActivityDelivery(
                         this,
                         entry.address,
@@ -66,6 +86,7 @@ export async function sendPendingActivity(
         this.options.changed();
         const activePending = (await this.store.pending()).some(
             (intent) =>
+                !refused.has(intent.address.scope) &&
                 intent.consentGeneration === this.options.consent() &&
                 intent.address.instanceId === this.options.instanceId &&
                 intent.address.sourceIncarnation ===

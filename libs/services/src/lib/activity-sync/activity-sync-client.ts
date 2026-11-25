@@ -18,6 +18,8 @@ import { createRandomId } from '@iptvnator/shared/interfaces';
 import { beginActivity } from './activity-sync-sessions';
 import { saveActivity } from './activity-sync-sessions';
 import { resetActivity } from './activity-sync-sessions';
+import { ActivityRequestError } from './activity-scope-refusal';
+import { scopeRefusalOf } from '../profiles/scope-refusal';
 import { readActivityPositions } from './activity-sync-positions';
 import { resolveActivity } from './activity-sync-resolution';
 import { sendPendingActivity } from './activity-sync-delivery';
@@ -395,7 +397,10 @@ export class ActivitySyncClient {
         const response = await this.options.request(request);
         if (generation !== this.options.consent())
             throw new Error('Activity consent changed');
-        if (response.status !== 200) throw new Error('Activity request failed');
+        if (response.status !== 200)
+            throw new ActivityRequestError(
+                scopeRefusalOf(response.status, response.body)
+            );
         return response.body;
     }
 }

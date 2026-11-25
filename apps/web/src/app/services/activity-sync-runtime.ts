@@ -21,6 +21,7 @@ import {
 import { SourceSyncService } from '@iptvnator/services/source-sync';
 import { activePersonalScope } from '@iptvnator/services/profiles';
 import { DEFAULT_PERSONAL_SCOPE } from '@iptvnator/shared/interfaces/profiles';
+import { ActivitySessionScopes } from './activity-session-scopes';
 import {
     ActivitySyncClient,
     ActivitySupersededError,
@@ -60,7 +61,8 @@ export class ActivitySyncRuntime {
     private readonly raw = this.capabilities.supportsXtreamSqliteDataSource
         ? inject(ElectronXtreamDataSource)
         : inject(PwaXtreamDataSource);
-    private client?: ActivitySyncClient;
+    /** Read by the profile switch to drain the scope it leaves. */
+    client?: ActivitySyncClient;
     private adapter?: ActivityPositionAdapter;
     private timer?: ReturnType<typeof setInterval>;
     private refreshing?: Promise<void>;
@@ -68,6 +70,7 @@ export class ActivitySyncRuntime {
     private changingTo?: boolean;
     private readonly deliveryPaused = signal(false);
     private pauseOwner?: ActivityConsentPause;
+    private readonly sessionScopes = new ActivitySessionScopes();
     readonly enabled = signal(activityEnabled());
     readonly state = signal('disabled');
     readonly stateKey = computed(
@@ -200,6 +203,7 @@ export class ActivitySyncRuntime {
 
     async begin(position: PlayerContentInfo, startTime = 0): Promise<void> {
         if (!this.enabled() || this.isDisabling()) return;
+        this.sessionScopes.begin(position.activitySessionId);
         try {
             await this.ensureClient().begin(position.playlistId!, {
                 ...position,
@@ -212,7 +216,7 @@ export class ActivitySyncRuntime {
     }
 
     async checkpoint(position: PlaybackPositionData): Promise<void> {
-        if (!activityEnabled()) return;
+        if (!activityEnabled() || this.sessionScopes.foreign(position)) return;
         try {
             this.ensureClient();
             await this.adapter!.invoke(
@@ -241,6 +245,11 @@ export class ActivitySyncRuntime {
             return Reflect.get(raw, method).apply(raw, args);
         }
         this.ensureClient();
+        if (
+            method === 'savePlaybackPosition' &&
+            this.sessionScopes.foreign(args[1] as PlaybackPositionData)
+        )
+            throw new ActivitySupersededError('The profile has changed');
         try {
             return await this.adapter!.invoke(
                 raw,

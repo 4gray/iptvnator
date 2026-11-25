@@ -1,3 +1,4 @@
+import { setActivePersonalScope } from '@iptvnator/services/profiles';
 import {
     prepareSourceConnection,
     sourceProfileName,
@@ -213,6 +214,37 @@ describe('restoring Android playback checkpoints', () => {
         await deliver();
         expect(savePlaybackPositionOrThrow).toHaveBeenCalledTimes(1);
         expect(postMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves a checkpoint from another household profile pending', async () => {
+        const kids = 'profile:11111111-1111-4111-8111-111111111111';
+        try {
+            setActivePersonalScope(kids);
+            await deliver();
+            expect(savePlaybackPositionOrThrow).not.toHaveBeenCalled();
+            expect(postMessage).not.toHaveBeenCalled();
+
+            // A launch inside the profile carries its scope and is accepted there.
+            await deliver({
+                content: JSON.stringify({
+                    profile: 'iptvnator',
+                    ...content,
+                    personalScope: kids,
+                }),
+            });
+            expect(savePlaybackPositionOrThrow).toHaveBeenCalledTimes(1);
+            setActivePersonalScope('shared');
+            await deliver({
+                content: JSON.stringify({
+                    profile: 'iptvnator',
+                    ...content,
+                    personalScope: kids,
+                }),
+            });
+            expect(savePlaybackPositionOrThrow).toHaveBeenCalledTimes(1);
+        } finally {
+            setActivePersonalScope('shared');
+        }
     });
 
     it('keeps a newer position from the same episode', async () => {

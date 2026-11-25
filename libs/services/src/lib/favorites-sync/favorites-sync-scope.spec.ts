@@ -1,6 +1,8 @@
 import { webcrypto } from 'node:crypto';
 import { FavoritesSyncClient } from './favorites-sync-client';
 import {
+    applyFavoriteOperation,
+    emptyFavoriteState,
     favoriteAddressKey,
     type FavoriteAddress,
     type FavoriteLocalRecord,
@@ -145,5 +147,59 @@ describe('favorites scope', () => {
         expect(
             (await kids.entries('source')).map((e) => e.address.scope)
         ).toEqual([KIDS]);
+    });
+});
+
+describe('favorites delivery across scopes', () => {
+    async function queued(refusal: 'profile_missing' | 'profiles_disabled') {
+        const store = new MemoryStore();
+        let online = false;
+        const request = jest.fn(async (input: SourceServerRequest) => {
+            if (!online) throw new Error('offline');
+            if (input.operation === 'favorites-context')
+                return { status: 200, body: source };
+            const { address, operation } = input.favorite!;
+            return address.scope === KIDS
+                ? { status: 409, body: { code: refusal } }
+                : {
+                      status: 200,
+                      body: applyFavoriteOperation(
+                          emptyFavoriteState(),
+                          operation!
+                      ),
+                  };
+        });
+        const make = (scope?: PersonalScope) =>
+            new FavoritesSyncClient(store, {
+                instanceId: 'nas',
+                deviceId: 'device',
+                consent: () => 'consent',
+                request,
+                contexts: [source],
+                remember: jest.fn(),
+                changed: jest.fn(),
+                ...(scope ? { scope } : {}),
+            });
+        const kids = make(KIDS);
+        const home = make();
+        await kids.set('source', ref, true);
+        await home.set('source', { ...ref, id: '43' }, true);
+        online = true;
+        await home.flush().catch(() => undefined);
+        return { store, home };
+    }
+
+    it('drops a deleted profile queue and still delivers the Default queue', async () => {
+        const { store, home } = await queued('profile_missing');
+        await expect(home.flush()).resolves.toBeUndefined();
+        expect(await store.pending()).toEqual([]);
+    });
+
+    it('keeps a switched-off scope queue and still delivers the Default queue', async () => {
+        const { store, home } = await queued('profiles_disabled');
+        await expect(home.flush()).resolves.toBeUndefined();
+        expect((await store.pending()).map((p) => p.address.scope)).toEqual([
+            KIDS,
+        ]);
     });
 });

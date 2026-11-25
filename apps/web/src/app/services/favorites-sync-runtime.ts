@@ -72,7 +72,8 @@ export class FavoritesSyncRuntime {
     private readonly raw = this.capabilities.supportsXtreamSqliteDataSource
         ? inject(ElectronXtreamDataSource)
         : inject(PwaXtreamDataSource);
-    private client?: FavoritesSyncClient;
+    /** Read by the profile switch to drain the scope it leaves. */
+    client?: FavoritesSyncClient;
     private playlistAdapter?: FavoritesPlaylistAdapter;
     private xtreamAdapter?: FavoritesXtreamAdapter;
     private timer?: ReturnType<typeof setInterval>;

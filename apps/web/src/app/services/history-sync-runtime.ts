@@ -74,7 +74,8 @@ export class HistorySyncRuntime {
         .supportsXtreamSqliteDataSource
         ? inject(ElectronXtreamDataSource)
         : inject(PwaXtreamDataSource);
-    private client?: HistorySyncClient;
+    /** Read by the profile switch to drain the scope it leaves. */
+    client?: HistorySyncClient;
     private adapter?: HistoryPlaylistAdapter;
     private xtream?: HistoryXtreamAdapter;
     private refreshing?: Promise<void>;

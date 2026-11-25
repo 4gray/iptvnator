@@ -21,6 +21,7 @@ import {
     DEFAULT_PERSONAL_SCOPE,
     type PersonalScope,
 } from '@iptvnator/shared/interfaces/profiles';
+import { scopeRefusalOf } from '../profiles/scope-refusal';
 import { parkHistory } from './history-parked';
 export interface HistoryOptions {
     instanceId: string;
@@ -272,8 +273,20 @@ export class HistorySyncClient {
             });
             this.current(scope);
             if (generation !== this.options.consent()) return;
-            if (response.status !== 200)
-                throw new Error('History delivery failed');
+            if (response.status !== 200) {
+                // A deleted profile's queue goes with it; any other refusal waits.
+                if (
+                    scopeRefusalOf(response.status, response.body) !==
+                    'profile_missing'
+                )
+                    throw new Error('History delivery failed');
+                await this.store.mutate(scope, (current) => ({
+                    ...(current ?? emptyHistoryRecord()),
+                    pending: [],
+                }));
+                this.options.changed();
+                return;
+            }
             const result = response.body as HistoryResult;
             assertHistoryState(result.state);
             if (typeof result.applied !== 'boolean')

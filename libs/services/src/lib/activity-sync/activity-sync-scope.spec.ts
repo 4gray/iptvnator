@@ -1,6 +1,7 @@
 import { ActivitySyncClient } from './activity-sync-client';
 import { MemoryActivityStore } from './test-stubs/memory-activity-store';
 import {
+    applyActivityOperation,
     emptyActivityState,
     type ActivityAddress,
 } from '@iptvnator/shared/interfaces/activity-sync';
@@ -113,5 +114,70 @@ describe('activity scope', () => {
                 (r) => r.position.positionSeconds
             )
         ).toEqual([10]);
+    });
+});
+
+describe('activity delivery across scopes', () => {
+    const reset = (id: string) => ({
+        kind: 'reset' as const,
+        operationId: id,
+        deviceId: 'device',
+        expectedRevision: 0,
+    });
+    async function queue(refusal: 'profile_missing' | 'profiles_disabled') {
+        const store = new MemoryActivityStore();
+        const status = jest.fn();
+        const request = jest.fn(async (input: SourceServerRequest) => {
+            if (input.operation !== 'activity-apply')
+                return { status: 200, body: context };
+            const { address, operation } = input.activity!;
+            return address.scope === KIDS
+                ? { status: 409, body: { code: refusal } }
+                : {
+                      status: 200,
+                      body: applyActivityOperation(
+                          emptyActivityState(),
+                          operation!
+                      ),
+                  };
+        });
+        const client = new ActivitySyncClient(store, {
+            instanceId: 'nas',
+            deviceId: 'device',
+            contexts: [context],
+            consent: () => 'consent',
+            request,
+            changed: () => undefined,
+            status,
+        });
+        for (const scope of [KIDS, 'shared'] as const)
+            await store.mutate(address(scope), () => ({
+                ...record(1),
+                pending: [
+                    {
+                        address: address(scope),
+                        operation: reset(`op-${scope}`),
+                        consentGeneration: 'consent',
+                    },
+                ],
+            }));
+        await client.flush();
+        return { store, status };
+    }
+
+    it('drops a deleted profile queue and still delivers the others', async () => {
+        const { store, status } = await queue('profile_missing');
+        expect(await store.pending()).toEqual([]);
+        expect(status).not.toHaveBeenCalledWith('offline');
+        expect(status).toHaveBeenLastCalledWith('ready');
+    });
+
+    it('keeps a switched-off scope queue, unleased, and still delivers the others', async () => {
+        const { store, status } = await queue('profiles_disabled');
+        const left = await store.pending();
+        expect(left.map((p) => p.address.scope)).toEqual([KIDS]);
+        expect(left[0].deliveryLease).toBeUndefined();
+        expect(status).not.toHaveBeenCalledWith('offline');
+        expect(status).toHaveBeenLastCalledWith('ready');
     });
 });

@@ -204,6 +204,18 @@ describe('ProfilesRuntime', () => {
         expect(runtime.active()?.id).toBe(ADULT);
     });
 
+    it('names the personal scope of the active profile only while the UI is on', async () => {
+        writeActiveProfileId(NAS, ADULT);
+        const hidden = await start();
+        expect(hidden.activeId()).toBe(ADULT);
+        expect(hidden.scope()).toBe('shared');
+        TestBed.resetTestingModule();
+        const visible = await start(true);
+        expect(visible.scope()).toBe(`profile:${ADULT}`);
+        expect(visible.select(DEFAULT_PROFILE_ID)).toBe(true);
+        expect(visible.scope()).toBe('shared');
+    });
+
     it('falls back to Default and forgets a stale stored profile', async () => {
         writeActiveProfileId(NAS, STALE);
         const runtime = await start();

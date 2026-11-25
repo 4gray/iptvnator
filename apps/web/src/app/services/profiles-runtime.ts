@@ -17,8 +17,10 @@ import {
 } from '@iptvnator/services/source-sync/connection';
 import type { SourceServerResponse } from '@iptvnator/shared/interfaces';
 import {
+    DEFAULT_PERSONAL_SCOPE,
     DEFAULT_PROFILE_ID,
     PROFILES_CAPABILITY,
+    type PersonalScope,
     type ServerProfile,
     type ServerProfileList,
 } from '@iptvnator/shared/interfaces/profiles';
@@ -74,6 +76,12 @@ export class ProfilesRuntime {
             null
         );
     });
+    /** Whose personal state this device uses; the Default's `'shared'` while the UI is off. */
+    readonly scope: Signal<PersonalScope> = computed(() =>
+        this.uiEnabled
+            ? (this.active()?.scope ?? DEFAULT_PERSONAL_SCOPE)
+            : DEFAULT_PERSONAL_SCOPE
+    );
     readonly enabled: Signal<boolean> = computed(
         () => this.listState()?.enabled ?? false
     );

@@ -71,3 +71,44 @@ describe('history scope', () => {
         ).rejects.toThrow('History response scope mismatch');
     });
 });
+
+describe('history delivery', () => {
+    it('drops the queue of a deleted profile instead of failing forever', async () => {
+        const records = new Map<string, HistoryRecord>();
+        const memory: HistoryStore = {
+            read: async () => records.get('r') ?? null,
+            mutate: async (_s, update) => {
+                const next = update(records.get('r') ?? null);
+                records.set('r', next);
+                return next;
+            },
+        } as HistoryStore;
+        const request = jest.fn(async (input: { operation: string }) =>
+            input.operation === 'history-read'
+                ? {
+                      status: 200,
+                      body: {
+                          scope: { ...base, personalScope: KIDS },
+                          state: emptyHistoryState(),
+                      },
+                  }
+                : { status: 409, body: { code: 'profile_missing' } }
+        );
+        const client = new HistorySyncClient(memory, {
+            instanceId: 'nas',
+            deviceId: 'device',
+            consent: () => 'consent',
+            active: () => true,
+            request: request as never,
+            changed: jest.fn(),
+            remember: jest.fn(),
+            scope: KIDS,
+        });
+        await client.command('source', {
+            kind: 'touch',
+            reference: { provider: 'xtream', kind: 'movie', id: '42' },
+        });
+        await expect(client.flush('source')).resolves.toBeUndefined();
+        expect(records.get('r')?.pending).toEqual([]);
+    });
+});

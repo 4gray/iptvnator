@@ -4,6 +4,7 @@ import {
     keepFavoriteImport,
 } from './favorites-client-state';
 import { createRandomId } from '@iptvnator/shared/interfaces';
+import { scopeRefusalOf } from '../profiles/scope-refusal';
 import { refreshFavorites } from './favorites-sync-refresh';
 import { deliverFavorites } from './favorites-sync-delivery';
 import {
@@ -80,7 +81,10 @@ export class FavoritesSyncClient {
         const response = await this.options.request(request);
         this.current(generation);
         if (response.status !== 200)
-            throw new FavoriteRequestError(response.status);
+            throw new FavoriteRequestError(
+                response.status,
+                scopeRefusalOf(response.status, response.body)
+            );
         return response.body;
     }
     async context(

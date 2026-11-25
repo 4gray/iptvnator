@@ -146,6 +146,8 @@ export class DashboardDataService {
             return all;
         }
     );
+    /** Counts profile switches; a load that started before one is dropped. */
+    private readonly profileEpoch = signal(0);
     private readonly globalRecentLoadingState = signal(true);
     private readonly globalRecentLoadedState = signal(false);
     // The portal history read, from SQLite or (PWA) the Xtream data source;
@@ -296,6 +298,7 @@ export class DashboardDataService {
             ),
         positionsLoadedFor: this.playbackPositionPlaylistIds,
         positionReloads: this.playbackPositionsReloads,
+        profileEpoch: this.profileEpoch,
     });
 
     readonly continueWatchingSettled = this.continueWatching.settled;
@@ -428,6 +431,11 @@ export class DashboardDataService {
     });
 
     constructor() {
+        const reset = () => this.resetForProfileSwitch();
+        window.addEventListener('iptvnator-profile-switched', reset);
+        inject(DestroyRef).onDestroy(() =>
+            window.removeEventListener('iptvnator-profile-switched', reset)
+        );
         const refreshHistory = () => void this.reloadGlobalRecentItems();
         window.addEventListener('iptvnator-history-changed', refreshHistory);
         inject(DestroyRef).onDestroy(() =>
@@ -517,7 +525,27 @@ export class DashboardDataService {
 
     readonly quickRecent = computed(() => this.recentPlaylists().slice(0, 4));
 
+    /** Nothing of the previous profile stays on screen, or counts as loaded, while the reloads run. */
+    private resetForProfileSwitch(): void {
+        this.profileEpoch.update((epoch) => epoch + 1);
+        this.xtreamGlobalRecentItems.set([]);
+        this.xtreamGlobalFavorites.set([]);
+        this.m3uPlaylistFavoritesMap.set(new Map());
+        this.m3uFavoritesCache.clear();
+        this.playbackPositionsLoadGeneration++;
+        this.playbackPositionMaps.set(emptyDashboardPlaybackPositionMaps());
+        this.playbackPositionPlaylistIds.set(null);
+        this.globalRecentLoadedState.set(false);
+        this.globalRecentDbLoadedState.set(false);
+        this.globalRecentLoadingState.set(true);
+        this.globalFavoritesLoadedState.set(false);
+        this.xtreamGlobalFavoritesLoadedState.set(false);
+        this.playlistBackedGlobalFavoritesLoadedState.set(false);
+        this.globalFavoritesLoadingState.set(true);
+    }
+
     async reloadGlobalRecentItems(): Promise<void> {
+        const epoch = this.profileEpoch();
         if (!this.globalRecentLoaded()) {
             this.globalRecentLoadingState.set(true);
         }
@@ -525,7 +553,8 @@ export class DashboardDataService {
         if (!this.hasPortalActivityStorage || this.history.active()) {
             try {
                 const recentItems = await this.loadPwaXtreamGlobalRecentItems();
-                this.xtreamGlobalRecentItems.set(recentItems);
+                if (epoch === this.profileEpoch())
+                    this.xtreamGlobalRecentItems.set(recentItems);
             } catch (err) {
                 console.warn(
                     '[DashboardData] Failed to reload PWA recent items',
@@ -543,7 +572,8 @@ export class DashboardDataService {
             const normalized = recentItems.map((item) =>
                 mapDbRecentToItem(item)
             );
-            this.xtreamGlobalRecentItems.set(normalized);
+            if (epoch === this.profileEpoch())
+                this.xtreamGlobalRecentItems.set(normalized);
         } catch (err) {
             console.warn(
                 '[DashboardData] Failed to reload global recent items',
@@ -639,9 +669,11 @@ export class DashboardDataService {
     }
 
     private async reloadXtreamGlobalFavorites(): Promise<void> {
+        const epoch = this.profileEpoch();
         if (this.favoriteSync.active() || !this.hasPortalActivityStorage) {
             const favorites = await this.loadPwaXtreamGlobalFavorites();
-            this.xtreamGlobalFavorites.set(favorites);
+            if (epoch === this.profileEpoch())
+                this.xtreamGlobalFavorites.set(favorites);
             return;
         }
 
@@ -650,7 +682,8 @@ export class DashboardDataService {
             const normalized = favorites.map((item) =>
                 mapDbFavoriteToItem(item)
             );
-            this.xtreamGlobalFavorites.set(normalized);
+            if (epoch === this.profileEpoch())
+                this.xtreamGlobalFavorites.set(normalized);
         } catch (err) {
             console.warn(
                 '[DashboardData] Failed to reload global favorites',
@@ -775,6 +808,7 @@ export class DashboardDataService {
     }
 
     private async reloadM3uGlobalFavorites(): Promise<void> {
+        const epoch = this.profileEpoch();
         const m3uPlaylists = this.playlists().filter(
             (playlist) =>
                 !playlist.serverUrl &&
@@ -828,6 +862,7 @@ export class DashboardDataService {
                     items = [];
                 }
 
+                if (epoch !== this.profileEpoch()) return;
                 this.m3uPlaylistFavoritesMap.update((prev) => {
                     const next = new Map(prev);
                     next.set(playlist._id, items);

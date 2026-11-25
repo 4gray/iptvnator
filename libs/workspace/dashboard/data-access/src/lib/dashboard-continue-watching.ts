@@ -54,6 +54,8 @@ export interface DashboardContinueWatchingDeps {
      * episode lookups and refreshes lists past their age.
      */
     readonly positionReloads: Signal<number>;
+    /** Counts profile switches: a new profile's rail settles afresh. */
+    readonly profileEpoch?: Signal<number>;
 }
 
 export interface DashboardContinueWatching {
@@ -196,18 +198,24 @@ export function createDashboardContinueWatching(
     /** What each looked-up series continues with, by recent item key. */
     const continuations = computed(() => lookupPlan().continuations);
 
-    const settled = linkedSignal<boolean, boolean>({
+    const settled = linkedSignal<{ ready: boolean; epoch: number }, boolean>({
         source: () => {
             const loaded = deps.positionsLoadedFor();
-            return (
-                deps.historyLoaded() &&
-                deps
-                    .items()
-                    .every((item) => loaded?.has(item.playlist_id) ?? false) &&
-                (lookupsSettled() || lookupWaitOver())
-            );
+            return {
+                ready:
+                    deps.historyLoaded() &&
+                    deps
+                        .items()
+                        .every(
+                            (item) => loaded?.has(item.playlist_id) ?? false
+                        ) &&
+                    (lookupsSettled() || lookupWaitOver()),
+                epoch: deps.profileEpoch?.() ?? 0,
+            };
         },
-        computation: (ready, previous) => previous?.value === true || ready,
+        computation: ({ ready, epoch }, previous) =>
+            (previous?.value === true && previous.source.epoch === epoch) ||
+            ready,
     }).asReadonly();
 
     const items = computed<PortalRecentItem[]>(() => {
