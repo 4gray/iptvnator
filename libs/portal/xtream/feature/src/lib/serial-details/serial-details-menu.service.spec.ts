@@ -1,4 +1,5 @@
 import { computed, signal } from '@angular/core';
+import { XtreamHistoryOrder } from '@iptvnator/services/history-events';
 import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
@@ -120,7 +121,10 @@ describe('SerialDetailsMenuService', () => {
                 },
                 {
                     provide: RuntimeCapabilitiesService,
-                    useValue: { supportsManagedExternalPlayers: true },
+                    useValue: {
+                        supportsManagedExternalPlayers: true,
+                        supportsXtreamSqliteDataSource: false,
+                    },
                 },
                 {
                     provide: SettingsStore,
@@ -289,6 +293,32 @@ describe('SerialDetailsMenuService', () => {
                 TestBed.inject(XTREAM_DATA_SOURCE).removeRecentItem
             ).toHaveBeenCalledWith(
                 { id: 9001, type: 'series', providerId: 103 },
+                'xtream-1'
+            );
+        });
+
+        it('hides a SQLite series after its already-confirmed history write', async () => {
+            Object.assign(TestBed.inject(RuntimeCapabilitiesService), {
+                supportsXtreamSqliteDataSource: true,
+            });
+            const data = TestBed.inject(XTREAM_DATA_SOURCE);
+            const order = TestBed.inject(XtreamHistoryOrder);
+            let finishWrite: () => void = () => undefined;
+            const pending = new Promise<void>((resolve) => {
+                finishWrite = resolve;
+            });
+            const playback = order.run('xtream-1', () => pending);
+            const hide = service.run(
+                SERIES_MENU_ACTION.HideFromContinueWatching
+            );
+            const lookedUpWhilePending = jest.mocked(data.getContentByXtreamId)
+                .mock.calls.length;
+            finishWrite();
+            await Promise.all([playback, hide]);
+
+            expect(lookedUpWhilePending).toBe(0);
+            expect(data.removeRecentItem).toHaveBeenCalledWith(
+                { id: 9001, providerId: 103, type: 'series' },
                 'xtream-1'
             );
         });

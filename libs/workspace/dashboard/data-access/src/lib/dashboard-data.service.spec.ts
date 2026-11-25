@@ -1,3 +1,4 @@
+import { XtreamHistoryOrder } from '@iptvnator/services/history-events';
 import { announceActivityChange } from '@iptvnator/services/activity-changes';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -3071,6 +3072,42 @@ describe('DashboardDataService', () => {
             release();
             sqlite.mockRestore();
         }
+    });
+
+    it('removes a Dashboard SQLite series after its pending history write', async () => {
+        jest.spyOn(
+            TestBed.inject(RuntimeCapabilitiesService),
+            'supportsXtreamSqliteDataSource',
+            'get'
+        ).mockReturnValue(true);
+        let finishWrite: () => void = () => undefined;
+        const pending = new Promise<void>((resolve) => {
+            finishWrite = resolve;
+        });
+        const playback = TestBed.inject(XtreamHistoryOrder).run(
+            'synthetic-source',
+            () => pending
+        );
+        const removal = service.removeGlobalRecentItem({
+            id: 501,
+            title: 'Synthetic series',
+            viewed_at: '2026-01-01T00:00:00.000Z',
+            category_id: 8,
+            xtream_id: 42,
+            type: 'series',
+            playlist_id: 'synthetic-source',
+            source: 'xtream',
+        });
+        const removedWhilePending =
+            dbServiceMock.removeRecentItem.mock.calls.length;
+        finishWrite();
+        await Promise.all([playback, removal]);
+
+        expect(removedWhilePending).toBe(0);
+        expect(dbServiceMock.removeRecentItem).toHaveBeenCalledWith(
+            501,
+            'synthetic-source'
+        );
     });
 
     it('removes PWA Xtream recently viewed through the active data source', async () => {

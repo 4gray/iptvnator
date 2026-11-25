@@ -408,9 +408,10 @@ category, including removals from the Dashboard. If the channel moves, the
 lookup accepts a single typed match. Confirmed live playback uses the captured
 category for history writes. History recovery also prefers the original
 live category and keeps ambiguous moves pending. Source and global history
-clears run after already-confirmed writes and before any subsequent writes in
-scope. Delayed writes update the visible list only when it still belongs to
-their source.
+clears and individual removals run after already-confirmed writes and before
+subsequent writes in scope. This includes hiding a series from Continue
+Watching. Delayed writes update the visible list only when it still belongs
+to their source.
 The selected live channel is rebound by provider identity to its new SQLite row.
 Retained categories keep their SQLite IDs so playback queues, the guide and
 category history links still point to the same categories. During the launch

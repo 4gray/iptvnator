@@ -55,6 +55,7 @@ import {
 } from './dashboard-mappers';
 import {
     buildXtreamCollectionUid,
+    xtreamContentType,
     COLLECTION_VIEW_STATE_KEY,
     PORTAL_PLAYBACK_POSITIONS,
     WorkspaceNavigationTarget,
@@ -968,19 +969,17 @@ export class DashboardDataService {
 
     async removeGlobalRecentItem(item: GlobalRecentItem): Promise<void> {
         if (item.source === 'xtream') {
-            if (
-                item.type === 'live' &&
-                this.runtime.supportsXtreamSqliteDataSource
-            ) {
+            if (this.runtime.supportsXtreamSqliteDataSource) {
                 const xtreamId = Number(item.xtream_id);
+                const contentType = xtreamContentType(item.type);
                 await this.collectionHistory.removeRecentItem({
                     uid: buildXtreamCollectionUid(
                         item.playlist_id,
-                        'live',
+                        contentType,
                         xtreamId
                     ),
                     name: item.title,
-                    contentType: 'live',
+                    contentType,
                     sourceType: 'xtream',
                     playlistId: item.playlist_id,
                     playlistName: item.playlist_name ?? 'Xtream',

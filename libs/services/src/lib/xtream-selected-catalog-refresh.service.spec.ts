@@ -191,7 +191,9 @@ describe('edit-time Xtream catalog refresh', () => {
         lockedXtreamIds.mockReturnValue([7]);
         const optedIn = { ...playlist, autoRefresh: true };
         readCurrent.mockResolvedValue(optedIn);
-        const categories = [{ category_id: '7', category_name: 'Synthetic' }];
+        const categories = [
+            { category_id: '7', category_name: 'Synthetic', parent_id: 0 },
+        ];
         const retained: [number, number][] = [[7, 17]];
         await expect(
             service.refreshLiveOnStartup(
