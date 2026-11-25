@@ -58,13 +58,26 @@ describe('normalizeStalkerPortalPageResponse', () => {
         }
     );
 
-    it('recognizes a portal page whose HTML starts with a doctype', () => {
+    it.each([
+        '\uFEFF\n<!DOCTYPE html><title>Portal</title>',
+        ' \n<!-- Portal page -->\n<!-- Start -->\n<!DOCTYPE html><title>Portal</title>',
+    ])('recognizes the portal HTML preamble %j', (body) => {
         expect(
             normalizeStalkerPortalPageResponse(
-                '\uFEFF\n<!DOCTYPE html><title>Portal</title>',
+                body,
                 'https://node.example.invalid/c/'
             )
         ).toEqual({ stalkerPortalPage: 'https://node.example.invalid/c/' });
+    });
+
+    it('preserves replies whose HTML comment never closes', () => {
+        const body = '<!-- <!DOCTYPE html><title>Portal</title>';
+        expect(
+            normalizeStalkerPortalPageResponse(
+                body,
+                'https://node.example.invalid/c/'
+            )
+        ).toBe(body);
     });
 
     it('ignores JSON answers and missing or invalid final addresses', () => {

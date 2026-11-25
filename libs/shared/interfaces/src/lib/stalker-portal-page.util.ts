@@ -18,7 +18,17 @@ export interface StalkerPortalPageMarker {
 /** `…/c`, `…/c/` or `…/c/index.html` — the browser entry point of a portal. */
 const PORTAL_PAGE_PATH = /\/c(?:\/(?:index\.html?)?)?$/i;
 const HTML_PAGE_START =
-    /^\s*(?:<!doctype\s+html\b|<(?:html|head|body|title|meta|script)[\s/>])/i;
+    /^(?:<!doctype\s+html\b|<(?:html|head|body|title|meta|script)[\s/>])/i;
+
+function startsWithHtml(body: string): boolean {
+    let content = body.replace(/^\s+/, '');
+    while (content.startsWith('<!--')) {
+        const commentEnd = content.indexOf('-->', 4);
+        if (commentEnd === -1) return false;
+        content = content.slice(commentEnd + 3).replace(/^\s+/, '');
+    }
+    return HTML_PAGE_START.test(content);
+}
 
 /**
  * Builds the marker when an HTML body was served from a portal page
@@ -29,7 +39,7 @@ function createStalkerPortalPageMarker(
     body: unknown,
     finalUrl: string | undefined
 ): StalkerPortalPageMarker | null {
-    if (typeof body !== 'string' || !finalUrl || !HTML_PAGE_START.test(body)) {
+    if (typeof body !== 'string' || !finalUrl || !startsWithHtml(body)) {
         return null;
     }
 
