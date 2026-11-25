@@ -1643,8 +1643,7 @@ template: no raised, tonal or fab button, an outlined one only with
 the look, not an M3 palette role), no native `<select>`, and no `mat-select`
 outside a `mat-form-field`. A file that keeps a finding is listed in
 `ALLOWED` in `tools/nx/check-kit-controls.mjs` with its reason; an entry that
-no longer matches fails too. The split-view source picker's native select
-is the one entry left.
+no longer matches fails too.
 
 A single choice among a few options shown side by side is the kit's
 segmented control: a 1px-bordered track with 2px padding and a 10px radius,

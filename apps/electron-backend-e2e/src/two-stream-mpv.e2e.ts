@@ -22,6 +22,7 @@ import {
     workspaceRoot,
     type LaunchedElectronApp,
 } from './electron-test-fixtures';
+import { chooseSecondStreamSource } from './second-stream-source-picker';
 import {
     alsoClosing,
     createLocalMediaServer,
@@ -268,9 +269,7 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
         await multiview.click();
         await addStream.click();
         await expect(liveRow.getByRole('button')).toBeVisible();
-        await picker
-            .getByLabel('Playlist', { exact: true })
-            .selectOption({ label: 'synthetic-pair' });
+        await chooseSecondStreamSource(picker, 'synthetic-pair');
         await picker
             .getByRole('navigation', { name: 'Groups' })
             .getByRole('button', { name: 'Live', exact: true })
@@ -941,9 +940,7 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
             .hover();
         await multiview.click();
         await addStream.click();
-        await picker
-            .getByLabel('Playlist', { exact: true })
-            .selectOption({ label: 'synthetic-pair' });
+        await chooseSecondStreamSource(picker, 'synthetic-pair');
         await picker
             .getByRole('button', { name: 'Synthetic unavailable', exact: true })
             .click();

@@ -33,13 +33,7 @@ import { inlineTemplates } from './inline-templates.mjs';
  *
  * `ALLOWED` names the files that keep a finding, each with its reason.
  */
-export const ALLOWED = {
-    'libs/ui/playback/src/lib/second-stream/second-stream-picker.component.html':
-        {
-            rules: ['native-select'],
-            reason: 'the split-view source picker still uses a native select; moving it to a menu trigger is a follow-up',
-        },
-};
+export const ALLOWED = {};
 
 /** Attribute selectors of Material's buttons, mapped to their variant. */
 const VARIANT_ATTRIBUTES = {

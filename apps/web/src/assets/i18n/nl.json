@@ -17,6 +17,7 @@
         "DUPLICATE_WINDOW": "Deze video is al geopend in venster {{slot}}.",
         "PICK_SOURCE": "Kies een tweede stream",
         "CONTENT_TYPE": "Type inhoud",
+        "SOURCE": "Bron",
         "LOADING_TITLES": "Titels laden…",
         "LOAD_TITLES_ERROR": "De lijst kon niet worden geladen. Probeer het opnieuw.",
         "NO_TITLES": "Geen titels gevonden.",

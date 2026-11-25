@@ -17,6 +17,7 @@
         "DUPLICATE_WINDOW": "Ten film jest już otwarty w oknie {{slot}}.",
         "PICK_SOURCE": "Wybierz drugi strumień",
         "CONTENT_TYPE": "Typ treści",
+        "SOURCE": "Źródło",
         "LOADING_TITLES": "Wczytywanie tytułów…",
         "LOAD_TITLES_ERROR": "Nie udało się wczytać listy. Spróbuj ponownie.",
         "NO_TITLES": "Nie znaleziono tytułów.",
