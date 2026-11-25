@@ -66,7 +66,9 @@ it('publishes the restored browser visibility on the first catalog read', async 
     await store.initializeContent();
 
     expect(store.isContentInitialized()).toBe(true);
-    expect(store.vodCategories().map((row) => row.category_id)).toEqual(['8']);
+    expect(store.vodCategories()).toEqual([
+        expect.objectContaining({ category_id: '8' }),
+    ]);
     expect(store.vodStreams()).toEqual([
         expect.objectContaining({ xtream_id: 12 }),
     ]);
