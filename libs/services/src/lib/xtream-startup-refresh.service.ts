@@ -63,13 +63,13 @@ export class XtreamStartupRefreshService {
             categories.some(
                 (category) => typeof category?.category_name !== 'string'
             ) ||
+            content.length === 0 ||
             content.some(
-                (stream) => !hasUsableStreamId(stream?.['stream_id'])
-            ) ||
-            !content.some((stream) =>
-                categoryIds.has(
-                    Number.parseInt(String(stream['category_id']), 10)
-                )
+                (stream) =>
+                    !hasUsableStreamId(stream?.['stream_id']) ||
+                    !categoryIds.has(
+                        Number.parseInt(String(stream['category_id']))
+                    )
             )
         ) {
             throw new Error('The source did not return a usable live catalog.');

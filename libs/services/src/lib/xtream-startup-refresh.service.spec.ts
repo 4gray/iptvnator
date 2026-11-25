@@ -145,6 +145,18 @@ describe('Xtream startup refresh', () => {
         expect(refresh.refreshLiveOnStartup).not.toHaveBeenCalled();
     });
 
+    it('keeps the cached catalog if a returned live channel has no category in the reply', async () => {
+        fetcher.content.mockResolvedValue([
+            ...content,
+            { ...content[0], category_id: '9', stream_id: 43 },
+        ]);
+
+        await expect(service.refreshLive(source)).rejects.toThrow(
+            'usable live catalog'
+        );
+        expect(refresh.refreshLiveOnStartup).not.toHaveBeenCalled();
+    });
+
     it.each([undefined, 0, -1, 1.5, '42broken', '4e2', '0x2a', true])(
         'keeps the saved lineup when a provider returns an invalid stream ID (%s)',
         async (streamId) => {

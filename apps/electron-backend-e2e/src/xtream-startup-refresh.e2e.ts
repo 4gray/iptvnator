@@ -195,7 +195,10 @@ test('refreshes opted-in Xtream live channels on restart and keeps the saved cat
         await expect(channelItem(renamedFavorite.name)).toBeVisible();
         expect(catalogActions(provider.actions)).toEqual(liveRequests);
 
-        provider.respond('get_live_streams', [{ category_id: '1002' }]);
+        provider.respond('get_live_streams', [
+            updatedChannel,
+            { ...renamedFavorite, category_id: '9999' },
+        ]);
         app = await restartElectronApp(app, dataDir);
         await expect(
             app.mainWindow.getByText(

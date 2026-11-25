@@ -391,8 +391,9 @@ and explicit refresh use the same durable persistence invariant.
 
 The desktop source editor reuses the per-source `autoRefresh` preference for
 Xtream Live TV. On launch, the renderer runs opted-in live refreshes in sequence.
-The app can read the saved catalog while the provider responds. Empty replies
-and replies with missing or invalid live stream IDs leave the cache in place.
+The app can read the saved catalog while the provider responds. It keeps the
+cache if the reply contains no live streams, if any stream lacks a valid ID, or
+if a stream references a category absent from the response.
 Before replacing live rows, the selected-catalog service waits for source
 activity to finish and rechecks the saved connection, preference and catalog
 selection. A successful refresh
