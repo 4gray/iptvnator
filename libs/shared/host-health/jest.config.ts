@@ -1,4 +1,4 @@
-export default {
+module.exports = {
     displayName: 'shared-host-health',
     preset: '../../../jest.preset.js',
     testEnvironment: 'node',
