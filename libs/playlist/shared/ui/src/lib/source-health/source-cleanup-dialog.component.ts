@@ -48,7 +48,8 @@ export interface SourceCleanupDialogData extends SourceCleanupContext {
         <app-dialog-shell
             icon="cleaning_services"
             iconTone="warn"
-            [heading]="'SOURCE_CLEANUP.TITLE' | translate"
+            [heading]="'DIALOGS.SOURCE_CLEANUP_TITLE' | translate"
+            [subtitle]="'DIALOGS.SOURCE_CLEANUP' | translate"
             [showClose]="!locked()"
         >
             <p>{{ 'SOURCE_CLEANUP.SCOPE' | translate }}</p>
@@ -74,14 +75,16 @@ export interface SourceCleanupDialogData extends SourceCleanupContext {
             @if (!locked()) {
                 <div class="selection-actions">
                     <button
-                        mat-button
+                        mat-flat-button
+                        class="app-dialog__secondary app-dialog__secondary--sm"
                         [disabled]="checking()"
                         (click)="model.selectAll(true)"
                     >
                         {{ 'SOURCE_CLEANUP.SELECT_ALL' | translate }}
                     </button>
                     <button
-                        mat-button
+                        mat-flat-button
+                        class="app-dialog__secondary app-dialog__secondary--sm"
                         [disabled]="checking()"
                         (click)="model.selectAll(false)"
                     >
@@ -155,7 +158,8 @@ export interface SourceCleanupDialogData extends SourceCleanupContext {
                                 entry.status !== 'skipped'
                             ) {
                                 <button
-                                    mat-button
+                                    mat-flat-button
+                                    class="app-dialog__secondary app-dialog__secondary--sm"
                                     (click)="model.recheck(entry)"
                                 >
                                     {{ 'SOURCE_HEALTH.RECHECK' | translate }}
@@ -202,6 +206,7 @@ export interface SourceCleanupDialogData extends SourceCleanupContext {
             .selection-actions {
                 display: flex;
                 flex-wrap: wrap;
+                gap: 8px;
             }
             h3 {
                 font-size: 14px;

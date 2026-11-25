@@ -204,8 +204,7 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
 
         await expect(service.resolveConnection(draft)).resolves.toEqual({
             status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.AUTH_REJECTED,
-            message:
-                'HOME.STALKER_PORTAL.LOGIN_REJECTED HOME.STALKER_PORTAL.PORTAL_MESSAGE',
+            messageKey: 'HOME.STALKER_PORTAL.LOGIN_REJECTED',
         });
     });
 
@@ -245,7 +244,7 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
 
         await expect(service.resolveConnection(draft)).resolves.toEqual({
             status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.UNREACHABLE,
-            message: 'HOME.STALKER_PORTAL.EDIT_UNREACHABLE',
+            messageKey: 'HOME.STALKER_PORTAL.EDIT_UNREACHABLE',
         });
         expect(stalkerSession.cancelEditDiscovery).toHaveBeenCalled();
         expect(portalRepair.releasePlaylistEdit).toHaveBeenCalledWith(

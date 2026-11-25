@@ -494,3 +494,87 @@ describe('StalkerEvents expected outcomes', () => {
         }
     );
 });
+
+describe('StalkerEvents portal page reached through redirects', () => {
+    let requestHandler: (...args: unknown[]) => unknown;
+
+    const probe = (url: string) =>
+        requestHandler(
+            {},
+            {
+                url,
+                macAddress: MAC_ADDRESS,
+                params: {
+                    type: 'itv',
+                    action: 'get_genres',
+                    JsHttpRequest: '1-xml',
+                },
+                silent: true,
+                skipConnectionGuard: true,
+            }
+        ) as Promise<unknown>;
+
+    beforeEach(async () => {
+        jest.resetModules();
+        registeredHandlers.clear();
+        axiosMock.mockReset();
+        axiosMock.isAxiosError.mockReset();
+        axiosMock.isAxiosError.mockReturnValue(false);
+
+        await import('./stalker.events');
+        requestHandler = registeredHandlers.get(STALKER_REQUEST) as (
+            ...args: unknown[]
+        ) => unknown;
+    });
+
+    it('reports where the redirects ended instead of the HTML body', async () => {
+        // Every API path is sent to the site root, and the root sends the
+        // client on to the portal page of another node.
+        axiosMock
+            .mockResolvedValueOnce({
+                status: 301,
+                headers: { location: 'https://entry.example.invalid/' },
+                data: '',
+            })
+            .mockResolvedValueOnce({
+                status: 302,
+                headers: {
+                    location: 'http://node.example.invalid/stalker_portal/c/',
+                },
+                data: '',
+            })
+            .mockResolvedValueOnce({
+                status: 200,
+                headers: { 'content-type': 'text/html' },
+                data: '<html><script src="xpcom.common.js"></script></html>',
+            });
+
+        await expect(
+            probe('http://entry.example.invalid/server/load.php')
+        ).resolves.toEqual({
+            stalkerPortalPage: 'http://node.example.invalid/stalker_portal/c/',
+        });
+        expect(axiosMock).toHaveBeenCalledTimes(3);
+        expect(axiosMock.mock.calls[2][0]).toMatchObject({
+            url: 'http://node.example.invalid/stalker_portal/c/',
+        });
+    });
+
+    it('returns other HTML bodies unchanged', async () => {
+        axiosMock
+            .mockResolvedValueOnce({
+                status: 301,
+                headers: { location: 'https://entry.example.invalid/' },
+                data: '',
+            })
+            .mockResolvedValueOnce({
+                status: 200,
+                headers: { 'content-type': 'text/html' },
+                data: '<html><body>Welcome</body></html>',
+            });
+
+        await expect(
+            probe('http://entry.example.invalid/portal.php')
+        ).resolves.toBe('<html><body>Welcome</body></html>');
+    });
+});

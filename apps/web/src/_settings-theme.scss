@@ -65,7 +65,7 @@ $settings-select-density: mat.define-theme(
     );
     --settings-callout-warn-bg: color-mix(in srgb, #d97706 9%, transparent);
     --settings-callout-warn-border: color-mix(in srgb, #d97706 32%, transparent);
-    --settings-callout-warn-icon: #8a5300;
+    --settings-callout-warn-icon: var(--app-status-warning);
     --settings-item-danger-border: color-mix(
         in srgb,
         var(--mat-sys-error) 22%,
@@ -98,7 +98,7 @@ $settings-select-density: mat.define-theme(
     --settings-chip-fg: var(--app-heading-color);
     --settings-callout-warn-bg: color-mix(in srgb, #fbbf24 10%, transparent);
     --settings-callout-warn-border: color-mix(in srgb, #fbbf24 30%, transparent);
-    --settings-callout-warn-icon: #fbbf24;
+    --settings-callout-warn-icon: var(--app-status-warning);
     --settings-item-danger-border: color-mix(
         in srgb,
         var(--mat-sys-error) 30%,

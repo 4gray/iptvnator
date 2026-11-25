@@ -63,8 +63,12 @@ public write path.
 Destructive refresh belongs to `XtreamRefreshFlowService`; the data-source
 contract has no separate clear-and-snapshot entry point. Browser backup tests
 use `PwaXtreamBackupStorage` export/restore to preserve typed collection identity,
-saved snapshots and artwork. Category visibility writes remain owned by the
-category-management flow through `DatabaseService`, with no PWA no-op wrapper.
+saved snapshots and artwork. Manage Categories writes explicit SQLite choices
+through `DatabaseService` on desktop. The browser stores changed provider IDs
+per playlist and content type in `USER_DATA_STORAGE` and exports them in the
+same backup field as desktop. Its data source filters the raw session cache
+for browsing and visible-only portal search, which defaults on. The editor
+and saved-item lookups retain access to raw rows, subject to the parental lock.
 Global recent-item collection reads and clears belong to
 `UnifiedRecentDataService`; `withRecentItems` retains playlist-local history and
 played-content metadata work only.
@@ -831,6 +835,8 @@ close the guide only after the requested stream opens, including in the inline
 player. Committing the same row after an inline playback error or stream end
 retries the stream; committing while it is still opening waits for that attempt.
 An inline retry must confirm again even when the stream URL is unchanged.
+On Android, leaving a live Media3 session returns to the guide as stopped,
+including at the end of a stream. Selecting that channel again retries playback.
 An embedded MPV reconnect also waits for the resumed stream to play.
 A guide or remote switch reuses the managed player when available. Otherwise
 it waits for the exact previous process to exit before opening the new channel,
@@ -1080,6 +1086,11 @@ changing it cannot reuse a refusal from the previous client identity.
 The shared source-status service forwards the same override for browser-build
 status indicators in the Sources page and playlist switcher, including rechecks.
 
+Series-episode download URLs are built like playback
+(`XtreamUrlService.constructEpisodeUrl`): normalized server URL and
+percent-encoded username and password, so a password holding `#`, `?`, `/`
+or `%` downloads the stream it plays.
+
 Electron's `XTREAM_REQUEST` and stream-probe handlers plus fresh Xtream movie
 and series-episode download requests share the exported
 `XTREAM_CLIENT_USER_AGENT` fallback. A playlist's explicit User-Agent,
@@ -1122,6 +1133,13 @@ the provider does not advertise output formats, `auto` falls back to `m3u8`.
 Manual `ts` and `m3u8` settings remain supported; when a manual setting is not
 allowed by the portal, URL construction falls back to the first
 provider-allowed format.
+
+Latency differs by format. With `ts`, many panels burst 20–30 s of backlog
+when a connection opens and then stream at real-time rate. Embedded MPV's
+jump-to-live button skips that backlog. With `m3u8`, data arrives in whole
+segments (often ~10 s) and the client picks the start segment. The button
+does not exist for HLS, and `Auto` keeps preferring `m3u8`. Details and
+measurements: `embedded-mpv-native.md`, "Jump to live (MPEG-TS)".
 
 ### Initial Auto HLS failure
 
@@ -1265,11 +1283,23 @@ choice. The cache key includes the playlist id and the normalized
 `allowed_output_formats` advertised by the provider, so a catch-up variant
 detected before account capabilities are known cannot force stale MPEG-TS URLs
 after the portal later reports HLS-only playback. The probe uses a short range
-`GET`, follows only validated redirects, and accepts only `200` or `206` as
-playable. MPEG-TS is preferred before HLS when the provider allows it because
-some portals return a valid HLS manifest while the first media segment fails in
-Chromium/video.js. PWA fallback keeps the REST MPEG-TS URL when no Electron
-probe API is available.
+`GET` through `probeStreamUrl` with the playlist's User-Agent, Referer and
+Origin, as playback sends them, follows only validated redirects, and accepts
+only `200` or `206` as playable. MPEG-TS is preferred before HLS when the
+provider allows it because some portals return a valid HLS manifest while the
+first media segment fails in Chromium/video.js. Only a variant that probed
+playable is persisted, under `xtream-catchup-variant:v5:`; v4 values are
+ignored because they may hold a fallback stored after header-less probes.
+When none does (a network failure, a programme without archive, or no
+Electron probe API in the PWA), the request uses the REST MPEG-TS URL and
+nothing is persisted; that programme (playlist, formats, stream and start)
+answers with the fallback from memory for 60 s, then probes again, while
+other programmes of the playlist are still probed.
+
+Catch-up playback descriptors carry the playlist's `userAgent`, `referrer`
+(as `referer`) and `origin` like the live stream: the Live TV `playCatchup`
+descriptor sets them, and Favorites/Recent catch-up copies the live
+descriptor that `StreamResolverService.resolveXtream` builds with them.
 
 Catch-up is offered from the Xtream Live TV tab and from the unified
 collection surfaces (per-playlist and global Favorites and Recent). The

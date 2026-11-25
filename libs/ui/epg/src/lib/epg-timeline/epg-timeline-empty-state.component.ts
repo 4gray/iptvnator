@@ -5,9 +5,8 @@ import {
     input,
     output,
 } from '@angular/core';
-import { MatButton } from '@angular/material/button';
-import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 /**
  * Reasons the timeline ribbon has nothing to show. `none` means programmes are
@@ -69,73 +68,28 @@ const PRESETS: Record<
 @Component({
     selector: 'app-epg-timeline-empty-state',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatButton, MatIcon, TranslatePipe],
+    imports: [StateViewComponent, TranslatePipe],
     template: `
         @let activePreset = preset();
         @if (activePreset) {
-            <div class="epg-empty">
-                <div class="epg-empty__icon" [class]="'tone-' + activePreset.tone">
-                    <mat-icon>{{ activePreset.icon }}</mat-icon>
-                </div>
-                <div class="epg-empty__title">
-                    {{ activePreset.titleKey | translate }}
-                </div>
-                <div class="epg-empty__sub">
-                    {{ activePreset.subKey | translate }}
-                </div>
-
-                @switch (reason()) {
-                    @case ('empty-day') {
-                        <div class="epg-empty__actions">
-                            <button
-                                mat-flat-button
-                                color="primary"
-                                type="button"
-                                (click)="jumpToday.emit()"
-                            >
-                                <mat-icon>my_location</mat-icon>
-                                {{ 'EPG.TIMELINE.JUMP_TODAY' | translate }}
-                            </button>
-                            @if (hasOtherDays()) {
-                                <button
-                                    mat-flat-button
-                                    class="epg-empty__secondary"
-                                    type="button"
-                                    (click)="jumpNearest.emit()"
-                                >
-                                    {{ 'EPG.TIMELINE.JUMP_NEAREST' | translate }}
-                                </button>
-                            }
-                        </div>
-                    }
-                    @case ('m3u-needs-setup') {
-                        <div class="epg-empty__actions">
-                            <button
-                                mat-flat-button
-                                color="primary"
-                                type="button"
-                                (click)="openSettings.emit()"
-                            >
-                                <mat-icon>settings</mat-icon>
-                                {{ 'EPG.TIMELINE.OPEN_EPG_SETTINGS' | translate }}
-                            </button>
-                        </div>
-                    }
-                    @case ('error') {
-                        <div class="epg-empty__actions">
-                            <button
-                                mat-flat-button
-                                color="primary"
-                                type="button"
-                                (click)="retry.emit()"
-                            >
-                                <mat-icon>refresh</mat-icon>
-                                {{ 'EPG.TIMELINE.RETRY' | translate }}
-                            </button>
-                        </div>
-                    }
-                }
-            </div>
+            <app-state-view
+                size="panel"
+                [variant]="activePreset.tone === 'warn' ? 'error' : 'empty'"
+                [icon]="activePreset.icon"
+                [heading]="activePreset.titleKey | translate"
+                [description]="activePreset.subKey | translate"
+                [retryable]="reason() === 'error'"
+                [actionLabel]="actionLabelKey() | translate"
+                [actionIcon]="actionIcon()"
+                [secondaryLabel]="
+                    reason() === 'empty-day' && hasOtherDays()
+                        ? ('EPG.TIMELINE.JUMP_NEAREST' | translate)
+                        : null
+                "
+                (retry)="retry.emit()"
+                (action)="onAction()"
+                (secondaryAction)="jumpNearest.emit()"
+            />
         }
     `,
     styleUrl: './epg-timeline-empty-state.component.scss',
@@ -153,4 +107,24 @@ export class EpgTimelineEmptyStateComponent {
         const reason = this.reason();
         return reason === 'none' ? null : PRESETS[reason];
     });
+
+    /** The reason's own action; an error leads with the state's Retry. */
+    readonly actionLabelKey = computed(() => {
+        switch (this.reason()) {
+            case 'empty-day':
+                return 'EPG.TIMELINE.JUMP_TODAY';
+            case 'm3u-needs-setup':
+                return 'EPG.TIMELINE.OPEN_EPG_SETTINGS';
+            default:
+                return '';
+        }
+    });
+    readonly actionIcon = computed(() =>
+        this.reason() === 'empty-day' ? 'my_location' : 'settings'
+    );
+
+    onAction(): void {
+        if (this.reason() === 'empty-day') this.jumpToday.emit();
+        else this.openSettings.emit();
+    }
 }

@@ -35,9 +35,11 @@
     var MADE_FOCUSABLE = 'data-tv-focusable';
     var MEDIA_URL_RE = /\.(m3u8|m3u|ts|mp4|mkv|avi|mov|webm|mpd|aac|mp3|flac)(\?|#|$)|\/(live|movie|movies|series|play|stream|hls|dash|radio)\//i;
 
+    var touchLayout = window.__tvShellTouchLayout === true ||
+        (document.currentScript && document.currentScript.getAttribute('data-layout') === 'touch');
     var bridge = window.TvShell || null;
     var isAndroid = !!bridge && typeof bridge.postMessage === 'function';
-    var api = {};
+    var api = { handheld: isAndroid && !!touchLayout };
     var lastRect = null; // where focus last was, for recycled/removed elements
     var lastMediaUrl = null;
     // MediaSource playback sessions (see installMediaSourceTracking): the first
@@ -954,7 +956,7 @@
             target.dispatchEvent(ev);
             document.body.dispatchEvent(new KeyboardEvent('keyup', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true }));
             setTimeout(function () {
-                if (!document.activeElement || document.activeElement === document.body) focusFirst();
+                if (!touchLayout && (!document.activeElement || document.activeElement === document.body)) focusFirst();
             }, 120);
             return true;
         }
@@ -968,7 +970,7 @@
         if (active && (active.tagName === 'VIDEO' || active.tagName === 'AUDIO')) {
             active.blur();
             lastRect = rectOf(active);
-            if (focusFirst(null, active)) return true;
+            if (!touchLayout && focusFirst(null, active)) return true;
         }
         // The app's own page-level Back lives in the workspace header. Match it by its
         // stable hooks (component class and the test id upstream relies on), not by the
@@ -1104,6 +1106,91 @@
         }
         return true;
     };
+
+    api.openDeviceSettings = function () {
+        if (!api.handheld) return false;
+        native('openSettings');
+        return true;
+    };
+
+    api.openSettingsSection = function (section) {
+        if (!api.handheld || (section !== 'server' && section !== 'playback' && section !== 'device')) return false;
+        native('openSettings', section);
+        return true;
+    };
+
+    var libraryConnection = isAndroid && window.__tvShellLibraryConnection;
+    var pairedHostedPage = isAndroid && (window.HostedPairing || window.HostedAccessApi);
+    var inspection = libraryConnection && window.HostedServerInspection;
+    if (inspection) {
+        var inspectionId = 0, waiting = null;
+        function finishInspection(kind) {
+            if (!waiting) return;
+            clearTimeout(waiting.timer);
+            waiting.resolve(kind);
+            waiting = null;
+        }
+        inspection.onmessage = function (event) {
+            var result = JSON.parse(event.data);
+            if (waiting && result.id === waiting.id)
+                finishInspection(['sources', 'token', 'pair', 'reconnect', 'access'].indexOf(result.kind) >= 0 ? result.kind : 'unknown');
+        };
+        api.inspectServer = function (apiUrl) {
+            finishInspection('unknown');
+            if (typeof apiUrl !== 'string' || !apiUrl || apiUrl.length > 2048) return Promise.resolve('unknown');
+            return new Promise(function (resolve) {
+                var id = String(++inspectionId);
+                waiting = { id: id, resolve: resolve, timer: setTimeout(function () { finishInspection('unknown'); }, libraryConnection.origin ? 70000 : 10000) };
+                try { inspection.postMessage(JSON.stringify({ id: id, apiUrl: apiUrl })); }
+                catch (e) { finishInspection('unknown'); }
+            });
+        };
+    }
+    if (libraryConnection || pairedHostedPage) {
+        api.disconnectLibrary = function () {
+            if (!pairedHostedPage && !libraryConnection.origin && !libraryConnection.offline) return false;
+            native('disconnectLibrary');
+            return true;
+        };
+    }
+    if (libraryConnection) {
+        api.libraryConnection = function () {
+            return {
+                origin: libraryConnection.origin,
+                savedOrigin: libraryConnection.savedOrigin,
+                approvalOrigin: libraryConnection.approvalOrigin,
+                offline: libraryConnection.offline,
+                paired: libraryConnection.paired,
+                canScanQr: libraryConnection.canScanQr
+            };
+        };
+        api.scanLibraryQr = function () {
+            if (!libraryConnection.canScanQr) return false;
+            native('scanLibraryQr');
+            return true;
+        };
+        if (window.HostedAccessApi && !libraryConnection.nas) {
+            api.inviteAccessDevice = function () { native('inviteAccessDevice'); };
+        }
+        api.removeLibraryPairing = function () {
+            if (!libraryConnection.paired) return false;
+            native('removeLibraryPairing');
+            return true;
+        };
+        api.pairLibrary = function (address, approvalAddress) {
+            if (typeof address !== 'string' || !address.trim() || typeof approvalAddress !== 'string') return false;
+            native('pairLibrary', address, approvalAddress);
+            return true;
+        };
+        api.connectNasLibrary = function (apiUrl, needsToken) {
+            native('connectNasLibrary', apiUrl, needsToken);
+        };
+        api.connectLibrary = function (address) {
+            if (typeof address !== 'string' || !address.trim()) return false;
+            native('connectLibrary', address);
+            return true;
+        };
+    }
 
     /** Hand the current stream to an external Android player (VLC, ...). */
     api.openExternal = function () {
@@ -1355,6 +1442,56 @@
             promptedRoot = root;
             return true;
         }
+        var webFailures = new WeakMap(), nativeFailures = new WeakMap();
+        function offerIfBothFailed(stage) {
+            var failure = nativeFailures.get(stage);
+            var webFailure = webFailures.get(stage);
+            if (!failure || failure.offered || !webFailure || webFailure.attempt !== failure.attempt) return;
+            failure.offered = true;
+            native('onPlaybackError', failure.url, failure.title || document.title || '', '4');
+        }
+        function offerAfterWebError(url, title, code, root, promptRoot) {
+            var stage = root instanceof Element ? root.closest('app-web-player-view') : null;
+            var attempt = stage && stage.getAttribute('data-tv-playback-attempt');
+            if (attempt) {
+                var previous = webFailures.get(stage);
+                if (!previous || previous.attempt !== attempt) {
+                    previous = { attempt: attempt };
+                    webFailures.set(stage, previous);
+                }
+                if (url) Object.assign(previous, { url: url, title: title, code: code, root: promptRoot });
+            }
+            if (attempt && stage.querySelector('[data-tv-native-playback]')) {
+                offerIfBothFailed(stage);
+                return;
+            }
+            if (url && armPrompt(url, promptRoot)) native('onPlaybackError', url, title, String(code));
+        }
+        window.addEventListener('iptvnator:android-playback-availability', function () {
+            if (window.iptvnatorAndroidPlaybackEnabled !== false) return;
+            var stages = document.querySelectorAll('app-web-player-view[data-tv-playback-attempt]');
+            for (var i = 0; i < stages.length; i++) {
+                var stage = stages[i], webFailure = webFailures.get(stage);
+                if (!webFailure || !webFailure.url ||
+                    webFailure.attempt !== stage.getAttribute('data-tv-playback-attempt')) continue;
+                var failure = nativeFailures.get(stage);
+                if (!(failure && failure.attempt === webFailure.attempt && failure.offered) &&
+                    armPrompt(webFailure.url, webFailure.root))
+                    native('onPlaybackError', webFailure.url, webFailure.title, String(webFailure.code));
+            }
+        });
+        document.addEventListener('iptvnator:android-playback-failed', function (event) {
+            var stage = event.target;
+            var detail = event.detail;
+            var button = stage instanceof Element && stage.querySelector('[data-tv-native-playback]');
+            if (!button || !detail || !detail.attempt ||
+                stage.getAttribute('data-tv-playback-attempt') !== detail.attempt ||
+                typeof detail.url !== 'string') return;
+            var previous = nativeFailures.get(stage);
+            if (previous && previous.attempt === detail.attempt) return;
+            nativeFailures.set(stage, { attempt: detail.attempt, url: detail.url, title: detail.title });
+            offerIfBothFailed(stage);
+        });
         document.addEventListener('error', function (e) {
             var t = e.target;
             if (!t || !(t.tagName === 'VIDEO' || t.tagName === 'AUDIO')) return;
@@ -1369,9 +1506,9 @@
                 var code = (t.error && t.error.code) || (hasPlayerError(t) ? 4 : 0);
                 // 1 = aborted, 2 = network: the connection failed, not the format; an external
                 // player would fail the same way.
-                if (!url || code < 3 || !armPrompt(url, t.closest ? t.closest('.video-js') : null)) return;
+                if (code < 3) return;
                 lastMediaTitle = document.title;
-                native('onPlaybackError', url, lastMediaTitle || '', String(code));
+                offerAfterWebError(url, lastMediaTitle || '', code, t, t.closest('.video-js'));
             }, 400);
         }, true);
         // The screen stays on only while something plays (the shell holds no wake lock otherwise).
@@ -1388,16 +1525,19 @@
                     });
                 }
                 if (type === 'playing' && t.tagName === 'VIDEO') dropVjsSeekBar(t);
+                if (type === 'playing') webFailures.delete(t.closest('app-web-player-view'));
                 syncKeepScreenOn(type === 'playing');
             }, true);
         });
         document.addEventListener('iptvnator:playback-issue', function (event) {
             var code = event.detail && event.detail.code;
-            if (code !== 'unsupported-codec' && code !== 'unsupported-container' && code !== 'media-decode-error') return;
-            var url = api.currentStreamUrl();
+            var accessFailure = code === 'network-error' || code === 'browser-access-error';
+            if (code !== 'unsupported-codec' && code !== 'unsupported-container' &&
+                code !== 'media-decode-error' && !accessFailure) return;
+            // Web access and network errors count only if Media3 also fails.
+            var url = accessFailure ? null : api.currentStreamUrl();
             var root = currentVideo && currentVideo.closest ? currentVideo.closest('.video-js') : null;
-            if (!url || !armPrompt(url, root)) return;
-            native('onPlaybackError', url, document.title || '', '4');
+            offerAfterWebError(url, document.title || '', 4, event.target, root);
         });
         // video.js never sets the <video> src when no tech accepts the source
         // (raw .ts streams): it flags its root with `vjs-error` instead.
@@ -1409,9 +1549,8 @@
                 // (no CORS headers, the common case on a TV) as a network error, and an external
                 // player, which has no CORS, is exactly what plays it.
                 var url = videoJsSource();
-                if (!url || !armPrompt(url, el)) continue;
                 lastMediaTitle = document.title;
-                native('onPlaybackError', url, lastMediaTitle || '', '4');
+                offerAfterWebError(url, lastMediaTitle || '', 4, el, el);
             }
         });
         vjsObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'], subtree: true });
@@ -1526,6 +1665,7 @@
 
     var refocusTimer = null;
     function scheduleRefocus() {
+        if (touchLayout) return;
         if (refocusTimer) clearTimeout(refocusTimer);
         refocusTimer = setTimeout(function () {
             refocusTimer = null;
@@ -1564,13 +1704,18 @@
 
     // ------------------------------------------------------------- init
     function init() {
-        document.documentElement.classList.add('tv-shell');
         if (isAndroid) document.documentElement.classList.add('android-tv-shell');
-        document.body.classList.add('tv-shell');
-        installStyle();
         installNetworkTracking();
         installClipboardHook();
         installHistoryTracking();
+        if (!touchLayout) installTvNavigation();
+        watchReadiness();
+    }
+
+    function installTvNavigation() {
+        document.documentElement.classList.add('tv-shell');
+        document.body.classList.add('tv-shell');
+        installStyle();
         installFocusMirror();
         document.addEventListener('keydown', onKeyDown, true);
         // Keyups arrive in queue order: a keydown after one is a new press, however late it runs.
@@ -1587,6 +1732,9 @@
             var active = document.activeElement;
             if ((active && active !== document.body) || focusFirst() || attempts > 60) clearInterval(timer);
         }, 250);
+    }
+
+    function watchReadiness() {
         log('ready (' + (isAndroid ? 'android' : 'browser emulation: F9=Back F10=Menu F8=Play/Pause F7=External') + ')');
         // Report ready only once Angular has rendered (main.ts removes
         // #initial-splash after the first paint). A bundle this engine cannot

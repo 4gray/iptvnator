@@ -1,4 +1,5 @@
 @use '../epg-theme' as *;
+@use '../../../../styles/app-controls' as controls;
 
 :host {
     display: block;
@@ -26,7 +27,7 @@
     min-width: 0;
     gap: 10px;
     align-items: center;
-    font: 500 10px $font-mono;
+    font: 500 var(--app-text-2xs) $font-mono;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: $text-secondary;
@@ -64,7 +65,7 @@
     font-weight: 400;
 }
 .now-playing__desc {
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     color: $text-secondary;
     white-space: nowrap;
     overflow: hidden;
@@ -75,7 +76,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font: 11px $font-mono;
+    font: var(--app-text-2xs) $font-mono;
     color: $text-secondary;
 
     i {
@@ -100,6 +101,16 @@
     align-items: flex-end;
     gap: 6px;
 }
+
+// Kit roles: Close guide is the strip's ordinary action (small secondary),
+// Collapse/Expand a ghost text action beside it.
+.now-playing__close {
+    @include controls.secondary-button(sm);
+}
+
+.now-playing__collapse {
+    @include controls.ghost-button(sm);
+}
 .now-playing--collapsed {
     gap: 12px;
 
@@ -109,7 +120,7 @@
         gap: 12px;
     }
     .now-playing__title {
-        font-size: 13px;
+        font-size: var(--app-text-sm);
     }
     .now-playing__eyebrow {
         max-width: 50%;
@@ -136,7 +147,7 @@
     }
 }
 kbd {
-    font: 10px $font-mono;
+    font: 500 var(--app-text-2xs) $font-mono;
     border: 1px solid $line-strong;
     border-radius: 4px;
     padding: 0 4px;

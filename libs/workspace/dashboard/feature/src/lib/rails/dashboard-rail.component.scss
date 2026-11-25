@@ -22,7 +22,7 @@
     display: inline-flex;
     align-items: baseline;
     gap: 8px;
-    font-size: 1.125rem; // 18px — matches Netflix rail-title scale
+    font-size: var(--app-text-xl); // 18px — matches Netflix rail-title scale
     font-weight: 600;
     line-height: 1.2;
     letter-spacing: -0.012em;
@@ -35,7 +35,7 @@
     gap: 2px;
     padding: 4px 8px 4px 10px;
     border-radius: 999px;
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     font-weight: 500;
     line-height: 1;
     letter-spacing: 0.005em;
@@ -317,7 +317,7 @@
 
 .rail__card-episode {
     flex: 0 0 auto;
-    font-size: 0.66rem;
+    font-size: var(--app-text-2xs);
     font-weight: 700;
     line-height: 1;
     padding: 2px 6px;
@@ -339,7 +339,7 @@
 // soon, error tone = already expired).
 .rail__card-expiry {
     flex: 0 0 auto;
-    font-size: 0.66rem;
+    font-size: var(--app-text-2xs);
     font-weight: 700;
     line-height: 1;
     padding: 2px 6px;
@@ -348,7 +348,7 @@
         --app-expiry-warn-surface,
         color-mix(in srgb, #d97706 16%, transparent)
     );
-    color: var(--app-expiry-warn-text, #8a5300);
+    color: var(--app-status-expiry, #8a5300);
     letter-spacing: 0.02em;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
@@ -611,10 +611,10 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 0.6rem;
+    font-size: var(--app-text-2xs);
     font-weight: 700;
     letter-spacing: 0.08em;
-    color: var(--app-live-color, #ff8f8f);
+    color: var(--app-status-live, #ff8f8f);
     text-transform: uppercase;
 
     &::before {
@@ -622,8 +622,8 @@
         width: 5px;
         height: 5px;
         border-radius: 50%;
-        background: var(--app-live-color, #ff8f8f);
-        box-shadow: 0 0 5px var(--app-live-color, #ff8f8f);
+        background: var(--app-status-live, #ff8f8f);
+        box-shadow: 0 0 5px var(--app-status-live, #ff8f8f);
     }
 }
 
@@ -643,7 +643,7 @@
         display: block;
         width: 100%;
         height: 100%;
-        background: var(--app-live-color, #ff8f8f);
+        background: var(--app-status-live, #ff8f8f);
         border-radius: 2px;
         // A full-width fill slid into place, neither a width nor animated: a
         // live-EPG tick moves it by under one percent, so an animation was

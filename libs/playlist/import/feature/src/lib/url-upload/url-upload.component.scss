@@ -32,7 +32,7 @@
     &__description {
         margin-top: 4px;
         color: var(--app-muted-color);
-        font-size: 13px;
+        font-size: var(--app-text-sm);
     }
 }
 
@@ -46,7 +46,7 @@
         margin: 0;
         padding-block: 0 8px;
         color: var(--app-muted-color);
-        font-size: 13px;
+        font-size: var(--app-text-sm);
         line-height: 1.5;
     }
 }

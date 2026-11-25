@@ -17,7 +17,9 @@ import {
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
-import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
+import { StateViewComponent } from '@iptvnator/ui/state';
+import { TranslatePipe } from '@ngx-translate/core';
+import { APP_ICONS } from '@iptvnator/ui/components/app-icons';
 import { PortalDetailShellComponent } from '@iptvnator/ui/components';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
@@ -48,7 +50,7 @@ const EMPTY_STATE_BY_MODE: Record<
     { icon: string; titleKey: string; descriptionKey: string }
 > = {
     favorites: {
-        icon: 'favorite_border',
+        icon: APP_ICONS.favoriteOutline,
         titleKey: 'WORKSPACE.GLOBAL_FAVORITES.NO_PLAYLISTS_TITLE',
         descriptionKey: 'WORKSPACE.GLOBAL_FAVORITES.NO_PLAYLISTS_BODY',
     },
@@ -196,22 +198,23 @@ export class GlobalCollectionDetailHostComponent implements OnDestroy {
 @Component({
     selector: 'app-global-collection-route',
     imports: [
-        EmptyStateComponent,
+        StateViewComponent,
+        TranslatePipe,
         GlobalCollectionDetailHostComponent,
         UnifiedCollectionDetailDirective,
         UnifiedCollectionPageComponent,
     ],
     template: `
         @if (hasNoPlaylists()) {
-            <app-empty-state
-                type="no-data"
+            <app-state-view
                 [icon]="emptyState().icon"
-                [titleKey]="emptyState().titleKey"
-                [descriptionKey]="emptyState().descriptionKey"
-                primaryActionLabelKey="HOME.PLAYLISTS.ADD_YOUR_FIRST"
-                secondaryActionLabelKey="WORKSPACE.SHELL.GO_TO_DASHBOARD"
-                (primaryActionClicked)="addPlaylist()"
-                (secondaryActionClicked)="goToDashboard()"
+                [heading]="emptyState().titleKey | translate"
+                [description]="emptyState().descriptionKey | translate"
+                [actionLabel]="'WORKSPACE.SOURCES.ADD_SOURCE' | translate"
+                actionIcon="add"
+                [secondaryLabel]="'WORKSPACE.SHELL.GO_TO_DASHBOARD' | translate"
+                (action)="addPlaylist()"
+                (secondaryAction)="goToDashboard()"
             />
         } @else {
             <app-unified-collection-page

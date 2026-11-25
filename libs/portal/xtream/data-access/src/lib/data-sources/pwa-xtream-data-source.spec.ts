@@ -1,3 +1,4 @@
+import { createSourceProfileUserDataStorage } from '@iptvnator/services/source-sync/profile-user-data';
 import { TestBed } from '@angular/core/testing';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { PwaXtreamDataSource } from './pwa-xtream-data-source';
@@ -1045,6 +1046,70 @@ describe('PwaXtreamDataSource', () => {
             durationSeconds: 5400,
             playlistId: 'playlist-1',
             ...overrides,
+        });
+
+        it('atomically clears the Android position at quota and keeps the reset inside its profile', async () => {
+            Object.assign(window, { TvShell: { postMessage: jest.fn() } });
+            const { androidPlaybackResetAt } =
+                await import('./pwa-android-playback-resets');
+            const originalSetItem = Storage.prototype.setItem;
+            const setItem = jest.spyOn(Storage.prototype, 'setItem');
+            try {
+                await dataSource.savePlaybackPosition('playlist-1', position());
+                const existingBytes = localStorage.getItem(storageKey)!.length;
+                setItem.mockClear().mockImplementation(function (
+                    this: Storage,
+                    key,
+                    value
+                ) {
+                    if (key !== storageKey || value.length > existingBytes) {
+                        throw new DOMException(
+                            'Synthetic quota',
+                            'QuotaExceededError'
+                        );
+                    }
+                    originalSetItem.call(this, key, value);
+                });
+                await dataSource.clearPlaybackPosition(
+                    'playlist-1',
+                    100,
+                    'vod'
+                );
+                expect(setItem).toHaveBeenCalledTimes(1);
+                expect(
+                    androidPlaybackResetAt(
+                        localStorage,
+                        'playlist-1',
+                        position()
+                    )
+                ).toBeGreaterThan(0);
+                expect(
+                    androidPlaybackResetAt(
+                        localStorage,
+                        'playlist-2',
+                        position()
+                    )
+                ).toBe(0);
+                expect(
+                    androidPlaybackResetAt(
+                        createSourceProfileUserDataStorage(
+                            'iptvnator-server:synthetic-instance'
+                        ),
+                        'playlist-1',
+                        position()
+                    )
+                ).toBe(0);
+                expect(
+                    await dataSource.getPlaybackPosition(
+                        'playlist-1',
+                        100,
+                        'vod'
+                    )
+                ).toBeNull();
+            } finally {
+                setItem.mockRestore();
+                Reflect.deleteProperty(window, 'TvShell');
+            }
         });
 
         it('retains concurrent single and batch saves across playlists', async () => {

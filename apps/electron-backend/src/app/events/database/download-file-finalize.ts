@@ -63,7 +63,10 @@ function canCopyCompletedPartialAfterLinkFailure(error: unknown): boolean {
         errorCode === 'ENOTSUP' ||
         errorCode === 'EOPNOTSUPP' ||
         errorCode === 'EPERM' ||
-        errorCode === 'EXDEV'
+        errorCode === 'EXDEV' ||
+        // Some Windows filesystems without hard-link support report these.
+        errorCode === 'EISDIR' ||
+        errorCode === 'UNKNOWN'
     );
 }
 

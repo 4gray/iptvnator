@@ -27,9 +27,9 @@ import {
     PARENTAL_LOCK_PIN_MIN_LENGTH,
 } from '@iptvnator/shared/interfaces';
 import { provideFormFieldDefaults } from '../form-field-defaults/form-field-defaults';
-import { DialogShellComponent } from '../dialog-shell/dialog-shell.component';
-import { DialogFooterDirective } from '../dialog-shell/dialog-shell.directives';
-import { dialogSize } from '../dialog-shell/dialog-size';
+import { DialogShellComponent } from '@iptvnator/ui/dialog';
+import { DialogFooterDirective } from '@iptvnator/ui/dialog';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 
 export type ParentalLockPinDialogMode = 'unlock' | 'set';
 

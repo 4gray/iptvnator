@@ -284,6 +284,54 @@ test.describe('Settings', () => {
         ).toHaveAttribute('aria-checked', 'true');
     });
 
+    test('@settings @web Save keeps a player switched from the command palette', async ({
+        page,
+    }) => {
+        await openSettings(page);
+        await openSettingsSection(page, 'appearance');
+        await page
+            .locator(
+                '[data-test-id="select-theme"] [data-test-id="DARK_THEME"]'
+            )
+            .click();
+        const unsavedBar = page.locator(
+            '[data-test-id="settings-unsaved-bar"]'
+        );
+        await expect(
+            unsavedBar.locator('[data-test-id="settings-unsaved-message"]')
+        ).toHaveText('1 unsaved change');
+
+        // Another surface writes a setting while the page holds a draft.
+        await page.keyboard.press('Control+k');
+        const palette = page.locator('.workspace-command-palette-overlay');
+        await expect(palette).toBeVisible();
+        await palette
+            .locator('input[type="search"]')
+            .fill('Switch player to HTML5');
+        await palette
+            .locator('.palette-command', { hasText: /HTML5/ })
+            .first()
+            .click();
+        await expect(palette).toBeHidden();
+        await expect(
+            unsavedBar.locator('[data-test-id="settings-unsaved-message"]')
+        ).toHaveText('1 unsaved change');
+
+        await saveSettings(page);
+        await page.reload();
+        await openSettings(page);
+        await openSettingsSection(page, 'playback');
+        await expect(
+            page.locator('[data-test-id="select-video-player"]')
+        ).toContainText(/HTML5/i);
+        await openSettingsSection(page, 'appearance');
+        await expect(
+            page
+                .locator('[data-test-id="select-theme"]')
+                .getByRole('radio', { name: 'Dark', exact: true })
+        ).toHaveAttribute('aria-checked', 'true');
+    });
+
     test('@settings @web About keeps its label and clears the window bottom', async ({
         page,
     }) => {
@@ -573,6 +621,19 @@ test.describe('Settings', () => {
         );
 
         await search.fill('stream format');
+        const typed = /\/workspace\/settings\/general\?q=stream(%20|\+)format$/;
+        await expect(page).toHaveURL(typed);
+        // An Enter that commits an IME composition belongs to the input
+        // method: a real IME cannot be driven here, so dispatch its keydown.
+        // Opening the match would drop `q` and clear the box. The unit spec
+        // holds the deterministic check; this one is the wiring smoke test.
+        await search.dispatchEvent('keydown', {
+            key: 'Enter',
+            isComposing: true,
+        });
+        await expect(page).toHaveURL(typed);
+        await expect(search).toHaveValue('stream format');
+
         await search.press('Enter');
 
         await expect(page).toHaveURL(/\/workspace\/settings\/playback$/);
@@ -604,6 +665,63 @@ test.describe('Settings', () => {
         await expect(
             page.locator('[data-setting-id="player-ambient-mode"]')
         ).toBeFocused();
+    });
+
+    test('@settings @search @web Command palette leaves an IME commit Enter to the input method', async ({
+        page,
+    }) => {
+        await expect(
+            page.locator('a[href$="/workspace/settings"]')
+        ).toBeVisible();
+        await page.keyboard.press('Control+k');
+
+        const palette = page.locator('.workspace-command-palette-overlay');
+        const query = palette.locator('input[type="search"]');
+        // Closing removes this class synchronously, so its presence after
+        // the dispatch proves the palette ignored the keys.
+        const container = palette.locator('.mat-mdc-dialog-container');
+        const open = /(^|\s)mdc-dialog--open(\s|$)/;
+        await expect(container).toHaveClass(open);
+        await query.fill('ambient');
+        await expect(palette).toContainText('Settings');
+        // keyCode 27 is what the dialog's own Escape handler reads.
+        for (const [key, keyCode] of [
+            ['Enter', 13],
+            ['Escape', 27],
+        ] as const) {
+            await query.dispatchEvent('keydown', {
+                key,
+                keyCode,
+                isComposing: true,
+            });
+        }
+        const legacyCommitAllowed = await query.evaluate((input) => {
+            input.dispatchEvent(
+                new CompositionEvent('compositionend', {
+                    bubbles: true,
+                })
+            );
+            const allowed = input.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key: 'Enter',
+                    keyCode: 229,
+                    bubbles: true,
+                    cancelable: true,
+                })
+            );
+            input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
+            return allowed;
+        });
+        expect(legacyCommitAllowed).toBe(true);
+        await expect(container).toHaveClass(open);
+        await expect(page).not.toHaveURL(/\/workspace\/settings/);
+
+        await query.press('Enter');
+        await expect(palette).toBeHidden();
+        // A cold dev server compiles the lazy settings route on first use.
+        await expect(page).toHaveURL(/\/workspace\/settings\/playback$/, {
+            timeout: 15000,
+        });
     });
 
     test.afterEach(async ({ page }, testInfo) => {

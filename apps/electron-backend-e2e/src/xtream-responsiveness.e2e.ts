@@ -35,7 +35,7 @@ async function openSources(page: Parameters<typeof addXtreamPortal>[0]) {
 }
 
 function xtreamBlockedStateTitle(page: Parameters<typeof addXtreamPortal>[0]) {
-    return page.locator('.xtream-content-gate .error-view__title');
+    return page.locator('.xtream-content-gate .app-state-view__title');
 }
 
 test.describe('Electron Xtream Responsiveness', () => {

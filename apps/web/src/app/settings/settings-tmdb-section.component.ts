@@ -1,5 +1,5 @@
 import { MatDialog } from '@angular/material/dialog';
-import { dialogSize } from '@iptvnator/ui/components/dialog-size';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 import { SettingsTmdbTransferDialogComponent } from './settings-tmdb-transfer-dialog.component';
 import { AgeRatingPresentationService } from '@iptvnator/services/age-rating';
 import {

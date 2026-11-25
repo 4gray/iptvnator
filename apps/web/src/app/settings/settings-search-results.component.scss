@@ -60,7 +60,7 @@ li:last-child .settings-search-result {
 }
 
 .settings-search-result__label {
-    font-size: 13.5px;
+    font-size: var(--app-text-md);
     font-weight: 500;
     color: var(--app-heading-color);
 }
@@ -68,7 +68,7 @@ li:last-child .settings-search-result {
 .settings-search-result__description {
     overflow: hidden;
     color: var(--settings-muted);
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     line-height: 1.45;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -80,31 +80,9 @@ li:last-child .settings-search-result {
     border-radius: 999px;
     background: var(--settings-chip-bg);
     color: var(--settings-chip-fg);
-    font-size: 10.5px;
+    font-size: var(--app-text-2xs);
     font-weight: 500;
     white-space: nowrap;
-}
-
-.settings-search-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    padding: 40px 16px;
-    color: var(--settings-muted);
-    text-align: center;
-
-    mat-icon {
-        width: 32px;
-        height: 32px;
-        font-size: 32px;
-    }
-
-    p {
-        margin: 0;
-        max-width: 420px;
-        line-height: 1.45;
-    }
 }
 
 @media (max-width: 640px) {

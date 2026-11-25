@@ -28,11 +28,13 @@ import {
     RadioOptionDirective,
 } from '@iptvnator/ui/components/radio-group';
 import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 @Component({
     selector: 'app-settings-epg-section',
     providers: [provideFormFieldDefaults()],
     imports: [
+        StateViewComponent,
         RadioGroupDirective,
         RadioOptionDirective,
         EpgSourceStatusComponent,

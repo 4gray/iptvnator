@@ -8,7 +8,7 @@ import {
     openSettingsSection,
     test,
 } from './electron-test-fixtures';
-import { applyTheme } from './theme-contrast';
+import { applyTheme, themePresets } from './theme-contrast';
 
 const epgFixtureXml = `<?xml version="1.0" encoding="UTF-8"?>
 <tv>
@@ -149,23 +149,33 @@ test.describe('Theme tokens', () => {
                 // The dark surface belongs to the app host. Components that
                 // carry `dark-theme` for its tokens (the fullscreen channel
                 // panel, the diagnostic's alternative sources) keep their own.
-                const backgrounds = await page.evaluate(() => {
+                const panelColors = await page.evaluate(() => {
                     const nested = document.createElement('div');
                     nested.className = 'dark-theme';
                     nested.style.background = 'rgb(22, 27, 36)';
                     document.body.appendChild(nested);
+                    const style = getComputedStyle(nested);
                     const result = {
-                        nested: getComputedStyle(nested).backgroundColor,
+                        nested: style.backgroundColor,
                         body: getComputedStyle(document.body).backgroundColor,
+                        icon: style.getPropertyValue(
+                            '--mat-icon-button-icon-color'
+                        ),
+                        onSurfaceVariant: style.getPropertyValue(
+                            '--mat-sys-on-surface-variant'
+                        ),
                     };
                     nested.remove();
                     return result;
                 });
-                expect(backgrounds.nested, `nested in ${theme} theme`).toBe(
+                expect(panelColors.nested, `nested in ${theme} theme`).toBe(
                     'rgb(22, 27, 36)'
                 );
+                expect(panelColors.icon, `nested icon in ${theme} theme`).toBe(
+                    panelColors.onSurfaceVariant
+                );
                 if (theme === 'dark') {
-                    expect(backgrounds.body).toBe(
+                    expect(panelColors.body).toBe(
                         await resolveColor(page, 'var(--mat-sys-surface)')
                     );
                 }
@@ -235,12 +245,114 @@ test.describe('Theme tokens', () => {
                     }),
                     `label-small typography in ${theme} theme`
                 ).toEqual({
-                    family: expect.stringMatching(/^"?DM Sans"?,/),
+                    family: expect.stringMatching(/^"?Inter Variable"?,/),
                     size: 11,
                     weight: '500',
                 });
             }
             expect(surfaces['light']).not.toBe(surfaces['dark']);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('@theme @electron resolves the scale and status tokens in every preset', async ({
+        dataDir,
+    }) => {
+        const app = await launchElectronApp(dataDir);
+        const page = app.mainWindow;
+        const statuses = [
+            'success',
+            'warning',
+            'danger',
+            'info',
+            'live',
+            'expiry',
+        ];
+        try {
+            const hues: Record<string, string[]> = {};
+            for (const preset of themePresets) {
+                await applyTheme(page, preset);
+                // Status hues switch with the mode and reach every preset,
+                // High Contrast included; overlays see the body's values.
+                const values = await page.evaluate((names) => {
+                    const style = getComputedStyle(document.body);
+                    const read = (name: string) =>
+                        style.getPropertyValue(name).trim();
+                    // A custom property keeps its text as the build wrote
+                    // it (minified or not), so the scales are compared
+                    // through the computed value of a property that reads
+                    // them.
+                    const probe = document.createElement('div');
+                    probe.style.cssText = [
+                        'font-size: var(--app-text-sm)',
+                        'padding-top: var(--app-space-4)',
+                        'border-top-left-radius: var(--app-radius-lg)',
+                        'box-shadow: var(--app-elev-4)',
+                        'position: relative',
+                        'z-index: var(--app-z-overlay)',
+                        'font-family: var(--app-font-mono)',
+                    ].join(';');
+                    document.body.appendChild(probe);
+                    const computed = getComputedStyle(probe);
+                    const scales = [
+                        computed.fontSize,
+                        computed.paddingTop,
+                        computed.borderTopLeftRadius,
+                        computed.boxShadow,
+                        computed.zIndex,
+                        computed.fontFamily,
+                    ];
+                    probe.remove();
+                    return {
+                        statuses: names.map((name) =>
+                            read(`--app-status-${name}`)
+                        ),
+                        danger: read('--app-danger-text'),
+                        scales,
+                    };
+                }, statuses);
+                for (const [index, name] of statuses.entries()) {
+                    expect(
+                        values.statuses[index],
+                        `--app-status-${name} in ${preset}`
+                    ).toMatch(/^#[0-9a-f]{6}$/);
+                }
+                expect(values.danger, `danger text in ${preset}`).toBe(
+                    values.statuses[statuses.indexOf('danger')]
+                );
+                expect(values.scales, `scales in ${preset}`).toEqual([
+                    '13px',
+                    '16px',
+                    '10px',
+                    'rgba(0, 0, 0, 0.35) 0px 18px 40px 0px',
+                    '1000',
+                    '"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace',
+                ]);
+                hues[preset] = values.statuses;
+            }
+            expect(hues['light']).not.toEqual(hues['dark']);
+            expect(hues['cream']).toEqual(hues['light']);
+            for (const preset of [
+                'mocha',
+                'night-owl',
+                'black-oled',
+                'high-contrast',
+            ]) {
+                expect(hues[preset], preset).toEqual(hues['dark']);
+            }
+
+            // The CDK overlay container shares the overlay layer, and the
+            // dialog shape follows the radius scale.
+            const overlayZ = await page.evaluate(() => {
+                const container = document.createElement('div');
+                container.className = 'cdk-overlay-container';
+                document.body.appendChild(container);
+                const z = getComputedStyle(container).zIndex;
+                container.remove();
+                return z;
+            });
+            expect(overlayZ).toBe('1000');
         } finally {
             await closeElectronApp(app);
         }
@@ -272,8 +384,8 @@ test.describe('Theme tokens', () => {
                 });
                 // The `warn` color input was a no-op with M3: the trigger
                 // rendered in the primary color. The kit draws a destructive
-                // button as a red tint, never a solid error fill, and the
-                // outlined trigger carries the same tint as a filled one.
+                // button as a red tint on a flat button, never a solid
+                // error fill.
                 await expect
                     .poll(() =>
                         trigger.evaluate((el) => getComputedStyle(el).color)
@@ -461,17 +573,23 @@ async function withFloatingSurfaces(
                 .getByTestId('confirm-dialog-confirm')
                 .click();
 
+            // A success toast: the kit frame with the hairline tinted by
+            // the success colour (NotificationService variants).
             const toast = page.locator(
-                '.mat-mdc-snack-bar-container .mat-mdc-snackbar-surface'
+                '.mat-mdc-snack-bar-container.app-notification--success .mat-mdc-snackbar-surface'
             );
             await expect(toast).toBeVisible();
+            const successHairline = await resolveColor(
+                page,
+                'color-mix(in srgb, var(--app-status-success) 55%, var(--app-line-strong))'
+            );
             await expect
                 .poll(() => frame(toast), {
                     message: `toast frame in ${theme} theme`,
                 })
                 .toEqual({
                     background: surface,
-                    border: hairline,
+                    border: successHairline,
                     radius: '10px',
                 });
             expect(

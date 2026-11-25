@@ -13,6 +13,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
+import { ANDROID_EXTERNAL_ACTION } from './android-external-action';
 import type { ControlsMenuSelection } from './controls-menu-selection';
 import type { ControlsSettings } from './controls-settings';
 import type { ControlsSubtitleSettings } from './controls-subtitle-settings';
@@ -67,6 +68,9 @@ export class PlayerSettingsPanelComponent implements OnDestroy {
         inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
     /** Several players can be mounted at once: heading ids stay unique. */
     private readonly idPrefix = `player-settings-${nextPanelId++}`;
+    readonly androidExternal = inject(ANDROID_EXTERNAL_ACTION, {
+        optional: true,
+    });
     readonly controller = input.required<PlayerController>();
     readonly settings = input.required<ControlsSettings>();
     readonly selection = input.required<ControlsMenuSelection>();

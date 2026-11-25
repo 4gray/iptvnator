@@ -1,0 +1,49 @@
+import { dialog } from 'electron';
+import {
+    hasPendingContentTitleFtsBuild,
+    initDatabase,
+} from '../database/connection';
+import { databaseWorkerClient } from '../services/database-worker-client';
+import { resetStaleDownloads } from '../events/database/downloads.events';
+import { reconcileStaleRecordings } from '../events/database/recording-recovery';
+import { traceStartupPhase } from '../services/debug-trace';
+import {
+    openDatabaseAtStartup,
+    reportDatabaseStartupFailure,
+} from './database-startup';
+
+/**
+ * Database initialization and recovery, after the first renderer load is
+ * underway so Linux Electron E2E can observe a BrowserWindow even when
+ * SQLite startup or download recovery is slow. IPC handlers call
+ * getDatabase() lazily and share the same initialization promise. Never
+ * rejects: a database that cannot be opened is retried, then reported to
+ * the user (see database-startup.ts for when the recovery passes run).
+ */
+export async function finishStartupAfterFirstLoad(): Promise<void> {
+    await openDatabaseAtStartup({
+        initDatabase,
+        recoveryPasses: [
+            async () => {
+                await resetStaleDownloads();
+                traceStartupPhase('reset-stale-downloads:done');
+            },
+            async () => {
+                await reconcileStaleRecordings();
+                traceStartupPhase('reconcile-stale-recordings:done');
+            },
+            // Off the main thread: a large catalog's title index rebuild
+            // (see libs/shared/database/README.md).
+            async () => {
+                if (!hasPendingContentTitleFtsBuild()) return;
+                await databaseWorkerClient.startContentTitleFtsBuild();
+                traceStartupPhase('content-title-fts-build:requested');
+            },
+        ],
+        reportFailure: (error) =>
+            reportDatabaseStartupFailure(error, (options) =>
+                dialog.showMessageBox(options)
+            ),
+        trace: (phase) => traceStartupPhase(phase),
+    });
+}

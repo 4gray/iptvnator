@@ -1,4 +1,5 @@
 import { WritableSignal, signal } from '@angular/core';
+import { ANDROID_EXTERNAL_ACTION } from './android-external-action';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { DEFAULT_PLAYER_CAPABILITIES } from './player-controls-defaults';
@@ -33,6 +34,7 @@ function createFakeController() {
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),
         togglePictureInPicture: jest.fn(),
+        jumpToLiveEdge: jest.fn(),
     };
     const controller: PlayerController = { capabilities, state, commands };
     return { controller, capabilities, state, commands };
@@ -41,6 +43,8 @@ function createFakeController() {
 describe('PlayerControlsComponent', () => {
     let fixture: ComponentFixture<PlayerControlsComponent>;
     let fake: ReturnType<typeof createFakeController>;
+    const androidAvailable = signal(false);
+    const openAndroid = jest.fn();
 
     const setCapabilities = (
         overrides: Partial<PlayerControlsCapabilities>
@@ -59,8 +63,19 @@ describe('PlayerControlsComponent', () => {
         fixture.nativeElement.querySelector(selector) as HTMLElement | null;
 
     beforeEach(async () => {
+        androidAvailable.set(false);
+        openAndroid.mockClear();
         await TestBed.configureTestingModule({
             imports: [PlayerControlsComponent, TranslateModule.forRoot()],
+            providers: [
+                {
+                    provide: ANDROID_EXTERNAL_ACTION,
+                    useValue: {
+                        available: androidAvailable,
+                        open: openAndroid,
+                    },
+                },
+            ],
         }).compileComponents();
 
         // Load the real English values so aria-labels resolve to the same text
@@ -102,6 +117,20 @@ describe('PlayerControlsComponent', () => {
         fixture = TestBed.createComponent(PlayerControlsComponent);
         fixture.componentRef.setInput('controller', fake.controller);
         fixture.detectChanges();
+    });
+
+    it('offers the Android action in settings even without other settings groups', () => {
+        androidAvailable.set(true);
+        fixture.detectChanges();
+        query('[data-test-id="player-controls-settings-button"]')?.click();
+        fixture.detectChanges();
+        const action = query('[data-test-id="android-open-external"]');
+        expect(action).not.toBeNull();
+        action?.click();
+        expect(openAndroid).toHaveBeenCalledTimes(1);
+        androidAvailable.set(false);
+        fixture.detectChanges();
+        expect(query('[data-test-id="android-open-external"]')).toBeNull();
     });
 
     describe('capability gating', () => {

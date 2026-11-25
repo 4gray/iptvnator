@@ -64,16 +64,16 @@
             (mapEpg)="openEpgMapping()"
         />
     } @else {
-        <div class="empty-search-state">
-            <mat-icon class="empty-state-icon">search_off</mat-icon>
-            <h3 class="empty-state-title">
-                {{ 'CHANNELS.NO_CHANNELS_FOUND' | translate }}
-            </h3>
-            @if (searchTermInput()) {
-                <p class="empty-state-hint">
-                    {{ 'CHANNELS.TRY_DIFFERENT_SEARCH' | translate }}
-                </p>
-            }
-        </div>
+        <app-state-view
+            size="panel"
+            [variant]="searchTermInput() ? 'no-results' : 'empty'"
+            [icon]="searchTermInput() ? null : 'tv_off'"
+            [heading]="'CHANNELS.NO_CHANNELS_FOUND' | translate"
+            [description]="
+                searchTermInput()
+                    ? ('CHANNELS.TRY_DIFFERENT_SEARCH' | translate)
+                    : null
+            "
+        />
     }
 </div>

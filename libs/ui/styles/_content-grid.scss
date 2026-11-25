@@ -20,19 +20,19 @@
 
 @mixin content-card {
     cursor: pointer;
-    border-radius: 10px;
+    border-radius: var(--app-radius-lg);
     overflow: hidden;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 
     &:hover {
         transform: translateY(-3px);
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        box-shadow: var(--app-elev-2);
     }
 }
 
 @mixin thumbnail-wrapper {
     position: relative;
-    border-radius: 10px;
+    border-radius: var(--app-radius-lg);
     overflow: hidden;
 
     .poster {
@@ -64,8 +64,8 @@
     top: 6px;
     left: 6px;
     padding: 3px 6px;
-    border-radius: 4px;
-    font-size: 9px;
+    border-radius: var(--app-radius-xs);
+    font-size: var(--app-text-2xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -119,7 +119,7 @@
     box-sizing: border-box;
     padding: 28px 8px 8px;
     color: #fff;
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     font-weight: 500;
     line-height: 1.3;
     text-align: center;
@@ -170,11 +170,11 @@
 }
 
 @mixin card-info {
-    padding: 8px 10px;
+    padding: var(--app-space-2) var(--app-space-2-5);
 
     h3 {
         margin: 0;
-        font-size: 0.8rem;
+        font-size: var(--app-text-sm);
         font-weight: 500;
         line-height: 1.3;
         display: -webkit-box;
@@ -184,8 +184,8 @@
     }
 
     .date-info {
-        margin: 4px 0 0;
-        font-size: 0.7rem;
+        margin: var(--app-space-1) 0 0;
+        font-size: var(--app-text-2xs);
         opacity: 0.6;
     }
 }

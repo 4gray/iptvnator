@@ -87,7 +87,7 @@
         background: transparent;
         color: inherit;
         font: inherit;
-        font-size: 0.875rem;
+        font-size: var(--app-text-md);
 
         &:disabled {
             cursor: not-allowed;
@@ -97,44 +97,6 @@
         &::placeholder {
             opacity: 0.62;
         }
-    }
-}
-
-.empty-search-state {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 24px;
-    text-align: center;
-    color: var(--app-muted-color);
-    animation: fade-in 0.3s ease-out;
-
-    .empty-state-icon {
-        width: 48px;
-        height: 48px;
-        font-size: 48px;
-        opacity: 0.5;
-        margin-bottom: 16px;
-    }
-
-    .empty-state-title {
-        font-size: 1.05rem;
-        font-weight: 500;
-        letter-spacing: -0.01em;
-        margin: 0 0 8px;
-        text-wrap: balance;
-    }
-
-    .empty-state-hint {
-        font-size: 0.85rem;
-        margin: 0;
-        opacity: 0.65;
-        line-height: 1.4;
-        max-width: 240px;
-        text-wrap: pretty;
     }
 }
 
@@ -150,7 +112,7 @@
 }
 
 .channels-loading-state__title {
-    font-size: 0.86rem;
+    font-size: var(--app-text-md);
     font-weight: 600;
     letter-spacing: -0.01em;
     color: var(--mat-sys-on-surface);

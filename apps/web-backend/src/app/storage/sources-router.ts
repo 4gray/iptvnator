@@ -37,7 +37,7 @@ export function createSourcesRouter(
     const sendTag = (res: Response, etag: string) =>
         res.set({
             ETag: etag,
-            'Cache-Control': 'no-cache',
+            'Cache-Control': res.get('Cache-Control') ?? 'no-cache',
             'Access-Control-Expose-Headers': 'ETag',
         });
     const read = (id: string): Playlist => {
@@ -50,14 +50,18 @@ export function createSourcesRouter(
             );
         return value as unknown as Playlist;
     };
+    // Weak comparison: nginx weakens the ETag of a gzipped response, so the
+    // PWA echoes `W/"…"`. `*` stays rejected; it would skip the revision.
     const check = (req: Request, etag: string) => {
-        if (!req.get('if-match'))
+        const ifMatch = req.get('if-match');
+        if (!ifMatch)
             throw new StorageRequestError(
                 428,
                 'revision_required',
                 'A source revision is required.'
             );
-        if (req.get('if-match') !== etag)
+        const wildcard = ifMatch.split(',').some((tag) => tag.trim() === '*');
+        if (wildcard || !matchesEtag(ifMatch, etag))
             throw new StorageRequestError(
                 412,
                 'source_conflict',

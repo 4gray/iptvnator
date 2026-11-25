@@ -1,5 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
@@ -62,7 +62,7 @@ export class SourceListRefreshService {
     // so a row refresh must not be visible only to this page.
     private readonly activity = inject(SourceActivityService);
     private readonly releases = new Map<string, () => void>();
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
     private readonly xtreamRefreshFlow = inject(XtreamRefreshFlowService);
@@ -203,22 +203,14 @@ export class SourceListRefreshService {
                     operationId,
                 })
             );
-            this.snackBar.open(
-                this.translate.instant(
-                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
-                ),
-                undefined,
-                { duration: 2000 }
+            this.notifications.success(
+                'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
             );
         } catch (error) {
             if (!isDbAbortError(error)) {
                 // Redacted: the error can carry the playlist URL.
                 this.logger.error('Error refreshing playlist:', error);
-                this.snackBar.open(
-                    this.refreshErrorMessage(error, item),
-                    this.translate.instant('CLOSE'),
-                    { duration: 5000 }
-                );
+                this.notifications.error(this.refreshErrorKey(error, item));
             }
         } finally {
             this.clear(item._id);
@@ -226,10 +218,7 @@ export class SourceListRefreshService {
         }
     }
 
-    /**
-     * The browser build refreshes through the backend; the row stays busy,
-     * and held in the shared registry, until the backend answers.
-     */
+    /** Keep the row busy in the shared registry through browser refresh. */
     private async refreshViaBackend(
         item: PlaylistMeta,
         url: string
@@ -249,23 +238,19 @@ export class SourceListRefreshService {
         }
     }
 
-    private refreshErrorMessage(error: unknown, item: PlaylistMeta): string {
+    private refreshErrorKey(error: unknown, item: PlaylistMeta): string {
         if (item.filePath) {
             const message = String(
                 (error as { message?: string })?.message ?? error
             );
             if (/(ENOENT|no such file or directory|not found)/i.test(message)) {
-                return this.translate.instant(
-                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_NOT_FOUND'
-                );
+                return 'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_NOT_FOUND';
             }
             if (/(EACCES|EPERM|permission denied)/i.test(message)) {
-                return this.translate.instant(
-                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_ACCESS_ERROR'
-                );
+                return 'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_ACCESS_ERROR';
             }
         }
-        return this.translate.instant('HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR');
+        return 'HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR';
     }
 
     private toBusyEvent(event: PlaylistRefreshEvent): DbOperationEvent {

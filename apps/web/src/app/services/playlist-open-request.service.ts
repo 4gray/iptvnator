@@ -1,6 +1,5 @@
 import { EnvironmentInjector, Injectable, inject } from '@angular/core';
-import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
-import { TranslateService } from '@ngx-translate/core';
+import { NotificationService } from '@iptvnator/services/notifications';
 import type { PlaylistFileImportService } from '@iptvnator/playlist/shared/util/playlist-file-import';
 import type { ElectronBridgePlaylistOpenRequest } from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
@@ -25,8 +24,7 @@ type PlaylistOpenRequestBridge = {
 @Injectable({ providedIn: 'root' })
 export class PlaylistOpenRequestService {
     private readonly injector = inject(EnvironmentInjector);
-    private readonly snackBar = inject(LazySnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
 
     // Keep the listener eager, but load file parsing only after an OS request.
     // Imports and root DI are cached; a rejected chunk load is retried next time.
@@ -121,13 +119,9 @@ export class PlaylistOpenRequestService {
             return;
         }
 
-        void this.snackBar.open(
-            this.translate.instant('HOME.FILE_UPLOAD.OPEN_FAILED', {
-                filename: request.fileName || request.filePath,
-            }),
-            this.translate.instant('CLOSE'),
-            { duration: 7000, panelClass: ['error-snackbar'] }
-        );
+        this.notifications.error('HOME.FILE_UPLOAD.OPEN_FAILED', {
+            filename: request.fileName || request.filePath,
+        });
     }
 
     private getBridge(): PlaylistOpenRequestBridge | undefined {

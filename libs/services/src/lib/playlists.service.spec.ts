@@ -1,8 +1,12 @@
-import { EMPTY, firstValueFrom, from, of } from 'rxjs';
+import { EMPTY, firstValueFrom, of } from 'rxjs';
 import { DbStores, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { reservePlaylistAuthority } from './playlist-cross-context-lock';
 import { PlaylistWriteConflict } from './playlist-storage-backend';
 import { PlaylistsService, resolvePlaylistParser } from './playlists.service';
+import { mutateIndexedDbPlaylist } from './source-sync/indexeddb-playlist-mutation';
+
+jest.mock('./source-sync/indexeddb-playlist-mutation');
+const mutateBrowserPlaylist = jest.mocked(mutateIndexedDbPlaylist);
 
 const SQLITE_PLAYLIST_MIGRATION_FLAG = 'm3u-playlists-indexeddb-to-sqlite-v1';
 const STALKER_PLAYLIST_METADATA_MIGRATION_FLAG =
@@ -12,6 +16,10 @@ describe('PlaylistsService', () => {
     const testWindow = window as unknown as { electron?: unknown };
     const originalElectron = testWindow.electron;
     const originalLockManager = globalThis.navigator?.locks;
+
+    beforeEach(() => {
+        mutateBrowserPlaylist.mockReset();
+    });
 
     afterEach(() => {
         testWindow.electron = originalElectron;
@@ -2204,8 +2212,10 @@ describe('PlaylistsService', () => {
                       dbUpsertAppPlaylist: upsert,
                   } as unknown as typeof testWindow.electron)
                 : undefined;
-            const update = jest.fn(() => of(undefined));
-            const service = createService({ update });
+            mutateBrowserPlaylist.mockImplementationOnce(
+                async (_profile, _id, mutate) => mutate(null)
+            );
+            const service = createService();
             await expect(
                 firstValueFrom(
                     service.updatePlaylist('deleted', {
@@ -2213,7 +2223,6 @@ describe('PlaylistsService', () => {
                     } as Playlist)
                 )
             ).rejects.toThrow('Playlist no longer exists');
-            expect(update).not.toHaveBeenCalled();
             expect(upsert).not.toHaveBeenCalled();
         }
     );
@@ -2230,18 +2239,13 @@ describe('PlaylistsService', () => {
                 items: [{ id: 'channel-1' }],
             },
         } as Playlist;
-        const dbService = {
-            getAll: jest.fn(() => of([])),
-            getByID: jest.fn(() => of(existingPlaylist)),
-            update: jest.fn((_storeName: string, playlist: Playlist) =>
-                of(playlist)
-            ),
-        };
         testWindow.electron = undefined;
+        mutateBrowserPlaylist.mockImplementationOnce(
+            async (_profile, _id, mutate) => mutate(existingPlaylist)
+        );
+        const service = createService();
 
-        const service = createService(dbService);
-
-        await firstValueFrom(
+        const saved = await firstValueFrom(
             service.updatePlaylist('playlist-2', {
                 _id: 'playlist-2',
                 playlist: {
@@ -2250,14 +2254,11 @@ describe('PlaylistsService', () => {
             } as Playlist)
         );
 
-        expect(dbService.update).toHaveBeenCalledWith(
-            DbStores.Playlists,
-            expect.objectContaining({
-                _id: 'playlist-2',
-                hiddenGroupTitles: ['Radio-de'],
-                count: 0,
-            })
-        );
+        expect(saved).toMatchObject({
+            _id: 'playlist-2',
+            hiddenGroupTitles: ['Radio-de'],
+            count: 0,
+        });
     });
 
     it('keeps autoRefresh enabled when refreshing a playlist payload with the parser default disabled', async () => {
@@ -2272,18 +2273,13 @@ describe('PlaylistsService', () => {
                 items: [{ id: 'channel-1' }],
             },
         } as Playlist;
-        const dbService = {
-            getAll: jest.fn(() => of([])),
-            getByID: jest.fn(() => of(existingPlaylist)),
-            update: jest.fn((_storeName: string, playlist: Playlist) =>
-                of(playlist)
-            ),
-        };
         testWindow.electron = undefined;
+        mutateBrowserPlaylist.mockImplementationOnce(
+            async (_profile, _id, mutate) => mutate(existingPlaylist)
+        );
+        const service = createService();
 
-        const service = createService(dbService);
-
-        await firstValueFrom(
+        const saved = await firstValueFrom(
             service.updatePlaylist('playlist-3', {
                 _id: 'playlist-3',
                 autoRefresh: false,
@@ -2293,14 +2289,11 @@ describe('PlaylistsService', () => {
             } as Playlist)
         );
 
-        expect(dbService.update).toHaveBeenCalledWith(
-            DbStores.Playlists,
-            expect.objectContaining({
-                _id: 'playlist-3',
-                autoRefresh: true,
-                count: 0,
-            })
-        );
+        expect(saved).toMatchObject({
+            _id: 'playlist-3',
+            autoRefresh: true,
+            count: 0,
+        });
     });
 
     describe('per-playlist write serialization', () => {
@@ -2334,9 +2327,14 @@ describe('PlaylistsService', () => {
                         : null
                 ),
                 dbSetAppState: jest.fn(),
-                dbUpsertAppPlaylist: jest.fn(async (playlist: Playlist) => {
-                    store.current = playlist;
-                }),
+                dbUpsertAppPlaylist: jest.fn(
+                    async (
+                        playlist: Playlist
+                    ): Promise<{ success: boolean } | void> => {
+                        store.current = playlist;
+                        return { success: true };
+                    }
+                ),
                 dbUpsertAppPlaylists: jest.fn(async (playlists: Playlist[]) => {
                     const target = playlists.find(
                         (playlist) => playlist._id === store.current._id
@@ -2425,40 +2423,54 @@ describe('PlaylistsService', () => {
             expect((await read).hiddenGroupTitles).toEqual(['Sports']);
         });
 
-        it('orders a browser catalog read after a queued IndexedDB refresh', async () => {
-            const original = createBasePlaylist('browser-catalog');
-            const state = { current: original };
-            testWindow.electron = undefined;
-            let release!: () => void;
-            let started!: () => void;
-            const gate = new Promise<void>((resolve) => {
-                release = resolve;
-            });
-            const writing = new Promise<void>((resolve) => {
-                started = resolve;
-            });
-            const service = createService({
-                getByID: jest.fn(() => of(state.current)),
-                update: jest.fn((_store: string, playlist: Playlist) => {
-                    started();
-                    return from(
-                        gate.then(() => {
-                            state.current = playlist;
-                            return playlist;
-                        })
-                    );
-                }),
-            });
-            const updated = { ...original, title: 'Refreshed browser catalog' };
-            const write = firstValueFrom(
-                service.updatePlaylist(original._id, updated)
-            );
-            await writing;
-            const read = firstValueFrom(service.getPlaylist(original._id));
-            release();
-            await write;
-            expect((await read).title).toBe(updated.title);
-        });
+        it.each([false, true])(
+            'orders a browser catalog read after a queued IndexedDB refresh (aborted: %s)',
+            async (aborted) => {
+                const original = createBasePlaylist('browser-catalog');
+                const state = { current: original };
+                testWindow.electron = undefined;
+                let release!: () => void;
+                let started!: () => void;
+                const gate = new Promise<void>((resolve) => {
+                    release = resolve;
+                });
+                const writing = new Promise<void>((resolve) => {
+                    started = resolve;
+                });
+                mutateBrowserPlaylist.mockImplementationOnce(
+                    async (_profile, _id, mutate) => {
+                        const next = mutate(state.current);
+                        started();
+                        await gate;
+                        if (aborted) throw new Error('Aborted');
+                        state.current = next;
+                        return next;
+                    }
+                );
+                const service = createService({
+                    getByID: jest.fn(() => of(state.current)),
+                });
+                const updated = {
+                    ...original,
+                    title: 'Refreshed browser catalog',
+                };
+                const write = firstValueFrom(
+                    service.updatePlaylist(original._id, updated)
+                );
+                const outcome = write.catch((error: Error) => error);
+                await writing;
+                const read = firstValueFrom(service.getPlaylist(original._id));
+                release();
+                expect(await outcome).toEqual(
+                    aborted
+                        ? new Error('Aborted')
+                        : expect.objectContaining({ title: updated.title })
+                );
+                expect((await read).title).toBe(
+                    aborted ? original.title : updated.title
+                );
+            }
+        );
 
         it('does not block a different catalog behind a pending write', async () => {
             const original = createBasePlaylist('catalog-busy');
@@ -2706,6 +2718,164 @@ describe('PlaylistsService', () => {
             const deleteOrder =
                 electron.dbDeletePlaylist.mock.invocationCallOrder[0];
             expect(deleteOrder).toBeGreaterThan(upsertOrder);
+        });
+
+        it('edits the browser cursor row without replacing other hidden genres', async () => {
+            testWindow.electron = undefined;
+            const current = {
+                ...createBasePlaylist('local-source'),
+                macAddress: '00:00:00:00:00:00',
+                hiddenStalkerCategories: { itv: ['01', '02'] },
+            };
+            const update = jest.fn();
+            const service = createService({
+                openCursor: ({ query }: { query?: string }) =>
+                    query === current._id
+                        ? of({ value: current, update })
+                        : EMPTY,
+            });
+            const saved = await firstValueFrom(
+                service.updateStalkerCategoryVisibility(current._id, {
+                    itv: { show: ['01'] },
+                })
+            );
+            expect(saved).toEqual({
+                ...current,
+                hiddenStalkerCategories: { itv: ['02'] },
+            });
+            expect(update).toHaveBeenCalledWith(saved);
+            await expect(
+                firstValueFrom(
+                    service.updateStalkerCategoryVisibility('removed-source', {
+                        itv: { hide: ['01'] },
+                    })
+                )
+            ).rejects.toThrow('Stalker playlist no longer exists');
+            expect(update).toHaveBeenCalledTimes(1);
+        });
+
+        it('aborts browser visibility edits if another source replaced the portal', async () => {
+            testWindow.electron = undefined;
+            const abort = jest.fn();
+            const update = jest.fn();
+            const service = createService({
+                openCursor: ({ query }: { query?: string }) =>
+                    query
+                        ? of({
+                              value: {
+                                  _id: query,
+                                  url: 'https://source.example/list',
+                              },
+                              update,
+                              request: { transaction: { abort } },
+                          })
+                        : EMPTY,
+            });
+            await expect(
+                firstValueFrom(
+                    service.updateStalkerCategoryVisibility('replaced-source', {
+                        vod: { hide: ['01'] },
+                    })
+                )
+            ).rejects.toThrow('Stalker playlist no longer exists');
+            expect(abort).toHaveBeenCalledTimes(1);
+            expect(update).not.toHaveBeenCalled();
+        });
+
+        it('merges Stalker visibility edits against the latest source and survives stale refreshes', async () => {
+            const original = {
+                ...createBasePlaylist('synthetic-categories'),
+                macAddress: '00:00:00:00:00:00',
+                hiddenStalkerCategories: {
+                    itv: ['shared', 'unlisted'],
+                    vod: ['shared'],
+                },
+            };
+            const { store, electron } = createStatefulElectronStore(original);
+            testWindow.electron = electron;
+            const service = createService();
+            await Promise.all([
+                firstValueFrom(
+                    service.updateStalkerCategoryVisibility(original._id, {
+                        itv: { show: ['shared'] },
+                        series: { hide: ['shared'] },
+                    })
+                ),
+                firstValueFrom(
+                    service.updateStalkerCategoryVisibility(original._id, {
+                        itv: { hide: ['new', 'new', '*', ''] },
+                    })
+                ),
+                firstValueFrom(service.updatePlaylist(original._id, original)),
+            ]);
+            expect(store.current.hiddenStalkerCategories).toEqual({
+                itv: ['unlisted', 'new'],
+                series: ['shared'],
+                vod: ['shared'],
+            });
+            expect(store.current.favorites).toEqual(original.favorites);
+        });
+
+        it('reapplies visibility deltas to a newer document after a server conflict', async () => {
+            const original = {
+                ...createBasePlaylist('synthetic-server-source'),
+                macAddress: '00:00:00:00:00:00',
+            };
+            const { store, electron } = createStatefulElectronStore(original);
+            const service = createService();
+            Object.assign(service, {
+                storageBackend: {
+                    kind: () => 'server',
+                    documentStore: () => electron,
+                },
+            });
+            electron.dbUpsertAppPlaylist.mockImplementationOnce(async () => {
+                store.current = {
+                    ...original,
+                    hiddenStalkerCategories: { vod: ['other-device'] },
+                };
+                throw new PlaylistWriteConflict(original._id);
+            });
+            const saved = await firstValueFrom(
+                service.updateStalkerCategoryVisibility(original._id, {
+                    vod: { hide: ['local'] },
+                    itv: { hide: ['local'] },
+                })
+            );
+            expect(saved.hiddenStalkerCategories).toEqual({
+                vod: ['other-device', 'local'],
+                itv: ['local'],
+            });
+        });
+
+        it('rejects a failed visibility write and leaves the next queued edit usable', async () => {
+            const original = {
+                ...createBasePlaylist('synthetic-categories'),
+                macAddress: '00:00:00:00:00:00',
+            };
+            const { store, electron } = createStatefulElectronStore(original);
+            testWindow.electron = electron;
+            const service = createService();
+            electron.dbUpsertAppPlaylist.mockResolvedValueOnce({
+                success: false,
+            });
+            await expect(
+                firstValueFrom(
+                    service.updateStalkerCategoryVisibility(original._id, {
+                        itv: { hide: ['one'] },
+                        vod: { hide: ['two'] },
+                    })
+                )
+            ).rejects.toThrow('Stalker category visibility write failed');
+            expect(store.current.hiddenStalkerCategories).toBeUndefined();
+            await firstValueFrom(
+                service.updateStalkerCategoryVisibility(original._id, {
+                    series: { hide: ['three'] },
+                })
+            );
+            expect(store.current.hiddenStalkerCategories).toEqual({
+                series: ['three'],
+            });
         });
 
         it('transformPlaylistMeta aborts without writing when the transform returns null', async () => {

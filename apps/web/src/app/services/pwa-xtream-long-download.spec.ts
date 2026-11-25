@@ -70,7 +70,7 @@ describe('PWA long catalog downloads', () => {
                     ),
                     logger: createLogger('test'),
                     translate: { instant: () => 'Synthetic failure' },
-                    snackBar: { open: jest.fn().mockResolvedValue(null) },
+                    notifications: { error: jest.fn() },
                     errorStatus: () => 0,
                 },
                 {

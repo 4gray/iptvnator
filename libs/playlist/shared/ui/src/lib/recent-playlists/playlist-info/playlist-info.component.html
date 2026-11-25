@@ -11,6 +11,21 @@
             [disabled]="isSaving() || isHydratingStalkerPlaylist()"
             [attr.aria-busy]="isSaving() || isHydratingStalkerPlaylist()"
         >
+            <!-- A saved M3U source that did not load; old channels remain. -->
+            <ng-template #sourceLoadNotice>
+                @if (sourceLoadFailed()) {
+                    <p
+                        class="playlist-info-source-load-failed"
+                        role="status"
+                        data-test-id="playlist-source-load-failed"
+                    >
+                        {{
+                            'HOME.PLAYLISTS.INFO_DIALOG.SOURCE_LOAD_FAILED'
+                                | translate
+                        }}
+                    </p>
+                }
+            </ng-template>
             <ng-template #providerCredentials>
                 @if (
                     playlist.portalUrl ||
@@ -61,6 +76,7 @@
                 [heading]="
                     'HOME.PLAYLISTS.INFO_DIALOG.PLAYLIST_DETAILS' | translate
                 "
+                [subtitle]="sourceSubtitle()"
             >
                 <div class="playlist-info-body">
                     <mat-form-field class="w-full">
@@ -290,6 +306,7 @@
                                 <mat-icon>content_copy</mat-icon>
                             </button>
                         </mat-form-field>
+                        <ng-container [ngTemplateOutlet]="sourceLoadNotice" />
                     }
                     @if (playlist.filename) {
                         <mat-form-field class="w-full">
@@ -347,6 +364,7 @@
                                 </mat-hint>
                             }
                         </mat-form-field>
+                        <ng-container [ngTemplateOutlet]="sourceLoadNotice" />
                     }
                     @if (epg.canManage) {
                         <section
@@ -761,9 +779,11 @@
                         "
                     >
                         {{
-                            (isSaving()
-                                ? 'HOME.PLAYLISTS.REFRESH_SAVING'
-                                : 'HOME.PLAYLISTS.INFO_DIALOG.SAVE'
+                            (isLoadingSource()
+                                ? 'HOME.PLAYLISTS.INFO_DIALOG.SOURCE_LOADING'
+                                : isSaving()
+                                  ? 'HOME.PLAYLISTS.REFRESH_SAVING'
+                                  : 'HOME.PLAYLISTS.INFO_DIALOG.SAVE'
                             ) | translate
                         }}
                     </button>

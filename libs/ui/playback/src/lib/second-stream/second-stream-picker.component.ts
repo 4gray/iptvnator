@@ -15,10 +15,13 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
     ChannelListItemComponent,
     DialogShellComponent,
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
 } from '@iptvnator/ui/components';
 import {
     SECOND_STREAM_HISTORY,
@@ -28,9 +31,13 @@ import {
     SecondStreamSelection,
     SecondStreamSource,
 } from '@iptvnator/portal/shared/data-access';
+import { pickerStreamIdentity } from './second-stream-identity';
 import { SecondStreamPickerEpg } from './second-stream-picker-epg';
 import { SecondStreamPickerVod } from './second-stream-picker-vod';
-import type { SecondStreamPickerData } from './second-stream-open-stream';
+import type {
+    MultiviewSlot,
+    SecondStreamPickerData,
+} from './second-stream-open-stream';
 import type {
     SecondStreamEpisode,
     SecondStreamVodType,
@@ -45,6 +52,9 @@ import type { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
         FormsModule,
         MatButtonModule,
         MatIconModule,
+        MatMenuModule,
+        MenuItemRadioCheckDirective,
+        MenuItemRadioDirective,
         TranslatePipe,
         ChannelListItemComponent,
         DialogShellComponent,
@@ -62,12 +72,18 @@ export class SecondStreamPickerComponent {
     readonly sources = signal<SecondStreamSource[]>([]);
     readonly source = signal(this.dialogData.initialPlaylist ?? '');
     readonly historySource = SECOND_STREAM_HISTORY;
+    readonly sourceName = computed(
+        () =>
+            this.sources().find((entry) => entry.id === this.source())?.name ??
+            ''
+    );
     readonly group = signal<string | null>(null);
     readonly search = signal('');
     readonly loading = signal(true);
     readonly groupLoading = signal(false);
     readonly resolving = signal<string | null>(null);
     readonly error = signal<'load' | 'play' | 'group' | null>(null);
+    readonly duplicateSlot = signal<MultiviewSlot | null>(null);
     readonly data = signal<SecondStreamCatalog>({ groups: [], channels: [] });
     readonly limit = signal(100);
     private request = new AbortController();
@@ -121,6 +137,8 @@ export class SecondStreamPickerComponent {
         );
     });
     readonly visible = computed(() => this.filtered().slice(0, this.limit()));
+    private readonly searchInput =
+        viewChild<ElementRef<HTMLInputElement>>('searchInput');
     private readonly channelList =
         viewChild<ElementRef<HTMLElement>>('channelList');
     private readonly channelRows = viewChildren('channelRow', {
@@ -184,6 +202,8 @@ export class SecondStreamPickerComponent {
     }
 
     changeSource(id: string): void {
+        // The menu offers the checked source too; picking it keeps the view.
+        if (id === this.source()) return;
         this.vod.reset();
         this.source.set(id);
         this.group.set(null);
@@ -196,6 +216,7 @@ export class SecondStreamPickerComponent {
         this.request.abort();
         this.resolving.set(null);
         this.error.set(null);
+        this.duplicateSlot.set(null);
         this.limit.set(100);
         if (type)
             void this.vod.browse(this.source(), type, this.search().trim());
@@ -211,27 +232,43 @@ export class SecondStreamPickerComponent {
         this.search.set('');
         this.limit.set(100);
         void this.vod.openSeries(item);
+        this.searchInput()?.nativeElement.focus();
     }
 
     backToSeries(): void {
         this.generation++;
         this.resolving.set(null);
         this.error.set(null);
+        this.duplicateSlot.set(null);
         this.search.set(this.seriesSearch);
         this.limit.set(100);
         this.vod.back();
+        this.searchInput()?.nativeElement.focus();
+    }
+
+    openSlot(
+        item: UnifiedCollectionItem,
+        episodeId?: string
+    ): MultiviewSlot | undefined {
+        return this.dialogData.findDuplicateSlot(
+            pickerStreamIdentity(item, episodeId)
+        );
     }
 
     chooseMovie(item: UnifiedCollectionItem): void {
-        void this.resolve(item.uid, () => this.vod.service.resolveMovie(item));
+        void this.resolve(item.uid, this.openSlot(item), () =>
+            this.vod.service.resolveMovie(item)
+        );
     }
 
     chooseEpisode(
         series: UnifiedCollectionItem,
         row: SecondStreamEpisode
     ): void {
-        void this.resolve(row.episode.id, () =>
-            this.vod.service.resolveEpisode(series, row)
+        void this.resolve(
+            row.episode.id,
+            this.openSlot(series, row.episode.id),
+            () => this.vod.service.resolveEpisode(series, row)
         );
     }
 
@@ -243,6 +280,7 @@ export class SecondStreamPickerComponent {
         this.groupLoading.set(false);
         this.resolving.set(null);
         this.error.set(null);
+        this.duplicateSlot.set(null);
         this.data.set({ groups: [], channels: [] });
         try {
             const data = await this.catalog.load(
@@ -278,6 +316,7 @@ export class SecondStreamPickerComponent {
         this.request = new AbortController();
         this.resolving.set(null);
         this.error.set(null);
+        this.duplicateSlot.set(null);
         this.groupLoading.set(false);
         if (id === null || this.data().channels.some((row) => row.group === id))
             return;
@@ -301,7 +340,7 @@ export class SecondStreamPickerComponent {
     }
 
     async choose(row: SecondStreamChannel): Promise<void> {
-        await this.resolve(row.item.uid, async () => ({
+        await this.resolve(row.item.uid, this.openSlot(row.item), async () => ({
             item: row.item,
             playback: await this.catalog.resolve(row),
         }));
@@ -309,15 +348,27 @@ export class SecondStreamPickerComponent {
 
     private async resolve(
         key: string,
+        openSlot: MultiviewSlot | undefined,
         load: () => Promise<SecondStreamSelection>
     ): Promise<void> {
         if (this.resolving()) return;
         const generation = this.generation;
-        this.resolving.set(key);
         this.error.set(null);
+        this.duplicateSlot.set(openSlot ?? null);
+        if (openSlot !== undefined) return;
+        this.resolving.set(key);
         try {
             const selection = await load();
-            if (generation === this.generation) this.dialog.close(selection);
+            if (generation !== this.generation) return;
+            if (!this.catalog.isAllowed(selection.item)) {
+                this.error.set('play');
+                return;
+            }
+            const duplicate = this.dialogData.findDuplicateSlot(
+                selection.playback
+            );
+            if (duplicate === undefined) this.dialog.close(selection);
+            else this.duplicateSlot.set(duplicate);
         } catch {
             if (generation === this.generation) this.error.set('play');
         } finally {

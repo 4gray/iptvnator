@@ -1,5 +1,5 @@
 import { DestroyRef, Injectable, inject, signal } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { TranslateService } from '@ngx-translate/core';
 import {
     WorkspaceCommandContribution,
@@ -81,7 +81,7 @@ const PLAYER_COMMAND_DEFS: readonly PlayerCommandDefinition[] = [
 export class WorkspacePlayerCommandsContributor {
     private readonly viewCommands = inject(WorkspaceViewCommandService);
     private readonly settingsStore = inject(SettingsStore);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
     private readonly translate = inject(TranslateService);
     private readonly destroyRef = inject(DestroyRef);
     private readonly runtime = inject(RuntimeCapabilitiesService);
@@ -178,17 +178,9 @@ export class WorkspacePlayerCommandsContributor {
         void this.settingsStore.updateSettings({ player: def.player });
 
         const name = this.translate.instant(def.nameKey);
-        this.snackBar.open(
-            this.translate.instant(
-                'WORKSPACE.SHELL.COMMANDS.SWITCH_PLAYER_FEEDBACK',
-                { name }
-            ),
-            undefined,
-            {
-                duration: 2500,
-                horizontalPosition: 'center',
-                verticalPosition: 'bottom',
-            }
+        this.notifications.success(
+            'WORKSPACE.SHELL.COMMANDS.SWITCH_PLAYER_FEEDBACK',
+            { name }
         );
     }
 }

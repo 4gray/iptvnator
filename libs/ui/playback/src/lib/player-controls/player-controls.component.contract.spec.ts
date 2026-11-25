@@ -48,6 +48,7 @@ function createFakeController(): FakeController {
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),
         togglePictureInPicture: jest.fn(),
+        jumpToLiveEdge: jest.fn(),
     };
     return {
         controller: { capabilities, state, commands },

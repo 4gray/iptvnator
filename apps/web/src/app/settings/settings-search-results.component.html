@@ -52,9 +52,11 @@
             }
         </ul>
     } @else {
-        <div class="settings-search-empty" data-test-id="settings-search-empty">
-            <mat-icon>search_off</mat-icon>
-            <p>{{ 'SETTINGS.SEARCH_EMPTY_HINT' | translate }}</p>
-        </div>
+        <app-state-view
+            variant="no-results"
+            size="panel"
+            data-test-id="settings-search-empty"
+            [heading]="'SETTINGS.SEARCH_EMPTY_HINT' | translate"
+        />
     }
 </section>

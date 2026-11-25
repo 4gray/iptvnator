@@ -1,5 +1,5 @@
 import type { WritableSignal } from '@angular/core';
-import type { MatSnackBar } from '@angular/material/snack-bar';
+import type { NotificationService } from '@iptvnator/services/notifications';
 import type { TranslateService } from '@ngx-translate/core';
 import {
     replaceOwnedExternalSession,
@@ -85,7 +85,7 @@ interface StalkerVodDetailActionsDeps {
     /** The explicit launch as one of the host's starts: pending while it resolves, dropped once superseded. */
     readonly beginPendingStart?: () => PendingExternalLaunch;
     readonly afterProgressReset?: (playlistId: string) => void;
-    readonly snackBar: Pick<MatSnackBar, 'open'>;
+    readonly notifications: NotificationService;
     readonly translate: Pick<TranslateService, 'instant'>;
     readonly logError: (message: string, error: unknown) => void;
 }
@@ -98,10 +98,8 @@ interface StalkerVodDetailActionsDeps {
 export function createStalkerVodDetailActions(
     deps: StalkerVodDetailActionsDeps
 ) {
-    const notify = (key: string) =>
-        deps.snackBar.open(deps.translate.instant(key), undefined, {
-            duration: 3000,
-        });
+    const notify = (key: string, variant: 'success' | 'error' = 'success') =>
+        deps.notifications[variant](key);
     // A second "Open in external player" for a movie whose `create_link` is
     // still resolving would resolve beside the first and start a second
     // player; other movies' launches are not held back by it.
@@ -188,7 +186,7 @@ export function createStalkerVodDetailActions(
                     return;
                 }
                 deps.logError('External VOD playback failed', error);
-                notify('PORTALS.PLAYBACK_ERROR');
+                notify('PORTALS.PLAYBACK_ERROR', 'error');
             } finally {
                 externalLaunchesInFlight.delete(launchKey);
                 pending?.settle();

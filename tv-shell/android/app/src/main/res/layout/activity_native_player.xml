@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black">
+
+    <org.tvshell.iptvnator.ui.NativePlayerView
+        android:id="@+id/native_player"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:show_next_button="false"
+        app:show_previous_button="false"
+        app:show_subtitle_button="false" />
+
+    <LinearLayout
+        android:id="@+id/native_controls"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:background="#CC000000"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:visibility="gone">
+
+        <ImageButton
+            android:id="@+id/native_back"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginEnd="8dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:contentDescription="@string/native_playback_back"
+            android:src="@drawable/native_back"
+            android:tint="@android:color/white" />
+
+        <HorizontalScrollView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:scrollbars="horizontal">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/native_audio"
+                    style="@style/NativePlayerAction"
+                    android:text="@string/native_playback_audio" />
+                <Button
+                    android:id="@+id/native_subtitles"
+                    style="@style/NativePlayerAction"
+                    android:text="@string/native_playback_subtitles" />
+                <Button
+                    android:id="@+id/native_quality"
+                    style="@style/NativePlayerAction"
+                    android:text="@string/native_playback_quality" />
+                <Button
+                    android:id="@+id/native_picture"
+                    style="@style/NativePlayerAction"
+                    android:text="@string/native_playback_picture" />
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <ImageButton
+            android:id="@+id/native_mute"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="8dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:contentDescription="@string/native_playback_mute"
+            android:tint="@android:color/white" />
+    </LinearLayout>
+</FrameLayout>

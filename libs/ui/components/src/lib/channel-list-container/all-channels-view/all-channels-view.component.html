@@ -62,15 +62,12 @@
 
 <div id="all-channels" class="channel-list">
     @if (filteredChannels().length === 0 && searchTerm()) {
-        <div class="no-results">
-            <mat-icon class="no-results-icon">search_off</mat-icon>
-            <div class="no-results-title">
-                {{ 'CHANNELS.NO_SEARCH_RESULTS' | translate }}
-            </div>
-            <div class="no-results-hint">
-                {{ 'CHANNELS.TRY_DIFFERENT_SEARCH' | translate }}
-            </div>
-        </div>
+        <app-state-view
+            variant="no-results"
+            size="panel"
+            [heading]="'CHANNELS.NO_SEARCH_RESULTS' | translate"
+            [description]="'CHANNELS.TRY_DIFFERENT_SEARCH' | translate"
+        />
     } @else {
         <cdk-virtual-scroll-viewport
             appChannelScrollFocus

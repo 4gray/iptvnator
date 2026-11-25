@@ -1,16 +1,40 @@
-import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import {
+    playbackTimestamp,
+    type PlaybackPositionData,
+} from '@iptvnator/shared/interfaces';
 
 type PositionKey = Partial<
-    Pick<PlaybackPositionData, 'contentType' | 'contentXtreamId'>
+    Pick<
+        PlaybackPositionData,
+        'contentType' | 'contentXtreamId' | 'nativeCheckpointAt'
+    >
 >;
 
 /** A delayed fallback must not overwrite a newer invocation for the same item. */
 export class ActivityPositionWriteFence {
-    private readonly pending = new Map<string, object>();
+    private readonly pending = new Map<
+        string,
+        { reset: boolean; capturedAt: number }
+    >();
 
-    start(sourceId: string, position: PositionKey) {
+    blocksCheckpoint(sourceId: string, position: PositionKey): boolean {
+        const pending = this.pending.get(this.key(sourceId, position));
+        return (
+            !!pending &&
+            (pending.reset ||
+                pending.capturedAt >
+                    playbackTimestamp(position.nativeCheckpointAt))
+        );
+    }
+
+    start(sourceId: string, position: PositionKey, reset = false) {
         const key = this.key(sourceId, position);
-        const token = {};
+        const token = {
+            reset,
+            capturedAt: position.nativeCheckpointAt
+                ? playbackTimestamp(position.nativeCheckpointAt)
+                : Date.now(),
+        };
         this.pending.set(key, token);
         const current = () => this.pending.get(key) === token;
         return {

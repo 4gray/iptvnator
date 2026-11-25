@@ -91,7 +91,7 @@ async function verifyReceiverCategoryLock(page: Page, title: string) {
     await expect(dialog).toBeHidden();
     await page.getByTestId('header-parental-lock').click();
     await openGlobalFavorites(page);
-    await expect(page.locator('app-empty-state')).toBeVisible();
+    await expect(page.locator('app-state-view')).toBeVisible();
     await expect(contentCardByTitle(page, title)).toHaveCount(0);
     await openSettings(page);
     await openSettingsSection(page, 'parental');

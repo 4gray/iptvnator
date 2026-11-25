@@ -1,5 +1,5 @@
 import { Injector, runInInjectionContext } from '@angular/core';
-import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Router } from '@angular/router';
 import { Actions } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
@@ -16,9 +16,11 @@ describe('PlaylistEffects updateFavorites$', () => {
     let actions$: Subject<unknown>;
     let transformPlaylistFavorites: jest.Mock;
     let storedFavorites: string[];
+    let notifications: { success: jest.Mock; error: jest.Mock };
 
     function setup(afterToggle: string[]) {
         actions$ = new Subject();
+        notifications = { success: jest.fn(), error: jest.fn() };
         transformPlaylistFavorites = jest.fn(
             (_id: string, transform: (current: string[]) => string[]) => {
                 storedFavorites = transform(storedFavorites);
@@ -48,10 +50,7 @@ describe('PlaylistEffects updateFavorites$', () => {
                 },
                 { provide: EpgService, useValue: { fetchEpg: jest.fn() } },
                 { provide: Router, useValue: {} },
-                {
-                    provide: LazySnackBar,
-                    useValue: { open: jest.fn().mockResolvedValue(null) },
-                },
+                { provide: NotificationService, useValue: notifications },
                 {
                     provide: TranslateService,
                     useValue: { instant: (key: string) => key },
@@ -84,6 +83,9 @@ describe('PlaylistEffects updateFavorites$', () => {
             expect.any(Function)
         );
         expect(storedFavorites).toEqual(['http://b', 'http://a']);
+        expect(notifications.success).toHaveBeenCalledWith(
+            'CHANNELS.FAVORITES_UPDATED'
+        );
     });
 
     it('removes only the toggled channel', () => {

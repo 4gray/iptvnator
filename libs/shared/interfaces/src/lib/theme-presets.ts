@@ -7,6 +7,7 @@ export const THEME_PRESETS = [
     { value: Theme.MochaTheme, id: 'mocha', mode: 'dark' },
     { value: Theme.NightOwlTheme, id: 'night-owl', mode: 'dark' },
     { value: Theme.BlackOledTheme, id: 'black-oled', mode: 'dark' },
+    { value: Theme.HighContrastTheme, id: 'high-contrast', mode: 'dark' },
 ] as const;
 
 export interface ThemePreset {

@@ -22,6 +22,7 @@ import {
     WorkspaceResolvedCommandItem,
 } from '@iptvnator/portal/shared/util';
 import { foldSearchText } from '@iptvnator/shared/interfaces';
+import { ImeInputDirective } from '@iptvnator/ui/components';
 
 export interface WorkspaceCommandPaletteData {
     commands: WorkspaceResolvedCommandItem[];
@@ -43,12 +44,13 @@ interface WorkspaceCommandGroupSection {
 
 @Component({
     selector: 'app-workspace-command-palette',
-    imports: [MatDialogModule, MatIconModule, TranslatePipe],
+    imports: [ImeInputDirective, MatDialogModule, MatIconModule, TranslatePipe],
     templateUrl: './workspace-command-palette.component.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './workspace-command-palette.component.scss',
 })
 export class WorkspaceCommandPaletteComponent implements AfterViewInit {
+    private readonly imeInput = viewChild(ImeInputDirective);
     private readonly dialogRef = inject(
         MatDialogRef<
             WorkspaceCommandPaletteComponent,
@@ -229,6 +231,13 @@ export class WorkspaceCommandPaletteComponent implements AfterViewInit {
     }
 
     onInputKeydown(event: KeyboardEvent): void {
+        // The keys belong to the input method; the dialog's Escape and the
+        // shell's shortcuts must not see them either.
+        if (this.imeInput()?.isCompositionKey(event)) {
+            event.stopPropagation();
+            return;
+        }
+
         if (event.key === 'ArrowDown') {
             event.preventDefault();
             this.moveSelection(1);

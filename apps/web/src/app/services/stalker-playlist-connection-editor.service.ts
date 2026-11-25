@@ -1,5 +1,4 @@
 import { inject, Injectable } from '@angular/core';
-import { TranslateService } from '@ngx-translate/core';
 import {
     asStalkerPortalError,
     StalkerPortalDiscoveryService,
@@ -43,7 +42,6 @@ export class AppStalkerPlaylistConnectionEditorService implements StalkerPlaylis
     private readonly portalRepair = inject(StalkerPortalRepairService);
     private readonly stalkerSession = inject(StalkerSessionService);
     private readonly stalkerStore = inject(StalkerStore);
-    private readonly translate = inject(TranslateService);
     private readonly editFences = new Map<string, StalkerEditFence>();
 
     async applyResolvedConnection(
@@ -134,9 +132,7 @@ export class AppStalkerPlaylistConnectionEditorService implements StalkerPlaylis
             this.releaseEditFence(playlist._id, fence);
             return {
                 status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.UNREACHABLE,
-                message: this.translate.instant(
-                    'HOME.STALKER_PORTAL.EDIT_UNREACHABLE'
-                ),
+                messageKey: 'HOME.STALKER_PORTAL.EDIT_UNREACHABLE',
             };
         }
 
@@ -152,7 +148,7 @@ export class AppStalkerPlaylistConnectionEditorService implements StalkerPlaylis
             }
             return {
                 status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.AUTH_REJECTED,
-                message: this.buildAuthErrorMessage(outcome.error),
+                messageKey: authErrorKey(outcome.error),
             };
         }
 
@@ -176,9 +172,7 @@ export class AppStalkerPlaylistConnectionEditorService implements StalkerPlaylis
             this.releaseEditFence(playlist._id, fence);
             return {
                 status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.AUTH_REJECTED,
-                message: this.translate.instant(
-                    'HOME.STALKER_PORTAL.AUTH_FAILED'
-                ),
+                messageKey: 'HOME.STALKER_PORTAL.AUTH_FAILED',
             };
         }
 
@@ -270,24 +264,6 @@ export class AppStalkerPlaylistConnectionEditorService implements StalkerPlaylis
         });
     }
 
-    private buildAuthErrorMessage(error: unknown): string {
-        const portalError = asStalkerPortalError(error);
-        const headline = this.translate.instant(
-            portalError
-                ? STALKER_EDIT_ERROR_KEY_BY_KIND[portalError.kind]
-                : 'HOME.STALKER_PORTAL.AUTH_FAILED'
-        );
-
-        if (!portalError?.portalText) {
-            return headline;
-        }
-
-        return `${headline} ${this.translate.instant(
-            'HOME.STALKER_PORTAL.PORTAL_MESSAGE',
-            { message: portalError.portalText }
-        )}`;
-    }
-
     private toRuntimePlaylist(update: PlaylistMetaUpdate): Playlist {
         const { stalkerSessionPatch, ...metadata } = update;
         return {
@@ -307,4 +283,12 @@ export class AppStalkerPlaylistConnectionEditorService implements StalkerPlaylis
                 : {}),
         } as Playlist;
     }
+}
+
+/** The toast names the kind of rejection; the portal's own text is not shown. */
+function authErrorKey(error: unknown): string {
+    const portalError = asStalkerPortalError(error);
+    return portalError
+        ? STALKER_EDIT_ERROR_KEY_BY_KIND[portalError.kind]
+        : 'HOME.STALKER_PORTAL.AUTH_FAILED';
 }

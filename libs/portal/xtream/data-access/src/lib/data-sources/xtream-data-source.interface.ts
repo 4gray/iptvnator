@@ -4,6 +4,7 @@ import {
     ContentMetadataPatch,
     XtreamContentType,
     PlaybackPositionData,
+    PlaybackPositionResetScope,
     XtreamPendingRestoreState,
     XtreamCategory,
     XtreamLiveStream,
@@ -494,7 +495,8 @@ export interface IXtreamDataSource {
      */
     clearPlaybackPositionsBatch(
         playlistId: string,
-        items: { contentXtreamId: number; contentType: 'vod' | 'episode' }[]
+        items: { contentXtreamId: number; contentType: 'vod' | 'episode' }[],
+        scope?: PlaybackPositionResetScope
     ): Promise<void>;
 
     // =========================================================================

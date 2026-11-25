@@ -9,6 +9,7 @@ import {
     WorkspaceShellRoute,
 } from '@iptvnator/workspace/shell/util';
 import { SOURCE_TYPE_ICONS } from '@iptvnator/shared/interfaces';
+import { APP_ICONS } from '@iptvnator/ui/components/app-icons';
 import { TranslateFn } from './workspace-shell-search-labels';
 
 export interface CommandBuilderActions {
@@ -23,6 +24,7 @@ export interface CommandBuilderActions {
     openAddPlaylistDialog: (kind?: 'url' | 'xtream' | 'stalker') => void;
     lockParentalLock: () => void;
     unlockParentalLock: () => void;
+    openKeyboardShortcuts: () => void;
 }
 
 export interface CommandBuilderContext {
@@ -196,7 +198,7 @@ export function getGlobalCommandDefinitions(
         {
             id: 'open-global-favorites',
             group: 'global',
-            icon: 'star',
+            icon: APP_ICONS.favorite,
             labelKey: 'WORKSPACE.SHELL.COMMANDS.OPEN_GLOBAL_FAVORITES_LABEL',
             descriptionKey:
                 'WORKSPACE.SHELL.COMMANDS.OPEN_GLOBAL_FAVORITES_DESCRIPTION',
@@ -263,6 +265,16 @@ export function getGlobalCommandDefinitions(
             run: () => {
                 void ctx.router.navigate(['/workspace', 'dashboard']);
             },
+        },
+        {
+            id: 'keyboard-shortcuts',
+            group: 'global',
+            icon: 'keyboard',
+            labelKey: 'WORKSPACE.SHORTCUTS.TITLE',
+            descriptionKey: 'WORKSPACE.SHORTCUTS.SUBTITLE',
+            priority: 55,
+            keywords: ['keyboard', 'shortcuts', 'hotkeys', 'keys', 'help'],
+            run: () => actions.openKeyboardShortcuts(),
         },
         {
             id: 'add-playlist',
@@ -391,7 +403,7 @@ function getM3uNavigationCommands(
             context,
             targetSection: 'favorites',
             currentSection: section,
-            icon: 'star',
+            icon: APP_ICONS.favorite,
             labelKey: 'WORKSPACE.SHELL.RAIL_FAVORITES',
             priority: 120,
         }),

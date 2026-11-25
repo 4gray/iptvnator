@@ -236,10 +236,12 @@ export async function addCollisionFavorite(
         const channel = collisionCollectionItem(page, item);
         const favorite = channel.locator('.favorite-button').first();
         // Other content sharing this ID must not preselect the channel.
-        await expect(favorite.locator('mat-icon')).toHaveText('star_outline');
+        await expect(favorite.locator('mat-icon')).toHaveText(
+            'favorite_border'
+        );
         await channel.hover();
         await favorite.click();
-        await expect(favorite.locator('mat-icon')).toHaveText('star');
+        await expect(favorite.locator('mat-icon')).toHaveText('favorite');
         return;
     }
     const addButton = page.getByRole('button', { name: /add to favorites/i });
@@ -347,7 +349,7 @@ export async function expectCollisionCollection(
         await expect(toggles.filter({ hasText: removed.label })).toHaveCount(0);
     }
     if (items.length === 0) {
-        await expect(page.locator('app-empty-state')).toBeVisible();
+        await expect(page.locator('app-state-view')).toBeVisible();
     }
 }
 

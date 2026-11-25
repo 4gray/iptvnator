@@ -40,7 +40,7 @@
 
     input {
         letter-spacing: 0.3em;
-        font-size: 1.1rem;
+        font-size: var(--app-text-xl);
     }
 }
 
@@ -54,7 +54,7 @@
 
 .pin-dialog__note {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--app-text-xs);
     color: var(--app-body-color);
 }
 

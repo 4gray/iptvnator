@@ -153,6 +153,16 @@ export class ControlsSurface {
         return () => this.surfaceCleanup?.();
     }
 
+    hideCursor(surface: HTMLElement): () => void {
+        const previousCursor = surface.style.cursor;
+        surface.style.cursor = 'none';
+        return () => {
+            if (surface.style.cursor === 'none') {
+                surface.style.cursor = previousCursor;
+            }
+        };
+    }
+
     dispose(): void {
         this.clearClickPauseTimer();
         this.surfaceCleanup?.();

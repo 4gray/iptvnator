@@ -973,9 +973,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             fixture.nativeElement.querySelector('app-channel-list-skeleton')
         ).toBeNull();
         expect(
-            fixture.nativeElement.querySelector(
-                '.empty-search-state app-portal-empty-state'
-            )
+            fixture.nativeElement.querySelector('app-portal-empty-state')
         ).toBeTruthy();
     });
 

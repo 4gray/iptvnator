@@ -23,17 +23,20 @@ import {
     WORKSPACE_SHELL_ACTIONS,
 } from '@iptvnator/workspace/shell/util';
 import { MockProvider } from 'ng-mocks';
-import { EMPTY, of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import {
     DataService,
     EpgSourceSettingsService,
     ParentalLockService,
+    PlaylistsService,
     SettingsStore,
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
 import { ParentalLockEnforcementService } from './services/parental-lock-enforcement.service';
 import {
+    AUTO_UPDATE_PLAYLISTS,
     Language,
+    type PlaylistMeta,
     Settings,
     StartupBehavior,
     STORE_KEY,
@@ -41,11 +44,12 @@ import {
     Theme,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
-import { PlaylistActions } from '@iptvnator/m3u-state';
+import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { AppComponent } from './app.component';
 import { AppDateLocaleService } from './app-date-locales';
 import { ElectronServiceStub } from './services/electron.service.stub';
 import { SettingsService } from './services/settings.service';
+import { XtreamStartupRefreshService } from '@iptvnator/services/xtream-startup-refresh';
 
 /** Writable double for the bridge's read-only capability getters. */
 type EpgBridgeStub = {
@@ -103,8 +107,14 @@ describe('AppComponent', () => {
     let translateService: TranslateService;
     let runtimeCapabilities: Partial<RuntimeCapabilitiesService>;
     let epgBridge: EpgBridgeStub;
+    const refreshLive = jest.fn().mockResolvedValue(false);
+    let actions: Subject<
+        ReturnType<typeof PlaylistActions.loadPlaylistsSuccess>
+    >;
 
     beforeEach(waitForAsync(() => {
+        actions = new Subject();
+        refreshLive.mockReset().mockResolvedValue(false);
         runtimeCapabilities = {
             isElectron: true,
         };
@@ -121,6 +131,11 @@ describe('AppComponent', () => {
             imports: [AppComponent],
             providers: [
                 provideMockStore(),
+                MockProvider(PlaylistsService),
+                {
+                    provide: XtreamStartupRefreshService,
+                    useValue: { refreshLive },
+                },
                 // The parental lock boots from AppComponent; its collaborators
                 // (Xtream/Stalker stores, SQLite bridge) are out of scope here.
                 MockProvider(ParentalLockService, {
@@ -131,7 +146,7 @@ describe('AppComponent', () => {
                 }),
                 {
                     provide: Actions,
-                    useValue: new Actions(EMPTY),
+                    useValue: new Actions(actions),
                 },
                 {
                     provide: DataService,
@@ -247,6 +262,66 @@ describe('AppComponent', () => {
         );
         expect(component.initSettings).toHaveBeenCalledTimes(1);
     });
+
+    it.each([true, false])(
+        'only starts opted-in live Xtream sources with the SQLite bridge (%s)',
+        async (supportsXtreamSqliteDataSource) => {
+            Object.assign(runtimeCapabilities, {
+                supportsXtreamSqliteDataSource,
+            });
+            const m3u: PlaylistMeta = {
+                _id: 'synthetic-m3u',
+                title: 'Synthetic source',
+                autoRefresh: true,
+                count: 0,
+                importDate: '2026-01-01',
+            };
+            const xtream: PlaylistMeta = {
+                ...m3u,
+                _id: 'synthetic-xtream',
+                serverUrl: 'https://provider.example',
+                username: 'synthetic-user',
+                password: 'synthetic-password',
+            };
+            const playlists: PlaylistMeta[] = [
+                m3u,
+                xtream,
+                { ...xtream, _id: 'offline', autoRefresh: false },
+                { ...xtream, _id: 'movies', xtreamContentTypes: ['movie'] },
+                {
+                    ...xtream,
+                    _id: 'stalker',
+                    portalUrl: 'https://portal.example',
+                },
+                { ...xtream, _id: 'missing-login', password: undefined },
+            ];
+            store.overrideSelector(selectAllPlaylistsMeta, playlists);
+            const send = jest.spyOn(
+                TestBed.inject(DataService),
+                'sendIpcEvent'
+            );
+
+            const started = new Promise<void>((resolve) => {
+                refreshLive.mockImplementationOnce(async () => {
+                    resolve();
+                    return false;
+                });
+            });
+            component.ngOnInit();
+            actions.next(PlaylistActions.loadPlaylistsSuccess({ playlists }));
+            actions.next(PlaylistActions.loadPlaylistsSuccess({ playlists }));
+            if (supportsXtreamSqliteDataSource) await started;
+            else await fixture.whenStable();
+
+            expect(send).toHaveBeenCalledTimes(1);
+            expect(send).toHaveBeenCalledWith(AUTO_UPDATE_PLAYLISTS, [m3u]);
+            expect(refreshLive).toHaveBeenCalledTimes(
+                Number(supportsXtreamSqliteDataSource)
+            );
+            if (supportsXtreamSqliteDataSource)
+                expect(refreshLive).toHaveBeenCalledWith(xtream);
+        }
+    );
 
     it('should navigate to the provided route', () => {
         const route = '/add-playlists';

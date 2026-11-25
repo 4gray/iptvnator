@@ -1,5 +1,5 @@
 import { computed, inject, Signal, WritableSignal } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { TranslateService } from '@ngx-translate/core';
 import { resolveM3uCatchupUrl } from '@iptvnator/shared/m3u-utils';
 import {
@@ -53,15 +53,11 @@ export function createUnifiedLiveCatchup(options: {
     const archiveCopy = inject(EpgArchiveCopyService);
     const streamResolver = inject(StreamResolverService);
     const portalPlayer = inject(PORTAL_PLAYER);
-    const snackBar = inject(MatSnackBar);
+    const notifications = inject(NotificationService);
     const translate = inject(TranslateService);
 
     const reportFailure = (): void => {
-        snackBar.open(
-            translate.instant('EPG.TIMELINE.CATCHUP_FAILED'),
-            undefined,
-            { duration: 4000 }
-        );
+        notifications.error('EPG.TIMELINE.CATCHUP_FAILED');
     };
 
     /** Hand the resolved archive URL to whichever surface is playing. */
@@ -74,6 +70,7 @@ export function createUnifiedLiveCatchup(options: {
                 ...playback,
                 streamUrl: url,
                 isLive: false,
+                catalogIdentity: undefined,
             });
         }
     };

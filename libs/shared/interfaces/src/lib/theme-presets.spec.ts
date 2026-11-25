@@ -16,6 +16,7 @@ describe('theme presets', () => {
             MochaTheme: 'MOCHA_THEME',
             NightOwlTheme: 'NIGHT_OWL_THEME',
             BlackOledTheme: 'BLACK_OLED_THEME',
+            HighContrastTheme: 'HIGH_CONTRAST_THEME',
         });
     });
 
@@ -27,6 +28,11 @@ describe('theme presets', () => {
             { value: Theme.MochaTheme, id: 'mocha', mode: 'dark' },
             { value: 'NIGHT_OWL_THEME', id: 'night-owl', mode: 'dark' },
             { value: 'BLACK_OLED_THEME', id: 'black-oled', mode: 'dark' },
+            {
+                value: 'HIGH_CONTRAST_THEME',
+                id: 'high-contrast',
+                mode: 'dark',
+            },
         ]);
     });
 

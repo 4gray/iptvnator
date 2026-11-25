@@ -11,7 +11,13 @@ import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { config as rxjsConfig, of, Subject } from 'rxjs';
+import {
+    config as rxjsConfig,
+    firstValueFrom,
+    of,
+    ReplaySubject,
+    Subject,
+} from 'rxjs';
 import {
     buildHostConnectivityFastFailMessage,
     CONNECTIVITY_GUARD_RESET,
@@ -27,6 +33,7 @@ import {
 } from '@iptvnator/portal/stalker/data-access';
 import {
     clearServerAccessToken,
+    PlaylistsService,
     ServerStorageStatusService,
     writeServerAccessToken,
 } from '@iptvnator/services';
@@ -40,15 +47,23 @@ describe('PwaService', () => {
     let http: HttpTestingController;
     let service: PwaService;
     let versionUpdates: Subject<void>;
+    const updatePlaylist = jest.fn((_id: string, playlist: Playlist) =>
+        of(playlist)
+    );
 
     beforeEach(() => {
         versionUpdates = new Subject<void>();
+        updatePlaylist.mockClear();
         jest.spyOn(console, 'log').mockImplementation(() => undefined);
 
         TestBed.configureTestingModule({
             imports: [HttpClientTestingModule],
             providers: [
                 PwaService,
+                {
+                    provide: PlaylistsService,
+                    useValue: { updatePlaylist },
+                },
                 {
                     provide: LazySnackBar,
                     useValue: {
@@ -89,7 +104,11 @@ describe('PwaService', () => {
         'binds a delayed refresh result to its requested URL and User-Agent (%s)',
         async (userAgent) => {
             const response = new Subject<Playlist>();
-            jest.spyOn(service, 'getPlaylistFromUrl').mockReturnValue(response);
+            const downloadStarted = new ReplaySubject<void>(1);
+            jest.spyOn(service, 'getPlaylistFromUrl').mockImplementation(() => {
+                downloadStarted.next();
+                return response;
+            });
             const payload = {
                 id: 'shared',
                 url: 'https://old.test/list',
@@ -97,6 +116,7 @@ describe('PwaService', () => {
             };
             const refreshing = service.refreshPlaylist(payload);
             payload.url = 'https://changed.test/list';
+            await firstValueFrom(downloadStarted);
             response.next({
                 _id: 'parsed',
                 playlist: { items: [] },
@@ -161,11 +181,12 @@ describe('PwaService', () => {
     it.each([PLAYLIST_PARSE_BY_URL, PLAYLIST_UPDATE])(
         'passes the saved User-Agent through the proxy for %s',
         async (event) => {
-            service.sendIpcEvent(event, {
+            const pending = service.sendIpcEvent(event, {
                 id: 'playlist-1',
                 url: 'https://provider.example/list.m3u',
                 userAgent: '  IPTVnator-Test/1.0  ',
             });
+            await new Promise((resolve) => setTimeout(resolve));
             http.expectOne((req) =>
                 req.url.endsWith('/provider-targets')
             ).flush({ targetId: 'target-ua' });
@@ -176,6 +197,7 @@ describe('PwaService', () => {
             );
             expect(parse.request.headers.has('User-Agent')).toBe(false);
             parse.flush({ _id: 'playlist-1', userAgent: 'IPTVnator-Test/1.0' });
+            await pending;
             expect(TestBed.inject(Store).dispatch).toHaveBeenCalledWith(
                 expect.objectContaining({
                     playlist: expect.objectContaining({
@@ -207,7 +229,7 @@ describe('PwaService', () => {
     );
 
     it('translates the too-large upload message', () => {
-        expect(service.getErrorMessageByStatusCode(413)).toBe(
+        expect(service.getErrorKeyByStatusCode(413)).toBe(
             'HOME.URL_UPLOAD.ERROR_413'
         );
     });
@@ -246,24 +268,29 @@ describe('PwaService', () => {
             expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
                 'HOME.URL_UPLOAD.ERROR_FETCH_FAILED (ETIMEDOUT)',
                 'CLOSE',
-                { duration: 5000 }
+                expect.objectContaining({ politeness: 'assertive' })
             );
         } finally {
             rxjsConfig.onUnhandledError = previousHandler;
         }
     });
 
-    it('settles a playlist refresh only once the backend has answered', async () => {
+    it('keeps a refresh pending and quiet until the updated playlist is saved', async () => {
+        const write = new Subject<Playlist>();
+        updatePlaylist.mockReturnValueOnce(write);
         let settled = false;
+        let loaded: unknown;
         const pending = Promise.resolve(
             service.sendIpcEvent(PLAYLIST_UPDATE, {
                 id: 'playlist-1',
                 url: 'https://provider.example/list.m3u',
             })
-        ).then(() => {
+        ).then((result) => {
+            loaded = result;
             settled = true;
         });
 
+        await new Promise((resolve) => setTimeout(resolve));
         http.expectOne((req) => req.url.endsWith('/provider-targets')).flush({
             targetId: 'target-1',
         });
@@ -274,9 +301,53 @@ describe('PwaService', () => {
         http.expectOne((req) => req.url.endsWith('/parse')).flush({
             _id: 'playlist-1',
         });
+        await new Promise((resolve) => setTimeout(resolve));
+        expect(updatePlaylist).toHaveBeenCalled();
+        expect(settled).toBe(false);
+        expect(TestBed.inject(LazySnackBar).open).not.toHaveBeenCalled();
+
+        write.next({ _id: 'playlist-1' } as Playlist);
         await pending;
         expect(settled).toBe(true);
-        expect(TestBed.inject(Store).dispatch).toHaveBeenCalled();
+        expect(loaded).toBe(true);
+        expect(TestBed.inject(Store).dispatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                playlistId: 'playlist-1',
+                persist: false,
+            })
+        );
+        expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
+            'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS',
+            undefined,
+            expect.objectContaining({ politeness: 'polite' })
+        );
+    });
+
+    it('reports a storage failure without publishing the downloaded catalog', async () => {
+        const playlist = { _id: 'playlist-1' } as Playlist;
+        jest.spyOn(service, 'getPlaylistFromUrl').mockReturnValue(of(playlist));
+        const write = new Subject<Playlist>();
+        const saveStarted = new ReplaySubject<void>(1);
+        updatePlaylist.mockImplementationOnce(() => {
+            saveStarted.next();
+            return write;
+        });
+        const pending = service.refreshPlaylist({
+            id: 'playlist-1',
+            url: 'https://provider.example/list.m3u',
+        });
+        await firstValueFrom(saveStarted);
+        expect(updatePlaylist).toHaveBeenCalled();
+        write.error(new Error('Synthetic transaction abort'));
+        // The caller learns the source was not loaded (#1677).
+        await expect(pending).resolves.toBe(false);
+
+        expect(TestBed.inject(Store).dispatch).not.toHaveBeenCalled();
+        expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
+            'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED',
+            'CLOSE',
+            expect.objectContaining({ politeness: 'assertive' })
+        );
     });
 
     it('settles a failed playlist refresh after reporting it', async () => {
@@ -285,6 +356,7 @@ describe('PwaService', () => {
             url: 'https://provider.example/list.m3u',
         });
 
+        await new Promise((resolve) => setTimeout(resolve));
         http.expectOne((req) => req.url.endsWith('/provider-targets')).flush({
             targetId: 'target-1',
         });
@@ -294,11 +366,11 @@ describe('PwaService', () => {
             { status: 500, statusText: 'Internal Server Error' }
         );
 
-        await expect(pending).resolves.toBeUndefined();
+        await expect(pending).resolves.toBe(false);
         expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
             expect.any(String),
             'CLOSE',
-            { duration: 5000 }
+            expect.objectContaining({ politeness: 'assertive' })
         );
     });
 
@@ -313,7 +385,7 @@ describe('PwaService', () => {
                 url: 'https://provider.example/list.m3u',
             });
 
-            await Promise.resolve();
+            await new Promise((resolve) => setTimeout(resolve));
             http.expectOne((req) =>
                 req.url.endsWith('/provider-targets')
             ).flush({ targetId: 'target-1' });
@@ -332,7 +404,7 @@ describe('PwaService', () => {
             expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
                 'HOME.URL_UPLOAD.ERROR_FETCH_FAILED (ENETUNREACH)',
                 'CLOSE',
-                { duration: 5000 }
+                expect.objectContaining({ politeness: 'assertive' })
             );
         } finally {
             rxjsConfig.onUnhandledError = previousHandler;

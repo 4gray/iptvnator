@@ -1,5 +1,6 @@
 @use '../../../../styles/focus-ring';
 @use '../../../../styles/side-list' as side-list;
+@use '../../../../styles/app-controls' as controls;
 
 :host {
     flex: 1 1 auto;
@@ -15,6 +16,7 @@
 .picker {
     display: flex;
     flex-direction: column;
+    container-type: inline-size;
     color: var(--app-on-surface);
 }
 
@@ -28,32 +30,32 @@
     align-items: center;
     gap: 8px;
     color: var(--app-danger-text);
-    font-size: 13px;
+    font-size: var(--app-text-sm);
 }
 
+// The kit's toolbar picker: a small secondary button with a chevron. A long
+// playlist name ends in an ellipsis instead of pushing the search field.
 .picker__source {
-    display: flex;
-    flex: 0 1 40%;
+    flex: 0 1 auto;
     min-width: 0;
+    max-width: 40%;
+    @include controls.secondary-button(sm);
+
+    ::ng-deep .mdc-button__label {
+        min-width: 0;
+    }
 }
 
-.picker__source select {
-    width: 100%;
-    min-width: 0;
-    height: 30px;
-    padding-inline: 8px;
-    border: 1px solid transparent;
-    border-radius: 7px;
-    background: var(--app-widget-bg);
-    color: var(--app-on-surface);
-    font: inherit;
-    font-size: 13px;
-    font-weight: 500;
+.picker__source-label {
+    display: block;
+    overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+}
 
-    &:focus-visible {
-        @include focus-ring.focus-ring-declarations($offset: -2px);
-    }
+.picker__source-chevron {
+    flex: none;
+    @include controls.trigger-chevron;
 }
 
 .picker__search {
@@ -89,7 +91,7 @@
         background: transparent;
         color: inherit;
         font: inherit;
-        font-size: 14px;
+        font-size: var(--app-text-md);
 
         &::placeholder {
             color: var(--app-muted-color);
@@ -168,7 +170,7 @@ button.picker__search-clear {
         padding-top: 8px;
     }
     color: var(--app-muted-color);
-    font-size: 13px;
+    font-size: var(--app-text-sm);
 
     [role='alert'] {
         color: var(--app-danger-text);
@@ -208,7 +210,7 @@ select {
         background: transparent;
         color: var(--app-body-color);
         font: inherit;
-        font-size: 13px;
+        font-size: var(--app-text-sm);
         cursor: pointer;
 
         &:hover {
@@ -229,9 +231,14 @@ select {
     gap: 8px;
     padding-bottom: 4px;
 
+    > button {
+        flex: none;
+    }
+
     h3 {
         @include side-list.title;
-        font-size: 15px;
+        @include side-list.row-label;
+        font-size: var(--app-text-lg);
     }
 }
 
@@ -254,6 +261,12 @@ select {
         cursor: default;
         opacity: 0.65;
     }
+
+    &[aria-disabled='true'] {
+        background: var(--app-list-selected-bg);
+        box-shadow: inset 0 0 0 1px var(--app-list-selected-outline);
+        cursor: default;
+    }
 }
 
 .picker__vod-text {
@@ -268,22 +281,83 @@ select {
     }
 
     > span {
+        @include side-list.row-label;
         color: var(--app-muted-color);
-        font-size: 12px;
+        font-size: var(--app-text-xs);
+    }
+
+    > .picker__opened {
+        white-space: normal;
+        overflow-wrap: anywhere;
+
+        .mat-icon {
+            vertical-align: middle;
+            margin-inline-end: 2px;
+        }
+    }
+}
+
+.picker__poster,
+.picker__episode-thumb {
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--app-on-surface) 8%, transparent);
+    box-shadow: inset 0 0 0 1px var(--app-separator);
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+}
+
+.picker__poster {
+    width: 38px;
+    height: 57px;
+}
+
+.picker__episode-thumb {
+    position: relative;
+    width: 88px;
+    aspect-ratio: 16 / 9;
+
+    &--fallback img {
+        opacity: 0.55;
+    }
+}
+
+.picker__episode-watched .mat-icon {
+    color: var(--app-status-success);
+}
+
+@container (max-width: 420px) {
+    .picker__episode-plot {
+        display: none;
+    }
+
+    .picker__vod-row {
+        padding-inline: 6px;
+        gap: 8px;
+    }
+
+    .picker__episode-thumb {
+        width: 72px;
     }
 }
 
 .picker__progress {
     display: block;
-    width: min(160px, 100%);
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
     height: 3px;
-    border-radius: 4px;
     background: var(--app-separator);
 
     > span {
         display: block;
         height: 100%;
-        border-radius: inherit;
         background: var(--app-progress-color);
     }
 }

@@ -59,6 +59,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import {
     findCurrentEpgItem,
+    XTREAM_DATA_SOURCE,
     XtreamUrlService,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
@@ -210,11 +211,24 @@ export class LiveStreamLayoutComponent
     private readonly parentalLock = inject(ParentalLockService);
     private readonly databaseService = inject(DatabaseService);
     private readonly liveAutoOpenState = inject(LiveStreamAutoOpenStateService);
+    private readonly dataSource = inject(XTREAM_DATA_SOURCE, {
+        optional: true,
+    });
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
     readonly categoryItemCounts = this.xtreamStore.getCategoryItemCounts;
     readonly epgItems = this.xtreamStore.epgItems;
-    readonly currentEpgItem = this.xtreamStore.currentEpgItem;
+    /**
+     * The programme on air, re-selected on the 30 s tick: the store's
+     * `currentEpgItem` caches its Date.now() verdict until epgItems changes,
+     * so the panel summary and remote status would keep a finished show.
+     */
+    readonly currentEpgItem = computed(() =>
+        findCurrentEpgItem(
+            this.epgItems(),
+            epgProviderClockMs(this.currentTimeMs(), this.epgOffsetMinutes())
+        )
+    );
     readonly isSelectedTypeContentLoading =
         this.xtreamStore.selectedTypeContentLoading;
     readonly isLoadingEpg = this.xtreamStore.isLoadingEpg;
@@ -283,14 +297,9 @@ export class LiveStreamLayoutComponent
             return null;
         }
         const playlist = this.xtreamStore.currentPlaylist();
-        // Re-select against the 30 s tick: the store's `currentEpgItem`
-        // caches its Date.now() verdict until epgItems changes, so a
-        // recording started after an EPG boundary would snapshot the
-        // previous show.
-        const program = findCurrentEpgItem(
-            this.epgItems(),
-            epgProviderClockMs(this.currentTimeMs(), this.epgOffsetMinutes())
-        );
+        // Ticking, so a recording started after an EPG boundary does not
+        // snapshot the previous show.
+        const program = this.currentEpgItem();
         return {
             channelName: item.title?.trim() || item.name?.trim() || 'Live TV',
             channelLogoUrl:
@@ -785,67 +794,77 @@ export class LiveStreamLayoutComponent
             )
             .subscribe(() => this.liveAutoOpenState.captureFromHistoryState());
 
-        effect(() => {
+        effect((onCleanup) => {
             const pendingId = this.pendingAutoOpenLiveItemId();
-            if (!pendingId) {
-                return;
-            }
-
-            // Guard: only process once the live content view is active; otherwise
-            // the effect may fire while selectedContentType is still 'vod' and
-            // incorrectly conclude the channel isn't found.
-            if (this.xtreamStore.selectedContentType() !== 'live') {
-                return;
-            }
-
-            // The shared store may still serve the PREVIOUS playlist here:
-            // NavigationEnd fires before the route session resets it. Stream
-            // ids are provider-local, so a colliding id in that catalog would
-            // otherwise play the wrong channel and consume the handoff. Wait
-            // until the store is the requested playlist's — the effect
-            // re-runs when the playlist, catalog or init flag changes.
-            const pendingPlaylistId =
-                this.liveAutoOpenState.pendingPlaylistId();
             if (
-                pendingPlaylistId &&
-                this.xtreamStore.currentPlaylist()?.id !== pendingPlaylistId
+                !pendingId ||
+                this.xtreamStore.selectedContentType() !== 'live'
             ) {
                 return;
             }
 
-            // Search across all live streams, not just the category-filtered view,
-            // so a channel from a different category can still be auto-opened.
-            const allChannels = this.getAllLiveStreams();
-            if (!Array.isArray(allChannels) || allChannels.length === 0) {
+            // Provider-local IDs can collide while the shared store switches playlists.
+            const pendingPlaylistId =
+                this.liveAutoOpenState.pendingPlaylistId();
+            const playlistId = this.xtreamStore.currentPlaylist()?.id;
+            if (
+                !playlistId ||
+                (pendingPlaylistId && playlistId !== pendingPlaylistId)
+            ) {
                 return;
             }
 
-            const item = allChannels.find(
+            const allChannels = this.getAllLiveStreams();
+            const item = allChannels?.find(
                 (channel) => Number(channel?.xtream_id) === pendingId
             );
-            if (!item) {
-                // "Not in the catalog" is a verdict only once this
-                // playlist's catalog has finished loading.
-                if (this.xtreamStore.isContentInitialized()) {
-                    this.liveAutoOpenState.clearPendingItem();
-                }
+            if (item) {
+                this.completeAutoOpen(item);
                 return;
             }
+            if (!this.xtreamStore.isContentInitialized()) return;
 
-            this.playLive(
-                item,
-                undefined,
-                this.channelNavigation.channelsForAutoOpen(item)
-            );
-            // Ensure selectedItem is set so EPG loading and remote-control
-            // status reflect the channel (constructStreamUrl also does this
-            // internally, but an explicit call makes the intent clear and
-            // keeps the auto-open path testable in isolation).
-            this.xtreamStore.setSelectedItem(
-                item as unknown as Record<string, unknown>
-            );
-            this.liveAutoOpenState.clearPendingItem();
-            this.liveAutoOpenState.clearHistoryState();
+            // A PWA search can explicitly include hidden categories. Resolve
+            // those targets through the raw cache with parental locks applied.
+            if (
+                this.runtime.supportsXtreamSqliteDataSource ||
+                !this.dataSource
+            ) {
+                if (allChannels?.length)
+                    this.liveAutoOpenState.clearPendingItem();
+                return;
+            }
+            if (!this.xtreamStore.selectedTypeContentReady()) return;
+
+            const lockVersion = this.parentalLock.version();
+            let current = true;
+            onCleanup(() => {
+                current = false;
+            });
+            void this.dataSource
+                .getContentByXtreamId(
+                    pendingId,
+                    playlistId,
+                    'live',
+                    undefined,
+                    undefined,
+                    true
+                )
+                .catch(() => null)
+                .then((hiddenItem) => {
+                    if (
+                        !current ||
+                        this.parentalLock.version() !== lockVersion ||
+                        this.pendingAutoOpenLiveItemId() !== pendingId ||
+                        this.liveAutoOpenState.pendingPlaylistId() !==
+                            pendingPlaylistId ||
+                        this.xtreamStore.currentPlaylist()?.id !== playlistId ||
+                        this.xtreamStore.selectedContentType() !== 'live'
+                    )
+                        return;
+                    if (hiddenItem) this.completeAutoOpen(hiddenItem);
+                    else this.liveAutoOpenState.clearPendingItem();
+                });
         });
 
         effect(() => {
@@ -1032,6 +1051,9 @@ export class LiveStreamLayoutComponent
             title: item.title ?? item.name ?? '',
             thumbnail: item.poster_url ?? item.stream_icon ?? null,
             isLive: true,
+            catalogIdentity: playlist
+                ? { playlistId: playlist.id, type: 'live', id: item.xtream_id }
+                : undefined,
         };
         if (!keepPanel) {
             this.panelCatchupProgram.set(null);
@@ -1316,6 +1338,19 @@ export class LiveStreamLayoutComponent
         void launch;
     }
 
+    private completeAutoOpen(item: XtreamLiveChannelItem): void {
+        this.playLive(
+            item,
+            undefined,
+            this.channelNavigation.channelsForAutoOpen(item)
+        );
+        this.xtreamStore.setSelectedItem(
+            item as unknown as Record<string, unknown>
+        );
+        this.liveAutoOpenState.clearPendingItem();
+        this.liveAutoOpenState.clearHistoryState();
+    }
+
     private getAllLiveStreams(): XtreamLiveChannelItem[] {
         return this.xtreamStore.liveStreams() as unknown as XtreamLiveChannelItem[];
     }
@@ -1479,6 +1514,8 @@ export class LiveStreamLayoutComponent
                 username: playlist.username,
                 password: playlist.password,
                 userAgent: playlist.userAgent?.trim() || undefined,
+                referrer: playlist.referrer,
+                origin: playlist.origin,
             },
             item.xtream_id,
             startTimestamp,
@@ -1492,11 +1529,16 @@ export class LiveStreamLayoutComponent
             return;
         }
 
+        // The archive is served by the same panel as the live stream, with
+        // the same header requirements.
         const playback: ResolvedPortalPlayback = {
             streamUrl: catchupUrl,
             title: this.getCatchupPlaybackTitle(item, program),
             thumbnail: item.poster_url ?? item.stream_icon ?? null,
             isLive: false,
+            userAgent: playlist.userAgent,
+            referer: playlist.referrer,
+            origin: playlist.origin,
         };
         const inline = this.usesEmbeddedPlayer();
         if (this.usesSelectionForRemote()) {

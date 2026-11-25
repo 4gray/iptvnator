@@ -288,6 +288,10 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         fixture.detectChanges();
         expect(query('[data-test-id="live-show-categories"]')).toBeNull();
         expect(query('.sidebar-restore')).not.toBeNull();
+        // The restore handle floats over the same header start.
+        expect(
+            query('.category-content-header--panels-collapsed')
+        ).not.toBeNull();
     });
 
     it('keeps the same show-categories button, and its focus, across the loading to ready swap', async () => {

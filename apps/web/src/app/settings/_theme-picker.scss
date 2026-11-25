@@ -21,6 +21,9 @@ html {
     [data-theme-preview='black-oled'] {
         @include palettes.black-oled($preview: true);
     }
+    [data-theme-preview='high-contrast'] {
+        @include palettes.high-contrast($preview: true);
+    }
 }
 
 .theme-picker {
@@ -64,7 +67,7 @@ html {
     &__label {
         min-width: 0;
         overflow-wrap: anywhere;
-        font-size: 12px;
+        font-size: var(--app-text-xs);
         font-weight: 500;
         text-align: start;
     }
@@ -162,7 +165,7 @@ html {
     grid-column: 1 / -1;
     margin: 0;
     color: var(--app-muted-color);
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     line-height: 1.5;
 }
 
@@ -186,7 +189,7 @@ html {
 
     &__name {
         color: var(--app-muted-color);
-        font-size: 12px;
+        font-size: var(--app-text-xs);
         font-weight: 500;
     }
 }
@@ -268,7 +271,7 @@ html {
 
     &__label {
         color: var(--app-muted-color);
-        font-size: 12px;
+        font-size: var(--app-text-xs);
         font-weight: 500;
     }
 
@@ -288,7 +291,7 @@ html {
         background: transparent;
         color: var(--app-heading-color);
         font: inherit;
-        font-size: 12px;
+        font-size: var(--app-text-xs);
         font-weight: 500;
         cursor: pointer;
         app-region: no-drag;

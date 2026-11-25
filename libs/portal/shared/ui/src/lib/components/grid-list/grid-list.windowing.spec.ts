@@ -148,7 +148,9 @@ describe('GridListComponent row windowing', () => {
         host.querySelector<HTMLButtonElement>(
             '.grid-list__tail button'
         )!.click();
-        host.querySelector<HTMLButtonElement>('.grid-filter-clear')!.click();
+        host.querySelector<HTMLButtonElement>(
+            '.grid-filter-clear button'
+        )!.click();
         expect(resume).toHaveBeenCalledTimes(1);
         expect(clear).toHaveBeenCalledTimes(1);
 

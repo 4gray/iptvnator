@@ -34,7 +34,7 @@ describe('dashboard watch-progress colour', () => {
             /background:\s*var\(--app-progress-color\);/
         );
         expect(ruleBody(bar, /&--live i/)).toMatch(
-            /background:\s*var\(--app-live-color\b/
+            /background:\s*var\(--app-status-live\b/
         );
     });
 });

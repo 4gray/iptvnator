@@ -109,11 +109,15 @@ jobs:
                   password: ${{ secrets.DOCKERHUB_TOKEN }}
 
             - name: Set up QEMU
+              if: steps.docker-meta.outputs.publish == 'true'
               uses: docker/setup-qemu-action@v4
 
             - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@v4
 
+            # Pull requests read the shared GHA cache from master without
+            # writing ~400 MB of per-PR layers back into the 10 GB repo cache
+            # budget, which would otherwise evict pnpm/Jest/MPV caches.
             - name: Build Docker image
               uses: docker/build-push-action@v7
               with:
@@ -125,4 +129,4 @@ jobs:
                   build-args: |
                       BUILD_COMMIT=${{ github.event.pull_request.head.sha || github.sha }}
                   cache-from: type=gha
-                  cache-to: type=gha,mode=max,ignore-error=true
+                  cache-to: ${{ steps.docker-meta.outputs.publish == 'true' && 'type=gha,mode=max,ignore-error=true' || '' }}

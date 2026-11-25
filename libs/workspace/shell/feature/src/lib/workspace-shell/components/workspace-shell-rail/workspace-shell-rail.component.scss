@@ -272,6 +272,27 @@
     }
 }
 
+// Windows/Linux frameless window: at the phone breakpoint (a narrow or
+// zoomed-in window) the rail is the top band, so the renderer-drawn menu and
+// window controls (196px, as reserved in .workspace-header above it) sit
+// over the rail. The host keeps their room outside the rail's sideways
+// scroller, so neither a scrolled link nor the pinned Settings link slides
+// under them (a click on Settings closed the window).
+@media (max-width: 640px) {
+    :host-context(body.frameless-platform) {
+        padding-right: 196px;
+        // Continues the rail's bottom border under the controls.
+        box-shadow: inset 0 -1px 0 var(--mat-sys-outline-variant);
+    }
+}
+
+@media (max-width: 640px) and (not (pointer: coarse)) {
+    // The strip beside the controls still moves the window, like the rail.
+    :host-context(body.frameless-platform) {
+        app-region: drag;
+    }
+}
+
 // Server storage indicator (self-hosted PWA only): the dot carries the
 // connection state, so the icon can stay quiet while online.
 .rail-footer .rail-server {
@@ -288,10 +309,10 @@
     }
 
     &[data-state='offline'] {
-        color: var(--app-expiry-warn-text);
+        color: var(--app-status-expiry);
 
         .rail-server__dot {
-            background: var(--app-expiry-warn-text);
+            background: var(--app-status-expiry);
         }
     }
 

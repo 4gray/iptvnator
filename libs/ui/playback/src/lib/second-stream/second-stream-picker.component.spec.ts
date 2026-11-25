@@ -77,6 +77,8 @@ describe('SecondStreamPickerComponent', () => {
     let close: jest.Mock;
     let beforeClosed: Subject<void>;
     let component: SecondStreamPickerComponent;
+    const isAllowed = jest.fn();
+    const findDuplicateSlot = jest.fn();
     beforeEach(() => {
         Object.values(vodService).forEach((mock) => mock.mockReset());
         load = jest.fn().mockResolvedValue({ groups: [], channels: [row] });
@@ -84,6 +86,8 @@ describe('SecondStreamPickerComponent', () => {
         sources = jest.fn().mockResolvedValue([]);
         loadGroup = jest.fn().mockResolvedValue([row]);
         close = jest.fn();
+        isAllowed.mockReset().mockReturnValue(true);
+        findDuplicateSlot.mockReset().mockReturnValue(undefined);
         beforeClosed = new Subject<void>();
         TestBed.configureTestingModule({
             imports: [SecondStreamPickerComponent],
@@ -96,6 +100,7 @@ describe('SecondStreamPickerComponent', () => {
                         load,
                         resolve,
                         loadGroup,
+                        isAllowed,
                     },
                 },
                 {
@@ -105,7 +110,10 @@ describe('SecondStreamPickerComponent', () => {
                 {
                     provide: MAT_DIALOG_DATA,
                     useValue: {
+                        slot: 2,
+                        replace: false,
                         returningToOriginal: false,
+                        findDuplicateSlot,
                     },
                 },
                 {
@@ -178,6 +186,33 @@ describe('SecondStreamPickerComponent', () => {
         finish({ streamUrl: 'https://media.example.test/live' });
         await pending;
 
+        expect(close).not.toHaveBeenCalled();
+    });
+
+    it('keeps the picker open and identifies the existing window for a duplicate', async () => {
+        const playback = { streamUrl: 'https://media.example.test/live' };
+        resolve.mockResolvedValue(playback);
+        findDuplicateSlot.mockImplementation((identity) =>
+            identity === playback ? 4 : undefined
+        );
+        await component.choose(row);
+        expect(findDuplicateSlot).toHaveBeenCalledWith(playback);
+        expect(component.duplicateSlot()).toBe(4);
+        expect(close).not.toHaveBeenCalled();
+        findDuplicateSlot.mockReturnValue(undefined);
+        await component.choose(row);
+        expect(component.duplicateSlot()).toBeNull();
+        expect(close).toHaveBeenCalledWith({ item: row.item, playback });
+    });
+
+    it('withholds a result when catalog access changes during resolution', async () => {
+        let finish!: (value: unknown) => void;
+        resolve.mockImplementation(() => new Promise((r) => (finish = r)));
+        const pending = component.choose(row);
+        isAllowed.mockReturnValue(false);
+        finish({ streamUrl: 'https://media.example.test/live' });
+        await pending;
+        expect(component.error()).toBe('play');
         expect(close).not.toHaveBeenCalled();
     });
     it('searches the full source before limiting rendered rows', async () => {
@@ -253,6 +288,22 @@ describe('SecondStreamPickerComponent', () => {
         expect(component.groupLoading()).toBe(false);
     });
 
+    it('names the chosen playlist once its source list has loaded', async () => {
+        await component.loadSources();
+        let resolveSources: (
+            value: { id: string; name: string }[]
+        ) => void = () => undefined;
+        sources.mockReturnValueOnce(
+            new Promise((resolve) => (resolveSources = resolve))
+        );
+        const pending = component.loadSources();
+        component.changeSource('p');
+        expect(component.sourceName()).toBe('');
+        resolveSources([{ id: 'p', name: 'Synthetic playlist' }]);
+        await pending;
+        expect(component.sourceName()).toBe('Synthetic playlist');
+    });
+
     it('retries loading playlist choices and resets filters on source changes', async () => {
         await component.loadSources();
         const source = { id: 'p', name: 'Synthetic playlist' };
@@ -274,6 +325,19 @@ describe('SecondStreamPickerComponent', () => {
         expect(component.hasContentTypes()).toBe(false);
         component.changeSource(component.historySource);
         expect(component.hasContentTypes()).toBe(true);
+    });
+
+    it('keeps the search, group and catalogue view when the current source is picked again', () => {
+        component.changeSource('p');
+        load.mockClear();
+        component.vod.type.set('movie');
+        component.search.set('kept query');
+        component.group.set('News');
+        component.changeSource('p');
+        expect(component.vod.type()).toBe('movie');
+        expect(component.search()).toBe('kept query');
+        expect(component.group()).toBe('News');
+        expect(load).not.toHaveBeenCalled();
     });
 
     it('returns a failed group load to a selectable state', async () => {

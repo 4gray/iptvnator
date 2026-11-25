@@ -112,7 +112,7 @@ export async function removeXtreamSource(
 ): Promise<Locator> {
     await remove.click();
     const commit = page.locator(
-        'mat-snack-bar-container.app-toast .source-removal-toast__close'
+        'mat-snack-bar-container.app-notification .source-removal-toast__close'
     );
     await assertTriggerReady(commit, 'xtream-source-delete-confirm');
     return commit;
@@ -143,7 +143,7 @@ export async function waitForXtreamCancellationTerminal(
         ({ selector, text }) =>
             document.querySelector(selector)?.textContent?.trim() === text,
         {
-            selector: '.xtream-content-gate .error-view__title',
+            selector: '.xtream-content-gate .app-state-view__title',
             text: 'Import cancelled',
             waitFor: 'cancellation-terminal',
         },

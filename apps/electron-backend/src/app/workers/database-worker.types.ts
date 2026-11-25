@@ -151,6 +151,25 @@ export interface DbWorkerParentalLockMessage {
     active: boolean;
 }
 
+/**
+ * Main-process control message: `initDatabase()` left the title index build
+ * to this worker (`content-title-fts-build.ts`). It runs in the background
+ * between requests and answers nothing; a second message while it runs is
+ * ignored.
+ */
+export interface DbWorkerContentTitleFtsBuildMessage {
+    type: 'content-title-fts-build';
+}
+
+/**
+ * Sent once, after the client drained the requests it accepted: the worker
+ * closes SQLite (checkpointing the WAL) and exits. The client terminates it
+ * if it does not exit in time.
+ */
+export interface DbWorkerCloseMessage {
+    type: 'close';
+}
+
 export interface DbWorkerReadyMessage {
     type: 'ready';
 }
@@ -180,7 +199,9 @@ export interface DbWorkerResponseMessage<TResult = unknown> {
 export type DbWorkerIncomingMessage =
     | DbWorkerRequestMessage
     | DbWorkerCancelMessage
-    | DbWorkerParentalLockMessage;
+    | DbWorkerParentalLockMessage
+    | DbWorkerContentTitleFtsBuildMessage
+    | DbWorkerCloseMessage;
 
 export type DbWorkerMessage =
     | DbWorkerReadyMessage

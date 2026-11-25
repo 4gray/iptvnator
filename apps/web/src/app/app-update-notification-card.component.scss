@@ -6,10 +6,13 @@
     @include controls.floating-panel;
     position: fixed;
     right: 20px;
-    bottom: 20px;
+    bottom: calc(
+        var(--pwa-update-bottom-clearance, 20px) +
+            env(safe-area-inset-bottom, 0px)
+    );
     width: 320px;
     max-width: calc(100vw - 40px);
-    z-index: 901;
+    z-index: calc(var(--app-z-floating) + 1);
 }
 
 .app-update-notification__header {
@@ -24,11 +27,22 @@
     @include controls.ghost-icon-button(28px, 18px);
 }
 
+@media (pointer: coarse) {
+    .app-update-notification--pwa
+        .app-update-notification__header:has(.app-update-notification__close) {
+        padding-block: 0;
+    }
+
+    .app-update-notification--pwa .app-update-notification__close {
+        @include controls.ghost-icon-button(44px, 18px);
+    }
+}
+
 .app-update-notification__body {
     display: grid;
     gap: 10px;
     padding: 12px;
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     line-height: 1.4;
     overflow-wrap: anywhere;
 
@@ -59,7 +73,10 @@
 @media (max-width: 560px) {
     .app-update-notification {
         right: 12px;
-        bottom: 12px;
+        bottom: calc(
+            var(--pwa-update-bottom-clearance, 12px) +
+                env(safe-area-inset-bottom, 0px)
+        );
         left: 12px;
         width: auto;
         max-width: none;

@@ -1,3 +1,5 @@
+import { nativePlaybackResetAt } from './pwa-native-playback-resets';
+import { editPwaXtreamVisibility } from './pwa-xtream-category-visibility';
 import { PwaXtreamBackupStorage } from './pwa-xtream-backup-storage';
 import {
     XTREAM_USER_DATA_KEYS as KEYS,
@@ -70,6 +72,52 @@ function fixture() {
 }
 
 describe('PWA restore list receipts', () => {
+    it.each(['xtream', 'stalker'] as const)(
+        'invalidates Android checkpoints in an atomic %s restore',
+        async (provider) => {
+            const { storage, read, deny } = fixture();
+            const backup = new PwaXtreamBackupStorage(storage);
+            storage.setItem(
+                KEYS.playbackPositions,
+                JSON.stringify({ other: [] })
+            );
+            const positions = [
+                {
+                    contentXtreamId: 42,
+                    contentType: 'vod' as const,
+                    positionSeconds: 12,
+                    updatedAt: '2020-01-01T00:00:00.000Z',
+                },
+            ];
+            const restore = () =>
+                provider === 'xtream'
+                    ? backup.restore('p', {
+                          ...state,
+                          playbackPositions: positions,
+                      })
+                    : backup.replacePlaybackPositions('p', positions);
+            Object.assign(window, { TvShell: { postMessage: jest.fn() } });
+            try {
+                deny(KEYS.playbackPositions);
+                await expect(restore()).rejects.toThrow();
+                expect(
+                    nativePlaybackResetAt(read(KEYS.playbackPositions), 'p')
+                ).toBe(0);
+                deny();
+                await restore();
+                const map = read(KEYS.playbackPositions);
+                expect(map.p).toEqual([expect.objectContaining(positions[0])]);
+                expect(nativePlaybackResetAt(map, 'p')).toBeGreaterThan(
+                    Date.parse(positions[0].updatedAt)
+                );
+                expect(nativePlaybackResetAt(map, 'other')).toBe(0);
+                expect(backup.getPlaybackPositions('other')).toEqual([]);
+            } finally {
+                Reflect.deleteProperty(window, 'TvShell');
+            }
+        }
+    );
+
     it.each([
         [
             { title: 'Archived', tmdbId: 100 },
@@ -541,6 +589,32 @@ describe('PWA restore list receipts', () => {
             'receipt is unreadable'
         );
         expect(storage.getItem(KEYS.collectionItems)).toBeNull();
+    });
+
+    it('preserves explicit visibility edits on export and replay of an applied archive', async () => {
+        const { storage } = fixture();
+        const backup = new PwaXtreamBackupStorage(storage);
+        const pending = {
+            ...state,
+            hiddenCategories: [
+                { categoryType: 'movies' as const, xtreamId: 7 },
+            ],
+        };
+        await backup.restore('p', pending);
+        editPwaXtreamVisibility(storage, 'p', 'movies', new Map([[7, true]]));
+        expect(
+            backup.exportInto(entry, pending).userState.hiddenCategories
+        ).toEqual([]);
+        await backup.restore('p', pending);
+        expect(backup.exportInto(entry).userState.hiddenCategories).toEqual([]);
+
+        await backup.restore('p', {
+            ...pending,
+            favoritesRestoreId: 'import-2',
+        });
+        expect(backup.exportInto(entry).userState.hiddenCategories).toEqual(
+            pending.hiddenCategories
+        );
     });
 
     it('treats a deliberate new import as a new operation', async () => {

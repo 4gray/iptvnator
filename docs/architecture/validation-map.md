@@ -21,6 +21,24 @@ branch commit instead of the PR merge commit. Verify each run's head SHA before
 using its result as evidence. Docker validation can use
 `gh workflow run docker.yml --ref <branch> -f push=false`.
 
+## Fast validation before expensive PR checks
+
+CI runs `Fast gates` (the PR release-note gate, workflow lint, and journey/E2E
+merge-diff scope detection in one dependency-free runner) in parallel with
+`Lint` (affected lint and entry-point typechecks). Unit validation, the
+production byte-budget build, performance journeys, and PR E2E depend directly
+on both jobs succeeding without queuing an intermediate fan-in runner.
+PR E2E runs through `ci.yml` using `e2e-tests.yaml` as a reusable workflow.
+The full matrix is unchanged; master pushes and manual E2E dispatches still
+run directly. Caller/callee concurrency groups differ so the reusable workflow
+cannot cancel its caller.
+
+Packaging stays independent to protect rolling draft publication from CI
+cancellation. Selected packaging PRs run affected lint and entry-point
+typechecks before their matrix; selection and manual packaging are documented
+in [Release pipeline](release-pipeline.md#rolling-test-drafts). CodeQL and Docker
+retain their independent triggers.
+
 ## Unit And Type Checks
 
 | Area                               | Command                             |
@@ -42,7 +60,8 @@ positional argument filters by path), and fails on any diagnostic. ts-jest
 transpiles with `isolatedModules`, and `tsx` and Playwright strip types without
 checking them, so this is the only check that catches a spec or harness file
 whose types drifted from the code it exercises. CI runs it in the
-`unit-and-typecheck` job after `typecheck:ci`. Conventions the gate relies on:
+`unit-and-typecheck` job; entry-point `typecheck:ci` runs earlier in `Lint`.
+Conventions the gate relies on:
 
 - Spec tsconfigs use `module: preserve` with `moduleResolution: bundler`, the
   same as the library's own `tsconfig.json`; ts-jest forces CommonJS emit
@@ -71,6 +90,24 @@ whose types drifted from the code it exercises. CI runs it in the
   `InstanceType<typeof SomeStore>` for signal stores, and
   `Object.defineProperty` or a writable mapped type for read-only capability
   flags.
+
+## Hosted HTTP tests in restricted Windows sessions
+
+The hosted HTTP specs use loopback TCP by default. If the Windows sandbox
+denies client connections with `EACCES`, use the in-memory HTTP transport for
+the focused suite from the repository root:
+
+```powershell
+$env:IPTVNATOR_TEST_HTTP_TRANSPORT = 'memory'
+$env:TS_NODE_TRANSPILE_ONLY = 'true'
+$specs = git ls-files 'apps/web-backend/*spec.ts' |
+    Where-Object { $_ -match 'cloudflare|hosted|sources-router|tmdb-transfer|device-approval|device-pairing' }
+node node_modules/jest/bin/jest.js --config apps/web-backend/jest.config.ts --runInBand --runTestsByPath $specs
+```
+
+This exercises the HTTP parser, request handlers, and listener lifecycle over
+paired streams. Run the default suite in a session with loopback access to
+validate TCP connections.
 
 ## Lint
 
@@ -110,8 +147,9 @@ same workspace output paths and JUnit classnames relative to the repository.
 Migrated Jest commands keep the workspace working directory for subprocess and
 file-based test contracts, independently of the Jest config's root directory.
 Docs-only changes (Markdown, `docs/`, `.plans/`, `.codex/`, `.claude/`) and
-`apps/website/**` changes skip the E2E workflow via `paths-ignore` — for those
-PRs no E2E validation runs in CI, which is intentional: they cannot affect app
+`apps/website/**` changes skip E2E through the PR merge-diff filter (or
+`paths-ignore` on master pushes) — for those PRs no E2E validation runs in CI,
+which is intentional: they cannot affect app
 behavior.
 
 Tier A coverage is fail-closed. `coverage:unit:ci` relays Jest output but exits
@@ -140,6 +178,11 @@ all pages before reload/close and merge their counters before writing the report
 The parent merges those reports into Jest without replacing objects cached by
 existing instrumentation. Missing reports fail the test; assertion failures still
 propagate. The helper never creates synthetic hits or changes coverage thresholds.
+Instrument only files the Jest process does not load itself: a source that is
+also covered in process (for example `connection.ts`) is instrumented twice with
+different statement maps, and the merged report keeps the in-process copy's
+misses. For such a source, run its real-SQLite scenarios in process instead, as
+`content-title-fts.spec.ts` does on `node:sqlite`.
 
 Some `electron-backend` and `database` specs run SQLite code in the Electron
 binary under `ELECTRON_RUN_AS_NODE`, resolving it with `require('electron')`.
@@ -280,8 +323,9 @@ only to the Web E2E workflow step.
 On pull requests, the CI Lint job summarizes which E2E suites project-level
 Nx affected selects for the PR merge diff. Use the preview to check that the
 graph includes each suite that consumes the changed code before using it to
-skip any jobs. The preview is informational. The E2E workflow keeps its
-existing path filters and matrix, and TV E2E remains a separate local target.
+skip any jobs. The preview is informational. CI preserves the E2E path
+exclusions in its PR merge-diff gate and keeps the existing matrix, and TV E2E
+remains a separate local target.
 
 Use atomized E2E targets when available, for example
 `pnpm nx run web-e2e:e2e-ci--src/xtream.e2e.ts`.

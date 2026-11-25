@@ -75,6 +75,7 @@
             [class.is-now]="item.block.when === 'now'"
             [class.is-future]="item.block.when === 'future'"
             [class.is-playing]="active() && item.block.when === 'now'"
+            [class.has-watch]="item.canCatchUp && item.block.when === 'past'"
             [class.is-focused]="focusedBlock() === index"
             [style.left.px]="item.leftPx"
             [style.width.px]="item.widthPx"
@@ -93,20 +94,24 @@
                     [style.width.%]="item.nowFillPercent"
                 ></span>
             }
-            <span class="epg-guide-row__time">
-                {{ item.block.startMs | date: 'HH:mm' }}
-                @if (density() === 'comfortable') {
-                    &ndash; {{ item.block.stopMs | date: 'HH:mm' }}
+            <!-- Time and the ON NOW tag share one line, so the tag can never
+                 sit on top of the time, however narrow the block. -->
+            <span class="epg-guide-row__meta">
+                <span class="epg-guide-row__time">
+                    {{ item.block.startMs | date: 'HH:mm' }}
+                    @if (density() === 'comfortable') {
+                        &ndash; {{ item.block.stopMs | date: 'HH:mm' }}
+                    }
+                </span>
+                @if (item.block.when === 'now') {
+                    <span class="epg-guide-row__tag">{{
+                        'EPG.TIMELINE.ON_NOW' | translate
+                    }}</span>
                 }
             </span>
             <span class="epg-guide-row__title">{{
                 item.block.program.title
             }}</span>
-            @if (item.block.when === 'now') {
-                <span class="epg-guide-row__tag">{{
-                    'EPG.TIMELINE.ON_NOW' | translate
-                }}</span>
-            }
             @if (item.canCatchUp && item.block.when === 'past') {
                 <button
                     type="button"

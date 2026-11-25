@@ -2,9 +2,9 @@ import {
     sourceAuthorization,
     verifySourceInstance,
 } from './source-authorization';
-import type { SourceServerRequest } from '@iptvnator/shared/interfaces';
+import { SERVER_ACCESS_CHALLENGE, type SourceServerRequest } from '@iptvnator/shared/interfaces';
 import { requestSourceServer } from './source-api';
-import { prepareSourceConnection, sourceConnection } from './source-connection';
+import { pairedBrowserTokenKey, prepareSourceConnection, sourceConnection } from './source-connection';
 import { saveBrowserSourceConnection } from './source-browser-settings';
 
 describe('source transport identity revocation', () => {
@@ -31,6 +31,32 @@ describe('source transport identity revocation', () => {
         window.electron = originalElectron;
         globalThis.fetch = originalFetch;
     });
+
+    it.each([false, true])(
+        'clears only the refused browser credential (repaired in another tab: %s)',
+        async (repaired) => {
+            const hosted = { ...connection, apiUrl: location.origin + '/api' };
+            saveBrowserSourceConnection(hosted, '');
+            const key = pairedBrowserTokenKey(hosted)!;
+            localStorage.setItem(key, 'old-pairing');
+            await prepareSourceConnection();
+            verifySourceInstance(instance);
+            globalThis.fetch = jest.fn().mockImplementation(async () => {
+                if (repaired) localStorage.setItem(key, 'new-pairing');
+                return {
+                    status: 401,
+                    headers: new Headers({ 'www-authenticate': SERVER_ACCESS_CHALLENGE }),
+                    json: async () => ({}),
+                };
+            });
+            expect(
+                (await requestSourceServer({ operation: 'list' })).status
+            ).toBe(401);
+            expect(localStorage.getItem(key)).toBe(
+                repaired ? 'new-pairing' : null
+            );
+        }
+    );
 
     for (const failure of ['network', 'gateway', 'invalid-json']) {
         it.each([

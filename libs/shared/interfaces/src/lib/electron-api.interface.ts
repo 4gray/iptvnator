@@ -1,4 +1,4 @@
-import type { HostedServerCommand, HostedServerStatus } from './hosted-server.interface';
+import type { HostedServerCommand, HostedServerStatus, HostedCloudflareCommand, HostedCloudflareStatus, HostedDeviceCommand, HostedDeviceResults } from './hosted-server.interface';
 export type ElectronBridgeAppMenuAction = 'settings' | 'check-for-updates';
 import type { AppUpdateChannel } from './app-update-channel.util';
 import type { SourceProbeContext, SourceHealthResult } from './source-health';
@@ -427,19 +427,17 @@ export interface ElectronBridgeEpgLookupOptions {
     sourceUrls?: string[];
     /** For getChannelPrograms: distinguish an unavailable database from an empty schedule. */
     rejectOnError?: boolean;
+    /**
+     * For schedule and currently airing queries, the wall clock shifted into
+     * the provider's EPG clock. Absent, the main process uses its own clock.
+     */
+    nowMs?: number;
+    /** Retains the channel's advertised catch-up window in getChannelPrograms. */
+    archiveDays?: number;
 }
 
-/**
- * Options for the batched "currently airing" lookup. `nowMs` is the instant
- * the lookup is evaluated at: the renderer passes its wall clock shifted into
- * the provider's EPG clock (`epgProviderClockMs`, see
- * `epg-display-offset.util.ts`) so the row the backend picks is the one the
- * renderer will also present as "now". Absent, the main process uses its own
- * clock.
- */
-export interface ElectronBridgeCurrentProgramsOptions extends ElectronBridgeEpgLookupOptions {
-    nowMs?: number;
-}
+export type ElectronBridgeCurrentProgramsOptions =
+    ElectronBridgeEpgLookupOptions;
 
 export interface ElectronBridgeEpgGuideWindow extends ElectronBridgeEpgLookupOptions {
     /**
@@ -776,14 +774,18 @@ export interface ElectronBridgeApi {
         url: string,
         token: string,
         restart: boolean,
-        savedInstanceId?: string
+        savedInstanceIdOrHosted?: string | true
     ) => Promise<
         import('./source-sync.interface').SourceServerConnection & {
             tokenPersisted: boolean;
         }
     >;
+    hostedCloudflareControl?: (command: HostedCloudflareCommand) => Promise<HostedCloudflareStatus>;
     hostedServerControl?: (command: HostedServerCommand) => Promise<HostedServerStatus>;
     hostedServerAccessCode?: () => Promise<string>;
+    hostedDeviceControl?: <Command extends HostedDeviceCommand>(
+        command: Command
+    ) => Promise<HostedDeviceResults[Command['action']]>;
     sourceSyncDisconnect?: () => Promise<void>;
     sourceSyncForget?: () => Promise<void>;
     sourceSyncLocalSources?: () => Promise<Playlist[]>;

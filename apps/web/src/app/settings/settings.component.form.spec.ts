@@ -1,6 +1,6 @@
 import { FormArray, FormControl } from '@angular/forms';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     Language,
@@ -20,11 +20,16 @@ import {
     createEpgBridgeStub,
     DEFAULT_DASHBOARD_RAILS,
     DEFAULT_SETTINGS,
-    MatSnackBarStub,
+    LazySnackBarStub,
     MockSettingsStore,
     setSettingsSection,
     stubSettingsSideEffects,
 } from './test-stubs/settings-test-harness.stub';
+
+const SUCCESS_TOAST = expect.objectContaining({
+    politeness: 'polite',
+    panelClass: expect.arrayContaining(['app-notification--success']),
+});
 
 /**
  * Everything the rendered settings form does: hydration from the store, the
@@ -35,7 +40,7 @@ describe('SettingsComponent form', () => {
     let fixture: ComponentFixture<SettingsComponent>;
     let settingsStore: MockSettingsStore;
     let translate: TranslateService;
-    let snackBar: MatSnackBarStub;
+    let snackBar: LazySnackBarStub;
     let epgBridge: Partial<EpgRuntimeBridgeService>;
     const originalElectron = window.electron;
 
@@ -52,7 +57,7 @@ describe('SettingsComponent form', () => {
             SettingsStore
         ) as unknown as MockSettingsStore;
         translate = TestBed.inject(TranslateService);
-        snackBar = TestBed.inject(MatSnackBar) as unknown as MatSnackBarStub;
+        snackBar = TestBed.inject(LazySnackBar) as unknown as LazySnackBarStub;
 
         component = fixture.componentInstance;
         stubSettingsSideEffects(component);
@@ -68,6 +73,7 @@ describe('SettingsComponent form', () => {
         'MOCHA_THEME',
         'NIGHT_OWL_THEME',
         'BLACK_OLED_THEME',
+        'HIGH_CONTRAST_THEME',
     ])(
         'previews %s from the palette picker and restores the saved theme on Discard',
         (value) => {
@@ -127,7 +133,7 @@ describe('SettingsComponent form', () => {
         expect(themeSwatch.getAttribute('aria-checked')).toBe('true');
     });
 
-    it('restores the saved appearance when a backup import replaces the draft', () => {
+    it('keeps the staged appearance and its preview through a backup import', () => {
         const service = TestBed.inject(SettingsService);
         const changeThemeAccent = jest.spyOn(service, 'changeThemeAccent');
         const changeSystemThemes = jest.spyOn(service, 'changeSystemThemes');
@@ -143,13 +149,19 @@ describe('SettingsComponent form', () => {
 
         component.importData();
 
-        expect(component.settingsForm.pristine).toBe(true);
-        expect(changeThemeAccent).toHaveBeenLastCalledWith(null);
+        expect(component.settingsForm.dirty).toBe(true);
+        expect(component.settingsForm.getRawValue()).toMatchObject({
+            theme: Theme.DarkTheme,
+            themeAccent: 'magenta',
+            systemLightTheme: Theme.CreamTheme,
+        });
+        expect(settingsStore.updateSettings).not.toHaveBeenCalled();
+        expect(changeThemeAccent).toHaveBeenLastCalledWith('magenta');
         expect(changeSystemThemes).toHaveBeenLastCalledWith(
-            Theme.LightTheme,
+            Theme.CreamTheme,
             Theme.DarkTheme
         );
-        expect(changeTheme).toHaveBeenLastCalledWith(Theme.SystemTheme);
+        expect(changeTheme).toHaveBeenLastCalledWith(Theme.DarkTheme);
     });
 
     it('stages the System pair, previews it and restores it on Discard', () => {
@@ -161,15 +173,16 @@ describe('SettingsComponent form', () => {
         expect(component.settingsForm.value.theme).toBe(Theme.SystemTheme);
 
         const dark = root.querySelector('[data-test-id="system-dark-theme"]');
-        const options = [
-            ...(dark?.querySelectorAll('button') ?? []),
-        ].map((button) => button.getAttribute('data-test-id'));
+        const options = [...(dark?.querySelectorAll('button') ?? [])].map(
+            (button) => button.getAttribute('data-test-id')
+        );
         // Only dark presets can be the dark choice.
         expect(options).toEqual([
             'system-dark-dark',
             'system-dark-mocha',
             'system-dark-night-owl',
             'system-dark-black-oled',
+            'system-dark-high-contrast',
         ]);
 
         (
@@ -203,17 +216,15 @@ describe('SettingsComponent form', () => {
         fixture.detectChanges();
         const root = fixture.nativeElement as HTMLElement;
         const press = (testId: string) =>
-            root
-                .querySelector(`[data-test-id="${testId}"]`)
-                ?.dispatchEvent(
-                    new KeyboardEvent('keydown', {
-                        key: 'ArrowRight',
-                        bubbles: true,
-                    })
-                );
+            root.querySelector(`[data-test-id="${testId}"]`)?.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key: 'ArrowRight',
+                    bubbles: true,
+                })
+            );
 
         // The last dark preset wraps to the first one, inside the pair only.
-        press('system-dark-black-oled');
+        press('system-dark-high-contrast');
         fixture.detectChanges();
         expect(component.settingsForm.value.systemDarkTheme).toBe(
             Theme.DarkTheme
@@ -260,7 +271,7 @@ describe('SettingsComponent form', () => {
         expect(snackBar.open).toHaveBeenCalledWith(
             'SETTINGS.TMDB_TRANSFER.SAVED',
             undefined,
-            expect.anything()
+            SUCCESS_TOAST
         );
     });
 
@@ -277,10 +288,9 @@ describe('SettingsComponent form', () => {
         expect(component.form.changedPaths()).toContain('tmdb.apiKey');
         await component.form.save(() => undefined);
         expect(settingsStore.updateSettings).toHaveBeenCalledWith(
-            expect.objectContaining({
-                tmdb: { enabled: false, apiKey: 'synthetic-draft-key' },
-            }),
-            expect.anything()
+            { tmdb: { apiKey: 'synthetic-draft-key' } },
+            { retryEpgCleanup: false },
+            expect.any(Function)
         );
     });
 
@@ -573,7 +583,6 @@ describe('SettingsComponent form', () => {
         });
 
         it('hides again after a successful save', async () => {
-            settingsStore.updateSettings.mockResolvedValue(undefined);
             const save = jest.spyOn(component.form, 'save');
             component.settingsForm.get('theme')?.setValue(Theme.DarkTheme);
             component.settingsForm.markAsDirty();
@@ -597,7 +606,7 @@ describe('SettingsComponent form', () => {
                     finishSave = resolve;
                 });
                 if (pendingStep === 'storage') {
-                    settingsStore.updateSettings.mockReturnValueOnce(pending);
+                    settingsStore.applyNextUpdateThen(() => pending);
                 } else {
                     jest.spyOn(
                         window.electron,
@@ -663,7 +672,7 @@ describe('SettingsComponent form', () => {
                     failOlderSave = reject;
                 });
                 if (pendingStep === 'storage') {
-                    settingsStore.updateSettings.mockReturnValueOnce(pending);
+                    settingsStore.applyNextUpdateThen(() => pending);
                 } else {
                     jest.spyOn(
                         window.electron,
@@ -750,7 +759,6 @@ describe('SettingsComponent form', () => {
         // the page re-renders without a form subscription; no forced render
         // here, so a regression shows.
         it('hides after a save on a page without a form section', async () => {
-            settingsStore.updateSettings.mockResolvedValue(undefined);
             const save = jest.spyOn(component.form, 'save');
             setSettingsSection('backup');
             fixture.autoDetectChanges();
@@ -820,7 +828,6 @@ describe('SettingsComponent form', () => {
         });
 
         it('saves on Ctrl/Cmd+S while valid and dirty, and swallows the browser save otherwise', async () => {
-            settingsStore.updateSettings.mockResolvedValue(undefined);
             const press = (init: KeyboardEventInit) => {
                 const event = new KeyboardEvent('keydown', {
                     key: 's',
@@ -870,7 +877,6 @@ describe('SettingsComponent form', () => {
         });
 
         it('notices a saved change that waits for a restart until dismissed', async () => {
-            settingsStore.updateSettings.mockResolvedValue(undefined);
             const notice = () =>
                 (fixture.nativeElement as HTMLElement).querySelector(
                     '[data-test-id="settings-restart-notice"]'
@@ -947,11 +953,6 @@ describe('SettingsComponent form', () => {
         });
 
         it('keeps the launch values across settings visits', async () => {
-            settingsStore.updateSettings.mockResolvedValue(undefined);
-            settingsStore.updateSettings.mockImplementation((settings) => {
-                settingsStore._setSettings(settings);
-                return Promise.resolve(undefined);
-            });
             component.settingsForm
                 .get('startupWindowMode')
                 ?.setValue('maximized');
@@ -983,7 +984,6 @@ describe('SettingsComponent form', () => {
         });
 
         it('compares the frame-copy opt-in against the engine the app runs', async () => {
-            settingsStore.updateSettings.mockResolvedValue(undefined);
             // Stored true, but the engine could not honour it at launch.
             component.form.setRunningValue('embeddedMpvFrameCopy', false);
             component.settingsForm.get('embeddedMpvFrameCopy')?.setValue(true);
@@ -1052,49 +1052,33 @@ describe('SettingsComponent form', () => {
             expect(snackBar.open).toHaveBeenCalledWith(
                 'Settings saved',
                 undefined,
-                {
-                    duration: 2000,
-                    horizontalPosition: 'center',
-                    panelClass: ['settings-snackbar'],
-                    verticalPosition: 'bottom',
-                }
+                SUCCESS_TOAST
             );
         });
 
-        it('should save settings on submit', async () => {
-            settingsStore.updateSettings.mockResolvedValue(undefined);
+        it('saves only the staged edits and mirrors the merged settings', async () => {
             const updateSettings = jest.spyOn(
                 window.electron,
                 'updateSettings'
             );
+            component.settingsForm.get('showCaptions')?.setValue(true);
+            component.settingsForm.markAsDirty();
 
             component.onSubmit();
             await fixture.whenStable();
 
             expect(settingsStore.updateSettings).toHaveBeenCalledWith(
-                {
-                    ...component.settingsForm.value,
-                    tmdb: { enabled: false },
-                    trustedPrivateNetworkEpgUrls: [],
-                    trustedInsecureTlsHosts: [],
-                    // Parental lock settings are not on the form; Save
-                    // carries the current values through unchanged.
-                    parentalLockEnabled: false,
-                    parentalLockRelockMinutes: 15,
-                },
+                { showCaptions: true },
                 { retryEpgCleanup: false }
             );
+            // The desktop backend gets the whole merged object, as before.
             expect(updateSettings).toHaveBeenCalledWith({
-                ...component.settingsForm.value,
-                trustedPrivateNetworkEpgUrls: [],
-                trustedInsecureTlsHosts: [],
-                parentalLockEnabled: false,
-                parentalLockRelockMinutes: 15,
+                ...DEFAULT_SETTINGS,
+                showCaptions: true,
             });
         });
 
         it('saves a shared web controls opt-out on submit', async () => {
-            settingsStore.updateSettings.mockResolvedValue(undefined);
             component.settingsForm
                 .get('webPlayerSharedControls')
                 ?.setValue(false);
@@ -1111,7 +1095,6 @@ describe('SettingsComponent form', () => {
         });
 
         it('clears external player paths in Electron when saved as empty', async () => {
-            settingsStore.updateSettings.mockResolvedValue(undefined);
             const setMpvPlayerPath = jest.spyOn(
                 window.electron,
                 'setMpvPlayerPath'
@@ -1134,7 +1117,6 @@ describe('SettingsComponent form', () => {
         });
 
         it('saves external player command-line arguments with the settings payload', async () => {
-            settingsStore.updateSettings.mockResolvedValue(undefined);
             const updateSettings = jest.spyOn(
                 window.electron,
                 'updateSettings'
@@ -1172,7 +1154,6 @@ describe('SettingsComponent form', () => {
                 epgUrl: ['https://example.com/guide.xml'],
                 preferUploadedEpgOverXtream: true,
             });
-            settingsStore.updateSettings.mockResolvedValue(undefined);
 
             const webFixture = TestBed.createComponent(SettingsComponent);
             const webComponent = webFixture.componentInstance;
@@ -1188,13 +1169,18 @@ describe('SettingsComponent form', () => {
             webComponent.onSubmit();
             await webFixture.whenStable();
 
+            // Only the edit is written; the stored XMLTV settings stay as
+            // they are instead of being rewritten from the form.
             expect(settingsStore.updateSettings).toHaveBeenCalledWith(
+                { theme: Theme.DarkTheme },
+                { retryEpgCleanup: false }
+            );
+            expect(settingsStore.getSettings()).toEqual(
                 expect.objectContaining({
                     epgUrl: ['https://example.com/guide.xml'],
                     preferUploadedEpgOverXtream: true,
                     theme: Theme.DarkTheme,
-                }),
-                { retryEpgCleanup: false }
+                })
             );
 
             webFixture.destroy();
@@ -1215,7 +1201,6 @@ describe('SettingsComponent form', () => {
                 epgUrl: ['https://example.com/guide.xml'],
                 preferUploadedEpgOverXtream: true,
             });
-            settingsStore.updateSettings.mockResolvedValue(undefined);
 
             const pwaFixture = TestBed.createComponent(SettingsComponent);
             const pwaComponent = pwaFixture.componentInstance;
@@ -1232,12 +1217,15 @@ describe('SettingsComponent form', () => {
             await pwaFixture.whenStable();
 
             expect(settingsStore.updateSettings).toHaveBeenCalledWith(
+                { epgOffsetMinutes: 60 },
+                { retryEpgCleanup: false }
+            );
+            expect(settingsStore.getSettings()).toEqual(
                 expect.objectContaining({
                     epgOffsetMinutes: 60,
                     epgUrl: ['https://example.com/guide.xml'],
                     preferUploadedEpgOverXtream: true,
-                }),
-                { retryEpgCleanup: false }
+                })
             );
 
             pwaFixture.destroy();

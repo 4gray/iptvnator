@@ -50,6 +50,7 @@ export class StubSeasonContainerComponent {
 })
 export class StubPortalInlinePlayerComponent {
     readonly playbackSessionKey = input.required<string>();
+    readonly playbackPending = input(false);
     readonly playback = input<unknown>(null);
     readonly episodeMetadata = input<unknown>(null);
     readonly seriesTitle = input<string | null>(null);

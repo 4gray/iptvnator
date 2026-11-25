@@ -1,0 +1,162 @@
+@use '@angular/material' as mat;
+@use '../../../../styles/app-controls' as controls;
+
+// One empty, no-results, error and offline view (UI-44), in the dialog
+// header's vocabulary: a tinted icon tile, a heading in the heading ink and
+// a description in the body colour. The tile is the only colour; there is
+// no illustration, glow or gradient.
+:host {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    justify-content: center;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    box-sizing: border-box;
+
+    --state-view-tile: 48px;
+    --state-view-tile-radius: 12px;
+    --state-view-glyph: 24px;
+    --state-view-title-size: 17px;
+    --state-view-description-size: 13.5px;
+    --state-view-gap: 16px;
+    --state-view-padding: 48px 24px;
+    --state-view-tile-bg: var(--app-list-selected-bg);
+    --state-view-tile-fg: var(--app-list-selected-fg);
+}
+
+:host(.app-state-view--panel) {
+    --state-view-tile: 40px;
+    --state-view-tile-radius: 10px;
+    --state-view-glyph: 20px;
+    --state-view-title-size: 15px;
+    --state-view-description-size: 13px;
+    --state-view-gap: 12px;
+    --state-view-padding: 24px 16px;
+}
+
+:host(.app-state-view--warn) {
+    --state-view-tile-bg: var(--app-danger-surface);
+    --state-view-tile-fg: var(--app-danger-text);
+}
+
+// Offline is not the user's mistake: a neutral tile, not the warning one.
+:host(.app-state-view--quiet) {
+    --state-view-tile-bg: color-mix(
+        in srgb,
+        var(--app-on-surface) 8%,
+        transparent
+    );
+    --state-view-tile-fg: var(--app-body-color);
+}
+
+.app-state-view {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--app-state-view-gap, var(--state-view-gap));
+    padding: var(--app-state-view-padding, var(--state-view-padding));
+    text-align: center;
+    animation: app-state-view-in 160ms ease-out;
+}
+
+.app-state-view__icon {
+    display: var(--app-state-view-icon-display, grid);
+    flex: none;
+    place-items: center;
+    width: var(--state-view-tile);
+    height: var(--state-view-tile);
+    border-radius: var(--state-view-tile-radius);
+    background: var(--state-view-tile-bg);
+    color: var(--state-view-tile-fg);
+
+    .mat-icon {
+        width: var(--state-view-glyph);
+        height: var(--state-view-glyph);
+        font-size: var(--state-view-glyph);
+        line-height: var(--state-view-glyph);
+    }
+}
+
+.app-state-view__copy {
+    display: grid;
+    gap: 4px;
+    max-width: 44ch;
+}
+
+.app-state-view__title {
+    margin: 0;
+    color: var(--app-heading-color);
+    font-size: var(--state-view-title-size);
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+}
+
+.app-state-view__description {
+    margin: 0;
+    color: var(--app-body-color);
+    font-size: var(--state-view-description-size);
+    line-height: 1.5;
+    text-wrap: pretty;
+}
+
+.app-state-view__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+}
+
+// The accent action sits on the accent pulled 20% toward the heading ink,
+// as the first-run CTA did (UI-75): the plain selection colour leaves its
+// label under 4.5:1 in the light theme, and the derived accents keep
+// `--app-selection-on-color` at 4.5:1 on this fill (theme-accent-tokens).
+@mixin _accent($size) {
+    $fill: color-mix(
+        in srgb,
+        var(--app-selection-color) 80%,
+        var(--app-heading-color)
+    );
+    @include controls.accent-button($size);
+    @include mat.button-overrides(
+        (
+            filled-container-color: $fill,
+            filled-disabled-container-color: $fill,
+        )
+    );
+}
+
+.app-state-view__button {
+    @include controls.secondary-button;
+
+    &--accent {
+        @include _accent(md);
+    }
+}
+
+:host(.app-state-view--panel) .app-state-view__button {
+    @include controls.secondary-button(sm);
+
+    &--accent {
+        @include _accent(sm);
+    }
+}
+
+@keyframes app-state-view-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .app-state-view {
+        animation: none;
+    }
+}

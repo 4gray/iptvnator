@@ -23,7 +23,7 @@ const record = (value: unknown): value is StoredMap =>
 
 /** Each list and its receipt commit in one blob; subsequent user edits keep the receipt. */
 export class PwaXtreamRestoreProgress {
-    private readonly id: string;
+    readonly id: string;
     constructor(
         private readonly storage: UserDataStorage,
         private readonly playlistId: string,
@@ -39,7 +39,11 @@ export class PwaXtreamRestoreProgress {
         return !!this.receipt(this.read(name), name === 'favorites');
     }
 
-    writeList(name: ListName, list: unknown[]): void {
+    writeList(
+        name: ListName,
+        list: unknown[],
+        stampReset?: (map: StoredMap, playlistId: string) => void
+    ): void {
         const map = this.read(name);
         const previousReceipt = this.receipt(map, name === 'favorites');
         if (previousReceipt && !previousReceipt.serverList) return;
@@ -52,6 +56,7 @@ export class PwaXtreamRestoreProgress {
             );
 
         if (this.storage.flushed) receipt.serverList = list;
+        if (!previousReceipt) stampReset?.(map, this.playlistId);
 
         this.storage.setItem(
             XTREAM_USER_DATA_KEYS[name],

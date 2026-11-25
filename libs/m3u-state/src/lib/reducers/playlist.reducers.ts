@@ -126,6 +126,12 @@ export const playlistReducers = [
                               ...(refresh
                                   ? retainPlaylistRefreshSource(currentPlaylist)
                                   : {}),
+                              ...(refresh
+                                  ? {
+                                        hiddenStalkerCategories:
+                                            currentPlaylist.hiddenStalkerCategories,
+                                    }
+                                  : {}),
                               favorites: currentPlaylist?.favorites ?? [],
                               epgUrls: epgSourceState.epgUrls,
                               detectedEpgUrls: epgSourceState.detectedEpgUrls,
@@ -188,6 +194,21 @@ export const playlistReducers = [
                 {
                     id: action.playlistId,
                     changes: { updateDate: action.updateDate },
+                },
+                state.playlists
+            ),
+        })
+    ),
+    on(
+        PlaylistActions.stalkerCategoryVisibilitySaved,
+        (state, action): PlaylistState => ({
+            ...state,
+            playlists: playlistsAdapter.updateOne(
+                {
+                    id: action.playlistId,
+                    changes: {
+                        hiddenStalkerCategories: action.hiddenStalkerCategories,
+                    },
                 },
                 state.playlists
             ),
@@ -305,6 +326,9 @@ export const playlistReducers = [
                     id: updatedPlaylist._id,
                     changes: {
                         ...toEntityMeta(updatedPlaylist),
+                        hiddenStalkerCategories:
+                            state.playlists.entities[updatedPlaylist._id]
+                                ?.hiddenStalkerCategories,
                         updateDate: Date.now(),
                     },
                 })),

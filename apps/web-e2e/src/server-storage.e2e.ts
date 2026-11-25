@@ -2,6 +2,7 @@ import {
     STORAGE_BACKEND_URL,
     newServerPage,
     seedBrowserPlaylist,
+    verifyCrossDeviceSourceRename,
     verifyEditedSourceChannels,
     verifySharedStalkerIdentityEditing,
     verifyLegacyUploadedChannelIdentity,
@@ -15,10 +16,10 @@ import {
     verifyConcurrentSourceProjection,
 } from './source-projection-pwa.helpers';
 import { verifyDelayedBrowserSourceRefresh } from './source-refresh-pwa.helpers';
+import { verifyWeakSourceRevisions } from './source-weak-revision-pwa.helpers';
 import { verifyCanonicalM3uEpgOptOut } from './m3u-epg-import-server.helpers';
 import { expect, test } from './fixtures';
 import {
-    addM3uUrlPlaylist,
     openSources,
     openSourceEditor,
     updateSourceDialog,
@@ -59,28 +60,7 @@ test.describe('server storage @self-hosted @persistence', () => {
     test('a playlist added on one device appears on another', async ({
         browser,
     }) => {
-        const first = await newServerPage(browser);
-        await openSources(first);
-        await addM3uUrlPlaylist(first, 'Shared M3U');
-
-        const second = await newServerPage(browser);
-        await openSources(second);
-        await expect(sourceRowByTitle(second, 'Shared M3U')).toBeVisible();
-
-        await first.locator('a[href="/workspace/sources"]').first().click();
-        const editor = await openSourceEditor(first, 'Shared M3U');
-        await updateSourceDialog(editor, { title: 'Renamed shared M3U' });
-        await editor
-            .locator('mat-dialog-actions')
-            .getByRole('button', { name: 'Save', exact: true })
-            .click();
-        await expect(editor).toBeHidden();
-        await expect(
-            sourceRowByTitle(second, 'Renamed shared M3U')
-        ).toBeVisible({ timeout: 25000 });
-
-        await first.context().close();
-        await second.context().close();
+        await verifyCrossDeviceSourceRename(browser);
     });
 
     test('replaces the editing client channels after changing shared M3U request headers', async ({
@@ -153,6 +133,13 @@ test.describe('server storage @self-hosted @persistence', () => {
         request,
     }) => {
         await verifyConcurrentSourceDeletion(browser, request, 'single', true);
+    });
+
+    test('clears the library through a proxy that weakens ETags', async ({
+        browser,
+        request,
+    }) => {
+        await verifyWeakSourceRevisions(browser, request);
     });
 
     test('keeps a newer disconnect from another tab when pending discovery recovers', async ({
@@ -463,8 +450,12 @@ test.describe('server storage @self-hosted @persistence', () => {
                 });
                 await sourceRowByTitle(page, title).click();
                 await expect.poll(() => outage).toBe(true);
+                // The catalog's load error (and, with it, the category
+                // rail's) render the shared error state.
                 await expect(
-                    page.locator('app-playlist-error-view')
+                    page
+                        .locator('app-state-view[data-state-variant="error"]')
+                        .first()
                 ).toBeVisible();
                 // Re-check an edited connection without reloading the app or
                 // discarding the failed request's in-memory verification state.

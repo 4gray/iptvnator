@@ -1,0 +1,43 @@
+// Paired-device rows use the shared settings rows (see
+// `settings-server-section.component.scss`); these rules cover the rest.
+
+// It joins the Connectivity group's column of sections.
+:host {
+    display: contents;
+}
+
+// The shared list row sets `display: block`, which beats the `hidden`
+// attribute the collapsed device list relies on.
+.device-list[hidden] {
+    display: none;
+}
+
+// Device names come from the devices themselves (up to 80 characters,
+// possibly without spaces); the shared row title does not wrap them.
+.device-row h4,
+.pairing-request h4 {
+    overflow-wrap: anywhere;
+}
+
+// The QR code is an inline SVG; without this it sits on a text baseline
+// and gains a descender gap under it.
+.hosted-qr {
+    display: block;
+    line-height: 0;
+}
+
+// The confirmation code is read aloud and compared between two screens,
+// so it is set large, mono and with tabular digits.
+.pairing-code {
+    display: block;
+    margin-block-start: var(--app-space-1);
+    color: var(--app-selection-text-color);
+    font-family: var(--app-font-mono);
+    font-size: var(--app-text-display-sm);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.14em;
+    line-height: 1.2;
+    white-space: nowrap;
+    user-select: text;
+}

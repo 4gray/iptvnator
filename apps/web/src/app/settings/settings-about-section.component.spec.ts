@@ -1,12 +1,15 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormControl, FormGroup } from '@angular/forms';
+import { SwUpdate } from '@angular/service-worker';
 import { TranslateModule } from '@ngx-translate/core';
+import { NEVER } from 'rxjs';
 import {
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
 import { SettingsAboutSectionComponent } from './settings-about-section.component';
 import { SETTINGS_UPDATE_CHANNEL_OPTIONS } from './settings-options';
+import { PwaUpdateService } from '../services/pwa-update.service';
 
 function getButton(
     fixture: ComponentFixture<SettingsAboutSectionComponent>,
@@ -154,6 +157,16 @@ describe('SettingsAboutSectionComponent version display', () => {
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             imports: [SettingsAboutSectionComponent, TranslateModule.forRoot()],
+            providers: [
+                {
+                    provide: SwUpdate,
+                    useValue: {
+                        isEnabled: true,
+                        versionUpdates: NEVER,
+                        unrecoverable: NEVER,
+                    },
+                },
+            ],
         }).compileComponents();
 
         fixture = TestBed.createComponent(SettingsAboutSectionComponent);
@@ -198,6 +211,39 @@ describe('SettingsAboutSectionComponent version display', () => {
         fixture.detectChanges();
 
         expect(getCommitMarker()).toBeNull();
+    });
+
+    it('shows the PWA check status and offers Refresh as soon as a build is ready', () => {
+        const updates = TestBed.inject(PwaUpdateService);
+        const status = () =>
+            fixture.nativeElement
+                .querySelector('[data-test-id="pwa-update-status"]')
+                ?.textContent.trim();
+        const button = () => getButton(fixture, 'pwa-update-check');
+        fixture.detectChanges();
+        expect(status()).toBe('');
+        expect(button()?.textContent).toContain('STARTUP.CHECK_UPDATES');
+
+        updates.checking.set(true);
+        fixture.detectChanges();
+        expect(status()).toBe('SETTINGS.APP_UPDATE_CHECKING');
+        expect(button()?.disabled).toBe(true);
+
+        updates.checking.set(false);
+        updates.noUpdate.set(true);
+        fixture.detectChanges();
+        expect(status()).toBe('PWA_UPDATE_NONE');
+
+        updates.notice.set('ready');
+        updates.checking.set(true);
+        fixture.detectChanges();
+        expect(status()).toBe('PWA_UPDATE_READY');
+        expect(button()?.textContent).toContain('REFRESH');
+        expect(button()?.disabled).toBe(false);
+
+        fixture.componentRef.setInput('isDesktop', true);
+        fixture.detectChanges();
+        expect(button()).toBeNull();
     });
 });
 

@@ -114,7 +114,7 @@ mat-card {
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
-            font-size: 0.8rem;
+            font-size: var(--app-text-sm);
             line-height: 1.35;
             color: var(--app-body-color, var(--mat-sys-on-surface-variant));
         }
@@ -164,7 +164,7 @@ mat-card {
     // Use a solid or highly opaque dark pill to avoid expensive backdrop-filter
     background: rgba(0, 0, 0, 0.85);
     color: #4ade80; // green-400, readable across themes
-    font-size: 0.72rem;
+    font-size: var(--app-text-xs);
     font-weight: 600;
     border-radius: 6px;
     display: flex;
@@ -180,41 +180,15 @@ mat-card {
     }
 }
 
-.grid-empty-state {
+.grid-list__state {
     grid-column: 1 / -1;
-    min-height: clamp(320px, 56vh, 620px);
     display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: clamp(12px, 2.8vw, 30px);
-    box-sizing: border-box;
-
-    app-playlist-error-view {
-        --error-empty-illustration-size: clamp(170px, 18vw, 250px);
-        --error-empty-max-width: min(480px, 100%);
-        --error-empty-title-size: clamp(1.45rem, 2vw, 1.9rem);
-        --error-empty-description-size: clamp(0.95rem, 1.15vw, 1.05rem);
-        --error-empty-title-weight: 600;
-        --error-empty-title-spacing: -0.014em;
-        --error-empty-copy-gap: 10px;
-        --error-empty-description-line-height: 1.44;
-        --error-empty-description-opacity: 0.9;
-    }
+    min-height: clamp(320px, 56vh, 620px);
 }
 
 @media (max-width: 768px) {
-    .grid-empty-state {
+    .grid-list__state {
         min-height: clamp(260px, 48vh, 460px);
-        padding: 14px;
-
-        app-playlist-error-view {
-            --error-empty-illustration-size: 165px;
-            --error-empty-max-width: 310px;
-            --error-empty-title-size: 1.3rem;
-            --error-empty-description-size: 0.9rem;
-            --error-empty-title-weight: 600;
-            --error-empty-copy-gap: 8px;
-        }
     }
 }
 
@@ -264,11 +238,12 @@ mat-card {
     }
 }
 
-.grid-list__tail--error button {
+// Load more and its retry after an error: the kit's secondary button.
+.grid-list__tail button {
     @include controls.secondary-button;
 }
 
-.grid-filter-clear,
+.grid-filter-clear button,
 .grid-list__tail button {
     app-region: no-drag;
 }
@@ -312,7 +287,7 @@ mat-card {
             text-overflow: ellipsis;
             text-align: start;
             color: var(--app-on-surface);
-            font-size: 0.875rem;
+            font-size: var(--app-text-md);
             font-weight: 600;
             line-height: 20px;
         }
@@ -360,7 +335,7 @@ mat-card {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.75rem;
+    font-size: var(--app-text-xs);
     line-height: 18px;
 }
 
@@ -368,7 +343,7 @@ mat-card {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.7rem;
+    font-size: var(--app-text-2xs);
     line-height: 14px;
     font-variant-numeric: tabular-nums;
 }

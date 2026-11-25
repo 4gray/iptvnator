@@ -76,7 +76,8 @@ export class SerialDetailsWatchToggles {
             () =>
                 this.deps.playlistId() === playlistId &&
                 this.deps.seriesXtreamId() === seriesXtreamId,
-            scope
+            scope,
+            seriesXtreamId
         );
         if (persisted) {
             await this.refreshStorePositions(playlistId);

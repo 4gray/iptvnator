@@ -23,7 +23,7 @@ import {
     MatDialogRef,
 } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
@@ -102,7 +102,7 @@ export class AddPlaylistDialogComponent {
     private readonly injector = inject(Injector);
     private dialogRef = inject(MatDialogRef<AddPlaylistDialogComponent>);
     private store = inject(Store);
-    private snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
     private translateService = inject(TranslateService);
     private data = inject<{ type?: PlaylistType } | null>(MAT_DIALOG_DATA, {
         optional: true,
@@ -356,15 +356,11 @@ export class AddPlaylistDialogComponent {
     }
 
     rejectFile(filename: string): void {
-        this.snackBar.open(
-            filename
-                ? this.translateService.instant('HOME.FILE_UPLOAD.REJECTED', {
-                      filename,
-                  })
-                : this.translateService.instant(
-                      'HOME.FILE_UPLOAD.REJECTED_UNNAMED'
-                  )
-        );
+        if (filename) {
+            this.notifications.error('HOME.FILE_UPLOAD.REJECTED', { filename });
+        } else {
+            this.notifications.error('HOME.FILE_UPLOAD.REJECTED_UNNAMED');
+        }
     }
 
     /**

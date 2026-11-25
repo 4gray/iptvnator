@@ -11,10 +11,7 @@ import {
 import { applyUiTheme, rasterTextContrast } from './ui-consistency.fixture';
 import type { Locator } from '@playwright/test';
 import { configureMockProviderBackend } from './provider-target-route';
-import {
-    addStalkerPortal,
-    interceptStalkerRequests,
-} from './stalker-portal.fixture';
+import { playSyntheticStalkerRadio } from './stalker-radio-player.fixture';
 
 test.use({ serviceWorkers: 'block' });
 
@@ -182,7 +179,7 @@ test('a long programme remains keyboard-scrollable with reachable actions on a p
     await expect(dialog.locator('.epg-dialog__close')).toBeInViewport({
         ratio: 1,
     });
-    await expect(dialog.locator('.epg-dialog__btn--primary')).toBeInViewport({
+    await expect(dialog.locator('.epg-dialog__primary')).toBeInViewport({
         ratio: 1,
     });
     await page.screenshot({
@@ -247,70 +244,7 @@ test('reading account and shortcuts while Stalker radio plays keeps its volume u
     page,
 }) => {
     test.setTimeout(120_000);
-    await interceptStalkerRequests(page);
-    const source = 'http://radio-fixture.invalid/sample.wav';
-    // One minute of synthetic PCM silence, with no external stream or metadata.
-    const bytes = 8000 * 60 * 2;
-    const wav = Buffer.alloc(44 + bytes);
-    wav.write('RIFF', 0);
-    wav.writeUInt32LE(36 + bytes, 4);
-    wav.write('WAVEfmt ', 8);
-    wav.writeUInt32LE(16, 16);
-    wav.writeUInt16LE(1, 20);
-    wav.writeUInt16LE(1, 22);
-    wav.writeUInt32LE(8000, 24);
-    wav.writeUInt32LE(16000, 28);
-    wav.writeUInt16LE(2, 32);
-    wav.writeUInt16LE(16, 34);
-    wav.write('data', 36);
-    wav.writeUInt32LE(bytes, 40);
-    await page.route(source, (route) =>
-        route.fulfill({ contentType: 'audio/wav', body: wav })
-    );
-    await page.route('**/localhost:3000/stalker**', async (route) => {
-        const url = new URL(route.request().url());
-        if (url.searchParams.get('type') !== 'radio') return route.fallback();
-        const action = url.searchParams.get('action');
-        if (action === 'create_link') {
-            await route.fulfill({ json: { payload: { js: { cmd: source } } } });
-        } else if (action === 'get_ordered_list') {
-            await route.fulfill({
-                json: {
-                    payload: {
-                        js: {
-                            data: [
-                                {
-                                    id: '9001',
-                                    name: 'Synthetic Radio Alpha',
-                                    o_name: 'Synthetic Radio Alpha',
-                                    cmd: source,
-                                    logo: '',
-                                    category_id:
-                                        url.searchParams.get('genre') ?? '1',
-                                    tv_genre_id:
-                                        url.searchParams.get('genre') ?? '1',
-                                    number: '1',
-                                    radio: true,
-                                },
-                            ],
-                            total_items: 1,
-                            max_page_items: 20,
-                            cur_page: 1,
-                            total_pages: 1,
-                        },
-                    },
-                },
-            });
-        } else await route.fallback();
-    });
-    await addStalkerPortal(page);
-    await page.getByRole('link', { name: /radio/i }).click();
-    await page.locator('.category-item').nth(1).click();
-    await page.getByText('Synthetic Radio Alpha', { exact: true }).click();
-    const audio = page.locator('app-audio-player audio');
-    await expect
-        .poll(() => audio.evaluate((el: HTMLAudioElement) => el.currentTime))
-        .toBeGreaterThan(0);
+    const audio = await playSyntheticStalkerRadio(page);
     await page
         .locator('app-audio-player .radio-hero')
         .click({ position: { x: 5, y: 5 } });

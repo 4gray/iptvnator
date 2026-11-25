@@ -16,11 +16,11 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { StateViewComponent } from '@iptvnator/ui/state';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
     GridListComponent,
     InfiniteScrollDirective,
-    PlaylistErrorViewComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
     StalkerItvChannel,
@@ -69,7 +69,7 @@ function restoreViewMode(): ViewMode {
         MatTooltip,
         ChannelListItemComponent,
         ChannelListSkeletonComponent,
-        PlaylistErrorViewComponent,
+        StateViewComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './stalker-itv-all-items.component.html',

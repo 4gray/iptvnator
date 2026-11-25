@@ -105,8 +105,10 @@ the subsystem's document.
   `libs/ui/epg/src/lib/epg-list-view/epg-list-view.component.scss`
 - Shared list selection style:
   `libs/ui/styles/_nav-list.scss`
-- Dialog shell and size presets:
-  `libs/ui/components/src/lib/dialog-shell/`
+- Dialog shell and size presets (`ui-dialog`, `@iptvnator/ui/dialog`):
+  `libs/ui/dialog/src/lib/dialog-shell/`
+- Empty, no-results, error and offline states and the spinner scale
+  (`ui-state`, `@iptvnator/ui/state`): `libs/ui/state/src/lib/`
 - Source row (Sources page and playlist switcher):
   `libs/playlist/shared/ui/src/lib/source-row/source-row.component.html`
 - UI-kit buttons, menus, segmented control and floating panels:
@@ -141,7 +143,7 @@ in `apps/web/src/m3-theme.scss`):
 - `--app-widget-border` / `--app-rail-border` — hairlines
 - `--app-on-surface` — primary text
 - `--app-eyebrow-color` — secondary/muted text
-- `--app-success-color` — done/watched status (episode watched toggle)
+- `--app-status-*` — status hues (see Scales)
 - `--app-list-selected-bg` / `--app-list-selected-fg` /
   `--app-list-selected-outline` — the chosen row of a side list and the
   active source's row on Sources and in the switcher (see Selection Pattern)
@@ -205,16 +207,17 @@ in the overlay chunk. Everything else is lazy by these rules:
   and the workspace shell actions do; `openConfirmDialog` returns a promise
   that settles once the dialog is open. A component in a lazy chunk injects
   `MatDialog` directly.
-- **Toasts from services created with the app.** A root service or the app
-  shell opens its snack-bars through `LazySnackBar`
-  (`@iptvnator/services/lazy-snack-bar`), whose `open` takes
-  `MatSnackBar.open`'s arguments and returns a promise of the ref, or of
-  `null` after a failed chunk load, which it logs without the message (a
-  toast can carry a playlist URL). `snack-bar.mjs` statically imports
-  Material's button, the icon button chunk, ripple and the CDK a11y module,
-  so one eager `MatSnackBar` injection put about 110 KB on the initial
-  path. A component in a lazy chunk injects `MatSnackBar` directly; the
-  initial-bytes ratchet fails on a new eager importer.
+- **Toasts.** Every toast goes through `NotificationService`
+  (`@iptvnator/services/notifications`), which any root service or lazy
+  component may inject. It resolves the snack-bar through `LazySnackBar`
+  (`@iptvnator/services/lazy-snack-bar`) on the first toast:
+  `snack-bar.mjs` statically imports Material's button, the icon button
+  chunk, ripple and the CDK a11y module, so one eager `MatSnackBar`
+  injection put about 110 KB on the initial path. A failed chunk load is
+  logged without the message. `pnpm run ui:notifications:validate` (CI)
+  reports a `MatSnackBar` or `LazySnackBar` import, or a snack-bar `open`,
+  outside the service; the initial-bytes ratchet fails on a new eager
+  importer.
 - **Panels the shell mounts on every launch.** The EPG progress panel and the
   update notification are an eager host with `@defer (when visible)` around
   the view that imports Material; the startup status draws its spinner as
@@ -248,10 +251,10 @@ in the overlay chunk. Everything else is lazy by these rules:
 
 The app mode is the exclusive `.dark-theme` or `.light-theme` class that
 `SettingsService` puts on `<body>`. Its `data-app-theme` attribute identifies
-the resolved palette: `light`, `dark`, `cream`, `mocha`, `night-owl`, or
-`black-oled`. Cream uses light mode; Mocha, Night Owl and Black OLED use dark
-mode. A "System" choice resolves the OS preference
-there and nowhere else, to the user's light-mode and dark-mode presets
+the resolved palette: `light`, `dark`, `cream`, `mocha`, `night-owl`,
+`black-oled`, or `high-contrast`. Cream uses light mode; Mocha, Night Owl,
+Black OLED and High Contrast use dark mode. A "System" choice resolves the OS
+preference there and nowhere else, to the user's light-mode and dark-mode presets
 (Light and Dark unless changed). Component styles never use a
 `prefers-color-scheme` query, which follows the OS: with the app set to dark
 on a light OS it paints light colours
@@ -589,6 +592,18 @@ Shared season tabs have one Tab stop, wrapping Left/Right navigation
 The dropdown variant keeps Material menu keyboard behavior. Detail and
 fullscreen instances own distinct tab/panel IDs.
 
+Search fields with custom Enter, Escape or arrow handlers use
+`ImeInputDirective` from `@iptvnator/ui/components`. Composing Enter commits
+the text and Escape and arrows drive the candidate list. The field also
+accepts legacy Safari's `keyCode` 229 after receiving `compositionend`. A
+50 ms timer closes the window once the event loop can run it. Keyup and
+blur also close it. Ordinary Android Enter still submits.
+Handlers leave the default behavior enabled on composition keys and can
+stop those keys from reaching the surrounding overlay. Other shortcuts such
+as F11 still reach the shell. The workspace search, command palette, playlist
+switcher and TMDB match search use the directive. Tests dispatch composition
+and keyboard events. The TV client has its own `ime-guard.ts`.
+
 ## Keyboard Scrolling and Channel Focus
 
 `ChannelScrollFocusDirective` belongs on the actual channel scroll owner,
@@ -845,6 +860,41 @@ remain local when the meaning is explicit.
   `XtreamContentGateComponent` then replaces the live layout with an error view,
   so the shell keeps the rail unfolded (`isLiveContentBlocked`) and the rail
   withholds its hide chevron, rather than hiding the only way back.
+- Compact desktop band (UI-67): between 641px and 1100px
+  (`LIVE_COMPACT_VIEWPORT_QUERY`, `live-compact-viewport.ts`) the portal
+  categories rail renders folded while the stored level is `expanded`, so the
+  900px window minimum still leaves the player about half the width.
+  `LiveLayoutSidebarStateService.areCategoriesHiddenFor('portal')` derives
+  this; nothing is persisted, and widening the window brings the stored level
+  back. The popover's "show categories panel" unfolds the rail inside the band
+  until the viewport leaves and re-enters it. The channel list's `max-width`
+  is `clamp(250px, 36vw, 600px)` (`_portal-layout.scss`), so a stored or
+  default width narrows with the window; the M3U Groups rail inside it caps
+  itself at `min(320px, 100% - 160px)` so the channel pane keeps 160px, and
+  `ResizableDirective` neither saves a drag the CSS cap stopped nor more
+  than the cap shows: an edge that did not move emits `resizeCancel` (with
+  the saved width, for hosts that mirrored `widthChange`) instead of
+  `resizeEnd`. The width it commits is read with the transitions of the host
+  and every enclosing `.resizable-element` suspended, so a Groups rail
+  released while the sidebar it resizes is still animating saves where it
+  settles. The Groups view requests sidebar widths as rail + channel pane +
+  the sidebar's own padding and border, measured when the drag starts, so a
+  capped rail never loses that chrome on commit. At ≤960px the header's playlist switcher yields
+  first (`flex: 0 4 190px`, 88px floor) to a search field with a 200px basis,
+  so the Windows/Linux header, whose window controls take 196px, still shows
+  a scope chip and input at 900px; the field shrinks too, so a route's full
+  set of actions never reaches the window controls. Inside the field the input has a 64px flex
+  basis and the scope chip shrinks twice as fast, so a long scope ellipsizes
+  instead of leaving the input only its padding. On Windows/Linux the
+  palette trigger shows its bolt icon instead of the ~50px "Ctrl+K" label at
+  that width; the tooltip keeps the shortcut. Both values are local until the
+  breakpoint map (UI-36) absorbs them; `live-layout-compact-width.e2e.ts`
+  pins the player share at 900×700 for Xtream, Stalker and M3U. The Windows
+  and macOS CI runners have 1024px screens, inside the band, so
+  `launchElectronApp` widens a narrower launch window to the default 1280px
+  (`electron-window-size.ts`); a spec that needs a narrow window resizes it.
+  Only a stored maximized or fullscreen startup mode keeps its window:
+  macOS reports a default window that fills a small screen as maximized.
 - Xtream Live TV's root view (`/live` with no selected category) follows the
   same paginated `All Items` shell as VOD and Series: a widget header with the
   total channel count, page-size controls, and page navigation above the shared
@@ -890,7 +940,9 @@ remain local when the meaning is explicit.
       survives into the restored rail. Backdrop, Escape, the footer, any
       category selection (`categorySelected` output), any router
       `NavigationStart` and any live-panel level change (`Cmd/Ctrl+B`
-      reaches the layout through the dialog) close it; focus returns to the
+      reaches the layout through the dialog) close it, and so does a window
+      resize across the compact band, which unfolds the rail and removes the
+      dropdown without a level change; focus returns to the
       trigger. The popover host is a `role="dialog"` with `aria-modal` and a
       `CdkTrapFocus` host directive that captures focus on open, matching
       the trigger's `aria-haspopup="dialog"`.
@@ -941,10 +993,10 @@ remain local when the meaning is explicit.
   `app-channel-list-hidden-state` (`@iptvnator/portal/shared/ui`) instead of
   the "select a channel" empty state: a title that says the list is hidden, a
   one-line hint naming the shortcut, and a full-size "Show channels list"
-  stroked button wired to the same toggle. The generic
-  `app-portal-empty-state` grew optional `hint`, `actionLabel`, `actionIcon`
-  inputs and an `action` output for this; the action keeps full opacity while
-  icon and copy stay muted, because it is the way out of the state.
+  button wired to the same toggle. `app-portal-empty-state` renders it
+  through the shared `app-state-view` (see Empty, Error And Offline States),
+  with its optional `hint`, `actionLabel`, `actionIcon` inputs and `action`
+  output.
 - A folded rail is 0px wide but still rendered, so it also carries `inert`
   (`isContextPanelInert` on the shell rail, `isSidebarCollapsed` on the
   Xtream/Stalker channels rail) to leave the Tab order and the accessibility
@@ -975,6 +1027,9 @@ remain local when the meaning is explicit.
   lockstep. The dropdown reuses the static heading's type so folding the rail
   does not move the title; the caret is the only added ink
   (`_portal-sidebar.scss`).
+- The Xtream Live TV All Items header reserves room for the floating
+  show-categories button when the category rail is folded and for the
+  restore button when both panels are hidden, including at phone widths.
 - At the phone breakpoint the M3U layout's bottom-drawer rule overrides the
   desktop collapse to `height: 0` instead of `width: 0`. The floating restore
   handle stays visible there: the collapse toggle is reachable by touch, so
@@ -1036,7 +1091,7 @@ colour per context, and never a literal of its own:
   gets `PLAYER_PROGRESS_COLOR` (`player-palette.ts`), which a spec pins to the
   Sass value.
 - Live programme progress next to a LIVE marker (the dashboard's live rail and
-  live hero slides) keeps `--app-live-color`; EPG programme progress keeps the
+  live hero slides) keeps `--app-status-live`; EPG programme progress keeps the
   fill described below.
 
 Specs hold the rule in each owning project: `m3-theme.spec.ts` (web: the token
@@ -1296,14 +1351,19 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   and rows stack under 600px of pane width. Keep `data-setting-id` on every row: settings search and the
   command palette reveal rows by it, and the registry spec checks the index
   against the templates.
+- No page adds its own `<h1>` or page header. Form-heavy pages
+  (Connectivity) use the same rows: fields stack full width in a
+  `.setting-item--full-control` row with a `.setting-item__control--stack`
+  column, button rows use `.inline-actions`, and status lines sit in a
+  `.setting-item__sub` under the row they report on.
 - Controls: `.settings-select` is a 220px outlined select without a floating
   label (the row title names it; pass `aria-labelledby`); boolean settings
-  are `mat-slide-toggle` switches; segmented choices use `.theme-switcher`
-  as a pill; `.settings-chip` marks rows that apply after a restart or are
+  are `mat-slide-toggle` switches; segmented choices use `.theme-switcher`,
+  the kit's segmented track built from `segmented-track` and `segment`; `.settings-chip` marks rows that apply after a restart or are
   experimental; `.settings-callout` (`--info`, `--warn`) sits under the row
   it explains inside `.setting-item__sub` and only while that choice is made.
 - Destructive actions keep the confirm dialog from the Dialogs section; the
-  row itself uses `.app-destructive-button` on a stroked button.
+  row itself uses `.app-destructive-button` on a flat button.
 - Ordinary settings actions use `mat-flat-button` with the shared secondary
   role from the lazy settings stylesheet; `.settings-primary-button` marks the accent
   action (install/download, browser import, or the empty EPG prompt). Text and
@@ -1312,6 +1372,31 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   the change count, Discard and Save (Cmd/Ctrl+S); the sidebar marks pages
   with staged edits. A saved change that waits for a restart shows a sticky
   notice at the top of the page.
+- Save writes only the paths that differ from the form's saved baseline
+  (`pickChangedSettings` in `settings-form-rebase.ts`); a changed dashboard
+  rail goes out over the rails as stored now. Settings another surface wrote
+  while the page was open (the command palette's player switch, or any
+  other store writer) keep their value, and after Save the untouched
+  controls show the stored values. A staged edit wins over an outside
+  change to the same setting. A staged EPG source list is saved together
+  with sources added elsewhere since the page loaded, but it also keeps a
+  source removed elsewhere meanwhile (the list on the page wins). A setting
+  already submitted by a Save awaiting acknowledgement is written again by
+  the next Save, so an edit reverted to its saved value still takes effect.
+  An EPG retry keeps sources added elsewhere, including ones merged by the
+  earlier Save. Outside EPG additions are merged from the saved record in the
+  write transaction, so a failed import cannot contribute sources. Saves
+  without EPG edits also reuse the committed source list. Desktop receives
+  the merged settings except the parental-lock switch, whose dedicated
+  writer owns its native mirror and rollback.
+- A backup import brings in restored EPG URLs and keeps staged edits.
+  Save acknowledgements adopt committed EPG sources, so an unfinished import
+  cannot make its sources appear saved in the form.
+  If overlapping settings writes fail, the EPG list falls back to the last
+  list that reached storage. A playlist-only restore during a pending removal
+  keeps the removal staged for retry if storage fails.
+  The form becomes pristine when it has no edits or pending Save failures.
+  Discard reloads stored values.
 
 ### Light Theme
 
@@ -1338,7 +1423,9 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   on the inline end: the right in LTR, the left in RTL.
 - Body actions opt into the shell's `mat-flat-button.app-dialog__secondary`
   role (add `app-dialog__secondary--sm` for dense bulk tools), or
-  `mat-button.app-dialog__ghost` for a text action. The footer remains the
+  `mat-button.app-dialog__ghost` for a text action, or
+  `mat-icon-button.app-dialog__ghost-icon` (the kit's 32px square) for an
+  icon action such as copy or previous/next. The footer remains the
   decision row. A separate EPG save explicitly says “Save EPG sources”.
   The playlist editor's main Save also includes valid pending EPG rows, while
   the separate action applies only EPG changes immediately. Track draft rows by
@@ -1351,17 +1438,33 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   disclosure with “Enable for this playlist”; after an action removes or disables
   its button, move focus to a remaining source action or the add-row action.
 - **Shell.** A dialog's markup is `app-dialog-shell`
-  (`@iptvnator/ui/components`): the heading (its `mat-dialog-title`, so
-  the container is named by it), an optional subtitle and 40px icon tile
-  (`iconTone="warn"` for a destructive question), the body as default
-  content, and a footer rendered only when an element with
+  (`@iptvnator/ui/dialog`, re-exported from `@iptvnator/ui/components`; its
+  own project so `ui-epg`, which `ui-components` depends on, can use it):
+  the heading (its `mat-dialog-title`, so the container is named by it), a
+  required one-line subtitle and a 40px icon tile (`iconTone="warn"` for a
+  destructive question), the body as default content, and a footer
+  rendered only when an element with
   `appDialogFooter` wraps the actions (`appDialogFooterStart` wraps a Clear
   action or a notice at the footer's start, `appDialogHeaderEnd` a chip
   before the close button); a conditional action sits inside the wrapper,
   since a control-flow block at the top level is projected into the body.
-  Every dialog uses it, apart from three that draw their own surface by
-  design: the command palette, the programme dialog and the EPG import
-  panel (a floating panel, not a dialog). A dialog with a hero band (the
+  Every dialog uses it, the programme dialog and the EPG trust prompts
+  included; only the command palette draws its own surface (its search
+  field is its header), and the EPG import panel is a floating panel, not a
+  dialog. `dialog-subtitle-guard.spec.ts` in `ui-dialog` fails on a dialog
+  component outside the shell or a shell without a subtitle.
+- **Header.** Every header has an icon, a title and a subtitle; the tile
+  centres on the heading block (`align-items: center`), so a one-line and a
+  wrapped title both sit level with it, and `dialog-shell.e2e.ts` measures
+  it. The subtitle is one short sentence fragment in sentence case that
+  says what the dialog is for, or the data that explains it best: the
+  source and its type through `sourceDialogSubtitle()` ("Living room ·
+  Xtream account"), a version, a season and episode, a host, a channel.
+  Type nouns follow decision D6 ("source" generic; "M3U playlist", "Xtream
+  account", "Stalker portal"; "provider" only for the content company).
+  `ConfirmDialogData.subtitle` is required for the same reason; the message
+  stays in the body. A dialog title drops a menu label's ellipsis.
+  A dialog with a hero band (the
   account info and channel details dialogs) keeps the band as the body's
   first block, edge to edge through negative margins, with its title and
   subtitle in the shell's header and its status pills in
@@ -1381,7 +1484,7 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   (16px panel on the widget surface, hairline border, popover shadow,
   tinted blurred backdrop) is global in `m3-theme.scss` and reaches every
   dialog; a dialog that draws its own surface strips it through its panel
-  class, as the command palette and the programme dialog do.
+  class, as the command palette does.
   The shell sizes from the surface, so an opener's tighter `maxHeight`
   holds, caps itself at the viewport minus the preset's margins otherwise, and
   lets only the body scroll; under 600px of height the cap comes off and the
@@ -1390,10 +1493,10 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   there: its header × is its only in-dialog dismissal and stays in place.
   Read-only account and shortcuts dialogs opt into `bodyFocusable`: the
   named content region is the first keyboard stop, so PageDown and arrow
-  keys scroll the information without moving the header. Forms keep their
-  first control as the initial stop. The programme dialog's own frame caps
-  its height to the viewport and scrolls its named body, including archive
-  tools and actions; its hero stays outside that scroll region.
+  keys scroll the information without moving the header, as the programme
+  dialog does: its channel logo is the body's first block, its archive
+  tools sit in the body and its Close and watch actions in the footer.
+  Forms keep their first control as the initial stop.
   Account dialogs use a 960px cap, a neutral statistics band and flat detail
   sections. Phone statistics use two columns while detail rows stack; an
   unpaired Stalker statistic spans the row. Status text uses the theme's
@@ -1414,8 +1517,8 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   button per row, in DOM order (dismiss on top, primary at the bottom). The
   settings unsaved-changes dialog is the reference;
   `settings-unsaved-dialog-layout.e2e.ts` in `web-e2e` measures it in six
-  locales. The programme dialog stacks its archive tools and footer the same
-  way, letting a long label wrap inside its button; the Electron
+  locales. The programme dialog stacks its archive tools the same way under
+  640px, letting a long label wrap inside its button; the Electron
   `epg-timeline-interaction.e2e.ts` measures it in French at 360px.
 - **Width.** An opener spreads a size preset first, `...dialogSize('sm' |
   'md' | 'lg')` (440, 560 and 760px with the viewport limits), then its own
@@ -1426,8 +1529,8 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   is never provided at the root for that reason. A dialog with several
   openers is opened through one helper that owns its config, so its width
   never depends on the entry point: `EpgProgrammeDialogService` opens the
-  programme dialog at 540px from the timeline, list, guide and channel rows,
-  with a panel class that scopes its surface overrides.
+  programme dialog at the `md` preset from the timeline, list, guide and
+  channel rows, with a panel class that names its pane.
   Playlist editors use `playlistInfoDialogConfig()` from every entry point:
   its `md` preset supplies both width and the explicit viewport height cap that
   the short-window surface scroller needs. EPG rows keep their action buttons in
@@ -1469,23 +1572,37 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   `floating-panel-title` the title: the kit's 12.5px uppercase label with an
   18px accent icon. Header actions are `ghost-icon-button(28px, 18px)`, row
   actions 24px; neither keeps Material's 48px touch target, which used to
-  push a horizontal scrollbar into the list.
+  push a horizontal scrollbar into the list. The PWA update notification gives
+  its dismiss action a 44px target on touch screens.
 - **Actions.** Buttons inside a panel follow the dialog footer: one accent
   action (`accent-button(sm)`), a secondary beside it (`secondary-button(sm)`
   on a `mat-flat-button`), never an outlined button. The update card's
   release notes and download/install buttons are the reference.
-- **Toasts.** Every `mat-snack-bar` takes the same look from one global rule
-  in `styles.scss`: the widget surface with the hairline and shadow on a
-  10px panel, 13px text in the heading colour, the action as accent text
-  without a ripple. Toasts sit at Material's default bottom centre; a caller
-  may add a panel class for spacing (`settings-snackbar` clears the save
-  bar) or the error tint (`settings-snackbar--error`), never a position of
-  its own. A failure the import panel already reports (a source's error row
+- **Toasts.** `NotificationService` has three variants, each a
+  translation key with optional values: `success` (2.5 s), `info` (5 s)
+  and `error` (5 s with Close; with an action such as Retry or Trust host it
+  stays until dismissed, and a lazily loaded component toast puts a Close
+  button beside the action, since a text snack-bar has room for one). A caller may pick another preset (`short`,
+  `default`, `sticky`) but never a position: every toast sits at the bottom
+  centre, and Settings lifts it above the save bar (`aboveSaveBar`). Errors
+  are assertive (`role="alert"`), the rest polite (`role="status"`).
+  Material skips the enter and exit animations under reduced motion
+  (`material-motion.e2e.ts`). The look comes from one global rule in
+  `styles.scss`: the widget surface with the hairline and shadow on a 10px
+  panel, 13px text in the heading colour, the action as accent text without
+  a ripple; `app-notification--success` tints the hairline with
+  `--app-status-success`, `app-notification--error` takes a danger-tinted
+  surface and hairline with the action in `--app-danger-text`. An error
+  never shows a provider's or an exception's text: the key names the
+  failure, values carry only names, counts and dates, and the `code` option
+  appends a bounded machine code such as `(ETIMEDOUT)`. A toast whose body
+  is a component (the source removal's Undo) opens through
+  `fromComponent`. No toast reports a non-event (the EPG being up to
+  date). A failure the import panel already reports (a source's error row
   with Retry) gets no toast; `EpgService` toasts only when the bridge call
   itself fails, a programme lookup errors, or the runtime imports without
   reporting progress (`supportsProgress` false: no row can carry the
-  failure), always with the translated generic message, never the
-  backend's text.
+  failure), always with the translated generic message.
 
 ## Forms
 
@@ -1512,9 +1629,21 @@ current value where there is one; when the visible label is only the value,
 the accessible name adds what it picks ("Channels shown: Favorites"). An
 active picker (refinements applied) takes the selected-row tint. A panel
 header's icon actions use `ghost-icon-button`, as the category panel's
-search and sort do. In a row of filter chips (the VOD sources popover) the
+search and sort do; the channel lists' headers (All channels, the groups
+rail and its channel header) take it through `list-header-action` in
+`_channel-list-layout.scss`, at the categories header's 28px, and the
+favorites and recent page header at 32px beside its segmented toggles. In a row of filter chips (the VOD sources popover) the
 picker is a chip with the same chevron, so the row keeps one height; the
 language filter there opens a radio menu instead of a native `<select>`.
+
+`pnpm run ui:kit-controls:validate` (CI) holds these roles in every runtime
+template: no raised, tonal or fab button, an outlined one only with
+`app-destructive-button` (both spellings: `mat-stroked-button` and
+`matButton="outlined"`, `mat-fab` and `matFab`), no `color` on a Material element (the mixins set
+the look, not an M3 palette role), no native `<select>`, and no `mat-select`
+outside a `mat-form-field`. A file that keeps a finding is listed in
+`ALLOWED` in `tools/nx/check-kit-controls.mjs` with its reason; an entry that
+no longer matches fails too.
 
 A single choice among a few options shown side by side is the kit's
 segmented control: a 1px-bordered track with 2px padding and a 10px radius,
@@ -1525,8 +1654,9 @@ toggles, the list/grid switch, the playlist switcher's type filter);
 `segmented-track` and `segment` build it from plain buttons that are tabs
 (the season tabs). In a header row use 26px segments, so the control is
 32px tall like a small button. Unchosen labels use the body colour; the
-muted colour reads about 2.9:1 on the track. The settings theme switcher is
-still a pill switcher of its own.
+muted colour reads about 2.9:1 on the track. The settings rows' segmented
+choices (cover size, guide layout) are the same track built from plain
+buttons.
 
 Custom button-based radio choices use `appRadioGroup` and
 `[appRadioOption]="selected"` from the narrow
@@ -1595,12 +1725,54 @@ text) and `subject` (pasted text in the add flow). Use
 `getPlaylistSourceIcon()` for a stored playlist. An icon never stands for two
 providers, and the Dashboard rail icon is never a provider icon.
 
-## Search and Collection Empty States
+## Empty, Error And Offline States
 
-Search, Favorites and Recently Viewed use the shared no-data view from
-`@iptvnator/playlist/shared/ui` for their empty states. Supply the relevant
-icon and translated copy so they share typography and motion. The entrance
-animation respects reduced motion.
+Every page, pane, list, panel and dialog list that has nothing to show renders
+`app-state-view` (`@iptvnator/ui/state`, UI-44), in the dialog header's
+vocabulary: a 48px (page) or 40px (panel) icon tile, a heading in the heading
+ink, one short description and at most two actions, the first an accent
+button. There is no illustration, glow or gradient, and the entrance is a
+160 ms fade that reduced motion turns off.
+
+- `variant`: `empty` (nothing added or loaded yet), `no-results` (a search
+  or filter matched nothing), `error` (loading failed; warning tile,
+  `role="alert"`) or `offline` (the source or network is unreachable, or the
+  runtime lacks the feature; neutral tile). Each has a default icon.
+- `size`: `page` for a route or main pane, `panel` for a sidebar, list
+  column, drawer or dialog body (smaller tile, type and buttons).
+- An `error` or `offline` state whose caller can load again sets `retryable`
+  and handles `retry`: Retry then leads. The Stalker category list, the
+  catalog, search, the Xtream content gate and the EPG timeline all do.
+- `appStateIcon` replaces the tile (the first-run glyph); the default slot
+  takes extra content under the actions (source-type links, the source
+  error's Home and Delete). A host that must fit a short area sets
+  `--app-state-view-padding`, `--app-state-view-gap` or
+  `--app-state-view-icon-display` on the element, as the inline EPG panel
+  does.
+- Thin adapters keep their own APIs on top of it: `app-portal-empty-state`
+  (live prompts), `app-playlist-error-view` (a source that cannot load, with
+  its settings, Home and Delete) and `app-epg-timeline-empty-state` (EPG
+  reasons).
+
+The first-run welcome (`app-empty-state`, `welcome-dashboard` and
+`welcome-sources`, UI-70) is built on the same view: the IPTVnator glyph,
+one "Add source" action, a secondary action per source type and, on the
+dashboard, the feature list; flat token surfaces in every theme.
+
+`pnpm run ui:states:validate` (CI) counts the bespoke empty blocks left in
+templates, outermost elements whose static class names an `empty` or
+`no-results` block, against `tools/nx/state-blocks-baseline.json`, where
+each remaining file records why it stays bespoke. Counts only go down
+(`pnpm run ui:states:update` lowers them). Classes on `app-state-view` are
+hooks and do not count.
+
+### Spinner scale
+
+Spinners use one of three diameters, `SPINNER_DIAMETERS` in
+`@iptvnator/ui/state`: 16 (`sm`, inside a button, chip, row or line of
+text), 24 (`md`, a list footer, dialog section or panel) or 40 (`lg`, a page
+or main pane with nothing else to show). The same check rejects any other
+diameter, and Material's 100px default.
 
 ## Icon Names
 
@@ -1614,6 +1786,19 @@ the string results of its bindings, `icon` / `*Icon` inputs, and TypeScript
 values named `icon`, `*Icon`, `*_ICON`, `*Icons` or `*_ICONS`. Name a member
 that feeds an icon that way, so the check can see its values.
 
+## Favourite And Rating Glyphs
+
+The heart means favourite and the star means rating, everywhere. Take both
+from `APP_ICONS` in `@iptvnator/ui/components/app-icons` (also exported from
+`@iptvnator/ui/components`): `favorite` / `favoriteOutline` for favourite
+toggles, rail and command entries, collection headers and empty states;
+`rating` / `ratingOutline` for TMDB and provider scores and the rating filter.
+A toggle shows the filled heart when on and the outline when off; use
+`favoriteIcon(isFavorite)` rather than repeating the ternary.
+`pnpm run ui:favorite-glyph:validate` (CI) rejects star and heart ligatures
+written anywhere else and checks that the registry keeps each meaning on its
+glyph family. It reads the same static names as the icon-name check above.
+
 ## Icon-Only Buttons
 
 A `<button>` whose only content is a `<mat-icon>` needs an accessible name:
@@ -1621,7 +1806,7 @@ the ligature text is hidden from assistive technology, and a `matTooltip`
 only adds a description that appears on hover or focus. Give it a translated
 `aria-label`, usually `[attr.aria-label]` bound to the same key as its
 tooltip, or `aria-labelledby`. A toggle keeps one label and reports its state
-with `aria-pressed` (the channel row's star is "Favorite", pressed or not),
+with `aria-pressed` (the channel row's heart is "Favorite", pressed or not),
 as the password visibility toggle does; its tooltip may still name the next
 action. `pnpm run a11y:icon-buttons:validate` (CI) checks `.html` and inline
 templates, looking through control flow, `ng-container` and spinners; content
@@ -1730,16 +1915,21 @@ whose list shows the toggle again, takes the toggle's slot.
 
 ## Typography
 
-The app stack is DM Sans with Roboto behind it (`$app-font-stack` in
-`apps/web/src/m3-theme.scss`). DM Sans covers Latin only, so Cyrillic and Greek
-UI text (ru, by, el) renders in Roboto. `apps/web/src/styles.scss` bundles both
-families in 400, 500, 600 and 700, and JetBrains Mono in 400 and 500 (its
-heavier faces would exceed the initial-bytes ratchet).
+The app stack is `'Inter Variable', Inter, system-ui, sans-serif`
+(`$app-font-stack` in `apps/web/src/m3-theme.scss`, read everywhere through
+`--app-font-family`). Inter Variable covers Latin, Cyrillic and Greek, so a
+channel name that mixes scripts renders in one face. `apps/web/src/styles.scss`
+bundles it from `@fontsource-variable/inter` (one weight axis, 100–900), and
+JetBrains Mono in 400 and 500 (its heavier faces would exceed the
+initial-bytes ratchet). Font files never count toward initial bytes: the
+browser fetches only the subsets the text on screen needs.
 
-- Use only those four weights: in `font-weight`, in the `font` shorthand, and in
-  any custom property, Sass variable or token map that feeds one. A weight
-  between faces snaps to a neighbour (650 renders as 700), and 600 or more with
-  no face of at least 600 gets Chromium's synthetic bold. CI runs
+- Use only the weights 400, 500, 600 and 700: in `font-weight`, in the `font`
+  shorthand, and in any custom property, Sass variable or token map that feeds
+  one. Inter Variable can render any weight on its axis; the limit keeps the
+  type scale to four steps. In a family with static faces (JetBrains Mono, or
+  a local fallback) a weight between faces snaps to a neighbour, and 600 or
+  more with no face of at least 600 gets Chromium's synthetic bold. CI runs
   `pnpm run styles:font-weights:validate`, which rejects any other value.
 - JetBrains Mono text stays at 500 or lighter, also where it is a fallback
   behind `ui-monospace` (only macOS resolves that). The check enforces this in
@@ -1748,18 +1938,77 @@ heavier faces would exceed the initial-bytes ratchet).
   included, from its own stylesheet module or another one. It cannot see what
   a mono modifier class inherits from its base rule; set `font-weight: 500`
   there.
-- Import whole `@fontsource/<family>/<weight>.css` files. The single-script
-  files such as `cyrillic-600.css` have no `unicode-range`, so a Cyrillic-only
-  face wins the weight match for Latin text in `Roboto, …` stacks and sends it
-  to the next family.
+- Import a package's index or whole-weight CSS (`@fontsource-variable/inter/index.css`,
+  `@fontsource/<family>/<weight>.css`). The single-script files such as
+  `cyrillic-600.css` have no `unicode-range`, so a Cyrillic-only face would
+  claim Latin glyphs too and send them to the next family.
+- Set `font-family: var(--app-font-family)` rather than naming a face, so the
+  stack changes in one place.
 - `<html lang>` follows the UI language (`syncDocumentLanguage()` maps `by` to
   `be` and `zhtw` to `zh-TW`), so `hyphens`, `text-transform` (Turkish İ) and
   Han glyph fallback use the right locale.
+- The web app gives text entry fields at least 16 CSS pixels in iOS WebKit
+  through `apps/web/src/styles.scss`. This prevents focus from zooming the
+  page while preserving the browser's pinch-to-zoom gesture.
 
 Native navigation buttons inherit the app font family in `_nav-list.scss`,
 then apply the shared 14px/500 normal and 600 selected roles. Category
 consumers must not reset these with a later `font: inherit` shorthand. Different
 content rows retain their own typography and density.
+
+## Scales
+
+`libs/ui/styles/_scales.scss` owns the web app's type, spacing, radius,
+elevation and z-index scales. `custom-properties` emits them once on `html`
+from `apps/web/src/styles.scss`; components read the custom properties and
+never redeclare them. The TV app has its own scale (`apps/tv/src/tokens.css`)
+and shares nothing with this one.
+
+| Scale | Tokens | Values |
+| --- | --- | --- |
+| Type (rem) | `--app-text-2xs` … `--app-text-2xl` | 11, 12, 13, 14, 15, 18, 22px; 11px is the floor |
+| Display | `--app-text-display-sm/md/lg` | 28, 36, 48px |
+| Spacing | `--app-space-0-5` … `--app-space-12` | 4px base (`1` = 4px) plus 2, 6, 10px |
+| Radius | `--app-radius-2xs` … `--app-radius-4xl`, `--app-radius-full` | 2, 4, 6, 8, 10, 12, 14, 16, 20, 999px |
+| Elevation | `--app-elev-1` … `--app-elev-5` | media marks, card hover, menus, select/floating panels, sheets |
+| Z layers | `--app-z-floating/drawer/overlay/popover/drop-target/window-controls` | 900, 950, 1000, 1200, 9999, 10000 |
+
+- Type roles are mixins (`caption`, `label`, `body`, `title`,
+  `section-title`, `heading`, `display`, `mono`); they set size and weight,
+  and line height only when asked, so adopting one does not move a row.
+- `--app-z-overlay` equals the CDK overlay container (1000): an in-page
+  overlay ties with dialogs and menus and loses on DOM order. Only the hover
+  popover, the window drop target and the frameless window controls sit
+  above the CDK. Stacking inside a component keeps small local values.
+- Rings and inset hairlines are borders, not elevation. The theme-tuned
+  `--app-widget-shadow` and `--app-popover-shadow` stay with the palettes.
+- Material shapes read the scale: dialogs `--app-radius-3xl`, menus, selects,
+  form fields and toasts `--app-radius-lg`, menu items and options
+  `--app-radius-sm`; the select and kit menu panels use `--app-elev-4`.
+- Status hues: `--app-status-success`, `-warning`, `-danger`, `-info`,
+  `-live` and `-expiry`, text-grade (4.5:1) on the mode's surfaces and on a
+  10–16% tint of themselves. `status-light` and `status-dark` declare them;
+  the palettes include the pair for their mode, so every preset (High
+  Contrast included) inherits them, and an always-dark surface over video
+  (the playback diagnostic panel) declares the `status-dark` values itself.
+  `--app-danger-text` reads `--app-status-danger`. A status tint is
+  `color-mix(in srgb, var(--app-status-…) <n>%, transparent)`.
+- Text sizes read `--app-text-*`. A size between two steps takes the nearer
+  one, and a tie rounds up (12.5px is `sm`, 13.5px is `md`). Sizes with no
+  step (16px, 20px, `clamp()` heroes), `em` sizes and icon glyph sizes stay
+  literal; the ratchet counts them. Sass size parameters (the kit's size map,
+  `standard-panel-title`, the dashboard rail geometry) pass tokens too; a
+  line box computed from one is a `calc()`.
+- 11px is a hard floor: no literal `font-size`, nor the size in a `font`
+  shorthand, may be below it. Dense labels (badges, kbd hints, EPG ticks) use
+  `--app-text-2xs` and stay small through weight, case and colour.
+- `pnpm run styles:scales:validate` fails on text below the floor, and counts
+  the distinct literal font sizes, radii, z-index values and box-shadows
+  outside the token files, failing if any count grows;
+  `tools/nx/style-scales-baseline.json` only moves down
+  (`pnpm run styles:scales:update` after removing literals).
+- A separate app that renders `libs/ui` components declares the scales in its
+  own global stylesheet (`apps/remote-control-web/src/styles.scss`).
 
 ## Theme Guidance
 
@@ -1768,30 +2017,33 @@ The built-in catalog and theme-value normalization live in
 identifiers stable. Unknown saved values normalize to System; partial settings
 updates that omit the theme preserve the saved choice.
 
-The palette picker uses the existing keyboard-accessible radio directives. Six
+The palette picker uses the existing keyboard-accessible radio directives. Seven
 named miniature samples use the same app tokens as the real theme, arranged in
 three columns on wide settings containers and two on narrow ones. System is a
 separate row in the same group. While System is selected, a pair of rows below
 it chooses the preset for a light device (Light or Cream) and for a dark one
-(Dark, Mocha, Night Owl or Black OLED), stored as `systemLightTheme` and
-`systemDarkTheme`; `normalizeSystemTheme()` falls back to Light or Dark for a
-missing value or one of the other mode. Selection previews immediately, Save
-persists it, and Discard restores the saved choice and its System listener
-when needed. The pair is applied before the theme, since System resolves
-through it.
+(Dark, Mocha, Night Owl, Black OLED or High Contrast). These choices are stored
+as `systemLightTheme` and `systemDarkTheme`. `normalizeSystemTheme()` falls
+back to Light or Dark for a missing value or one of the other mode. Selection
+previews immediately, Save persists it, and Discard restores the saved choice
+and its System listener when needed. The pair is applied before the theme,
+since System resolves through it.
 
 App palette declarations live in `apps/web/src/_theme-palettes.scss`.
 `m3-theme.scss` includes them for body contexts, and the lazy settings theme
 picker includes them for decorative preview contexts.
 `_warm-theme.scss` supplies the Material color ramps for Cream/Mocha;
-`_dark-variant-themes.scss` supplies Night Owl/Black OLED. Night Owl uses navy
-surfaces and cool accents; Black OLED keeps the main background black and uses
-raised graphite surfaces for cards, inputs and overlays. Material
-component colors reference `--mat-sys-*` roles through one shared declaration
-block; each preset sets its system colors. The shared aliases are declared at
-each color boundary, since inheriting an alias from `html` would retain the
-light value. Samples emit only their seven displayed app roles from the same
-palette mixins, avoiding full duplicate theme payloads.
+`_dark-variant-themes.scss` supplies Night Owl, Black OLED and High Contrast.
+Night Owl uses navy surfaces and cool accents. Black OLED uses a black
+background and raised graphite surfaces for cards, inputs and overlays. High
+Contrast uses black surfaces, white text, a yellow selection, visible widget
+borders and separators, and a 3px focus ring. The `--app-focus-ring-width`
+token overrides the mixin's 2px default. High Contrast shares the Black OLED
+base and overrides its own app and Material roles. Material component colors
+reference `--mat-sys-*` roles through aliases on `html`, `body`, and dark theme
+contexts. The aliases resolve against the active preset and accent on `body`
+and the dark colors in nested panels. Samples emit only their seven displayed
+app roles from the same palette mixins.
 Dark variants emit their app overrides over the shared `.dark-theme` defaults
 on the same body element; their mixins skip repeating the full dark palette.
 Light and Cream likewise share the `.light-theme` defaults on the body; `html`
@@ -1812,14 +2064,12 @@ The accent is also text (badges, selected labels), so it keeps 4.5:1 against
 every surface and its plain selection tint; the selection-text role keeps
 4.5:1 on the strongest tint too. One on-accent colour, used for
 `--app-selection-on-color` and `--mat-sys-on-primary`, keeps 4.5:1 on the
-accent, on Material primary and across the empty-state CTA gradient toward
-the heading ink; the accent darkens or lightens further until one does. The
-roles are re-derived on every theme change,
-including System's OS switches. `data-theme-accent` is a component-token
-boundary in `m3-theme.scss`, because light presets otherwise resolve Material
-component colours on `html`. The swatches preview each accent in the colour it
-takes on the current theme; the "theme colour" swatch reads the preset's own
-colour from a `data-theme-preview` context. Discard and completing a playlist
+accent, on Material primary and on fills pulled 20–40% toward the heading
+ink; the accent darkens or lightens further until one does. The
+roles are re-derived on every theme change, including System's OS switches.
+The swatches preview each accent in the current theme. The "theme colour"
+swatch reads the preset's own colour from a `data-theme-preview` context.
+Discard and completing a playlist
 backup import restore the saved appearance. The accent's specs read the shipped
 palettes, so a new preset or palette change re-runs every accent's contrast check.
 
@@ -1909,6 +2159,10 @@ the source with Enter, and deletes and undoes a source keyboard-only.
 
 ### Sources page and playlist switcher
 
+The empty Sources page centers its welcome content when the cards fit. On
+shorter screens the welcome content grows, and the Sources pane owns scrolling
+from the heading to the last source action.
+
 One `app-source-row` serves both lists: `size="regular"` on the Sources page
 (56px, 36px tile, hover actions Refresh, Edit and ⋯; a failing row keeps
 Retry in view; touch screens always show the actions) and `size="compact"`
@@ -1930,8 +2184,11 @@ in `@iptvnator/playlist/shared/util` (`source-display`, `source-format`,
 - **Delete with Undo.** A single delete has no confirmation: the row leaves
   every list at once (`SourceRemovalService.pendingIds`) and the delete runs
   when the four-second Undo window ends. The window is the service's own
-  timer, not the toast's: another message replacing the toast (a refresh
-  finishing elsewhere) does not shorten it. The toast's close button commits
+  timer, not the toast's: it starts once the Undo toast is on screen, and
+  another message replacing the toast (a refresh finishing elsewhere) does
+  not shorten it. If the toast cannot open (its chunk failed to load), the
+  source stays, and a second delete commits the first only once its Undo
+  was on screen (otherwise the first is cancelled). The toast's close button commits
   at once, and quitting within the four seconds keeps the source. Deleting the active source
   switches to the next row; Undo switches back only if no other source was
   chosen since. A desktop Xtream delete brings its row back as "Removing…"

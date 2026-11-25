@@ -6,6 +6,7 @@
 // depth. No alias is needed because this partial exports no callable members.
 //   @use '../../../../../../ui/styles/portal-sidebar';
 
+@use 'app-controls' as controls;
 @use 'focus-ring';
 
 .sidebar {
@@ -20,18 +21,21 @@
     flex-shrink: 0; // Prevent sidebar from shrinking
 
     .sidebar-header {
-        padding: 8px 12px;
+        padding: var(--app-space-2) var(--app-space-3);
         background: var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
         border-bottom: 1px solid var(--app-separator);
         app-region: drag;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--app-space-2);
         flex-shrink: 0;
+        // The 40px the Material icon buttons used to give the content box,
+        // so the list below does not move with the kit's 28px buttons.
+        min-height: 40px;
 
         h2 {
             margin: 0;
-            font-size: 0.94rem;
+            font-size: var(--app-text-lg);
             font-weight: 600;
             letter-spacing: -0.01em;
             color: var(--mat-sys-on-surface);
@@ -42,6 +46,13 @@
             app-region: no-drag;
         }
 
+        // The header's icon actions (sort, hide the panels, show the playing
+        // channel) are the kit's 28px square ghost buttons, the size of the
+        // categories header's actions beside them.
+        .mat-mdc-icon-button {
+            @include controls.ghost-icon-button(28px, 18px);
+        }
+
         .manage-categories-btn {
             margin-left: auto;
         }
@@ -49,14 +60,14 @@
         .category-heading {
             display: flex;
             align-items: baseline;
-            gap: 8px;
+            gap: var(--app-space-2);
             flex: 1;
             min-width: 0;
         }
 
         .category-title {
             margin: 0;
-            font-size: 0.94rem;
+            font-size: var(--app-text-lg);
             font-weight: 600;
             letter-spacing: -0.01em;
             color: var(--mat-sys-on-surface);
@@ -67,12 +78,12 @@
 
         .category-count {
             flex-shrink: 0;
-            font-size: 0.72rem;
+            font-size: var(--app-text-xs);
             font-weight: 500;
             color: var(--mat-sys-on-surface-variant);
             background: var(--mat-sys-surface-container);
-            padding: 2px 8px;
-            border-radius: 999px;
+            padding: var(--app-space-0-5) var(--app-space-2);
+            border-radius: var(--app-radius-full);
         }
 
         // Shown while the shell's categories rail is folded: the way back to
@@ -88,14 +99,14 @@
         .category-dropdown {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: var(--app-space-2);
             flex: 1;
             min-width: 0;
             height: 32px;
-            padding: 0 4px 0 8px;
+            padding: 0 var(--app-space-1) 0 var(--app-space-2);
             margin-left: -8px;
             border: 1px solid transparent;
-            border-radius: 8px;
+            border-radius: var(--app-radius-md);
             background: transparent;
             color: inherit;
             font: inherit;

@@ -201,10 +201,14 @@ for (const engine of [
                             app.mainWindow.locator('app-epg-timeline');
                         await expectThemeSurface(timeline, theme);
                         await expectTextContrast(
-                            timeline.locator('.epg-empty__title')
+                            timeline.locator(
+                                'app-epg-timeline-empty-state .app-state-view__title'
+                            )
                         );
                         await expectTextContrast(
-                            timeline.locator('.epg-empty__sub')
+                            timeline.locator(
+                                'app-epg-timeline-empty-state .app-state-view__description'
+                            )
                         );
                     }
                     if (engine === 'native') {
@@ -222,7 +226,7 @@ for (const engine of [
                         );
                         const liveColor = await record.evaluate((element) =>
                             getComputedStyle(element)
-                                .getPropertyValue('--app-live-color')
+                                .getPropertyValue('--app-status-live')
                                 .trim()
                         );
                         await expect(record.locator('mat-icon')).toHaveCSS(

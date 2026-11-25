@@ -1,5 +1,6 @@
 import { isStalkerBackupPosition } from './playlist-backup-playback-position';
 import {
+    isHiddenStalkerCategories,
     isM3uRecentlyViewedItem,
     PlaylistBackupSettings,
 } from '@iptvnator/shared/interfaces';
@@ -101,6 +102,8 @@ export function hasValidBackupEntryData(entry: unknown): boolean {
                 isText(metadata['macAddress']) &&
                 isRecordList(state['favorites']) &&
                 isRecordList(state['recentlyViewed']) &&
+                (state['hiddenCategories'] === undefined ||
+                    isHiddenStalkerCategories(state['hiddenCategories'])) &&
                 (state['playbackPositions'] === undefined ||
                     (Array.isArray(state['playbackPositions']) &&
                         state['playbackPositions'].every(

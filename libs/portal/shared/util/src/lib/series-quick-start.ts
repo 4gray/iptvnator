@@ -6,6 +6,7 @@ import { isPortalPlaybackInProgress } from './portal-playback-positions';
 import {
     getSeriesNextUp,
     type SeriesEpisodeEntry,
+    type SeriesNextUp,
     type SeriesProgressRequest,
 } from './series-next-up';
 
@@ -39,7 +40,12 @@ export interface SeriesQuickStartAction {
 export function getSeriesQuickStartAction(
     request: SeriesProgressRequest
 ): SeriesQuickStartAction | null {
-    const nextUp = getSeriesNextUp(request);
+    return toSeriesQuickStartAction(getSeriesNextUp(request));
+}
+
+export function toSeriesQuickStartAction(
+    nextUp: SeriesNextUp | null
+): SeriesQuickStartAction | null {
     if (!nextUp) {
         return null;
     }

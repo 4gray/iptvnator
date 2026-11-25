@@ -3,6 +3,7 @@ import {
     fillTvField,
     chooseTv,
     addSource,
+    backFromPlayback,
     nav,
     start,
     stalker,
@@ -197,6 +198,6 @@ test('Stalker lazy Ministra paginates seasons/files and plays a scoped episode',
                 .evaluate((v) => (v as HTMLVideoElement).currentTime)
         )
         .toBeGreaterThan(0);
-    await page.keyboard.press('Escape');
+    await backFromPlayback(page);
     await expect(page.locator('.episode').nth(1)).toBeFocused();
 });

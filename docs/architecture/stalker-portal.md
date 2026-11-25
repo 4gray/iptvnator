@@ -202,8 +202,23 @@ is absent, a 5xx can be one broken handler beside a healthy sibling — and
 401/403 specifically classify as auth-required (the handshake is attempted,
 for middlewares that answer HTTP auth codes instead of the stock 200 +
 plain-text body). Status-less TIMEOUTS also continue (a single handler can
-hang); only connection-level failures (refused, unresolvable host) abort
-discovery, since every candidate shares the host.
+hang). A connection-level failure (refused, unresolvable host) aborts discovery
+if it has yet to learn any new candidates from a redirect.
+
+Some hosts redirect every API path to the site root, and the root redirects to
+the HTML portal page (`…/stalker_portal/c/`), sometimes on another host. Both
+transports (Electron main and the PWA `/stalker` proxy) answer an HTML body
+whose final address after redirects is such a page (`…/c`, `…/c/`,
+`…/c/index.html`) with a `StalkerPortalPageMarker` carrying that address
+(`libs/shared/interfaces/src/lib/stalker-portal-page.util.ts`; no query or
+credentials). Discovery still classifies it as not-a-portal, but the first such
+page appends `buildStalkerPortalPageCandidates()` to the queue: the page's
+sibling `server/load.php` first, then the usual candidates for that `…/c`
+address. The entered address keeps priority. After discovery adds candidates,
+it tries them even if an earlier probe fails to connect, and a second landing
+page cannot extend discovery. An HTTPS source only learns HTTPS candidates.
+When a source has a login or password, discovery only learns candidates on
+the entered hostname.
 
 For a new source, the Add dialog owns the discovery result. Cancel, dismissal,
 navigation or destroying its import form aborts further discovery/authentication
@@ -436,7 +451,8 @@ Important store responsibilities:
 - ITV channel list + pagination (full-list session cache when the portal
   supports it, legacy 14-per-page lazy loading otherwise)
 - Radio category/station list + pagination
-- Regular series seasons resource
+- Regular series seasons load all portal pages before populating the picker.
+  If any page fails, the detail view renders the existing empty state.
 - VOD-series (`is_series=1`) seasons + episodes resources
 - Playback link creation (`create_link` flow)
 - Favorites and recently viewed persistence helpers
@@ -456,6 +472,9 @@ Internal structure to preserve:
   which now always return arrays, and pair them with
   `isCategoryResourceFailed()` / `isPaginatedContentFailed()` for explicit
   error handling.
+
+The [category visibility contract](./category-management.md#stalker-category-visibility)
+explains how persisted genre IDs apply to navigation, All and search.
 
 Category arrays belong to `categoryPlaylistKey`, not just the content type.
 Every category reader checks that owner; a portal switch clears all four
@@ -527,7 +546,8 @@ Every inline Stalker player saves through the shared
 catalog detail, `StalkerVodPlaybackController` (search, Favorites, Recent and
 dashboard collections) and the series view. Its one-shot resume latch skips
 the ~0 s updates an engine reports before reaching `startTime`, which would
-otherwise overwrite the position being resumed from.
+otherwise overwrite the position being resumed from. Closing the player or
+starting another title persists the position the writer's throttle still held.
 
 `StalkerCatalogFacadeService` derives the visible list from retained raw pages;
 provider totals, deduplication and exhaustion remain store-owned. Counts say how
@@ -1269,7 +1289,9 @@ a CDN-hosted one keeps the permanent URL that survives retry.
 A temporary link lives about 5 seconds (`tv_tmp_link_ttl` /
 `vclub_tmp_link_ttl`, both default 5). It is time-limited but not single-use,
 so the rule is to resolve immediately before playback and never persist,
-cache or replay the result. What each persisting path actually stores:
+cache or replay the result. The Android handoff uses the resolver's explicit
+fresh-link flag, including when `create_link` returns the same text as the
+catalog command. What each persisting path actually stores:
 
 | Path                                                                  | Stores                                                                             | Verdict                                                                                                                         |
 | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -1660,8 +1682,9 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
   determine completion. Legacy array replies without paging metadata stay
   single-response lists. Empty early pages, malformed replies, repeated pages
   and the 1000-page safety bound fail the load rather than publish a partial
-  list. Navigation retires the collection before another page or state write;
-  an HTTP request already in flight may still finish. Other seasons stay lazy.
+  list. Changing the selected series or closing its view retires episode
+  loading before another page or state write. An HTTP request already in flight
+  may still finish.
 - The season resource depends on the VOD item id and series mode, so a TMDB
   metadata patch does not reload seasons or discard loaded episodes. Pending
   episode requests belong to the exact loading season VM; replies from an old
@@ -1673,14 +1696,17 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
   Multi-season items keep provider numbering. Lazy VOD retains the original
   season key/number separately for stable tracking IDs and compatible legacy
   progress; provider request ids remain unchanged.
-- The series quick-start CTA can load the first unloaded VOD-series season
-  before playback. Unloaded seasons are considered unplayed in full season
-  order, so an earlier unloaded season is not skipped just because a later
-  season was loaded manually. If all currently loaded episodes are watched and
-  more season metadata exists, quick start loads the next unloaded season
-  instead of showing the completed state. After a lazy load, quick start is
-  recomputed from the mapped episodes before playback so provider episode
-  ordering cannot start the wrong episode.
+- When a lazy VOD series opens with saved positions, pending regular seasons
+  load one at a time to fill episode and watched counts and reconcile progress.
+  Failed requests are skipped for the current season list and can be retried by
+  selecting the season. A reused view continues with the current series after
+  an older request settles. Without saved positions, seasons load on demand.
+- Quick start preserves the shared resume and recent-launch actions. Otherwise
+  it follows the first unwatched episode after the most recently watched one,
+  loading a pending season in that range before falling back to skipped
+  episodes. After loading, it recomputes the action against the actual episode
+  order. The season picker follows watched progress as episode lists arrive and
+  preserves a manual choice or watched toggle within the current series.
 - Extras (season 0) follow the shared next-episode rule (`getSeriesNextUp`):
   while the series has other seasons they never become the quick-start target,
   and the lazy load before playback picks the first regular season the portal

@@ -69,12 +69,15 @@ describe('XtreamFullEpgService', () => {
             credentials,
             101,
             'synthetic.original',
-            options
+            { ...options, archiveDays: 7 }
         );
         expect(getEpgMapping).toHaveBeenCalledWith(
             'xtream:synthetic-portal:101'
         );
-        expect(getProgramsForChannel).toHaveBeenCalledWith('synthetic.mapped');
+        expect(getProgramsForChannel).toHaveBeenCalledWith(
+            'synthetic.mapped',
+            7
+        );
         expect(getFullEpg).toHaveBeenCalledWith(
             expect.objectContaining({ userAgent: credentials.userAgent }),
             101,

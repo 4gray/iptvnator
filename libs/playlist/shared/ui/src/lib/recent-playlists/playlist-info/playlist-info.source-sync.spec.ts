@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
@@ -22,6 +22,11 @@ import {
 } from '@iptvnator/services';
 import { Router } from '@angular/router';
 import { STALKER_PLAYLIST_CONNECTION_EDITOR } from './stalker-playlist-connection-editor.token';
+
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
 
 describe('shared source editor', () => {
     const opened = {
@@ -50,7 +55,7 @@ describe('shared source editor', () => {
         updatePlaylistMeta = jest.fn(() => persisted);
         dispatch = jest.fn();
         close = jest.fn();
-        open = jest.fn();
+        open = jest.fn().mockResolvedValue(null);
         runtime.supportsXtreamSqliteDataSource = false;
         refresh = jest.fn(async (_playlist, _types, beforeReplace) => {
             await beforeReplace?.();
@@ -118,7 +123,7 @@ describe('shared source editor', () => {
                         getTrustOptions: () => ({}),
                     },
                 },
-                { provide: MatSnackBar, useValue: { open } },
+                { provide: LazySnackBar, useValue: { open } },
                 {
                     provide: TranslateService,
                     useValue: { instant: (key: string) => key },
@@ -257,9 +262,11 @@ describe('shared source editor', () => {
                 'https://epg.test/retry.xml'
             );
             expect(component.epg.urls).toEqual([]);
-            expect(open).toHaveBeenCalledWith('SOURCE_SYNC.CONFLICT', 'CLOSE', {
-                duration: 3000,
-            });
+            expect(open).toHaveBeenCalledWith(
+                'SOURCE_SYNC.CONFLICT',
+                'CLOSE',
+                ERROR_TOAST
+            );
         } finally {
             log.mockRestore();
         }

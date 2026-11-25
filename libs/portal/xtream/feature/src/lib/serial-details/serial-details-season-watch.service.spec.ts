@@ -1,15 +1,24 @@
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { SerialDetailsSeasonWatchService } from './serial-details-season-watch.service';
 
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
+const SUCCESS_TOAST = expect.objectContaining({
+    politeness: 'polite',
+    panelClass: expect.arrayContaining(['app-notification--success']),
+});
+
 describe('SerialDetailsSeasonWatchService', () => {
     let service: SerialDetailsSeasonWatchService;
     const savePlaybackPositionsBatch = jest.fn();
     const clearPlaybackPositionsBatch = jest.fn();
-    const snackBarOpen = jest.fn();
+    const snackBarOpen = jest.fn().mockResolvedValue(null);
     const state = { updateMany: jest.fn(), removeMany: jest.fn() };
 
     const position = (contentXtreamId: number): PlaybackPositionData => ({
@@ -53,7 +62,7 @@ describe('SerialDetailsSeasonWatchService', () => {
                         clearPlaybackPositionsBatch,
                     },
                 },
-                { provide: MatSnackBar, useValue: { open: snackBarOpen } },
+                { provide: LazySnackBar, useValue: { open: snackBarOpen } },
                 {
                     provide: TranslateService,
                     useValue: {
@@ -84,7 +93,7 @@ describe('SerialDetailsSeasonWatchService', () => {
         expect(snackBarOpen).toHaveBeenCalledWith(
             'XTREAM.SEASON_MARKED_WATCHED:{"count":2}',
             undefined,
-            { duration: 5000 }
+            SUCCESS_TOAST
         );
     });
 
@@ -100,7 +109,7 @@ describe('SerialDetailsSeasonWatchService', () => {
         expect(snackBarOpen).toHaveBeenCalledWith(
             'XTREAM.SEASON_MARKED_WATCHED:{"count":2}',
             undefined,
-            { duration: 5000 }
+            SUCCESS_TOAST
         );
     });
 
@@ -110,7 +119,8 @@ describe('SerialDetailsSeasonWatchService', () => {
             'playlist-1',
             state,
             () => true,
-            'series'
+            'series',
+            7
         );
 
         expect(persisted).toBe(true);
@@ -119,13 +129,14 @@ describe('SerialDetailsSeasonWatchService', () => {
             [
                 { contentXtreamId: 101, contentType: 'episode' },
                 { contentXtreamId: 201, contentType: 'episode' },
-            ]
+            ],
+            { seriesXtreamId: 7 }
         );
         expect(state.removeMany).toHaveBeenCalledWith([101, 201]);
         expect(snackBarOpen).toHaveBeenCalledWith(
             'XTREAM.SERIES_MARKED_UNWATCHED',
             undefined,
-            { duration: 5000 }
+            SUCCESS_TOAST
         );
     });
 
@@ -141,7 +152,7 @@ describe('SerialDetailsSeasonWatchService', () => {
         expect(snackBarOpen).toHaveBeenCalledWith(
             'XTREAM.SEASON_MARKED_UNWATCHED',
             undefined,
-            { duration: 5000 }
+            SUCCESS_TOAST
         );
     });
 
@@ -163,8 +174,8 @@ describe('SerialDetailsSeasonWatchService', () => {
         expect(state.updateMany).not.toHaveBeenCalled();
         expect(snackBarOpen).toHaveBeenCalledWith(
             'XTREAM.SERIES_WATCH_UPDATE_FAILED',
-            undefined,
-            { duration: 5000 }
+            'CLOSE',
+            ERROR_TOAST
         );
         consoleError.mockRestore();
     });

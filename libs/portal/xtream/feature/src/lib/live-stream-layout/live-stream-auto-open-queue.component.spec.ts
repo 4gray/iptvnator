@@ -12,6 +12,7 @@ import {
 import { PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
 import {
     FavoritesService,
+    XTREAM_DATA_SOURCE,
     XtreamStore,
     XtreamUrlService,
 } from '@iptvnator/portal/xtream/data-access';
@@ -49,6 +50,7 @@ describe('Xtream live auto-open playback queue', () => {
     );
     let query: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
     let events: Subject<NavigationEnd>;
+    const getContentByXtreamId = jest.fn();
     const store = {
         getCategoriesBySelectedType: signal([
             { category_id: 1 },
@@ -58,6 +60,7 @@ describe('Xtream live auto-open playback queue', () => {
         epgItems: signal([]),
         currentEpgItem: signal(null),
         selectedTypeContentLoading: signal(false),
+        selectedTypeContentReady: signal(true),
         isLoadingEpg: signal(false),
         selectedCategoryId,
         selectedItem,
@@ -86,6 +89,7 @@ describe('Xtream live auto-open playback queue', () => {
         selectedItem.set(null);
         categorySearchTerm.set('');
         store.constructStreamUrl.mockClear();
+        getContentByXtreamId.mockReset().mockResolvedValue(null);
         store.setSelectedCategory.mockClear();
         store.currentPlaylist.set({ id: 'playlist-1' });
         store.liveStreams.set(catalog);
@@ -106,6 +110,10 @@ describe('Xtream live auto-open playback queue', () => {
                     useValue: { copy: jest.fn() },
                 },
                 { provide: XtreamStore, useValue: store },
+                {
+                    provide: XTREAM_DATA_SOURCE,
+                    useValue: { getContentByXtreamId },
+                },
                 {
                     provide: ActivatedRoute,
                     useValue: {
@@ -279,7 +287,60 @@ describe('Xtream live auto-open playback queue', () => {
         expect(store.constructStreamUrl).toHaveBeenCalledWith(theirs);
     });
 
-    it('gives up only once the requested playlist has loaded its catalog', () => {
+    it('plays an explicit search result even when every category is hidden', async () => {
+        store.liveStreams.set([]);
+        getContentByXtreamId.mockResolvedValueOnce(target);
+        window.history.replaceState(
+            {
+                openXtreamLiveItemId: target.xtream_id,
+                openXtreamLivePlaylistId: 'playlist-1',
+            },
+            ''
+        );
+        events.next(new NavigationEnd(1, '/live', '/live'));
+        fixture.detectChanges();
+        await Promise.resolve();
+        await fixture.whenStable();
+
+        expect(getContentByXtreamId).toHaveBeenCalledWith(
+            target.xtream_id,
+            'playlist-1',
+            'live',
+            undefined,
+            undefined,
+            true
+        );
+        expect(store.constructStreamUrl).toHaveBeenCalledWith(target);
+        expect(window.history.state).toEqual({});
+    });
+
+    it('drops a hidden-channel lookup when the playlist changes', async () => {
+        let finish!: (value: XtreamLiveChannelItem) => void;
+        getContentByXtreamId.mockReturnValueOnce(
+            new Promise<XtreamLiveChannelItem>((resolve) => {
+                finish = resolve;
+            })
+        );
+        store.liveStreams.set([]);
+        window.history.replaceState(
+            {
+                openXtreamLiveItemId: target.xtream_id,
+                openXtreamLivePlaylistId: 'playlist-1',
+            },
+            ''
+        );
+        events.next(new NavigationEnd(1, '/live', '/live'));
+        fixture.detectChanges();
+
+        store.currentPlaylist.set({ id: 'playlist-2' });
+        finish(target);
+        await Promise.resolve();
+        await fixture.whenStable();
+
+        expect(store.constructStreamUrl).not.toHaveBeenCalled();
+    });
+
+    it('gives up only once the requested playlist has loaded its catalog', async () => {
         window.history.replaceState(
             {
                 openXtreamLiveItemId: 555,
@@ -295,6 +356,8 @@ describe('Xtream live auto-open playback queue', () => {
 
         store.isContentInitialized.set(true);
         fixture.detectChanges();
+        await Promise.resolve();
+        await fixture.whenStable();
 
         expect(autoOpenState().pendingItemId()).toBeNull();
         expect(store.constructStreamUrl).not.toHaveBeenCalled();

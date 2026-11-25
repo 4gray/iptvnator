@@ -42,7 +42,7 @@ export default defineConfig({
         /* Collect trace when retrying the failed test */
         trace: 'on-first-retry',
         /* Screenshots on failure */
-        screenshot: 'on',
+        screenshot: 'only-on-failure',
         /* Video on failure */
         video: 'on-first-retry',
     },

@@ -416,11 +416,7 @@ describe('history provider projections', () => {
                     }),
                 }
             ) as UnifiedRecentDataService;
-            const [item] = await recent.getRecentItems(
-                'playlist',
-                'source',
-                'xtream'
-            );
+            const [item] = await recent.getRecentItems('playlist', 'source', 'xtream');
             expect(item).toMatchObject({
                 xtreamId: 42,
                 contentType: kind,

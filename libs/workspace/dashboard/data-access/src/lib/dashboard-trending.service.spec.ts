@@ -6,6 +6,7 @@ import {
 } from '@iptvnator/services';
 import type { TmdbTrendingEntry } from '@iptvnator/services';
 import { CatalogTitleMatch } from '@iptvnator/shared/interfaces';
+import { DashboardDataService } from './dashboard-data.service';
 import { DashboardTrendingService } from './dashboard-trending.service';
 
 describe('DashboardTrendingService', () => {
@@ -44,6 +45,8 @@ describe('DashboardTrendingService', () => {
     let getTrendingWeek: jest.Mock;
     let matchTitles: jest.Mock;
     let isEnabled: jest.Mock;
+    let language: string;
+    const playlists = signal<{ _id: string }[]>([{ _id: 'pl-1' }]);
 
     function createService(
         options: { matchingAvailable?: boolean } = {}
@@ -52,8 +55,13 @@ describe('DashboardTrendingService', () => {
             providers: [
                 {
                     provide: TmdbEnrichmentService,
-                    useValue: { isEnabled, getTrendingWeek },
+                    useValue: {
+                        isEnabled,
+                        getTrendingWeek,
+                        language: () => language,
+                    },
                 },
+                { provide: DashboardDataService, useValue: { playlists } },
                 {
                     provide: CatalogTitleMatchService,
                     useValue: {
@@ -71,6 +79,8 @@ describe('DashboardTrendingService', () => {
 
     beforeEach(() => {
         withheldCategories.set(new Set());
+        language = 'en';
+        playlists.set([{ _id: 'pl-1' }]);
         isEnabled = jest.fn().mockReturnValue(true);
         getTrendingWeek = jest.fn().mockResolvedValue([entry()]);
         matchTitles = jest.fn().mockResolvedValue([match()]);
@@ -119,6 +129,7 @@ describe('DashboardTrendingService', () => {
     });
 
     it('falls back to a copy in an unlocked portal when the chosen match is withheld', async () => {
+        playlists.set([{ _id: 'pl-1' }, { _id: 'pl-2' }]);
         matchTitles.mockResolvedValue([
             match(),
             match({ playlistId: 'pl-2', playlistName: 'Other', categoryId: 8 }),
@@ -163,13 +174,73 @@ describe('DashboardTrendingService', () => {
         expect(service.items()[0].match?.xtreamId).toBe(21);
     });
 
-    it('loads only once per session after a successful load', async () => {
+    it('loads only once for the same language and playlists', async () => {
         const service = createService();
 
         await service.load();
         await service.load();
 
         expect(getTrendingWeek).toHaveBeenCalledTimes(1);
+    });
+
+    it('loads again in a new TMDB language (localized titles)', async () => {
+        const service = createService();
+        await service.load();
+
+        language = 'de';
+        getTrendingWeek.mockResolvedValueOnce([
+            entry({ title: 'Synthetic Localized Title' }),
+        ]);
+        await service.load();
+
+        expect(getTrendingWeek).toHaveBeenCalledTimes(2);
+        expect(service.items()[0].title).toBe('Synthetic Localized Title');
+    });
+
+    it('matches again when a playlist is imported or deleted', async () => {
+        const service = createService();
+        await service.load();
+        expect(service.items()[0].match?.playlistId).toBe('pl-1');
+
+        playlists.set([]);
+        matchTitles.mockResolvedValueOnce([]);
+        await service.load();
+
+        expect(matchTitles).toHaveBeenCalledTimes(2);
+        expect(service.items()[0].match).toBeNull();
+    });
+
+    it('removes links to a deleted playlist even if TMDB is unreachable', async () => {
+        const service = createService();
+        await service.load();
+        expect(service.items()[0].match?.playlistId).toBe('pl-1');
+
+        playlists.set([]);
+        getTrendingWeek.mockResolvedValueOnce([]);
+        await service.load();
+        expect(service.items()).toHaveLength(1);
+        expect(service.items()[0].match).toBeNull();
+    });
+
+    it('loads the new language even if the in-flight request returns nothing', async () => {
+        let finish!: (entries: TmdbTrendingEntry[]) => void;
+        getTrendingWeek.mockReturnValueOnce(
+            new Promise<TmdbTrendingEntry[]>((resolve) => (finish = resolve))
+        );
+        getTrendingWeek.mockResolvedValueOnce([
+            entry({ title: 'Synthetic Local Title' }),
+        ]);
+        const service = createService();
+        const pending = service.load();
+
+        language = 'de';
+        await service.load();
+        expect(getTrendingWeek).toHaveBeenCalledTimes(1);
+
+        finish([]);
+        await pending;
+        expect(getTrendingWeek).toHaveBeenCalledTimes(2);
+        expect(service.items()[0].title).toBe('Synthetic Local Title');
     });
 
     it('retries on the next visit when the first load came back empty', async () => {

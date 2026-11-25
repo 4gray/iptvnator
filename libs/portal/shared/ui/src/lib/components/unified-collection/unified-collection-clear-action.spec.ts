@@ -67,6 +67,7 @@ describe('createClearCollectionAction', () => {
         expect(openConfirmDialog).toHaveBeenCalledTimes(1);
         expect(lastDialog()).toMatchObject({
             title: 'WORKSPACE.SHELL.CLEAR_RECENTLY_VIEWED_DIALOG_TITLE',
+            subtitle: 'DIALOGS.CLEAR_COLLECTION',
             message:
                 'WORKSPACE.SHELL.CLEAR_RECENTLY_VIEWED_DIALOG_MESSAGE_PLAYLIST',
             confirmLabel: 'CLEAR',

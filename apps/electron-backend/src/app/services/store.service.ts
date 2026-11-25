@@ -2,6 +2,8 @@ import { Conf } from 'electron-conf/main';
 import { getElectronConfigDirectory } from '@iptvnator/shared/database';
 import type {
     AppUpdateChannel,
+    HostedServerMode,
+    HostedServerStatus,
     StartupWindowMode,
 } from '@iptvnator/shared/interfaces';
 
@@ -75,9 +77,17 @@ export const EMBEDDED_MPV_AUTO_RECONNECT = 'EMBEDDED_MPV_AUTO_RECONNECT';
 export const HOSTED_SERVER_ENABLED = 'HOSTED_SERVER_ENABLED';
 
 export const HOSTED_SERVER_LAN_ADDRESS = 'HOSTED_SERVER_LAN_ADDRESS';
+export const HOSTED_SERVER_MODE = 'HOSTED_SERVER_MODE';
+export const HOSTED_SERVER_CONFIGURATIONS = 'HOSTED_SERVER_CONFIGURATIONS';
+export const HOSTED_SERVER_INSTANCE_ID = 'HOSTED_SERVER_INSTANCE_ID';
 
 export type StoreType = {
     [HOSTED_SERVER_LAN_ADDRESS]: string;
+    [HOSTED_SERVER_MODE]: HostedServerMode;
+    [HOSTED_SERVER_CONFIGURATIONS]: NonNullable<
+        HostedServerStatus['savedConfigurations']
+    >;
+    [HOSTED_SERVER_INSTANCE_ID]: string;
     [HOSTED_SERVER_ENABLED]: boolean;
     [WINDOW_BOUNDS]: Electron.Rectangle;
     [ZOOM_LEVEL]: number;

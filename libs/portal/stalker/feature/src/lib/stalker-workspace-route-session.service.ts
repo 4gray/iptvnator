@@ -1,6 +1,7 @@
 import {
     DestroyRef,
     ENVIRONMENT_INITIALIZER,
+    effect,
     inject,
     Injectable,
     Provider,
@@ -23,7 +24,10 @@ import {
 } from '@iptvnator/portal/stalker/data-access';
 import { PlaylistsService } from '@iptvnator/services';
 import { SourceSyncService } from '@iptvnator/services/source-sync';
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    PlaylistMeta,
+    toParentalLockStalkerCategoryType,
+} from '@iptvnator/shared/interfaces';
 import { SOURCE_CONNECTION_FIELDS } from '@iptvnator/shared/interfaces/source-definition';
 
 @Injectable()
@@ -63,6 +67,52 @@ export class StalkerWorkspaceRouteSession {
     readonly isReady = this.synced.asReadonly();
 
     constructor() {
+        effect(() => {
+            if (!this.isReady()) return;
+            const playlist = this.playlistContext.activePlaylist();
+            if (
+                !playlist ||
+                this.stalkerStore.currentPlaylist()?._id !== playlist._id
+            )
+                return;
+            const hidden = playlist.hiddenStalkerCategories;
+            this.stalkerStore.setCategoryVisibility(playlist._id, hidden);
+            const section = toParentalLockStalkerCategoryType(
+                this.currentSection()
+            );
+            if (!section || !hidden?.[section]?.length) return;
+            const selected = this.stalkerStore.selectedCategoryId();
+            if (
+                selected &&
+                selected !== '*' &&
+                hidden[section]?.includes(selected)
+            )
+                this.stalkerStore.setSelectedCategory('*');
+
+            // Keep an open detail and its player mounted. Once it closes,
+            // replace its now-hidden category URL with the section root.
+            if (
+                (section !== 'vod' && section !== 'series') ||
+                this.stalkerStore.selectedItem()
+            )
+                return;
+            let route = this.router.routerState.snapshot.root;
+            while (route.firstChild) route = route.firstChild;
+            const category = route.paramMap.get('categoryId');
+            if (
+                category &&
+                category !== '*' &&
+                hidden[section]?.includes(category)
+            ) {
+                void this.router.navigate(
+                    ['/workspace', 'stalker', playlist._id, section],
+                    {
+                        replaceUrl: true,
+                        queryParamsHandling: 'preserve',
+                    }
+                );
+            }
+        });
         this.sourceSync.changes
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe(() => {

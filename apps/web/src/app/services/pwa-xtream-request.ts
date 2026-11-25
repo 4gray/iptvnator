@@ -1,6 +1,6 @@
 import type { HttpClient } from '@angular/common/http';
 import type { TranslateService } from '@ngx-translate/core';
-import type { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
+import type { NotificationService } from '@iptvnator/services/notifications';
 import { firstValueFrom, fromEvent, takeUntil } from 'rxjs';
 import type { ProviderTargetClient } from './provider-target-client';
 import {
@@ -53,7 +53,7 @@ interface XtreamTransport {
     providerTargets: ProviderTargetClient;
     logger: ReturnType<typeof createLogger>;
     translate: Pick<TranslateService, 'instant'>;
-    snackBar: Pick<LazySnackBar, 'open'>;
+    notifications: Pick<NotificationService, 'error'>;
     errorStatus: (error: unknown) => number | undefined;
 }
 
@@ -202,13 +202,8 @@ export async function forwardPwaXtreamRequest(
             return result;
         }
         transport.logger.error('Xtream request error:', normalizedMessage);
-        void transport.snackBar.open(
-            transport.translate.instant('PORTALS.REQUEST_ERRORS.XTREAM', {
-                message: normalizedMessage,
-            }),
-            transport.translate.instant('CLOSE'),
-            { duration: 5000 }
-        );
+        // The provider's own text stays in the log above.
+        transport.notifications.error('PORTALS.REQUEST_ERRORS.XTREAM_FAILED');
         return result;
     }
 }

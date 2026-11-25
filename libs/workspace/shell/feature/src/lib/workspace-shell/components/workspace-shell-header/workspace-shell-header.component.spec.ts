@@ -1,3 +1,4 @@
+import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -9,18 +10,13 @@ import {
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { MatIconButton } from '@angular/material/button';
-import { MatIcon } from '@angular/material/icon';
-import { MatTooltip } from '@angular/material/tooltip';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
-import { TranslatePipe } from '@ngx-translate/core';
 import {
     WorkspaceBackPhoneSlot,
     WorkspaceBackTarget,
 } from '@iptvnator/portal/shared/util';
 import { WorkspaceShellHeaderComponent } from './workspace-shell-header.component';
-import { LayoutSlideDirective } from '../../layout-slide.directive';
 
 @Component({
     selector: 'app-playlist-switcher',
@@ -58,16 +54,8 @@ describe('WorkspaceShellHeaderComponent', () => {
             ],
         })
             .overrideComponent(WorkspaceShellHeaderComponent, {
-                set: {
-                    imports: [
-                        LayoutSlideDirective,
-                        MatIcon,
-                        MatIconButton,
-                        MatTooltip,
-                        MockPlaylistSwitcherComponent,
-                        TranslatePipe,
-                    ],
-                },
+                remove: { imports: [PlaylistSwitcherComponent] },
+                add: { imports: [MockPlaylistSwitcherComponent] },
             })
             .compileComponents();
 
@@ -95,6 +83,59 @@ describe('WorkspaceShellHeaderComponent', () => {
         input.dispatchEvent(new Event('input'));
 
         expect(emitted).toEqual(['matrix']);
+    });
+
+    describe('search Enter', () => {
+        const pressEnter = (init: KeyboardEventInit = {}) => {
+            const submitted: string[] = [];
+            component.searchSubmitted.subscribe((value) =>
+                submitted.push(value)
+            );
+            const input: HTMLInputElement = fixture.nativeElement.querySelector(
+                'input[type="search"]'
+            );
+            input.value = 'example query';
+            input.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key: 'Enter',
+                    bubbles: true,
+                    cancelable: true,
+                    ...init,
+                })
+            );
+            return submitted;
+        };
+
+        it('submits the typed search', () => {
+            expect(pressEnter()).toEqual(['example query']);
+        });
+
+        it.each([
+            ['isComposing', { isComposing: true }],
+            ['keyCode 229 after compositionend', { keyCode: 229 }],
+        ])(
+            'does not submit an Enter that commits an IME composition (%s)',
+            (_label, init) => {
+                // Safari: the commit key follows compositionend with 229.
+                if (!('isComposing' in init)) {
+                    fixture.nativeElement
+                        .querySelector('input')
+                        .dispatchEvent(
+                            new Event('compositionend', { bubbles: true })
+                        );
+                }
+                expect(pressEnter(init)).toEqual([]);
+                fixture.nativeElement
+                    .querySelector('input')
+                    .dispatchEvent(
+                        new KeyboardEvent('keyup', { bubbles: true })
+                    );
+            }
+        );
+
+        it('submits an Android Enter that reports keyCode 229 without a composition', () => {
+            expect(pressEnter({ keyCode: 229 })).toEqual(['example query']);
+        });
     });
 
     it('focuses and selects the search input on request', () => {
@@ -144,16 +185,11 @@ describe('WorkspaceShellHeaderComponent', () => {
         expect(requested).toHaveBeenCalledTimes(1);
     });
 
-    it('emits keyboard shortcuts requests from the help button', () => {
-        const requested = jest.fn();
-        component.shortcutsRequested.subscribe(requested);
-
-        const button: HTMLButtonElement = fixture.nativeElement.querySelector(
-            'button[aria-label="WORKSPACE.SHORTCUTS.OPEN_ARIA"]'
-        );
-        button.click();
-
-        expect(requested).toHaveBeenCalledTimes(1);
+    it('leaves keyboard shortcuts to the palette, Settings and the ? key', () => {
+        const icons = Array.from(
+            fixture.nativeElement.querySelectorAll('button mat-icon')
+        ).map((icon) => (icon as HTMLElement).textContent?.trim());
+        expect(icons).not.toContain('keyboard');
     });
 
     it('does not render the removed global favorites shortcut', () => {
@@ -262,6 +298,35 @@ describe('WorkspaceShellHeaderComponent', () => {
         fixture.detectChanges();
         expect(searchInput()).not.toBeNull();
         expect(searchInput().disabled).toBe(false);
+    });
+
+    it('never renders a disabled search field', () => {
+        const searchField = () =>
+            fixture.nativeElement.querySelector('.search-field');
+
+        fixture.componentRef.setInput('canUseSearch', false);
+        fixture.detectChanges();
+        expect(searchField()).toBeNull();
+        // The palette keeps a pointer way in without the field's trigger.
+        const requested = jest.fn();
+        component.commandPaletteRequested.subscribe(requested);
+        const trigger: HTMLButtonElement = fixture.nativeElement.querySelector(
+            '[data-test-id="header-command-palette"]'
+        );
+        trigger.click();
+        expect(requested).toHaveBeenCalledTimes(1);
+
+        fixture.componentRef.setInput('canUseSearch', true);
+        fixture.detectChanges();
+        expect(searchField()).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('input[type="search"]').disabled
+        ).toBe(false);
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="header-command-palette"]'
+            )
+        ).toBeNull();
     });
 
     it('renders scope and status chips when search metadata is provided', () => {
@@ -622,5 +687,314 @@ describe('WorkspaceShellHeaderComponent', () => {
 
         expect(badgeStyles).toContain('color: var(--mat-sys-on-primary);');
         expect(badgeStyles).toContain('background: var(--mat-sys-primary);');
+    });
+
+    describe('overflow menu', () => {
+        const overflowTrigger = (): HTMLButtonElement | null =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="header-overflow-menu"]'
+            );
+        const inlineAdd = (): HTMLButtonElement | null =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="header-add-source"]'
+            );
+        const inlineLock = (): HTMLButtonElement | null =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="header-parental-lock"]'
+            );
+        const setOverflowCount = (count: number) => {
+            (
+                component as unknown as {
+                    overflowCount: ReturnType<typeof signal<number>>;
+                }
+            ).overflowCount.set(count);
+            fixture.detectChanges();
+        };
+        const openMenu = () => {
+            overflowTrigger()?.click();
+            fixture.detectChanges();
+            return Array.from(
+                document.querySelectorAll<HTMLElement>(
+                    '.mat-mdc-menu-panel [mat-menu-item]'
+                )
+            );
+        };
+
+        beforeEach(() => {
+            fixture.componentRef.setInput('parentalLockState', 'unlocked');
+            fixture.componentRef.setInput('headerShortcut', {
+                id: 'live-guide',
+                icon: 'view_list',
+                tooltipKey: 'guide.tooltip',
+                ariaLabelKey: 'guide.aria',
+                active: () => true,
+                run: () => undefined,
+            });
+            fixture.detectChanges();
+        });
+
+        it('keeps everything inline while nothing overflows', () => {
+            setOverflowCount(0);
+
+            expect(overflowTrigger()).toBeNull();
+            expect(inlineAdd()).not.toBeNull();
+            expect(inlineLock()).not.toBeNull();
+        });
+
+        it('never opens a menu for a single action', () => {
+            setOverflowCount(1);
+
+            expect(overflowTrigger()).toBeNull();
+            expect(
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="live-guide"]'
+                )
+            ).not.toBeNull();
+            expect(inlineAdd()).not.toBeNull();
+        });
+
+        it('moves two or more actions into the menu in the hide order', () => {
+            setOverflowCount(2);
+
+            expect(overflowTrigger()).not.toBeNull();
+            expect(
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="live-guide"]'
+                )
+            ).toBeNull();
+            expect(inlineLock()).toBeNull();
+            expect(inlineAdd()).not.toBeNull();
+
+            const items = openMenu();
+            const labels = items.map((item) =>
+                item.querySelector('span')?.textContent?.trim()
+            );
+            expect(labels).toEqual(['guide.aria', 'PARENTAL_LOCK.HEADER_LOCK']);
+            // The guide is a toggle: its pressed state survives as checked.
+            expect(items[0].getAttribute('role')).toBe('menuitemcheckbox');
+            expect(items[0].getAttribute('aria-checked')).toBe('true');
+        });
+
+        it('runs an overflowed action from its menu row', () => {
+            const lockRequested = jest.fn();
+            component.parentalLockToggleRequested.subscribe(lockRequested);
+            setOverflowCount(3);
+
+            const lockItem = openMenu().find(
+                (item) =>
+                    item.dataset['testId'] === 'header-parental-lock-menu-item'
+            );
+            lockItem?.click();
+
+            expect(lockRequested).toHaveBeenCalledTimes(1);
+            expect(inlineAdd()).toBeNull();
+        });
+
+        it('keeps a disabled action disabled in the menu', () => {
+            fixture.componentRef.setInput('headerShortcut', {
+                id: 'live-guide',
+                icon: 'view_list',
+                tooltipKey: 'guide.tooltip',
+                ariaLabelKey: 'guide.aria',
+                disabled: () => true,
+                run: () => undefined,
+            });
+            setOverflowCount(2);
+
+            const [guideItem] = openMenu();
+            expect(guideItem.getAttribute('role')).toBe('menuitem');
+            expect((guideItem as HTMLButtonElement).disabled).toBe(true);
+        });
+
+        it('drops the divider once no contextual action is inline', () => {
+            const global = () =>
+                fixture.nativeElement.querySelector('.header-actions--global');
+
+            setOverflowCount(0);
+            expect(global().classList).toContain('header-actions--divided');
+
+            setOverflowCount(3);
+            expect(
+                fixture.nativeElement.querySelector(
+                    '.header-actions--contextual'
+                )
+            ).toBeNull();
+            expect(global().classList).not.toContain('header-actions--divided');
+        });
+
+        describe('measured from the laid-out header', () => {
+            const BUTTON = 40;
+            let headerWidth = 0;
+            const measure = () => {
+                (
+                    component as unknown as { measureOverflow(): void }
+                ).measureOverflow();
+                fixture.detectChanges();
+            };
+
+            beforeEach(() => {
+                // jsdom has no layout: the header row gets a width, every
+                // button 40px, the action cluster the sum of its buttons and
+                // every other region 100px.
+                jest.spyOn(
+                    HTMLElement.prototype,
+                    'clientWidth',
+                    'get'
+                ).mockImplementation(function (this: HTMLElement) {
+                    return this.classList.contains('workspace-header')
+                        ? headerWidth
+                        : 0;
+                });
+                jest.spyOn(
+                    HTMLElement.prototype,
+                    'offsetWidth',
+                    'get'
+                ).mockImplementation(function (this: HTMLElement) {
+                    if (this.tagName === 'BUTTON') {
+                        return BUTTON;
+                    }
+                    return this.classList.contains('header-actions-cluster')
+                        ? this.querySelectorAll('button').length * BUTTON
+                        : 100;
+                });
+                jest.spyOn(
+                    Element.prototype,
+                    'getClientRects'
+                ).mockImplementation(() => [{}] as unknown as DOMRectList);
+            });
+
+            afterEach(() => jest.restoreAllMocks());
+
+            it('keeps the last plan while the header is not laid out', () => {
+                setOverflowCount(2);
+                headerWidth = 0;
+
+                measure();
+
+                expect(overflowTrigger()).not.toBeNull();
+            });
+
+            it('moves actions into the menu when the row runs short', () => {
+                headerWidth = 2000;
+                measure();
+                expect(overflowTrigger()).toBeNull();
+
+                headerWidth = 360;
+                measure();
+                expect(overflowTrigger()).not.toBeNull();
+                expect(openMenu().length).toBeGreaterThanOrEqual(2);
+            });
+
+            it('hands focus to the menu trigger when the focused action moves', async () => {
+                headerWidth = 2000;
+                measure();
+                const actions: HTMLButtonElement[] = Array.from(
+                    fixture.nativeElement.querySelectorAll(
+                        '.header-actions--contextual button'
+                    )
+                );
+                expect(actions.length).toBeGreaterThan(0);
+                actions[0].focus();
+
+                headerWidth = 360;
+                measure();
+                await fixture.whenStable();
+
+                expect(document.activeElement).toBe(overflowTrigger());
+            });
+
+            it('hands focus to the last action when the menu trigger leaves', async () => {
+                headerWidth = 360;
+                measure();
+                overflowTrigger()?.focus();
+                expect(document.activeElement).toBe(overflowTrigger());
+
+                headerWidth = 2000;
+                measure();
+                await fixture.whenStable();
+
+                expect(overflowTrigger()).toBeNull();
+                const buttons: HTMLButtonElement[] = Array.from(
+                    fixture.nativeElement.querySelectorAll(
+                        '.header-actions-cluster button'
+                    )
+                );
+                expect(document.activeElement).toBe(
+                    buttons[buttons.length - 1]
+                );
+            });
+
+            it('leaves focus alone when it is outside the actions', async () => {
+                headerWidth = 2000;
+                measure();
+                const input: HTMLInputElement =
+                    fixture.nativeElement.querySelector('input[type="search"]');
+                input.focus();
+
+                headerWidth = 360;
+                measure();
+                await fixture.whenStable();
+
+                expect(document.activeElement).toBe(input);
+            });
+
+            it('settles on the same plan when measured again', () => {
+                headerWidth = 400;
+                measure();
+                const first = overflowTrigger() !== null;
+
+                measure();
+                measure();
+
+                expect(overflowTrigger() !== null).toBe(first);
+            });
+        });
+    });
+
+    it('stops observing header regions that leave the row', () => {
+        // Other observers (CDK, layout slide) share the stub: track each one
+        // and check the one that watches the header row.
+        const observers: Set<Element>[] = [];
+        const original = globalThis.ResizeObserver;
+        globalThis.ResizeObserver = class {
+            private readonly observed = new Set<Element>();
+            constructor() {
+                observers.push(this.observed);
+            }
+            observe(element: Element) {
+                this.observed.add(element);
+            }
+            unobserve(element: Element) {
+                this.observed.delete(element);
+            }
+            disconnect() {
+                this.observed.clear();
+            }
+        } as unknown as typeof ResizeObserver;
+        try {
+            const observedFixture = TestBed.createComponent(
+                WorkspaceShellHeaderComponent
+            );
+            observedFixture.componentRef.setInput('canUseSearch', true);
+            observedFixture.detectChanges();
+            const root: HTMLElement = observedFixture.nativeElement;
+            const header = root.querySelector('.workspace-header') as Element;
+            const switcher = root.querySelector(
+                '.playlist-switcher'
+            ) as Element;
+            const observed = observers.find((set) => set.has(header));
+            expect(observed?.has(switcher)).toBe(true);
+
+            // Settings drops the playlist switcher from the row.
+            observedFixture.componentRef.setInput('isSettingsRoute', true);
+            observedFixture.detectChanges();
+
+            expect(switcher.isConnected).toBe(false);
+            expect(observed?.has(switcher)).toBe(false);
+            expect(observed?.has(header)).toBe(true);
+            observedFixture.destroy();
+        } finally {
+            globalThis.ResizeObserver = original;
+        }
     });
 });

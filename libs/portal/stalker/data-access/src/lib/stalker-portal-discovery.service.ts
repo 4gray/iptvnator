@@ -1,7 +1,10 @@
 import type { StalkerRequestOptions } from './stalker-request-options';
 import { Injectable, inject } from '@angular/core';
 import { DataService, resetHostConnectivityGuard } from '@iptvnator/services';
-import { STALKER_REQUEST } from '@iptvnator/shared/interfaces';
+import {
+    STALKER_REQUEST,
+    readStalkerPortalPageUrl,
+} from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     StalkerPortalCredentials,
@@ -11,6 +14,7 @@ import {
 import { type StalkerPortalIdentity } from './stalker-identity.utils';
 import {
     buildStalkerEndpointCandidates,
+    buildStalkerPortalPageCandidates,
     classifyStalkerProbeResponse,
     getStalkerRequestErrorStatus,
     isStalkerAuthFailureResponse,
@@ -155,6 +159,7 @@ export class StalkerPortalDiscoveryService {
         } = {}
     ): Promise<StalkerPortalDiscoveryOutcome> {
         const candidates = buildStalkerEndpointCandidates(rawUrl);
+        const originalCandidateCount = candidates.length;
         let authRejection: StalkerPortalDiscoveryRejection | null = null;
 
         // Discovery runs on import, on an edited connection and on lazy
@@ -162,6 +167,7 @@ export class StalkerPortalDiscoveryService {
         // and must not inherit a refusal recorded for the previous address.
         await resetHostConnectivityGuard(this.dataService, rawUrl);
 
+        // Array iteration includes candidates appended from one landing page.
         for (const candidate of candidates) {
             if (options.signal?.aborted) return { status: 'unreachable' };
             let probeResponse: unknown;
@@ -209,9 +215,11 @@ export class StalkerPortalDiscoveryService {
                     );
                     continue;
                 }
-                // Connection-level failure (refused, unresolvable host):
-                // every candidate lives on the same host, so further probing
-                // cannot succeed either.
+                // The landing page proved a route exists. A failed candidate
+                // may have followed a different redirect to an offline host.
+                if (candidates.length > originalCandidateCount) {
+                    continue;
+                }
                 this.logger.warn(
                     'Stalker portal probe failed at network level; stopping discovery'
                 );
@@ -247,8 +255,30 @@ export class StalkerPortalDiscoveryService {
                     authRejection = authRejection ?? outcome;
                     continue;
                 }
-                case 'not-a-portal':
+                case 'not-a-portal': {
+                    if (candidates.length > originalCandidateCount) continue;
+                    const pageUrl = readStalkerPortalPageUrl(probeResponse);
+                    if (!pageUrl) continue;
+                    const derived = buildStalkerPortalPageCandidates(pageUrl);
+                    if (!derived.length) continue;
+                    const entered = new URL(candidate);
+                    const landing = new URL(derived[0]);
+                    // A new request would recreate credentials stripped by
+                    // the redirect transport on an unsafe transition.
+                    if (
+                        (entered.protocol === 'https:' &&
+                            landing.protocol === 'http:') ||
+                        (entered.hostname !== landing.hostname &&
+                            (options.credentials?.username ||
+                                options.credentials?.password))
+                    ) {
+                        continue;
+                    }
+                    candidates.push(
+                        ...derived.filter((url) => !candidates.includes(url))
+                    );
                     continue;
+                }
             }
         }
 

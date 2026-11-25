@@ -91,7 +91,7 @@ describe('SettingsStore dashboard rail settings', () => {
                 newValue: 'synthetic-change-notification',
             })
         );
-        await Promise.resolve();
+        await new Promise((resolve) => setTimeout(resolve, 0));
         expect(store.tmdb?.()).toEqual({
             enabled: true,
             apiKey: 'synthetic-new-key',
@@ -256,6 +256,115 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(store.getSettings().epgEnabled).toBe(true);
     });
 
+    it.each([false, true])(
+        'merges a form guide after a concurrent fallback write settles (backup succeeds: %s)',
+        async (backupSucceeds) => {
+            const original = 'https://example.test/saved.xml';
+            const imported = 'https://example.test/imported.xml';
+            const staged = 'https://example.test/staged.xml';
+            storedSettings = { epgUrl: [original] };
+            const store = injector.get(SettingsStore);
+            await store.loadSettings();
+            const backupWrite = new Subject<void>();
+            storage.set.mockReturnValueOnce(backupWrite);
+            const backup = store.updateSettings({
+                epgUrl: [original, imported],
+            });
+            const saving = store.updateSettings(
+                { epgUrl: [original, staged, imported] },
+                {
+                    mergeEpgUrls: (committed) => [
+                        original,
+                        staged,
+                        ...(committed?.includes(imported) ? [imported] : []),
+                    ],
+                }
+            );
+            if (backupSucceeds) {
+                backupWrite.next();
+                await backup;
+            } else {
+                backupWrite.error(new Error('Synthetic backup failure'));
+                await expect(backup).rejects.toThrow(
+                    'Synthetic backup failure'
+                );
+            }
+            await saving;
+            expect(store.epgUrl()).toEqual(
+                backupSucceeds
+                    ? [original, staged, imported]
+                    : [original, staged]
+            );
+        }
+    );
+
+    it.each([false, true])(
+        'preserves committed guides for an unrelated fallback save (backup succeeds: %s)',
+        async (backupSucceeds) => {
+            const original = 'https://example.test/saved.xml';
+            const imported = 'https://example.test/imported.xml';
+            storedSettings = { epgUrl: [original] };
+            const store = injector.get(SettingsStore);
+            await store.loadSettings();
+            const backupWrite = new Subject<void>();
+            storage.set.mockReturnValueOnce(backupWrite);
+            const backup = store.updateSettings({
+                epgUrl: [original, imported],
+            });
+            const saving = store.updateSettings({ showCaptions: true });
+            if (backupSucceeds) {
+                backupWrite.next();
+                await backup;
+            } else {
+                backupWrite.error(new Error('Synthetic backup failure'));
+                await expect(backup).rejects.toThrow(
+                    'Synthetic backup failure'
+                );
+            }
+            await saving;
+            const expected = backupSucceeds ? [original, imported] : [original];
+            expect(store.epgUrl()).toEqual(expected);
+            expect(storage.set).toHaveBeenLastCalledWith(
+                STORE_KEY.Settings,
+                expect.objectContaining({
+                    showCaptions: true,
+                    epgUrl: expected,
+                })
+            );
+        }
+    );
+
+    it.each([false, true])(
+        'keeps the latest committed EPG sources after an overlapping write fails (latest fails: %s)',
+        async (latestFails) => {
+            const initial = 'https://example.test/initial.xml';
+            const earlier = 'https://example.test/earlier.xml';
+            const latest = 'https://example.test/latest.xml';
+            storedSettings = { epgUrl: [initial] };
+            const store = injector.get(SettingsStore);
+            await store.loadSettings();
+            const firstWrite = new Subject<void>();
+            const secondWrite = new Subject<void>();
+            storage.set
+                .mockReturnValueOnce(firstWrite)
+                .mockReturnValueOnce(secondWrite);
+            const first = store.updateSettings({ epgUrl: [earlier] });
+            const second = store.updateSettings({ epgUrl: [latest] });
+            firstWrite.error(new Error('Earlier write failed'));
+            await expect(first).rejects.toThrow('Earlier write failed');
+            if (latestFails) {
+                secondWrite.error(new Error('Latest write failed'));
+                await expect(second).rejects.toThrow('Latest write failed');
+            } else {
+                secondWrite.next();
+                await second;
+            }
+            expect(store.getSettings().epgUrl).toEqual([
+                latestFails ? initial : latest,
+            ]);
+        }
+    );
+
     it('preserves an explicit age-rating country across saved settings reloads', async () => {
         storedSettings = { ageRatingCountry: 'DE' };
         const store = injector.get(SettingsStore);
@@ -297,6 +406,7 @@ describe('SettingsStore dashboard rail settings', () => {
         'MOCHA_THEME',
         'NIGHT_OWL_THEME',
         'BLACK_OLED_THEME',
+        'HIGH_CONTRAST_THEME',
     ])(
         'preserves saved theme %s through unrelated partial updates',
         async (theme) => {
@@ -344,15 +454,22 @@ describe('SettingsStore dashboard rail settings', () => {
         reconcile.mockClear();
         const write = new Subject<void>();
         storage.set.mockReturnValue(write);
-        const saving = store.updateSettings({ epgUrl: [] });
+        const onPersisted = jest.fn();
+        const saving = store.updateSettings({ epgUrl: [] }, {}, onPersisted);
+        expect(onPersisted).not.toHaveBeenCalled();
         expect(reconcile).not.toHaveBeenCalled();
         write.error(new Error('storage unavailable'));
         await expect(saving).rejects.toThrow('storage unavailable');
         expect(reconcile).not.toHaveBeenCalled();
         expect(store.epgUrl()).toEqual(['https://old.example/guide.xml']);
+        expect(onPersisted).not.toHaveBeenCalled();
         storage.set.mockReturnValue(of(undefined));
-        await store.updateSettings({ epgUrl: [] });
+        await store.updateSettings({ epgUrl: [] }, {}, onPersisted);
         expect(reconcile).toHaveBeenCalledWith([]);
+        expect(onPersisted).toHaveBeenCalledTimes(1);
+        expect(onPersisted.mock.invocationCallOrder[0]).toBeLessThan(
+            reconcile.mock.invocationCallOrder[0]
+        );
     });
 
     it('never reconciles empty defaults after settings storage fails to load', async () => {

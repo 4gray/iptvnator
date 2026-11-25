@@ -1,6 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { TranslateService } from '@ngx-translate/core';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { ParentalLockService } from '@iptvnator/services';
 import {
     toParentalLockStalkerCategoryType,
@@ -27,8 +26,7 @@ export interface CategoryLockTarget {
 @Injectable({ providedIn: 'root' })
 export class WorkspaceCategoryLockActionService {
     private readonly parentalLock = inject(ParentalLockService);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
 
     /** The menu exists only while the feature is on. */
     readonly enabled = this.parentalLock.enabled;
@@ -70,11 +68,7 @@ export class WorkspaceCategoryLockActionService {
         }
         const saved = await this.persist(target, locked);
         if (!saved) {
-            this.snackBar.open(
-                this.translate.instant('PARENTAL_LOCK.SAVE_FAILED'),
-                this.translate.instant('CLOSE'),
-                { duration: 5000 }
-            );
+            this.notifications.error('PARENTAL_LOCK.SAVE_FAILED');
         }
         return saved;
     }

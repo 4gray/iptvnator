@@ -54,7 +54,7 @@ import { SourceSyncService } from '@iptvnator/services/source-sync';
                     }}
                 </span>
                 <div class="server-status__actions">
-                    @if (sync.state() === 'locked') {
+                    @if (sync.state() === 'locked' && sync.errorKey() !== 'SOURCE_SYNC.BROWSER_PAIRING_REQUIRED') {
                         <a
                             mat-flat-button
                             class="server-status__primary"

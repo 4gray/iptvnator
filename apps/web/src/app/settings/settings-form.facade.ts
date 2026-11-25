@@ -21,6 +21,7 @@ import {
     Theme,
     ThemeAccent,
     ThemeMode,
+    type Settings,
 } from '@iptvnator/shared/interfaces';
 import { SettingsSnackbarService } from './settings-snackbar.service';
 import { SettingsStore } from '../services/settings-store.service';
@@ -41,8 +42,16 @@ import {
     createEpgUrlControl,
     createSettingsForm,
     createSettingsFromFormValue,
+    reconcileEpgFormArray,
     SettingsForm,
 } from './settings-form.utils';
+import { SettingsFormWrites } from './settings-form-writes';
+import {
+    pickChangedSettings,
+    readSettingsPath,
+    SettingsFormSubmission,
+    rebaseSettingsForm,
+} from './settings-form-rebase';
 
 type SettingsFormPatch = Parameters<SettingsForm['patchValue']>[0];
 
@@ -107,6 +116,13 @@ export class SettingsFormFacade {
 
     private savedSnapshot = this.form.getRawValue();
     private saveRevision = 0;
+    private saveNeedsConfirmation = false;
+    /**
+     * Paths an unfinished save wrote. A newer save writes them again, so an
+     * edit reverted to the saved value still overrides the older save.
+     */
+    private readonly unsettledSavePaths = new Set<string>();
+    private readonly writes = new SettingsFormWrites();
 
     constructor() {
         this.form.valueChanges
@@ -114,7 +130,7 @@ export class SettingsFormFacade {
             .subscribe(() => this.refreshChangedPaths());
         effect(() => {
             const key = this.settingsStore.savedTmdbApiKey();
-            if (key !== undefined) untracked(() => this.syncSavedTmdbKey(key));
+            untracked(() => this.syncSavedTmdbKey(key));
         });
     }
 
@@ -140,6 +156,11 @@ export class SettingsFormFacade {
      * Sets saved settings from the indexed db store
      */
     hydrateFromStore(): void {
+        // A full reload ends any half-failed save: its paths are not staged
+        // any more and must not be rewritten from the reloaded form.
+        this.saveNeedsConfirmation = false;
+        this.unsettledSavePaths.clear();
+        this.writes.clear();
         const currentSettings = this.settingsStore.getSettings();
         this.form.patchValue({
             ...currentSettings,
@@ -230,9 +251,7 @@ export class SettingsFormFacade {
     }
 
     selectEpgViewMode(epgViewMode: EpgViewMode): void {
-        if (this.form.value.epgViewMode === epgViewMode) {
-            return;
-        }
+        if (this.form.value.epgViewMode === epgViewMode) return;
 
         this.patchAndMarkDirty({ epgViewMode }, 'epgViewMode');
     }
@@ -267,42 +286,77 @@ export class SettingsFormFacade {
     }
 
     /**
-     * Persists the form to the settings store and mirrors the result to the
-     * desktop backend.
+     * Persists the staged edits to the settings store and mirrors the result
+     * to the desktop backend. Only the paths changed on the form are written:
+     * a setting another surface changed while the page was open (the command
+     * palette's player switch, a restored backup's EPG sources) keeps its
+     * newer value.
      * @param onSaved runs after persistence and the desktop backend update
      * succeed, so runtime failures keep the form available for retry.
      */
     async save(onSaved: () => void): Promise<void> {
         const saveRevision = ++this.saveRevision;
+        this.saveNeedsConfirmation = true;
         const submittedSnapshot = this.form.getRawValue();
-        const settings = createSettingsFromFormValue(
-            this.form,
-            this.settingsStore.getSettings()
+        // An unsettled save may have stored another key already; a key typed
+        // back to the saved one must then be written to override it.
+        for (const path of diffSettingsValues(
+            submittedSnapshot,
+            this.savedSnapshot
+        ))
+            this.unsettledSavePaths.add(path);
+        const submission = {
+            paths: [...this.unsettledSavePaths],
+            snapshot: submittedSnapshot,
+            baseline: this.savedSnapshot,
+        };
+        const stored = this.settingsStore.getSettings();
+        const settings = pickChangedSettings(
+            createSettingsFromFormValue(this.form, stored),
+            submission.paths,
+            stored
         );
         if (
+            !this.writes.hasUnsettledTmdbKey &&
             settings.tmdb?.apiKey ===
-            (this.savedSnapshot.tmdb.apiKey?.trim() ?? '')
-        )
+                (this.savedSnapshot.tmdb.apiKey?.trim() ?? '')
+        ) {
             delete settings.tmdb.apiKey;
+            this.unsettledSavePaths.delete('tmdb.apiKey');
+        }
+        const write = this.writes.prepare(
+            saveRevision,
+            submittedSnapshot.epgUrl,
+            settings,
+            submission.baseline.epgUrl,
+            stored.epgUrl,
+            this.epgUrl?.dirty ?? false
+        );
         let cleanupError: EpgSourceReconciliationError | undefined;
         try {
-            await this.settingsStore.updateSettings(settings, {
-                retryEpgCleanup: this.epgUrl?.dirty ?? false,
-            });
+            await this.settingsStore.updateSettings(settings, ...write);
         } catch (error) {
+            const cleanupFailed = error instanceof EpgSourceReconciliationError;
+            if (!cleanupFailed && this.writes.reject(saveRevision)) {
+                if (!this.writes.hasUnsettledTmdbKey)
+                    this.unsettledSavePaths.delete('tmdb.apiKey');
+                this.syncSavedTmdbKey(this.settingsStore.savedTmdbApiKey());
+            }
             if (saveRevision !== this.saveRevision) return;
-            if (!(error instanceof EpgSourceReconciliationError)) throw error;
+            if (!cleanupFailed) throw error;
             // This error follows a successful settings write. Mirror the
             // committed values, but retain the dirty form for cleanup retry.
             cleanupError = error;
         }
         if (saveRevision !== this.saveRevision) return;
         if (window.electron) {
+            // The backend mirrors the merged settings, never the bare patch.
+            const applied: Partial<Settings> = {
+                ...this.settingsStore.getSettings(),
+            };
+            delete applied.parentalLockEnabled;
             try {
-                await window.electron.updateSettings({
-                    ...settings,
-                    tmdb: this.settingsStore.getSettings().tmdb,
-                });
+                await window.electron.updateSettings(applied);
             } catch (error) {
                 if (saveRevision !== this.saveRevision) return;
                 throw new SettingsRuntimeUpdateError(error);
@@ -310,15 +364,29 @@ export class SettingsFormFacade {
             if (saveRevision !== this.saveRevision) return;
 
             if (this.runtime.supportsExternalPlayerPathSettings) {
-                window.electron.setMpvPlayerPath(settings.mpvPlayerPath);
-                window.electron.setVlcPlayerPath(settings.vlcPlayerPath);
+                window.electron.setMpvPlayerPath(applied.mpvPlayerPath ?? '');
+                window.electron.setVlcPlayerPath(applied.vlcPlayerPath ?? '');
             }
         }
         if (cleanupError) throw cleanupError;
-        this.takeSavedSnapshot(submittedSnapshot);
-        const savedTmdbKey = this.settingsStore.savedTmdbApiKey();
-        if (savedTmdbKey !== undefined) this.syncSavedTmdbKey(savedTmdbKey);
+        this.rebaseOnStore(submission);
+        this.saveNeedsConfirmation = false;
+        this.unsettledSavePaths.clear();
+        this.writes.clear();
         onSaved();
+        this.refreshRestartPending();
+    }
+
+    /**
+     * Takes in settings written outside the form while the page is open (a
+     * restored backup) without dropping staged edits; a form left with
+     * nothing to save turns pristine again.
+     */
+    syncWithStore(): void {
+        this.rebaseOnStore();
+        if (!this.changedPaths().length && !this.saveNeedsConfirmation) {
+            this.form.markAsPristine();
+        }
         this.refreshRestartPending();
     }
 
@@ -337,9 +405,24 @@ export class SettingsFormFacade {
         this.settingsSnackbar.tmdbKeySaved();
     }
 
-    private syncSavedTmdbKey(apiKey: string, replaceDraft = false): void {
+    private syncSavedTmdbKey(
+        apiKey: string | undefined,
+        replaceDraft = false
+    ): void {
+        if (
+            apiKey === undefined ||
+            (!replaceDraft && !this.writes.canAdoptTmdbKey(apiKey))
+        )
+            return;
         const control = this.form.controls.tmdb.controls.apiKey;
-        const hasDraft = control.value !== this.savedSnapshot.tmdb.apiKey;
+        const previous =
+            this.writes.persistedTmdbKey ?? this.savedSnapshot.tmdb.apiKey;
+        const hasDraft =
+            (control.value?.trim() ?? '') !== (previous?.trim() ?? '');
+        if (!replaceDraft) {
+            this.writes.persistedTmdbKey = undefined;
+            this.unsettledSavePaths.delete('tmdb.apiKey');
+        }
         this.savedSnapshot = {
             ...this.savedSnapshot,
             tmdb: { ...this.savedSnapshot.tmdb, apiKey },
@@ -391,7 +474,35 @@ export class SettingsFormFacade {
         }
     }
 
+    /** Adopts stored values while retaining any edits still in the form. */
+    private rebaseOnStore(submitted?: SettingsFormSubmission): void {
+        const current = this.form.getRawValue();
+        const epgUrl = this.settingsStore.getCommittedEpgUrls();
+        const { next, staged, addedEpgUrls } = rebaseSettingsForm(
+            current,
+            this.savedSnapshot,
+            { ...this.settingsStore.getSettings(), epgUrl },
+            this.unsettledSavePaths,
+            this.writes.knownUrls(this.savedSnapshot.epgUrl),
+            {
+                submitted,
+                pendingEpgUrls: this.writes.submittedEpgUrls,
+                persistedEpgSources: this.writes.persistedEpgSources,
+                confirmedTmdbKey: this.settingsStore.savedTmdbApiKey(),
+            }
+        );
+        for (const path of diffSettingsValues(next, current)) {
+            if (staged.has(path)) continue;
+            if (path === 'epgUrl')
+                next.epgUrl = reconcileEpgFormArray(this.epgUrl, next.epgUrl);
+            else this.form.get(path)?.setValue(readSettingsPath(next, path));
+        }
+        if (addedEpgUrls.length) this.setEpgUrls(addedEpgUrls);
+        this.takeSavedSnapshot(next);
+    }
+
     private takeSavedSnapshot(snapshot = this.form.getRawValue()): void {
+        this.writes.rebase(this.savedSnapshot.epgUrl, snapshot.epgUrl);
         this.savedSnapshot = snapshot;
         this.refreshChangedPaths();
     }

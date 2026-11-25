@@ -9,6 +9,7 @@ import { getHostedServerAccessCode } from './hosted-server-session';
 
 interface StoredConnection extends SourceServerConnection {
     encryptedToken?: string;
+    hosted?: boolean;
     disconnected?: true;
 }
 const filename = () => join(getIptvnatorDataRoot(), 'source-server.json');
@@ -90,7 +91,7 @@ export function sourceServerToken(config: StoredConnection): string {
 }
 
 export function saveSourceServerConfig(
-    config: SourceServerConnection,
+    config: SourceServerConnection & { hosted?: boolean },
     token: string
 ): boolean {
     // Linux basic_text does not provide OS-protected encryption.

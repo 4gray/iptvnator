@@ -12,7 +12,7 @@ import {
     viewChild,
 } from '@angular/core';
 import { Location } from '@angular/common';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { withEpisodeTitleFallback } from './stalker-series-episode-titles';
@@ -47,6 +47,7 @@ import {
     ExternalPlayerName,
     ExternalPlayerSession,
     PlaybackPositionData,
+    PlaybackPositionUpdate,
     PlayerContentInfo,
     ResolvedPortalPlayback,
     TmdbEnrichedCastMember,
@@ -85,6 +86,7 @@ import {
     StalkerVodSource,
 } from '@iptvnator/portal/stalker/data-access';
 import {
+    AutoplayStreakService,
     buildUpNextRailItems,
     getSeriesEpisodeMetadata,
     getSeriesPlaybackNavigation,
@@ -175,6 +177,7 @@ interface StalkerSeriesPlaybackRequestContext {
 export class StalkerSeriesViewComponent implements OnDestroy {
     readonly stalkerStore = inject(StalkerStore);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly autoplayStreak = inject(AutoplayStreakService);
     readonly heroPresenter = inject(StalkerSeriesHeroPresenter);
     readonly menu = inject(StalkerSeriesMenuService);
     private readonly episodeResolver = inject(StalkerEpisodeResolver);
@@ -189,7 +192,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private readonly playbackPositionBridge = inject(
         PlaybackPositionRuntimeBridgeService
     );
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
     private readonly translateService = inject(TranslateService);
     private readonly languageTick = injectTranslationTick();
     readonly backClicked = output<void>();
@@ -220,12 +223,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private unsubscribePositionUpdates: (() => void) | null = null;
     readonly openingEpisodeId = signal<number | null>(null);
     readonly activeEpisodeId = signal<number | null>(null);
-    /**
-     * `playlist:series` keys of starts still resolving their stream
-     * (`create_link` round trips): only the series on screen counts as
-     * starting. Provider series ids are playlist-scoped.
-     */
-    private readonly pendingStartSeriesIds = signal<readonly string[]>([]);
+    /** The latest start owns playback while superseded stream lookups settle. */
+    private readonly pendingStart = signal<{
+        seriesKey: string;
+        generation: number;
+    } | null>(null);
     /** Episode choices made while a forced MPV/VLC launch is mid-flight. */
     private readonly launchQueue = new StalkerSeriesLaunchQueue();
     /** `playlist:series` of the series on screen; provider ids collide across playlists. */
@@ -234,8 +236,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             `${this.stalkerStore.currentPlaylist()?._id ?? ''}:${this.displayItem()?.id ?? ''}`
     );
     /** A start of the series on screen that has not settled. */
-    readonly startPending = computed(() =>
-        this.pendingStartSeriesIds().includes(this.currentSeriesKey())
+    readonly startPending = computed(
+        () => this.pendingStart()?.seriesKey === this.currentSeriesKey()
     );
     readonly seasonWatchBatchRunning = this.watchToggle.seasonWatchBatchRunning;
 
@@ -519,6 +521,24 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
         effect(() => {
             this.positions.applyReconciledSeriesPositions();
+        });
+
+        effect(() => {
+            const ownerKey = this.seriesPlaybackOwnerKey();
+            const playlistId = this.stalkerStore.currentPlaylist()?._id ?? '';
+            const seriesId = this.toSeriesId(this.displayItem()?.id ?? 0);
+            const canHydrate =
+                this.seasonContainerRef() &&
+                this.isVodSeries() &&
+                this.positions.seriesPositionsLoadedKey() ===
+                    this.positions.seriesPositionsKey(playlistId, seriesId) &&
+                this.positions.rawSeriesPositions().length > 0;
+            this.vodSeriesSeasons();
+            untracked(() =>
+                this.vodSeasonLoader.hydrateForSavedProgress(
+                    canHydrate ? ownerKey : null
+                )
+            );
         });
 
         // Dashboard "Continue watching" handoff: once the persisted
@@ -824,6 +844,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         buildUpNextRailItems({
             episodesBySeason: this.mappedSeasons(),
             currentEpisodeId: this.inlineEpisodeState()?.episode.id,
+            pendingSeasons: this.vodSeasonLoadStates(),
             playbackPositions: this.episodePlaybackPositions(),
         })
     );
@@ -864,8 +885,14 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         const currentIndex = seasons.findIndex(
             (season) => getVodSeriesSeasonKey(season) === seasonKey
         );
-        const nextSeason =
-            currentIndex >= 0 ? seasons[currentIndex + 1] : undefined;
+        if (currentIndex < 0) return;
+        const nextSeason = seasons
+            .slice(currentIndex + 1)
+            .find(
+                (season) =>
+                    season.episodes.length ||
+                    this.isSeasonHydrationPending(season)
+            );
         if (!nextSeason || nextSeason.isLoading || nextSeason.episodes.length) {
             return;
         }
@@ -926,8 +953,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private readonly vodSeasonLoader = new StalkerVodSeasonEpisodeLoader({
         seasons: this.vodSeriesSeasons,
         ownerKey: () => this.seriesPlaybackOwnerKey(),
-        fetchEpisodes: (videoId, seasonId) =>
-            this.stalkerStore.fetchVodSeriesEpisodes(videoId, seasonId),
+        fetchEpisodes: (videoId, seasonId, isCurrent) =>
+            this.stalkerStore.fetchVodSeriesEpisodes(
+                videoId,
+                seasonId,
+                isCurrent
+            ),
         logError: (message, error) => this.logger.error(message, error),
     });
 
@@ -961,8 +992,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         episode: XtreamSerieEpisode,
         startTimeOverride?: number,
         forcePlayer?: ExternalPlayerName,
-        fromStart = false
+        fromStart = false,
+        autoplaySignal?: AbortSignal
     ) {
+        if (autoplaySignal?.aborted) return;
+        if (this.startPending()) this.autoplayStreak.cancelAutoplay();
         if (this.seasonWatchBatchRunning()) {
             // The batch rewrites the very rows a start resumes from: the
             // choice waits for it, like the Reset and watched rows do.
@@ -971,7 +1005,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                     episode,
                     startTimeOverride,
                     forcePlayer,
-                    fromStart
+                    fromStart,
+                    autoplaySignal
                 )
             );
             return;
@@ -985,12 +1020,19 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                     episode,
                     startTimeOverride,
                     forcePlayer,
-                    fromStart
+                    fromStart,
+                    autoplaySignal
                 )
             );
             return;
         }
-        this.startEpisode(episode, startTimeOverride, forcePlayer, fromStart);
+        this.startEpisode(
+            episode,
+            startTimeOverride,
+            forcePlayer,
+            fromStart,
+            autoplaySignal
+        );
     }
 
     onEpisodeRestartRequested(episode: XtreamSerieEpisode): void {
@@ -1001,8 +1043,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         episode: XtreamSerieEpisode,
         startTimeOverride?: number,
         forcePlayer?: ExternalPlayerName,
-        fromStart = false
+        fromStart = false,
+        autoplaySignal?: AbortSignal
     ): void {
+        if (autoplaySignal?.aborted) return;
         const item = this.displayItem();
         const episodeState = resolveSelectedStalkerEpisodeState({
             episodesBySeason: this.mappedSeasons(),
@@ -1029,7 +1073,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             item.info.movie_image,
             episodeState,
             startTime,
-            forcePlayer
+            forcePlayer,
+            autoplaySignal
         );
     }
 
@@ -1133,6 +1178,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     closeInlinePlayer(): void {
+        this.autoplayStreak.cancelAutoplay();
         this.seriesPlaybackRequestGeneration += 1;
         this.inlinePlayback.set(null);
         this.inlinePlaybackEpisodeIdentity.set(null);
@@ -1140,21 +1186,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         this.positionWriter.reset();
     }
 
-    handleInlineTimeUpdate(event: {
-        currentTime: number;
-        duration: number;
-    }): void {
+    handleInlineTimeUpdate(event: PlaybackPositionUpdate): void {
         this.positionWriter.handleTimeUpdate(event);
     }
 
     showCopyNotification(): void {
-        this.snackBar.open(
-            this.translateService.instant('PORTALS.STREAM_URL_COPIED'),
-            undefined,
-            {
-                duration: 2000,
-            }
-        );
+        this.notifications.success('PORTALS.STREAM_URL_COPIED');
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
@@ -1182,13 +1219,26 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         this.onEpisodeClicked(next);
     }
 
-    playUpNextEpisode(item: UpNextRailItem): void {
-        this.onEpisodeClicked(item.episode as XtreamSerieEpisode);
+    playUpNextEpisode(
+        item: UpNextRailItem & { autoplaySignal?: AbortSignal }
+    ): void {
+        this.onEpisodeClicked(
+            item.episode as XtreamSerieEpisode,
+            undefined,
+            undefined,
+            false,
+            item.autoplaySignal
+        );
     }
 
     handleInlinePlaybackEnded(): void {
         const navigation = this.inlineSeriesNavigation();
-        if (!navigation?.autoplayEnabled || !navigation.canNext) {
+        if (
+            this.startPending() ||
+            !navigation?.autoplayEnabled ||
+            !navigation.canNext ||
+            !this.autoplayStreak.beginAutoplay()
+        ) {
             return;
         }
         this.playNextEpisode();
@@ -1227,11 +1277,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             // silent; the user chose this launch and gets its failure.
             if (generation !== this.seriesPlaybackRequestGeneration) return;
             this.logger.error('External episode launch failed', error);
-            this.snackBar.open(
-                this.translateService.instant('PORTALS.PLAYBACK_ERROR'),
-                undefined,
-                { duration: 3000 }
-            );
+            this.notifications.error('PORTALS.PLAYBACK_ERROR');
             return;
         }
         // The viewer left the series, or started something else, while the
@@ -1272,9 +1318,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         thumbnail: string | undefined,
         episodeState: SeriesPlaybackEpisodeState<XtreamSerieEpisode>,
         startTime?: number,
-        forcePlayer?: ExternalPlayerName
+        forcePlayer?: ExternalPlayerName,
+        autoplaySignal?: AbortSignal
     ): Promise<void> {
+        if (autoplaySignal?.aborted) return;
         const generation = ++this.seriesPlaybackRequestGeneration;
+        this.pendingStart.set(null);
         const episodeNum = episodeState.episodeNumber;
         const episodeId = Number(episodeState.episode.id);
         const request: StalkerSeriesPlaybackRequestContext = {
@@ -1291,7 +1340,14 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         if (request.usesEmbeddedPlayer && !request.identity) return;
 
         const pendingSeriesId = this.currentSeriesKey();
-        this.pendingStartSeriesIds.update((ids) => [...ids, pendingSeriesId]);
+        this.pendingStart.set({ seriesKey: pendingSeriesId, generation });
+        const cancel = () => {
+            if (generation !== this.seriesPlaybackRequestGeneration) return;
+            this.seriesPlaybackRequestGeneration++;
+            this.pendingStart.set(null);
+            this.autoplayStreak.cancelAutoplay();
+        };
+        autoplaySignal?.addEventListener('abort', cancel, { once: true });
         try {
             const episode = episodeState.episode as StalkerMappedEpisode;
             if (episode.custom_sid === 'vod-series') {
@@ -1364,23 +1420,17 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             }
         } catch (error) {
             if (!this.isPlaybackRequestCurrent(request)) return;
+            this.autoplayStreak.cancelAutoplay();
             this.logger.error('Failed to start inline series playback', error);
-            const errorMessage =
+            this.notifications.error(
                 error instanceof Error && error.message === 'nothing_to_play'
-                    ? this.translateService.instant(
-                          'PORTALS.CONTENT_NOT_AVAILABLE'
-                      )
-                    : this.translateService.instant('PORTALS.PLAYBACK_ERROR');
-            this.snackBar.open(errorMessage, undefined, {
-                duration: 3000,
-            });
+                    ? 'PORTALS.CONTENT_NOT_AVAILABLE'
+                    : 'PORTALS.PLAYBACK_ERROR'
+            );
         } finally {
-            this.pendingStartSeriesIds.update((ids) => {
-                const index = ids.indexOf(pendingSeriesId);
-                return index < 0
-                    ? ids
-                    : [...ids.slice(0, index), ...ids.slice(index + 1)];
-            });
+            autoplaySignal?.removeEventListener('abort', cancel);
+            if (this.pendingStart()?.generation === generation)
+                this.pendingStart.set(null);
         }
     }
 
@@ -1407,6 +1457,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.vodSeasonLoader.destroy();
         this.unsubscribePositionUpdates?.();
         this.closeInlinePlayer();
     }

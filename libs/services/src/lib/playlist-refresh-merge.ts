@@ -1,4 +1,5 @@
 import {
+    dbConfig,
     PlaylistUpdateState,
     type Playlist,
 } from '@iptvnator/shared/interfaces';
@@ -8,6 +9,7 @@ import {
     playlistRefreshMatchesSource,
     retainPlaylistRefreshSource,
 } from '@iptvnator/shared/m3u-utils';
+import { mutateIndexedDbPlaylist } from './source-sync/indexeddb-playlist-mutation';
 import { inheritSourceRowSnapshot } from './source-sync/source-row-snapshot-context';
 
 /** Refresh owns parsed content; the current row owns connection and device activity. */
@@ -48,6 +50,8 @@ export function mergeRefreshedPlaylist(
         updateState: PlaylistUpdateState.UPDATED,
         ...(currentPlaylist
             ? {
+                  hiddenStalkerCategories:
+                      currentPlaylist.hiddenStalkerCategories,
                   favorites: currentPlaylist.favorites,
                   recentlyViewed: currentPlaylist.recentlyViewed,
                   position: currentPlaylist.position,
@@ -69,4 +73,15 @@ export function mergeRefreshedPlaylist(
           })
         : merged;
     return inheritSourceRowSnapshot(currentPlaylist, accepted);
+}
+
+/** A standalone refresh resolves only after the IndexedDB commit. */
+export function persistIndexedDbPlaylistRefresh(
+    playlistId: string,
+    updatedPlaylist: Playlist
+): Promise<Playlist> {
+    return mutateIndexedDbPlaylist(dbConfig.name, playlistId, (current) => {
+        if (!current) throw new Error('Playlist no longer exists');
+        return mergeRefreshedPlaylist(current, updatedPlaylist, playlistId);
+    });
 }

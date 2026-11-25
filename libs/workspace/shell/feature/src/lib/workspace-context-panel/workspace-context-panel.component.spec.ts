@@ -102,8 +102,14 @@ describe('WorkspaceContextPanelComponent', () => {
         setSelectedItem: jest.fn(),
         setSelectedCategory: jest.fn(),
         reloadCategories: jest.fn(),
+        reloadCachedContent: jest.fn(),
     };
     const stalkerStore = {
+        currentPlaylist: signal({
+            _id: 'stalker-1',
+            hiddenStalkerCategories: { itv: ['1'] },
+        }),
+        selectedContentType: signal('itv'),
         getAllCategoriesForSelectedType: jest.fn(() => [
             { category_id: '*', category_name: 'All' },
             { category_id: '1', category_name: 'News' },
@@ -120,8 +126,10 @@ describe('WorkspaceContextPanelComponent', () => {
         isCategoryResourceFailed: signal(false),
         itvFullListActive: signal(false),
         itvFullListLoading: signal(false),
+        manageItvCategoryCounts: signal(new Map<string, number>()),
         itvCategoryItemCounts: signal<Map<number, number>>(new Map()),
         setSelectedCategory: jest.fn(),
+        reloadCategories: jest.fn(),
         setPage: jest.fn(),
         clearSelectedItem: jest.fn(),
     };
@@ -156,6 +164,8 @@ describe('WorkspaceContextPanelComponent', () => {
         xtreamStore.setSelectedItem.mockClear();
         xtreamStore.setSelectedCategory.mockClear();
         xtreamStore.reloadCategories.mockClear();
+        xtreamStore.reloadCachedContent.mockClear();
+        stalkerStore.selectedContentType.set('itv');
         stalkerStore.getCategoryResource.set([]);
         stalkerStore.selectedCategoryId.set(null);
         stalkerStore.setSelectedCategory.mockClear();
@@ -1052,6 +1062,26 @@ describe('WorkspaceContextPanelComponent', () => {
             );
         });
 
+        it('offers Retry, which asks the portal for the categories again', () => {
+            stalkerStore.reloadCategories.mockClear();
+            stalkerStore.isCategoryResourceFailed.set(
+                new Error('Invalid categories response') as never
+            );
+            fixture.componentRef.setInput('context', {
+                provider: 'stalker',
+                playlistId: 'stalker-1',
+            });
+            fixture.componentRef.setInput('section', 'itv');
+            fixture.detectChanges();
+
+            const retry = fixture.nativeElement.querySelector(
+                'app-state-view[data-state-variant="error"] [data-state-action="retry"]'
+            ) as HTMLButtonElement | null;
+            expect(retry).not.toBeNull();
+            retry?.click();
+            expect(stalkerStore.reloadCategories).toHaveBeenCalledTimes(1);
+        });
+
         it('still relays any other refusal verbatim', () => {
             stalkerStore.isCategoryResourceFailed.set(
                 new StalkerPortalError('blocked', 'Account disabled') as never
@@ -1116,7 +1146,7 @@ describe('WorkspaceContextPanelComponent', () => {
         expect(dialog.open).not.toHaveBeenCalled();
     });
 
-    it('opens the Xtream category dialog capped at the viewport width', async () => {
+    it('opens a viewport-capped Xtream editor and reloads the browser catalog on Save', async () => {
         fixture.componentRef.setInput('context', {
             provider: 'xtreams',
             playlistId: 'xtream-1',
@@ -1135,9 +1165,11 @@ describe('WorkspaceContextPanelComponent', () => {
         component.loadXtreamCategoryDialog = jest.fn(
             async () => class DialogStub {}
         );
-        dialog.open.mockReturnValueOnce({ afterClosed: () => of(false) });
+        dialog.open.mockReturnValueOnce({ afterClosed: () => of(true) });
 
         await component.openManageCategories();
+        expect(xtreamStore.reloadCategories).toHaveBeenCalledTimes(1);
+        expect(xtreamStore.reloadCachedContent).toHaveBeenCalledTimes(1);
 
         // A 500px panel on a 375px phone would scroll sideways.
         expect(dialog.open).toHaveBeenCalledWith(
@@ -1149,12 +1181,16 @@ describe('WorkspaceContextPanelComponent', () => {
         );
     });
 
-    describe('Stalker lock dialog', () => {
+    describe('Stalker category editor', () => {
         function enableLock(): void {
             const parentalLock = TestBed.inject(ParentalLockService);
             Object.defineProperty(parentalLock, 'enabled', {
                 configurable: true,
                 value: signal(true),
+            });
+            Object.defineProperty(parentalLock, 'active', {
+                configurable: true,
+                value: signal(false),
             });
             jest.spyOn(parentalLock, 'requestUnlock').mockResolvedValue(true);
             jest.spyOn(parentalLock, 'ensureLocksReadable').mockResolvedValue(
@@ -1162,7 +1198,7 @@ describe('WorkspaceContextPanelComponent', () => {
             );
         }
 
-        it('opens with the categories snapshotted before the lazy import', async () => {
+        it('opens with all real categories after the PIN gate', async () => {
             enableLock();
             fixture.componentRef.setInput('context', {
                 provider: 'stalker',
@@ -1171,7 +1207,7 @@ describe('WorkspaceContextPanelComponent', () => {
             fixture.componentRef.setInput('section', 'itv');
             fixture.detectChanges();
             const component = fixture.componentInstance;
-            component.loadStalkerLockDialog = jest.fn(
+            component.loadStalkerCategoryDialog = jest.fn(
                 async () => class DialogStub {}
             );
 
@@ -1183,6 +1219,8 @@ describe('WorkspaceContextPanelComponent', () => {
                     data: {
                         playlistId: 'stalker-1',
                         contentType: 'itv',
+                        hiddenIds: ['1'],
+                        itemCounts: undefined,
                         categories: [
                             { category_id: '1', category_name: 'News' },
                         ],
@@ -1191,6 +1229,44 @@ describe('WorkspaceContextPanelComponent', () => {
                 })
             );
         });
+
+        it.each(['itv', 'radio', 'vod', 'series'])(
+            'opens %s with locks off and an empty visible rail',
+            async (section) => {
+                const lock = TestBed.inject(ParentalLockService);
+                jest.spyOn(lock, 'requestUnlock').mockResolvedValue(true);
+                const readLocks = jest.spyOn(lock, 'ensureLocksReadable');
+                fixture.componentRef.setInput('context', {
+                    provider: 'stalker',
+                    playlistId: 'stalker-1',
+                });
+                fixture.componentRef.setInput('section', section);
+                stalkerStore.selectedContentType.set(section);
+                fixture.detectChanges();
+                const component = fixture.componentInstance;
+                component.loadStalkerCategoryDialog = jest.fn(
+                    async () => class DialogStub {}
+                );
+                expect(
+                    fixture.nativeElement.querySelector(
+                        '[data-test-id="context-manage-categories"]'
+                    ).disabled
+                ).toBe(false);
+                await component.openManageStalkerCategories();
+                expect(readLocks).not.toHaveBeenCalled();
+                expect(dialog.open).toHaveBeenCalledWith(
+                    expect.any(Function),
+                    expect.objectContaining({
+                        data: expect.objectContaining({
+                            contentType: section,
+                            categories: [
+                                { category_id: '1', category_name: 'News' },
+                            ],
+                        }),
+                    })
+                );
+            }
+        );
 
         it('opens nothing when the route changed while the PIN was asked', async () => {
             enableLock();
@@ -1211,13 +1287,13 @@ describe('WorkspaceContextPanelComponent', () => {
                 }
             );
             const component = fixture.componentInstance;
-            component.loadStalkerLockDialog = jest.fn(
+            component.loadStalkerCategoryDialog = jest.fn(
                 async () => class DialogStub {}
             );
 
             await component.openManageStalkerCategories();
 
-            expect(component.loadStalkerLockDialog).not.toHaveBeenCalled();
+            expect(component.loadStalkerCategoryDialog).not.toHaveBeenCalled();
             expect(dialog.open).not.toHaveBeenCalled();
         });
 
@@ -1234,7 +1310,7 @@ describe('WorkspaceContextPanelComponent', () => {
             fixture.componentRef.setInput('section', 'itv');
             fixture.detectChanges();
             const component = fixture.componentInstance;
-            component.loadStalkerLockDialog = jest.fn(
+            component.loadStalkerCategoryDialog = jest.fn(
                 async () => class DialogStub {}
             );
 
@@ -1252,7 +1328,7 @@ describe('WorkspaceContextPanelComponent', () => {
             fixture.componentRef.setInput('section', 'itv');
             fixture.detectChanges();
             const component = fixture.componentInstance;
-            component.loadStalkerLockDialog = jest.fn(async () => {
+            component.loadStalkerCategoryDialog = jest.fn(async () => {
                 fixture.componentRef.setInput('context', {
                     provider: 'stalker',
                     playlistId: 'stalker-2',

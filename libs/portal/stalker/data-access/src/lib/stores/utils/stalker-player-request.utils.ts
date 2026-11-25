@@ -37,29 +37,37 @@ export interface StalkerPlayerRequestDeps {
 }
 
 export interface StalkerPlayableItemLike
-    extends StalkerPortalItem,
-        StalkerLinkFlagSource {
+    extends StalkerPortalItem, StalkerLinkFlagSource {
     cmd?: string;
     has_files?: unknown;
 }
 
+interface StalkerPlaybackLinkOptions {
+    playlist: PlaylistMeta;
+    selectedContentType: StalkerContentType;
+    cmd: string;
+    series?: number;
+    forcedContentType?: StalkerContentType;
+    /**
+     * The catalog row this `cmd` came from. Without it every playback
+     * mints a temporary link; with it, rows that set neither
+     * `use_http_tmp_link` nor `use_load_balancing` play their static
+     * `cmd` and never touch the portal.
+     */
+    linkFlags?: StalkerLinkFlagSource | null;
+}
+
 export async function fetchStalkerPlaybackLink(
     deps: StalkerPlayerRequestDeps,
-    options: {
-        playlist: PlaylistMeta;
-        selectedContentType: StalkerContentType;
-        cmd: string;
-        series?: number;
-        forcedContentType?: StalkerContentType;
-        /**
-         * The catalog row this `cmd` came from. Without it every playback
-         * mints a temporary link; with it, rows that set neither
-         * `use_http_tmp_link` nor `use_load_balancing` play their static
-         * `cmd` and never touch the portal.
-         */
-        linkFlags?: StalkerLinkFlagSource | null;
-    }
+    options: StalkerPlaybackLinkOptions
 ): Promise<string> {
+    return (await resolveStalkerPlaybackLink(deps, options)).streamUrl;
+}
+
+export async function resolveStalkerPlaybackLink(
+    deps: StalkerPlayerRequestDeps,
+    options: StalkerPlaybackLinkOptions
+): Promise<{ streamUrl: string; requiresFreshStreamUrl: boolean }> {
     // An episode is selected server-side by the `series` parameter, so a
     // series request has no static answer even when the parent row is
     // unflagged — the static `cmd` addresses the series, not the episode.
@@ -88,7 +96,7 @@ export async function fetchStalkerPlaybackLink(
                     staticUrl
                 )
             ) {
-                return staticUrl;
+                return { streamUrl: staticUrl, requiresFreshStreamUrl: false };
             }
 
             // Portal-owned: it may be gated on the Bearer token, and minting
@@ -98,7 +106,7 @@ export async function fetchStalkerPlaybackLink(
             // carries its own token and is the only path that can observe a
             // failure and trigger the lazy portal repair.
             if (await ensureStalkerSession(deps, options.playlist)) {
-                return staticUrl;
+                return { streamUrl: staticUrl, requiresFreshStreamUrl: false };
             }
         }
     }
@@ -141,7 +149,7 @@ export async function fetchStalkerPlaybackLink(
         throw new Error('nothing_to_play');
     }
 
-    return streamUrl;
+    return { streamUrl, requiresFreshStreamUrl: true };
 }
 
 export async function fetchStalkerMovieFileId(

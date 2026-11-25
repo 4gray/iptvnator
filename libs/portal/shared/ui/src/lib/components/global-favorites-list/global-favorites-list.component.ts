@@ -37,7 +37,7 @@ import {
     playlistDisplayLabel,
 } from '@iptvnator/shared/interfaces';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
-import { EpgMappingDialogComponent } from '@iptvnator/ui/components';
+import { APP_ICONS, EpgMappingDialogComponent } from '@iptvnator/ui/components';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
@@ -50,6 +50,7 @@ import {
     collectionEpgKey,
 } from '@iptvnator/portal/shared/util';
 import { TranslateModule } from '@ngx-translate/core';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 export interface EnrichedUnifiedFavorite extends UnifiedFavoriteChannel {
     currentEpgProgram: EpgProgram | null;
@@ -64,6 +65,7 @@ export type GlobalFavoritesListMode = 'favorites' | 'recent';
     styleUrl: './global-favorites-list.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        StateViewComponent,
         ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,
@@ -73,6 +75,7 @@ export type GlobalFavoritesListMode = 'favorites' | 'recent';
     ],
 })
 export class GlobalFavoritesListComponent {
+    protected readonly appIcons = APP_ICONS;
     private readonly dialog = inject(MatDialog);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     get supportsEpgMapping(): boolean {

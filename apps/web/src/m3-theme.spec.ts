@@ -78,7 +78,7 @@ describe('theme context extraction', () => {
         );
         for (const name of ['dark', 'mocha', 'night-owl', 'black-oled']) {
             expect(contexts[name]).not.toContain('--app-progress-color:');
-            expect(contexts[name]).not.toContain('--app-success-color:');
+            expect(contexts[name]).not.toContain('--app-status-success:');
         }
     });
 });
@@ -201,7 +201,10 @@ describe('theme preset text palettes', () => {
 
     it('keeps new dark preset text readable over the strongest composited selection tint', () => {
         for (const [name, context] of Object.entries(themeContexts()).filter(
-            ([name]) => name === 'night-owl' || name === 'black-oled'
+            ([name]) =>
+                name === 'night-owl' ||
+                name === 'black-oled' ||
+                name === 'high-contrast'
         )) {
             const selection = hexToken(context, '--app-selection-color');
             const text = hexToken(context, '--app-selection-text-color');
@@ -293,9 +296,7 @@ describe('m3-theme accent boundary', () => {
         const css = compiledThemes.get(THEME) ?? '';
         const accentRule = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].find(
             ([, selectors, body]) =>
-                selectors
-                    .split(',')
-                    .some((value) => value.trim() === 'html [data-theme-accent]') &&
+                selectors.split(',').some((value) => value.trim() === 'body') &&
                 body.includes('var(--mat-sys-primary)')
         );
         expect(accentRule).toBeDefined();

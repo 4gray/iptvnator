@@ -518,46 +518,74 @@ Trade-offs and constraints:
   `error` (renderer falls back); it can never take down the Electron main
   process, unlike in-process libmpv.
 
-## Two-view frame-copy prototype
+## Frame-copy multiview
 
-Electron frame-copy playback exposes an icon-only “Add second stream” action
-beside Settings in the bottom player controls, with a localized tooltip.
-It follows the controls’ visibility and disappears while the companion is active.
-Its lazy picker opens through the shared dialog shell and can extend below
-the video into the app window. The playlist selector sits inside the search
-bar above the scrolling results. The strip beneath the video lists the open
-streams in view order and shows which has sound. The picker opens on the current
-portal when available. Global favorites and recently viewed are also available
-in the selector. The portal and collection views have Live TV, Movies and Series
-filters. Live playlists offer groups and search. Channel rows reuse the
-sidebar's programme title, time range and progress. XMLTV previews are batched
-by guide scope, and Xtream and Stalker use the collection EPG resolver. The picker
-requests previews only near the visible list and honors the global EPG preference.
+The Multiview action in the frame-copy player controls opens a menu to add a
+stream, open the 2×2 grid or open Focus (3:1). In regular single-stream
+playback the stream bar is absent and the player occupies the full stage.
+Adding a second stream from single playback opens a floating window. Opening
+Grid or Focus with one stream shows three empty windows with an add action.
+Adding a third stream from Floating window or Side by side opens the grid.
+The stream bar is visible in windowed multiview and in fullscreen Grid and
+Focus. In fullscreen Floating window or Side by side, exit fullscreen to use
+the bar. The current layout and playback sessions stay active.
+
+The shared picker opens through the existing dialog shell and can extend
+below the video into the app window. The playlist selector sits inside the
+search bar above the scrolling results. The picker opens on the current
+portal when available, otherwise on Global Favorites. Recently Viewed is also
+available in the selector. Both collections span sources. The picker starts on
+Live TV, and each query is scoped to the selected source or collection and the
+active type: Live TV, Movies or Series. A live group narrows the channel search.
+Channel rows reuse the sidebar's programme title, time range and progress.
+XMLTV previews are batched by guide scope. Xtream and Stalker use the collection
+EPG resolver. The picker requests previews only near the visible list and honors
+the global EPG preference.
 It reads M3U, Xtream live and Stalker ITV catalogs independently of the active
 provider selection and uses the shared stream resolver, preserving playback
 metadata and parental locks. Xtream and Stalker also expose movies and a
-series-to-episode drill-down. The shared Xtream resolver loads its VOD details
-and recovery helpers when resolving a selected movie. The companion uses the
-portal player's playlist and content keys to resume progress and flushes its
-latest position when paused, replaced or closed. Episode positions retain the
-parent series and episode numbers. The companion starts muted and records items
-in Recently Viewed after playback advances. The provider must permit two
-connections. Closing the companion returns to the original mounted video.
-Route/content replacement still ends both views. Live pause uses MPV pause
-only and does not promise timeshift or an application buffer.
+series-to-episode drill-down. Movie and series rows show compact provider
+posters with an icon fallback for missing or failed artwork; favorites and
+history retain their source labels. Episode rows show provider thumbnails,
+number/title and an optional description, with a quiet fallback when artwork
+is missing or repeats the series cover. Saved unfinished progress and the
+read-only watched check use the same semantics as Detail View; watched rows
+do not show an unfinished progress bar. These previews add no metadata or
+TMDB requests and never change watch state. Descriptions yield to essential
+labels in narrow dialogs; search, source selection and Back stay reachable.
+The shared Xtream resolver loads its VOD details
+and recovery helpers when resolving a selected movie. Each added video's progress
+uses that video's playlist and content keys. It saves the latest accepted
+position when paused, ended, replaced or closed, including parental relock
+and player teardown. Episode positions retain the parent series and episode
+numbers. Additional videos start muted and record Recently Viewed once
+playback advances. Open channels, movies and episodes are marked with their
+window number and cannot be chosen again. The picker compares playlist and
+content IDs before resolving playback and checks again when accepting the
+selection. A series remains available so viewers can choose another episode.
+Catch-up playback leaves that channel's live feed available in the picker.
+Each open video requires its own provider connection. Live pause uses MPV pause.
 
-The primary and companion retain their components and session IDs during
-main/small exchange. CSS changes their geometry; bounds sync resizes each
-helper's render target without loading the media again. Keyboard focus has no
-playback or audio side effect. Only the main view exposes shared controls;
-the small view has exchange, pause/resume, change stream and close-and-return
-controls. Change stream reopens the same picker. Selection replaces only the
-companion session and starts it muted. If the views are swapped, the original
-video and its sound return to the main view before the replacement starts.
-The companion keeps its playlist and category identity for parental controls.
-A relock hides a withheld stream immediately and retires its session. The
-primary view resumes sound only after the companion acknowledges its mute,
-including when a relock interrupts an audio exchange.
+The primary stays in window 1. Companion windows have stable numbers 2–4
+that determine their positions in the grid. Closing a companion leaves its
+cell available for another stream. The global add button fills the lowest
+available number. Side by side and Floating window can be selected when
+there are exactly two open windows. Focus shows the selected player in a
+large viewport and the other three slots in number order down the narrow
+column. Clicking a viewport or using keys 1–4 in Grid or Focus selects that
+player for playback commands. The speaker action independently selects the
+sole audio session. Layout changes update CSS and native render bounds while
+preserving mounted players and their playback. Floating window makes the
+audio session the main video and restores the previous floating geometry.
+
+Replacing or retrying a stream operates on that window's session. When a
+companion with sound is replaced, the primary resumes sound before the
+replacement starts muted. A parental relock immediately hides the
+affected companion and retires its session. Sound returns to the primary
+after the outgoing session is silenced. Exiting multiview closes the
+companions and preserves the primary. Replacing the primary content or
+leaving the player ends the multiview session.
+
 Dragging the small video surface or using its arrow keys moves it anywhere
 inside the application viewport, including over channel and EPG panes. The
 existing small canvas and controls use manual DOM popovers to escape ancestor
@@ -568,7 +596,7 @@ to that overlay. Viewport-relative coordinates clamp
 the whole tile on viewport resize. Small-view width starts at 320 CSS pixels;
 its two lower corners show resize cursors. The window resizes at 16:9 between
 240 and 640 pixels, further limited by the viewport. Arrow keys and Home/End on the handles adjust width.
-Size changes update both mounted canvas bounds without changing session IDs.
+Size changes update the mounted canvas bounds and preserve session IDs.
 Leaving fullscreen restores both prior window placement and preferred size.
 Rounded corners, a thin outline and a soft shadow separate the video from
 surrounding panes. Individual controls and labels use dark translucent backings rather than opaque full-width bars.
@@ -596,13 +624,13 @@ alongside a helper whose unmute may have succeeded. Main/small exchange disables
 player interaction, including Retry, while it mutes the outgoing session, awaits
 native completion, and then enables the incoming one. A failed mute never enables
 the incoming audio.
-The audible view retains its selected volume across Retry; a small view always
-restarts muted. No generic multi-player state is added to provider stores or
-other engines.
+The audio session retains its volume across Retry. Any other session
+restarts muted. Multiview state belongs to the current Embedded MPV player.
 
-This is an Electron-only prototype on the existing experimental engine gate.
-Local real-runtime acceptance covers macOS arm64; it is not proof of Windows
-or Linux readiness. See `two-stream-mpv.e2e.ts` for synthetic Electron coverage.
+The feature is available in Electron through the existing experimental
+frame-copy engine gate. Synthetic Electron coverage is in
+`two-stream-mpv.e2e.ts`, `two-stream-mpv-vod.e2e.ts`, and
+`multiview-grid-mpv.e2e.ts`.
 
 ## Resume And Track Handling
 
@@ -715,6 +743,56 @@ container on each source. It then loads audio-only PCM to verify dimensions
 are cleared, and disables the audio track to verify unavailable observations
 remove codec/channel/sample-rate rows without a new-file reset. This complements renderer mapping/unit coverage with
 the actual libmpv → helper JSON → main/preload path.
+
+## Jump to live (MPEG-TS)
+
+A live MPEG-TS stream (Xtream `.ts` output, or any M3U/Stalker URL mpv opens
+as `file-format` `mpegts`) is one endless HTTP response. Panels commonly
+answer a new connection with a burst of their own backlog (measured: ~13 MB,
+≈23–29 s of video, within 2.5 s) and then send at real-time rate. mpv plays
+from the start of that burst, so the viewer sits as far behind live as the
+burst is long, and every reconnect or channel change repeats it. The buffer
+then stays flat (`demuxer-cache-duration` ≈ 22–23 s).
+
+The live-edge button skips that backlog. `embedded-mpv-live-edge.ts` computes
+`bufferedAheadSeconds − 3` and the adapter sends it through the existing
+relative `seekBy` (`seek <delta> relative+exact`), so mpv seeks inside its
+demuxer cache. That works although mpv reports the stream as not seekable
+(the cached range is seekable). In a 70 s standalone libmpv 0.41 run with a
+2 s target this cut latency from ~23 s to ~3 s, with one ~1 s stall right
+after the jump and a stable 2–3.5 s buffer afterwards. TS self-heals: after a
+stall mpv waits for `cache-pause-wait` of data, and because data keeps
+arriving at 1×, that margin stays in the buffer. The 3 s target covers the
+measured per-second delivery jitter; lower targets brought no lasting gain.
+
+Rules:
+
+- **TS only.** HLS (`file-format` `hls`) is excluded on purpose. Its cache
+  ends at the newest *complete* segment; leaving 3 s there drains the buffer
+  long before the next segment (often ~10 s) arrives. That is a worse
+  `live_start_index=-1`, which in Embedded MPV stalled on every segment, each
+  followed by `restarting audio after underrun`, A/V resync and dropped
+  frames, without self-healing. A safe HLS jump needs the provider's segment
+  length, which the player does not know.
+- **Live only**, in a `playing` or `paused` session without a reconnect in
+  flight.
+- **Always enabled.** The button never disables itself: with ≤ 3 s buffered a
+  click does nothing, otherwise it jumps to 3 s. An earlier version disabled
+  it near the target, and because the buffer of a live TS stream swings by a
+  second or more with delivery jitter, the button flickered.
+- **Debounced for 2 s** after a jump: the snapshot that answers the seek can
+  still carry the pre-seek buffer, and a second jump computed from it would
+  seek past the end of the cache.
+- `seekBy` marks the reconnect resume point stale like any user seek, which is
+  irrelevant for live (the reconnect reloads the stream from its live edge).
+- The value comes from the polled snapshot and can be a few hundred
+  milliseconds old. The buffer only grows meanwhile, so the error is a
+  slightly larger reserve, never an overshoot.
+
+Engines: the gate needs `stats.container` and `stats.bufferedAheadSeconds`
+(see "Stream Stats Properties"). Frame-copy (shared controls) and the macOS
+and Windows native-view backends (legacy dock button) report both. The Linux
+out-of-process backend reports no stats, so the button never appears there.
 
 ## Session End And Series Navigation
 
@@ -952,6 +1030,8 @@ controls host. The renderer files live under
   adapter for frame-copy. Maps session/support/playback signals to shared
   controls state and capabilities, delegates commands to
   `EmbeddedMpvSessionController`, and projects series navigation and recording.
+- `embedded-mpv-controls-status.ts` maps support and session snapshots to the
+  shared controls status and translated message.
 - `embedded-mpv-controls-recording.ts` — frame-copy shared-controls recording
   coordinator. Serializes toggles, correlates command settlement with fresh
   same-owner snapshots, and cancels pending state on ownership or engine

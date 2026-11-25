@@ -42,22 +42,23 @@
             />
         }
     } @else {
-        <div class="empty-recent">
-            <strong>
-                @if (searchTerm()) {
-                    {{ 'CHANNELS.NO_SEARCH_RESULTS' | translate }}
-                } @else {
-                    {{ 'WORKSPACE.DASHBOARD.NO_HISTORY' | translate }}
-                }
-            </strong>
-        </div>
-        <div class="empty-recent-hint">
-            @if (searchTerm()) {
-                {{ 'CHANNELS.TRY_DIFFERENT_SEARCH' | translate }}
-            } @else {
-                {{ 'WORKSPACE.DASHBOARD.NO_HISTORY_HINT' | translate }}
-            }
-        </div>
+        <app-state-view
+            size="panel"
+            [variant]="searchTerm() ? 'no-results' : 'empty'"
+            [icon]="searchTerm() ? null : 'history'"
+            [heading]="
+                (searchTerm()
+                    ? 'CHANNELS.NO_SEARCH_RESULTS'
+                    : 'WORKSPACE.DASHBOARD.NO_HISTORY'
+                ) | translate
+            "
+            [description]="
+                (searchTerm()
+                    ? 'CHANNELS.TRY_DIFFERENT_SEARCH'
+                    : 'WORKSPACE.DASHBOARD.NO_HISTORY_HINT'
+                ) | translate
+            "
+        />
     }
 </div>
 

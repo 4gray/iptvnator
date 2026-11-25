@@ -363,6 +363,35 @@ describe('TmdbMatchDialogComponent', () => {
         expect(view.componentInstance.error()).toBeNull();
     });
 
+    it('searches on Enter but not on an Enter that commits an IME composition', async () => {
+        const view = await create();
+        expect(search).toHaveBeenCalledTimes(1);
+        const input = view.nativeElement.querySelector(
+            '.match-search input'
+        ) as HTMLInputElement;
+        const pressEnter = async (init: KeyboardEventInit = {}) => {
+            input.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key: 'Enter',
+                    bubbles: true,
+                    cancelable: true,
+                    ...init,
+                })
+            );
+            await view.whenStable();
+        };
+
+        await pressEnter({ isComposing: true });
+        // Safari: the commit key follows compositionend with keyCode 229.
+        input.dispatchEvent(new Event('compositionend', { bubbles: true }));
+        await pressEnter({ keyCode: 229 });
+        input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
+        expect(search).toHaveBeenCalledTimes(1);
+
+        await pressEnter();
+        expect(search).toHaveBeenCalledTimes(2);
+    });
+
     it('renders an empty result and allows retaining provider data', async () => {
         search.mockResolvedValueOnce([]);
         const view = await create();

@@ -64,6 +64,13 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         requires: ['portal-connectivity-guard'],
     },
     {
+        id: 'keyboard-shortcuts',
+        section: 'general',
+        labelKey: 'SETTINGS.KEYBOARD_SHORTCUTS',
+        descriptionKey: 'SETTINGS.KEYBOARD_SHORTCUTS_DESCRIPTION',
+        keywords: ['keyboard', 'shortcuts', 'hotkeys', 'keys', 'help'],
+    },
+    {
         id: 'theme',
         section: 'appearance',
         labelKey: 'SETTINGS.THEME',
@@ -76,6 +83,8 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
             'mocha',
             'night owl',
             'black oled',
+            'high contrast',
+            'accessibility',
             'appearance',
             'color',
             'system',
@@ -102,6 +111,13 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         labelKey: 'SETTINGS.COVER_TITLES',
         descriptionKey: 'SETTINGS.COVER_TITLES_DESCRIPTION',
         keywords: ['poster', 'cover', 'title', 'caption'],
+    },
+    {
+        id: 'android-external-player',
+        section: 'playback',
+        labelKey: 'SETTINGS.ANDROID_EXTERNAL_PLAYER',
+        keywords: ['android', 'external player', 'vlc', 'playback'],
+        requires: ['android-settings'],
     },
     ...PLAYBACK_SETTINGS_SEARCH_ENTRIES,
     {
@@ -298,6 +314,14 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         descriptionKey: 'SETTINGS.PARENTAL_LOCK.HOW_TO_LOCK_DESCRIPTION',
         keywords: ['parental', 'lock categories', 'groups', 'right-click'],
         fallbackId: 'parental-lock-enable',
+    },
+    {
+        id: 'android-device-advanced',
+        section: 'android-device',
+        labelKey: 'SETTINGS.ANDROID_DEVICE_ADVANCED',
+        descriptionKey: 'SETTINGS.ANDROID_DEVICE_ADVANCED_DESCRIPTION',
+        keywords: ['android', 'layout', 'diagnostics', 'debugging', 'reset'],
+        requires: ['android-settings'],
     },
     {
         id: 'import-export-data',

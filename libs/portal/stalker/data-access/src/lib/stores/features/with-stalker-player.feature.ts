@@ -3,7 +3,7 @@ import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import { stalkerSessionFingerprint } from '@iptvnator/shared/interfaces/stalker-session';
 import { StalkerFavoritePlaybackResolver } from '../../stalker-favorite-playback.service';
 import { inject, Injector } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { signalStoreFeature, withMethods } from '@ngrx/signals';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -40,6 +40,7 @@ import {
     fetchStalkerPlaybackLink,
     hasStalkerLinkFlagEvidence,
     shouldResolveMovieFileId,
+    resolveStalkerPlaybackLink,
     type StalkerLinkFlagSource,
 } from '../utils';
 
@@ -64,7 +65,7 @@ export function withStalkerPlayer() {
                 playerService = inject(PORTAL_PLAYER),
                 stalkerSession = inject(StalkerSessionService),
                 portalRepair = inject(StalkerPortalRepairService),
-                snackBar = inject(MatSnackBar),
+                notifications = inject(NotificationService),
                 translate = inject(TranslateService),
                 ngrxStore = inject(Store),
                 historyGate = inject(PlaybackHistoryGate)
@@ -198,17 +199,15 @@ export function withStalkerPlayer() {
                         }
                     }
 
-                    const streamUrl = await fetchStalkerPlaybackLink(
-                        requestDeps,
-                        {
+                    const { streamUrl, requiresFreshStreamUrl } =
+                        await resolveStalkerPlaybackLink(requestDeps, {
                             playlist,
                             selectedContentType:
                                 storeState.selectedContentType(),
                             cmd: cmdToUse,
                             series: episodeNum,
                             linkFlags: item,
-                        }
-                    );
+                        });
 
                     recordRecent(streamUrl, item, cmd, thumbnail, title);
 
@@ -235,6 +234,8 @@ export function withStalkerPlayer() {
 
                     return {
                         streamUrl,
+                        requiresFreshStreamUrl:
+                            isEpisode || requiresFreshStreamUrl,
                         title: title ?? '',
                         thumbnail,
                         startTime,
@@ -249,6 +250,16 @@ export function withStalkerPlayer() {
                         origin: crossOriginStream
                             ? undefined
                             : playlist.origin || portalOrigin,
+                        catalogIdentity:
+                            !isEpisode &&
+                            item?.id != null &&
+                            selectedItemId === 0
+                                ? {
+                                      playlistId: playlist._id,
+                                      type: 'vod',
+                                      id: item.id,
+                                  }
+                                : undefined,
                         contentInfo: {
                             playlistId: playlist._id,
                             contentXtreamId:
@@ -293,17 +304,15 @@ export function withStalkerPlayer() {
                         throw new Error('nothing_to_play');
                     }
 
-                    const streamUrl = await fetchStalkerPlaybackLink(
-                        requestDeps,
-                        {
+                    const { streamUrl, requiresFreshStreamUrl } =
+                        await resolveStalkerPlaybackLink(requestDeps, {
                             playlist,
                             selectedContentType:
                                 storeState.selectedContentType(),
                             cmd: item.cmd,
                             forcedContentType: 'itv',
                             linkFlags: item,
-                        }
-                    );
+                        });
 
                     const token = stalkerSession.getCachedToken(playlist._id);
                     const headers = buildStalkerExternalPlaybackHeaders(
@@ -327,9 +336,17 @@ export function withStalkerPlayer() {
 
                     return {
                         streamUrl,
+                        requiresFreshStreamUrl,
                         title: item.o_name || item.name || item.title || '',
                         thumbnail: item.logo ?? item.cover ?? null,
                         isLive: true,
+                        catalogIdentity: {
+                            playlistId: playlist._id,
+                            type: 'live',
+                            id:
+                                normalizeStalkerEntityId(item.id) ||
+                                normalizeStalkerEntityId(item.stream_id),
+                        },
                         headers,
                         userAgent:
                             headers['User-Agent'] ||
@@ -543,19 +560,12 @@ export function withStalkerPlayer() {
                             );
                         } catch (error) {
                             logger.error('Failed to get playback URL', error);
-                            const errorMessage =
+                            notifications.error(
                                 error instanceof Error &&
-                                error.message === 'nothing_to_play'
-                                    ? translate.instant(
-                                          'PORTALS.CONTENT_NOT_AVAILABLE'
-                                      )
-                                    : translate.instant(
-                                          'PORTALS.PLAYBACK_ERROR'
-                                      );
-
-                            snackBar.open(errorMessage, undefined, {
-                                duration: 3000,
-                            });
+                                    error.message === 'nothing_to_play'
+                                    ? 'PORTALS.CONTENT_NOT_AVAILABLE'
+                                    : 'PORTALS.PLAYBACK_ERROR'
+                            );
                         }
                     },
                 };

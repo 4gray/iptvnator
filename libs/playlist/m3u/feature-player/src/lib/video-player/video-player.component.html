@@ -18,6 +18,7 @@
     [storageKey]="sidebarStorageKey()"
     (widthChange)="onSidebarWidthChange($event)"
     (resizeEnd)="onSidebarResizeEnd($event)"
+    (resizeCancel)="onSidebarWidthChange($event)"
 >
     @if (activeView() !== 'groups' && activeView() !== 'all') {
         <button
@@ -32,7 +33,7 @@
             <mat-icon>chevron_left</mat-icon>
         </button>
     }
-    @defer {
+    @defer (on immediate) {
         <app-sidebar
             [channels]="(channels$ | async)!"
             [channelsLoading]="channelsLoading()"

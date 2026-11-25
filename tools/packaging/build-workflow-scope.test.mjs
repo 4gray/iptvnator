@@ -78,13 +78,21 @@ test(
 );
 
 test(
-    'only website changes in a PR merge tree can skip Electron packaging',
+    'PR merge scope selects packaging inputs and preserves website validation',
     posixOnly,
     (t) => {
         const root = fs.mkdtempSync(path.join(os.tmpdir(), 'packaging-pr-'));
         t.after(() => fs.rmSync(root, { recursive: true, force: true }));
         const repo = path.join(root, 'repo');
         fs.mkdirSync(path.join(repo, 'apps', 'website'), { recursive: true });
+        fs.mkdirSync(path.join(repo, 'tools', 'packaging'), {
+            recursive: true,
+        });
+        fs.copyFileSync(
+            new URL('./pr-build-scope.mjs', import.meta.url),
+            path.join(repo, 'tools/packaging/pr-build-scope.mjs')
+        );
+
         const output = path.join(root, 'output');
         const env = {
             ...Object.fromEntries(
@@ -118,7 +126,7 @@ test(
             assert.equal(result.status, 0, result.stderr);
         }
 
-        function check(expected) {
+        function check(expected, packaging = !expected, e2e = !expected) {
             fs.writeFileSync(output, '');
             const result = spawnSync('bash', ['-c', scope.run], {
                 cwd: repo,
@@ -132,8 +140,26 @@ test(
             assert.equal(result.status, 0, result.stderr);
             assert.equal(
                 fs.readFileSync(output, 'utf8'),
-                `website-only=${expected}\n`
+                `check-website=${expected}\npackaging=${packaging}\n`
             );
+            const ci = parse(
+                fs.readFileSync(
+                    new URL('../../.github/workflows/ci.yml', import.meta.url),
+                    'utf8'
+                )
+            );
+            const e2eScope = ci.jobs['fast-gates'].steps.find(
+                ({ id }) => id === 'e2e'
+            );
+            assert.ok(e2eScope, 'PR E2E needs the original path filter');
+            fs.writeFileSync(output, '');
+            const e2eResult = spawnSync('bash', ['-c', e2eScope.run], {
+                cwd: repo,
+                encoding: 'utf8',
+                env: { ...env, GITHUB_OUTPUT: output },
+            });
+            assert.equal(e2eResult.status, 0, e2eResult.stderr);
+            assert.equal(fs.readFileSync(output, 'utf8'), `run=${e2e}\n`);
         }
 
         git('init', '-b', 'main');
@@ -155,6 +181,69 @@ test(
         git('mv', 'pnpm-lock.yaml', 'apps/website/moved.yaml');
         git('commit', '-m', 'move into site');
         check(false);
+
+        for (const [file, packaging] of [
+            ['apps/web/src/app/example.ts', false],
+            ['libs/portal/example/src/example.ts', false],
+            ['apps/web-backend/src/example.ts', false],
+            ['apps/tv/src/example.ts', false],
+            ['apps/web-e2e/src/example.e2e.ts', false],
+            ['apps/electron-backend-e2e/src/example.e2e.ts', false],
+            ['libs/portal/webpack.config.cjs', true],
+            ['docs/example.md', false],
+            ['apps/electron-backend/src/example.ts', true],
+            ['apps/electron-backend/native/example.cc', true],
+            ['libs/services/src/lib/example-electron.ts', true],
+            ['libs/shared/database/src/example.ts', true],
+            ['tools/packaging/example.mjs', true],
+            ['tools/embedded-mpv/example.mjs', true],
+            ['tools/build/example.mjs', true],
+            ['tools/release/nightly-version.mjs', true],
+            ['tools/testing/launch-packaged-electron.mjs', true],
+            ['patches/example.patch', true],
+            ['package.json', true],
+            ['pnpm-workspace.yaml', true],
+            ['.nvmrc', true],
+            ['apps/web/project.json', true],
+            ['libs/portal/tsconfig.lib.json', true],
+            ['.github/workflows/build-and-make.yaml', true],
+            ['unknown-input', true],
+            ['libs/portal/unusual\nname.ts', true],
+        ]) {
+            fs.mkdirSync(path.dirname(path.join(repo, file)), {
+                recursive: true,
+            });
+            fs.writeFileSync(path.join(repo, file), 'fixture');
+            git('add', '.');
+            git('commit', '-m', 'change fixture');
+            check(false, packaging, !file.startsWith('docs/'));
+        }
+        git(
+            'mv',
+            'apps/electron-backend/src/example.ts',
+            'apps/web/src/moved.ts'
+        );
+        git('commit', '-m', 'move out of Electron');
+        check(false, true);
+        fs.writeFileSync(
+            path.join(repo, 'apps/website/page.astro'),
+            'mixed site'
+        );
+        fs.writeFileSync(
+            path.join(repo, 'apps/web/src/app/example.ts'),
+            'mixed renderer'
+        );
+        git('commit', '-am', 'mixed website and renderer');
+        check(true, false, true);
+        git('rm', 'apps/website/page.astro');
+        fs.writeFileSync(
+            path.join(repo, 'docs/example.md'),
+            'mixed documentation'
+        );
+        git('commit', '-am', 'mixed website deletion and documentation');
+        check(true, false, false);
+        git('commit', '--allow-empty', '-m', 'empty fixture');
+        check(false, true, false);
 
         assert.equal(scopeJob.if, "github.event_name == 'pull_request'");
         assert.equal(
@@ -178,7 +267,7 @@ test(
             assert.match(job.if, /github\.event_name != 'pull_request'/);
             assert.match(
                 job.if,
-                /needs\.appstream-website\.result == 'success'\s*&&\s*needs\.appstream-website\.outputs\.website-only != 'true'/
+                /needs\.appstream-website\.result == 'success'\s*&&\s*needs\.appstream-website\.outputs\.packaging == 'true'/
             );
         }
         // Skipped planning jobs must not propagate past successful builds.
@@ -277,6 +366,164 @@ test(
                 steps.find((step) => step.name === name).if,
                 /steps\.pr-state\.outputs\.current == 'true'/
             );
+        }
+    }
+);
+
+test(
+    'fast CI checks gate expensive PR jobs without cancelling draft publication',
+    posixOnly,
+    () => {
+        const readWorkflow = (name) =>
+            parse(
+                fs.readFileSync(
+                    new URL(`../../.github/workflows/${name}`, import.meta.url),
+                    'utf8'
+                )
+            );
+        const ci = readWorkflow('ci.yml');
+        const e2e = readWorkflow('e2e-tests.yaml');
+        const docker = readWorkflow('docker.yml');
+        const codeql = readWorkflow('codeql-analysis.yml');
+        const gate = ci.jobs['fast-gates'];
+        assert.ok(gate, 'CI needs a consolidated fast-gates job');
+        assert.equal(
+            ci.jobs.preflight,
+            undefined,
+            'CI should not queue a separate fan-in preflight runner'
+        );
+        assert.ok(
+            gate.steps.some(({ name }) => name === 'Run actionlint'),
+            'fast-gates runs actionlint'
+        );
+        for (const stepName of [
+            'Validate release note format',
+            'Require a release note for user-visible changes',
+            'Preserve PR E2E path exclusions',
+        ]) {
+            const step = gate.steps.find(({ name }) => name === stepName);
+            assert.ok(step, stepName);
+            assert.equal(step.if, "github.event_name == 'pull_request'");
+        }
+        assert.ok(
+            gate.steps.some(({ id }) => id === 'scope'),
+            'fast-gates computes performance journey scope'
+        );
+
+        for (const id of [
+            'unit-and-typecheck',
+            'initial-bytes-ratchet',
+            'performance-journeys',
+            'pr-e2e',
+        ]) {
+            assert.deepEqual(ci.jobs[id].needs, ['fast-gates', 'lint'], id);
+            assert.match(ci.jobs[id].if, /!cancelled\(\)/);
+            assert.match(
+                ci.jobs[id].if,
+                /needs\.fast-gates\.result == 'success'/
+            );
+            assert.match(ci.jobs[id].if, /needs\.lint\.result == 'success'/);
+        }
+        assert.doesNotMatch(
+            ci.jobs['pr-e2e'].if,
+            /initial-bytes-ratchet/,
+            'PR E2E starts after fast gates and lint without waiting on initial-bytes-ratchet'
+        );
+        assert.match(
+            ci.jobs['pr-e2e'].if,
+            /needs\.fast-gates\.outputs\.e2e == 'true'/
+        );
+        assert.match(
+            ci.jobs['performance-journeys'].if,
+            /needs\.fast-gates\.outputs\.run == 'true'/
+        );
+
+        const unitSteps = ci.jobs['unit-and-typecheck'].steps;
+        const scopeIndex = unitSteps.findIndex(({ id }) => id === 'scope');
+        const chromiumIndex = unitSteps.findIndex(
+            ({ name }) => name === 'Install Chromium for IndexedDB unit contracts'
+        );
+        assert.ok(scopeIndex >= 0 && chromiumIndex > scopeIndex);
+        assert.equal(
+            unitSteps[chromiumIndex].if,
+            "steps.scope.outputs.run == 'true'"
+        );
+
+        const dockerSteps = docker.jobs.build.steps;
+        const qemuStep = dockerSteps.find(
+            ({ name }) => name === 'Set up QEMU'
+        );
+        assert.equal(qemuStep.if, "steps.docker-meta.outputs.publish == 'true'");
+        const dockerBuildStep = dockerSteps.find(
+            ({ name }) => name === 'Build Docker image'
+        );
+        assert.match(
+            dockerBuildStep.with['cache-to'],
+            /steps\.docker-meta\.outputs\.publish == 'true'/
+        );
+        assert.equal(dockerBuildStep.with['cache-from'], 'type=gha');
+
+        for (const event of ['push', 'pull_request']) {
+            assert.ok(
+                codeql.on[event]['paths-ignore'].includes('**/*.md'),
+                `codeql ${event} ignores docs`
+            );
+            assert.ok(
+                codeql.on[event]['paths-ignore'].includes(
+                    'apps/web/src/assets/i18n/**'
+                ),
+                `codeql ${event} ignores locale json`
+            );
+        }
+
+        for (const id of [
+            'linux-embedded-mpv-runtime',
+            'build-cross-platform',
+            'build-linux',
+        ]) {
+            assert.match(
+                buildWorkflowConfig.jobs[id].concurrency.group,
+                /github\.run_id/,
+                `${id} non-PR builds use github.run_id so rapid master pushes do not evict queued runs`
+            );
+        }
+        assert.match(
+            buildWorkflowConfig.jobs['create-release'].concurrency.group,
+            /github\.ref/,
+            'create-release stays serialized per ref'
+        );
+
+        assert.ok(
+            ci.jobs.lint.steps.some(
+                ({ run }) => run === 'pnpm run typecheck:ci'
+            )
+        );
+        assert.ok(
+            !ci.jobs['unit-and-typecheck'].steps.some(
+                ({ run }) => run === 'pnpm run typecheck:ci'
+            )
+        );
+        assert.ok('workflow_call' in e2e.on);
+        assert.ok(
+            !('pull_request' in e2e.on),
+            'PR E2E must run only through CI'
+        );
+        assert.ok('push' in e2e.on && 'workflow_dispatch' in e2e.on);
+        assert.equal(
+            ci.jobs['pr-e2e'].uses,
+            './.github/workflows/e2e-tests.yaml'
+        );
+        assert.notEqual(e2e.concurrency.group, ci.concurrency.group);
+        assert.ok('pull_request' in buildWorkflowConfig.on);
+        assert.equal(buildWorkflowConfig.concurrency, undefined);
+        const steps = buildWorkflowConfig.jobs['appstream-website'].steps;
+        for (const command of [
+            'pnpm run typecheck:ci',
+            'pnpm nx affected --target=lint',
+        ]) {
+            const step = steps.find(({ run }) => run?.startsWith(command));
+            assert.ok(step, command);
+            assert.equal(step.if, "steps.scope.outputs.packaging == 'true'");
         }
     }
 );

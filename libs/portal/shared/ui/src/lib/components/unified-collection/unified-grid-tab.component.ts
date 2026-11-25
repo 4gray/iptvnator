@@ -16,13 +16,19 @@ import {
     foldSearchText,
     isCatalogUnavailable,
 } from '@iptvnator/shared/interfaces';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 @Component({
     selector: 'app-unified-grid-tab',
     templateUrl: './unified-grid-tab.component.html',
     styleUrl: './unified-grid-tab.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [ContentCardComponent, MatIconModule, TranslatePipe],
+    imports: [
+        StateViewComponent,
+        ContentCardComponent,
+        MatIconModule,
+        TranslatePipe,
+    ],
 })
 export class UnifiedGridTabComponent {
     readonly items = input.required<UnifiedCollectionItem[]>();

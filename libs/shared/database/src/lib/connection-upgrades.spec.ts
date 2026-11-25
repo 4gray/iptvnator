@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { runElectronHarness } from './testing/run-electron-harness';
 
 describe('database initialization across skipped releases (#1580)', () => {
     it.each([
@@ -67,5 +68,41 @@ describe('database initialization across skipped releases (#1580)', () => {
             }
         },
         35_000
+    );
+});
+
+describe('title index upgrade on a populated catalog', () => {
+    it.each([
+        ['0.21.0', 'unindexed'],
+        ['0.22.0', 'indexed'],
+    ])(
+        'defers the %s catalog rebuild to the worker and finishes it',
+        async (version, kind) => {
+            const dataDir = mkdtempSync(
+                join(tmpdir(), 'iptvnator-fts-upgrade-')
+            );
+            try {
+                const output = await runElectronHarness(
+                    resolve(__dirname, 'testing/content-title-fts-upgrade.ts'),
+                    [
+                        resolve(
+                            __dirname,
+                            'testing/fixtures',
+                            `v${version}-schema.sql`
+                        ),
+                        kind,
+                    ],
+                    {
+                        coverage: /content-title-fts-upgrade[.]ts$/,
+                        env: { IPTVNATOR_E2E_DATA_DIR: dataDir },
+                        timeout: 60_000,
+                    }
+                );
+                expect(output).toBe('upgrade verified');
+            } finally {
+                rmSync(dataDir, { recursive: true, force: true });
+            }
+        },
+        65_000
     );
 });

@@ -1,6 +1,8 @@
 // Shared by the application and the decorative settings samples.
 
-@mixin light($preview: false, $variant: false) {
+@use '../../../libs/ui/styles/scales';
+
+@mixin light($preview: false) {
     --app-shell-bg: #eef0f3;
     --app-rail-bg: #eef0f3;
     --app-content-bg: #f5f6f8;
@@ -9,7 +11,7 @@
     --app-muted-color: #535d6d;
     --app-selection-color: #2f7bff;
 
-    @if not $preview and not $variant {
+    @if not $preview {
         // ── Light theme design tokens ─────────────────────────────────────────
         --app-header-bg: #eef0f3;
         --app-rail-border: transparent;
@@ -48,11 +50,8 @@
         // #2f7bff falls to 2.6:1 on the stronger tint.
         --app-focus-ring: #1d63e0;
 
-        // Live / on-air accent (broadcast indicator)
-        --app-live-color: #d12c2c;
-
-        // Done / watched status (episode watched toggle)
-        --app-success-color: #15803d;
+        // Status hues (`--app-status-*`, libs/ui/styles/_scales.scss).
+        @include scales.status-light;
 
         // Content area
         --app-content-shadow: -2px 4px 12px rgba(0, 0, 0, 0.06);
@@ -78,7 +77,6 @@
         // Subscription-expiry chips (dashboard source cards). Text/surface pairs
         // are picked per theme to keep >= 4.5:1 small-text contrast against the
         // composited chip background.
-        --app-expiry-warn-text: #8a5300;
         --app-expiry-warn-surface: color-mix(in srgb, #d97706 16%, transparent);
         --app-expiry-expired-text: #b3261e;
         --app-expiry-expired-surface: color-mix(
@@ -108,10 +106,8 @@
 
         // Source lists (Sources page, playlist switcher) and their popovers.
         --app-line-strong: rgba(0, 0, 0, 0.12);
-        --app-font-mono:
-            'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
         // A failing source's tag and destructive menu items.
-        --app-danger-text: #b3261e;
+        --app-danger-text: var(--app-status-danger);
         --app-danger-surface: color-mix(in srgb, #d12c2c 12%, transparent);
         --app-neutral-tag-surface: rgba(0, 0, 0, 0.06);
         // One selected-row look for side lists and the switcher's current row:
@@ -126,7 +122,7 @@
     }
 }
 
-@mixin dark($preview: false, $variant: false) {
+@mixin dark($preview: false) {
     --app-shell-bg: #0d0f12;
     --app-rail-bg: #111318;
     --app-content-bg: #161a22;
@@ -135,7 +131,7 @@
     --app-muted-color: #a1aabd;
     --app-selection-color: #78adff;
 
-    @if not $preview and not $variant {
+    @if not $preview {
         // ── Dark graphite theme ────────────────────────────────────────────
         // Inspired by both Slack (sidebar distinction) and GitButler (data density)
         // Key principle: clearly distinct surface layers using graphite steps
@@ -177,11 +173,8 @@
         // selection tint.
         --app-focus-ring: #8cbaff;
 
-        // Live / on-air accent (broadcast indicator)
-        --app-live-color: #ff8f8f;
-
-        // Done / watched status (episode watched toggle)
-        --app-success-color: #4ade80;
+        // Status hues (`--app-status-*`, libs/ui/styles/_scales.scss).
+        @include scales.status-dark;
 
         // Content area
         --app-content-shadow: -4px 8px 20px rgba(0, 0, 0, 0.18);
@@ -207,8 +200,7 @@
         --app-provider-m3u: #fbbf24;
 
         // Subscription-expiry chips — brighter text for the dark surfaces;
-        // expired matches the --app-live-color accent family.
-        --app-expiry-warn-text: #fbbf24;
+        // expired matches the --app-status-live accent family.
         --app-expiry-warn-surface: color-mix(in srgb, #fbbf24 16%, transparent);
         --app-expiry-expired-text: #ff8f8f;
         --app-expiry-expired-surface: color-mix(
@@ -236,7 +228,7 @@
         // re-declared so they resolve against this context's selection
         // colour, not the light values computed on `html`.
         --app-line-strong: rgba(255, 255, 255, 0.1);
-        --app-danger-text: #ff8d9b;
+        --app-danger-text: var(--app-status-danger);
         --app-danger-surface: rgba(255, 91, 110, 0.14);
         --app-neutral-tag-surface: rgba(255, 255, 255, 0.08);
         --app-list-selected-bg: var(--app-selection-surface);
@@ -248,7 +240,6 @@
 }
 
 @mixin cream($preview: false) {
-    @include light($preview, $variant: true);
     --app-shell-bg: #e9e1d4;
     --app-rail-bg: #e9e1d4;
     --app-content-bg: #f3eee4;
@@ -292,8 +283,6 @@
 }
 
 @mixin mocha($preview: false) {
-    // The mode class declares shared roles on this same body element.
-    @include dark($preview, $variant: true);
     --app-shell-bg: #171310;
     --app-rail-bg: #1e1916;
     --app-content-bg: #251f1b;
@@ -335,8 +324,6 @@
 }
 
 @mixin night-owl($preview: false) {
-    // The mode class declares shared roles on this same body element.
-    @include dark($preview, $variant: true);
     --app-shell-bg: #011627;
     --app-rail-bg: #0b2232;
     --app-content-bg: #071d2b;
@@ -371,8 +358,6 @@
 }
 
 @mixin black-oled($preview: false) {
-    // The mode class declares shared roles on this same body element.
-    @include dark($preview, $variant: true);
     --app-shell-bg: #000000;
     --app-rail-bg: #080808;
     --app-content-bg: #000000;
@@ -403,5 +388,51 @@
         --app-cta-hover-bg: #eeeeee;
         --app-cta-meta-fg: #505050;
         --app-popover-backdrop: rgba(0, 0, 0, 0.5);
+    }
+}
+
+// Accessibility preset: pure black and white, a yellow accent, visible
+// borders and a thicker focus ring, for low vision and viewing from a sofa.
+@mixin high-contrast($preview: false) {
+    // The preview is self-contained. The app shares Black OLED's base.
+    @if $preview {
+        --app-shell-bg: #000000;
+        --app-content-bg: #000000;
+    }
+    --app-rail-bg: #000000;
+    --app-widget-bg: #0f0f0f;
+    --app-heading-color: #ffffff;
+    --app-muted-color: #e6e6e6;
+    --app-selection-color: #ffd60a;
+
+    @if not $preview {
+        --app-header-bg: #000000;
+        --app-widget-header-bg: #0f0f0f;
+        --app-card-hover-bg: #1f1f1f;
+        --app-on-surface: #ffffff;
+        --app-body-color: #f0f0f0;
+        --app-eyebrow-color: #e6e6e6;
+        --app-hover-overlay: rgba(255, 255, 255, 0.16);
+        --app-search-bg: #000000;
+        --app-search-border: rgba(255, 255, 255, 0.6);
+        --app-widget-border: rgba(255, 255, 255, 0.45);
+        --app-widget-header-border: rgba(255, 255, 255, 0.45);
+        --app-separator: rgba(255, 255, 255, 0.45);
+        --app-line-strong: rgba(255, 255, 255, 0.55);
+        --app-selection-text-color: #ffe14d;
+        --app-focus-ring: #ffd60a;
+        --app-focus-ring-width: 3px;
+        --app-list-selected-outline: var(--app-selection-color);
+        --app-accent-gradient: linear-gradient(
+            135deg,
+            rgba(255, 214, 10, 0.1),
+            rgba(255, 214, 10, 0.04)
+        );
+        --app-hero-surface: #0f0f0f;
+        --app-cta-bg: #ffffff;
+        --app-cta-hover-bg: #ffd60a;
+        --app-cta-meta-fg: #333333;
+        --app-rating-color: #ffd60a;
+        --app-popover-backdrop: rgba(0, 0, 0, 0.7);
     }
 }
