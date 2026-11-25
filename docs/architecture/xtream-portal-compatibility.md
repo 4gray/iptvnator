@@ -396,9 +396,10 @@ cache if the reply contains no live streams, if any stream lacks a valid ID, or
 if a stream references a category absent from the response.
 Before replacing live rows, the selected-catalog service waits for source
 activity to finish and rechecks the saved connection, preference and catalog
-selection. A successful refresh
-publishes the saved timestamp so an open Xtream view can reread live rows and
-refresh its search without resetting playback. Open Favorites and Recently
+selection. A successful refresh publishes the catalog timestamp so an open
+Xtream view can reread live rows and refresh its search without resetting
+playback. If saving the timestamp fails, the view still reloads for the same
+source in the current session. Open Favorites and Recently
 Viewed reload their rows after the commit. SQLite live favorite toggles,
 playback history writes and item removals wait for in-flight source work.
 They hold the source from channel lookup through the write and resolve the

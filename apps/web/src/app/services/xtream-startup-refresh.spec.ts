@@ -1,6 +1,6 @@
 import { Injector } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { NotificationService } from '@iptvnator/services/notifications';
 import { PlaylistsService } from '@iptvnator/services';
 import { XtreamStartupRefreshService } from '@iptvnator/services/xtream-startup-refresh';
@@ -114,3 +114,53 @@ it('continues after an unavailable source and publishes only a saved refresh', a
         injector.destroy();
     }
 });
+
+it.each([
+    ['open source', source, true],
+    ['changed source', { ...source, userAgent: 'Changed client' }, false],
+    ['newer source', { ...source, updateDate: 42 }, false],
+])(
+    'handles timestamp persistence failure for the %s',
+    async (_label, current, publish) => {
+        const recordUpdate = jest.fn();
+        const dispatch = jest.fn();
+        const error = jest.fn();
+        const injector = Injector.create({
+            providers: [
+                {
+                    provide: XtreamStartupRefreshService,
+                    useValue: { refreshLive: async () => true, recordUpdate },
+                },
+                {
+                    provide: PlaylistsService,
+                    useValue: {
+                        updatePlaylistMetaIfCurrent: () =>
+                            throwError(
+                                () => new Error('Synthetic timestamp failure')
+                            ),
+                    },
+                },
+                {
+                    provide: Store,
+                    useValue: { dispatch, select: () => of([current]) },
+                },
+                { provide: NotificationService, useValue: { error } },
+            ],
+        });
+        try {
+            await refreshXtreamPlaylistsOnStartup(injector, [source]);
+            expect(recordUpdate).toHaveBeenCalledTimes(Number(publish));
+            expect(dispatch).toHaveBeenCalledTimes(Number(publish));
+            if (publish)
+                expect(dispatch).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        playlistId: source._id,
+                        updateDate: expect.any(Number),
+                    })
+                );
+            expect(error).toHaveBeenCalledTimes(1);
+        } finally {
+            injector.destroy();
+        }
+    }
+);

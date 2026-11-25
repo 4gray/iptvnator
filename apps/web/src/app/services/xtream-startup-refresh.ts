@@ -1,5 +1,5 @@
 import type { Injector } from '@angular/core';
-import { PlaylistActions } from '@iptvnator/m3u-state';
+import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { PlaylistsService } from '@iptvnator/services';
 import { NotificationService } from '@iptvnator/services/notifications';
 import { XtreamStartupRefreshService } from '@iptvnator/services/xtream-startup-refresh';
@@ -24,17 +24,34 @@ export async function refreshXtreamPlaylistsOnStartup(
             window.dispatchEvent(new Event('iptvnator-history-changed'));
 
             const updateDate = Date.now();
-            const saved = await firstValueFrom(
-                playlists.updatePlaylistMetaIfCurrent(
-                    { _id: source._id, updateDate },
-                    (current) =>
-                        current?.serverUrl === source.serverUrl &&
-                        current.username === source.username &&
-                        current.password === source.password &&
-                        current.userAgent === source.userAgent
-                )
-            );
-            if (saved) {
+            const sameSource = (current?: PlaylistMeta) =>
+                !!current &&
+                current.serverUrl === source.serverUrl &&
+                current.username === source.username &&
+                current.password === source.password &&
+                current.userAgent === source.userAgent;
+            let publish: boolean;
+            try {
+                publish = Boolean(
+                    await firstValueFrom(
+                        playlists.updatePlaylistMetaIfCurrent(
+                            { _id: source._id, updateDate },
+                            sameSource
+                        )
+                    )
+                );
+            } catch {
+                failed = true;
+                // The catalog already committed. Refresh the current view
+                // even if its display timestamp couldn't be persisted.
+                const current = (
+                    await firstValueFrom(store.select(selectAllPlaylistsMeta))
+                ).find(({ _id }) => _id === source._id);
+                publish =
+                    current?.updateDate === source.updateDate &&
+                    sameSource(current);
+            }
+            if (publish) {
                 refresh.recordUpdate(source._id, updateDate);
                 store.dispatch(
                     PlaylistActions.xtreamStartupRefreshCommitted({
