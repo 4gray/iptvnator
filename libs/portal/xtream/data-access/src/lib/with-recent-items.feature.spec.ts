@@ -111,6 +111,35 @@ describe('withRecentItems', () => {
         expect(activity.isBusy('synthetic-source')).toBe(false);
     });
 
+    it('finishes deferred playback before clearing the same SQLite source', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        const activity = TestBed.inject(SourceActivityService);
+        const release = activity.begin(['playlist-1']);
+        dataSource.getContentByXtreamId.mockResolvedValue({ id: 502 });
+        const cleared = new Promise<void>((resolve) => {
+            dataSource.clearRecentItems.mockImplementation(async () => {
+                resolve();
+            });
+        });
+
+        store.addRecentItem({
+            xtreamId: 42,
+            contentType: 'live',
+            playlist: signal({ id: 'playlist-1' }),
+        });
+        store.clearRecentItems({ id: 'playlist-1' });
+        await Promise.resolve();
+        const clearedWhileHeld = dataSource.clearRecentItems.mock.calls.length;
+        release();
+        await cleared;
+
+        expect(clearedWhileHeld).toBe(0);
+        expect(dataSource.addRecentItem).toHaveBeenCalledTimes(1);
+        expect(
+            dataSource.addRecentItem.mock.invocationCallOrder[0]
+        ).toBeLessThan(dataSource.clearRecentItems.mock.invocationCallOrder[0]);
+    });
+
     it('saves the old source confirmation without replacing the new source history', async () => {
         runtime.supportsXtreamSqliteDataSource = true;
         const oldSource = 'synthetic-source-a';

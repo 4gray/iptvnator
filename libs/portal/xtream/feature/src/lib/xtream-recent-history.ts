@@ -1,11 +1,11 @@
-import { captureHistoryOwner } from '@iptvnator/services/history-events';
+import {
+    captureHistoryOwner,
+    XtreamHistoryOrder,
+} from '@iptvnator/services/history-events';
 import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import { inject, Injector, signal } from '@angular/core';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
-import {
-    RuntimeCapabilitiesService,
-    SourceActivityService,
-} from '@iptvnator/services';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     type XtreamPlayedContent,
     type XtreamDetailMetadataSource,
@@ -45,7 +45,7 @@ export function injectXtreamRecentHistory(): (
     const gate = inject(PlaybackHistoryGate);
     const store = inject(XtreamStore);
     const injector = inject(Injector);
-    const activity = inject(SourceActivityService);
+    const historyOrder = inject(XtreamHistoryOrder);
 
     return (streamUrl, request, sessionKey, launchId) => {
         const playlist = signal(store.currentPlaylist()).asReadonly();
@@ -86,8 +86,14 @@ export function injectXtreamRecentHistory(): (
                             current
                         );
                     };
-                    void (sqlite && captured.contentType === 'live'
-                        ? activity.runWhenIdle(playlistId, write)
+                    void (sqlite
+                        ? historyOrder.run(
+                              playlistId,
+                              write,
+                              captured.contentType === 'live'
+                                  ? playlistId
+                                  : undefined
+                          )
                         : write());
                 }
             }

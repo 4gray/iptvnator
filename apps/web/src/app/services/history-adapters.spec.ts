@@ -6,8 +6,10 @@ import {
     UnifiedRecentDataService,
 } from '@iptvnator/portal/shared/data-access';
 import { signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { SourceActivityService } from '@iptvnator/services';
+import { XtreamHistoryOrder } from '@iptvnator/services/history-events';
 import { HistorySyncClient } from '@iptvnator/services/history-sync';
 import {
     emptyHistoryRecord,
@@ -407,13 +409,10 @@ describe('history provider projections', () => {
                 Object.create(UnifiedRecentDataService.prototype),
                 {
                     runtime,
-                    activity,
+                    historyOrder: TestBed.inject(XtreamHistoryOrder),
                     history: { active: () => true },
                     xtreamDataSource: dataSource,
-                    getPlaylistMeta: async () => ({
-                        _id: 'source',
-                        title: 'Synthetic source',
-                    }),
+                    getPlaylistMeta: async () => ({ _id: 'source' }),
                 }
             ) as UnifiedRecentDataService;
             const [item] = await recent.getRecentItems('playlist', 'source', 'xtream');

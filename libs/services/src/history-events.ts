@@ -1,9 +1,10 @@
-import { InjectionToken } from '@angular/core';
+import { inject, Injectable, InjectionToken } from '@angular/core';
 import type {
     Playlist,
     PlaylistRecentlyViewedItem,
     PlaylistRecentIdentity,
 } from '@iptvnator/shared/interfaces';
+import { SourceActivityService } from './lib/source-activity.service';
 export type HistoryPlaylistAction =
     | { kind: 'touch'; item: PlaylistRecentlyViewedItem }
     | { kind: 'remove'; identities: PlaylistRecentIdentity[] }
@@ -49,5 +50,41 @@ export function captureHistoryOwner(
         };
     } catch {
         return () => false;
+    }
+}
+
+/** Order SQLite history mutations by source. A global clear overlaps every source. */
+@Injectable({ providedIn: 'root' })
+export class XtreamHistoryOrder {
+    private readonly activity = inject(SourceActivityService);
+    private readonly pending = new Set<{
+        sources: readonly string[] | null;
+        completed: Promise<unknown>;
+    }>();
+
+    run<T>(
+        scope: string | readonly string[] | null,
+        operation: () => Promise<T>,
+        holdSources?: string | readonly string[]
+    ): Promise<T> {
+        const sources = typeof scope === 'string' ? [scope] : scope;
+        const blockers = [...this.pending]
+            .filter(
+                (entry) =>
+                    !sources ||
+                    !entry.sources ||
+                    entry.sources.some((id) => sources.includes(id))
+            )
+            .map((entry) => entry.completed.catch(() => undefined));
+        const completed = Promise.all(blockers).then(
+            holdSources
+                ? () => this.activity.runWhenIdle(holdSources, operation)
+                : operation
+        );
+        const entry = { sources, completed };
+        this.pending.add(entry);
+        const remove = () => this.pending.delete(entry);
+        void completed.then(remove, remove);
+        return completed;
     }
 }

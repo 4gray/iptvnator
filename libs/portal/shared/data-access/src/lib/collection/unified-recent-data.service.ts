@@ -2,6 +2,7 @@ import { stalkerFavoriteReference } from '@iptvnator/shared/interfaces/favorites
 import {
     captureHistoryOwner,
     HISTORY_PLAYLIST_BRIDGE,
+    XtreamHistoryOrder,
 } from '@iptvnator/services/history-events';
 import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import { inject, Injectable } from '@angular/core';
@@ -18,7 +19,6 @@ import {
     DatabaseService,
     PlaylistsService,
     RuntimeCapabilitiesService,
-    SourceActivityService,
 } from '@iptvnator/services';
 import {
     Channel,
@@ -69,7 +69,7 @@ export class UnifiedRecentDataService {
     private readonly dbService = inject(DatabaseService);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
-    private readonly activity = inject(SourceActivityService);
+    private readonly historyOrder = inject(XtreamHistoryOrder);
     private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
 
     async getRecentItems(
@@ -113,8 +113,12 @@ export class UnifiedRecentDataService {
                     item.playlistId
                 );
             };
-            return sqliteLive
-                ? this.activity.runWhenIdle(item.playlistId, remove)
+            return this.runtime.supportsXtreamSqliteDataSource
+                ? this.historyOrder.run(
+                      item.playlistId,
+                      remove,
+                      sqliteLive ? item.playlistId : undefined
+                  )
                 : remove();
         }
 
@@ -254,8 +258,12 @@ export class UnifiedRecentDataService {
             }
         };
 
-        return liveSources.size
-            ? this.activity.runWhenIdle([...liveSources], remove)
+        return this.runtime.supportsXtreamSqliteDataSource
+            ? this.historyOrder.run(
+                  [...sources.keys()],
+                  remove,
+                  liveSources.size ? [...liveSources] : undefined
+              )
             : remove();
     }
 
@@ -263,7 +271,21 @@ export class UnifiedRecentDataService {
         scope: CollectionScope,
         playlistId?: string
     ): Promise<void> {
-        if (scope === 'playlist' && playlistId) {
+        const sourceId = scope === 'playlist' && playlistId ? playlistId : null;
+        if (!this.runtime.supportsXtreamSqliteDataSource)
+            return this.clearRecentHistory(sourceId);
+
+        const instanceId = sourceConnection()?.instanceId;
+        const current = sourceId
+            ? captureRecentSource(sourceId)
+            : () => sourceConnection()?.instanceId === instanceId;
+        await this.historyOrder.run(sourceId, async () => {
+            if (current()) await this.clearRecentHistory(sourceId);
+        });
+    }
+
+    private async clearRecentHistory(playlistId: string | null): Promise<void> {
+        if (playlistId) {
             if (this.hasPortalActivityStorage) {
                 await this.dbService.clearPlaylistRecentItems(playlistId);
             } else {
@@ -354,8 +376,12 @@ export class UnifiedRecentDataService {
             const current = captureRecentSource(item.playlistId);
             const write = () =>
                 this.recordXtreamPlayback(item, viewedAt, current);
-            return sqliteLive
-                ? this.activity.runWhenIdle(item.playlistId, write)
+            return this.runtime.supportsXtreamSqliteDataSource
+                ? this.historyOrder.run(
+                      item.playlistId,
+                      write,
+                      sqliteLive ? item.playlistId : undefined
+                  )
                 : write();
         }
 

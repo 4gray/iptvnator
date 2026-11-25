@@ -407,8 +407,10 @@ current row by provider identity. Collection actions also use the row's SQLite
 category, including removals from the Dashboard. If the channel moves, the
 lookup accepts a single typed match. Confirmed live playback uses the captured
 category for history writes. History recovery also prefers the original
-live category and keeps ambiguous moves pending. Delayed history writes update
-the visible list only when it still belongs to their source.
+live category and keeps ambiguous moves pending. Source and global history
+clears run after already-confirmed writes and before any subsequent writes in
+scope. Delayed writes update the visible list only when it still belongs to
+their source.
 The selected live channel is rebound by provider identity to its new SQLite row.
 Retained categories keep their SQLite IDs so playback queues, the guide and
 category history links still point to the same categories. During the launch

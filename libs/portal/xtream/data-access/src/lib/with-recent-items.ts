@@ -1,4 +1,7 @@
-import { captureHistoryOwner } from '@iptvnator/services/history-events';
+import {
+    captureHistoryOwner,
+    XtreamHistoryOrder,
+} from '@iptvnator/services/history-events';
 import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import { DestroyRef, inject, Signal } from '@angular/core';
 import {
@@ -10,10 +13,7 @@ import {
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { pipe, switchMap, tap } from 'rxjs';
-import {
-    RuntimeCapabilitiesService,
-    SourceActivityService,
-} from '@iptvnator/services';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     ContentMetadataPatch,
     PortalRecentItem,
@@ -85,7 +85,7 @@ export const withRecentItems = function () {
                 store,
                 dataSource = inject(XTREAM_DATA_SOURCE),
                 runtime = inject(RuntimeCapabilitiesService),
-                activity = inject(SourceActivityService)
+                historyOrder = inject(XtreamHistoryOrder)
             ) => ({
                 addRecentItem: rxMethod<{
                     xtreamId: number | string;
@@ -99,24 +99,27 @@ export const withRecentItems = function () {
                             const playlistId = playlist()?.id;
                             if (!playlistId) return;
                             const current = captureRecentOwner(playlistId);
-                            const { recordXtreamRecent } =
-                                await recentOperations();
                             const sqlite =
                                 runtime.supportsXtreamSqliteDataSource;
-                            const write = () =>
-                                recordXtreamRecent(
+                            const write = async () => {
+                                const { recordXtreamRecent } =
+                                    await recentOperations();
+                                return recordXtreamRecent(
                                     dataSource,
                                     sqlite,
                                     { ...item, playlistId },
                                     current
                                 );
-                            const items =
-                                sqlite && item.contentType === 'live'
-                                    ? await activity.runWhenIdle(
-                                          playlistId,
-                                          write
-                                      )
-                                    : await write();
+                            };
+                            const items = sqlite
+                                ? await historyOrder.run(
+                                      playlistId,
+                                      write,
+                                      item.contentType === 'live'
+                                          ? playlistId
+                                          : undefined
+                                  )
+                                : await write();
                             if (items && store.playlistId() === playlistId)
                                 patchState(store, {
                                     recentItems: items,
@@ -156,9 +159,19 @@ export const withRecentItems = function () {
                 clearRecentItems: rxMethod<{ id: string }>(
                     pipe(
                         switchMap(async (playlist) => {
-                            await dataSource.clearRecentItems(playlist.id);
-                            if (store.playlistId() === playlist.id)
-                                patchState(store, { recentItems: [] });
+                            const current = captureRecentOwner(playlist.id);
+                            const clear = async () => {
+                                if (!current()) return;
+                                await dataSource.clearRecentItems(playlist.id);
+                                if (
+                                    current() &&
+                                    store.playlistId() === playlist.id
+                                )
+                                    patchState(store, { recentItems: [] });
+                            };
+                            if (runtime.supportsXtreamSqliteDataSource)
+                                await historyOrder.run(playlist.id, clear);
+                            else await clear();
                         })
                     )
                 ),

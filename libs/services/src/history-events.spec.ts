@@ -1,5 +1,10 @@
 import { TestBed } from '@angular/core/testing';
-import { captureHistoryOwner, HISTORY_PLAYLIST_BRIDGE } from './history-events';
+import {
+    captureHistoryOwner,
+    HISTORY_PLAYLIST_BRIDGE,
+    XtreamHistoryOrder,
+} from './history-events';
+import { SourceActivityService } from './lib/source-activity.service';
 import type { Playlist } from '@iptvnator/shared/interfaces';
 
 afterEach(() => {
@@ -54,4 +59,46 @@ it('withholds delayed confirmation if owner storage becomes unreadable', () => {
             () => 'synthetic-nas'
         )()
     ).toBe(false);
+});
+
+it('orders a global history clear across sources even when a preceding write fails', async () => {
+    const order = TestBed.inject(XtreamHistoryOrder);
+    const activity = TestBed.inject(SourceActivityService);
+    const release = activity.begin(['first-source']);
+    const calls: string[] = [];
+    const failed = order.run(
+        ['first-source'],
+        async () => {
+            calls.push('first write');
+            throw new Error('Synthetic history write failed');
+        },
+        'first-source'
+    );
+    const rejected = expect(failed).rejects.toThrow(
+        'Synthetic history write failed'
+    );
+    try {
+        await order.run('other-source', async () => {
+            calls.push('unrelated write');
+        });
+        expect(calls).toEqual(['unrelated write']);
+    } finally {
+        release();
+    }
+
+    const clear = order.run(null, async () => {
+        calls.push('clear history');
+    });
+    const afterClear = order.run('other-source', async () => {
+        calls.push('next write');
+    });
+
+    await Promise.all([rejected, clear, afterClear]);
+    expect(calls).toEqual([
+        'unrelated write',
+        'first write',
+        'clear history',
+        'next write',
+    ]);
+    expect(activity.isBusy('first-source')).toBe(false);
 });

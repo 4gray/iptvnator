@@ -598,6 +598,63 @@ describe('UnifiedRecentDataService', () => {
         );
     });
 
+    it.each(['playlist', 'all'] as const)(
+        'orders a %s clear between live playback writes during catalog replacement',
+        async (scope) => {
+            jest.spyOn(
+                TestBed.inject(RuntimeCapabilitiesService),
+                'supportsXtreamSqliteDataSource',
+                'get'
+            ).mockReturnValue(true);
+            const activity = TestBed.inject(SourceActivityService);
+            const playlistId = 'synthetic-source';
+            const release = activity.begin([playlistId]);
+            const calls: string[] = [];
+            const item: UnifiedCollectionItem = {
+                uid: 'xtream::synthetic-source::live:42',
+                name: 'Synthetic live item',
+                contentType: 'live',
+                sourceType: 'xtream',
+                playlistId,
+                playlistName: 'Synthetic source',
+                xtreamId: 42,
+            };
+            dbService.getContentByXtreamId.mockImplementation(async (id) => ({
+                id,
+            }));
+            dbService.addRecentItem.mockImplementation(async (id) => {
+                calls.push(`play ${id}`);
+                return true;
+            });
+            const clear = async () => {
+                calls.push('clear');
+                return true;
+            };
+            dbService.clearPlaylistRecentItems.mockImplementation(clear);
+            dbService.clearGlobalRecentlyViewed.mockImplementation(clear);
+
+            const before = service.recordPlayback(item);
+            const cleared = service.clearRecentItems(scope, playlistId);
+            const after = service.recordPlayback({
+                ...item,
+                playlistId: scope === 'all' ? 'synthetic-other' : playlistId,
+                xtreamId: 43,
+            });
+            await Promise.resolve();
+            const callsWhileReplacing = [...calls];
+            release();
+            await Promise.all([before, cleared, after]);
+
+            expect(callsWhileReplacing).toEqual([]);
+            expect(calls).toEqual(['play 42', 'clear', 'play 43']);
+            if (scope === 'playlist')
+                expect(dbService.clearPlaylistRecentItems).toHaveBeenCalledWith(
+                    playlistId
+                );
+            else expect(dbService.clearGlobalRecentlyViewed).toHaveBeenCalled();
+        }
+    );
+
     it('clears Xtream recent localStorage during global PWA clear', async () => {
         Object.defineProperty(window, 'electron', {
             value: undefined,
