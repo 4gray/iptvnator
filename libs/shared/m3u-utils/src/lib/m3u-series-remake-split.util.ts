@@ -109,7 +109,8 @@ function earliestStatedYear<T extends M3uArtworkBearing>(
  * episode. Rows with a file name of their own are unaffected. The same
  * stream can still sit at two numbers (a provider's fallback clip listed as
  * the extra of several episodes); those copies add their coordinates, the
- * stable part of where they are, so each card keeps its own id.
+ * stable part of where they are, so each card keeps its own id; an
+ * unnumbered copy, whose number is only its slot, adds that mark instead.
  */
 export function remintM3uEpisodeIds<T extends M3uArtworkBearing>(
     series: M3uSeriesAccumulator<T>
@@ -151,7 +152,12 @@ export function remintM3uEpisodeIds<T extends M3uArtworkBearing>(
             if (rowKey !== undefined) {
                 identity = rowIdentity(episode, rowKey);
                 if ((identityUses.get(identity) ?? 0) > 1) {
-                    identity = `${identity}\u0000${coordinate}`;
+                    // An unnumbered row's number is only its slot, which a
+                    // reorder moves; one stream is unnumbered once (its
+                    // copies fold), so the mark alone tells it apart.
+                    identity = `${identity}\u0000${
+                        episode.unnumbered ? 'unnumbered' : coordinate
+                    }`;
                 }
             }
             episodes.set(slot, { ...episode, id: mint(identity) });

@@ -210,6 +210,29 @@ describe('buildM3uSeriesCatalog', () => {
         expect(ids([...parts].reverse())).toEqual(ids(parts));
     });
 
+    it('keeps an unnumbered copy its id when unnumbered rows are reordered', () => {
+        // The same stream as an unnumbered row and as the extra of a
+        // numbered episode: the unnumbered copy's number is only its slot.
+        const at = (name: string, file: string) => ({
+            ...row(name),
+            url: `http://h.example/series/u/p/${file}.mp4`,
+        });
+        const shared = at('Lecture', 'shared');
+        const other = at('Lecture', 'other');
+        const numbered = [
+            at('Lecture S2 E5', 'five'),
+            at('Lecture S2 E5 BACKUP', 'shared'),
+        ];
+        const unnumberedIdOf = (rows: ReturnType<typeof at>[]) =>
+            buildM3uSeriesCatalog(rows, 'pl-1')[0]
+                .seasons.get(1)
+                ?.find((episode) => episode.channel.url === shared.url)?.id;
+
+        const before = unnumberedIdOf([shared, other, ...numbered]);
+        expect(before).toBeDefined();
+        expect(unnumberedIdOf([other, shared, ...numbered])).toBe(before);
+    });
+
     it('keeps the coordinate id with its row when the URL tokens rotate', () => {
         // Two parts of equal name length: a tie broken on the URL would
         // flip when the provider rotates the token in the path, moving the
