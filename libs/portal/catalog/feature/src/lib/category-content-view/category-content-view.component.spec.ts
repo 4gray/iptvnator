@@ -17,6 +17,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
+import { StateViewComponent } from '@iptvnator/ui/state';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { EMPTY, ReplaySubject, of } from 'rxjs';
 import {
@@ -68,19 +69,6 @@ class MockGridListComponent {
     readonly type = input<string>('');
     readonly itemClicked = output<unknown>();
     readonly retryLoadMore = output<void>();
-}
-
-@Component({
-    selector: 'app-playlist-error-view',
-    standalone: true,
-    changeDetection: ChangeDetectionStrategy.Eager,
-    template: '',
-})
-class MockPlaylistErrorViewComponent {
-    readonly title = input('');
-    readonly description = input('');
-    readonly showActionButtons = input(true);
-    readonly viewType = input('');
 }
 
 @Component({
@@ -262,7 +250,7 @@ describe('CategoryContentViewComponent', () => {
                         NgComponentOutlet,
                         InfiniteScrollDirective,
                         MockGridListComponent,
-                        MockPlaylistErrorViewComponent,
+                        StateViewComponent,
                         MatIcon,
                         MatButtonModule,
                         MatMenuModule,

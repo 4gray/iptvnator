@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
@@ -158,7 +158,10 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
                 },
                 { provide: EpgRuntimeBridgeService, useValue: {} },
                 { provide: MatDialog, useValue: { open: jest.fn() } },
-                { provide: MatSnackBar, useValue: { open: jest.fn() } },
+                {
+                    provide: LazySnackBar,
+                    useValue: { open: jest.fn().mockResolvedValue(null) },
+                },
             ],
         }).compileComponents();
 

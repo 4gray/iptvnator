@@ -23,13 +23,13 @@
 }
 
 .category-title {
-    @include panel.standard-panel-title(0.94rem);
+    @include panel.standard-panel-title(var(--app-text-lg));
     color: var(--app-on-surface);
 }
 
 .category-subtitle {
     @include panel.standard-panel-subtitle(
-        $font-size: 0.72rem,
+        $font-size: var(--app-text-xs),
         $padding: 2px 8px,
         $color: var(--app-muted-color),
         $background: var(--app-content-bg)
@@ -42,7 +42,7 @@
     display: flex;
     flex-shrink: 0;
     padding: 8px 20px;
-    font-size: 0.8rem;
+    font-size: var(--app-text-sm);
     gap: 6px;
 
     &__count {
@@ -82,11 +82,6 @@
     gap: 2px;
     max-width: 960px;
     margin-inline: auto;
-
-    app-playlist-error-view {
-        display: block;
-        padding: 48px 16px;
-    }
 }
 
 @media (max-width: 640px) {

@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { UntypedFormBuilder } from '@angular/forms';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import {
     EpgRuntimeBridgeService,
     EpgService,
@@ -16,10 +16,19 @@ import { SettingsSnackbarService } from './settings-snackbar.service';
 import {
     createElectronStub,
     createEpgBridgeStub,
-    MatSnackBarStub,
+    LazySnackBarStub,
     MockSettingsService,
     MockSettingsStore,
 } from './test-stubs/settings-test-harness.stub';
+
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
+const SUCCESS_TOAST = expect.objectContaining({
+    politeness: 'polite',
+    panelClass: expect.arrayContaining(['app-notification--success']),
+});
 
 /** Writable double for the bridge's read-only capability getters. */
 type EpgBridgeStub = {
@@ -32,7 +41,7 @@ describe('SettingsEpgFacade', () => {
     let epgBridge: EpgBridgeStub;
     let epgService: EpgService;
     let dialogService: DialogService;
-    let snackBar: MatSnackBarStub;
+    let snackBar: LazySnackBarStub;
     let translate: TranslateService;
     const originalElectron = window.electron;
 
@@ -58,7 +67,7 @@ describe('SettingsEpgFacade', () => {
                 { provide: EpgRuntimeBridgeService, useValue: epgBridge },
                 MockProvider(EpgService, { fetchEpg: jest.fn() }),
                 MockProvider(DialogService, { openConfirmDialog: jest.fn() }),
-                { provide: MatSnackBar, useClass: MatSnackBarStub },
+                { provide: LazySnackBar, useClass: LazySnackBarStub },
                 { provide: SettingsService, useClass: MockSettingsService },
                 { provide: SettingsStore, useClass: MockSettingsStore },
             ],
@@ -69,7 +78,7 @@ describe('SettingsEpgFacade', () => {
         formFacade = TestBed.inject(SettingsFormFacade);
         epgService = TestBed.inject(EpgService);
         dialogService = TestBed.inject(DialogService);
-        snackBar = TestBed.inject(MatSnackBar) as unknown as MatSnackBarStub;
+        snackBar = TestBed.inject(LazySnackBar) as unknown as LazySnackBarStub;
         translate = TestBed.inject(TranslateService);
         jest.spyOn(translate, 'instant').mockImplementation((key) => key);
     });
@@ -139,7 +148,7 @@ describe('SettingsEpgFacade', () => {
         expect(snackBar.open).toHaveBeenCalledWith(
             'SETTINGS.EPG_DATA_CLEARED',
             undefined,
-            expect.objectContaining({ panelClass: ['settings-snackbar'] })
+            SUCCESS_TOAST
         );
         expect(refreshSpy).toHaveBeenCalled();
     });
@@ -158,8 +167,8 @@ describe('SettingsEpgFacade', () => {
         expect(facade.isClearing()).toBe(false);
         expect(snackBar.open).toHaveBeenCalledWith(
             'SETTINGS.EPG_DATA_CLEAR_FAILED',
-            undefined,
-            expect.objectContaining({ panelClass: ['settings-snackbar'] })
+            'CLOSE',
+            ERROR_TOAST
         );
         expect(refreshSpy).not.toHaveBeenCalled();
     });

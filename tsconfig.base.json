@@ -84,6 +84,7 @@
             "@iptvnator/playlist/shared/util/playlist-file-import": [
                 "libs/playlist/shared/util/src/lib/playlist-file-import.service.ts"
             ],
+            "@iptvnator/ui/state": ["libs/ui/state/src/index.ts"],
             "@iptvnator/ui/epg": ["libs/ui/epg/src/index.ts"],
             "@iptvnator/ui/epg/date": ["libs/ui/epg/src/lib/epg-date.ts"],
             "@iptvnator/ui/epg/progress-panel": [
@@ -140,8 +141,9 @@
             "@iptvnator/ui/components/confirm-dialog": [
                 "libs/ui/components/src/lib/confirm-dialog/dialog.service.ts"
             ],
-            "@iptvnator/ui/components/dialog-size": [
-                "libs/ui/components/src/lib/dialog-shell/dialog-size.ts"
+            "@iptvnator/ui/dialog": ["libs/ui/dialog/src/index.ts"],
+            "@iptvnator/ui/dialog/dialog-size": [
+                "libs/ui/dialog/src/lib/dialog-shell/dialog-size.ts"
             ],
             "@iptvnator/ui/components/form-field-defaults": [
                 "libs/ui/components/src/lib/form-field-defaults/form-field-defaults.ts"
@@ -200,6 +202,9 @@
             ],
             "@iptvnator/services/lazy-snack-bar": [
                 "libs/services/src/lib/lazy-snack-bar/lazy-snack-bar.ts"
+            ],
+            "@iptvnator/services/notifications": [
+                "libs/services/src/lib/notifications/notification.service.ts"
             ],
             "@iptvnator/services/xtream-catalog-refresh": [
                 "libs/services/src/lib/xtream-selected-catalog-refresh.service.ts"
@@ -274,6 +279,9 @@
             "@iptvnator/shared/database/connection-observer": [
                 "libs/shared/database/src/lib/connection-observer.ts"
             ],
+            "@iptvnator/shared/database/content-title-fts": [
+                "libs/shared/database/src/lib/content-title-fts.ts"
+            ],
             "@iptvnator/workspace/dashboard/feature": [
                 "libs/workspace/dashboard/feature/src/index.ts"
             ],
@@ -329,6 +337,9 @@
             ],
             "@iptvnator/shared/interfaces/activity-sync": [
                 "libs/shared/interfaces/src/activity-sync.ts"
+            ],
+            "@iptvnator/shared/interfaces/profiles": [
+                "libs/shared/interfaces/src/profiles.ts"
             ],
             "@iptvnator/shared/interfaces/age-rating": [
                 "libs/shared/interfaces/src/age-rating.ts"

@@ -20,6 +20,85 @@ import {
 const isWindowManagerlessCi =
     process.platform === 'linux' && !!process.env['CI'];
 
+/**
+ * Rail and header buttons whose visible part (clipped by their scrolling
+ * ancestors, so links scrolled out of the rail do not count) intersects a
+ * window control, or that sit in a window-drag region without opting out.
+ */
+function coveredChromeButtons(page: Page): Promise<string[]> {
+    return page.evaluate(() => {
+        type Box = { left: number; top: number; right: number; bottom: number };
+        const visibleBox = (el: Element): Box => {
+            const own = el.getBoundingClientRect();
+            const box = {
+                left: own.left,
+                top: own.top,
+                right: own.right,
+                bottom: own.bottom,
+            };
+            for (let n = el.parentElement; n; n = n.parentElement) {
+                const style = getComputedStyle(n);
+                if (
+                    style.overflowX === 'visible' &&
+                    style.overflowY === 'visible'
+                ) {
+                    continue;
+                }
+                const clip = n.getBoundingClientRect();
+                box.left = Math.max(box.left, clip.left);
+                box.top = Math.max(box.top, clip.top);
+                box.right = Math.min(box.right, clip.right);
+                box.bottom = Math.min(box.bottom, clip.bottom);
+            }
+            return box;
+        };
+        const isEmpty = (b: Box) => b.right <= b.left || b.bottom <= b.top;
+        const intersects = (a: Box, b: Box) =>
+            a.left < b.right &&
+            a.right > b.left &&
+            a.top < b.bottom &&
+            a.bottom > b.top;
+        const region = (el: Element) =>
+            (getComputedStyle(el) as unknown as { appRegion?: string })
+                .appRegion ?? 'none';
+
+        const controls = [
+            ...document.querySelectorAll('app-window-controls button'),
+        ].map((button) => ({
+            id: button.getAttribute('data-test-id'),
+            box: visibleBox(button),
+        }));
+        const buttons = document.querySelectorAll(
+            '.app-rail a, .app-rail button, .workspace-header a, .workspace-header button, .workspace-header input'
+        );
+        const problems: string[] = [];
+        for (const el of buttons) {
+            const box = visibleBox(el);
+            if (isEmpty(box) || getComputedStyle(el).visibility === 'hidden') {
+                continue;
+            }
+            const name =
+                el.getAttribute('aria-label') ??
+                el.getAttribute('data-test-id') ??
+                el.tagName.toLowerCase();
+            for (const control of controls) {
+                if (intersects(box, control.box)) {
+                    problems.push(`${name} under ${control.id}`);
+                }
+            }
+            for (let n: Element | null = el; n; n = n.parentElement) {
+                const value = region(n);
+                if (value === 'no-drag') break;
+                if (value === 'drag') {
+                    problems.push(`${name} in a drag region`);
+                    break;
+                }
+            }
+        }
+        return problems;
+    });
+}
+
 test.describe('Custom window controls', () => {
     test.skip(
         process.platform === 'darwin',
@@ -172,6 +251,54 @@ test.describe('Custom window controls', () => {
             await expect(
                 app.mainWindow.getByTestId('window-minimize')
             ).toBeVisible();
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('@xtream @electron controls never cover rail or header buttons in the phone layout', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            const page = app.mainWindow;
+            await page.setViewportSize({ width: 1200, height: 800 });
+            await addXtreamPortal(page);
+            await waitForXtreamWorkspaceReady(page);
+            // Live TV adds the most header buttons (sidebar toggle, guide).
+            await page.locator('.app-rail a[aria-label="Live TV"]').click();
+            await expect(page).toHaveURL(/\/live/);
+
+            // The phone layout (<=640 CSS px) is what a zoomed-in window, or
+            // one a tiling window manager sizes below the 900px minimum,
+            // shows: the rail is the top band under the controls. The
+            // viewport is sized instead of the window, so a window manager
+            // cannot skip the case.
+            for (const width of [528, 640]) {
+                await page.setViewportSize({ width, height: 800 });
+                await expect
+                    .poll(() => page.evaluate(() => window.innerWidth))
+                    .toBe(width);
+                // The pointer left over a rail link after the relayout opens
+                // its tooltip, which would intercept the hit test below.
+                await page.mouse.move(width / 2, 600);
+                await expect(
+                    page.locator('.mat-mdc-tooltip-surface')
+                ).toHaveCount(0);
+
+                expect(
+                    await coveredChromeButtons(page),
+                    `buttons under the window controls at ${width}px`
+                ).toEqual([]);
+                // Not covered by the close button (it used to close the
+                // window instead of opening Settings).
+                await page
+                    .locator('.app-rail a[href$="/workspace/settings"]')
+                    .click({ trial: true, timeout: 5_000 });
+            }
         } finally {
             await closeElectronApp(app);
         }

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/library_qr_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/phone_settings_background"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/phone_settings_surface"
+        android:gravity="center_vertical"
+        android:padding="16dp">
+        <TextView
+            style="@style/PhoneSettingsText.Section"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:text="@string/scan_qr"
+            android:textSize="22sp"
+            android:accessibilityHeading="true" />
+        <Button
+            android:id="@+id/library_qr_close"
+            style="@style/PhoneSettingsButton"
+            android:layout_width="wrap_content"
+            android:text="@string/external_prompt_cancel" />
+    </LinearLayout>
+
+    <com.journeyapps.barcodescanner.DecoratedBarcodeView
+        android:id="@+id/zxing_barcode_scanner"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        app:zxing_framing_rect_width="248dp"
+        app:zxing_framing_rect_height="248dp" />
+
+    <Button
+        android:id="@+id/library_qr_image"
+        style="@style/PhoneSettingsButton"
+        android:layout_margin="16dp"
+        android:text="@string/scan_qr_image" />
+</LinearLayout>

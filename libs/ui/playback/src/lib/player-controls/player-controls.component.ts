@@ -16,6 +16,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { ANDROID_EXTERNAL_ACTION } from './android-external-action';
 import { ControlsChromeInteractions } from './controls-chrome-interactions';
 import { ControlsFeedback } from './controls-feedback';
 import { ControlsFullscreen } from './controls-fullscreen';
@@ -171,7 +172,11 @@ export class PlayerControlsComponent implements OnDestroy {
 
     readonly state = computed(() => this.controller().state());
     readonly capabilities = computed(() => this.controller().capabilities());
+    private readonly androidExternal = inject(ANDROID_EXTERNAL_ACTION, {
+        optional: true,
+    });
     readonly settings = new ControlsSettings({
+        extraActionAvailable: this.androidExternal?.available,
         state: this.state,
         capabilities: this.capabilities,
         showControls: this.showControls,
@@ -310,16 +315,9 @@ export class PlayerControlsComponent implements OnDestroy {
         });
         effect((onCleanup) => {
             const surface = this.playerSurface();
-            if (!surface || !this.hideCursor()) {
-                return;
+            if (surface && this.hideCursor()) {
+                onCleanup(this.surface.hideCursor(surface));
             }
-            const previousCursor = surface.style.cursor;
-            surface.style.cursor = 'none';
-            onCleanup(() => {
-                if (surface.style.cursor === 'none') {
-                    surface.style.cursor = previousCursor;
-                }
-            });
         });
         effect(() => {
             const state = this.state();

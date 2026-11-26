@@ -23,8 +23,8 @@ import {
  *   2. The rail rows' dashed border and the lock list's border are painted.
  *   3. The PIN error is a red with >= 4.5:1 contrast on the dialog.
  *   4. The lock dialogs fit a 375px viewport without sideways overflow.
- *   5. In the PWA the Xtream dialog shows lock controls only — hide/show is
- *      Electron-only — and its clear-search button has a name.
+ *   5. In the PWA the Xtream editor exposes independent lock and visibility
+ *      controls, and its clear-search button has a name.
  *
  * Tag: @parental — run only this spec with:
  *   pnpm nx run web-e2e:e2e-ci--src/parental-lock-ui.e2e.ts
@@ -156,8 +156,8 @@ async function tabTo(
  * The ring sits inside the row (offset -2px), so it must stand out from the
  * row's own fill and from the surface around the row.
  */
-async function expectFocusRing(row: Locator): Promise<void> {
-    await expect(row).toBeFocused();
+async function expectFocusRing(row: Locator, focused = row): Promise<void> {
+    await expect(focused).toBeFocused();
     await expect(row).toHaveCSS('outline-style', 'solid');
     await expect(row).toHaveCSS('outline-width', '2px');
     const inside = await contrastBehind(row, 'outlineColor', true);
@@ -247,12 +247,14 @@ test.describe('Parental lock UI', () => {
         const toggles = dialog.locator('[data-test-id^="category-lock-"]');
         await expect(toggles.first()).toBeVisible();
 
-        // PWA: locks only, no hide/show selection controls.
         await expect(
             dialog.locator('[data-test-id="category-locked-count"]')
         ).toBeVisible();
-        await expect(dialog.locator('.bulk-actions')).toHaveCount(0);
-        await expect(dialog.locator('mat-checkbox')).toHaveCount(0);
+        await expect(
+            dialog.getByRole('button', { name: 'Deselect All', exact: true })
+        ).toBeEnabled();
+        const visibility = dialog.getByRole('checkbox').first();
+        await expect(visibility).toBeChecked();
 
         await dialog.locator('.search-inline input').fill('a');
         await dialog.getByRole('button', { name: 'Clear search' }).click();
@@ -261,6 +263,7 @@ test.describe('Parental lock UI', () => {
         // Locked reads as a state, not only as another glyph.
         await toggles.first().click();
         await expect(toggles.first()).toHaveAttribute('aria-pressed', 'true');
+        await expect(visibility).toBeChecked();
         expect(await toggleLook(toggles.first())).not.toBe(
             await toggleLook(toggles.nth(1))
         );
@@ -338,18 +341,19 @@ test.describe('Parental lock UI', () => {
         await expect(rows.first()).toBeVisible();
 
         const search = dialog.locator('.search-inline input');
-        await tabTo(page, browserName, search, rows.first());
+        const checkbox = rows.first().getByRole('checkbox');
+        await tabTo(page, browserName, search, checkbox);
         for (const theme of THEMES) {
             await setTheme(page, theme);
-            await expectFocusRing(rows.first());
+            await expectFocusRing(rows.first(), checkbox);
             await expectPaintedBorder(
                 dialog.locator('.categories-list'),
                 'solid'
             );
         }
-        // The next row takes the ring over when Tab moves on.
+        // Tab moves from the visibility checkbox to the independent lock toggle.
         await pressTab(page, browserName);
-        await expectFocusRing(rows.nth(1));
+        await expectFocusRing(rows.first().getByRole('button'));
 
         await search.fill('a');
         await dialog.getByRole('button', { name: 'Clear search' }).click();

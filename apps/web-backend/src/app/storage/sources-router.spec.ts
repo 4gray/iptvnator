@@ -30,7 +30,7 @@ describe('source synchronization API', () => {
                     resolveHostname: resolvePublicHost,
                     httpClient: new StubHttpClient(),
                 }),
-                async (base) => {
+                async (base, fetch) => {
                     const url = `${base}/v1/sources`;
                     expect(
                         (
@@ -135,6 +135,35 @@ describe('source synchronization API', () => {
             )
         ));
 
+    it('preserves punctuation in historical source IDs', () =>
+        withTempStorage((storage) =>
+            withServer(
+                createWebBackendApp({
+                    storage,
+                    httpClient: new StubHttpClient(),
+                    resolveHostname: resolvePublicHost,
+                }),
+                async (base, fetch) => {
+                    for (const id of ['news..archive', 'family//news']) {
+                        const segment = encodeURIComponent(id);
+                        const url = `${base}/v1/sources/${segment}`;
+                        const created = await fetch(
+                            url,
+                            body('PUT', source(id), { 'If-None-Match': '*' })
+                        );
+                        expect(created.status).toBe(201);
+                        expect(await (await fetch(url)).json()).toMatchObject({
+                            id,
+                        });
+                        const legacy = await fetch(
+                            `${base}/v1/playlists/${segment}`
+                        );
+                        expect(await legacy.json()).toMatchObject({ _id: id });
+                    }
+                }
+            )
+        ));
+
     it('keeps uploaded M3U out of inventory and invalidates tags after legacy mutations', () =>
         withTempStorage((storage) =>
             withServer(
@@ -144,15 +173,17 @@ describe('source synchronization API', () => {
                     resolveHostname: resolvePublicHost,
                     httpClient: new StubHttpClient(),
                 }),
-                async (base) => {
+                async (base, fetch) => {
                     const rawM3u =
                         '#EXTM3U\n#EXTINF:-1,One\nhttps://media.test/one';
+                    const id = 'family/news';
+                    const encodedId = encodeURIComponent(id);
                     const created = await fetch(
-                        `${base}/v1/sources/file`,
+                        `${base}/v1/sources/${encodedId}`,
                         body(
                             'PUT',
                             {
-                                id: 'file',
+                                id,
                                 title: 'Upload',
                                 kind: 'm3u-text',
                                 rawM3u,
@@ -163,7 +194,7 @@ describe('source synchronization API', () => {
                     expect(created.status).toBe(201);
                     const first = await fetch(`${base}/v1/sources`);
                     const legacy = await (
-                        await fetch(`${base}/v1/playlists/file`)
+                        await fetch(`${base}/v1/playlists/${encodedId}`)
                     ).json();
                     expect(legacy).toMatchObject({
                         playlist: {
@@ -179,8 +210,10 @@ describe('source synchronization API', () => {
                         rawM3u
                     );
                     expect(
-                        await (await fetch(`${base}/v1/sources/file`)).json()
-                    ).toMatchObject({ rawM3u });
+                        await (
+                            await fetch(`${base}/v1/sources/${encodedId}`)
+                        ).json()
+                    ).toMatchObject({ id, rawM3u });
                     const { playlist, ...legacyUpload } = m3uDocument('legacy');
                     const header = {
                         raw: '#EXTM3U x-tvg-url="https://guide.test/epg.xml"',
@@ -245,7 +278,7 @@ describe('source synchronization API', () => {
                     resolveHostname: resolvePublicHost,
                     httpClient: new StubHttpClient(),
                 }),
-                async (base) => {
+                async (base, fetch) => {
                     expect((await fetch(`${base}/v1/sources`)).status).toBe(
                         401
                     );
@@ -277,7 +310,7 @@ describe('source synchronization API', () => {
                     resolveHostname: resolvePublicHost,
                     httpClient: new StubHttpClient(),
                 }),
-                async (base) => {
+                async (base, fetch) => {
                     const url = `${base}/v1/sources`;
                     // nginx's gzip rewrites `"tag"` to `W/"tag"`.
                     const weak = (tag: string | null) => `W/${tag}`;

@@ -8,12 +8,15 @@ import {
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 import { XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
-import { DialogShellComponent } from '../dialog-shell/dialog-shell.component';
-import { DialogFooterDirective } from '../dialog-shell/dialog-shell.directives';
+import { DialogShellComponent } from '@iptvnator/ui/dialog';
+import { DialogFooterDirective } from '@iptvnator/ui/dialog';
 
 export interface EpisodeInfoDialogData {
     /** e.g. "S01E05" */
     episodeLabel: string;
+    /** Absent when the provider does not say which season it is. */
+    seasonNumber?: number;
+    episodeNumber: number;
     title: string;
     plot?: string;
     duration?: string;
@@ -34,6 +37,8 @@ export function buildEpisodeInfoDialogData(
         episodeLabel: `${episode.seasonUnknown ? '' : `S${String(seasonNumber).padStart(2, '0')}`}E${String(
             episodeNumber
         ).padStart(2, '0')}`,
+        seasonNumber: episode.seasonUnknown ? undefined : seasonNumber,
+        episodeNumber,
         title: episode.title,
         plot: info?.plot || undefined,
         duration: info?.duration || undefined,
@@ -44,6 +49,18 @@ export function buildEpisodeInfoDialogData(
 }
 
 /** Result returned when the user chooses to play from the dialog. */
+/**
+ * The header subtitle names the season and the episode; a known season 0
+ * (specials) is still a season, only an unknown one is left out.
+ */
+export function episodeSubtitleKey(
+    data: Pick<EpisodeInfoDialogData, 'seasonNumber'>
+): string {
+    return data.seasonNumber === undefined
+        ? 'DIALOGS.EPISODE'
+        : 'DIALOGS.EPISODE_SEASON';
+}
+
 export const EPISODE_INFO_PLAY = 'play' as const;
 
 /**
@@ -62,7 +79,18 @@ export const EPISODE_INFO_PLAY = 'play' as const;
         TranslateModule,
     ],
     template: `
-        <app-dialog-shell [heading]="data.title">
+        <app-dialog-shell
+            icon="info"
+            [heading]="data.title"
+            [subtitle]="
+                episodeSubtitleKey(data)
+                    | translate
+                        : {
+                              season: data.seasonNumber,
+                              episode: data.episodeNumber,
+                          }
+            "
+        >
             <div class="episode-info">
                 @if (data.thumbnailUrl) {
                     <img
@@ -162,6 +190,7 @@ export const EPISODE_INFO_PLAY = 'play' as const;
     ],
 })
 export class EpisodeInfoDialogComponent {
+    protected readonly episodeSubtitleKey = episodeSubtitleKey;
     readonly data: EpisodeInfoDialogData = inject(MAT_DIALOG_DATA);
     private readonly dialogRef = inject(
         MatDialogRef<EpisodeInfoDialogComponent>

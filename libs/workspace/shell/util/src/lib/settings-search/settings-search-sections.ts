@@ -65,6 +65,13 @@ export const SETTINGS_SECTION_DEFINITIONS: readonly SettingsSectionDefinition[] 
             group: 'library',
         },
         {
+            id: 'android-device',
+            navLabelKey: 'SETTINGS.ANDROID_DEVICE',
+            icon: 'smartphone',
+            requires: ['android-settings'],
+            group: 'devices',
+        },
+        {
             id: 'remote-control',
             navLabelKey: 'SETTINGS.NAV_REMOTE',
             icon: 'smartphone',

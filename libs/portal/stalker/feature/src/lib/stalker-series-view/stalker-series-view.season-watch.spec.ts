@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import {
@@ -147,14 +147,22 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
     }
 
     function snackBarCalls(): unknown[][] {
-        return (TestBed.inject(MatSnackBar).open as jest.Mock).mock.calls;
+        return (TestBed.inject(LazySnackBar).open as jest.Mock).mock.calls;
     }
 
     function expectSeasonToggleSnackbar(key: string): void {
-        expect(TestBed.inject(MatSnackBar).open).toHaveBeenCalledWith(
+        const failed = key === 'XTREAM.SERIES_WATCH_UPDATE_FAILED';
+        expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
             key,
-            undefined,
-            { duration: 5000 }
+            failed ? 'CLOSE' : undefined,
+            expect.objectContaining({
+                politeness: failed ? 'assertive' : 'polite',
+                panelClass: expect.arrayContaining([
+                    failed
+                        ? 'app-notification--error'
+                        : 'app-notification--success',
+                ]),
+            })
         );
     }
 
@@ -300,8 +308,8 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
                     },
                 },
                 {
-                    provide: MatSnackBar,
-                    useValue: { open: jest.fn() },
+                    provide: LazySnackBar,
+                    useValue: { open: jest.fn().mockResolvedValue(null) },
                 },
                 {
                     provide: StalkerCatalogFacadeService,

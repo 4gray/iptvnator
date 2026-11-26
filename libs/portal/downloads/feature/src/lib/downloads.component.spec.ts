@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { join } from 'node:path';
 import { computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import {
     ActivatedRoute,
@@ -32,6 +32,11 @@ import { DownloadManagerActionsService } from './download-manager-actions.servic
 import { RecordingManagerActionsService } from './recording-manager-actions.service';
 import type { DownloadSeriesCardViewModel } from './download-manager.viewmodel';
 import { DownloadsComponent } from './downloads.component';
+
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
 
 interface Deferred<T> {
     readonly promise: Promise<T>;
@@ -222,7 +227,7 @@ describe('DownloadsComponent', () => {
         dialogActionUnsubscribe = jest.fn();
         dialogSetInput = jest.fn();
         dialogActionListener = undefined;
-        snackBar = { open: jest.fn() };
+        snackBar = { open: jest.fn().mockResolvedValue(null) };
         navigation = {
             canOpen: jest.fn(() => true),
             open: jest.fn(async () => true),
@@ -314,7 +319,7 @@ describe('DownloadsComponent', () => {
                     },
                 },
                 { provide: MatDialog, useValue: matDialog },
-                { provide: MatSnackBar, useValue: snackBar },
+                { provide: LazySnackBar, useValue: snackBar },
                 {
                     provide: PORTAL_SHELL_ACTIONS,
                     useValue: { openAddPlaylistDialog: jest.fn() },
@@ -394,8 +399,8 @@ describe('DownloadsComponent', () => {
                     GO_TO_SOURCES: 'Go to sources',
                     GO_TO_DASHBOARD: 'Go to dashboard',
                 },
+                SOURCES: { ADD_SOURCE: 'Add source' },
             },
-            HOME: { PLAYLISTS: { ADD_YOUR_FIRST: 'Add playlist' } },
         });
         translate.use('en');
 
@@ -531,7 +536,7 @@ describe('DownloadsComponent', () => {
 
         const root = fixture.nativeElement as HTMLElement;
         expect(root.querySelector('app-download-library')).not.toBeNull();
-        expect(root.querySelector('app-empty-state')).toBeNull();
+        expect(root.querySelector('app-state-view')).toBeNull();
         expect(
             root.querySelector('[data-test-id="downloads-filters"]')
         ).not.toBeNull();
@@ -750,7 +755,7 @@ describe('DownloadsComponent', () => {
         await expect(first).resolves.toBe('success');
     });
 
-    it('reports operation failures through the existing snackbar path', async () => {
+    it('reports operation failures without their raw text', async () => {
         downloadsService.retryDownload.mockResolvedValueOnce({
             success: false,
             error: 'network offline',
@@ -764,9 +769,13 @@ describe('DownloadsComponent', () => {
         ).resolves.toBe('failed');
 
         expect(snackBar.open).toHaveBeenCalledWith(
-            'Action failed: network offline',
-            undefined,
-            expect.objectContaining({ duration: 4000 })
+            'Action failed',
+            'Close',
+            ERROR_TOAST
+        );
+        // The failure's own text stays out of the toast.
+        expect(JSON.stringify(snackBar.open.mock.calls)).not.toContain(
+            'network offline'
         );
     });
 
@@ -848,8 +857,8 @@ describe('DownloadsComponent', () => {
         expect(component.pendingIds().has(17)).toBe(false);
         expect(snackBar.open).toHaveBeenCalledWith(
             'File not found',
-            undefined,
-            expect.objectContaining({ duration: 3000 })
+            'Close',
+            ERROR_TOAST
         );
     });
 
@@ -864,8 +873,8 @@ describe('DownloadsComponent', () => {
         expect(downloadsService.revealFile).not.toHaveBeenCalled();
         expect(snackBar.open).toHaveBeenCalledWith(
             'File not found',
-            undefined,
-            expect.objectContaining({ duration: 3000 })
+            'Close',
+            ERROR_TOAST
         );
     });
 
@@ -934,8 +943,8 @@ describe('DownloadsComponent', () => {
         expect(navigation.open).toHaveBeenCalledWith(item);
         expect(snackBar.open).toHaveBeenCalledWith(
             'Action failed',
-            undefined,
-            expect.objectContaining({ duration: 4000 })
+            'Close',
+            ERROR_TOAST
         );
     });
 
@@ -1075,8 +1084,8 @@ describe('DownloadsComponent', () => {
         expect(navigation.open).not.toHaveBeenCalled();
         expect(snackBar.open).toHaveBeenCalledWith(
             'Source playlist missing',
-            undefined,
-            expect.objectContaining({ duration: 3000 })
+            'Close',
+            ERROR_TOAST
         );
     });
 

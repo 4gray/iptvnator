@@ -1,5 +1,7 @@
 // Shared by the application and the decorative settings samples.
 
+@use '../../../libs/ui/styles/scales';
+
 @mixin light($preview: false) {
     --app-shell-bg: #eef0f3;
     --app-rail-bg: #eef0f3;
@@ -48,11 +50,8 @@
         // #2f7bff falls to 2.6:1 on the stronger tint.
         --app-focus-ring: #1d63e0;
 
-        // Live / on-air accent (broadcast indicator)
-        --app-live-color: #d12c2c;
-
-        // Done / watched status (episode watched toggle)
-        --app-success-color: #15803d;
+        // Status hues (`--app-status-*`, libs/ui/styles/_scales.scss).
+        @include scales.status-light;
 
         // Content area
         --app-content-shadow: -2px 4px 12px rgba(0, 0, 0, 0.06);
@@ -78,7 +77,6 @@
         // Subscription-expiry chips (dashboard source cards). Text/surface pairs
         // are picked per theme to keep >= 4.5:1 small-text contrast against the
         // composited chip background.
-        --app-expiry-warn-text: #8a5300;
         --app-expiry-warn-surface: color-mix(in srgb, #d97706 16%, transparent);
         --app-expiry-expired-text: #b3261e;
         --app-expiry-expired-surface: color-mix(
@@ -108,10 +106,8 @@
 
         // Source lists (Sources page, playlist switcher) and their popovers.
         --app-line-strong: rgba(0, 0, 0, 0.12);
-        --app-font-mono:
-            'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
         // A failing source's tag and destructive menu items.
-        --app-danger-text: #b3261e;
+        --app-danger-text: var(--app-status-danger);
         --app-danger-surface: color-mix(in srgb, #d12c2c 12%, transparent);
         --app-neutral-tag-surface: rgba(0, 0, 0, 0.06);
         // One selected-row look for side lists and the switcher's current row:
@@ -177,11 +173,8 @@
         // selection tint.
         --app-focus-ring: #8cbaff;
 
-        // Live / on-air accent (broadcast indicator)
-        --app-live-color: #ff8f8f;
-
-        // Done / watched status (episode watched toggle)
-        --app-success-color: #4ade80;
+        // Status hues (`--app-status-*`, libs/ui/styles/_scales.scss).
+        @include scales.status-dark;
 
         // Content area
         --app-content-shadow: -4px 8px 20px rgba(0, 0, 0, 0.18);
@@ -207,8 +200,7 @@
         --app-provider-m3u: #fbbf24;
 
         // Subscription-expiry chips — brighter text for the dark surfaces;
-        // expired matches the --app-live-color accent family.
-        --app-expiry-warn-text: #fbbf24;
+        // expired matches the --app-status-live accent family.
         --app-expiry-warn-surface: color-mix(in srgb, #fbbf24 16%, transparent);
         --app-expiry-expired-text: #ff8f8f;
         --app-expiry-expired-surface: color-mix(
@@ -236,7 +228,7 @@
         // re-declared so they resolve against this context's selection
         // colour, not the light values computed on `html`.
         --app-line-strong: rgba(255, 255, 255, 0.1);
-        --app-danger-text: #ff8d9b;
+        --app-danger-text: var(--app-status-danger);
         --app-danger-surface: rgba(255, 91, 110, 0.14);
         --app-neutral-tag-surface: rgba(255, 255, 255, 0.08);
         --app-list-selected-bg: var(--app-selection-surface);

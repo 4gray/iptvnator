@@ -3,7 +3,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter, take } from 'rxjs';
 import { ServerStorageStatusService } from '@iptvnator/services';
-import { dialogSize } from '@iptvnator/ui/components/dialog-size';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 import {
     ServerMigrationService,
     type ServerMigrationPlaylist,

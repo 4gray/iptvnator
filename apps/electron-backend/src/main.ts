@@ -35,6 +35,7 @@ import {
 import { isEmbeddedMpvFeatureEnabled } from './app/services/embedded-mpv-runtime-policy.util';
 import { runEmbeddedMpvRuntimeDiagnosticOrContinue } from './app/services/embedded-mpv-runtime-diagnostic';
 import { acquireSingleInstanceLock } from './app/services/single-instance';
+import { registerQuitTeardown } from './app/startup/quit-teardown';
 import {
     createPlaylistOpenRequest,
     extractPlaylistOpenRequestsFromArgv,
@@ -141,7 +142,8 @@ export default class Main {
         WindowEvents.bootstrapWindowEvents();
         PlaylistOpenEvents.bootstrapPlaylistOpenEvents();
         registerHostedServerEvents(() => App.mainWindow);
-        if (store.get(HOSTED_SERVER_ENABLED, false)) await restoreHostedServer();
+        if (store.get(HOSTED_SERVER_ENABLED, false))
+            await restoreHostedServer();
 
         const deferred = createDeferredBootstrap<
             DeferredEventsModule,
@@ -266,15 +268,11 @@ runEmbeddedMpvRuntimeDiagnosticOrContinue(process.argv, () => {
         await Main.bootstrapAppEvents();
     });
 
-    // 'will-quit', not 'before-quit': the unsaved-settings close guard can
-    // cancel a quit mid-flight by preventing the window close, and
-    // 'before-quit' has already fired by then — tearing sessions and the DB
-    // worker down there would leave a cancelled quit with the app open but
-    // playback and database work destroyed. 'will-quit' only fires once
-    // every window close was allowed through.
-    app.on('will-quit', () => {
+    // On 'will-quit', held until the DB worker drained its writes; see
+    // quit-teardown.ts for why not 'before-quit'.
+    registerQuitTeardown(app, {
+        stopNow: stopHostedServerOnQuit,
         // Nothing to tear down when the deferred group never loaded.
-        stopHostedServerOnQuit();
-        deferredEvents?.module?.shutdownDeferredServices();
+        drain: () => deferredEvents?.module?.shutdownDeferredServices() ?? null,
     });
 });

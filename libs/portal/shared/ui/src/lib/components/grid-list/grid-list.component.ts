@@ -30,7 +30,7 @@ import {
     WatchedBadgeComponent,
 } from '@iptvnator/ui/components';
 import { CoverTitlesService } from '../../cover-titles/cover-titles.service';
-import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
+import { StateViewComponent } from '@iptvnator/ui/state';
 import { createGridWindow } from './grid-window.controller';
 
 interface GridListItem {
@@ -98,7 +98,7 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
     imports: [
         DatePipe,
         TranslatePipe,
-        PlaylistErrorViewComponent,
+        StateViewComponent,
         MatButtonModule,
         MatCardModule,
         MatIcon,

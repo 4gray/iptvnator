@@ -21,6 +21,7 @@ describe('ConfirmDialogComponent actions', () => {
                         provide: MAT_DIALOG_DATA,
                         useValue: {
                             title: 'Recovery',
+                            subtitle: 'A file needs attention',
                             message: '/saved/entry',
                             confirmLabel: 'Copy',
                             cancelLabel: 'Close',
@@ -66,6 +67,7 @@ describe('ConfirmDialogComponent labels and tone', () => {
                     provide: MAT_DIALOG_DATA,
                     useValue: {
                         title: 'Remove playlist',
+                        subtitle: 'Living room · Xtream account',
                         message: 'Delete it?',
                         confirmLabel: 'Remove playlist',
                         onConfirm: jest.fn(),
@@ -80,8 +82,26 @@ describe('ConfirmDialogComponent labels and tone', () => {
         const buttons = fixture.nativeElement.querySelectorAll(
             'button'
         ) as NodeListOf<HTMLButtonElement>;
-        return { cancel: buttons[0], confirm: buttons[1] };
+        return {
+            cancel: buttons[0],
+            confirm: buttons[1],
+            root: fixture.nativeElement as HTMLElement,
+        };
     }
+
+    it('heads the question with an icon, the title and the subtitle', async () => {
+        const { root } = await render({});
+
+        expect(
+            root.querySelector('.app-dialog__icon')?.textContent?.trim()
+        ).toBe('help_outline');
+        expect(
+            root.querySelector('.app-dialog__subtitle')?.textContent?.trim()
+        ).toBe('Living room · Xtream account');
+        expect(root.querySelector('.app-dialog__body')?.textContent).toContain(
+            'Delete it?'
+        );
+    });
 
     it('names the action instead of answering "Yes", and cancels by default', async () => {
         const { cancel, confirm } = await render({});
@@ -93,8 +113,11 @@ describe('ConfirmDialogComponent labels and tone', () => {
     });
 
     it('styles destructive confirmations as destructive', async () => {
-        const { confirm } = await render({ tone: 'destructive' });
+        const { confirm, root } = await render({ tone: 'destructive' });
 
         expect(confirm.classList).toContain('app-destructive-button');
+        expect(
+            root.querySelector('.app-dialog__icon--warn')?.textContent?.trim()
+        ).toBe('warning');
     });
 });

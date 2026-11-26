@@ -4,6 +4,7 @@
 @use '../../../../../styles/nav-list';
 @use '../../../../../styles/focus-ring';
 @use '../../styles/channel-list-layout' as layout;
+@use '../../../../../styles/app-controls' as controls;
 
 :host {
     display: flex;
@@ -79,23 +80,12 @@
     gap: 4px;
 }
 
-.groups-nav-action,
 .groups-nav-search {
     @include mat.form-field-density(-5);
 }
 
 .groups-nav-action {
-    width: 28px;
-    height: 28px;
-    min-width: 28px;
-    padding: 0;
-    line-height: 28px;
-
-    mat-icon {
-        width: 18px;
-        height: 18px;
-        font-size: 18px;
-    }
+    @include layout.list-header-action(layout.$groups-nav-action-size);
 }
 
 .groups-nav-search {
@@ -136,7 +126,7 @@
     background: transparent;
     color: var(--mat-sys-on-surface);
     font: inherit;
-    font-size: 0.84rem;
+    font-size: var(--app-text-sm);
 
     &::placeholder {
         color: var(--mat-sys-on-surface-variant);
@@ -149,22 +139,12 @@
 }
 
 .groups-nav-search__close {
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
-    line-height: 24px;
     flex-shrink: 0;
-    padding: 0;
-
-    mat-icon {
-        width: 16px;
-        height: 16px;
-        font-size: 16px;
-    }
+    @include controls.ghost-icon-button(24px, 16px);
 }
 
-.groups-content-header button {
-    @include mat.form-field-density(-5);
+.groups-content-header__action {
+    @include layout.list-header-action;
 }
 
 .category-meta {
@@ -176,7 +156,7 @@
 }
 
 .category-title {
-    @include panel.standard-panel-title(0.94rem);
+    @include panel.standard-panel-title(var(--app-text-lg));
 }
 
 .category-subtitle {
@@ -187,38 +167,6 @@
     height: 100%;
     min-height: 0;
     padding-inline: 0 2px;
-}
-
-.groups-nav-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 24px 12px;
-    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
-
-    &__icon {
-        width: 28px;
-        height: 28px;
-        font-size: 28px;
-        opacity: 0.5;
-        margin-bottom: 10px;
-    }
-
-    &__title {
-        font-size: 0.85rem;
-        font-weight: 500;
-        letter-spacing: -0.01em;
-        margin-bottom: 4px;
-        text-wrap: balance;
-    }
-
-    &__hint {
-        font-size: 0.78rem;
-        line-height: 1.4;
-        opacity: 0.65;
-        text-wrap: pretty;
-    }
 }
 
 .group-nav-item {
@@ -260,50 +208,6 @@
     }
 }
 
-.groups-content-empty-state {
-    display: flex;
-    flex: 1;
-    min-height: 0;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 24px;
-    text-align: center;
-}
-
-.groups-view-empty-state {
-    display: flex;
-    flex: 1;
-    min-height: 0;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 24px;
-    text-align: center;
-}
-
-.empty-state-icon {
-    width: 48px;
-    height: 48px;
-    font-size: 48px;
-    opacity: 0.5;
-    margin-bottom: 16px;
-}
-
-.empty-state-title {
-    font-size: 1.05rem;
-    font-weight: 500;
-    letter-spacing: -0.01em;
-    margin-bottom: 8px;
-}
-
-.empty-state-hint {
-    opacity: 0.65;
-    font-size: 0.85rem;
-    max-width: 240px;
-    line-height: 1.4;
-}
-
 @container (max-width: 220px) {
     .groups-nav-list {
         padding-inline-end: 0;
@@ -324,7 +228,7 @@
     background: transparent;
     color: var(--app-body-color);
     font: inherit;
-    font-size: 0.8125rem;
+    font-size: var(--app-text-sm);
     text-align: left;
     cursor: pointer;
 
@@ -356,7 +260,7 @@
     }
 
     &__hint {
-        font-size: 0.6875rem;
+        font-size: var(--app-text-2xs);
         opacity: 0.8;
         white-space: nowrap;
     }

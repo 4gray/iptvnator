@@ -210,14 +210,13 @@ test.describe('App theme over the OS colour scheme', () => {
                         name: 'welcome-dashboard',
                         scope: dashboard,
                         texts: [
-                            dashboard.locator('.welcome-dashboard__tagline'),
-                            dashboard.locator(
-                                '.welcome-dashboard__description'
-                            ),
+                            dashboard.locator('.app-state-view__title'),
+                            dashboard.locator('.app-state-view__description'),
+                            dashboard.locator('.welcome__link').first(),
                             dashboard.locator('.feature-card__title').first(),
                             dashboard.locator('.feature-card__desc').first(),
                             dashboard.locator(
-                                '.welcome-dashboard__cta .mdc-button__label'
+                                '[data-state-action="action"] .mdc-button__label'
                             ),
                         ],
                         hovered: [
@@ -250,7 +249,7 @@ test.describe('App theme over the OS colour scheme', () => {
                         name: 'welcome-sources',
                         scope: sources,
                         texts: [
-                            sources.locator('.welcome-sources__body'),
+                            sources.locator('.app-state-view__description'),
                             sources.locator('.source-card__name').first(),
                             sources.locator('.source-card__needs').first(),
                             sources.locator('.source-card__chip').first(),

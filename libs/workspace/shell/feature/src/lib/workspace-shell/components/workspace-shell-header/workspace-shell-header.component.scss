@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 @use '../../../../../../../../ui/styles/focus-ring';
 
 :host {
@@ -27,8 +28,14 @@
 }
 
 // Pulled toward the edge so the arrow glyph, not the button's padding, sits
-// on the header's inset.
+// on the header's inset. A 40px square with an 8px radius, like the header
+// actions after it, not Material's circle.
 .header-back {
+    @include mat.icon-button-overrides(
+        (
+            container-shape: 8px,
+        )
+    );
     flex-shrink: 0;
     margin-inline-start: -8px;
     app-region: no-drag;
@@ -102,7 +109,7 @@
         );
         border: 1px solid
             color-mix(in srgb, var(--mat-sys-outline-variant) 82%, transparent);
-        font-size: 0.75rem;
+        font-size: var(--app-text-xs);
         font-weight: 600;
         line-height: 1;
         white-space: nowrap;
@@ -195,7 +202,7 @@
         background: transparent;
         color: var(--mat-sys-on-surface);
         font: inherit;
-        font-size: 0.875rem;
+        font-size: var(--app-text-md);
 
         &:disabled {
             cursor: not-allowed;
@@ -233,7 +240,7 @@
             color-mix(in srgb, var(--mat-sys-outline-variant) 70%, transparent);
         border-radius: 5px;
         font-family: inherit;
-        font-size: 0.7rem;
+        font-size: var(--app-text-2xs);
         font-weight: 600;
         letter-spacing: 0.02em;
         line-height: 1;
@@ -269,6 +276,11 @@
 
     button,
     a {
+        @include mat.icon-button-overrides(
+            (
+                container-shape: 8px,
+            )
+        );
         color: var(--mat-sys-on-surface-variant);
         border-radius: 8px;
         transition:
@@ -350,7 +362,7 @@
     color: var(--mat-sys-on-primary);
     background: var(--mat-sys-primary);
     box-shadow: 0 2px 8px var(--app-selection-glow);
-    font-size: 0.6875rem;
+    font-size: var(--app-text-2xs);
     font-weight: 700;
     line-height: 1;
     pointer-events: none;
@@ -473,6 +485,12 @@
     .workspace-header {
         padding-inline: 8px;
         gap: 8px;
+    }
+
+    // The frameless window controls sit over the rail's top band here (see
+    // the rail), so the header drops the inset the global styles reserve.
+    :host-context(body.frameless-platform) .workspace-header {
+        padding-right: 8px;
     }
 
     .context-drawer-toggle {

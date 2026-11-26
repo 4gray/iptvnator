@@ -1,14 +1,17 @@
 import {
+    HOSTED_BROWSER_TOKEN_PREFIX,
+    SOURCE_SERVER_CONNECTION_KEY as CONNECTION_KEY,
+    SOURCE_SERVER_DISABLED_KEY as DISABLED_KEY,
     SOURCE_SYNC_CAPABILITY,
     type SourceServerConnection,
     type ServerInstanceInfo,
 } from '@iptvnator/shared/interfaces';
 
-export const CONNECTION_KEY = 'iptvnator:source-server';
-export const DISABLED_KEY = 'iptvnator:source-server-disabled';
+export { CONNECTION_KEY, DISABLED_KEY };
 const INCOMPATIBLE = 'SOURCE_SYNC.INCOMPATIBLE';
 const OFFLINE = 'SOURCE_SYNC.OFFLINE';
 let selected: SourceServerConnection | null = null;
+let nativePairing: SourceServerConnection | null = null;
 let readFailed = false;
 let verificationEpoch = 0;
 
@@ -26,6 +29,25 @@ export const sourceProfileName = () =>
           : 'iptvnator';
 export const tokenKey = ({ apiUrl, instanceId }: SourceServerConnection) =>
     `iptvnator:server-token:${JSON.stringify([apiUrl, instanceId])}`;
+
+export function pairedBrowserTokenKey(
+    connection: SourceServerConnection
+): string | null {
+    return connection.apiUrl === `${location.origin}/api` &&
+        !('HostedPairing' in window || 'HostedAccessApi' in window)
+        ? HOSTED_BROWSER_TOKEN_PREFIX + connection.instanceId
+        : null;
+}
+
+export function readBrowserSourceToken(
+    connection: SourceServerConnection
+): string | null {
+    const pairedKey = pairedBrowserTokenKey(connection);
+    return (
+        (pairedKey && localStorage.getItem(pairedKey)) ||
+        sessionStorage.getItem(tokenKey(connection))
+    );
+}
 
 export function parseSourceConnection(raw: string): SourceServerConnection {
     const connection = JSON.parse(raw) as SourceServerConnection;
@@ -67,17 +89,78 @@ export function assertSourceInstance(
     }
 }
 
+/** A verified native library is the default until the user selects another source API or disconnects source sync. */
+function prefersBrowserSourceSelection(): boolean {
+    try {
+        const active = localStorage.getItem(CONNECTION_KEY);
+        if (active) return parseSourceConnection(active).apiUrl !== `${location.origin}/api`;
+        const disabled = localStorage.getItem(DISABLED_KEY);
+        if (!disabled) return false;
+        try {
+            // Older shells disconnected the paired API as a browser source. A fresh native pairing can reopen it.
+            return parseSourceConnection(disabled).apiUrl !== `${location.origin}/api`;
+        } catch {
+            return true; // Legacy or forgotten source selection disables discovery.
+        }
+    } catch {
+        // A verified native instance can recover a malformed or unreadable browser selection.
+        return false;
+    }
+}
+
 /** Runs before Angular constructs storage or reads the source inventory. */
 export async function prepareSourceConnection(
     runtimeBackendUrl?: string
 ): Promise<void> {
     selected = null;
+    nativePairing = null;
     invalidateSourceVerification();
     readFailed = false;
     try {
         if (window.electron?.sourceSyncConnection) {
             selected = window.electron.sourceSyncConnection();
             return;
+        }
+        const nativeAccess = window as Window & {
+            HostedAccessApi?: unknown;
+            __iptvnatorHostedAccessInstance?: string;
+        };
+        const instanceId = nativeAccess.__iptvnatorHostedAccessInstance;
+        const useNative =
+            (nativeAccess.HostedAccessApi || 'HostedPairing' in window) &&
+            !prefersBrowserSourceSelection();
+        if (
+            useNative &&
+            nativeAccess.HostedAccessApi &&
+            typeof instanceId === 'string' &&
+            instanceId
+        ) {
+            selected = { apiUrl: `${location.origin}/api`, instanceId };
+            return;
+        }
+        if (useNative && runtimeBackendUrl && 'HostedPairing' in window) {
+            const previous = localStorage.getItem(CONNECTION_KEY);
+            const disabled = localStorage.getItem(DISABLED_KEY);
+            const paired = await import('./hosted-pairing-bridge')
+                .then(({ restoreNativeHostedPairing }) =>
+                    restoreNativeHostedPairing(runtimeBackendUrl)
+                )
+                .catch(() => null);
+            if (
+                paired &&
+                localStorage.getItem(CONNECTION_KEY) === previous &&
+                localStorage.getItem(DISABLED_KEY) === disabled
+            ) {
+                const { connection, token } = paired;
+                sessionStorage.setItem(tokenKey(connection), token);
+                localStorage.setItem(
+                    CONNECTION_KEY,
+                    JSON.stringify(connection)
+                );
+                localStorage.removeItem(DISABLED_KEY);
+                selected = nativePairing = connection;
+                return;
+            }
         }
         const saved = localStorage.getItem(CONNECTION_KEY);
         if (saved) {
@@ -135,6 +218,16 @@ export async function prepareSourceConnection(
     } catch {
         readFailed = true;
     }
+}
+
+export async function forgetNativeHostedPairing(): Promise<void> {
+    if (!nativePairing || nativePairing !== selected) return;
+    const pairing = nativePairing;
+    const { forgetHostedPairing } = await import('./hosted-pairing-bridge');
+    if (!(await forgetHostedPairing(pairing.instanceId)))
+        throw new Error('SOURCE_SYNC.REQUEST_FAILED');
+    if (nativePairing !== pairing) return;
+    nativePairing = null;
 }
 
 export function invalidateSourceVerification(): void {

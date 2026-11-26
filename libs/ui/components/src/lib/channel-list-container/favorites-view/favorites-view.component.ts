@@ -32,6 +32,8 @@ import { EpgMappingDialogComponent } from '../epg-mapping-dialog/epg-mapping-dia
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
 import { resolveChannelLogo } from '../channel-logo-fallback.util';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
+import { StateViewComponent } from '@iptvnator/ui/state';
+import { APP_ICONS } from '../../app-icons/app-icons';
 
 @Component({
     selector: 'app-favorites-view',
@@ -39,6 +41,7 @@ import { ChannelListItemComponent } from '../channel-list-item/channel-list-item
     styleUrls: ['./favorites-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        StateViewComponent,
         ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,
@@ -48,6 +51,7 @@ import { ChannelListItemComponent } from '../channel-list-item/channel-list-item
     ],
 })
 export class FavoritesViewComponent {
+    readonly appIcons = APP_ICONS;
     private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly dialog = inject(MatDialog);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);

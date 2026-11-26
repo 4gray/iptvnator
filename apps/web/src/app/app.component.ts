@@ -7,7 +7,6 @@ import {
     signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Router, RouterOutlet } from '@angular/router';
 import { Actions, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
@@ -95,7 +94,6 @@ export class AppComponent implements OnInit {
     private readonly dateLocales = inject(AppDateLocaleService);
     private epgBridge = inject(EpgRuntimeBridgeService);
     private epgService = inject(EpgService);
-    private snackBar = inject(LazySnackBar);
     private router = inject(Router);
     private store = inject(Store);
     private translate = inject(TranslateService);
@@ -260,17 +258,10 @@ export class AppComponent implements OnInit {
             }
 
             if (result.freshUrls.length > 0) {
+                // Fresh sources are not news: no toast, only the debug log.
                 debugAppComponent(
                     `EPG: ${result.freshUrls.length} source(s) already fresh, skipping fetch`
                 );
-                // Show snackbar if all EPG sources are fresh (no stale URLs)
-                if (result.staleUrls.length === 0) {
-                    void this.snackBar.open(
-                        this.translate.instant('EPG.UP_TO_DATE'),
-                        this.translate.instant('CLOSE'),
-                        { duration: 3000 }
-                    );
-                }
             }
 
             if (result.staleUrls.length > 0) {

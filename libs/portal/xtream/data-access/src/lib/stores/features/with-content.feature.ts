@@ -984,37 +984,8 @@ export function withContent() {
                         throwIfImportCancelled(importSessionId);
                     }
 
-                    // Electron content persistence maps remote category IDs
-                    // to internal DB category rows, so categories must exist
-                    // before content import starts.
-                    await methods.fetchAllCategories({
-                        sessionId: importSessionId,
-                        signal: importController.signal,
-                    });
-                    throwIfImportCancelled(importSessionId);
-                    await methods.fetchAllContent({
-                        importSessionId,
-                        sessionId: importSessionId,
-                        signal: importController.signal,
-                        completedTypes,
-                    });
-                    throwIfImportCancelled(importSessionId);
-
-                    // Only the revision captured before import belongs to this
-                    // content generation. A newer revision may come from a
-                    // refresh that has deleted the catalog and must remain
-                    // parked until its own replacement import completes.
-                    const currentRestoreSnapshot =
-                        pendingRestoreService.getSnapshotOrThrow(
-                            ctx.playlistId
-                        );
-                    patchState(store, {
-                        isPendingRestoreBlocked:
-                            currentRestoreSnapshot !== null,
-                    });
-
-                    // Restore user data if needed
-                    if (initialRestoreSnapshot) {
+                    const applyPendingRestore = async (): Promise<void> => {
+                        if (!initialRestoreSnapshot) return;
                         try {
                             throwIfImportCancelled(importSessionId);
                             const restoreOperationId =
@@ -1056,7 +1027,42 @@ export function withContent() {
 
                             throw err;
                         }
-                    }
+                    };
+
+                    // Browser visibility is part of the first catalog read.
+                    // SQLite replay waits until the imported rows exist.
+                    if (!usesSqlite) await applyPendingRestore();
+
+                    // Electron content persistence maps remote category IDs
+                    // to internal DB category rows, so categories must exist
+                    // before content import starts.
+                    await methods.fetchAllCategories({
+                        sessionId: importSessionId,
+                        signal: importController.signal,
+                    });
+                    throwIfImportCancelled(importSessionId);
+                    await methods.fetchAllContent({
+                        importSessionId,
+                        sessionId: importSessionId,
+                        signal: importController.signal,
+                        completedTypes,
+                    });
+                    throwIfImportCancelled(importSessionId);
+
+                    // Only the revision captured before import belongs to this
+                    // content generation. A newer revision may come from a
+                    // refresh that has deleted the catalog and must remain
+                    // parked until its own replacement import completes.
+                    const currentRestoreSnapshot =
+                        pendingRestoreService.getSnapshotOrThrow(
+                            ctx.playlistId
+                        );
+                    patchState(store, {
+                        isPendingRestoreBlocked:
+                            currentRestoreSnapshot !== null,
+                    });
+
+                    if (usesSqlite) await applyPendingRestore();
 
                     const isRestoreStillPending =
                         hasPendingRestoreOrReadFailure(ctx.playlistId);

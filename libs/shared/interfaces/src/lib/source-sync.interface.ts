@@ -1,4 +1,8 @@
 export const SOURCE_SYNC_CAPABILITY = 'sources-v1';
+// The hosted pairing page selects the same browser profile as the web player.
+export const SOURCE_SERVER_CONNECTION_KEY = 'iptvnator:source-server';
+export const SOURCE_SERVER_DISABLED_KEY = 'iptvnator:source-server-disabled';
+export const HOSTED_BROWSER_TOKEN_PREFIX = 'iptvnator:paired-browser:';
 
 export interface SourceDefinition {
     id: string;

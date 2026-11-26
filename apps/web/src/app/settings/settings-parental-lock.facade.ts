@@ -1,5 +1,4 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { TranslateService } from '@ngx-translate/core';
 import { ParentalLockService } from '@iptvnator/services';
 import {
     PARENTAL_LOCK_RELOCK_MINUTES_OPTIONS,
@@ -17,7 +16,6 @@ import { SettingsSnackbarService } from './settings-snackbar.service';
 export class SettingsParentalLockFacade {
     private readonly parentalLock = inject(ParentalLockService);
     private readonly snackbar = inject(SettingsSnackbarService);
-    private readonly translate = inject(TranslateService);
 
     readonly enabled = this.parentalLock.enabled;
     readonly unlocked = this.parentalLock.unlocked;
@@ -73,7 +71,7 @@ export class SettingsParentalLockFacade {
     }
 
     private notify(key: string): void {
-        this.snackbar.open(this.translate.instant(key));
+        this.snackbar.success(key);
     }
 
     private async run(action: () => Promise<unknown>): Promise<void> {

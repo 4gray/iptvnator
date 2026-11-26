@@ -1,3 +1,4 @@
+import { getStalkerLiveRowGenre } from '@iptvnator/shared/interfaces';
 import {
     buildStalkerLiveNavigationTarget,
     buildXtreamNavigationTarget,
@@ -148,17 +149,14 @@ export function resolveStalkerLiveGenreId(
 ): string | null {
     const stored = source.stalkerItem;
     return (
-        stalkerGenreId(source.stalkerGenreId) ??
-        stalkerItemGenre(stored) ??
-        stalkerCategoryGenre(source.categoryId) ??
+        String(source.stalkerGenreId ?? '').trim() ||
+        getStalkerLiveRowGenre(stored, source.categoryId) ||
         // An authoritative row answers even without a genre: a genreless
         // channel lives in the All list, and a portal without a full list
         // would otherwise land on the empty "select a category" screen.
         (stored === undefined || stored === null ? null : '*')
     );
 }
-
-const STALKER_SECTION_MARKERS = new Set(['itv', 'radio', 'vod', 'series']);
 
 /**
  * The stored Stalker LIVE row's provider id: the first NON-BLANK of
@@ -180,32 +178,4 @@ export function resolveStalkerProviderId(item: unknown): string | null {
         }
     }
     return null;
-}
-
-/**
- * The stored row's own genre, read in the order the live navigation reads
- * it (`tv_genre_id` then `category_id`); the row's `category_id` can be the
- * section marker, which is not a genre.
- */
-function stalkerItemGenre(item: unknown): string | null {
-    if (!item || typeof item !== 'object') {
-        return null;
-    }
-    const raw = item as { tv_genre_id?: unknown; category_id?: unknown };
-    return (
-        stalkerGenreId(raw.tv_genre_id) ?? stalkerCategoryGenre(raw.category_id)
-    );
-}
-
-/** Any non-blank genre id, the All pseudo-genre included. */
-function stalkerGenreId(value: unknown): string | null {
-    const text = String(value ?? '').trim();
-    return text || null;
-}
-
-function stalkerCategoryGenre(value: unknown): string | null {
-    const genre = stalkerGenreId(value);
-    return genre && !STALKER_SECTION_MARKERS.has(genre.toLowerCase())
-        ? genre
-        : null;
 }

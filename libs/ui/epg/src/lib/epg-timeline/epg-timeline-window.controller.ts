@@ -11,6 +11,7 @@ import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { getTodayEpgDateKey, parseEpgDateKey } from '../epg-date';
 import { programsFocusKey } from './epg-timeline-scroll.controller';
 import {
+    currentProgrammeFocusMs,
     TIMELINE_MINUTE_MS,
     TimelineAxis,
     TimelineBlock,
@@ -313,9 +314,7 @@ export class TimelineWindowController {
         }
         const current = this.ctx.blocks().find((block) => block.when === 'now');
         return {
-            centreMs: current
-                ? (current.startMs + current.stopMs) / 2
-                : this.ctx.nowMs(),
+            centreMs: currentProgrammeFocusMs(current, this.ctx.nowMs()),
             widthPx,
         };
     }

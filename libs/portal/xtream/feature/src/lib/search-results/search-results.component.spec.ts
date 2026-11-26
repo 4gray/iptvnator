@@ -530,11 +530,12 @@ describe('SearchResultsComponent in-portal result window', () => {
 
         const filteredIdentity = component.searchResetIdentity();
         try {
-            component.toggleExcludeHidden(true);
+            expect(component.excludeHidden()).toBe(true);
+            component.toggleExcludeHidden(false);
             expect(component.searchResetIdentity()).not.toBe(filteredIdentity);
         } finally {
             // toggleExcludeHidden persists; do not leak into other tests.
-            localStorage.removeItem('xtream-search-exclude-hidden');
+            localStorage.removeItem('xtream-pwa-search-exclude-hidden');
         }
     });
 });

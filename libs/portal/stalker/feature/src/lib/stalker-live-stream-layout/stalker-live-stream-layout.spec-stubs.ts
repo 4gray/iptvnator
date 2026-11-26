@@ -126,6 +126,7 @@ export class StubEpgTimelineComponent {
 export class StubPortalEmptyStateComponent {
     readonly icon = input('');
     readonly message = input('');
+    readonly hint = input<string | null>(null);
 }
 
 /** Accepts the layout's resizable bindings without touching storage or the DOM. */

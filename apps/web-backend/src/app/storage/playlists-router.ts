@@ -102,7 +102,7 @@ function withEtag(res: Response, etag: string): Response {
     return res
         .set('ETag', etag)
         .set('Access-Control-Expose-Headers', `ETag, ${REPLACED_ETAG_HEADER}`)
-        .set('Cache-Control', 'no-cache');
+        .set('Cache-Control', res.get('Cache-Control') ?? 'no-cache');
 }
 
 /**

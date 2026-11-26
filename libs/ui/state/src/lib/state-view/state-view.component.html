@@ -1,0 +1,48 @@
+<div class="app-state-view" [attr.role]="role()">
+    <ng-content select="[appStateIcon]">
+        <div class="app-state-view__icon" aria-hidden="true">
+            <mat-icon>{{ resolvedIcon() }}</mat-icon>
+        </div>
+    </ng-content>
+    <div class="app-state-view__copy">
+        @switch (resolvedHeadingLevel()) {
+            @case (2) {
+                <h2 class="app-state-view__title">{{ heading() }}</h2>
+            }
+            @case (3) {
+                <h3 class="app-state-view__title">{{ heading() }}</h3>
+            }
+            @default {
+                <h4 class="app-state-view__title">{{ heading() }}</h4>
+            }
+        }
+        @if (description(); as description) {
+            <p class="app-state-view__description">{{ description }}</p>
+        }
+    </div>
+    @if (buttons().length > 0) {
+        <div class="app-state-view__actions">
+            @for (button of buttons(); track button.kind; let first = $first) {
+                <button
+                    mat-flat-button
+                    type="button"
+                    class="app-state-view__button"
+                    [class.app-state-view__button--accent]="first"
+                    [attr.data-state-action]="button.kind"
+                    [disabled]="button.kind === 'action' && actionDisabled()"
+                    (click)="onButton(button.kind)"
+                >
+                    @if (button.icon; as icon) {
+                        <mat-icon aria-hidden="true">{{ icon }}</mat-icon>
+                    }
+                    @if (button.kind === 'retry') {
+                        {{ 'RETRY' | translate }}
+                    } @else {
+                        {{ button.label }}
+                    }
+                </button>
+            }
+        </div>
+    }
+    <ng-content />
+</div>

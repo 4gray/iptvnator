@@ -22,7 +22,7 @@ import { MatIconButton } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBar } from '@angular/material/progress-bar';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -51,7 +51,6 @@ import {
     UnifiedCollectionDataService,
 } from '@iptvnator/portal/shared/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
-import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
 import { openPendingNonLiveItem } from './unified-collection-pending-open';
 import { UnifiedLiveTabComponent } from './unified-live-tab.component';
 import { UnifiedGridTabComponent } from './unified-grid-tab.component';
@@ -76,6 +75,7 @@ import { setupCollectionLoad } from './unified-collection-load';
 import { createCollectionScopeState } from './unified-collection-scope';
 import { collectionSkeletonShowsEpg } from './unified-collection-skeleton';
 import { UnifiedCollectionDetailDirective } from './unified-collection-detail.directive';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 @Component({
     selector: 'app-unified-collection-page',
@@ -84,8 +84,8 @@ import { UnifiedCollectionDetailDirective } from './unified-collection-detail.di
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [UnifiedCollectionDataService],
     imports: [
+        StateViewComponent,
         ChannelListSkeletonComponent,
-        EmptyStateComponent,
         NgTemplateOutlet,
         MatButtonToggleModule,
         MatIconButton,
@@ -114,8 +114,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     private readonly destroyRef = inject(DestroyRef);
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly data = inject(UnifiedCollectionDataService);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly liveSidebarStateService = inject(
@@ -382,9 +381,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
                 error.message === XTREAM_FAVORITE_IDENTITY_CONFLICT
                     ? 'PORTALS.FAVORITE_IDENTITY_CONFLICT'
                     : 'PORTALS.FAVORITE_SAVE_FAILED';
-            this.snackBar.open(this.translate.instant(key), undefined, {
-                duration: 6000,
-            });
+            this.notifications.error(key);
         }
     }
 

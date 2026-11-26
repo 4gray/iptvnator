@@ -6,6 +6,7 @@ import {
     buildCurrentEpgItem,
     createDeferred,
 } from './unified-live-tab.spec-data';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -24,7 +25,6 @@ import {
     getTodayEpgDateKey,
     shiftEpgDateKey,
 } from '@iptvnator/ui/epg';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { ResizableDirective } from '@iptvnator/ui/components';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
@@ -106,7 +106,7 @@ describe('UnifiedLiveTabComponent', () => {
             openResolvedPlayback: jest.fn(),
             openExternalPlayback: jest.fn(),
         };
-        snackBar = { open: jest.fn() };
+        snackBar = { open: jest.fn().mockResolvedValue(null) };
 
         await TestBed.configureTestingModule({
             imports: [TranslateModule.forRoot(), UnifiedLiveTabComponent],
@@ -134,7 +134,7 @@ describe('UnifiedLiveTabComponent', () => {
                     },
                 },
                 { provide: PORTAL_PLAYER, useValue: portalPlayer },
-                { provide: MatSnackBar, useValue: snackBar },
+                { provide: LazySnackBar, useValue: snackBar },
             ],
         })
             .overrideComponent(UnifiedLiveTabComponent, {

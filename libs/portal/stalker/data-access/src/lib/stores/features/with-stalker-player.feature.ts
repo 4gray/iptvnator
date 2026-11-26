@@ -3,7 +3,7 @@ import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import { stalkerSessionFingerprint } from '@iptvnator/shared/interfaces/stalker-session';
 import { StalkerFavoritePlaybackResolver } from '../../stalker-favorite-playback.service';
 import { inject, Injector } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { signalStoreFeature, withMethods } from '@ngrx/signals';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -65,7 +65,7 @@ export function withStalkerPlayer() {
                 playerService = inject(PORTAL_PLAYER),
                 stalkerSession = inject(StalkerSessionService),
                 portalRepair = inject(StalkerPortalRepairService),
-                snackBar = inject(MatSnackBar),
+                notifications = inject(NotificationService),
                 translate = inject(TranslateService),
                 ngrxStore = inject(Store),
                 historyGate = inject(PlaybackHistoryGate)
@@ -560,19 +560,12 @@ export function withStalkerPlayer() {
                             );
                         } catch (error) {
                             logger.error('Failed to get playback URL', error);
-                            const errorMessage =
+                            notifications.error(
                                 error instanceof Error &&
-                                error.message === 'nothing_to_play'
-                                    ? translate.instant(
-                                          'PORTALS.CONTENT_NOT_AVAILABLE'
-                                      )
-                                    : translate.instant(
-                                          'PORTALS.PLAYBACK_ERROR'
-                                      );
-
-                            snackBar.open(errorMessage, undefined, {
-                                duration: 3000,
-                            });
+                                    error.message === 'nothing_to_play'
+                                    ? 'PORTALS.CONTENT_NOT_AVAILABLE'
+                                    : 'PORTALS.PLAYBACK_ERROR'
+                            );
                         }
                     },
                 };

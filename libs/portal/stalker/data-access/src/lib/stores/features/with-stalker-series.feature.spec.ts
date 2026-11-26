@@ -188,6 +188,41 @@ describe('withStalkerSeries serialSeasonsResource gating', () => {
         expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
     });
 
+    it('reads an empty list when a regular-series reply is malformed', async () => {
+        dataService.sendIpcEvent.mockResolvedValue({ js: null });
+        store.setSelectedContentType('series');
+        store.setSelectedItem({ id: '42', name: 'Regular series' });
+
+        await waitForCondition(
+            () =>
+                seriesRequestCalls(dataService.sendIpcEvent).length === 1 &&
+                !store.isSerialSeasonsLoading()
+        );
+
+        expect(store.getSerialSeasonsResource()).toEqual([]);
+    });
+
+    it('reads an empty list when a later regular-series page fails', async () => {
+        dataService.sendIpcEvent
+            .mockResolvedValueOnce({
+                js: {
+                    total_items: 2,
+                    data: [{ id: '42:1', name: 'Season 1', series: [1] }],
+                },
+            })
+            .mockRejectedValueOnce(new Error('Season page unavailable'));
+        store.setSelectedContentType('series');
+        store.setSelectedItem({ id: '42', name: 'Regular series' });
+
+        await waitForCondition(
+            () =>
+                seriesRequestCalls(dataService.sendIpcEvent).length === 2 &&
+                !store.isSerialSeasonsLoading()
+        );
+
+        expect(store.getSerialSeasonsResource()).toEqual([]);
+    });
+
     it('does not fire a series request for an item with embedded series episodes', async () => {
         // vclub items carry their episodes inline and are always opened
         // under the VOD content type, where the seasons API is not the
@@ -424,6 +459,40 @@ describe('withStalkerSeries serialSeasonsResource gating', () => {
                 { id: 'e2', is_episode: true, series_number: 2 },
             ]);
         });
+    });
+
+    it('loads all 38 regular-series seasons from 14-row pages (#2310)', async () => {
+        const all = Array.from({ length: 38 }, (_, index) => ({
+            id: `42:${index + 1}`,
+            name: `Season ${index + 1}`,
+            series: [1],
+        }));
+        dataService.sendIpcEvent.mockImplementation(async (_, payload) => {
+            // Portals serve page 1 when `p` is missing.
+            const page = Number(
+                (payload as { params: { p?: string } }).params.p ?? 1
+            );
+            return {
+                js: {
+                    total_items: 38,
+                    max_page_items: 14,
+                    data: all.slice((page - 1) * 14, page * 14),
+                },
+            };
+        });
+        store.setSelectedContentType('series');
+        store.setSelectedItem({ id: '42', name: 'Long series' });
+        await waitForCondition(
+            () =>
+                !store.isSerialSeasonsLoading() &&
+                (store.getSerialSeasonsResource()?.length ?? 0) > 0
+        );
+        expect(store.getSerialSeasonsResource()).toEqual(all);
+        expect(
+            seriesRequestCalls(dataService.sendIpcEvent).map(
+                ([, payload]) => (payload as { params: { p: string } }).params.p
+            )
+        ).toEqual(['1', '2', '3']);
     });
 
     it('loads all 20 lazy seasons from 14-row pages', async () => {

@@ -88,6 +88,21 @@ describe('withStalkerPortal', () => {
         store = TestBed.inject(TestPortalStore);
     });
 
+    it('applies visibility edits only to the active playlist and preserves its other metadata', async () => {
+        const hidden = { itv: ['01'] };
+        await store.setCurrentPlaylist(PLAYLIST);
+        store.setCategoryVisibility('another-playlist', hidden);
+        expect(store.currentPlaylist()).toEqual(PLAYLIST);
+        store.setCategoryVisibility(PLAYLIST._id, hidden);
+        const updated = store.currentPlaylist();
+        expect(updated).toEqual({
+            ...PLAYLIST,
+            hiddenStalkerCategories: hidden,
+        });
+        store.setCategoryVisibility(PLAYLIST._id, hidden);
+        expect(store.currentPlaylist()).toBe(updated);
+    });
+
     it('creates the SQLite playlist row when the runtime exposes the required bridge methods', async () => {
         await store.setCurrentPlaylist(PLAYLIST);
 

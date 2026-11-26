@@ -1,7 +1,7 @@
 import { signal, type WritableSignal } from '@angular/core';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import {
     type InterpolatableTranslationObject,
@@ -27,6 +27,15 @@ import {
     buildEpisodeInfoDialogData,
 } from './episode-info-dialog.component';
 import { SeasonContainerComponent } from './season-container.component';
+
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
+const INFO_TOAST = expect.objectContaining({
+    politeness: 'polite',
+    panelClass: expect.arrayContaining(['app-notification--info']),
+});
 
 interface DownloadsServiceStub {
     readonly isAvailable: WritableSignal<boolean>;
@@ -162,7 +171,7 @@ describe('SeasonContainerComponent', () => {
     let downloadsServiceStub: DownloadsServiceStub;
     let downloadAdapter: SeasonEpisodeDownloadAdapter;
     let emittedSeasons: string[];
-    const snackBarOpen = jest.fn();
+    const snackBarOpen = jest.fn().mockResolvedValue(null);
 
     /** The season download, as the hero "…" menu drives it through the presenter. */
     const seasonDownload = () => component.downloadPresenter;
@@ -207,7 +216,7 @@ describe('SeasonContainerComponent', () => {
             playDownload: jest.fn().mockResolvedValue({ success: true }),
         };
         downloadAdapter = createDownloadAdapter();
-        snackBarOpen.mockReset();
+        snackBarOpen.mockReset().mockResolvedValue(null);
         await TestBed.configureTestingModule({
             imports: [
                 NoopAnimationsModule,
@@ -225,7 +234,7 @@ describe('SeasonContainerComponent', () => {
                 },
                 SeasonDownloadCoordinator,
                 {
-                    provide: MatSnackBar,
+                    provide: LazySnackBar,
                     useValue: { open: snackBarOpen },
                 },
             ],
@@ -659,7 +668,7 @@ describe('SeasonContainerComponent', () => {
         expect(snackBarOpen).toHaveBeenCalledWith(
             'Added 1 · Skipped 1',
             undefined,
-            { duration: 5000 }
+            INFO_TOAST
         );
     });
 
@@ -1038,8 +1047,8 @@ describe('SeasonContainerComponent', () => {
 
         expect(snackBarOpen).toHaveBeenCalledWith(
             'The episode could not be added to downloads.',
-            undefined,
-            { duration: 5000 }
+            'CLOSE',
+            ERROR_TOAST
         );
         expect(JSON.stringify(snackBarOpen.mock.calls)).not.toContain('alice');
         expect(JSON.stringify(snackBarOpen.mock.calls)).not.toContain(
@@ -1132,7 +1141,7 @@ describe('SeasonContainerComponent', () => {
         expect(snackBarOpen).toHaveBeenCalledWith(
             'Added 1 · Skipped 0 · Failed 1',
             undefined,
-            { duration: 5000 }
+            INFO_TOAST
         );
     });
 

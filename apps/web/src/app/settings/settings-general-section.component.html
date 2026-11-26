@@ -15,6 +15,30 @@
         }
     </header>
 
+    @if (legacyAndroidShellControls; as controls) {
+        <div class="settings-card">
+            <div class="setting-item">
+                <div class="setting-item__meta">
+                    <p id="android-device-settings-description">
+                        {{ 'SETTINGS.DEVICE_SETTINGS_DESCRIPTION' | translate }}
+                    </p>
+                </div>
+                <div class="setting-item__control">
+                    <button
+                        type="button"
+                        mat-flat-button
+                        data-test-id="android-device-settings"
+                        aria-haspopup="dialog"
+                        aria-describedby="android-device-settings-description"
+                        (click)="controls.openDeviceSettings()"
+                    >
+                        {{ 'SETTINGS.DEVICE_SETTINGS' | translate }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
     <section class="settings-section">
         <div class="settings-section__header">
             <h3>{{ 'SETTINGS.LANGUAGE' | translate }}</h3>
@@ -270,7 +294,7 @@
                 <div class="setting-item__control">
                     <button
                         type="button"
-                        mat-stroked-button
+                        mat-flat-button
                         data-test-id="settings-open-keyboard-shortcuts"
                         aria-describedby="keyboard-shortcuts-label"
                         (click)="openKeyboardShortcuts()"

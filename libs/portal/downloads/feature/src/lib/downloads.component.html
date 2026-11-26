@@ -121,11 +121,13 @@
 
     <main class="downloads__content" data-test-id="downloads-content">
         @if (!isAvailable()) {
-            <div class="downloads__message">
-                <mat-icon aria-hidden="true">desktop_access_disabled</mat-icon>
-                <h2>{{ 'DOWNLOADS.NOT_AVAILABLE' | translate }}</h2>
-                <p>{{ 'DOWNLOADS.DESKTOP_ONLY' | translate }}</p>
-            </div>
+            <app-state-view
+                class="downloads__message"
+                variant="offline"
+                icon="desktop_access_disabled"
+                [heading]="'DOWNLOADS.NOT_AVAILABLE' | translate"
+                [description]="'DOWNLOADS.DESKTOP_ONLY' | translate"
+            />
         } @else if (!playlistsLoaded()) {
             <div
                 class="downloads__skeleton"
@@ -199,31 +201,32 @@
                 </div>
             </div>
         } @else if (hasNoPlaylists() && !hasScopedDownloads()) {
-            <app-empty-state
-                type="no-data"
+            <app-state-view
                 icon="download_for_offline"
-                titleKey="DOWNLOADS.NO_PLAYLISTS_TITLE"
-                descriptionKey="DOWNLOADS.NO_PLAYLISTS_BODY"
-                primaryActionLabelKey="HOME.PLAYLISTS.ADD_YOUR_FIRST"
-                secondaryActionLabelKey="WORKSPACE.SHELL.GO_TO_SOURCES"
-                (primaryActionClicked)="addPlaylist()"
-                (secondaryActionClicked)="goToSources()"
+                [heading]="'DOWNLOADS.NO_PLAYLISTS_TITLE' | translate"
+                [description]="'DOWNLOADS.NO_PLAYLISTS_BODY' | translate"
+                [actionLabel]="'WORKSPACE.SOURCES.ADD_SOURCE' | translate"
+                actionIcon="add"
+                [secondaryLabel]="'WORKSPACE.SHELL.GO_TO_SOURCES' | translate"
+                (action)="addPlaylist()"
+                (secondaryAction)="goToSources()"
             />
         } @else if (!hasScopedDownloads()) {
-            <app-empty-state
-                type="no-data"
+            <app-state-view
                 icon="download_for_offline"
-                titleKey="DOWNLOADS.EMPTY"
-                descriptionKey="DOWNLOADS.NO_ITEMS_BODY"
-                secondaryActionLabelKey="WORKSPACE.SHELL.GO_TO_DASHBOARD"
-                (secondaryActionClicked)="goToDashboard()"
+                [heading]="'DOWNLOADS.EMPTY' | translate"
+                [description]="'DOWNLOADS.NO_ITEMS_BODY' | translate"
+                [actionLabel]="'WORKSPACE.SHELL.GO_TO_DASHBOARD' | translate"
+                actionIcon="space_dashboard"
+                (action)="goToDashboard()"
             />
         } @else if (!hasVisibleDownloads()) {
-            <div class="downloads__message downloads__message--compact">
-                <mat-icon aria-hidden="true">search_off</mat-icon>
-                <h2>{{ 'DOWNLOADS.NO_FILTER_MATCH' | translate }}</h2>
-                <p>{{ 'DOWNLOADS.NO_FILTER_MATCH_HINT' | translate }}</p>
-            </div>
+            <app-state-view
+                class="downloads__message"
+                variant="no-results"
+                [heading]="'DOWNLOADS.NO_FILTER_MATCH' | translate"
+                [description]="'DOWNLOADS.NO_FILTER_MATCH_HINT' | translate"
+            />
         } @else {
             <app-recording-queue
                 [activeItems]="recordingModel().active"

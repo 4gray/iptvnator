@@ -1,5 +1,5 @@
 import { Injector, runInInjectionContext } from '@angular/core';
-import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Router } from '@angular/router';
 import { Actions } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
@@ -26,7 +26,10 @@ describe('PlaylistEffects setActiveChannel$ programme panel', () => {
                 { provide: PlaylistsService, useValue: {} },
                 { provide: EpgService, useValue: epgService },
                 { provide: Router, useValue: {} },
-                { provide: LazySnackBar, useValue: { open: jest.fn() } },
+                {
+                    provide: NotificationService,
+                    useValue: { success: jest.fn(), error: jest.fn() },
+                },
                 {
                     provide: TranslateService,
                     useValue: { instant: (key: string) => key },

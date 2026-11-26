@@ -141,6 +141,29 @@ Worker operations use the shared table contract in
 - It mirrors the existing EPG worker approach without multiplying writable
   SQLite owners.
 
+### Shutdown on quit
+
+Quit and the source-server relaunch close the worker with
+`DatabaseWorkerClient.drainAndShutdown()`, never with a bare terminate.
+It waits up to `DB_WORKER_DRAIN_TIMEOUT_MS` (2 s) for every request the client
+already accepted, including one still waiting for worker readiness and a write
+sent while the drain runs (the renderer's `pagehide` flush of a held resume
+position). Then it posts `close`, so the worker closes SQLite and checkpoints
+the WAL, and terminates it after `DB_WORKER_CLOSE_TIMEOUT_MS` (1 s) at the
+latest. Requests after that are rejected instead of starting a new worker.
+`shutdown()` still stops the worker at once.
+
+`app/startup/quit-teardown.ts` holds the first `will-quit` while
+`shutdownDeferredServices()` drains, then resumes the quit; the windows are
+already closed, so the close guard and the `quitAndInstall()` path see nothing
+new. `QUIT_TEARDOWN_TIMEOUT_MS` (4 s) caps the wait. The teardown stays on
+`will-quit` because the close guard can still cancel a quit at `before-quit`.
+A request that misses the budget is cut off between transactions, never
+inside one: a single-transaction write is lost whole, while a batched write
+(for example `writeXtreamContentValues()`, which commits per batch) keeps the
+batches it committed. `quit-write-durability.e2e.ts` relaunches on the same
+profile to check both writes.
+
 ### Packaged worker bootstrap
 
 Packaged Electron builds do not load worker scripts and native modules from the
@@ -623,6 +646,11 @@ Xtream-only row shape:
    diacritics rebuild records that marker too, so it is never rebuilt twice;
    see [VOD multi-source](vod-multi-source.md#short-titles-and-unicode)); fresh
    inserts, deletes, and title updates stay synchronized through SQLite triggers.
+   On a catalog above 50,000 titles that rebuild runs in this worker after
+   startup, in 5,000-row transactions between requests, after main posts the
+   `content-title-fts-build` control message
+   (`workers/content-title-fts-build.ts`; contract in the
+   [database README](../../libs/shared/database/README.md#title-index-rebuild)).
 2. `source_type = "m3u"` rows come from M3U playlist payloads stored in
    `playlists.payload`. The worker uses SQL `payload LIKE` against channel
    `name`/`title` JSON fields only as a coarse candidate prefilter, then parses
@@ -1064,6 +1092,9 @@ covers:
 6. worker exit recovery and fresh worker startup
 7. stale message/error/exit events cannot change a replacement worker's state;
    shutdown rejects requests still waiting for readiness
+8. `drainAndShutdown()` waits for accepted requests (including one sent during
+   the drain) before `close` and terminate, gives up on a stuck request or a
+   worker that never exits, and starts no new worker afterwards
 
 `apps/electron-backend/src/app/events/epg.events.spec.ts` covers:
 

@@ -23,7 +23,7 @@ const record = (value: unknown): value is StoredMap =>
 
 /** Each list and its receipt commit in one blob; subsequent user edits keep the receipt. */
 export class PwaXtreamRestoreProgress {
-    private readonly id: string;
+    readonly id: string;
     constructor(
         private readonly storage: UserDataStorage,
         private readonly playlistId: string,

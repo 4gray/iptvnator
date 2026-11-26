@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import {
     activityAddressKey,
+    activityScopeKeyRange,
     applyActivityOperation,
     emptyActivityState,
     type ActivityAddress,
@@ -9,6 +10,8 @@ import {
     type ActivityState,
     type ActivitySourceContext,
     type ActivityListResponse,
+    DEFAULT_PERSONAL_SCOPE,
+    type PersonalScope,
 } from '@iptvnator/shared/interfaces/activity-sync';
 import { ensureActivitySchema } from './activity-schema';
 
@@ -95,22 +98,33 @@ export class SqliteActivityServerStore {
         })();
     }
 
+    /** One profile's entries for a source; the Default profile ('shared') unless `scope` names another. */
     list(
         instanceId: string,
         source: ActivitySourceContext,
-        cursor = ''
+        cursor = '',
+        scope: PersonalScope = DEFAULT_PERSONAL_SCOPE
     ): ActivityListResponse {
+        // The scope is part of the key, so one range of the key index holds it.
+        const [from, to] = activityScopeKeyRange(
+            instanceId,
+            source.sourceId,
+            source.sourceIncarnation,
+            scope
+        );
         const rows = this.database
             .prepare(
                 `SELECT address, value, address_key FROM activity_server_states
-             WHERE instance_id = ? AND source_id = ? AND source_incarnation = ? AND address_key > ?
+             WHERE instance_id = ? AND source_id = ? AND source_incarnation = ?
+               AND address_key > ? AND address_key < ?
              ORDER BY address_key LIMIT 101`
             )
             .all(
                 instanceId,
                 source.sourceId,
                 source.sourceIncarnation,
-                cursor
+                cursor > from ? cursor : from,
+                to
             ) as { address: string; value: string; address_key: string }[];
         const page = rows.slice(0, 100);
         return {

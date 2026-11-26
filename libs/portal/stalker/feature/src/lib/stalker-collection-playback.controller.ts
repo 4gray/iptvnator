@@ -1,5 +1,5 @@
 import { computed, signal } from '@angular/core';
-import type { MatSnackBar } from '@angular/material/snack-bar';
+import type { NotificationService } from '@iptvnator/services/notifications';
 import type { TranslateService } from '@ngx-translate/core';
 import type {
     Logger,
@@ -38,7 +38,7 @@ interface StalkerCollectionPlaybackControllerConfig {
         PortalExternalPlayback,
         'activeSession' | 'closeSession'
     >;
-    snackBar: MatSnackBar;
+    notifications: NotificationService;
     translateService: TranslateService;
     logger: Logger;
 }
@@ -92,7 +92,7 @@ export class StalkerCollectionPlaybackController {
             this.vodPlayback.discardPendingPositionLoad();
             this.selectedVodPosition.set(position);
         },
-        snackBar: this.config.snackBar,
+        notifications: this.config.notifications,
         translateService: this.config.translateService,
         logger: this.config.logger,
     });
@@ -105,7 +105,7 @@ export class StalkerCollectionPlaybackController {
             selectedVodPosition: this.selectedVodPosition,
             playbackPositions: config.playbackPositions,
             portalPlayer: config.portalPlayer,
-            snackBar: config.snackBar,
+            notifications: config.notifications,
             translateService: config.translateService,
             logger: config.logger,
             playbackErrorLogMessage: 'Failed to start collection VOD playback',
@@ -139,7 +139,7 @@ export class StalkerCollectionPlaybackController {
             this.vodPlayback.discardPendingPositionLoad(),
         beginPendingStart: () => this.vodPlayback.beginPendingStart(),
         beforeExternalLaunch: () => this.closeInlinePlayer(),
-        snackBar: this.config.snackBar,
+        notifications: this.config.notifications,
         translate: this.config.translateService,
         logError: (message, error) => this.config.logger.error(message, error),
     });

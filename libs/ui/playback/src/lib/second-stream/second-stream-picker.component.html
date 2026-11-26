@@ -34,26 +34,61 @@
                         <mat-icon>close</mat-icon>
                     </button>
                 }
-                <label class="picker__source">
-                    <select
-                        [ngModel]="source()"
-                        (ngModelChange)="changeSource($event)"
-                        [attr.aria-label]="
-                            'HOME.PLAYLISTS.INFO_DIALOG.EXPORT_FILE_TYPE'
-                                | translate
-                        "
+                <!-- The kit's toolbar picker. The label shows the source;
+                     the name adds what it picks: "Source: Global favorites". -->
+                @let sourceLabel =
+                    !source()
+                        ? ('HOME.PLAYLISTS.GLOBAL_FAVORITES' | translate)
+                        : source() === historySource
+                          ? ('PORTALS.RECENTLY_VIEWED' | translate)
+                          : sourceName();
+                <button
+                    mat-flat-button
+                    type="button"
+                    class="picker__source"
+                    [matMenuTriggerFor]="sourceMenu"
+                    [attr.aria-label]="
+                        ('TWO_STREAMS.SOURCE' | translate) + ': ' + sourceLabel
+                    "
+                >
+                    <span class="picker__source-label">{{ sourceLabel }}</span>
+                    <mat-icon
+                        class="picker__source-chevron"
+                        iconPositionEnd
+                        aria-hidden="true"
+                        >expand_more</mat-icon
                     >
-                        <option value="">
-                            {{ 'HOME.PLAYLISTS.GLOBAL_FAVORITES' | translate }}
-                        </option>
-                        <option [value]="historySource">
-                            {{ 'PORTALS.RECENTLY_VIEWED' | translate }}
-                        </option>
-                        @for (entry of sources(); track entry.id) {
-                            <option [value]="entry.id">{{ entry.name }}</option>
-                        }
-                    </select>
-                </label>
+                </button>
+                <mat-menu #sourceMenu="matMenu">
+                    <button
+                        mat-menu-item
+                        [appMenuItemRadio]="!source()"
+                        (click)="changeSource('')"
+                    >
+                        <mat-icon appMenuItemRadioCheck>check</mat-icon>
+                        <span>{{
+                            'HOME.PLAYLISTS.GLOBAL_FAVORITES' | translate
+                        }}</span>
+                    </button>
+                    <button
+                        mat-menu-item
+                        [appMenuItemRadio]="source() === historySource"
+                        (click)="changeSource(historySource)"
+                    >
+                        <mat-icon appMenuItemRadioCheck>check</mat-icon>
+                        <span>{{ 'PORTALS.RECENTLY_VIEWED' | translate }}</span>
+                    </button>
+                    @for (entry of sources(); track entry.id) {
+                        <button
+                            mat-menu-item
+                            [appMenuItemRadio]="source() === entry.id"
+                            (click)="changeSource(entry.id)"
+                        >
+                            <mat-icon appMenuItemRadioCheck>check</mat-icon>
+                            <span>{{ entry.name }}</span>
+                        </button>
+                    }
+                </mat-menu>
             </div>
         </div>
         @if (sourceLoadFailed()) {

@@ -21,7 +21,7 @@
  * Keys assembled entirely at runtime cannot be checked here.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, relative, resolve } from 'node:path';
+import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { collectLeaves } from './check-drift.mjs';
@@ -252,10 +252,8 @@ export function run({
                 if (known) {
                     continue;
                 }
-                const location = `${relative(repoRoot, path)}:${lineOf(
-                    source,
-                    reference.index
-                )}`;
+                const relativePath = relative(repoRoot, path).split(sep).join('/');
+                const location = `${relativePath}:${lineOf(source, reference.index)}`;
                 if (!missing.has(reference.key)) {
                     missing.set(reference.key, new Set());
                 }

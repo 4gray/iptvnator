@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { SeasonContainerComponent } from '@iptvnator/ui/components';
@@ -220,9 +220,9 @@ export function createStalkerSeriesViewHarness<
                     },
                 },
                 {
-                    provide: MatSnackBar,
+                    provide: LazySnackBar,
                     useValue: {
-                        open: createMock(),
+                        open: createMock().mockResolvedValue(null),
                     },
                 },
                 {

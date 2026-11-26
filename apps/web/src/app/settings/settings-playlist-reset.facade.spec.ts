@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import {
     PlaylistActions,
     selectAllPlaylistsMeta,
@@ -24,8 +24,17 @@ import {
     createDialogRef,
     createElectronStub,
     createPlaylistMeta,
-    MatSnackBarStub,
+    LazySnackBarStub,
 } from './test-stubs/settings-test-harness.stub';
+
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
+const SUCCESS_TOAST = expect.objectContaining({
+    politeness: 'polite',
+    panelClass: expect.arrayContaining(['app-notification--success']),
+});
 
 describe('SettingsPlaylistResetFacade', () => {
     let facade: SettingsPlaylistResetFacade;
@@ -34,7 +43,7 @@ describe('SettingsPlaylistResetFacade', () => {
     let playlistsService: PlaylistsService;
     let store: Store;
     let mockStore: MockStore;
-    let snackBar: MatSnackBarStub;
+    let snackBar: LazySnackBarStub;
     let translate: TranslateService;
     const originalElectron = window.electron;
 
@@ -54,7 +63,7 @@ describe('SettingsPlaylistResetFacade', () => {
                 SettingsPlaylistResetFacade,
                 SettingsSnackbarService,
                 MockProvider(MatDialog, { open: jest.fn() }),
-                { provide: MatSnackBar, useClass: MatSnackBarStub },
+                { provide: LazySnackBar, useClass: LazySnackBarStub },
                 MockProvider(DatabaseService, {
                     createOperationId: jest
                         .fn()
@@ -86,7 +95,7 @@ describe('SettingsPlaylistResetFacade', () => {
         playlistsService = TestBed.inject(PlaylistsService);
         store = TestBed.inject(Store);
         mockStore = TestBed.inject(MockStore);
-        snackBar = TestBed.inject(MatSnackBar) as unknown as MatSnackBarStub;
+        snackBar = TestBed.inject(LazySnackBar) as unknown as LazySnackBarStub;
         translate = TestBed.inject(TranslateService);
         jest.spyOn(translate, 'instant').mockImplementation(
             (key: string | string[], params?: Record<string, number>) =>
@@ -227,12 +236,7 @@ describe('SettingsPlaylistResetFacade', () => {
         expect(snackBar.open).toHaveBeenCalledWith(
             'SETTINGS.PLAYLISTS_REMOVED',
             undefined,
-            {
-                duration: 2000,
-                horizontalPosition: 'center',
-                panelClass: ['settings-snackbar'],
-                verticalPosition: 'bottom',
-            }
+            SUCCESS_TOAST
         );
     });
 
@@ -290,8 +294,8 @@ describe('SettingsPlaylistResetFacade', () => {
         ).not.toHaveBeenCalled();
         expect(snackBar.open).toHaveBeenCalledWith(
             'SETTINGS.PLAYLISTS_REMOVE_FAILED',
-            undefined,
-            expect.objectContaining({ panelClass: ['settings-snackbar'] })
+            'CLOSE',
+            ERROR_TOAST
         );
     });
 });

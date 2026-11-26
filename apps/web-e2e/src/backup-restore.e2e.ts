@@ -224,6 +224,35 @@ test('@critical @persistence @settings @pwa backup round-trip preserves supporte
     expect(await exportJson(page)).toEqual(first);
 });
 
+test('@persistence @settings @pwa a backup import keeps the staged settings edits for Save', async ({
+    page,
+}) => {
+    const unsavedMessage = page.locator(
+        '[data-test-id="settings-unsaved-message"]'
+    );
+    const darkTheme = page
+        .locator('[data-test-id="select-theme"]')
+        .getByRole('radio', { name: 'Dark', exact: true });
+    // Section links keep the shared form; a page load would drop the draft.
+    await page.locator('[data-test-id="settings-section-appearance"]').click();
+    await darkTheme.click();
+    await expect(unsavedMessage).toHaveText('1 unsaved change');
+    await page.locator('[data-test-id="settings-section-backup"]').click();
+    await expect(page.locator('#backup')).toBeVisible();
+
+    await importJson(page, archive);
+    await expect(result(page)).toContainText('3 imported');
+    await expect(unsavedMessage).toHaveText('1 unsaved change');
+
+    await page.locator('[data-test-id="save-settings"]').click();
+    await expect(unsavedMessage).toBeHidden();
+    await page.reload();
+    await expect(page.locator('#backup')).toBeVisible();
+    expect((await exportJson(page)).settings).toEqual(archive.settings);
+    await page.locator('[data-test-id="settings-section-appearance"]').click();
+    await expect(darkTheme).toHaveAttribute('aria-checked', 'true');
+});
+
 test('@critical @persistence @settings @pwa damaged and unsupported files preserve the current library', async ({
     page,
 }) => {

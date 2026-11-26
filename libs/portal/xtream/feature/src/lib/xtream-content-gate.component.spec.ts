@@ -2,6 +2,7 @@ import {
     Component,
     computed,
     input,
+    output,
     signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
@@ -27,12 +28,18 @@ import { XtreamContentGateComponent } from './xtream-content-gate.component';
         <div class="mock-error">
             <span class="mock-error__title">{{ title() }}</span>
             <span class="mock-error__description">{{ description() }}</span>
+            @if (retryable()) {
+                <button type="button" (click)="retry.emit()">Retry</button>
+            }
         </div>
     `,
 })
 class MockPlaylistErrorViewComponent {
     readonly title = input<string>('');
     readonly description = input<string | undefined>(undefined);
+    readonly variant = input<'error' | 'offline'>('error');
+    readonly retryable = input(false);
+    readonly retry = output<void>();
 }
 
 describe('XtreamContentGateComponent', () => {

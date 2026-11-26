@@ -50,6 +50,7 @@ import {
     collectionEpgKey,
 } from '@iptvnator/portal/shared/util';
 import { TranslateModule } from '@ngx-translate/core';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 export interface EnrichedUnifiedFavorite extends UnifiedFavoriteChannel {
     currentEpgProgram: EpgProgram | null;
@@ -64,6 +65,7 @@ export type GlobalFavoritesListMode = 'favorites' | 'recent';
     styleUrl: './global-favorites-list.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        StateViewComponent,
         ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,

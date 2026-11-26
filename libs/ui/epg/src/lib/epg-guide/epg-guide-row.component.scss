@@ -56,7 +56,7 @@
 .epg-guide-row__num {
     width: 22px;
     text-align: right;
-    font: 11px $font-mono;
+    font: var(--app-text-2xs) $font-mono;
     color: $text-tertiary;
     font-variant-numeric: tabular-nums;
 }
@@ -99,13 +99,13 @@
 
     b {
         font-weight: 500;
-        font-size: 13px;
+        font-size: var(--app-text-sm);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
     small {
-        font-size: 10.5px;
+        font-size: var(--app-text-2xs);
         color: $text-tertiary;
         white-space: nowrap;
         overflow: hidden;
@@ -137,7 +137,7 @@
     bottom: 0;
     display: flex;
     align-items: center;
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     font-style: italic;
     color: $text-tertiary;
 }
@@ -267,7 +267,7 @@
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-    font: 10.5px $font-mono;
+    font: var(--app-text-2xs) $font-mono;
     color: $text-secondary;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
@@ -278,7 +278,7 @@
 
 .epg-guide-row__title {
     position: relative;
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
@@ -292,7 +292,7 @@
     position: relative;
     flex: 0 0 auto;
     white-space: nowrap;
-    font: 600 9px $font-mono;
+    font: 600 var(--app-text-2xs) $font-mono;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: $accent-text;
@@ -319,6 +319,16 @@
 // compact one the start time and the tag would leave the title on the same
 // row almost no width. Either way the tag is reduced to its dot.
 @container epg-guide-block (max-width: 160px) {
+    // A 30-minute block at the default zoom: "19:30 – 20:00" at the 11px
+    // floor plus the dot fits only with a tighter gap and tracking.
+    .epg-guide-row__meta {
+        column-gap: 4px;
+    }
+
+    .epg-guide-row__time {
+        letter-spacing: -0.03em;
+    }
+
     .epg-guide-row__tag {
         font-size: 0;
         letter-spacing: 0;

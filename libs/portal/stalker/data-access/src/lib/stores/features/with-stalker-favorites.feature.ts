@@ -1,5 +1,5 @@
 import { inject } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { signalStoreFeature, withMethods } from '@ngrx/signals';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -33,7 +33,7 @@ export function withStalkerFavorites() {
             (
                 store,
                 playlistService = inject(PlaylistsService),
-                snackBar = inject(MatSnackBar),
+                notifications = inject(NotificationService),
                 translate = inject(TranslateService),
                 ngrxStore = inject(Store)
             ) => {
@@ -77,14 +77,8 @@ export function withStalkerFavorites() {
                                     },
                                     false
                                 );
-                                snackBar.open(
-                                    translate.instant(
-                                        'PORTALS.ADDED_TO_FAVORITES'
-                                    ),
-                                    undefined,
-                                    {
-                                        duration: 1000,
-                                    }
+                                notifications.success(
+                                    'PORTALS.ADDED_TO_FAVORITES'
                                 );
                                 onDone?.();
                             });
@@ -125,14 +119,8 @@ export function withStalkerFavorites() {
                                     },
                                     false
                                 );
-                                snackBar.open(
-                                    translate.instant(
-                                        'PORTALS.REMOVED_FROM_FAVORITES'
-                                    ),
-                                    undefined,
-                                    {
-                                        duration: 1000,
-                                    }
+                                notifications.success(
+                                    'PORTALS.REMOVED_FROM_FAVORITES'
                                 );
                                 onDone?.();
                             });

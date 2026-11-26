@@ -2,6 +2,10 @@ import type {
     ActivityAddress,
     ActivityContentIdentity,
 } from './activity-sync.contract';
+import {
+    parsePersonalScope,
+    type PersonalScope,
+} from '../profiles/profile-scope';
 
 export function assertActivityToken(value: string): void {
     if (
@@ -17,7 +21,11 @@ export function assertActivityToken(value: string): void {
 
 /** Serialize only canonical fields; separators and extra snapshot properties cannot collide. */
 export function activityAddressKey(address: ActivityAddress): string {
-    if (address.scope !== 'shared') throw new Error('Invalid activity scope');
+    try {
+        parsePersonalScope(address.scope);
+    } catch {
+        throw new Error('Invalid activity scope');
+    }
     const fields = [
         address.instanceId,
         address.sourceId,
@@ -30,6 +38,37 @@ export function activityAddressKey(address: ActivityAddress): string {
         address.scope,
         ...contentFields(address.content),
     ]);
+}
+
+/**
+ * The `[from, to)` range that holds exactly the `activityAddressKey`s of one
+ * scope within a source, so a list can scan the key index instead of
+ * reading the scope out of every address.
+ */
+export function activityScopeKeyRange(
+    instanceId: string,
+    sourceId: string,
+    sourceIncarnation: string,
+    scope: PersonalScope
+): readonly [string, string] {
+    return keyPrefixRange([
+        'activity-v1',
+        instanceId,
+        sourceId,
+        sourceIncarnation,
+        parsePersonalScope(scope),
+    ]);
+}
+
+/**
+ * Keys that extend the JSON array `fields` start with its text minus `]`,
+ * then `,`; the next character, `-`, ends the range.
+ */
+export function keyPrefixRange(
+    fields: readonly string[]
+): readonly [string, string] {
+    const open = JSON.stringify(fields).slice(0, -1);
+    return [`${open},`, `${open}-`];
 }
 
 function contentFields(content: ActivityContentIdentity): (string | number)[] {

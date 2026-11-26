@@ -1,6 +1,7 @@
 <app-dialog-shell
     icon="folder"
     [heading]="'CHANNELS.GROUP_MANAGEMENT.TITLE' | translate"
+    [subtitle]="'DIALOGS.GROUPS' | translate"
     bodyLayout="column"
 >
     <div class="group-management">
@@ -112,9 +113,14 @@
                     }
                 </div>
             } @empty {
-                <div class="empty-message">
-                    {{ 'CHANNELS.GROUP_MANAGEMENT.NO_RESULTS' | translate }}
-                </div>
+                <app-state-view
+                    class="empty-message"
+                    variant="no-results"
+                    size="panel"
+                    [heading]="
+                        'CHANNELS.GROUP_MANAGEMENT.NO_RESULTS' | translate
+                    "
+                />
             }
         </div>
     </div>

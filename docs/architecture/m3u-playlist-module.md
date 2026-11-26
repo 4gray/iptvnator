@@ -389,13 +389,33 @@ The explicit refresh loads `pwa-playlist-refresh.ts` on demand. It publishes
 the saved catalog and reports success after persistence resolves. Standalone
 storage waits for the IndexedDB transaction to commit. A write failure
 reports an error and leaves the saved catalog in place.
+`PwaService.refreshPlaylist()` resolves `true` once the catalog is saved and
+`false` after it has reported a failed download or write, so callers learn the
+outcome through `PLAYLIST_UPDATE`.
+
+## Changing an M3U source
+
+Saving a new URL or file path in the playlist details dialog persists the
+source, then awaits `PlaylistRefreshActionService.refreshM3uSource()`, which
+settles with `refreshed`, `failed` or `skipped` on both the Electron
+(`refreshM3u`) and browser backend (`refreshViaBackend`) paths. The Save button
+reads "Loading channels…" meanwhile, and success is reported only after the
+refresh. A failure, already explained by the refresh, keeps the saved source
+rather than rolling it back (a second write could fail too, and a shared
+source would need another revision); the dialog stays open with an inline
+status that the channels are still from the previous source, rebased on the
+saved row so the next Save retries the load. A skipped load closes the dialog
+with a "source saved, refresh to load" message.
 
 ## Playlist Refresh And Startup Auto-Update (Electron)
 
 Catalog reads through `PlaylistsService.getPlaylist()` join the per-playlist
-mutation queue. Refresh publishes its store action before persistence finishes;
-opening the route in that interval must read after the queued save rather than
-overwrite the refreshed channels with an older SQLite/IndexedDB snapshot.
+mutation queue. An explicit refresh from `PlaylistRefreshActionService` saves
+the refreshed playlist first and then publishes the saved row with
+`persist: false`, so its success means the channels are stored and a write
+failure is reported; other refresh paths publish before persistence finishes,
+and opening the route in that interval must read after the queued save rather
+than overwrite the refreshed channels with an older SQLite/IndexedDB snapshot.
 Mutation-internal reads use `getPlaylistById()` directly to avoid queue re-entry.
 Failed writes release the queue, and other playlist IDs remain independent.
 
@@ -719,6 +739,7 @@ channel-list-container/
 
 - `M3uWorkspaceRouteSession` owns route-driven channel loading for every section that reads the channel array: `all`, `groups`, `vod` and `series`. The catalog sections derive everything they show from that array, so a section missing from `isLoadedSection` opens permanently empty. Moving between two loaded sections does not re-dispatch `setChannels` — the catalog index memoises on the array reference, so a needless dispatch would rebuild it on every tab change. A read that failed is the exception: the next loaded section retries it instead of staying empty. That holds because ONE session, provided on a componentless parent of every M3U child route, serves all sections: route-level injectors outlive the route once created, so a session per route left one more live session per section visited and made each section's first visit re-read and re-parse the whole playlist. Changing playlist on a section that reads no channels (`favorites`, `recent`) clears the stored rows, so the rail never counts one playlist's catalog as another's.
 - The route session sets `channelsLoading` before `getPlaylist()` resolves and clears it when `ChannelActions.setChannels` lands.
+- The visible player sidebar loads its deferred chunk immediately when mounted. It must not wait for an idle callback: a busy Android WebView can keep that callback pending after Settings navigation even when the channels have already loaded.
 - The route session dispatches reducer-only `FavoritesActions.hydrateFavorites`
   after that persisted read. Hydration must not use the persistence-bearing
   `setFavorites` action: doing so reads and rewrites the complete M3U payload
@@ -1370,7 +1391,15 @@ side — over one shared `EpgQueueService`:
   stale (that reads only its own state) and contributes its whole visible
   slice, since the queue drops anything outside the visible set it was last
   handed; a channel both lists show is fetched once, and playlists stay apart
-  because their credentials differ.
+  because their credentials differ. The queue itself belongs to one account
+  (normalized server URL plus username) at a time: stream ids are
+  provider-local, so another account's `enqueue` retires every cached preview,
+  cooldown, prefetched XMLTV entry and queued id, discards that account's
+  requests still in flight, and the running loop continues with the latest
+  credentials. Lists read `getCached(streamId, credentials)`, which answers
+  nothing for another account's cache, and drop an `epgResult$` emission
+  whose `ownerKey` is not the shown playlist's (`isResultFor`): a late answer
+  can land after the list switched playlist but before its first `enqueue`.
 
 ### XMLTV response compression
 
@@ -1781,9 +1810,9 @@ does not change the saved player preference. Clear DASH needs this routing too.
 
 - `ShakaVideoSession` (`libs/ui/playback/src/lib/shaka-engine/`) owns the
   engine: lazy `import('shaka-player')` on first use (the module is a separate
-  lazy chunk, ~217 KB transfer), `drm.clearKeys` configuration, an operation
-  queue + generation guard against channel-switch races. The DOM-free Shaka
-  `5.2.12` public-error boundary lives in `libs/playback/util`; it version-locks
+  lazy chunk, ~223 kB estimated transfer), `drm.clearKeys` configuration, and
+  an operation queue + generation guard against channel-switch races. The DOM-free Shaka
+  `5.2.19` public-error boundary lives in `libs/playback/util`; it version-locks
   its allowlisted
   severity/category/code values, emits only structured sanitized
   `PlaybackDiagnosticSource.Shaka` evidence, ignores recoverable error events,

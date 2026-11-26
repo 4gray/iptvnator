@@ -5,6 +5,11 @@ import { PlaylistFileImportService } from '@iptvnator/playlist/shared/util';
 import type { ElectronBridgePlaylistOpenRequest } from '@iptvnator/shared/interfaces';
 import { PlaylistOpenRequestService } from './playlist-open-request.service';
 
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
+
 type BridgeMock = {
     acknowledgePlaylistOpenRequest: jest.Mock;
     announcePlaylistOpenListener: jest.Mock;
@@ -188,7 +193,7 @@ describe('PlaylistOpenRequestService', () => {
         expect(snackBar.open).toHaveBeenCalledWith(
             'HOME.FILE_UPLOAD.OPEN_FAILED',
             'CLOSE',
-            expect.objectContaining({ panelClass: ['error-snackbar'] })
+            ERROR_TOAST
         );
         expect(importService.importFromPath).toHaveBeenCalledTimes(1);
         expect(importService.importFromPath).toHaveBeenCalledWith(
@@ -247,7 +252,7 @@ describe('PlaylistOpenRequestService', () => {
         expect(snackBar.open).toHaveBeenCalledWith(
             'HOME.FILE_UPLOAD.OPEN_FAILED',
             'CLOSE',
-            expect.objectContaining({ panelClass: ['error-snackbar'] })
+            ERROR_TOAST
         );
     });
 

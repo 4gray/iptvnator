@@ -10,6 +10,7 @@ import {
     SettingsSearchEntry,
     SettingsSearchResult,
 } from '@iptvnator/workspace/shell/util/settings-search';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 /**
  * Ranked settings matches for the header search term, shown in place of the
@@ -18,7 +19,7 @@ import {
  */
 @Component({
     selector: 'app-settings-search-results',
-    imports: [MatIconModule, TranslatePipe],
+    imports: [StateViewComponent, MatIconModule, TranslatePipe],
     templateUrl: './settings-search-results.component.html',
     styleUrl: './settings-search-results.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,

@@ -189,8 +189,5 @@
         }
     },
     "defaultProject": "web",
-    "analytics": false,
-    "affected": {
-        "legacy": true
-    }
+    "analytics": false
 }

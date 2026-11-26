@@ -19,6 +19,6 @@
     background: var(--app-widget-bg);
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
     color: var(--app-body-color);
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     line-height: 1.45;
 }

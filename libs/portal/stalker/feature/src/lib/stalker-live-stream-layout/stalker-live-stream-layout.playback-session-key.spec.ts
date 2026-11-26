@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { EMPTY, of } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
@@ -19,6 +19,11 @@ import {
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import { ElectronStreamHeadersService } from '@iptvnator/ui/playback';
 import { StalkerLiveStreamLayoutComponent } from './stalker-live-stream-layout.component';
+
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
 
 function deferred<T>() {
     let resolve!: (value: T) => void;
@@ -55,7 +60,7 @@ describe('StalkerLiveStreamLayoutComponent playback session ownership', () => {
     const selectedItem = signal<(typeof channels)[number] | null>(channels[0]);
     const selectedContentType = signal<'itv' | 'radio'>('itv');
     const resolveItvPlayback = jest.fn();
-    const snackBar = { open: jest.fn() };
+    const snackBar = { open: jest.fn().mockResolvedValue(null) };
     const store = {
         getSelectedCategoryLabel: signal({ name: 'All', labelKey: null }),
         currentPlaylist: playlist,
@@ -100,7 +105,7 @@ describe('StalkerLiveStreamLayoutComponent playback session ownership', () => {
         selectedItvId.set(channels[0].id);
         selectedItem.set(channels[0]);
         resolveItvPlayback.mockReset();
-        snackBar.open.mockReset();
+        snackBar.open.mockReset().mockResolvedValue(null);
         store.setSelectedItem.mockClear();
         await TestBed.configureTestingModule({
             imports: [StalkerLiveStreamLayoutComponent],
@@ -147,7 +152,7 @@ describe('StalkerLiveStreamLayoutComponent playback session ownership', () => {
                 },
                 { provide: EpgRuntimeBridgeService, useValue: {} },
                 { provide: MatDialog, useValue: { open: jest.fn() } },
-                { provide: MatSnackBar, useValue: snackBar },
+                { provide: LazySnackBar, useValue: snackBar },
                 {
                     provide: TranslateService,
                     useValue: {
@@ -320,8 +325,8 @@ describe('StalkerLiveStreamLayoutComponent playback session ownership', () => {
 
         expect(snackBar.open).toHaveBeenCalledWith(
             'PORTALS.PLAYBACK_ERROR',
-            undefined,
-            { duration: 3000 }
+            'CLOSE',
+            ERROR_TOAST
         );
     });
 

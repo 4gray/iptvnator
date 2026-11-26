@@ -1,6 +1,7 @@
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { getTodayEpgDateKey, parseEpgDateKey } from '../epg-date';
 import {
+    currentProgrammeFocusMs,
     dayKeyAtOffset,
     TIMELINE_MINUTE_MS,
     TimelineAxis,
@@ -45,9 +46,7 @@ export class TimelineScrollController {
     /** Centre the current programme (or "now" if none airing) in the viewport. */
     focusCurrentProgram(smooth: boolean): void {
         const current = this.ctx.blocks().find((block) => block.when === 'now');
-        const targetMs = current
-            ? (current.startMs + current.stopMs) / 2
-            : this.ctx.nowMs();
+        const targetMs = currentProgrammeFocusMs(current, this.ctx.nowMs());
         this.scrollToTime(targetMs, 0.5, smooth);
     }
 

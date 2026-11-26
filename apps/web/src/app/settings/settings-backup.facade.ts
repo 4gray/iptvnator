@@ -1,3 +1,4 @@
+import { isAndroidShellRuntime } from '../services/runtime-config';
 import { historyProfileUsed } from '../services/history-consent';
 import { loadHistoryRuntime } from '../services/history-sync.providers';
 import { favoritesProfileUsed } from '../services/favorites-consent';
@@ -17,7 +18,6 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter, take } from 'rxjs';
 import { Store } from '@ngrx/store';
-import { TranslateService } from '@ngx-translate/core';
 import {
     PlaylistActions,
     selectPlaylistsLoadingFlag,
@@ -37,14 +37,12 @@ export class SettingsBackupFacade {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
     private readonly store = inject(Store);
-    private readonly translate = inject(TranslateService);
     private readonly injector = inject(Injector);
     private readonly destroyRef = inject(DestroyRef);
 
     readonly isExportingData = signal(false);
-    /** The shell marker is set before bootstrap; Android has no download/save bridge yet. */
-    readonly supportsExport =
-        !document.documentElement.classList.contains('tv-shell');
+    /** Android can pick a backup for import but has no save-file bridge. */
+    readonly supportsExport = !isAndroidShellRuntime();
     readonly isImportingData = signal(false);
     private readonly isChoosingFile = signal(false);
     readonly isBusy = computed(
@@ -108,14 +106,9 @@ export class SettingsBackupFacade {
                 );
             }
 
-            this.settingsSnackbar.open(
-                this.translate.instant('SETTINGS.BACKUP_EXPORTED')
-            );
+            this.settingsSnackbar.success('SETTINGS.BACKUP_EXPORTED');
         } catch {
-            this.settingsSnackbar.error(
-                this.translate.instant('SETTINGS.BACKUP_EXPORT_FAILED'),
-                this.translate.instant('CLOSE')
-            );
+            this.settingsSnackbar.error('SETTINGS.BACKUP_EXPORT_FAILED');
         } finally {
             this.isExportingData.set(false);
         }

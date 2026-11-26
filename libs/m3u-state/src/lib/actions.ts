@@ -25,6 +25,12 @@ export const PlaylistActions = createActionGroup({
         'Add Playlist': props<{ playlist: Playlist }>(),
         'Add Many Playlists': props<{ playlists: Playlist[] }>(),
         'Playlist Removal Committed': props<{ playlistId: string }>(),
+        'Stalker Category Visibility Saved': props<{
+            playlistId: string;
+            hiddenStalkerCategories: NonNullable<
+                Playlist['hiddenStalkerCategories']
+            >;
+        }>(),
         'Update Playlist Meta': props<{
             playlist: PlaylistMetaUpdate;
             /**

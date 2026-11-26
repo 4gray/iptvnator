@@ -28,7 +28,12 @@ import {
     type PlaybackFallbackRequest,
 } from '@iptvnator/playback/util';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
-import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import {
+    getAndroidShellControls,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
+import { ANDROID_EXTERNAL_ACTION } from '../player-controls/android-external-action';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import {
     VideoPlayer,
@@ -61,11 +66,10 @@ import {
     PlaybackRecoverySession,
 } from './playback-recovery-session';
 import { WebPlayerApplicationHandoffCoordinator } from './web-player-application-handoff';
-import {
-    createWebPlayerApplicationOwnership,
-    type PlaybackApplicationOwnership as PlaybackOwnership,
-} from './web-player-application-ownership';
+import { bindWebPlayerApplication } from './web-player-application-effect';
+import { createWebPlayerApplicationOwnership } from './web-player-application-ownership';
 import { createWebPlayerApplicationState } from './web-player-application-state';
+import { WebPlayerPlaybackEvents } from './web-player-playback-events';
 import { resolveWebPlayerMediaTitle } from './web-player-playback-state';
 import { createChannelPanelAvailability } from './web-player-channel-panel-state';
 import { WebPlayerLiveAutoFormat } from './web-player-live-auto-format';
@@ -99,6 +103,16 @@ import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
     ],
     providers: [
         {
+            provide: ANDROID_EXTERNAL_ACTION,
+            useFactory: () => {
+                const host = inject(WebPlayerViewComponent);
+                return {
+                    available: host.androidExternalAvailable,
+                    open: () => host.openAndroidExternal(),
+                };
+            },
+        },
+        {
             provide: WEB_PLAYER_SHARED_CONTROLS,
             useFactory: resolveWebPlayerSharedControls,
         },
@@ -127,6 +141,20 @@ export class WebPlayerViewComponent implements OnDestroy {
         () => this.renderedApplications().some((app) => app.embeddedMpv),
         () => this.embeddedMpvPlayer()?.support() ?? null
     );
+    private readonly androidShell = getAndroidShellControls();
+    readonly sharedControls = this.androidShell
+        ? inject(WEB_PLAYER_SHARED_CONTROLS)
+        : false;
+    readonly androidExternalAvailable = computed(
+        () =>
+            !!this.androidShell &&
+            !!this.resolvedPlayback().streamUrl?.trim() &&
+            this.playbackExternallyTransferable()
+    );
+    openAndroidExternal(): void {
+        if (this.androidExternalAvailable()) this.androidShell?.openExternal();
+    }
+
     protected readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK, {
@@ -245,20 +273,11 @@ export class WebPlayerViewComponent implements OnDestroy {
         this.playbackSessionKey,
         this.applicationState.token,
         this.volume,
-        (seconds, confirm) => {
-            this.historyConfirmation.recordPlayedTime(seconds);
-            if (confirm && this.recovery.confirmAndroidStart())
-                this.emitPlaybackStarted();
-        },
-        (update, replayTime) => {
-            this.activity.record(this.playback(), update);
-            this.recoverySession.recordTimeUpdate(
-                { ...update, currentTime: replayTime },
-                this.resolvedIsLive()
-            );
-            this.timeUpdate.emit(update);
-        },
-        () => this.emitPlaybackEnded(this.resolvedIsLive()),
+        (seconds, confirm) =>
+            this.playbackEvents.androidStarted(seconds, confirm),
+        (update, replayTime) =>
+            this.playbackEvents.androidPosition(update, replayTime),
+        () => this.playbackEvents.end(this.resolvedIsLive()),
         () => this.reloadToken.update((value) => value + 1),
         (sessionId) => this.activity.waitForBegin(sessionId)
     );
@@ -337,38 +356,40 @@ export class WebPlayerViewComponent implements OnDestroy {
         inject(PLAYBACK_ACTIVITY_EVENTS, { optional: true })
     );
 
+    private readonly playbackEvents = new WebPlayerPlaybackEvents({
+        recovery: this.recovery,
+        recoverySession: this.recoverySession,
+        activity: this.activity,
+        history: this.historyConfirmation,
+        owns: this.ownership.owns,
+        playback: this.playback,
+        resolvedPlayback: this.resolvedPlayback,
+        isLive: this.resolvedIsLive,
+        startTime: this.startTime,
+        token: this.playbackApplicationToken,
+        timeUpdate: this.timeUpdate,
+        started: this.playbackStarted,
+        ended: this.playbackEnded,
+    });
+    readonly handleTimeUpdate = this.playbackEvents.webPosition;
+    readonly handleActivityEnded = this.playbackEvents.webEnded;
+
     constructor() {
         effect(() => this.activity.begin(this.playback()));
         effect(() => {
             const session = this.externalPlayback?.activeSession() ?? null;
             untracked(() => this.externalRecovery.observe(session));
         });
-        effect(() => {
-            // Session sync may clear a temporary player override. Run it before
-            // tracking intent so that reset is folded into this application.
-            this.recovery.syncSession();
-            if (this.liveAutoFormat.pending()) return;
-            void this.recovery.diagnosticIntentToken();
-            const sourceRevision = this.playbackSourceRevisionToken();
-            untracked(() =>
-                this.recoverySession.syncSourceRevision(sourceRevision)
-            );
-            const token = this.playbackApplicationToken();
-            this.channel.set(undefined);
-            this.vjsOptions.set(undefined);
-            this.recovery.clearDiagnostic();
-            this.applicationHandoff.apply(
-                untracked(this.resolvedPlayback),
-                untracked(this.resolvedIsLive),
-                untracked(this.reloadToken),
-                untracked(this.selectedPlayer),
-                token,
-                () => this.playbackApplicationToken(),
-                (handoff) => {
-                    this.channel.set(handoff.channel);
-                    this.vjsOptions.set(handoff.vjsOptions);
-                }
-            );
+        bindWebPlayerApplication({
+            recovery: this.recovery,
+            session: this.recoverySession,
+            handoff: this.applicationHandoff,
+            pending: this.liveAutoFormat.pending,
+            application: this.applicationState,
+            player: this.selectedPlayer,
+            reloadToken: this.reloadToken,
+            channel: this.channel,
+            vjsOptions: this.vjsOptions,
         });
     }
 
@@ -392,36 +413,6 @@ export class WebPlayerViewComponent implements OnDestroy {
         this.recovery.syncSession();
         if (this.ownsBinding(binding) && !this.liveAutoFormat.pending())
             this.liveAutoFormat.started();
-    }
-
-    handleTimeUpdate(
-        event: PlayerTimeUpdate,
-        ownership: PlaybackOwnership
-    ): void {
-        if (!this.ownership.owns(ownership)) return;
-        const { isLive, token } = ownership;
-        if (this.recovery.recordTimeUpdate(token, event.playing))
-            this.emitPlaybackStarted();
-        this.historyConfirmation.record(event.currentTime, event.playing);
-        if (!this.recoverySession.recordTimeUpdate(event, isLive, this.startTime()))
-            return;
-        if (!isLive && !this.activity.record(this.playback(), event)) return;
-        this.timeUpdate.emit(event);
-    }
-
-    handleActivityEnded(ownership: PlaybackOwnership, notify = true): void {
-        if (this.ownership.owns(ownership))
-            this.emitPlaybackEnded(ownership.isLive, notify);
-    }
-
-    private emitPlaybackStarted(): void {
-        this.playbackStarted.emit(this.playback() ?? this.resolvedPlayback());
-    }
-
-    private emitPlaybackEnded(isLive: boolean, notify = true): void {
-        if (!isLive) this.activity.finish();
-        this.recovery.recordEnd(this.playbackApplicationToken());
-        if (notify) this.playbackEnded.emit();
     }
 
     readonly requestRecommendedPlayer =

@@ -284,6 +284,54 @@ test.describe('Settings', () => {
         ).toHaveAttribute('aria-checked', 'true');
     });
 
+    test('@settings @web Save keeps a player switched from the command palette', async ({
+        page,
+    }) => {
+        await openSettings(page);
+        await openSettingsSection(page, 'appearance');
+        await page
+            .locator(
+                '[data-test-id="select-theme"] [data-test-id="DARK_THEME"]'
+            )
+            .click();
+        const unsavedBar = page.locator(
+            '[data-test-id="settings-unsaved-bar"]'
+        );
+        await expect(
+            unsavedBar.locator('[data-test-id="settings-unsaved-message"]')
+        ).toHaveText('1 unsaved change');
+
+        // Another surface writes a setting while the page holds a draft.
+        await page.keyboard.press('Control+k');
+        const palette = page.locator('.workspace-command-palette-overlay');
+        await expect(palette).toBeVisible();
+        await palette
+            .locator('input[type="search"]')
+            .fill('Switch player to HTML5');
+        await palette
+            .locator('.palette-command', { hasText: /HTML5/ })
+            .first()
+            .click();
+        await expect(palette).toBeHidden();
+        await expect(
+            unsavedBar.locator('[data-test-id="settings-unsaved-message"]')
+        ).toHaveText('1 unsaved change');
+
+        await saveSettings(page);
+        await page.reload();
+        await openSettings(page);
+        await openSettingsSection(page, 'playback');
+        await expect(
+            page.locator('[data-test-id="select-video-player"]')
+        ).toContainText(/HTML5/i);
+        await openSettingsSection(page, 'appearance');
+        await expect(
+            page
+                .locator('[data-test-id="select-theme"]')
+                .getByRole('radio', { name: 'Dark', exact: true })
+        ).toHaveAttribute('aria-checked', 'true');
+    });
+
     test('@settings @web About keeps its label and clears the window bottom', async ({
         page,
     }) => {

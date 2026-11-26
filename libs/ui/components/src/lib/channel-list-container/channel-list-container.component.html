@@ -108,15 +108,9 @@
         }
     }
 } @else {
-    <div class="empty-source-state">
-        <div class="empty-source-state__icon-wrapper">
-            <mat-icon class="empty-source-state__icon">folder_off</mat-icon>
-        </div>
-        <h3 class="empty-source-state__title">
-            {{ 'CHANNELS.NO_CHANNELS_FOUND' | translate }}
-        </h3>
-        @if (emptyHint(); as hint) {
-            <p class="empty-source-state__hint">{{ hint }}</p>
-        }
-    </div>
+    <app-state-view
+        icon="folder_off"
+        [heading]="'CHANNELS.NO_CHANNELS_FOUND' | translate"
+        [description]="emptyHint()"
+    />
 }

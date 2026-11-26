@@ -251,7 +251,10 @@ Source synchronization uses a narrow typed preload surface and a persisted
 server selection. Its main-process adapter builds versioned API paths from
 named operations and permits an explicitly configured LAN server. Requests use
 the validated Axios transport with certificate checks and no redirects, so a
-NAS token cannot be replayed to a redirected provider or other host. Tokens are
+NAS token cannot be replayed to a redirected provider or other host. The source
+server's HTTPS agent adds the OS certificate authorities, including trusted CAs
+in the macOS Keychain, to Node's default CA set. Hostname verification still
+uses the configured server hostname. Tokens are
 stored through OS-protected `safeStorage`, with a process-only fallback when
 protected storage is unavailable. The persisted connection file contains no
 plaintext token. Desktop source profiles are selected before opening any
@@ -269,7 +272,9 @@ redirect target is checked before the main process follows it. Under the strict
 policy, the helper pins the socket lookup to the IP addresses that passed
 validation while retaining the original hostname for TLS SNI, certificate
 validation, and virtual hosting. This prevents DNS rebinding between validation
-and connection. Callers with custom TLS policy provide a typed agent factory;
+and connection. The pinned lookup calls back asynchronously so an immediate
+socket failure reaches the request's error handler after TLS setup. Callers with
+custom TLS policy provide a typed agent factory;
 the validated request layer supplies the pinned lookup instead of copying
 private Node `Agent.options` state. Credential stripping is scoped to the host
 rather than the origin, with one transport-security carve-out: same-hostname

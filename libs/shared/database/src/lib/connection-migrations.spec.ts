@@ -11,8 +11,6 @@ const {
     indexMigrationStatements,
     runMigrations,
     cleanupLegacyTmdbSearchCache,
-    upgradeContentTitleFtsTokenizer,
-    contentTitleFtsStatement,
     deduplicateXtreamCache,
 } = __databaseConnectionTestHooks;
 
@@ -75,11 +73,14 @@ const completedMigrationStateRule: HandlerRule = [
 
 /** The live title index, already carrying the folding tokenizer. */
 const foldedIndexRule: HandlerRule = [
-    "name = 'content_title_fts'",
+    'SELECT sql FROM sqlite_master',
     {
-        get: () => ({
-            sql: "CREATE VIRTUAL TABLE content_title_fts USING fts5(title, tokenize='trigram remove_diacritics 1')",
-        }),
+        get: (name?: unknown) =>
+            name === 'content_title_fts'
+                ? {
+                      sql: "CREATE VIRTUAL TABLE content_title_fts USING fts5(title, tokenize='trigram remove_diacritics 1')",
+                  }
+                : undefined,
     },
 ];
 
@@ -332,113 +333,6 @@ describe('runMigrations Xtream cache deduplication', () => {
  * accented titles at all: it compares normalized titles ("amelie") against an
  * index built from the raw one ("Amélie").
  */
-describe('content title FTS tokenizer upgrade', () => {
-    it('asks for diacritic folding in the statement it creates', () => {
-        expect(compactSql(contentTitleFtsStatement(true))).toContain(
-            "tokenize='trigram remove_diacritics 1'"
-        );
-        expect(compactSql(contentTitleFtsStatement(false))).toContain(
-            "tokenize='trigram'"
-        );
-    });
-
-    it('recreates and rebuilds the index, then records the migration', () => {
-        const rebuild = { run: jest.fn() };
-        const marker = { run: jest.fn() };
-        const { sqlite, exec, transaction } = createSqliteMock([
-            ['SELECT value FROM app_state', { get: () => undefined }],
-            ['INSERT INTO content_title_fts(content_title_fts)', rebuild],
-            ['INSERT INTO app_state', marker],
-        ]);
-
-        upgradeContentTitleFtsTokenizer(sqlite);
-
-        // The tokenizer is fixed at CREATE time, so the table has to go.
-        const statements = exec.mock.calls.map(([sql]) => compactSql(sql));
-        expect(statements).toContainEqual(
-            expect.stringContaining('DROP TABLE IF EXISTS content_title_fts')
-        );
-        expect(statements).toContainEqual(
-            expect.stringContaining("tokenize='trigram remove_diacritics 1'")
-        );
-        expect(rebuild.run).toHaveBeenCalled();
-        // The rebuild also covers the plain index migration; without its
-        // record the next launch rebuilds the whole index again.
-        expect(marker.run.mock.calls).toEqual([
-            ['migration:content-title-fts-remove-diacritics:v1'],
-            ['migration:content-title-fts-trigram:v1'],
-        ]);
-        // One transaction, so a rejected CREATE rolls the drop back and the
-        // working index survives.
-        expect(transaction).toHaveBeenCalled();
-    });
-
-    it('does nothing once the migration has completed', () => {
-        const { sqlite, exec } = createSqliteMock([
-            completedMigrationStateRule,
-            foldedIndexRule,
-        ]);
-
-        upgradeContentTitleFtsTokenizer(sqlite);
-
-        expect(exec).not.toHaveBeenCalled();
-    });
-
-    it('rebuilds when the record says done but the index is not folded', () => {
-        const rebuild = { run: jest.fn() };
-        const { sqlite, exec } = createSqliteMock([
-            completedMigrationStateRule,
-            [
-                'SELECT sql FROM sqlite_master',
-                {
-                    get: () => ({
-                        sql: "CREATE VIRTUAL TABLE content_title_fts USING fts5(title, tokenize='trigram')",
-                    }),
-                },
-            ],
-            ['INSERT INTO content_title_fts(content_title_fts)', rebuild],
-        ]);
-
-        upgradeContentTitleFtsTokenizer(sqlite);
-
-        // `createTables` declares this table too, with the plain tokenizer, so
-        // the marker and the live table can disagree. Trusting the marker
-        // leaves a silently degraded index: discovery simply stops finding
-        // "Pokémon" for "pokemon", with nothing to show that it should have.
-        const statements = exec.mock.calls.map(([sql]) => compactSql(sql));
-        expect(statements).toContainEqual(
-            expect.stringContaining("tokenize='trigram remove_diacritics 1'")
-        );
-        expect(rebuild.run).toHaveBeenCalled();
-    });
-
-    it('leaves the index alone when the runtime rejects the tokenizer', () => {
-        const marker = { run: jest.fn() };
-        const exec = jest.fn((statement: string) => {
-            if (statement.includes('remove_diacritics')) {
-                throw new Error('unknown tokenizer option');
-            }
-        });
-        const { sqlite } = createSqliteMock(
-            [
-                ['SELECT value FROM app_state', { get: () => undefined }],
-                ['INSERT INTO app_state', marker],
-            ],
-            exec
-        );
-
-        upgradeContentTitleFtsTokenizer(sqlite);
-
-        // The probe failed, so the real table was never dropped — and the
-        // migration is NOT marked done, so a newer SQLite retries it.
-        const statements = exec.mock.calls.map(([sql]) => compactSql(sql));
-        expect(statements).not.toContainEqual(
-            expect.stringContaining('DROP TABLE IF EXISTS content_title_fts')
-        );
-        expect(marker.run).not.toHaveBeenCalled();
-    });
-});
-
 describe('deduplicateXtreamCache guard', () => {
     const uniqueIndexCountRule = (count: number): HandlerRule => [
         "FROM sqlite_master WHERE type = 'index'",

@@ -19,6 +19,11 @@ import { patchState, signalStore } from '@ngrx/signals';
 import { XTREAM_DATA_SOURCE } from './data-sources/xtream-data-source.interface';
 import { withFavorites } from './with-favorites.feature';
 
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
+
 jest.mock('@iptvnator/portal/shared/util', () => ({
     createLogger: () => ({
         debug: jest.fn(),
@@ -267,8 +272,8 @@ describe('withFavorites', () => {
         });
         expect(snackBar.open).toHaveBeenCalledWith(
             'PORTALS.FAVORITE_IDENTITY_CONFLICT',
-            undefined,
-            { duration: 6000 }
+            'CLOSE',
+            ERROR_TOAST
         );
         expect(dataSource.addFavorite).not.toHaveBeenCalled();
         expect(dataSource.removeFavorite).not.toHaveBeenCalled();
@@ -379,9 +384,11 @@ describe('withFavorites', () => {
                 store.toggleFavorite(7, 'playlist-1', 'movie')
             ).resolves.toBe(false);
             expect(store.isFavorite()).toBe(false);
-            expect(snackBar.open).toHaveBeenCalledWith(key, undefined, {
-                duration: 6000,
-            });
+            expect(snackBar.open).toHaveBeenCalledWith(
+                key,
+                'CLOSE',
+                ERROR_TOAST
+            );
         }
     );
 
