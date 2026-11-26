@@ -679,6 +679,35 @@ describe('buildM3uSeriesCatalog', () => {
         expect(new Set(Object.values(before)).size).toBe(2);
     });
 
+    it('gives the same stream listed at two numbers an id per card', () => {
+        // A provider's fallback clip, listed as the extra of episodes 3 and
+        // 5: the detail page resolves a click by id, so one shared id would
+        // open, mark and resume the other card.
+        const fallback = (name: string) => ({
+            ...row(name),
+            url: 'http://h.example/series/u/p/fallback.mp4',
+        });
+        const episodes = (rows: ReturnType<typeof row>[]) =>
+            buildM3uSeriesCatalog(rows, 'pl-1')[0].seasons.get(1) ?? [];
+        const rows = [
+            row('SHOW S1 E3'),
+            fallback('SHOW S1 E3'),
+            row('SHOW S1 E5'),
+            fallback('SHOW S1 E5'),
+        ];
+
+        const listed = episodes(rows);
+        expect(listed).toHaveLength(4);
+        expect(new Set(listed.map((episode) => episode.id)).size).toBe(4);
+
+        // Stable across a reorder of the playlist.
+        const idsOf = (list: typeof listed) =>
+            list
+                .map((e) => `${e.episodeNumber}:${e.channel.url}:${e.id}`)
+                .sort();
+        expect(idsOf(episodes([...rows].reverse()))).toEqual(idsOf(listed));
+    });
+
     it('keeps a row whose name carries no marker at all', () => {
         // Classified as an episode by its /series/ path but named in a way
         // the parser does not recognise. Dropping it would make provider

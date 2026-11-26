@@ -1,5 +1,9 @@
 import { createM3uIdHasher } from './m3u-stable-id.util';
-import { M3uArtworkBearing, M3uSeriesAccumulator } from './m3u-series-model';
+import {
+    M3uArtworkBearing,
+    M3uSeriesAccumulator,
+    M3uSeriesEpisode,
+} from './m3u-series-model';
 import {
     m3uPlaybackKey,
     placeNumberedEpisode,
@@ -102,7 +106,10 @@ function earliestStatedYear<T extends M3uArtworkBearing>(
  * those apart, and numbering them by playlist order would swap their watch
  * history on a reorder. They are keyed on their whole URL instead: a
  * rotated token then drops the mark rather than moving it to another
- * episode. Rows with a file name of their own are unaffected.
+ * episode. Rows with a file name of their own are unaffected. The same
+ * stream can still sit at two numbers (a provider's fallback clip listed as
+ * the extra of several episodes); those copies add their coordinates, the
+ * stable part of where they are, so each card keeps its own id.
  */
 export function remintM3uEpisodeIds<T extends M3uArtworkBearing>(
     series: M3uSeriesAccumulator<T>
@@ -116,22 +123,38 @@ export function remintM3uEpisodeIds<T extends M3uArtworkBearing>(
         }
     }
 
+    const rowIdentity = (episode: M3uSeriesEpisode<T>, rowKey: string) =>
+        (rowKeyUses.get(rowKey) ?? 0) > 1
+            ? `row\u0000${rowKey}\u0000${m3uPlaybackKey(episode.channel)}`
+            : `row\u0000${rowKey}`;
+    const identityUses = new Map<string, number>();
+    for (const episodes of series.seasons.values()) {
+        for (const episode of episodes.values()) {
+            if (episode.rowKey !== undefined) {
+                const identity = rowIdentity(episode, episode.rowKey);
+                identityUses.set(
+                    identity,
+                    (identityUses.get(identity) ?? 0) + 1
+                );
+            }
+        }
+    }
+
     // The key is hashed once and continued per episode.
     const mint = createM3uIdHasher(`${series.key}\u0000`);
 
     for (const episodes of series.seasons.values()) {
         for (const [slot, episode] of episodes) {
             const { rowKey } = episode;
-            episodes.set(slot, {
-                ...episode,
-                id: mint(
-                    rowKey === undefined
-                        ? `${episode.seasonNumber}x${episode.episodeNumber}`
-                        : (rowKeyUses.get(rowKey) ?? 0) > 1
-                          ? `row\u0000${rowKey}\u0000${m3uPlaybackKey(episode.channel)}`
-                          : `row\u0000${rowKey}`
-                ),
-            });
+            const coordinate = `${episode.seasonNumber}x${episode.episodeNumber}`;
+            let identity = coordinate;
+            if (rowKey !== undefined) {
+                identity = rowIdentity(episode, rowKey);
+                if ((identityUses.get(identity) ?? 0) > 1) {
+                    identity = `${identity}\u0000${coordinate}`;
+                }
+            }
+            episodes.set(slot, { ...episode, id: mint(identity) });
         }
     }
 }
