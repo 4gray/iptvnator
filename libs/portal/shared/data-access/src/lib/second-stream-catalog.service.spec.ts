@@ -18,6 +18,7 @@ import { UnifiedFavoritesDataService } from './collection/unified-favorites-data
 import { UnifiedRecentDataService } from './collection/unified-recent-data.service';
 import { StreamResolverService } from './collection/stream-resolver.service';
 import { SecondStreamCatalogService } from './second-stream-catalog.service';
+import { SECOND_STREAM_HISTORY } from './second-stream-collection.service';
 
 describe('SecondStreamCatalogService', () => {
     let service: SecondStreamCatalogService;
@@ -49,6 +50,7 @@ describe('SecondStreamCatalogService', () => {
     };
     let resolve: jest.Mock;
     let favorites: jest.Mock;
+    let recent: jest.Mock;
     let sendIpcEvent: jest.Mock;
     beforeEach(() => {
         playlists = {
@@ -107,6 +109,7 @@ describe('SecondStreamCatalogService', () => {
             .fn()
             .mockResolvedValue({ streamUrl: channel.url, isLive: true });
         favorites = jest.fn().mockResolvedValue([]);
+        recent = jest.fn().mockResolvedValue([]);
         sendIpcEvent = jest.fn().mockResolvedValue({
             js: [{ id: 'genre-2', title: 'News' }],
         });
@@ -116,7 +119,7 @@ describe('SecondStreamCatalogService', () => {
                 {
                     provide: UnifiedRecentDataService,
                     useValue: {
-                        getRecentItems: jest.fn().mockResolvedValue([]),
+                        getRecentItems: recent,
                     },
                 },
                 { provide: PlaylistsService, useValue: playlists },
@@ -275,6 +278,39 @@ describe('SecondStreamCatalogService', () => {
         });
         expect(data.groups).toHaveLength(1);
     });
+
+    it.each(['', SECOND_STREAM_HISTORY])(
+        'waits for SQLite replacement before reading the live collection for scope "%s"',
+        async (scope) => {
+            playlists.getAllPlaylists.mockReturnValue(
+                of([{ ...playlist, serverUrl: 'https://portal.example.test' }])
+            );
+            const release = TestBed.inject(SourceActivityService).begin([
+                playlist._id,
+            ]);
+            const loadCollection = scope ? recent : favorites;
+            const data = service.load(scope, new AbortController().signal);
+            await Promise.resolve();
+            const readsWhileReplacing = loadCollection.mock.calls.length;
+            loadCollection.mockResolvedValue([
+                {
+                    uid: 'synthetic-live',
+                    name: 'Synthetic refreshed channel',
+                    playlistId: playlist._id,
+                    sourceType: 'xtream',
+                    contentType: 'live',
+                    categoryId: 50,
+                    xtreamId: 7,
+                },
+            ]);
+            release();
+
+            expect((await data).channels.map(({ item }) => item.uid)).toEqual([
+                'synthetic-live',
+            ]);
+            expect(readsWhileReplacing).toBe(0);
+        }
+    );
     it('withholds locked groups and rechecks before handing a row to playback', async () => {
         const data = await service.load(
             playlist._id,

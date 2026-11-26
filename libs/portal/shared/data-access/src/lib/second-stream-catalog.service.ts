@@ -89,10 +89,21 @@ export class SecondStreamCatalogService {
         if (this.locks.withholdsEverything())
             return { groups: [], channels: [] };
         if (!sourceId || sourceId === SECOND_STREAM_HISTORY) {
-            const items = await this.collection.load(sourceId, 'live', signal);
             const metas = await firstValueFrom(
                 this.playlists.getAllPlaylists()
             );
+            const loadCollection = () => {
+                signal.throwIfAborted();
+                return this.collection.load(sourceId, 'live', signal);
+            };
+            const sqliteSources = this.runtime.supportsXtreamSqliteDataSource
+                ? metas
+                      .filter((p) => p.serverUrl && !p.macAddress)
+                      .map((p) => p._id)
+                : [];
+            const items = await (sqliteSources.length
+                ? this.activity.runWhenIdle(sqliteSources, loadCollection)
+                : loadCollection());
             const playlists = new Map(metas.map((p) => [p._id, p]));
             const channels = items
                 .filter((item) => this.isAllowed(item))

@@ -1,10 +1,18 @@
 import { Injectable, signal } from '@angular/core';
+import { Subject } from 'rxjs';
 
 /** Shared renderer work that source cleanup must not interrupt. */
 @Injectable({ providedIn: 'root' })
 export class SourceActivityService {
     private readonly counts = signal<ReadonlyMap<string, number>>(new Map());
     private readonly waiters = new Set<() => void>();
+    private readonly liveCatalogReplacements = new Subject<string>();
+    readonly liveCatalogReplacements$ =
+        this.liveCatalogReplacements.asObservable();
+
+    notifyLiveCatalogReplacement(sourceId: string): void {
+        this.liveCatalogReplacements.next(sourceId);
+    }
 
     /** Subscribe to completed activity holds; callers can recheck availability. */
     onRelease(check: () => void): () => void {

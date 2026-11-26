@@ -398,9 +398,11 @@ Before replacing live rows, the selected-catalog service waits for source
 activity to finish and rechecks the saved connection, preference and catalog
 selection. A successful refresh publishes the catalog timestamp so an open
 Xtream view can reread live rows and refresh its search without resetting
-playback. The Electron second-stream picker waits for the live replacement
-before reading or filling the cache. It keeps the SQLite category ID for
-history and the provider category ID for parental locks. If saving the timestamp fails, the view still reloads for the same
+playback. The Electron second-stream picker waits for live replacement before
+reading a source, Favorites or Recently Viewed. An open live picker can show
+the cached channels during the provider fetch and reloads after the replacement
+commits. It keeps the SQLite category ID for history and the provider category
+ID for parental locks. If saving the timestamp fails, the view still reloads for the same
 source in the current session. Open Favorites and Recently
 Viewed reload their rows after the commit. SQLite live favorite toggles,
 playback history writes and item removals wait for in-flight source work.

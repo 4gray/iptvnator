@@ -105,7 +105,10 @@ export class XtreamStartupRefreshService {
                 return retained;
             }
         );
-        if (refreshed) this.removedLiveCategories.set(playlist._id, removed);
+        if (refreshed) {
+            this.removedLiveCategories.set(playlist._id, removed);
+            this.activity.notifyLiveCatalogReplacement(playlist._id);
+        }
         return refreshed;
     }
 }

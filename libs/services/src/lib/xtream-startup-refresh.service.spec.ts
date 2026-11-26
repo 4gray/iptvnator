@@ -63,6 +63,9 @@ describe('Xtream startup refresh', () => {
 
     it('fetches Live TV while a routed reader holds the source and waits to replace it', async () => {
         const release = activity.begin([source._id]);
+        const replaced = jest.fn();
+        const subscription =
+            activity.liveCatalogReplacements$.subscribe(replaced);
         let didFetch!: () => void;
         const fetched = new Promise<void>((resolve) => {
             didFetch = resolve;
@@ -78,8 +81,11 @@ describe('Xtream startup refresh', () => {
         expect(fetcher.categories).toHaveBeenCalledWith(source, 'live');
         expect(fetcher.content).toHaveBeenCalledWith(source, 'live');
         expect(refresh.refreshLiveOnStartup).not.toHaveBeenCalled();
+        expect(replaced).not.toHaveBeenCalled();
         release();
         await expect(result).resolves.toBe(true);
+        subscription.unsubscribe();
+        expect(replaced).toHaveBeenCalledWith(source._id);
         expect(refresh.refreshLiveOnStartup).toHaveBeenCalledWith(
             source,
             {
@@ -89,6 +95,16 @@ describe('Xtream startup refresh', () => {
             },
             expect.any(Function)
         );
+    });
+
+    it('does not notify live catalog readers if no replacement was committed', async () => {
+        refresh.refreshLiveOnStartup.mockResolvedValueOnce(false);
+        const replaced = jest.fn();
+        const subscription =
+            activity.liveCatalogReplacements$.subscribe(replaced);
+        await expect(service.refreshLive(source)).resolves.toBe(false);
+        subscription.unsubscribe();
+        expect(replaced).not.toHaveBeenCalled();
     });
 
     it('retains live category rows by provider ID and records removed IDs', async () => {

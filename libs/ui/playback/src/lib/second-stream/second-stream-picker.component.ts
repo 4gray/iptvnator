@@ -11,11 +11,13 @@ import {
     viewChild,
     viewChildren,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
+import { SourceActivityService } from '@iptvnator/services';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
     ChannelListItemComponent,
@@ -161,6 +163,19 @@ export class SecondStreamPickerComponent {
         this.dialog.beforeClosed().subscribe(cancelRequests);
         inject(DestroyRef).onDestroy(cancelRequests);
         void this.loadSources();
+        inject(SourceActivityService)
+            .liveCatalogReplacements$.pipe(takeUntilDestroyed())
+            .subscribe((sourceId) => {
+                const source = this.source();
+                if (
+                    !this.closed &&
+                    this.vod.type() === null &&
+                    (!source ||
+                        source === this.historySource ||
+                        source === sourceId)
+                )
+                    void this.reload();
+            });
         effect(() => {
             this.catalog.version();
             untracked(() => {
