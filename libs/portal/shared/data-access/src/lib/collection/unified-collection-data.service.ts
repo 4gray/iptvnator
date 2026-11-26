@@ -186,7 +186,8 @@ export class UnifiedCollectionDataService {
                 return nextFavoriteUids;
             });
         } else {
-            await this.recentData.removeRecentItem(item);
+            if ((await this.recentData.removeRecentItem(item)) === false)
+                return;
         }
         this.allItems.update((items) =>
             items.filter((i) => i.uid !== item.uid)
@@ -224,12 +225,12 @@ export class UnifiedCollectionDataService {
         );
     }
 
-    clearFavorites(items: UnifiedCollectionItem[]): Promise<void> {
+    clearFavorites(items: UnifiedCollectionItem[]): Promise<boolean> {
         return this.favoritesData.clearFavorites(items);
     }
 
-    removeRecentItemsBatch(items: UnifiedCollectionItem[]): void {
-        void this.recentData.removeRecentItemsBatch(items);
+    removeRecentItemsBatch(items: UnifiedCollectionItem[]): Promise<boolean> {
+        return this.recentData.removeRecentItemsBatch(items);
     }
 
     /** Move a just-played item back to the head of the recent list. */

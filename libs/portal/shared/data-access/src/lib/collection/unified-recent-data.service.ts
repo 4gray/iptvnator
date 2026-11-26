@@ -87,14 +87,14 @@ export class UnifiedRecentDataService {
         return this.getAllRecentItems();
     }
 
-    async removeRecentItem(item: UnifiedCollectionItem): Promise<void> {
+    async removeRecentItem(item: UnifiedCollectionItem): Promise<boolean> {
         if (item.sourceType === 'xtream') {
             const current = captureRecentSource(item.playlistId);
             const sqliteLive = this.isSqliteLive(item);
             const remove = async () => {
-                if (!current()) return;
+                if (!current()) return false;
                 const contentId = await this.resolveRecentRowId(item);
-                if (!current() || contentId == null) return;
+                if (!current() || contentId == null) return false;
 
                 if (this.hasPortalActivityStorage) {
                     const removed = await this.dbService.removeRecentItem(
@@ -105,7 +105,7 @@ export class UnifiedRecentDataService {
                         window.dispatchEvent(
                             new Event('iptvnator-history-changed')
                         );
-                    return;
+                    return removed && current();
                 }
                 await this.xtreamDataSource.removeRecentItem(
                     {
@@ -115,6 +115,7 @@ export class UnifiedRecentDataService {
                     },
                     item.playlistId
                 );
+                return current();
             };
             return this.runtime.supportsXtreamSqliteDataSource
                 ? this.historyOrder.run(
@@ -133,7 +134,7 @@ export class UnifiedRecentDataService {
                 )
             );
             this.dispatchPlaylistRecentUpdate(item.playlistId, updatedPlaylist);
-            return;
+            return true;
         }
 
         const updatedPlaylist = await firstValueFrom(
@@ -143,6 +144,7 @@ export class UnifiedRecentDataService {
             )
         );
         this.dispatchPlaylistRecentUpdate(item.playlistId, updatedPlaylist);
+        return true;
     }
 
     /**
@@ -153,10 +155,8 @@ export class UnifiedRecentDataService {
      */
     async removeRecentItemsBatch(
         items: UnifiedCollectionItem[]
-    ): Promise<void> {
-        if (items.length === 0) {
-            return;
-        }
+    ): Promise<boolean> {
+        if (items.length === 0) return true;
 
         const xtreamItems: UnifiedCollectionItem[] = [];
         const groupedByPlaylist = new Map<string, PlaylistRecentIdentity[]>();
@@ -183,7 +183,7 @@ export class UnifiedRecentDataService {
             groupedByPlaylist.set(item.playlistId, existing);
         }
 
-        const tasks: Promise<unknown>[] = [];
+        const tasks: Promise<boolean | void>[] = [];
 
         if (xtreamItems.length > 0) {
             tasks.push(this.removeXtreamRecentItemsBatch(xtreamItems));
@@ -205,12 +205,13 @@ export class UnifiedRecentDataService {
             );
         }
 
-        await Promise.all(tasks);
+        const results = await Promise.all(tasks);
+        return results.every((removed) => removed !== false);
     }
 
     private async removeXtreamRecentItemsBatch(
         items: readonly UnifiedCollectionItem[]
-    ): Promise<void> {
+    ): Promise<boolean> {
         const sources = new Map<string, () => boolean>();
         const liveSources = new Set<string>();
         for (const item of items) {
@@ -232,7 +233,10 @@ export class UnifiedRecentDataService {
             const currentRows = rows.filter(({ item }) =>
                 sources.get(item.playlistId)?.()
             );
-            if (currentRows.length === 0) return;
+            if (currentRows.length === 0) return false;
+            const allRemoved = () =>
+                currentRows.length === items.length &&
+                [...sources.values()].every((current) => current());
 
             if (this.hasPortalActivityStorage) {
                 const removed = await this.dbService.removeRecentItemsBatch(
@@ -245,20 +249,21 @@ export class UnifiedRecentDataService {
                     window.dispatchEvent(
                         new Event('iptvnator-history-changed')
                     );
-            } else {
-                await Promise.all(
-                    currentRows.map(({ item, contentId }) =>
-                        this.xtreamDataSource.removeRecentItem(
-                            {
-                                id: contentId,
-                                type: item.contentType,
-                                providerId: item.xtreamId,
-                            },
-                            item.playlistId
-                        )
-                    )
-                );
+                return removed && allRemoved();
             }
+            await Promise.all(
+                currentRows.map(({ item, contentId }) =>
+                    this.xtreamDataSource.removeRecentItem(
+                        {
+                            id: contentId,
+                            type: item.contentType,
+                            providerId: item.xtreamId,
+                        },
+                        item.playlistId
+                    )
+                )
+            );
+            return allRemoved();
         };
 
         return this.runtime.supportsXtreamSqliteDataSource

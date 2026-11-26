@@ -308,12 +308,10 @@ export class UnifiedFavoritesDataService {
         );
     }
 
-    async clearFavorites(items: UnifiedCollectionItem[]): Promise<void> {
-        if (items.length === 0) {
-            return;
-        }
+    async clearFavorites(items: UnifiedCollectionItem[]): Promise<boolean> {
+        if (items.length === 0) return true;
 
-        await Promise.all([
+        const [, clearedXtream] = await Promise.all([
             this.clearM3uFavorites(
                 items.filter((item) => item.sourceType === 'm3u')
             ),
@@ -324,6 +322,7 @@ export class UnifiedFavoritesDataService {
                 items.filter((item) => item.sourceType === 'stalker')
             ),
         ]);
+        return clearedXtream;
     }
 
     async reorder(
@@ -481,8 +480,11 @@ export class UnifiedFavoritesDataService {
 
     private async clearXtreamFavorites(
         items: UnifiedCollectionItem[]
-    ): Promise<void> {
-        await Promise.all(items.map((item) => this.removeFavorite(item)));
+    ): Promise<boolean> {
+        const results = await Promise.all(
+            items.map((item) => this.removeFavorite(item))
+        );
+        return results.every((removed) => removed);
     }
 
     private async clearStalkerFavorites(

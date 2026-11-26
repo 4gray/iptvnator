@@ -736,6 +736,9 @@ describe('UnifiedRecentDataService', () => {
         const consentKey =
             'iptvnator-server:synthetic-instance:history-consent-v1';
         const previousConsent = localStorage.getItem(consentKey);
+        const epochKey =
+            'iptvnator-server:synthetic-instance:history-source-epoch:synthetic-source';
+        const previousEpoch = localStorage.getItem(epochKey);
         localStorage.setItem(
             CONNECTION_KEY,
             JSON.stringify({
@@ -749,7 +752,7 @@ describe('UnifiedRecentDataService', () => {
         ]);
         try {
             localStorage.setItem(consentKey, '{"enabled":false}');
-            const watch = service.recordPlayback({
+            const item: UnifiedCollectionItem = {
                 uid: 'xtream::synthetic-source::live:42',
                 name: 'Synthetic channel',
                 contentType: 'live',
@@ -757,21 +760,60 @@ describe('UnifiedRecentDataService', () => {
                 playlistId: 'synthetic-source',
                 playlistName: 'Synthetic source',
                 xtreamId: 42,
-            });
+            };
+            const watch = service.recordPlayback(item);
             const clear = service.clearRecentItems('all');
+            const remove = service.removeRecentItem(item);
+            const batch = service.removeRecentItemsBatch([item]);
             localStorage.setItem(consentKey, '{"enabled":true}');
             release();
-            await Promise.all([watch, clear]);
+            const [, , removed, removedBatch] = await Promise.all([
+                watch,
+                clear,
+                remove,
+                batch,
+            ]);
 
+            expect(removed).toBe(false);
+            expect(removedBatch).toBe(false);
+            expect(dbService.removeRecentItem).not.toHaveBeenCalled();
+            expect(dbService.removeRecentItemsBatch).not.toHaveBeenCalled();
             expect(dbService.getContentByXtreamId).not.toHaveBeenCalled();
             expect(dbService.clearGlobalRecentlyViewed).not.toHaveBeenCalled();
             expect(xtreamDataSource.clearRecentItems).not.toHaveBeenCalled();
+
+            const finishSecondReplacement = TestBed.inject(
+                SourceActivityService
+            ).begin([item.playlistId]);
+            try {
+                dbService.getContentByXtreamId.mockResolvedValue({ id: 502 });
+                dbService.removeRecentItemsBatch.mockResolvedValue(true);
+                const partial = service.removeRecentItemsBatch([
+                    item,
+                    {
+                        ...item,
+                        uid: 'xtream::synthetic-other::live:43',
+                        playlistId: 'synthetic-other',
+                        xtreamId: 43,
+                    },
+                ]);
+                localStorage.setItem(epochKey, 'replaced');
+                finishSecondReplacement();
+                await expect(partial).resolves.toBe(false);
+                expect(dbService.removeRecentItemsBatch).toHaveBeenCalledWith([
+                    { contentId: 502, playlistId: 'synthetic-other' },
+                ]);
+            } finally {
+                finishSecondReplacement();
+            }
         } finally {
             release();
             if (saved == null) localStorage.removeItem(CONNECTION_KEY);
             else localStorage.setItem(CONNECTION_KEY, saved);
             if (previousConsent == null) localStorage.removeItem(consentKey);
             else localStorage.setItem(consentKey, previousConsent);
+            if (previousEpoch == null) localStorage.removeItem(epochKey);
+            else localStorage.setItem(epochKey, previousEpoch);
             await prepareSourceConnection();
         }
     });

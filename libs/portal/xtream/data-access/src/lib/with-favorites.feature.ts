@@ -47,7 +47,10 @@ export const withFavorites = function () {
             ) => {
                 const activity = inject(SourceActivityService);
                 const sqlite = () => runtime.supportsXtreamSqliteDataSource;
-                const pendingWrites = new Map<string, Promise<boolean>>();
+                const pendingWrites = new Map<
+                    string,
+                    Promise<boolean | undefined>
+                >();
                 let request = 0;
                 let activeTarget = '';
                 const publish = (owner: number, isFavorite: boolean) => {
@@ -130,7 +133,7 @@ export const withFavorites = function () {
                             'favorites'
                         );
                         const write = async () => {
-                            if (!current()) return false;
+                            if (!current()) return;
                             const target = await resolveTarget(
                                 normalizedXtreamId,
                                 playlistId,
@@ -138,6 +141,7 @@ export const withFavorites = function () {
                                 identity
                             );
 
+                            if (!current()) return;
                             if (!target) {
                                 // A typed identity filter can reject all existing copies.
                                 // Preserve the conflict feedback without mutating a contrary row.
@@ -149,6 +153,7 @@ export const withFavorites = function () {
                                               contentType
                                           )
                                         : null;
+                                if (!current()) return;
                                 if (candidate && activeTarget === targetKey) {
                                     notifications.error(
                                         'PORTALS.FAVORITE_IDENTITY_CONFLICT'
@@ -165,7 +170,7 @@ export const withFavorites = function () {
                                 target,
                                 playlistId
                             );
-                            if (!current()) return false;
+                            if (!current()) return;
                             let nextStatus = !currentStatus;
                             try {
                                 if (currentStatus)
@@ -191,6 +196,7 @@ export const withFavorites = function () {
                                     notifications.error(key);
                                 }
                             }
+                            if (!current()) return;
                             if (activeTarget === targetKey)
                                 publish(owner, nextStatus);
                             return nextStatus;

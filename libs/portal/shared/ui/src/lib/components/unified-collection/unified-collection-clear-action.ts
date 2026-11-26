@@ -19,8 +19,8 @@ export interface ClearCollectionAction {
 
 /**
  * "Clear this tab" for a unified collection. The rows leave the screen as
- * soon as the user confirms; a favorites write that then fails puts the
- * collection back the way storage has it. Must run in an injection context.
+ * soon as the user confirms; a failed or canceled write reloads the
+ * collection from storage. Must run in an injection context.
  */
 export function createClearCollectionAction(options: {
     mode: Signal<CollectionMode>;
@@ -38,16 +38,21 @@ export function createClearCollectionAction(options: {
     const dialogService = inject(DialogService);
     const translate = inject(TranslateService);
 
-    const clearFavorites = async (
-        itemsToRemove: UnifiedCollectionItem[]
+    const clear = async (
+        itemsToRemove: UnifiedCollectionItem[],
+        isFavorites: boolean
     ): Promise<void> => {
         options.dropCurrentType();
-
+        let cleared = false;
         try {
-            await options.data.clearFavorites(itemsToRemove);
+            const result = await (isFavorites
+                ? options.data.clearFavorites(itemsToRemove)
+                : options.data.removeRecentItemsBatch(itemsToRemove));
+            cleared = result !== false;
         } catch {
-            await options.reload();
+            // Reload the persisted rows after a partial or failed write.
         }
+        if (!cleared) await options.reload();
     };
 
     return {
@@ -70,15 +75,7 @@ export function createClearCollectionAction(options: {
                 message: translate.instant(messageKey, { type }),
                 confirmLabel: translate.instant('CLEAR'),
                 tone: 'destructive',
-                onConfirm: async () => {
-                    if (isFavorites) {
-                        await clearFavorites(itemsToRemove);
-                        return;
-                    }
-
-                    options.dropCurrentType();
-                    options.data.removeRecentItemsBatch(itemsToRemove);
-                },
+                onConfirm: () => clear(itemsToRemove, isFavorites),
             });
         },
     };

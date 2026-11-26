@@ -658,11 +658,15 @@ describe('withFavorites', () => {
         try {
             setConsent(false);
             dataSource.getContentByXtreamId.mockResolvedValue({ id: 502 });
+            dataSource.isFavorite.mockResolvedValue(true);
+            await store.checkFavoriteStatus(42, 'synthetic-source', 'live');
             const toggle = store.toggleFavorite(42, 'synthetic-source', 'live');
             setConsent(true);
             release();
 
-            await expect(toggle).resolves.toBe(false);
+            await expect(toggle).resolves.toBeUndefined();
+            expect(store.isFavorite()).toBe(true);
+            expect(dataSource.removeFavorite).not.toHaveBeenCalled();
             expect(dataSource.addFavorite).not.toHaveBeenCalled();
         } finally {
             release();

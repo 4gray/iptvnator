@@ -715,7 +715,12 @@ export class PortalChannelsListComponent implements OnDestroy {
 
         this.xtreamStore
             .toggleFavorite(item.xtream_id, playlistId, contentType)
-            .then((result: boolean) => {
+            .then((result) => {
+                if (
+                    result === undefined ||
+                    this.xtreamStore.currentPlaylist()?.id !== playlistId
+                )
+                    return;
                 if (result) {
                     this.favorites.set(favoriteKey, true);
                 } else {

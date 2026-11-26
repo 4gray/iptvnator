@@ -424,8 +424,9 @@ ambiguous moves pending. Source and global history clears wait for the affected
 Xtream catalog replacements to finish recovery. Clears and individual removals
 run after already-confirmed writes and before subsequent writes in scope. This
 includes hiding a series from Continue Watching. A delayed favorite or history action is canceled if its source
-profile or sync consent changes before the write. Canceled favorite actions
-leave the displayed membership to the collection reload. Lock-triggered
+profile or sync consent changes before the write. Canceled item actions
+preserve the displayed row or favorite mark. A partially completed clear
+reloads the collection from storage. Lock-triggered
 Xtream catalog reads wait for source replacement to release its hold. An open
 history view reloads using the current consent when the same source's history
 changes. SQLite history and the portable history outbox and local archive keep

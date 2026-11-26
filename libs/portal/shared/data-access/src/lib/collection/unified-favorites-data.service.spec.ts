@@ -744,9 +744,10 @@ describe('UnifiedFavoritesDataService', () => {
         );
     });
 
-    it.each([false, true])(
-        'keeps collection membership unchanged when a deferred action loses consent (favorite: %s)',
-        async (favorite) => {
+    it.each(['add', 'remove', 'clear'] as const)(
+        'keeps collection membership unchanged when a deferred action loses consent (action: %s)',
+        async (action) => {
+            const favorite = action !== 'add';
             const item: UnifiedCollectionItem = {
                 uid: 'xtream::synthetic-source::live:42',
                 name: 'Synthetic live channel',
@@ -776,12 +777,16 @@ describe('UnifiedFavoritesDataService', () => {
                 collection.favoriteUidSet.set(
                     new Set(favorite ? [item.uid] : [])
                 );
-                const pending = favorite
-                    ? collection.removeItem('favorites', item)
-                    : collection.toggleFavorite(item);
+                const pending =
+                    action === 'clear'
+                        ? collection.clearFavorites([item])
+                        : favorite
+                          ? collection.removeItem('favorites', item)
+                          : collection.toggleFavorite(item);
                 localStorage.setItem(consent, 'changed');
                 release();
-                await pending;
+                const completed = await pending;
+                if (action === 'clear') expect(completed).toBe(false);
                 expect(collection.favoriteUidSet().has(item.uid)).toBe(
                     favorite
                 );
