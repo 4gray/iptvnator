@@ -122,6 +122,7 @@ describe('ParentalLockLockStore', () => {
         expect(store.hasLocks('pl-2')).toBe(false);
         expect(store.hasLocks('pl-3')).toBe(true);
         expect(store.hasLocks('pl-4')).toBe(false);
+        expect(store.hasLocks('constructor')).toBe(false);
         expect(store.hasLocks(null)).toBe(true);
     });
 

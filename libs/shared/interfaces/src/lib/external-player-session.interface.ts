@@ -86,6 +86,8 @@ export interface ExternalPlayerSession {
     id: string;
     /** Correlates native lifecycle events with the requesting renderer launch. */
     launchId?: string;
+    /** Correlates this session with its renderer's parental-lock context. */
+    requestId?: string;
     player: ExternalPlayerName;
     status: ExternalPlayerSessionStatus;
     title: string;

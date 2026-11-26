@@ -928,7 +928,8 @@ export interface ElectronBridgeApi {
         contentInfo?: PlayerContentInfo,
         startTime?: number,
         headers?: Record<string, string>,
-        launchId?: string
+        launchId?: string,
+        requestId?: string
     ) => Promise<ExternalPlayerSession>;
     openInVlc: (
         url: string,
@@ -940,7 +941,8 @@ export interface ElectronBridgeApi {
         contentInfo?: PlayerContentInfo,
         startTime?: number,
         headers?: Record<string, string>,
-        launchId?: string
+        launchId?: string,
+        requestId?: string
     ) => Promise<ExternalPlayerSession>;
     autoUpdatePlaylists: (
         playlists: Playlist[],

@@ -9,6 +9,7 @@ import {
 interface CreateExternalPlayerSessionOptions {
     player: ExternalPlayerName;
     launchId?: string;
+    requestId?: string;
     title: string;
     thumbnail?: string | null;
     streamUrl: string;
@@ -69,6 +70,10 @@ export class ExternalPlayerSessionRegistry {
             ...(typeof options.launchId === 'string' &&
             options.launchId.length <= 128
                 ? { launchId: options.launchId }
+                : {}),
+            ...(typeof options.requestId === 'string' &&
+            options.requestId.length <= 128
+                ? { requestId: options.requestId }
                 : {}),
             player: options.player,
             status: 'launching',

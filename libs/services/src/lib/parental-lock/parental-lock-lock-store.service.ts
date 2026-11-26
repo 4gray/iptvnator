@@ -220,14 +220,14 @@ export class ParentalLockLockStore {
     /** Whether the source (any source when `null`) has a locked category. */
     hasLocks(playlistId: string | null): boolean {
         const store = this.locks();
-        const entries =
-            playlistId === null ? Object.values(store) : [store[playlistId]];
-        return entries.some(
-            (locks) =>
-                !!locks &&
-                (locks.xtream.length > 0 ||
-                    locks.stalker.length > 0 ||
-                    locks.m3u.length > 0)
+        if (playlistId === null) {
+            return Object.values(store).some(
+                (locks) => !isParentalLockPlaylistLocksEmpty(locks)
+            );
+        }
+        return (
+            Object.prototype.hasOwnProperty.call(store, playlistId) &&
+            !isParentalLockPlaylistLocksEmpty(store[playlistId])
         );
     }
 

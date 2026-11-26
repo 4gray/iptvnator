@@ -1,4 +1,8 @@
-import { DataService, SourceActivityService } from '@iptvnator/services';
+import {
+    DataService,
+    ParentalLockExternalLaunches,
+    SourceActivityService,
+} from '@iptvnator/services';
 import { TestBed } from '@angular/core/testing';
 import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Store } from '@ngrx/store';
@@ -69,6 +73,14 @@ describe('ElectronService', () => {
         TestBed.configureTestingModule({
             providers: [
                 ElectronService,
+                {
+                    provide: ParentalLockExternalLaunches,
+                    useValue: {
+                        capture: jest.fn(),
+                        register: jest.fn(() => 'synthetic-request'),
+                        finish: jest.fn(),
+                    },
+                },
                 {
                     provide: LazySnackBar,
                     useValue: snackBar,
@@ -687,7 +699,8 @@ describe('ElectronService', () => {
             {
                 'User-Agent': 'FallbackAgent/1.0',
             },
-            'synthetic-mpv-launch'
+            'synthetic-mpv-launch',
+            'synthetic-request'
         );
     });
 
@@ -712,7 +725,8 @@ describe('ElectronService', () => {
             {
                 'User-Agent': 'FallbackAgent/1.0',
             },
-            'synthetic-vlc-launch'
+            'synthetic-vlc-launch',
+            'synthetic-request'
         );
     });
 

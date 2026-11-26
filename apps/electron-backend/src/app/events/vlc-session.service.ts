@@ -63,6 +63,7 @@ export interface OpenVlcPlayerRequest {
     startTime?: number;
     headers?: Record<string, string>;
     launchId?: string;
+    requestId?: string;
 }
 
 const reusableVlcProcess = new VlcReusableProcess();
@@ -190,6 +191,7 @@ export async function openVlcPlayer({
     startTime,
     headers,
     launchId,
+    requestId,
 }: OpenVlcPlayerRequest) {
     externalPlayerProcessTeardownGate.assertLaunchAllowed();
     const isFlatpak = isRunningInFlatpak();
@@ -203,6 +205,7 @@ export async function openVlcPlayer({
     const session = externalPlayerSessions.beginSession({
         player: 'vlc',
         launchId,
+        requestId,
         title,
         thumbnail,
         streamUrl: url,

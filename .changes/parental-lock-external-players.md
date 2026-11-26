@@ -3,4 +3,4 @@ type: fix
 area: parental-lock
 ---
 
-Locking the app again now closes an MPV or VLC window opened while it was unlocked from a source with locked categories, also after the window reloads, and one whose content a parent locked while it played. Films in MPV, VLC and Embedded MPV no longer lock half way. A stream that stops playing no longer keeps the screen awake and the app unlocked.
+Locking the app again closes MPV and VLC playback requested while unlocked from sources with locked categories, even if the player starts late or the app reloads, and playback affected by new category locks. Films in MPV, VLC and Embedded MPV keep the app unlocked while playing. Stalled streams let the screen sleep and the app lock again.

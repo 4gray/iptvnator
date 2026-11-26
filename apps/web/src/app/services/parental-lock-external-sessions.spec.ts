@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import {
+    ParentalLockExternalLaunches,
     ParentalLockLockStore,
     ParentalLockService,
     ParentalLockSessionOwners,
@@ -143,6 +144,47 @@ describe('ParentalLockExternalSessions', () => {
     });
 
     describe('relock', () => {
+        it('uses the request context when a player first reports after relock and navigation', () => {
+            const launches = TestBed.inject(ParentalLockExternalLaunches);
+            const requestId = launches.register(launches.capture());
+            hasLocks.mockImplementation((id) => id === 'm3u-1');
+            clock = 12_000;
+            relock();
+            router.url = '/workspace/playlists/m3u-2/all';
+            launches.finish(requestId);
+
+            emitSession(session({ requestId }));
+
+            expect(closeExternalPlayerSession).toHaveBeenCalledWith(
+                'session-1',
+                true
+            );
+        });
+
+        it('keeps an allowed request that reports after the PIN is entered', () => {
+            active.set(true);
+            const launches = TestBed.inject(ParentalLockExternalLaunches);
+            const requestId = launches.register(launches.capture());
+            active.set(false);
+            service.onLockChange();
+
+            emitSession(session({ requestId }));
+            relock();
+
+            expect(closeExternalPlayerSession).not.toHaveBeenCalled();
+        });
+
+        it('closes a pending request from the previous renderer', () => {
+            active.set(true);
+            emitSession(session({ requestId: 'previous-page' }));
+
+            expect(hasLocks).toHaveBeenCalledWith(null);
+            expect(closeExternalPlayerSession).toHaveBeenCalledWith(
+                'session-1',
+                true
+            );
+        });
+
         it('closes a session started while unlocked and hides it from the dock', async () => {
             const started = session();
             emitSession(started);

@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
 import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Router } from '@angular/router';
 import { EpgService } from '@iptvnator/epg/data-access';
@@ -32,6 +32,7 @@ import {
 import {
     DataService,
     EpgSourceSettingsService,
+    ParentalLockExternalLaunches,
     PlaylistsService,
     SettingsStore,
     RuntimeCapabilitiesService,
@@ -82,6 +83,7 @@ export class PlaylistEffects {
     private translate = inject(TranslateService);
     private settingsStore = inject(SettingsStore);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly injector = inject(Injector);
     private epgSources = inject(EpgSourceSettingsService);
     private readonly playlistScopedEpgFetchKeys = new Map<string, string>();
 
@@ -213,6 +215,7 @@ export class PlaylistEffects {
             withLatestFrom(this.store.select(selectActivePlaylist)),
             map(([action, activePlaylist]) => {
                 const { channel } = action;
+                const parentalLaunch = this.captureExternalLaunch();
 
                 // Use modern EPG service to get channel programs
                 const channelId = resolveChannelEpgLookupKey(channel);
@@ -257,10 +260,10 @@ export class PlaylistEffects {
                                 VideoPlayer.MPV
                             )
                         ) {
-                            this.dataService.sendIpcEvent(
-                                OPEN_MPV_PLAYER,
-                                payload
-                            );
+                            this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
+                                ...payload,
+                                parentalLaunch,
+                            });
                         } else if (
                             shouldAutoLaunchExternalPlayer(
                                 settings,
@@ -269,10 +272,10 @@ export class PlaylistEffects {
                                 VideoPlayer.VLC
                             )
                         ) {
-                            this.dataService.sendIpcEvent(
-                                OPEN_VLC_PLAYER,
-                                payload
-                            );
+                            this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
+                                ...payload,
+                                parentalLaunch,
+                            });
                         }
                     }
                 );
@@ -340,6 +343,7 @@ export class PlaylistEffects {
             return;
         }
 
+        const parentalLaunch = this.captureExternalLaunch();
         const settings: any = await firstValueFrom(
             this.storage.get(STORE_KEY.Settings)
         );
@@ -348,13 +352,25 @@ export class PlaylistEffects {
         }
 
         if (settings.player === VideoPlayer.MPV) {
-            this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, payload);
+            this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
+                ...payload,
+                parentalLaunch,
+            });
             return;
         }
 
         if (settings.player === VideoPlayer.VLC) {
-            this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, payload);
+            this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
+                ...payload,
+                parentalLaunch,
+            });
         }
+    }
+
+    private captureExternalLaunch() {
+        return this.runtime.supportsManagedExternalPlayers
+            ? this.injector.get(ParentalLockExternalLaunches).capture()
+            : undefined;
     }
 
     playlistRemovalCommitted$ = createEffect(

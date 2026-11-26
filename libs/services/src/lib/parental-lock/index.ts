@@ -5,3 +5,4 @@ export * from './parental-lock-lock-store.service';
 export * from './parental-lock-playlist-cleanup';
 export * from './parental-lock-storage';
 export * from './parental-lock.service';
+export * from './parental-lock-external-launches';

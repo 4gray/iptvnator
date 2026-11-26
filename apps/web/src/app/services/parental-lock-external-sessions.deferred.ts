@@ -1,29 +1,12 @@
 import type { Injector } from '@angular/core';
+import {
+    type ExternalSessionLaunch,
+    ParentalLockExternalLaunches,
+    sourceIdOfRoute,
+} from '@iptvnator/services';
 import type { ParentalLockExternalSessions } from './parental-lock-external-sessions';
 
 type IdleScheduler = (run: () => void, options: { timeout: number }) => number;
-
-/** A source route; a launch from it plays that source's content. */
-const SOURCE_ROUTE = /^\/workspace\/(?:playlists|xtreams|stalker)\/([^/?#]+)/;
-
-/** The source a route belongs to; `null` outside a source. */
-export function sourceIdOfRoute(url: string | undefined): string | null {
-    const match = SOURCE_ROUTE.exec(url ?? '');
-    return match ? decodeURIComponent(match[1]) : null;
-}
-
-/** How a session's media was opened, as the eager half saw it. */
-export interface ExternalSessionLaunch {
-    readonly sourceId: string | null;
-    /**
-     * Opened from the filtered catalog: while locked and, at a first
-     * report, launched after the last relock or lock edit. Media opened
-     * unlocked stays so across a switch.
-     */
-    readonly openedLocked: boolean;
-    /** The locks of its source (of any, when unknown) at that report. */
-    readonly lockKey: string;
-}
 
 /** What the eager half saw before the tracker loaded. */
 export interface ExternalSessionsHandoff {
@@ -109,13 +92,26 @@ export class DeferredExternalSessions {
             return;
         }
         const stopWatching = bridge.onExternalPlayerSessionUpdate?.(
-            ({ id, streamUrl, startedAt, contentInfo }) => {
+            ({ id, streamUrl, startedAt, contentInfo, requestId }) => {
                 const seen = this.launchSources.get(id);
                 if (seen?.streamUrl === streamUrl) return;
                 if (!seen && this.launchSources.size >= MAX_LAUNCH_SOURCES) {
                     return;
                 }
-                const sourceId = sourceIdOfRoute(this.deps.routeUrl());
+                if (!seen && requestId) {
+                    const launch = deps.injector
+                        .get(ParentalLockExternalLaunches)
+                        .take(requestId) ?? {
+                        sourceId: contentInfo?.playlistId ?? null,
+                        openedLocked: false,
+                        lockKey: deps.lockSetKey(
+                            contentInfo?.playlistId ?? null
+                        ),
+                    };
+                    this.launchSources.set(id, { streamUrl, ...launch });
+                    return;
+                }
+                const sourceId = sourceIdOfRoute(deps.routeUrl());
                 // Media opened unlocked stays so across a switch. A first
                 // report after a relock or lock edit the launch preceded
                 // raced it: the media was not chosen from what it shows.

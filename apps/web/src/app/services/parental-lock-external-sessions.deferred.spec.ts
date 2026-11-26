@@ -1,4 +1,5 @@
 import type { Injector } from '@angular/core';
+import { ParentalLockExternalLaunches } from '@iptvnator/services';
 import {
     afterFirstScreen,
     DeferredExternalSessions,
@@ -10,6 +11,7 @@ type Reported = {
     id: string;
     streamUrl: string;
     startedAt?: string;
+    requestId?: string;
     contentInfo?: { playlistId?: string };
 };
 
@@ -29,6 +31,7 @@ describe('DeferredExternalSessions', () => {
     let routeUrl: string;
     let emitSession: ((session: Reported) => void) | undefined;
     let stopWatching: jest.Mock;
+    let takeLaunch: jest.Mock;
 
     const create = () =>
         new DeferredExternalSessions(
@@ -57,7 +60,14 @@ describe('DeferredExternalSessions', () => {
             onLockChange: jest.fn(),
         };
         class ParentalLockExternalSessions {}
-        injector = { get: jest.fn(() => tracker) } as unknown as Injector;
+        takeLaunch = jest.fn();
+        injector = {
+            get: jest.fn((token) =>
+                token === ParentalLockExternalLaunches
+                    ? { take: takeLaunch }
+                    : tracker
+            ),
+        } as unknown as Injector;
         load = jest.fn(async () => ({ ParentalLockExternalSessions }));
         lockSets = {};
         routeUrl = '/workspace/playlists/m3u-1/all';
@@ -127,6 +137,37 @@ describe('DeferredExternalSessions', () => {
             expect.objectContaining({ pageStartedAt: 10_000, lockedAt: 14_000 })
         );
         expect(tracker.onLockChange).not.toHaveBeenCalled();
+    });
+
+    it('hands over the request context when the player reports after relock and navigation', async () => {
+        locked = false;
+        const deferred = create();
+        const launch = {
+            sourceId: 'm3u-1',
+            openedLocked: false,
+            lockKey: 'm3u-1:',
+        };
+        takeLaunch.mockReturnValueOnce(launch);
+        clock = 11_000;
+        locked = true;
+        deferred.onLockChange();
+        routeUrl = '/workspace/playlists/m3u-2/all';
+        emitSession?.({
+            id: 'session-1',
+            streamUrl: 'https://streams.example.test/film.mkv',
+            startedAt: new Date(12_000).toISOString(),
+            requestId: 'synthetic-request',
+        });
+
+        scheduled?.();
+        await flush();
+
+        expect(takeLaunch).toHaveBeenCalledWith('synthetic-request');
+        expect(tracker.start).toHaveBeenCalledWith(
+            expect.objectContaining({
+                launchSources: new Map([['session-1', launch]]),
+            })
+        );
     });
 
     it('moves nothing on a version bump that was no relock', async () => {
