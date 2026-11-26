@@ -1,9 +1,11 @@
 import { prepareSourceConnection } from '@iptvnator/services/source-sync/connection';
 import { favoritesProfileUsed } from './favorites-consent';
-import { signal } from '@angular/core';
+import { signal, type EnvironmentInjector } from '@angular/core';
 import type { Playlist } from '@iptvnator/shared/interfaces';
 import type { IXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import { FavoritesSyncRuntime } from './favorites-sync-runtime';
+import { invokeFavorites } from './favorites-sync.providers';
+import { invokeHistory } from './history-sync.providers';
 
 describe('new sources after favorites opt-out', () => {
     beforeEach(async () => {
@@ -70,6 +72,43 @@ describe('new sources after favorites opt-out', () => {
         ).toBeNull();
         expect(request).not.toHaveBeenCalled();
     });
+    it.each([
+        ['favorites', 'addFavorite', invokeFavorites],
+        ['history', 'addRecentItem', invokeHistory],
+        ['history', 'clearRecentItems', invokeHistory],
+    ] as const)(
+        'cancels a %s mutation if consent changes while initializing %s',
+        async (collection, method, invoke) => {
+            const runtime = { invoke: jest.fn().mockResolvedValue(undefined) };
+            const raw = {} as IXtreamDataSource;
+            const args =
+                method === 'clearRecentItems'
+                    ? ['synthetic-source']
+                    : [42, 'synthetic-source'];
+            const stable = {
+                get: () => runtime,
+            } as unknown as EnvironmentInjector;
+            await expect(
+                invoke(stable, raw, method, args)
+            ).resolves.toBeUndefined();
+            expect(runtime.invoke).toHaveBeenCalledTimes(1);
+
+            const changed = {
+                get: () => {
+                    localStorage.setItem(
+                        `iptvnator-server:synthetic-nas:${collection}-consent-v1`,
+                        '{"enabled":true,"generation":"new-consent"}'
+                    );
+                    return runtime;
+                },
+            } as unknown as EnvironmentInjector;
+            await expect(invoke(changed, raw, method, args)).rejects.toThrow(
+                /action ownership changed/
+            );
+            expect(runtime.invoke).toHaveBeenCalledTimes(1);
+        }
+    );
+
     it('keeps Xtream reads and writes on the local data source without consent', async () => {
         const { value, request } = runtime();
         const getFavorites = jest.fn(async () => []);

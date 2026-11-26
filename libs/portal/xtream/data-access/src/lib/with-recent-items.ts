@@ -33,7 +33,8 @@ const captureRecentOwner = (playlistId: string) =>
     captureHistoryOwner(
         sourceConnection()?.instanceId,
         playlistId,
-        () => sourceConnection()?.instanceId
+        () => sourceConnection()?.instanceId,
+        'history'
     );
 
 export const withRecentItems = function () {

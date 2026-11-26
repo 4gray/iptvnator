@@ -53,11 +53,12 @@ type PlaylistWithChannels = Omit<Playlist, 'playlist'> & {
     readonly playlist?: { readonly items?: Channel[] };
 };
 
-function captureRecentSource(playlistId: string): () => boolean {
+function captureRecentSource(playlistId?: string): () => boolean {
     return captureHistoryOwner(
         sourceConnection()?.instanceId,
         playlistId,
-        () => sourceConnection()?.instanceId
+        () => sourceConnection()?.instanceId,
+        'history'
     );
 }
 
@@ -275,16 +276,17 @@ export class UnifiedRecentDataService {
         if (!this.runtime.supportsXtreamSqliteDataSource)
             return this.clearRecentHistory(sourceId);
 
-        const instanceId = sourceConnection()?.instanceId;
-        const current = sourceId
-            ? captureRecentSource(sourceId)
-            : () => sourceConnection()?.instanceId === instanceId;
-        await this.historyOrder.run(sourceId, async () => {
-            if (current()) await this.clearRecentHistory(sourceId);
-        });
+        const current = captureRecentSource(sourceId ?? undefined);
+        await this.historyOrder.run(sourceId, () =>
+            this.clearRecentHistory(sourceId, current)
+        );
     }
 
-    private async clearRecentHistory(playlistId: string | null): Promise<void> {
+    private async clearRecentHistory(
+        playlistId: string | null,
+        current = () => true
+    ): Promise<void> {
+        if (!current()) return;
         if (playlistId) {
             if (this.hasPortalActivityStorage) {
                 await this.dbService.clearPlaylistRecentItems(playlistId);
@@ -307,7 +309,11 @@ export class UnifiedRecentDataService {
                     .filter((playlist) => playlist._id)
                     .filter((playlist) => this.isXtreamPlaylist(playlist))
                     .map((playlist) =>
-                        this.xtreamDataSource.clearRecentItems(playlist._id)
+                        current()
+                            ? this.xtreamDataSource.clearRecentItems(
+                                  playlist._id
+                              )
+                            : undefined
                     )
             );
         }
@@ -317,7 +323,10 @@ export class UnifiedRecentDataService {
 
         await Promise.all(
             playlists.map(async (playlist) => {
-                if (this.isPlaylistBackedRecentPlaylist(playlist)) {
+                if (
+                    current() &&
+                    this.isPlaylistBackedRecentPlaylist(playlist)
+                ) {
                     const updatedPlaylist = await firstValueFrom(
                         this.playlistsService.clearPlaylistRecentlyViewed(
                             playlist._id

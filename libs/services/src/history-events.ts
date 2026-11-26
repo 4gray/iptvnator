@@ -27,22 +27,39 @@ export const HISTORY_PLAYLIST_BRIDGE =
         }),
     });
 
-/** A delayed playback confirmation may not record an old source in a replacement profile. */
+export function collectionConsentKey(
+    instanceId: string | undefined,
+    collection: 'favorites' | 'history'
+): string | null {
+    return instanceId
+        ? `iptvnator-server:${instanceId}:${collection}-consent-v1`
+        : null;
+}
+
+/** Fence queued work by profile, source epoch and the original sync consent. */
 export function captureHistoryOwner(
     instanceId: string | undefined,
-    sourceId: string,
-    currentInstance: () => string | undefined
+    sourceId: string | undefined,
+    currentInstance: () => string | undefined,
+    collection?: 'favorites' | 'history'
 ): () => boolean {
-    const key = instanceId
-        ? `iptvnator-server:${instanceId}:history-source-epoch:${sourceId}`
+    const key =
+        instanceId && sourceId
+            ? `iptvnator-server:${instanceId}:history-source-epoch:${sourceId}`
+            : null;
+    const consentKey = collection
+        ? collectionConsentKey(instanceId, collection)
         : null;
     try {
         const epoch = key ? localStorage.getItem(key) : null;
+        const consent = consentKey ? localStorage.getItem(consentKey) : null;
         return () => {
             try {
                 return (
                     currentInstance() === instanceId &&
-                    (!key || localStorage.getItem(key) === epoch)
+                    (!key || localStorage.getItem(key) === epoch) &&
+                    (!consentKey ||
+                        localStorage.getItem(consentKey) === consent)
                 );
             } catch {
                 return false;

@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import {
     captureHistoryOwner,
+    collectionConsentKey,
     HISTORY_PLAYLIST_BRIDGE,
     XtreamHistoryOrder,
 } from './history-events';
@@ -41,6 +42,38 @@ it('fences a delayed confirmation when its profile or source epoch changes', () 
     );
     expect(current()).toBe(false);
 });
+
+it.each(['favorites', 'history'] as const)(
+    'cancels a deferred %s mutation if consent changes',
+    (collection) => {
+        const instance = 'synthetic-instance';
+        const key = collectionConsentKey(instance, collection)!;
+        const current = captureHistoryOwner(
+            instance,
+            'synthetic-source',
+            () => instance,
+            collection
+        );
+        expect(current()).toBe(true);
+        localStorage.setItem(
+            key,
+            '{"enabled":true,"generation":"synthetic-1"}'
+        );
+        expect(current()).toBe(false);
+
+        const shared = captureHistoryOwner(
+            instance,
+            'synthetic-source',
+            () => instance,
+            collection
+        );
+        localStorage.setItem(
+            key,
+            '{"enabled":true,"generation":"synthetic-2"}'
+        );
+        expect(shared()).toBe(false);
+    }
+);
 
 it('withholds delayed confirmation if owner storage becomes unreadable', () => {
     const current = captureHistoryOwner(

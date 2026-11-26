@@ -9,6 +9,10 @@ import {
 } from '@iptvnator/services';
 import { HISTORY_PLAYLIST_BRIDGE } from '@iptvnator/services/history-events';
 import {
+    CONNECTION_KEY,
+    prepareSourceConnection,
+} from '@iptvnator/services/source-sync/connection';
+import {
     Channel,
     M3uRecentlyViewedItem,
     Playlist,
@@ -685,6 +689,56 @@ describe('UnifiedRecentDataService', () => {
             else expect(dbService.clearGlobalRecentlyViewed).toHaveBeenCalled();
         }
     );
+
+    it('cancels queued native watches and clears when history consent changes', async () => {
+        jest.spyOn(
+            TestBed.inject(RuntimeCapabilitiesService),
+            'supportsXtreamSqliteDataSource',
+            'get'
+        ).mockReturnValue(true);
+        const saved = localStorage.getItem(CONNECTION_KEY);
+        const consentKey =
+            'iptvnator-server:synthetic-instance:history-consent-v1';
+        const previousConsent = localStorage.getItem(consentKey);
+        localStorage.setItem(
+            CONNECTION_KEY,
+            JSON.stringify({
+                apiUrl: 'https://synthetic.invalid/api',
+                instanceId: 'synthetic-instance',
+            })
+        );
+        await prepareSourceConnection();
+        const release = TestBed.inject(SourceActivityService).begin([
+            'synthetic-source',
+        ]);
+        try {
+            localStorage.setItem(consentKey, '{"enabled":false}');
+            const watch = service.recordPlayback({
+                uid: 'xtream::synthetic-source::live:42',
+                name: 'Synthetic channel',
+                contentType: 'live',
+                sourceType: 'xtream',
+                playlistId: 'synthetic-source',
+                playlistName: 'Synthetic source',
+                xtreamId: 42,
+            });
+            const clear = service.clearRecentItems('all');
+            localStorage.setItem(consentKey, '{"enabled":true}');
+            release();
+            await Promise.all([watch, clear]);
+
+            expect(dbService.getContentByXtreamId).not.toHaveBeenCalled();
+            expect(dbService.clearGlobalRecentlyViewed).not.toHaveBeenCalled();
+            expect(xtreamDataSource.clearRecentItems).not.toHaveBeenCalled();
+        } finally {
+            release();
+            if (saved == null) localStorage.removeItem(CONNECTION_KEY);
+            else localStorage.setItem(CONNECTION_KEY, saved);
+            if (previousConsent == null) localStorage.removeItem(consentKey);
+            else localStorage.setItem(consentKey, previousConsent);
+            await prepareSourceConnection();
+        }
+    });
 
     it('clears Xtream recent localStorage during global PWA clear', async () => {
         Object.defineProperty(window, 'electron', {

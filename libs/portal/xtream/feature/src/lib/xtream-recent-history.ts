@@ -71,7 +71,8 @@ export function injectXtreamRecentHistory(): (
                     const current = captureHistoryOwner(
                         sourceConnection()?.instanceId,
                         playlistId,
-                        () => sourceConnection()?.instanceId
+                        () => sourceConnection()?.instanceId,
+                        'history'
                     );
                     const dataSource = injector.get(XTREAM_DATA_SOURCE);
                     const sqlite = injector.get(

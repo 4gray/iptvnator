@@ -1,3 +1,5 @@
+import { captureHistoryOwner } from '@iptvnator/services/history-events';
+import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import {
     favoriteReferenceKey,
     stalkerFavoriteReference,
@@ -85,8 +87,8 @@ export class UnifiedFavoritesDataService {
                 await this.addM3uFavorite(item);
                 break;
             case 'xtream':
-                await this.writeXtreamFavorite(item, () =>
-                    this.addXtreamFavorite(item)
+                await this.writeXtreamFavorite(item, (current) =>
+                    this.addXtreamFavorite(item, current)
                 );
                 break;
             case 'stalker':
@@ -129,8 +131,8 @@ export class UnifiedFavoritesDataService {
                 break;
             }
             case 'xtream':
-                await this.writeXtreamFavorite(item, () =>
-                    this.removeXtreamFavorite(item)
+                await this.writeXtreamFavorite(item, (current) =>
+                    this.removeXtreamFavorite(item, current)
                 );
                 break;
             case 'stalker': {
@@ -167,15 +169,25 @@ export class UnifiedFavoritesDataService {
 
     private writeXtreamFavorite(
         item: UnifiedCollectionItem,
-        write: () => Promise<void>
+        write: (current: () => boolean) => Promise<void>
     ): Promise<void> {
+        const current = captureHistoryOwner(
+            sourceConnection()?.instanceId,
+            item.playlistId,
+            () => sourceConnection()?.instanceId,
+            'favorites'
+        );
+        const run = async () => {
+            if (current()) await write(current);
+        };
         return this.isSqliteLive(item)
-            ? this.activity.runWhenIdle(item.playlistId, write)
-            : write();
+            ? this.activity.runWhenIdle(item.playlistId, run)
+            : run();
     }
 
     private async removeXtreamFavorite(
-        item: UnifiedCollectionItem
+        item: UnifiedCollectionItem,
+        current: () => boolean
     ): Promise<void> {
         const electron = await this.xtreamFavoritesBridge(item.playlistId);
         if (electron) {
@@ -183,11 +195,12 @@ export class UnifiedFavoritesDataService {
                 item.favoriteId != null
                     ? { favoriteId: item.favoriteId }
                     : await this.xtreamFavoriteContentId(item);
-            if (target != null)
+            if (target != null && current())
                 await electron.dbRemoveFavorite(target, item.playlistId);
             return;
         }
-        if (item.contentId == null && item.xtreamId == null) return;
+        if (!current() || (item.contentId == null && item.xtreamId == null))
+            return;
         await this.xtreamDataSource.removeFavorite(
             {
                 id: item.contentId ?? item.xtreamId!,
@@ -209,14 +222,17 @@ export class UnifiedFavoritesDataService {
     }
 
     private async addXtreamFavorite(
-        item: UnifiedCollectionItem
+        item: UnifiedCollectionItem,
+        current: () => boolean
     ): Promise<void> {
         const contentId = await this.xtreamFavoriteContentId(item);
+        if (!current()) return;
         if (contentId == null) {
             throw new Error('Favorite could not be saved');
         }
 
         const electron = await this.xtreamFavoritesBridge(item.playlistId);
+        if (!current()) return;
         if (!electron) {
             await this.xtreamDataSource.addFavorite(
                 {

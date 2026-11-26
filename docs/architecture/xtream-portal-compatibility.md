@@ -412,8 +412,9 @@ category for history writes. History recovery also prefers the original
 live category and keeps ambiguous moves pending. Source and global history
 clears and individual removals run after already-confirmed writes and before
 subsequent writes in scope. This includes hiding a series from Continue
-Watching. SQLite history keeps the confirmation time when a source delays
-the write. Delayed writes update the visible list only when it still belongs
+Watching. A delayed favorite or history action is canceled if its source
+profile or sync consent changes before the write. SQLite history keeps the
+confirmation time when a source delays the write. Delayed writes update the visible list only when it still belongs
 to their source.
 The selected live channel is rebound by provider identity to its new SQLite row.
 Retained categories keep their SQLite IDs so playback queues, the guide and

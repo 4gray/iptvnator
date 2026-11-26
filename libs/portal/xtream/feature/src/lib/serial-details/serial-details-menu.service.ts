@@ -330,7 +330,8 @@ export class SerialDetailsMenuService {
         const current = captureHistoryOwner(
             sourceConnection()?.instanceId,
             playlistId,
-            () => sourceConnection()?.instanceId
+            () => sourceConnection()?.instanceId,
+            'history'
         );
         const remove = async () => {
             if (!current()) return;

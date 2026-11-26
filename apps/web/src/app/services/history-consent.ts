@@ -1,13 +1,12 @@
+import { collectionConsentKey } from '@iptvnator/services/history-events';
 import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 export interface HistoryConsent {
     enabled: boolean;
     generation: string;
     deviceId: string;
 }
-export const historyConsentKey = () => {
-    const id = sourceConnection()?.instanceId;
-    return id ? `iptvnator-server:${id}:history-consent-v1` : null;
-};
+export const historyConsentKey = () =>
+    collectionConsentKey(sourceConnection()?.instanceId, 'history');
 export function readHistoryConsent(): HistoryConsent | null {
     const key = historyConsentKey();
     const value = key ? JSON.parse(localStorage.getItem(key) ?? 'null') : null;

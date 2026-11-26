@@ -1,3 +1,5 @@
+import { captureHistoryOwner } from '@iptvnator/services/history-events';
+import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import {
     RuntimeCapabilitiesService,
     SourceActivityService,
@@ -120,7 +122,14 @@ export const withFavorites = function () {
                             return false;
                         }
 
+                        const current = captureHistoryOwner(
+                            sourceConnection()?.instanceId,
+                            playlistId,
+                            () => sourceConnection()?.instanceId,
+                            'favorites'
+                        );
                         const write = async () => {
+                            if (!current()) return false;
                             const target = await resolveTarget(
                                 normalizedXtreamId,
                                 playlistId,
@@ -155,6 +164,7 @@ export const withFavorites = function () {
                                 target,
                                 playlistId
                             );
+                            if (!current()) return false;
                             let nextStatus = !currentStatus;
                             try {
                                 if (currentStatus)
