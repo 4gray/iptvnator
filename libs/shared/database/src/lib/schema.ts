@@ -8,6 +8,7 @@
  */
 
 import { sql } from 'drizzle-orm';
+import { RECENTLY_VIEWED_CHRONOLOGY } from './recent-history-order';
 import {
     index,
     integer,
@@ -140,10 +141,6 @@ export const content = sqliteTable(
         ),
     })
 );
-
-// The date guard excludes SQLite's non-deterministic 'now' from indexed rows.
-export const RECENTLY_VIEWED_CHRONOLOGY =
-    "CASE WHEN viewed_at GLOB '[0-9][0-9][0-9][0-9]-*' THEN julianday(viewed_at) END";
 
 // Recently viewed table
 export const recentlyViewed = sqliteTable(

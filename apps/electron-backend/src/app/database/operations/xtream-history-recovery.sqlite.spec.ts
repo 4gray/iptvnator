@@ -8,10 +8,17 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
     const connection = pathToFileURL(
         resolve(process.cwd(), 'libs/shared/database/src/lib/connection.ts')
     ).href;
+    const historyOrder = pathToFileURL(
+        resolve(
+            process.cwd(),
+            'libs/shared/database/src/lib/recent-history-order.ts'
+        )
+    ).href;
     const script = `
         const { default: Database } = await import('better-sqlite3');
         const { drizzle } = await import('drizzle-orm/better-sqlite3');
         const schema = await import('@iptvnator/shared/database/schema');
+        const { RECENTLY_VIEWED_CHRONOLOGY } = await import(${JSON.stringify(historyOrder)});
         const { __databaseConnectionTestHooks: hooks } = await import(${JSON.stringify(connection)});
         const { setAppState, getAppState, deletePlaylist, deleteAllPlaylists } = await import(${JSON.stringify(url('playlist.operations.ts'))});
         const { addRecentItem, removeRecentItem, removeRecentItemsBatch, clearPlaylistRecentItems, clearRecentlyViewed, getRecentItems, getRecentlyViewed } = await import(${JSON.stringify(url('recently-viewed.operations.ts'))});
@@ -42,12 +49,12 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
             JOIN content c ON c.id = r.content_id
             JOIN categories cat ON cat.id = c.category_id
             JOIN playlists p ON p.id = cat.playlist_id
-            ORDER BY \${schema.RECENTLY_VIEWED_CHRONOLOGY} DESC LIMIT 100\`).all();
+            ORDER BY \${RECENTLY_VIEWED_CHRONOLOGY} DESC LIMIT 100\`).all();
         const playlistPlan = sqlite.prepare(\`EXPLAIN QUERY PLAN
             SELECT r.viewed_at, c.id FROM recently_viewed r
             JOIN content c ON c.id = r.content_id
             WHERE r.playlist_id = ?
-            ORDER BY \${schema.RECENTLY_VIEWED_CHRONOLOGY} DESC LIMIT 100\`).all('p');
+            ORDER BY \${RECENTLY_VIEWED_CHRONOLOGY} DESC LIMIT 100\`).all('p');
         const indexedOrder = [globalPlan, playlistPlan].map(plan =>
             plan.some(row => row.detail.includes('_chronology_idx')) &&
             plan.every(row => !row.detail.includes('USE TEMP B-TREE')));

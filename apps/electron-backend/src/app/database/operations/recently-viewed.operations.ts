@@ -1,4 +1,5 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { RECENTLY_VIEWED_CHRONOLOGY } from '@iptvnator/shared/database';
 import * as schema from '@iptvnator/shared/database/schema';
 import type { AppDatabase } from '../database.types';
 import { persistContentMetadataIfMissing } from './content-metadata.operations';
@@ -8,7 +9,7 @@ import {
     removeRecoveredHistory,
 } from './xtream-history-recovery';
 
-const viewedAtChronology = () => sql.raw(schema.RECENTLY_VIEWED_CHRONOLOGY);
+const viewedAtChronology = () => sql.raw(RECENTLY_VIEWED_CHRONOLOGY);
 
 export async function getRecentlyViewed(db: AppDatabase) {
     return db
