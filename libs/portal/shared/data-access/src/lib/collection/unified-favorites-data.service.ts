@@ -40,8 +40,7 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import {
     matchStalkerFavoriteRows,
-    stalkerCollectionReference,
-    stalkerFavoriteRowIdentities,
+    stalkerFavoriteRowIdentity,
 } from './stalker-favorite-identity';
 
 const GLOBAL_FAVORITES_ORDER_KEY = 'global-favorites-channel-order-v1';
@@ -786,13 +785,13 @@ export class UnifiedFavoritesDataService {
         const favs = Array.isArray(playlist?.favorites)
             ? playlist.favorites.filter(isStalkerItem)
             : [];
-        const identities = stalkerFavoriteRowIdentities(
-            favs,
-            this.favoriteSync.active()
-        );
+        const shared = this.favoriteSync.active();
 
         return favs.map((fav, index) => {
-            const { kind, providerId, rowId } = identities[index];
+            const { kind, providerId, rowId } = stalkerFavoriteRowIdentity(
+                fav,
+                shared
+            );
             const isRadio = kind === 'radio' || isStalkerRadioItem(fav);
             const ct =
                 kind === 'live' || isRadio
@@ -961,29 +960,8 @@ export class UnifiedFavoritesDataService {
         const ordered: UnifiedCollectionItem[] = [];
         const unordered: UnifiedCollectionItem[] = [];
         for (const { item, historical } of entries) {
-            const exactPosition = orderMap.get(item.uid);
-            const ref =
-                exactPosition == null &&
-                !shared &&
-                historical &&
-                item.stalkerItem
-                    ? stalkerCollectionReference(
-                          item.stalkerItem as StalkerPortalItem,
-                          false
-                      )
-                    : null;
-            const priorTypedPosition = ref
-                ? orderMap.get(
-                      buildCollectionUid(
-                          'stalker',
-                          item.playlistId,
-                          JSON.stringify(ref)
-                      )
-                  )
-                : undefined;
             const pos =
-                exactPosition ??
-                priorTypedPosition ??
+                orderMap.get(item.uid) ??
                 // A standalone legacy UID represented the whole same-ID group.
                 (historical &&
                 (!shared || historicalCounts.get(historical) === 1)

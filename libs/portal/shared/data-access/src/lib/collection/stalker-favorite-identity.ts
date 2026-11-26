@@ -11,7 +11,7 @@ function providerId(item: StalkerPortalItem): string | undefined {
         .find(Boolean);
 }
 
-export function stalkerCollectionReference(
+function stalkerCollectionReference(
     item: StalkerPortalItem,
     shared: boolean
 ) {
@@ -21,25 +21,17 @@ export function stalkerCollectionReference(
     );
 }
 
-export function stalkerFavoriteRowIdentities(
-    favorites: readonly StalkerPortalItem[],
+export function stalkerFavoriteRowIdentity(
+    favorite: StalkerPortalItem,
     shared: boolean
 ) {
-    const ids = favorites.map(providerId);
-    const counts = new Map<string, number>();
-    for (const id of ids) {
-        if (id) counts.set(id, (counts.get(id) ?? 0) + 1);
-    }
-    return favorites.map((favorite, index) => {
-        const id = ids[index];
-        const reference = stalkerCollectionReference(favorite, shared);
-        const useTypedId = shared || (id && (counts.get(id) ?? 0) > 1);
-        return {
-            providerId: id,
-            kind: reference?.kind,
-            rowId: useTypedId && reference ? JSON.stringify(reference) : id,
-        };
-    });
+    const reference = stalkerCollectionReference(favorite, shared);
+    const id = reference?.id ?? providerId(favorite);
+    return {
+        providerId: id,
+        kind: reference?.kind,
+        rowId: reference ? JSON.stringify(reference) : id,
+    };
 }
 
 export function matchStalkerFavoriteRows(

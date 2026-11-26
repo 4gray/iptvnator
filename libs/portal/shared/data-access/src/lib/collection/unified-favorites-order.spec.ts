@@ -238,7 +238,7 @@ describe('legacy global Stalker favorite order', () => {
                     typedUid(favorites[2]),
                     typedUid(favorites[3]),
                     saved[1],
-                    saved[2],
+                    typedUid(favorites[1]),
                 ]);
                 expect(
                     rows.slice(0, 3).map(({ contentType }) => contentType)
@@ -252,13 +252,19 @@ describe('legacy global Stalker favorite order', () => {
                     (await f.service.getFavorites('all')).map(({ uid }) => uid)
                 ).toEqual(reordered.map(({ uid }) => uid));
 
-                // A surviving row keeps its saved placement when its UID
-                // returns to the historical unambiguous form.
+                // Playback retains the row by UID across a collection refresh.
                 favorites.splice(3, 1);
                 favorites.splice(2, 1);
                 expect(
                     (await f.service.getFavorites('all')).map(({ uid }) => uid)
-                ).toEqual([saved[2], saved[1], saved[0]]);
+                ).toEqual([reordered[0].uid, saved[1], rows[0].uid]);
+
+                favorites.push({ id: '42', favoriteContentType: 'itv' });
+                expect(
+                    (await f.service.getFavorites('all')).find(
+                        ({ radio }) => radio === 'true'
+                    )?.uid
+                ).toBe(rows[0].uid);
             } finally {
                 f.restore();
             }

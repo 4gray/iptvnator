@@ -549,11 +549,11 @@ optional favorite synchronization still own their respective data.
 The assignment key contains the source kind, playlist ID and channel identity.
 For M3U, it stores a SHA-256 digest of the URL used to identify the favorite.
 Xtream uses the provider stream ID. Stalker uses the provider ID and distinguishes
-live and radio. When historical Stalker rows share a provider ID, typed row
-identities keep them separate. An old standalone order entry for the shared ID
-retains their group position and within-source order until the user reorders
-the rows. A missing folder document is the existing flat list. Creating a folder,
-moving saved channels, and deleting a folder write only the folder document.
+live and radio. Typed Stalker rows keep the same identity when another favorite
+with the same provider ID is added or removed. An old standalone order entry for
+the shared ID retains their group position and within-source order until the user
+reorders the rows. A missing folder document is the existing flat list. Creating
+a folder, moving saved channels, and deleting a folder write only the folder document.
 Deleting a folder clears all its assignments in the same write.
 
 Adding directly to a folder writes a pending marker before asking the provider

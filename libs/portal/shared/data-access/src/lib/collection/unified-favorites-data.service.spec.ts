@@ -538,7 +538,7 @@ describe('UnifiedFavoritesDataService', () => {
 
         expect(items).toEqual([
             expect.objectContaining({
-                uid: 'stalker::stalker-1::40001',
+                uid: 'stalker::stalker-1::{"provider":"stalker","kind":"radio","id":"40001"}',
                 name: 'Jazz Radio',
                 contentType: 'live',
                 logo: 'jazz.png',

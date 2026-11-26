@@ -168,7 +168,7 @@ async function seedLegacyProfile(page: Page, includeStalker = false) {
                         store.add({
                             _id: stalkerId,
                             title: 'Synthetic Stalker source',
-                            portalUrl: 'https://fixture.invalid/portal.php',
+                            portalUrl: 'https://portal.fixture.invalid/portal.php',
                             macAddress: '02:00:00:00:00:42',
                             favorites: [
                                 {
@@ -180,6 +180,9 @@ async function seedLegacyProfile(page: Page, includeStalker = false) {
                                     id: '42',
                                     favoriteContentType: 'itv',
                                     title: 'Synthetic station',
+                                    cmd: stream,
+                                    use_http_tmp_link: '0',
+                                    use_load_balancing: '0',
                                 },
                             ],
                         });
@@ -785,4 +788,51 @@ test('@stalker @collections keeps typed historical live and radio favorites with
     await expect(pair).toHaveText(historicalPair);
     await folder(page, 'Without folder').click();
     await expect(pair).toHaveText(['Synthetic radio']);
+
+    await folder(page, 'All channels').click();
+    const station = channel(page, 'Synthetic station');
+    await station.locator('.channel-content').press('Enter');
+    const video = page.locator('app-unified-live-tab app-web-player-view video');
+    const playbackTime = () =>
+        video.evaluate((media: HTMLVideoElement) => media.currentTime);
+    await expect.poll(playbackTime).toBeGreaterThan(0);
+    const beforeRemoval = await video.evaluate((media: HTMLVideoElement) => {
+        media.dataset['beforeSiblingRemoval'] = 'true';
+        return media.currentTime;
+    });
+
+    // Simulate a saved change made outside the open collection.
+    await page.evaluate(async (id) => {
+        await new Promise<void>((resolve, reject) => {
+            const opening = indexedDB.open('iptvnator');
+            opening.onerror = () => reject(opening.error);
+            opening.onsuccess = () => {
+                const db = opening.result;
+                const transaction = db.transaction('playlists', 'readwrite');
+                const playlists = transaction.objectStore('playlists');
+                const request = playlists.get(id);
+                request.onsuccess = () => {
+                    const saved = request.result;
+                    saved.favorites = saved.favorites.filter(
+                        (item: { favoriteContentType: string }) =>
+                            item.favoriteContentType !== 'radio'
+                    );
+                    playlists.put(saved);
+                };
+                transaction.oncomplete = () => {
+                    db.close();
+                    resolve();
+                };
+                transaction.onerror = () => {
+                    db.close();
+                    reject(transaction.error);
+                };
+            };
+        });
+        window.dispatchEvent(new Event('iptvnator-favorites-changed'));
+    }, stalkerId);
+    await expect(pair).toHaveText(['Synthetic station']);
+    await expect(station).toHaveClass(/active/);
+    await expect(video).toHaveAttribute('data-before-sibling-removal', 'true');
+    await expect.poll(playbackTime).toBeGreaterThan(beforeRemoval);
 });
