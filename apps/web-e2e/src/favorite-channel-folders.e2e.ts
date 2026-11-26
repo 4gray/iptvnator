@@ -223,6 +223,10 @@ async function chooseDestination(page: Page, name: string) {
         .getByRole('combobox', { name: 'Destination folder' })
         .click();
     await page.getByRole('option', { name, exact: true }).click();
+    // Material closes the select before its overlay finishes detaching.
+    await expect(
+        page.getByRole('listbox', { includeHidden: true })
+    ).toHaveCount(0);
 }
 
 async function drag(
