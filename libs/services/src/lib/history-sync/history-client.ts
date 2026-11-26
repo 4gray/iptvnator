@@ -17,6 +17,13 @@ import {
     type HistoryResult,
     type HistoryState,
 } from '@iptvnator/shared/interfaces/history-sync';
+type HistoryCommand = Pick<
+    HistoryOperation,
+    'kind' | 'reference' | 'snapshot'
+> & {
+    viewedAt?: number;
+};
+
 export interface HistoryOptions {
     instanceId: string;
     deviceId: string;
@@ -124,7 +131,7 @@ export class HistorySyncClient {
     }
     async command(
         sourceId: string,
-        input: Pick<HistoryOperation, 'kind' | 'reference' | 'snapshot'>,
+        input: HistoryCommand,
         localOnly = false
     ): Promise<void> {
         const generation = localOnly ? null : this.options.consent();
@@ -145,7 +152,7 @@ export class HistorySyncClient {
     }
     private async commitCommand(
         sourceId: string,
-        input: Pick<HistoryOperation, 'kind' | 'reference' | 'snapshot'>,
+        input: HistoryCommand,
         generation: string | null
     ): Promise<void> {
         const scope = await this.scope(sourceId);
@@ -179,7 +186,7 @@ export class HistorySyncClient {
                 operationId,
                 deviceId: this.options.deviceId,
                 baseRevision: record.base.revision,
-                viewedAt: Date.now(),
+                viewedAt: input.viewedAt ?? Date.now(),
                 ...(previous?.deviceId === this.options.deviceId
                     ? { after: previous.operationId }
                     : {}),

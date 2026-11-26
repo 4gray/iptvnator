@@ -95,6 +95,26 @@ function fixture(store = new Store()) {
     };
 }
 describe('history delivery and consent', () => {
+    it('keeps the original confirmation time in the outbox and local archive', async () => {
+        const f = fixture();
+        const viewedAt = Date.parse('2026-01-01T00:00:00.000Z');
+        f.online(false);
+        await f.client.command('source', {
+            kind: 'touch',
+            reference,
+            viewedAt,
+        });
+        await f.client.flush('source').catch(() => undefined);
+        const pending = (await f.store.read(scope))!.pending[0].operation;
+        expect(pending.viewedAt).toBe(viewedAt);
+
+        f.online(true);
+        await f.client.flush('source');
+        const record = (await f.store.read(scope))!;
+        expect(record.pending).toEqual([]);
+        expect(record.archive).toEqual([pending]);
+        expect(record.base.items[0].viewedAt).toBeGreaterThan(viewedAt);
+    });
     it('chains a rewatch only to its relevant remove or source clear, skipping unrelated touches', async () => {
         const f = fixture();
         f.online(false);

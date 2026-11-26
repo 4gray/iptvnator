@@ -423,8 +423,10 @@ subsequent writes in scope. This includes hiding a series from Continue
 Watching. A delayed favorite or history action is canceled if its source
 profile or sync consent changes before the write. An open history view reloads
 using the current consent when the same source's history changes. SQLite history
-keeps the confirmation time when a source delays the write. Delayed writes
-update the visible list only when it still belongs to their source.
+and the portable history outbox and local archive keep the confirmation time when
+a source delays the write. Acknowledged shared history uses the
+[server clock](./pwa-self-hosted.md#recently-viewed-synchronization). Delayed writes update
+the visible list only when it still belongs to their source.
 The selected and playing live channels, including companion streams, are
 rebound by provider identity to their new SQLite rows. Each player keeps its
 session while allowed and checks the refreshed provider category for parental
