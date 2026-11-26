@@ -151,6 +151,9 @@
                             (unlock)="parentalLock.unlock()"
                         />
                     }
+                    @case ('profiles') {
+                        <app-settings-profiles-section />
+                    }
                     @case ('server') {
                         <app-settings-server-section />
                     }

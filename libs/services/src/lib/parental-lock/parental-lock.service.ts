@@ -21,10 +21,7 @@ import {
     LockListEdit,
     ParentalLockLockStore,
 } from './parental-lock-lock-store.service';
-import {
-    PARENTAL_LOCK_PROMPT,
-    ParentalLockPromptRequest,
-} from './parental-lock-prompt.token';
+import { PARENTAL_LOCK_PROMPT } from './parental-lock-prompt.token';
 import {
     isParentalLockWorkerFilterMissing,
     ParentalLockWorkerSync,
@@ -38,6 +35,7 @@ import {
     confirmPinRequest,
     NEW_PIN_REQUEST,
     PARENTAL_LOCK_SUBMIT_KEYS,
+    type PromptTexts,
     unlockPinRequest,
 } from './parental-lock-prompt-requests';
 import { ParentalLockStorageService } from './parental-lock-storage';
@@ -215,12 +213,7 @@ export class ParentalLockService {
      * is unlocked afterwards (already unlocked, feature off, or the PIN was
      * accepted). Concurrent callers share one prompt.
      */
-    async requestUnlock(
-        options: Pick<
-            ParentalLockPromptRequest,
-            'titleKey' | 'descriptionKey'
-        > = {}
-    ): Promise<boolean> {
+    async requestUnlock(options: PromptTexts = {}): Promise<boolean> {
         // `enabled` is false until the settings have loaded; deciding "not
         // active" before that would open a gate during a slow startup.
         await this.initialize();
@@ -239,9 +232,7 @@ export class ParentalLockService {
         return this.pendingUnlock;
     }
 
-    private async promptForUnlock(
-        options: Pick<ParentalLockPromptRequest, 'titleKey' | 'descriptionKey'>
-    ): Promise<boolean> {
+    private async promptForUnlock(options: PromptTexts): Promise<boolean> {
         await this.ensurePin();
         const hash = this.pinHash();
         if (!this.prompt || !hash) {
@@ -255,6 +246,20 @@ export class ParentalLockService {
         }
         this.unlockedState.set(true);
         return true;
+    }
+
+    /**
+     * Asks for the PIN even while the app is unlocked, and leaves the lock
+     * state as it is: a parent who unlocked the library has not agreed to
+     * every protected action. True when the feature is off or the PIN was
+     * accepted.
+     */
+    async confirmPin(options: PromptTexts = {}): Promise<boolean> {
+        await this.initialize();
+        return (
+            !this.enabled() ||
+            this.verifyCurrentPin(PARENTAL_LOCK_SUBMIT_KEYS.confirm, options)
+        );
     }
 
     /** Locks immediately; the next locked surface needs the PIN again. */
@@ -339,7 +344,10 @@ export class ParentalLockService {
      * left the app unlocked. Unlike `requestUnlock()` this never short-cuts
      * on `active`. `submitKey` names the step the PIN confirms.
      */
-    private async verifyCurrentPin(submitKey: string): Promise<boolean> {
+    private async verifyCurrentPin(
+        submitKey: string,
+        labels: PromptTexts = {}
+    ): Promise<boolean> {
         await this.initialize();
         await this.ensurePin();
         const hash = this.pinHash();
@@ -347,7 +355,7 @@ export class ParentalLockService {
             return false;
         }
         const pin = await this.prompt.requestPin(
-            confirmPinRequest(hash, this.pinThrottle, submitKey)
+            confirmPinRequest(hash, this.pinThrottle, submitKey, labels)
         );
         return pin !== null;
     }

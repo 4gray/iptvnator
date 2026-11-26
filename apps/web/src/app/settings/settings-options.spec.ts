@@ -38,6 +38,23 @@ describe('buildSettingsSectionNavItems', () => {
         return ids;
     }
 
+    it('shows the Profiles section only when the profiles UI is available', () => {
+        const base = {
+            supportsEpg: true,
+            supportsRemoteControl: true,
+            supportsServerStorage: true,
+        };
+        const visible = (supportsProfiles?: boolean) =>
+            buildSettingsSectionNavItems({
+                ...base,
+                supportsProfiles,
+            }).find((item) => item.id === 'profiles')?.visible;
+
+        expect(visible()).toBe(false);
+        expect(visible(false)).toBe(false);
+        expect(visible(true)).toBe(true);
+    });
+
     it('exposes feature-specific items only when their runtime capabilities are supported', () => {
         const supportedItems = buildSettingsSectionNavItems({
             supportsEpg: true,
@@ -109,6 +126,7 @@ describe('buildSettingsSectionNavItems', () => {
             'parental',
             'android-device',
             'remote-control',
+            'profiles',
             'server',
             'backup',
             'about',
