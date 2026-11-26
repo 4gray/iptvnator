@@ -1,4 +1,5 @@
 import { and, eq, inArray, like, sql } from 'drizzle-orm';
+import { RECENTLY_VIEWED_CHRONOLOGY } from '@iptvnator/shared/database';
 import * as schema from '@iptvnator/shared/database/schema';
 import {
     parseXtreamHistoryRecovery,
@@ -55,7 +56,7 @@ function liveHistory(
     db: HistoryDatabase,
     playlistId: string
 ): RecoveredHistoryRow[] {
-    return db
+    const rows = db
         .select({
             contentType: schema.content.type,
             xtreamId: schema.content.xtreamId,
@@ -72,12 +73,14 @@ function liveHistory(
             eq(schema.content.categoryId, schema.categories.id)
         )
         .where(eq(schema.recentlyViewed.playlistId, playlistId))
-        .all()
-        .map((row) => ({
-            ...row,
-            viewedAt: row.viewedAt ?? new Date().toISOString(),
-            liveCategoryXtreamId: row.liveCategoryXtreamId ?? undefined,
-        })) as RecoveredHistoryRow[];
+        // The journal keeps the last row for a provider identity.
+        .orderBy(sql.raw(RECENTLY_VIEWED_CHRONOLOGY), schema.recentlyViewed.id)
+        .all();
+    return rows.map((row) => ({
+        ...row,
+        viewedAt: row.viewedAt ?? new Date().toISOString(),
+        liveCategoryXtreamId: row.liveCategoryXtreamId ?? undefined,
+    })) as RecoveredHistoryRow[];
 }
 
 /** Captures live history and merges owned archives without undoing removals. */

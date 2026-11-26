@@ -414,8 +414,9 @@ current row by provider identity. Collection actions also use the row's SQLite
 category, including removals from the Dashboard. If the channel moves, the
 lookup accepts a single typed match. Live history keeps one row per source and
 provider stream, using the category of its latest confirmed playback. Deleting
-that entry also removes any older category copies. History recovery prefers the original
-live category and keeps ambiguous moves pending. Source and global history
+that entry also removes any older category copies. Recovery records the newest
+legacy copy before replacement, prefers its original live category and keeps
+ambiguous moves pending. Source and global history
 clears and individual removals run after already-confirmed writes and before
 subsequent writes in scope. This includes hiding a series from Continue
 Watching. A delayed favorite or history action is canceled if its source

@@ -135,8 +135,19 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
             { id: secondId, categoryId: 11, xtreamId: 42, title: 'Synthetic second copy', type: 'live' },
         ]).run();
         insertCopies(51000, 51001);
-        await addRecentItem(db, 51000, 'duplicates');
-        await setAppState(db, key('duplicates'), journal());
+        db.insert(schema.recentlyViewed).values([
+            { contentId: 51000, playlistId: 'duplicates', viewedAt: '2026-01-01 00:00:01' },
+            { contentId: 51001, playlistId: 'duplicates', viewedAt: '2026-01-01T00:00:00.200Z' },
+        ]).run();
+        const legacyCopy = [];
+        for (const reverse of ['OFF', 'ON']) {
+            sqlite.pragma('reverse_unordered_selects = ' + reverse);
+            await setAppState(db, key('duplicates'), journal());
+            legacyCopy.push(JSON.parse(await getAppState(db, key('duplicates'))).recentlyViewed.map(
+                row => [row.liveCategoryXtreamId, row.viewedAt]
+            ));
+        }
+        sqlite.pragma('reverse_unordered_selects = OFF');
         sqlite.prepare('DELETE FROM content WHERE id IN (51000, 51001)').run();
         insertCopies(51002, 51003);
         await restoreXtreamUserData(db, 'duplicates', [], []);
@@ -182,7 +193,7 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
         await deleteAllPlaylists(db);
         const allDeleted = await getAppState(db, key('q'));
         const setting = await getAppState(db, 'unrelated-setting');
-        console.log(JSON.stringify({ kept, currentTimestamp, confirmationOrder, indexedOrder, returned, resolvedReplay, rejected, rollback, cleared, other, explicit, largeExplicit, lookupRejected, lookupPreserved, globalClear, deleted, qJournal: !!qJournal, restoredCopy, removedCopy, latestCopy, liveCopyJournal, removedViaOldCopy, removedLegacyCopies, otherIdentityCopies, movedCopy, resolvedMoves: movedJournal.resolved.map(row => row.xtreamId), allDeleted, setting }));
+        console.log(JSON.stringify({ kept, currentTimestamp, confirmationOrder, indexedOrder, returned, resolvedReplay, rejected, rollback, cleared, other, explicit, largeExplicit, lookupRejected, lookupPreserved, globalClear, deleted, qJournal: !!qJournal, legacyCopy, restoredCopy, removedCopy, latestCopy, liveCopyJournal, removedViaOldCopy, removedLegacyCopies, otherIdentityCopies, movedCopy, resolvedMoves: movedJournal.resolved.map(row => row.xtreamId), allDeleted, setting }));
         sqlite.close();
     `;
     const result = JSON.parse(
@@ -225,6 +236,10 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
         globalClear: 0,
         deleted: null,
         qJournal: true,
+        legacyCopy: [
+            [[110, '2026-01-01 00:00:01']],
+            [[110, '2026-01-01 00:00:01']],
+        ],
         restoredCopy: [51002],
         removedCopy: 0,
         latestCopy: [[51003, '2026-01-01T00:00:02.000Z']],
