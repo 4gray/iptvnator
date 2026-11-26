@@ -394,8 +394,9 @@ Xtream Live TV. On launch, the renderer runs opted-in live refreshes in sequence
 Before each provider request it skips sources that were removed or whose saved
 connection, opt-in, selection or refresh date changed since they were queued.
 The app can read the saved catalog while the provider responds. It keeps the
-cache if the reply contains no live streams, if any stream lacks a valid ID, or
-if a stream references a category absent from the response.
+cache if the reply contains no live streams, has invalid stream or category
+IDs, or has a stream referencing a category absent from the response. Category
+IDs and references must be safe integers or whole decimal strings.
 Before replacing live rows, the selected-catalog service waits for source
 activity to finish and rechecks the saved connection, preference and catalog
 selection. The worker checks the connection, preference, live selection and

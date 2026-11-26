@@ -195,6 +195,40 @@ describe('Xtream startup refresh', () => {
         }
     );
 
+    it.each(['4broken', '4.5', '4e0', '0x4', Number.MAX_SAFE_INTEGER + 1])(
+        'keeps the cache when a live category ID is malformed (%s)',
+        async (categoryId) => {
+            fetcher.categories.mockResolvedValue([
+                { ...categories[0], category_id: categoryId },
+            ]);
+            fetcher.content.mockResolvedValue([
+                { ...content[0], category_id: categoryId },
+            ]);
+            await expect(service.refreshLive(source)).rejects.toThrow(
+                'usable live catalog'
+            );
+            expect(refresh.refreshLiveOnStartup).not.toHaveBeenCalled();
+        }
+    );
+
+    it('rejects a malformed channel reference to an otherwise valid category', async () => {
+        fetcher.content.mockResolvedValue([
+            { ...content[0], category_id: '4broken' },
+        ]);
+        await expect(service.refreshLive(source)).rejects.toThrow(
+            'usable live catalog'
+        );
+        expect(refresh.refreshLiveOnStartup).not.toHaveBeenCalled();
+    });
+
+    it('matches a zero category ID across decimal text and numeric input', async () => {
+        fetcher.categories.mockResolvedValue([
+            { ...categories[0], category_id: ' 00 ' },
+        ]);
+        fetcher.content.mockResolvedValue([{ ...content[0], category_id: 0 }]);
+        await expect(service.refreshLive(source)).resolves.toBe(true);
+    });
+
     it('keeps the saved lineup when the provider returns no live channels', async () => {
         fetcher.content.mockResolvedValue([]);
         await expect(service.refreshLive(source)).rejects.toThrow(

@@ -10,12 +10,12 @@ import {
 import { XtreamCatalogFetchService } from './xtream-catalog-fetch.service';
 import { XtreamSelectedCatalogRefreshService } from './xtream-selected-catalog-refresh.service';
 
-function hasUsableStreamId(value: unknown): boolean {
+function parseProviderId(value: unknown): number {
     const id =
-        typeof value === 'string' && /^\d+$/.test(value.trim())
+        typeof value === 'string' && /^-?\d+$/.test(value.trim())
             ? Number(value)
             : value;
-    return typeof id === 'number' && Number.isSafeInteger(id) && id > 0;
+    return typeof id === 'number' && Number.isSafeInteger(id) ? id : NaN;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -63,9 +63,7 @@ export class XtreamStartupRefreshService {
         if (!matchesXtreamStartupSource(playlist, contentSource)) return false;
         const content = await this.fetcher.content(contentSource, 'live');
         const categoryIds = new Set(
-            categories.map((category) =>
-                Number.parseInt(String(category?.category_id), 10)
-            )
+            categories.map((category) => parseProviderId(category?.category_id))
         );
         if (
             categoryIds.has(NaN) ||
@@ -75,10 +73,8 @@ export class XtreamStartupRefreshService {
             content.length === 0 ||
             content.some(
                 (stream) =>
-                    !hasUsableStreamId(stream?.['stream_id']) ||
-                    !categoryIds.has(
-                        Number.parseInt(String(stream['category_id']))
-                    )
+                    !(parseProviderId(stream?.['stream_id']) > 0) ||
+                    !categoryIds.has(parseProviderId(stream['category_id']))
             )
         ) {
             throw new Error('The source did not return a usable live catalog.');
