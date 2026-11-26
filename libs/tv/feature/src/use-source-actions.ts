@@ -294,12 +294,7 @@ export function useSourceActions(
         ) {
             cancel();
             perform(job);
-        } else if (
-            job.activated &&
-            !tv.busy &&
-            tv.errorRetryLabel === 'Retry connection'
-        )
-            fail(job);
+        } else if (job.activated && tv.providerFailed) fail(job);
     });
     const waitingDetails =
         series.busy &&

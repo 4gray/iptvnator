@@ -381,9 +381,12 @@ test('TV Live comfort account edits invalidate Previous without autoplay or dele
     await expect(previous(page)).toHaveCount(0);
 });
 
-async function openForeignPrevious(page: Page) {
+async function openForeignPrevious(
+    page: Page,
+    provider: 'xtream' | 'm3u' = 'xtream'
+) {
     await start(page);
-    await addSource(page, 'xtream', { name: 'Demo North' });
+    await addSource(page, provider, { name: 'Demo North' });
     await playLive(page);
     const a = await switchInDrawer(page, 0);
     await page.keyboard.press('Escape');
@@ -396,6 +399,51 @@ async function openForeignPrevious(page: Page) {
     await page.getByRole('button', { name: 'Open fullscreen' }).click();
     return a;
 }
+
+test('TV failed M3U Previous settles even when saving outgoing progress also fails', async ({
+    page,
+}) => {
+    const a = await openForeignPrevious(page, 'm3u');
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let attempts = 0;
+    await page.route(`${backend}/parse?**`, async (route) => {
+        if (++attempts !== 1) return route.fallback();
+        await gate;
+        return route.fulfill({
+            status: 503,
+            body: 'Synthetic playlist failure',
+        });
+    });
+    await page.evaluate(() => {
+        const put = IDBObjectStore.prototype.put;
+        IDBObjectStore.prototype.put = function () {
+            IDBObjectStore.prototype.put = put;
+            throw new DOMException(
+                'Synthetic progress save failure',
+                'QuotaExceededError'
+            );
+        };
+    });
+    const pending = page.getByRole('button', { name: 'Cancel opening title' });
+    try {
+        await previous(page).click();
+        await expect.poll(() => attempts).toBe(1);
+        await expect(pending).toBeVisible();
+        await expect(
+            page.getByRole('button', { name: 'Retry saving progress' })
+        ).toBeVisible();
+    } finally {
+        release();
+    }
+    const retry = page.getByRole('button', { name: 'Retry previous channel' });
+    await expect(retry).toBeVisible();
+    await expect(pending).toHaveCount(0);
+    await retry.click();
+    await expect.poll(() => attempts).toBe(2);
+    await confirmed(page, a.id);
+    await expect(page.locator('.player-source-name')).toHaveText('Demo North');
+});
 
 test('TV Live comfort remote Stop cancels Previous during cross-source connection', async ({
     page,

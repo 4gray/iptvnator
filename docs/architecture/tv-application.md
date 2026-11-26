@@ -367,7 +367,8 @@ corresponding candidate. The pair is session-only: history is not treated as a
 current playing channel after launch. Pending Previous can be canceled with Back;
 the visible Back and Go to playlist controls also retire it before leaving fullscreen.
 A failed switch offers Retry previous channel until the viewer leaves fullscreen
-or chooses another action.
+or chooses another action. The source activation uses the result of the current
+connection attempt even when a progress-save error is already visible.
 Modal Back closes its overlay first. Existing Left/drawer, media and system keys
 are unchanged; no Channel +/- hardware support or autoplay is added.
 

@@ -65,11 +65,8 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     });
     const library = useLibrary(data, storageReady, !!playing, update);
     const backend = useBackend(data, storageReady, update);
-    const { provider, ready, busy, connectionKey, enabled } = useProvider(
-        data,
-        storageReady,
-        retry,
-        {
+    const { provider, ready, providerFailed, busy, connectionKey, enabled } =
+        useProvider(data, storageReady, retry, {
             update,
             report: reportConnection,
             reset: () => {
@@ -77,8 +74,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                 setSelected(undefined);
                 player.current?.clearDiagnostic();
             },
-        }
-    );
+        });
     const content = useContent(
         route,
         provider,
@@ -374,6 +370,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         setError,
         clearError,
         ready,
+        providerFailed,
         ...content,
         busy: busy || content.busy,
         selected,

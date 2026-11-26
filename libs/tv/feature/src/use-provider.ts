@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { createProvider, ProviderTransport } from '@iptvnator/tv/data-access';
-import type { ProviderClient, UserData } from '@iptvnator/tv/util';
+import type { ProviderClient, Source, UserData } from '@iptvnator/tv/util';
 
 export function useProvider(
     data: UserData,
@@ -12,10 +12,14 @@ export function useProvider(
         update: (change: (data: UserData) => UserData) => Promise<void>;
     }
 ) {
-    const [ready, setReady] = useState(0);
+    const [result, setResult] = useState<{
+        key: string;
+        retry: number;
+        items: Source['m3uItems'];
+        status: 'ready' | 'failed';
+    }>();
     const [busy, setBusy] = useState(false);
     const provider = useRef<ProviderClient>();
-    const owner = useRef('');
     const callbacks = useRef(options);
     callbacks.current = options;
     const active = data.sources.find((s) => s.id === data.activeId);
@@ -38,8 +42,16 @@ export function useProvider(
           ])
         : '';
     const connectionKey = `${fingerprint}:${data.backend}:${data.backendToken}`;
+    const enabled = storageReady && !!active && !!data.backend;
+    const status =
+        enabled &&
+        result?.key === connectionKey &&
+        result.retry === retry &&
+        result.items === active?.m3uItems
+            ? result.status
+            : undefined;
     useEffect(() => {
-        setReady(0);
+        setResult(undefined);
 
         callbacks.current.reset();
         provider.current?.dispose();
@@ -67,23 +79,25 @@ export function useProvider(
                     ),
                 }))
         );
-        owner.current = connectionKey;
         provider.current = client;
         setBusy(true);
         callbacks.current.report('');
+        const attempt = { key: connectionKey, retry, items: active.m3uItems };
         client
             .connect(abort.signal)
             .then(() => {
                 if (!abort.signal.aborted) {
                     callbacks.current.report('');
-                    setReady(retry + 1);
+                    setResult({ ...attempt, status: 'ready' });
                 }
             })
             .catch(() => {
-                if (!abort.signal.aborted)
+                if (!abort.signal.aborted) {
+                    setResult({ ...attempt, status: 'failed' });
                     callbacks.current.report(
                         'The request failed. Check your source and backend, then retry.'
                     );
+                }
             })
             .finally(() => {
                 if (!abort.signal.aborted) setBusy(false);
@@ -102,9 +116,10 @@ export function useProvider(
     ]);
     return {
         provider,
-        ready: owner.current === connectionKey ? ready : 0,
+        ready: status === 'ready' ? retry + 1 : 0,
+        providerFailed: status === 'failed',
         busy,
         connectionKey,
-        enabled: storageReady && !!active && !!data.backend,
+        enabled,
     };
 }
