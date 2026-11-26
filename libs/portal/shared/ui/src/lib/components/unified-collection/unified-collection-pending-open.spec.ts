@@ -111,6 +111,25 @@ describe('findPendingNonLiveOpen', () => {
             )
         ).toBe(FILM);
     });
+
+    it('opens the exact film even when a live channel shares its title', () => {
+        // The live tab would otherwise auto-open the unrelated channel.
+        const liveNamesake = m3uItem('live', LIVE_URL, 'Sandline');
+
+        expect(
+            findPendingNonLiveOpen(
+                [liveNamesake, FILM],
+                target(FILM_URL, 'Sandline')
+            )
+        ).toBe(FILM);
+        // Without the exact stream the live namesake keeps its auto-open.
+        expect(
+            findPendingNonLiveOpen(
+                [liveNamesake, FILM],
+                target('http://h.example/movie/u/p/9.mkv', 'Sandline')
+            )
+        ).toBeNull();
+    });
 });
 
 describe('openPendingNonLiveItem', () => {

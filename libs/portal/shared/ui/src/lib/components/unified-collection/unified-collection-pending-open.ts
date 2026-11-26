@@ -17,8 +17,10 @@ export interface PendingNonLiveOpen {
  *
  * The dashboard only knows a URL and a title, so it sends every M3U item as
  * a live target; the collection is the one place that knows the row's real
- * kind. A live row matching the same target wins, so the live tab keeps its
- * own auto-open untouched.
+ * kind. The row with the target's exact stream decides: a live one leaves
+ * the live tab its own auto-open, a film or episode opens here. The matcher
+ * also accepts a bare title, so without an exact row a live namesake wins,
+ * as before.
  */
 export function findPendingNonLiveOpen(
     items: readonly UnifiedCollectionItem[],
@@ -33,16 +35,15 @@ export function findPendingNonLiveOpen(
     const matches = items.filter((item) =>
         matchesOpenLiveCollectionItem({ ...item, contentType: 'live' }, target)
     );
-    if (matches.some((item) => item.contentType === 'live')) {
-        return null;
-    }
-
-    // The matcher also accepts a bare title; the exact stream wins over it.
-    return (
-        matches.find((item) => item.streamUrl?.trim() === target.itemId) ??
-        matches[0] ??
-        null
+    const exact = matches.find(
+        (item) => item.streamUrl?.trim() === target.itemId
     );
+    if (exact) {
+        return exact.contentType === 'live' ? null : exact;
+    }
+    return matches.some((item) => item.contentType === 'live')
+        ? null
+        : (matches[0] ?? null);
 }
 
 /**
