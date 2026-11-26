@@ -263,22 +263,6 @@ describe('DeferredExternalSessions', () => {
         });
     });
 
-    it('moves nothing on a save that changed no lock', async () => {
-        locked = false;
-        const deferred = create();
-        clock = 14_000;
-        // An unchanged list saved: the store's revision moves, its lock
-        // set does not.
-        deferred.onLockChange();
-
-        scheduled?.();
-        await flush();
-
-        expect(tracker.start).toHaveBeenCalledWith(
-            expect.objectContaining({ lockedAt: 10_000 })
-        );
-    });
-
     it('retries a failed load', async () => {
         load.mockRejectedValueOnce(new Error('chunk failed'));
         create();

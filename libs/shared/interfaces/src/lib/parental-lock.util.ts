@@ -252,10 +252,6 @@ export function isParentalLockPlaylistLocksEmpty(
 }
 
 /**
- * Normalizes a persisted or user-supplied lock store. Entries that lock
- * nothing are dropped so the store never grows with empty playlists.
- */
-/**
  * What one playlist locks, independent of entry order: saving a list
  * unchanged moves its type's entries to the end. Empty without locks.
  */
@@ -284,11 +280,24 @@ export function parentalLockSetKey(
     const ids = playlistId === null ? Object.keys(store).sort() : [playlistId];
     return JSON.stringify(
         ids
-            .map((id) => [id, parentalLockPlaylistKey(store[id])])
+            .map((id) => [
+                id,
+                // Own entries only: a source id such as `constructor` would
+                // otherwise read an inherited property.
+                parentalLockPlaylistKey(
+                    Object.prototype.hasOwnProperty.call(store, id)
+                        ? store[id]
+                        : undefined
+                ),
+            ])
             .filter(([, key]) => key !== '')
     );
 }
 
+/**
+ * Normalizes a persisted or user-supplied lock store. Entries that lock
+ * nothing are dropped so the store never grows with empty playlists.
+ */
 export function normalizeParentalLockStore(value: unknown): ParentalLockStore {
     const store: ParentalLockStore = {};
     if (!isRecord(value)) {

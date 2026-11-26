@@ -226,5 +226,13 @@ describe('normalizeParentalLockGroupTitles', () => {
                 parentalLockSetKey({ 'pl-1': { ...locks, m3u: [] } }, 'pl-1')
             ).not.toBe(parentalLockSetKey(store, 'pl-1'));
         });
+
+        it("reads only the store's own entries", () => {
+            // A source id that names an Object.prototype member has no
+            // lock entry; it must not read the inherited property.
+            expect(parentalLockSetKey({ 'pl-1': locks }, 'constructor')).toBe(
+                '[]'
+            );
+        });
     });
 });

@@ -609,7 +609,10 @@ every session from `onExternalPlayerSessionUpdate`:
   Deleting another source or re-stamping the index leaves it alone, and so
   does a save that changes no lock or only reorders them: edits are
   compared by lock contents (`parentalLockSetKey`, order-insensitive), not
-  by the store revision. Closing uses `closeExternalPlayerSession(id, true)` and hides
+  by the store revision. The contents compared are the store's published
+  `lockSet`, which moves with the revision: an edit still stamping the
+  index keeps its previous locks there, so a launch reported in that window
+  is judged against the locks that filtered the lists. Closing uses `closeExternalPlayerSession(id, true)` and hides
   the session from the dock first; a launch without a closer yet is closed
   on its next update, a rejected close is retried every second, and a
   session that cannot be closed (`canClose: false`) is only hidden — shown

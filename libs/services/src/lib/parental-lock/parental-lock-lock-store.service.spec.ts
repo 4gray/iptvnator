@@ -270,11 +270,13 @@ describe('ParentalLockLockStore', () => {
         await store.load();
         await store.ensureReadable();
         const before = store.revision();
+        const lockSetBefore = store.lockSet();
         let resolveStamp: (ok: boolean) => void = () => undefined;
         setCategoryLocks.mockImplementation(
             () => new Promise<boolean>((resolve) => (resolveStamp = resolve))
         );
 
+        const stampsBefore = setCategoryLocks.mock.calls.length;
         const writing = store.replacePlaylistLocks('pl-1', {
             xtream: [{ categoryType: 'movies', xtreamId: 3 }],
             stalker: [],
@@ -282,18 +284,24 @@ describe('ParentalLockLockStore', () => {
         });
         for (
             let i = 0;
-            i < 50 && storage.writeLocks.mock.calls.length === 0;
+            i < 50 && setCategoryLocks.mock.calls.length === stampsBefore;
             i += 1
         ) {
             await Promise.resolve();
         }
         expect(storage.writeLocks).toHaveBeenCalled();
         expect(store.revision()).toBe(before);
+        // A launch racing the edit is judged against the locks that filtered
+        // the lists, not the ones still being stamped.
+        expect(store.lockSet()).toBe(lockSetBefore);
 
         setCategoryLocks.mockResolvedValue(true);
         resolveStamp(true);
         await expect(writing).resolves.toBe(true);
         expect(store.revision()).toBe(before + 1);
+        expect(store.lockSet()['pl-1']?.xtream).toEqual([
+            { categoryType: 'movies', xtreamId: 3 },
+        ]);
     });
 
     it('serializes overlapping edits so neither overwrites the other', async () => {
