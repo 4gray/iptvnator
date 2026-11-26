@@ -273,6 +273,33 @@ describe('VideoPlayerComponent — channel handoff', () => {
         expect(storeMock.dispatch).toHaveBeenCalledWith(isPlaybackOf(film));
     });
 
+    it('drops a withheld handoff the viewer left before giving the PIN', async () => {
+        player.set(VideoPlayer.MPV);
+        const lock = TestBed.inject(ParentalLockService);
+        const withheld = jest
+            .spyOn(lock, 'isM3uGroupLocked')
+            .mockReturnValue(true);
+        let answer: (allowed: boolean) => void = () => undefined;
+        jest.spyOn(lock, 'requestUnlock').mockReturnValue(
+            new Promise<boolean>((resolve) => (answer = resolve))
+        );
+
+        handOver([sampleChannel, film], film);
+        // The viewer leaves the page, then enters the PIN elsewhere.
+        fixture.destroy();
+        withheld.mockReturnValue(false);
+        answer(true);
+        await Promise.resolve();
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(storeMock.dispatch).not.toHaveBeenCalledWith(
+            ChannelActions.setActiveChannel({
+                channel: film,
+                startPlayback: true,
+            })
+        );
+    });
+
     it('keeps a handed-over live channel a plain selection', () => {
         player.set(VideoPlayer.MPV);
 

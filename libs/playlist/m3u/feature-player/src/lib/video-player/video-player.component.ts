@@ -761,6 +761,8 @@ export class VideoPlayerComponent
     private lastKnownVolume = 1;
     private lastRecordedRecentKey = '';
     private pendingWithheldHandoff: string | null = null;
+    /** Moves on every handoff and on destroy; a stale PIN wait drops out. */
+    private handoffGeneration = 0;
     private lastExternalSessionStateKey = this.getExternalSessionStateKey(
         this.externalPlayback.activeSession()
     );
@@ -994,6 +996,8 @@ export class VideoPlayerComponent
                 return;
             }
 
+            // A newer handoff supersedes one still waiting for the PIN.
+            this.handoffGeneration += 1;
             this.store.dispatch(
                 handoffAction(matchedChannel, currentView, this.catalogIndex)
             );
@@ -1173,6 +1177,7 @@ export class VideoPlayerComponent
     }
 
     ngOnDestroy(): void {
+        this.handoffGeneration += 1;
         this.workspaceHeaderContext.clearAction(M3U_EPG_GUIDE_HEADER_ACTION_ID);
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
@@ -1344,7 +1349,9 @@ export class VideoPlayerComponent
     /**
      * Opens a handed-over row of a withheld group once the PIN is given.
      * The navigation that carried the handoff can re-run the effect while
-     * the prompt is open, so one target asks only once.
+     * the prompt is open, so one target asks only once. It opens only if it
+     * is still the viewer's last intent: no newer handoff, the same view
+     * and playlist, and the page not left.
      */
     private async openWithheldHandoff(
         playlistId: string,
@@ -1355,13 +1362,18 @@ export class VideoPlayerComponent
         if (this.pendingWithheldHandoff === key) {
             return;
         }
+        const generation = ++this.handoffGeneration;
         this.pendingWithheldHandoff = key;
         try {
             await this.parentalLock.requestUnlock();
         } finally {
-            this.pendingWithheldHandoff = null;
+            if (this.pendingWithheldHandoff === key) {
+                this.pendingWithheldHandoff = null;
+            }
         }
         if (
+            generation !== this.handoffGeneration ||
+            this.activeView() !== view ||
             this.activePlaylistId() !== playlistId ||
             this.isGroupWithheld(playlistId, channel)
         ) {

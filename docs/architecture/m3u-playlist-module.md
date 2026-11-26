@@ -2204,7 +2204,8 @@ coordinate holds dozens of rows.
   double-click, so the consumer requests playback for it
   (`handoffAction`); live rows and the Favorites/Recent views keep a plain
   selection. A target in a group the lock withholds asks for the PIN first
-  and opens only once it is no longer withheld: Favorites and Recently
+  and opens only once it is no longer withheld, if it is still the last
+  handoff and the page was not left: Favorites and Recently
   viewed still list such rows, and a playback request would launch MPV/VLC
   before the enforcement reset the active row.
 - Every host that hands the channel list a split or partial list also
