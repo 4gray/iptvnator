@@ -20,6 +20,20 @@ import {
 } from '@iptvnator/tv/util';
 import type { XtreamVodDetails } from '@iptvnator/shared/interfaces';
 import { ProviderTransport } from './transport';
+
+function isCatalogOrderCacheEnabled(): boolean {
+    try {
+        return (
+            typeof window === 'undefined' ||
+            window.localStorage.getItem(
+                'iptvnator.tv.disableXtreamCatalogOrderCache'
+            ) !== '1'
+        );
+    } catch {
+        return true;
+    }
+}
+
 export class XtreamProvider implements ProviderClient {
     readonly capabilities = {
         live: true,
@@ -29,10 +43,11 @@ export class XtreamProvider implements ProviderClient {
     };
     private client: XtreamClient;
     private catalogs = new Map<string, Record<string, unknown>[]>();
-    private sortedList?: {
+    private readonly reuseCatalogOrder = isCatalogOrderCacheEnabled();
+    private sortedRows?: {
         key: string;
         data: Record<string, unknown>[];
-        items: Media[];
+        order: Record<string, unknown>[];
     };
     constructor(
         private source: Source,
@@ -83,8 +98,7 @@ export class XtreamProvider implements ProviderClient {
         sort: CatalogSort = 'recent'
     ): Promise<Catalog> {
         const type = kind === 'movie' ? 'vod' : kind;
-        const key = type;
-        let data = this.catalogs.get(key);
+        let data = this.catalogs.get(type);
         if (!data) {
             data = rows(
                 await this.client.request(
@@ -93,7 +107,7 @@ export class XtreamProvider implements ProviderClient {
                     signal
                 )
             );
-            if (!signal.aborted) this.catalogs.set(key, data);
+            if (!signal.aborted) this.catalogs.set(type, data);
         }
         const categories = rows(
             await this.client.request(`get_${type}_categories`, {}, signal)
@@ -101,45 +115,49 @@ export class XtreamProvider implements ProviderClient {
             id: text(r.category_id),
             name: text(r.category_name),
         }));
-        // Later pages reuse the sorted list: rebuilding and sorting every row for each
-        // 60-item page took seconds per page on low-end TV hardware with large catalogs.
-        const listKey = JSON.stringify([
-            kind,
-            category,
-            query,
-            sort,
-            categories.map((c) => c.id + c.name).join(),
-        ]);
-        let items =
-            this.sortedList?.data === data && this.sortedList.key === listKey
-                ? this.sortedList.items
+        const order = kind === 'live' ? 'provider' : sort;
+        const listKey = JSON.stringify([kind, category, query, order]);
+        const cached = this.sortedRows;
+        let sorted =
+            cached?.data === data && cached.key === listKey
+                ? cached.order
                 : undefined;
-        if (!items) {
+        if (!sorted) {
             const matchesTitle = catalogTitleMatcher(query);
-            const categoryNames = new Map(
-                categories.map((c) => [c.id, c.name])
-            );
-            items = sortCatalog(
-                data
-                    .map((r) =>
-                        this.media(
-                            r,
-                            kind,
-                            categoryNames.get(text(r.category_id))
-                        )
-                    )
-                    .filter(
-                        (m) =>
-                            (!category || m.category === category) &&
-                            matchesTitle(m.title)
-                    ),
-                kind === 'live' ? 'provider' : sort
-            );
-            this.sortedList = { key: listKey, data, items };
+            const matching = [];
+            for (const raw of data) {
+                if (category && text(raw.category_id) !== category) continue;
+                const title = text(raw.name ?? raw.title);
+                if (!matchesTitle(title)) continue;
+                matching.push({
+                    raw,
+                    title,
+                    addedAt:
+                        order === 'recent'
+                            ? xtreamCatalogTimestamp(raw, kind === 'series')
+                            : undefined,
+                });
+            }
+            sorted = sortCatalog(matching, order).map(({ raw }) => raw);
+            if (
+                this.reuseCatalogOrder &&
+                !signal.aborted &&
+                this.catalogs.get(type) === data
+            )
+                this.sortedRows = { key: listKey, data, order: sorted };
         }
+        const categoryNames = new Map(categories.map((c) => [c.id, c.name]));
         return {
-            items: items.slice(page * 60, (page + 1) * 60),
-            total: items.length,
+            items: sorted
+                .slice(page * 60, (page + 1) * 60)
+                .map((raw) =>
+                    this.media(
+                        raw,
+                        kind,
+                        categoryNames.get(text(raw.category_id))
+                    )
+                ),
+            total: sorted.length,
             page,
             categories,
         };
@@ -266,6 +284,6 @@ export class XtreamProvider implements ProviderClient {
     }
     dispose() {
         this.catalogs.clear();
-        this.sortedList = undefined;
+        this.sortedRows = undefined;
     }
 }

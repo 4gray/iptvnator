@@ -23,8 +23,21 @@ const categories = [
     { category_id: '2', category_name: 'Two' },
 ];
 
-function provider() {
+function provider(initialCategories = categories) {
     const actions: string[] = [];
+    const reads = { title: 0, artwork: 0 };
+    let currentCategories = initialCategories;
+    const movies = rows.map((row) => ({
+        ...row,
+        get name() {
+            reads.title++;
+            return row.name;
+        },
+        get stream_icon() {
+            reads.artwork++;
+            return undefined;
+        },
+    }));
     class Transport extends ProviderTransport {
         async request(
             _source: Source,
@@ -32,8 +45,9 @@ function provider() {
             params: Record<string, string | number>
         ) {
             actions.push(String(params.action));
-            if (params.action === 'get_vod_streams') return rows;
-            if (params.action === 'get_vod_categories') return categories;
+            if (params.action === 'get_vod_streams') return movies;
+            if (params.action === 'get_vod_categories')
+                return currentCategories;
             return [];
         }
     }
@@ -44,6 +58,10 @@ function provider() {
             async () => undefined
         ),
         actions,
+        reads,
+        setCategories(next: typeof categories) {
+            currentCategories = next;
+        },
     };
 }
 
@@ -96,21 +114,67 @@ test('Xtream catalog pages together give the whole sorted, filtered list', async
     );
 });
 
-test('Xtream catalog pages reuse one sorted list until the view changes', async () => {
-    const { client, actions } = provider();
+test('Xtream catalog pages reuse the row order and expand only the requested page', async () => {
+    const { client, actions, reads } = provider();
     const signal = new AbortController().signal;
     const first = await client.catalog('movie', '', 0, '', signal, 'title');
+    assert.equal(reads.artwork, 60, 'only page one reads artwork');
+    reads.title = 0;
     const second = await client.catalog('movie', '', 1, '', signal, 'title');
-    const again = await client.catalog('movie', '', 0, '', signal, 'title');
-    // Same Media objects: the list was not rebuilt for the next page.
-    assert.equal(again.items[0], first.items[0]);
-    assert.notEqual(second.items[0], first.items[0]);
+    assert.equal(reads.artwork, 120);
+    assert.equal(reads.title, 60, 'page two reads titles only for its items');
+    assert.notEqual(second.items[0].id, first.items[0].id);
     assert.equal(
         actions.filter((a) => a === 'get_vod_streams').length,
         1,
         'the provider list is fetched once'
     );
     const resorted = await client.catalog('movie', '', 0, '', signal, 'recent');
-    assert.notEqual(resorted.items[0], first.items[0]);
     assert.equal(resorted.items[0].title, rows[rows.length - 1].name);
+});
+
+test('Xtream catalog pages use the latest category names on cached rows', async () => {
+    const { client, reads, setCategories } = provider([
+        { category_id: '1', category_name: 'A,2B' },
+        { category_id: '2', category_name: 'C' },
+    ]);
+    const signal = new AbortController().signal;
+    const first = await client.catalog('movie', '1', 0, '', signal);
+    assert.equal(first.items[0].categoryName, 'A,2B');
+
+    setCategories([
+        { category_id: '1', category_name: 'A' },
+        { category_id: '2', category_name: 'B,2C' },
+    ]);
+    reads.title = 0;
+    const second = await client.catalog('movie', '1', 1, '', signal);
+    assert.equal(second.items[0].categoryName, 'A');
+    assert.equal(reads.title, second.items.length);
+});
+
+test('Xtream catalog order reuse can be turned off', async () => {
+    const previousWindow = globalThis.window;
+    Object.assign(globalThis, {
+        window: {
+            localStorage: {
+                getItem: (key: string) =>
+                    key === 'iptvnator.tv.disableXtreamCatalogOrderCache'
+                        ? '1'
+                        : null,
+            },
+        },
+    });
+    try {
+        const { client, reads } = provider();
+        const signal = new AbortController().signal;
+        await client.catalog('movie', '', 0, '', signal);
+        reads.title = 0;
+        await client.catalog('movie', '', 1, '', signal);
+        assert.ok(
+            reads.title >= rows.length,
+            'page two rebuilds the row order'
+        );
+    } finally {
+        Object.assign(globalThis, { window: previousWindow });
+    }
 });
