@@ -16,7 +16,8 @@ import {
  * rows alone could move an episode's id — and its watch history — whenever
  * a group is locked or unlocked. Seasons and series left empty disappear;
  * a series whose primary group is withheld is filed under its first group
- * that is not.
+ * that is not. A poster taken from a withheld row is replaced by one of a
+ * row still shown, or dropped, so locked artwork does not stay on screen.
  */
 export function withholdM3uSeriesGroups<T extends M3uArtworkBearing>(
     series: readonly M3uSeries<T>[],
@@ -30,6 +31,7 @@ export function withholdM3uSeriesGroups<T extends M3uArtworkBearing>(
     const result: M3uSeries<T>[] = [];
     for (const entry of series) {
         const seasons = new Map<number, readonly M3uSeriesEpisode<T>[]>();
+        const logos: string[] = [];
         let episodeCount = 0;
         for (const [number, episodes] of entry.seasons) {
             const kept: M3uSeriesEpisode<T>[] = [];
@@ -37,6 +39,12 @@ export function withholdM3uSeriesGroups<T extends M3uArtworkBearing>(
                 const visibleRow = withholdEpisode(episode, visible);
                 if (visibleRow) {
                     kept.push(visibleRow);
+                    for (const row of [
+                        visibleRow.channel,
+                        ...visibleRow.alternatives,
+                    ]) {
+                        if (row.tvg?.logo) logos.push(row.tvg.logo);
+                    }
                 }
             }
             if (kept.length > 0) {
@@ -59,6 +67,10 @@ export function withholdM3uSeriesGroups<T extends M3uArtworkBearing>(
                 : (groups[0] ?? ''),
             seasons,
             episodeCount,
+            posterUrl:
+                entry.posterUrl && !logos.includes(entry.posterUrl)
+                    ? (logos[0] ?? null)
+                    : entry.posterUrl,
         });
     }
     return result;

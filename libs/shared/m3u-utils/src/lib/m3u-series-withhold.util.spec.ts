@@ -81,6 +81,66 @@ describe('withholdM3uSeriesGroups', () => {
         expect(episode?.alternatives).toEqual([]);
     });
 
+    it('does not show a poster that came from a withheld row', () => {
+        const withLogo = (
+            name: string,
+            group: string,
+            file: string,
+            logo?: string
+        ) => ({ ...row(name, group, file), tvg: { logo } });
+        const show = (rows: ReturnType<typeof withLogo>[]) =>
+            withholdM3uSeriesGroups(
+                buildM3uSeriesCatalog(rows, 'pl-1'),
+                new Set(['Locked'])
+            )[0];
+
+        // The locked episode was read first and gave the series its poster.
+        expect(
+            show([
+                withLogo(
+                    'Harbor Lights S01E01',
+                    'Locked',
+                    'a',
+                    'http://img.example/locked.png'
+                ),
+                withLogo(
+                    'Harbor Lights S01E02',
+                    'Shows',
+                    'b',
+                    'http://img.example/open.png'
+                ),
+            ]).posterUrl
+        ).toBe('http://img.example/open.png');
+        expect(
+            show([
+                withLogo(
+                    'Harbor Lights S01E01',
+                    'Locked',
+                    'a',
+                    'http://img.example/locked.png'
+                ),
+                withLogo('Harbor Lights S01E02', 'Shows', 'b'),
+            ]).posterUrl
+        ).toBeNull();
+        // A poster of a row still shown stays.
+        expect(
+            show([
+                withLogo(
+                    'Harbor Lights S01E01',
+                    'Shows',
+                    'a',
+                    'http://img.example/open.png'
+                ),
+                withLogo(
+                    'Harbor Lights S01E02',
+                    'Locked',
+                    'b',
+                    'http://img.example/locked.png'
+                ),
+            ]).posterUrl
+        ).toBe('http://img.example/open.png');
+    });
+
     it('treats a row with no group as the empty group', () => {
         const catalog = buildM3uSeriesCatalog(
             [
