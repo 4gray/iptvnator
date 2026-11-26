@@ -1,10 +1,12 @@
 import { inject } from '@angular/core';
 import { NotificationService } from '@iptvnator/services/notifications';
+import { FavoriteChannelMembershipEvents } from '@iptvnator/services/favorites-events';
 import { signalStoreFeature, withMethods } from '@ngrx/signals';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistsService } from '@iptvnator/services';
 import { PlaylistMeta, StalkerPortalItem } from '@iptvnator/shared/interfaces';
+import { stalkerFavoriteReference } from '@iptvnator/shared/interfaces/favorites-sync';
 import { firstNonBlankStalkerId } from '../../stalker-vod.utils';
 import { StalkerSelectionStoreContract } from '../stalker-store.contracts';
 import {
@@ -35,10 +37,29 @@ export function withStalkerFavorites() {
                 playlistService = inject(PlaylistsService),
                 notifications = inject(NotificationService),
                 translate = inject(TranslateService),
-                ngrxStore = inject(Store)
+                ngrxStore = inject(Store),
+                favoriteMembership = inject(FavoriteChannelMembershipEvents)
             ) => {
                 const storeContext = store as typeof store &
                     FavoritesStoreContext;
+                const notifyChannelChange = (
+                    playlistId: string,
+                    item: StalkerPortalItem
+                ) => {
+                    const reference = stalkerFavoriteReference(item);
+                    if (
+                        reference?.kind === 'live' ||
+                        reference?.kind === 'radio'
+                    ) {
+                        favoriteMembership.notify({
+                            sourceType: 'stalker',
+                            playlistId,
+                            stalkerId: reference.id,
+                            radio:
+                                reference.kind === 'radio' ? 'true' : undefined,
+                        });
+                    }
+                };
                 return {
                     addToFavorites(item: FavoritePayload, onDone?: () => void) {
                         const portalId = storeContext.currentPlaylist()?._id;
@@ -46,29 +67,27 @@ export function withStalkerFavorites() {
                             return;
                         }
 
+                        const favorite = {
+                            ...item,
+                            favoriteContentType:
+                                storeContext.selectedContentType() as StalkerPortalItem['favoriteContentType'],
+                            category_id: resolveStalkerCategoryId(
+                                item.category_id,
+                                storeContext.selectedContentType()
+                            ),
+                            added_at: Date.now(),
+                            // First NON-BLANK: `??` keeps a blank
+                            // `stream_id`, which would overwrite a valid
+                            // `id` and leave the stored row with no
+                            // provider identity at all — unremovable by
+                            // id, and invisible to anything that looks
+                            // the channel up again.
+                            id: firstNonBlankStalkerId(item.stream_id, item.id),
+                        };
                         playlistService
-                            .addPortalFavorite(portalId, {
-                                ...item,
-                                favoriteContentType:
-                                    storeContext.selectedContentType() as
-                                        'itv' | 'radio' | 'vod' | 'series',
-                                category_id: resolveStalkerCategoryId(
-                                    item.category_id,
-                                    storeContext.selectedContentType()
-                                ),
-                                added_at: Date.now(),
-                                // First NON-BLANK: `??` keeps a blank
-                                // `stream_id`, which would overwrite a valid
-                                // `id` and leave the stored row with no
-                                // provider identity at all — unremovable by
-                                // id, and invisible to anything that looks
-                                // the channel up again.
-                                id: firstNonBlankStalkerId(
-                                    item.stream_id,
-                                    item.id
-                                ),
-                            })
+                            .addPortalFavorite(portalId, favorite)
                             .subscribe((updatedPlaylist) => {
+                                notifyChannelChange(portalId, favorite);
                                 dispatchStalkerPlaylistMetaUpdate(
                                     ngrxStore,
                                     portalId,
@@ -93,24 +112,23 @@ export function withStalkerFavorites() {
                             return;
                         }
 
+                        const typedContext = {
+                            ...context,
+                            favoriteContentType:
+                                context?.favoriteContentType ??
+                                (storeContext.selectedContentType() as StalkerPortalItem['favoriteContentType']),
+                        };
                         playlistService
                             .removeFromPortalFavorites(
                                 portalId,
                                 favoriteId,
-                                context
-                                    ? {
-                                          ...context,
-                                          favoriteContentType:
-                                              context.favoriteContentType ??
-                                              (storeContext.selectedContentType() as
-                                                  | 'itv'
-                                                  | 'radio'
-                                                  | 'vod'
-                                                  | 'series'),
-                                      }
-                                    : undefined
+                                context ? typedContext : undefined
                             )
                             .subscribe((updatedPlaylist) => {
+                                notifyChannelChange(portalId, {
+                                    ...typedContext,
+                                    id: favoriteId,
+                                });
                                 dispatchStalkerPlaylistMetaUpdate(
                                     ngrxStore,
                                     portalId,

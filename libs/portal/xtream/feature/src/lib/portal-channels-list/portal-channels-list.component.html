@@ -50,6 +50,10 @@
                 [showFavoriteButton]="true"
                 [showProgramInfoButton]="true"
                 [showDetailsContextMenu]="supportsEpgMapping"
+                [showContextMenuButton]="
+                    showFavoriteFolderMenu() &&
+                    getContentTypeForItem(item) === 'live'
+                "
                 [isFavorite]="favorites.get(favoriteKeyFor(item)) ?? false"
                 (clicked)="playClicked.emit(item)"
                 (activated)="playbackRequested.emit(item)"
@@ -60,8 +64,10 @@
         </cdk-virtual-scroll-viewport>
 
         <app-channel-context-menu
-            [showMapEpg]="true"
+            [showMapEpg]="supportsEpgMapping"
+            [favoriteFolderAction]="favoriteFolderMenuAction()"
             (mapEpg)="openEpgMapping()"
+            (favoriteFolderRequested)="openFavoriteFolderMenu($event)"
         />
     } @else {
         <app-state-view

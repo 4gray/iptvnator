@@ -5,8 +5,8 @@ import { of } from 'rxjs';
 import type { StalkerPortalItem } from '@iptvnator/shared/interfaces';
 import { UnifiedFavoritesDataService } from './unified-favorites-data.service';
 
-describe('typed shared Stalker favorites collection', () => {
-    it('keeps same-ID kinds distinct and clears only the selected membership', async () => {
+describe('typed Stalker favorites collection', () => {
+    it.each([true, false])('keeps same-ID favorites (%s)', async (shared) => {
         const favorites: StalkerPortalItem[] = [
             { id: '42', favoriteContentType: 'vod', title: 'Synthetic movie' },
             {
@@ -40,7 +40,7 @@ describe('typed shared Stalker favorites collection', () => {
         Object.assign(service, {
             stalkerMetadata: { project: (value: unknown) => value },
             favoriteSync: {
-                active: () => true,
+                active: () => shared,
                 project: async (value: unknown) => value,
             },
             playlistsService: {
@@ -81,6 +81,28 @@ describe('typed shared Stalker favorites collection', () => {
                 .reverse()
                 .concat(retained as unknown as StalkerPortalItem)
         );
+
+        const ambiguousSelector = {
+            ...items[2],
+            uid: 'stalker::synthetic-source::42',
+            stalkerItem: undefined,
+        };
+        await service.clearFavorites([ambiguousSelector]);
+        const ambiguousClear = transformPlaylistFavorites.mock.calls[2][1];
+        expect(ambiguousClear(favorites)).toEqual(favorites);
+        await service.reorder(
+            [
+                ambiguousSelector,
+                { ...items[2], playlistId: 'other-synthetic-source' },
+            ],
+            {
+                scope: 'playlist',
+                playlistId: 'synthetic-source',
+                portalType: 'stalker',
+            }
+        );
+        const ambiguousReorder = transformPlaylistFavorites.mock.calls[3][1];
+        expect(ambiguousReorder(favorites)).toEqual(favorites);
 
         await service.removeFavorite(items[0]);
         expect(removeFromPortalFavorites).toHaveBeenLastCalledWith(

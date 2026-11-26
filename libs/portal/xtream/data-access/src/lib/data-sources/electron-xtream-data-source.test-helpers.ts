@@ -51,7 +51,7 @@ export function createDbServiceMock() {
         getFavorites: jest.fn().mockResolvedValue([]),
         addToFavorites: jest.fn().mockResolvedValue(true),
         addToFavoritesOrThrow: jest.fn().mockResolvedValue(undefined),
-        removeFromFavorites: jest.fn().mockResolvedValue(undefined),
+        removeFromFavorites: jest.fn().mockResolvedValue(true),
         isFavorite: jest.fn().mockResolvedValue(false),
         getRecentItems: jest.fn().mockResolvedValue([]),
         getRecentItemsOrThrow: jest.fn().mockResolvedValue([]),

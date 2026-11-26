@@ -535,3 +535,32 @@ provider kind/ID and known content identity define that
 lifetime; display-name and category hints do not reset it. A real source edit or
 identity change still creates a fresh detail context. Pending source loads keep
 the existing request-owner fence before applying any store changes.
+
+
+## Global favorite channel folders
+
+Folder metadata and assignments live in a versioned document owned by
+`FavoriteChannelFoldersService`. Electron persists it through the existing
+SQLite app-state bridge when available. Browser/PWA uses `USER_DATA_STORAGE`.
+The connected profile has its own document, and folder organization is local to
+the device. The existing provider membership stores, favorite ordering, and
+optional favorite synchronization still own their respective data.
+
+The assignment key contains the source kind, playlist ID and channel identity.
+For M3U, it stores a SHA-256 digest of the URL used to identify the favorite.
+Xtream uses the provider stream ID. Stalker uses the provider ID and distinguishes
+live and radio. When historical Stalker rows share a provider ID, typed row
+identities keep them separate. An old standalone order entry for the shared ID
+retains their group position and within-source order until the user reorders
+the rows. A missing folder document is the existing flat list. Creating a folder,
+moving saved channels, and deleting a folder write only the folder document.
+Deleting a folder clears all its assignments in the same write.
+
+Adding directly to a folder writes a pending marker before asking the provider
+to save membership. The view publishes the folder change after both writes
+succeed. A failed or interrupted final write leaves the favorite unfiled and a
+retry checks membership before saving, so it does not add a second favorite.
+Folder
+choice and multi-select are independent of the playing channel. Reordering a
+filtered folder places the reordered channels back into their slots in the
+source scope’s full list.

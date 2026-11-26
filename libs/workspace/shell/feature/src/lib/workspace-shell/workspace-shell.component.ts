@@ -96,6 +96,16 @@ export class WorkspaceShellComponent {
         // rendered, so the first list or portal opens without waiting for them.
         warmPlayerChunk(inject(Router));
 
+        // A tab can remove its context panel without navigating.
+        effect(() => {
+            if (
+                !this.facade.showContextPanel() &&
+                this.contextDrawer.isOpen()
+            ) {
+                this.contextDrawer.close();
+            }
+        });
+
         // Focus restoration is the closing half of the drawer's focus
         // contract: CdkTrapFocus captures focus into the drawer on open, but
         // deactivating a trap does not restore focus, and the closed drawer

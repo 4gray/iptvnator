@@ -1,7 +1,3 @@
-import {
-    favoriteReferenceKey,
-    stalkerFavoriteReference,
-} from '@iptvnator/shared/interfaces/favorites-sync';
 import { FAVORITES_PLAYLIST_BRIDGE } from '@iptvnator/services/favorites-events';
 import type { ElectronBridgeFavoriteReorderUpdate } from '@iptvnator/shared/interfaces';
 import { inject, Injectable } from '@angular/core';
@@ -42,6 +38,11 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamFavoriteItem,
 } from '@iptvnator/portal/xtream/data-access';
+import {
+    matchStalkerFavoriteRows,
+    stalkerCollectionReference,
+    stalkerFavoriteRowIdentities,
+} from './stalker-favorite-identity';
 
 const GLOBAL_FAVORITES_ORDER_KEY = 'global-favorites-channel-order-v1';
 
@@ -133,11 +134,15 @@ export class UnifiedFavoritesDataService {
                         item.favoriteId != null
                             ? { favoriteId: item.favoriteId }
                             : item.contentId;
-                    if (target != null)
-                        await electron.dbRemoveFavorite(
+                    if (target != null) {
+                        const result = await electron.dbRemoveFavorite(
                             target,
                             item.playlistId
                         );
+                        if (result?.success === false) {
+                            throw new Error('Favorite could not be removed');
+                        }
+                    }
                     return;
                 }
                 if (item.contentId == null && item.xtreamId == null) return;
@@ -261,9 +266,17 @@ export class UnifiedFavoritesDataService {
             added_at: new Date().toISOString(),
         };
 
-        await firstValueFrom(
+        const updated = await firstValueFrom(
             this.playlistsService.addPortalFavorite(item.playlistId, favorite)
         );
+        if (updated?.favorites) {
+            this.store.dispatch(
+                PlaylistActions.updatePlaylistMeta({
+                    persist: false,
+                    playlist: { _id: item.playlistId, favorites: updated.favorites } as PlaylistMeta,
+                })
+            );
+        }
     }
 
     async clearFavorites(items: UnifiedCollectionItem[]): Promise<void> {
@@ -313,40 +326,27 @@ export class UnifiedFavoritesDataService {
             options.playlistId &&
             options.portalType === 'stalker'
         ) {
+            const rows = items.filter(
+                (item) =>
+                    item.sourceType === 'stalker' &&
+                    item.playlistId === options.playlistId
+            );
+            const shared = this.favoriteSync.active();
             await firstValueFrom(
                 this.playlistsService.transformPlaylistFavorites(
                     options.playlistId,
                     (current) => {
                         const currentFavorites = current.filter(isStalkerItem);
-                        const favoritesById = new Map(
-                            currentFavorites.map((favorite) => [
-                                this.getStalkerFavoriteId(favorite),
-                                favorite,
-                            ])
+                        const reorderedFavorites = matchStalkerFavoriteRows(
+                            currentFavorites,
+                            rows,
+                            shared
                         );
-                        const reorderedFavorites = items
-                            .map(
-                                (item) =>
-                                    favoritesById.get(
-                                        this.getStalkerFavoriteId(item)
-                                    ) ?? null
-                            )
-                            .filter(
-                                (favorite): favorite is StalkerPortalItem =>
-                                    favorite !== null
-                            );
-                        const reorderedIds = new Set(
-                            reorderedFavorites.map((favorite) =>
-                                this.getStalkerFavoriteId(favorite)
-                            )
-                        );
+                        if (!reorderedFavorites.size) return current;
                         return [
                             ...reorderedFavorites,
                             ...currentFavorites.filter(
-                                (favorite) =>
-                                    !reorderedIds.has(
-                                        this.getStalkerFavoriteId(favorite)
-                                    )
+                                (favorite) => !reorderedFavorites.has(favorite)
                             ),
                             ...current.filter(
                                 (favorite) => !isStalkerItem(favorite)
@@ -447,27 +447,26 @@ export class UnifiedFavoritesDataService {
         items: UnifiedCollectionItem[]
     ): Promise<void> {
         const groupedItems = this.groupItemsByPlaylist(items);
+        const shared = this.favoriteSync.active();
 
         await Promise.all(
             Array.from(groupedItems.entries()).map(
                 async ([playlistId, playlistItems]) => {
-                    const targetIds = new Set(
-                        playlistItems.map((item) =>
-                            this.getStalkerFavoriteId(item)
-                        )
-                    );
-
                     await firstValueFrom(
                         this.playlistsService.transformPlaylistFavorites(
                             playlistId,
-                            (current) =>
-                                current.filter(
+                            (current) => {
+                                const selected = matchStalkerFavoriteRows(
+                                    current.filter(isStalkerItem),
+                                    playlistItems,
+                                    shared
+                                );
+                                return current.filter(
                                     (favorite) =>
                                         !isStalkerItem(favorite) ||
-                                        !targetIds.has(
-                                            this.getStalkerFavoriteId(favorite)
-                                        )
-                                )
+                                        !selected.has(favorite)
+                                );
+                            }
                         )
                     );
                 }
@@ -759,17 +758,26 @@ export class UnifiedFavoritesDataService {
         const favs = Array.isArray(playlist?.favorites)
             ? playlist.favorites.filter(isStalkerItem)
             : [];
+        const identities = stalkerFavoriteRowIdentities(
+            favs,
+            this.favoriteSync.active()
+        );
 
         return favs.map((fav, index) => {
-            const ct = extractStalkerItemType(fav);
-            const isRadio = isStalkerRadioItem(fav);
-            const stalkerId = extractStalkerItemId(fav, meta._id, index);
+            const { kind, providerId, rowId } = identities[index];
+            const isRadio = kind === 'radio' || isStalkerRadioItem(fav);
+            const ct =
+                kind === 'live' || isRadio
+                    ? 'live'
+                    : extractStalkerItemType(fav);
+            const stalkerId =
+                providerId ?? extractStalkerItemId(fav, meta._id, index);
             const poster = extractStalkerItemPoster(fav) || null;
             return {
                 uid: buildCollectionUid(
                     'stalker',
                     meta._id,
-                    this.getStalkerFavoriteId(fav) || stalkerId
+                    rowId ?? extractStalkerItemId(fav)
                 ),
                 name:
                     extractStalkerItemTitle(fav) ||
@@ -891,23 +899,62 @@ export class UnifiedFavoritesDataService {
             });
         }
         const orderMap = new Map(savedOrder.map((uid, i) => [uid, i]));
+        const shared = this.favoriteSync.active();
         const historicalUid = (item: UnifiedCollectionItem) =>
             item.sourceType === 'stalker' && item.stalkerId
-                ? buildCollectionUid('stalker', item.playlistId, item.stalkerId)
+                ? buildCollectionUid(
+                      'stalker',
+                      item.playlistId,
+                      item.stalkerItem
+                          ? extractStalkerItemId(
+                                item.stalkerItem as StalkerPortalItem
+                            )
+                          : item.stalkerId
+                  )
                 : undefined;
+        const entries = items.map((item) => ({
+            item,
+            historical: historicalUid(item),
+        }));
         const historicalCounts = new Map<string, number>();
-        for (const item of items) {
-            const uid = historicalUid(item);
-            if (uid)
-                historicalCounts.set(uid, (historicalCounts.get(uid) ?? 0) + 1);
+        if (shared) {
+            for (const { historical } of entries) {
+                if (historical)
+                    historicalCounts.set(
+                        historical,
+                        (historicalCounts.get(historical) ?? 0) + 1
+                    );
+            }
         }
         const ordered: UnifiedCollectionItem[] = [];
         const unordered: UnifiedCollectionItem[] = [];
-        for (const item of items) {
-            const historical = historicalUid(item);
+        for (const { item, historical } of entries) {
+            const exactPosition = orderMap.get(item.uid);
+            const ref =
+                exactPosition == null &&
+                !shared &&
+                historical &&
+                item.stalkerItem
+                    ? stalkerCollectionReference(
+                          item.stalkerItem as StalkerPortalItem,
+                          false
+                      )
+                    : null;
+            const priorTypedPosition = ref
+                ? orderMap.get(
+                      buildCollectionUid(
+                          'stalker',
+                          item.playlistId,
+                          JSON.stringify(ref)
+                      )
+                  )
+                : undefined;
             const pos =
-                orderMap.get(item.uid) ??
-                (historical && historicalCounts.get(historical) === 1
+                exactPosition ??
+                priorTypedPosition ??
+                // A standalone legacy UID represented the whole same-ID group.
+                (historical &&
+                (!shared || historicalCounts.get(historical) === 1)
                     ? orderMap.get(historical)
                     : undefined);
             if (pos != null) {
@@ -964,27 +1011,6 @@ export class UnifiedFavoritesDataService {
         playlist: Pick<PlaylistMeta, 'serverUrl' | 'macAddress'>
     ): boolean {
         return Boolean(playlist.serverUrl) && !playlist.macAddress;
-    }
-
-    private getStalkerFavoriteId(
-        favorite:
-            | Pick<UnifiedCollectionItem, 'stalkerId' | 'uid' | 'stalkerItem'>
-            | StalkerPortalItem
-    ): string {
-        const item = ('uid' in favorite ? favorite.stalkerItem : favorite) as
-            StalkerPortalItem | undefined;
-        const reference =
-            item &&
-            this.favoriteSync.active() &&
-            stalkerFavoriteReference(item);
-        if (reference) return favoriteReferenceKey(reference);
-        if ('uid' in favorite) {
-            return String(
-                favorite.stalkerId ?? favorite.uid.split('::')[2] ?? ''
-            ).trim();
-        }
-
-        return extractStalkerItemId(favorite);
     }
 
     private get electronActivityBridge(): Window['electron'] | undefined {

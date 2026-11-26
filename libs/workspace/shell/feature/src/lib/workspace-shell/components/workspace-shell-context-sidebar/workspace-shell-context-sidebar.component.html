@@ -77,4 +77,23 @@
     >
         <app-workspace-collection-context-panel />
     </aside>
+} @else if (variant() === 'favorite-folders') {
+    @if (favoriteFolders(); as panel) {
+        <aside
+            id="workspace-favorite-folders"
+            tabindex="-1"
+            cdkFocusInitial
+            class="context-panel context-panel--favorite-folders"
+            [class.context-panel--collapsed]="isContextPanelInert()"
+            [attr.inert]="isContextPanelInert() ? '' : null"
+            aria-labelledby="workspace-favorite-folders-heading"
+            appResizable
+            [minWidth]="190"
+            [maxWidth]="400"
+            [defaultWidth]="232"
+            storageKey="favorite-folders-panel-width"
+        >
+            <app-workspace-favorite-folders-panel [panel]="panel" />
+        </aside>
+    }
 }

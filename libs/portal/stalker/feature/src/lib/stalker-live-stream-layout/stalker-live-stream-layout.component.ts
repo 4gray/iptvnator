@@ -2,6 +2,7 @@ import { stalkerFavoriteReference } from '@iptvnator/shared/interfaces/favorites
 import {
     ChannelContextMenuComponent,
     ChannelScrollFocusDirective,
+    type FavoriteFolderMenuAction,
 } from '@iptvnator/ui/components';
 import { NgTemplateOutlet } from '@angular/common';
 import {
@@ -84,6 +85,7 @@ import {
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
+    buildCollectionUid,
     createLivePanelsController,
     LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
@@ -96,10 +98,13 @@ import {
 } from '@iptvnator/portal/shared/util';
 import {
     ChannelListHiddenStateComponent,
+    FavoriteFolderDialogs,
     PortalEmptyStateComponent,
 } from '@iptvnator/portal/shared/ui';
+import { FavoriteChannelFoldersService } from '@iptvnator/portal/shared/data-access';
 import {
     ACTIVE_EPG_FALLBACK_SIZE,
+    firstNonBlankStalkerIdText,
     StalkerFavoriteItem,
     StalkerItvChannel,
     StalkerStore,
@@ -385,6 +390,12 @@ export class StalkerLiveStreamLayoutComponent
         ChannelContextMenuComponent
     );
     readonly contextMenuChannel = signal<StalkerItvChannel | null>(null);
+    private contextMenuPlaylistId: string | undefined;
+    private readonly folderStore = inject(FavoriteChannelFoldersService);
+    private readonly folderDialogs = inject(FavoriteFolderDialogs);
+    readonly showFavoriteFolderMenu = computed(
+        () => this.folderStore.folders().length > 0
+    );
     readonly isElectron = this.runtime.isElectron;
     get supportsProviderEpg(): boolean {
         return (
@@ -702,6 +713,7 @@ export class StalkerLiveStreamLayoutComponent
     private favoritesRequestId = 0;
 
     constructor() {
+        void this.folderStore.load().catch(() => undefined);
         this.epgClockTimer = setInterval(
             () => this.epgClockTick.update((tick) => tick + 1),
             30_000
@@ -1193,7 +1205,11 @@ export class StalkerLiveStreamLayoutComponent
     }
 
     toggleFavorite(item: StalkerItvChannel) {
-        const itemId = normalizeStalkerEntityId(item.id);
+        const playlistId = this.stalkerStore.currentPlaylist()?._id;
+        const providerId = firstNonBlankStalkerIdText(item.stream_id, item.id);
+        const itemId = this.favorites.has(providerId)
+            ? providerId
+            : normalizeStalkerEntityId(item.id);
         const favorite = {
             ...this.toPlayableChannel(item),
             category_id: this.isRadioMode() ? 'radio' : 'itv',
@@ -1205,16 +1221,20 @@ export class StalkerLiveStreamLayoutComponent
             this.stalkerStore.removeFromFavorites(
                 itemId,
                 () => {
+                    if (this.stalkerStore.currentPlaylist()?._id !== playlistId)
+                        return;
                     this.favoritesRequestId++;
                     this.favorites.delete(itemId);
                     this.cdr.markForCheck();
                 },
-                favorite
+                { ...favorite, id: itemId }
             );
         } else {
             this.stalkerStore.addToFavorites(favorite, () => {
+                if (this.stalkerStore.currentPlaylist()?._id !== playlistId)
+                    return;
                 this.favoritesRequestId++;
-                this.favorites.set(itemId, true);
+                this.favorites.set(providerId, true);
                 this.cdr.markForCheck();
             });
         }
@@ -1365,7 +1385,79 @@ export class StalkerLiveStreamLayoutComponent
 
     onChannelContextMenu(channel: StalkerItvChannel, event: MouseEvent): void {
         this.contextMenuChannel.set(channel);
+        this.contextMenuPlaylistId = this.stalkerStore.currentPlaylist()?._id;
         this.channelContextMenu().open(event);
+    }
+
+    isLiveFavorite(channel: StalkerItvChannel): boolean {
+        return (
+            this.favorites.has(
+                firstNonBlankStalkerIdText(channel.stream_id, channel.id)
+            ) || this.favorites.has(normalizeStalkerEntityId(channel.id))
+        );
+    }
+
+    favoriteFolderMenuAction(): FavoriteFolderMenuAction | null {
+        const channel = this.contextMenuChannel();
+        if (
+            !this.showFavoriteFolderMenu() ||
+            !channel ||
+            !this.contextMenuPlaylistId ||
+            this.stalkerStore.currentPlaylist()?._id !==
+                this.contextMenuPlaylistId
+        )
+            return null;
+
+        return this.isLiveFavorite(channel) ? 'move' : 'add';
+    }
+
+    async openFavoriteFolderMenu(
+        action: FavoriteFolderMenuAction
+    ): Promise<void> {
+        const channel = this.contextMenuChannel();
+        const playlist = this.stalkerStore.currentPlaylist();
+        if (!channel || !playlist || this.favoriteFolderMenuAction() !== action)
+            return;
+
+        const providerId = firstNonBlankStalkerIdText(
+            channel.stream_id,
+            channel.id
+        );
+        const originalId = normalizeStalkerEntityId(channel.id);
+        const stalkerId =
+            this.favorites.has(originalId) && !this.favorites.has(providerId)
+                ? originalId
+                : providerId;
+        if (!stalkerId) return;
+        const kind = this.isRadioMode() ? 'radio' : 'itv';
+        const changed = await this.folderDialogs.move(
+            [
+                {
+                    uid: buildCollectionUid('stalker', playlist._id, stalkerId),
+                    sourceType: 'stalker',
+                    contentType: 'live',
+                    playlistId: playlist._id,
+                    playlistName: playlistDisplayLabel(
+                        playlist.title || playlist.filename,
+                        'Stalker'
+                    ),
+                    name: channel.o_name || channel.name || '',
+                    logo: channel.logo,
+                    stalkerId,
+                    stalkerCmd: channel.cmd,
+                    categoryId: kind,
+                    radio: kind === 'radio' ? 'true' : undefined,
+                    stalkerItem: {
+                        ...this.toPlayableChannel(channel),
+                        id: stalkerId,
+                        favoriteContentType: kind,
+                    },
+                },
+            ],
+            { add: action === 'add' }
+        );
+        if (changed && action === 'add')
+            window.dispatchEvent(new Event('iptvnator-favorites-changed'));
     }
 
     async openEpgMapping(): Promise<void> {

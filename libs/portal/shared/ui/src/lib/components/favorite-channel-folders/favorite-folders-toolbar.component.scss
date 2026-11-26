@@ -1,0 +1,76 @@
+@use '@angular/material' as mat;
+@use '../../../../../../../ui/styles/app-controls' as controls;
+@use '../../../../../../../ui/styles/side-list';
+
+:host {
+    display: block;
+    flex: none;
+    padding-block-start: var(--app-space-1-5);
+    padding-inline: var(--app-space-4) var(--app-space-2);
+}
+
+.folder-heading,
+.selection-toolbar,
+.selection-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--app-space-1);
+}
+
+.folder-heading {
+    min-height: 32px;
+
+    h2 {
+        @include side-list.row-label;
+        flex: 1;
+        margin: 0;
+        color: var(--app-heading-color);
+        font-size: var(--app-text-md);
+        font-weight: 600;
+    }
+}
+
+.first-folder {
+    justify-content: space-between;
+}
+
+.folder-count {
+    @include side-list.row-count;
+}
+
+.menu-action {
+    @include controls.ghost-icon-button(32px, 18px);
+    flex: none;
+}
+
+.selection-toolbar {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    min-height: 32px;
+}
+
+.selection-actions {
+    flex-wrap: wrap;
+}
+
+.select-all {
+    @include mat.checkbox-overrides(
+        (
+            label-text-color: var(--app-body-color),
+            label-text-size: var(--app-text-sm),
+            label-text-tracking: 0,
+        )
+    );
+}
+
+.secondary-action {
+    @include controls.secondary-button(sm);
+}
+
+.done-action {
+    @include controls.ghost-button(sm);
+}
+
+.selection-count {
+    font-variant-numeric: tabular-nums;
+}

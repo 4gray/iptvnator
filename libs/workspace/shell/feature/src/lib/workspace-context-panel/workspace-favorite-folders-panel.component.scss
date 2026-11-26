@@ -1,0 +1,102 @@
+@use '../../../../../../ui/styles/app-controls' as controls;
+@use '../../../../../../ui/styles/side-list';
+
+:host {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.folder-header {
+    @include side-list.header;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    padding-block: var(--app-space-2-5);
+    margin-block-end: var(--app-space-3);
+    border-color: var(--app-separator);
+
+    h2 {
+        @include side-list.title;
+        @include side-list.row-label;
+        font-size: var(--app-text-lg);
+    }
+}
+
+.folder-header-actions {
+    display: flex;
+    flex: none;
+    gap: var(--app-space-1);
+
+    button {
+        @include controls.ghost-icon-button(32px, 18px);
+    }
+}
+
+@media (max-width: 640px) {
+    .hide-folders {
+        display: none;
+    }
+}
+
+.folder-list {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden auto;
+    overscroll-behavior-y: var(--app-overscroll-y, contain);
+    scrollbar-width: thin;
+
+    hr {
+        border: 0;
+        border-top: 1px solid var(--app-widget-header-border);
+        margin: var(--app-space-2) var(--app-space-1);
+    }
+}
+
+.folder-row {
+    @include side-list.row;
+    position: relative;
+    border: 1px solid transparent;
+
+    &--drop-ready {
+        border-color: var(--app-selection-border);
+    }
+
+    &.folder-row--drag-over {
+        background: var(--app-list-selected-bg);
+        border-color: var(--app-selection-color);
+        color: var(--app-list-selected-fg);
+    }
+
+    &--received::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        box-shadow: inset 0 0 0 1px var(--app-selection-color);
+        background: var(--app-list-selected-bg);
+        pointer-events: none;
+        animation: folder-received 420ms ease-out both;
+    }
+}
+
+.folder-name {
+    @include side-list.row-label;
+}
+
+.folder-count {
+    @include side-list.row-count;
+}
+
+@keyframes folder-received {
+    to {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .folder-row--received::after {
+        animation: none;
+    }
+}

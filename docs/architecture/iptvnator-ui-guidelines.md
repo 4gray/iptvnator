@@ -517,6 +517,10 @@ renders the stored width clamped to the host's own limits and never writes
 that clamped value back: only a drag that changes the width persists, so a
 narrow sidebar such as Settings cannot shrink the width a wider one saved.
 
+In Global Favorites Live TV, the folder and channel rails have separate
+width preferences. A narrower viewport caps the rendered widths without
+changing the saved values.
+
 A drag starts from the host's computed CSS `width`, the box that `style.width`
 sizes, not from `offsetWidth`. Hosts may be `content-box` (the workspace
 context panels and the Favorites sidebar) or `border-box` (live-layout and
@@ -842,10 +846,12 @@ remain local when the meaning is explicit.
        its category title into a dropdown that opens the same rail as a
        popover, so switching categories stays one click away.
     3. `collapsed` — player + EPG only ("theater").
-- There is deliberately no "channels hidden, categories visible" state: a
-  category click has to bring the channels back anyway. Surfaces without a
-  categories rail (M3U, the unified-collection live tab) treat level 2 like
-  level 1. The live ROOT (no selected category: Xtream `/live` "All Items",
+- In portals, a category click brings the channels back. M3U and the
+  unified-collection's channel rail treat level 2 like level 1. Global
+  Favorites saves the folder rail under its own sidebar state key so the
+  user can fold it independently of the channel rail. It uses the same
+  header chevrons and focus handoff. The live ROOT (no selected category:
+  Xtream `/live` "All Items",
   Stalker's all-items grid or its select-a-category placeholder) folds at level
   2 like any category, so the rail's hide chevron is offered there too. With no
   channels header to host the way back, each root view renders its own

@@ -268,7 +268,12 @@
     </div>
 </ng-template>
 
-<app-channel-context-menu [showMapEpg]="true" (mapEpg)="openEpgMapping()" />
+<app-channel-context-menu
+    [showMapEpg]="supportsEpgMapping && !isRadioMode()"
+    [favoriteFolderAction]="favoriteFolderMenuAction()"
+    (mapEpg)="openEpgMapping()"
+    (favoriteFolderRequested)="openFavoriteFolderMenu($event)"
+/>
 
 <!-- The channel list, stamped into the sidebar and — with its own search
      term — into the player's fullscreen channel panel. Every instance carries
@@ -352,10 +357,8 @@
                     [showDetailsContextMenu]="
                         supportsEpgMapping && !isRadioMode()
                     "
-                    [isFavorite]="
-                        favorites.get(normalizeStalkerEntityId(item.id)) ??
-                        false
-                    "
+                    [showContextMenuButton]="showFavoriteFolderMenu()"
+                    [isFavorite]="isLiveFavorite(item)"
                     (clicked)="playChannel(item, undefined, panelSearchTerm)"
                     (activated)="playChannel(item, true, panelSearchTerm)"
                     (keyboardActivated)="

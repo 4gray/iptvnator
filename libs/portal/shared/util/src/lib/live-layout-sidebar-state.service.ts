@@ -22,6 +22,7 @@ function bySurface<T>(
         m3u: create('m3u'),
         portal: create('portal'),
         collection: create('collection'),
+        'favorite-folders': create('favorite-folders'),
     };
 }
 

@@ -1,6 +1,7 @@
 import {
     ChannelContextMenuComponent,
     ChannelScrollFocusDirective,
+    type FavoriteFolderMenuAction,
 } from '@iptvnator/ui/components';
 import {
     CdkVirtualScrollViewport,
@@ -29,12 +30,15 @@ import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EMPTY, fromEvent, merge, of, Subscription } from 'rxjs';
 import { catchError, debounceTime, filter, switchMap } from 'rxjs/operators';
+import { FavoriteChannelFoldersService } from '@iptvnator/portal/shared/data-access';
+import { FavoriteFolderDialogs } from '@iptvnator/portal/shared/ui';
 import {
     foldSearchText,
     buildXtreamEpgMappingKey,
     EpgItem,
     EpgProgram,
     epgProviderClockMs,
+    playlistDisplayLabel,
     XtreamCategory,
     XtreamItem,
 } from '@iptvnator/shared/interfaces';
@@ -44,6 +48,7 @@ import {
     EpgMappingDialogComponent,
 } from '@iptvnator/ui/components';
 import {
+    buildXtreamCollectionUid,
     createLogger,
     getXtreamCatchupDays,
     isXtreamCatchupAvailable,
@@ -139,11 +144,17 @@ export class PortalChannelsListComponent implements OnDestroy {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly dialog = inject(MatDialog);
+    private readonly folderStore = inject(FavoriteChannelFoldersService);
+    private readonly folderDialogs = inject(FavoriteFolderDialogs);
+    readonly showFavoriteFolderMenu = computed(
+        () => this.folderStore.folders().length > 0
+    );
 
     readonly channelContextMenu = viewChild.required(
         ChannelContextMenuComponent
     );
     readonly contextMenuChannel = signal<XtreamChannelListItem | null>(null);
+    private contextMenuPlaylistId: string | undefined;
     get supportsProviderEpg(): boolean {
         return (
             this.epgPreferences.enabled() && this.runtime.supportsProviderEpg
@@ -214,6 +225,7 @@ export class PortalChannelsListComponent implements OnDestroy {
     private readonly settingsStore = inject(SettingsStore);
 
     constructor(private cdr: ChangeDetectorRef) {
+        void this.folderStore.load().catch(() => undefined);
         this.watchVisibleRowsForEpg();
         this.subscriptions.add(
             inject(EpgSourceSettingsService).changed$.subscribe(() => {
@@ -716,12 +728,14 @@ export class PortalChannelsListComponent implements OnDestroy {
         this.xtreamStore
             .toggleFavorite(item.xtream_id, playlistId, contentType)
             .then((result: boolean) => {
-                if (result) {
-                    this.favorites.set(favoriteKey, true);
-                } else {
-                    this.favorites.delete(favoriteKey);
+                if (this.xtreamStore.currentPlaylist()?.id === playlistId) {
+                    if (result) {
+                        this.favorites.set(favoriteKey, true);
+                    } else {
+                        this.favorites.delete(favoriteKey);
+                    }
+                    this.cdr.detectChanges();
                 }
-                this.cdr.detectChanges();
                 this.favoriteMarks.notify({
                     playlistId,
                     key: favoriteKey,
@@ -744,7 +758,7 @@ export class PortalChannelsListComponent implements OnDestroy {
         return `${this.normalizeContentType(type)}:${xtreamId}`;
     }
 
-    private getContentTypeForItem(
+    protected getContentTypeForItem(
         item: XtreamChannelListItem
     ): 'live' | 'movie' | 'series' {
         return this.normalizeContentType(
@@ -791,7 +805,56 @@ export class PortalChannelsListComponent implements OnDestroy {
         event: MouseEvent
     ): void {
         this.contextMenuChannel.set(channel);
+        this.contextMenuPlaylistId = this.xtreamStore.currentPlaylist()?.id;
         this.channelContextMenu().open(event);
+    }
+
+    favoriteFolderMenuAction(): FavoriteFolderMenuAction | null {
+        const channel = this.contextMenuChannel();
+        if (
+            !this.showFavoriteFolderMenu() ||
+            !channel ||
+            this.getContentTypeForItem(channel) !== 'live' ||
+            !this.contextMenuPlaylistId ||
+            this.xtreamStore.currentPlaylist()?.id !==
+                this.contextMenuPlaylistId
+        )
+            return null;
+
+        return this.favorites.has(this.favoriteKeyFor(channel))
+            ? 'move'
+            : 'add';
+    }
+
+    async openFavoriteFolderMenu(
+        action: FavoriteFolderMenuAction
+    ): Promise<void> {
+        const channel = this.contextMenuChannel();
+        const playlist = this.xtreamStore.currentPlaylist();
+        if (!channel || !playlist || this.favoriteFolderMenuAction() !== action)
+            return;
+
+        const changed = await this.folderDialogs.move(
+            [
+                {
+                    uid: buildXtreamCollectionUid(
+                        playlist.id,
+                        'live',
+                        channel.xtream_id
+                    ),
+                    sourceType: 'xtream',
+                    contentType: 'live',
+                    playlistId: playlist.id,
+                    playlistName: playlistDisplayLabel(playlist.name, 'Xtream'),
+                    name: channel.title || channel.name || '',
+                    xtreamId: channel.xtream_id,
+                    logo: channel.stream_icon ?? channel.poster_url,
+                },
+            ],
+            { add: action === 'add' }
+        );
+        if (changed && action === 'add')
+            window.dispatchEvent(new Event('iptvnator-favorites-changed'));
     }
 
     openEpgMapping(): void {

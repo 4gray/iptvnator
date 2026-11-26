@@ -6,9 +6,8 @@ import {
 
 /**
  * The Live / Movies / Series tab of a unified collection, plus the item
- * partition it selects from. A tab exists only while the collection holds
- * items of that type, so the state also owns the correction that runs after
- * every load and every bulk removal.
+ * partition it selects from. Favorite folders keep Live accessible even when
+ * there are no saved channels.
  */
 export interface CollectionContentTypeState {
     readonly selected: WritableSignal<CollectionContentType>;
@@ -22,15 +21,18 @@ export interface CollectionContentTypeState {
     readonly showToggle: Signal<boolean>;
     readonly currentTypeItems: Signal<UnifiedCollectionItem[]>;
     readonly currentTypeLabelKey: Signal<string>;
+    select(value: CollectionContentType): void;
     /** Move off a tab the collection no longer has items for. */
     autoSelect(): void;
 }
 
 export function createCollectionContentTypeState(
     allItems: Signal<readonly UnifiedCollectionItem[]>,
-    initialType: CollectionContentType
+    initialType: CollectionContentType,
+    favoriteFolders?: { enabled: Signal<boolean>; hasFolders: () => boolean }
 ): CollectionContentTypeState {
     const selected = signal<CollectionContentType>(initialType);
+    let explicitlySelectedLive = false;
     const itemsOfType = (contentType: CollectionContentType) =>
         computed(() =>
             allItems().filter((item) => item.contentType === contentType)
@@ -83,11 +85,30 @@ export function createCollectionContentTypeState(
         hasMovies,
         hasSeries,
         availableTypes,
-        showToggle: computed(() => availableTypes().length > 1),
+        showToggle: computed(() => {
+            const canOfferEmptyLive = !hasLive() && favoriteFolders?.enabled();
+            return availableTypes().length + Number(!!canOfferEmptyLive) > 1;
+        }),
         currentTypeItems,
         currentTypeLabelKey,
+        select(value: CollectionContentType): void {
+            explicitlySelectedLive = value === 'live';
+            selected.set(value);
+        },
         autoSelect(): void {
             const types = availableTypes();
+            if (favoriteFolders?.enabled()) {
+                if (!types.length) {
+                    selected.set('live');
+                    return;
+                }
+                if (
+                    selected() === 'live' &&
+                    (explicitlySelectedLive || favoriteFolders.hasFolders())
+                ) {
+                    return;
+                }
+            }
             if (types.length > 0 && !types.includes(selected())) {
                 selected.set(types[0]);
             }

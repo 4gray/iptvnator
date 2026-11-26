@@ -13,7 +13,11 @@ describe('durable live favorites', () => {
         const remove = jest.fn();
         Object.assign(target, {
             favorites: new Map(),
-            stalkerStore: { addToFavorites: add, removeFromFavorites: remove },
+            stalkerStore: {
+                currentPlaylist: () => ({ _id: 'synthetic-stalker' }),
+                addToFavorites: add,
+                removeFromFavorites: remove,
+            },
             isRadioMode: () => true,
             toPlayableChannel: () => item,
             cdr: { markForCheck: jest.fn() },

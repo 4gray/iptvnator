@@ -25,7 +25,7 @@ import { MatProgressBar } from '@angular/material/progress-bar';
 import { NotificationService } from '@iptvnator/services/notifications';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import {
     ChannelListSkeletonComponent,
     MenuItemRadioCheckDirective,
@@ -34,9 +34,7 @@ import {
 } from '@iptvnator/ui/components';
 import {
     clearNavigationStateKeys,
-    CollectionContentType,
     CollectionScope,
-    FavoritesChannelSortMode,
     getOpenLiveCollectionItemState,
     isTypingInInput,
     LiveLayoutSidebarStateService,
@@ -74,6 +72,7 @@ import { setupCollectionLoad } from './unified-collection-load';
 import { createCollectionScopeState } from './unified-collection-scope';
 import { collectionSkeletonShowsEpg } from './unified-collection-skeleton';
 import { UnifiedCollectionDetailDirective } from './unified-collection-detail.directive';
+import { createFavoriteFoldersView } from '../favorite-channel-folders/favorite-folders-view';
 import { StateViewComponent } from '@iptvnator/ui/state';
 
 @Component({
@@ -102,6 +101,7 @@ import { StateViewComponent } from '@iptvnator/ui/state';
 })
 export class UnifiedCollectionPageComponent implements AfterContentInit {
     readonly mode = input<CollectionMode>('favorites');
+    readonly enableFavoriteFolders = input(false);
     readonly portalType = input<string>();
     readonly playlistIdInput = input<string | undefined>(undefined, {
         alias: 'playlistId',
@@ -134,11 +134,13 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     private readonly viewStateHistory = new CollectionViewStateHistory();
 
     readonly isLoading = this.data.isLoading;
+    readonly showInitialLoading = computed(
+        () => this.isLoading() || this.folderView.isLoading()
+    );
     readonly isReloading = this.data.isReloading;
     readonly showReloadIndicator = this.data.showReloadIndicator;
     readonly allItems = this.data.allItems;
     readonly favoriteUidSet = this.data.favoriteUidSet;
-    readonly skeletonRows = Array.from({ length: 12 }, (_, i) => i);
     readonly skeletonCards = Array.from({ length: 8 }, (_, i) => i);
     readonly pendingAutoOpenLiveItem = signal(
         getOpenLiveCollectionItemState(window.history.state)
@@ -146,9 +148,14 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
 
     private readonly contentType = createCollectionContentTypeState(
         this.allItems,
-        this.viewStateHistory.current()?.selectedContentType ?? 'live'
+        this.viewStateHistory.current()?.selectedContentType ?? 'live',
+        {
+            enabled: this.enableFavoriteFolders,
+            hasFolders: () => this.folderView.folders().length > 0,
+        }
     );
     readonly selectedContentType = this.contentType.selected;
+    readonly onContentTypeChange = this.contentType.select;
     readonly liveItems = this.contentType.liveItems;
     readonly movieItems = this.contentType.movieItems;
     readonly seriesItems = this.contentType.seriesItems;
@@ -159,14 +166,14 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     readonly currentTypeItems = this.contentType.currentTypeItems;
     readonly currentTypeLabelKey = this.contentType.currentTypeLabelKey;
 
-    readonly scopeKey = computed(() => this.mode());
     private readonly scopeState = createCollectionScopeState({
-        scopeKey: this.scopeKey,
+        scopeKey: this.mode,
         playlistId: this.playlistId,
         defaultScope: this.defaultScope,
         historyScope: computed(() => this.viewStateHistory.current()?.scope),
     });
     readonly scope = this.scopeState.scope;
+    readonly onScopeChange = this.scopeState.select;
     readonly showScopeToggle = this.scopeState.showToggle;
     readonly effectiveScope = this.scopeState.effective;
     /** Skeleton rows reserve the programme line like the rows they stand for. */
@@ -178,6 +185,11 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
                 this.runtime.supportsProviderEpg,
         })
     );
+    private readonly requestedScope = computed<CollectionLoadRequest>(() => ({
+        scope: this.effectiveScope(),
+        playlistId: this.playlistId(),
+        portalType: this.portalType(),
+    }));
     /**
      * Scope of the rows on screen. Every action on them (Clear, drag
      * reorder) uses this instead of `effectiveScope()`, which already names
@@ -185,13 +197,8 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
      * against global rows would delete other playlists' favorites or write
      * foreign URLs into this playlist.
      */
-    private readonly mutationRequest = computed<CollectionLoadRequest>(
-        () =>
-            this.data.loadedRequest() ?? {
-                scope: this.effectiveScope(),
-                playlistId: this.playlistId(),
-                portalType: this.portalType(),
-            }
+    private readonly mutationRequest = computed(
+        () => this.data.loadedRequest() ?? this.requestedScope()
     );
 
     private readonly labels = createCollectionModeLabels(this.mode);
@@ -205,6 +212,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     readonly favSortMode = this.favoritesSort.mode;
     readonly favSortLabelKey = this.favoritesSort.labelKey;
     readonly favSortOptions = this.favoritesSort.options;
+    readonly setFavSortMode = this.favoritesSort.setMode;
     readonly showFavSortButton = computed(
         () =>
             this.mode() === 'favorites' &&
@@ -214,7 +222,9 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     readonly isSidebarCollapsed =
         this.liveSidebarStateService.isCollapsedFor('collection');
     readonly showSidebarToggle = computed(
-        () => this.selectedContentType() === 'live' && this.hasLive()
+        () =>
+            this.selectedContentType() === 'live' &&
+            (this.hasLive() || this.enableFavoriteFolders())
     );
 
     private readonly loadEffect = setupCollectionLoad({
@@ -238,14 +248,9 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         isPlaylistScope: () => this.mutationRequest().scope === 'playlist',
         data: this.data,
         dropCurrentType: () => this.dropCurrentContentType(),
-        reload: () =>
-            this.loadData({
-                mode: this.mode(),
-                portalType: this.portalType(),
-                playlistId: this.playlistId(),
-                scope: this.effectiveScope(),
-            }),
+        reload: () => this.loadCurrentScope(),
     });
+    readonly clearAllCurrent = this.clearAction.run;
     private readonly detailState = createCollectionDetailState({
         items: this.allItems,
         isLoading: this.isLoading,
@@ -259,6 +264,18 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     readonly selectedDetailSeriesResume = this.detailState.seriesResume;
     readonly detailContext = this.detailState.context;
     readonly isDetailPending = this.detailState.isPending;
+    readonly folderView = createFavoriteFoldersView({
+        enabled: this.enableFavoriteFolders,
+        active: computed(
+            () =>
+                this.selectedContentType() === 'live' &&
+                !this.showInitialLoading() &&
+                !this.detailContext() &&
+                !this.isDetailPending()
+        ),
+        items: this.liveItems,
+        search: this.workspaceSearchTerm,
+    });
 
     constructor() {
         setupClearCollectionViewCommand({
@@ -290,28 +307,18 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     @HostListener('window:iptvnator-history-changed')
     @HostListener('window:iptvnator-favorites-changed')
     onFavoritesChanged(): void {
-        void this.loadData({
-            mode: this.mode(),
-            portalType: this.portalType(),
-            playlistId: this.playlistId(),
-            scope: this.effectiveScope(),
-        });
-    }
-
-    onScopeChange(value: CollectionScope): void {
-        this.scopeState.select(value);
-    }
-
-    onContentTypeChange(value: CollectionContentType): void {
-        this.selectedContentType.set(value);
+        void this.loadCurrentScope();
     }
 
     goToDashboard(): void {
         void this.router.navigate(['/workspace', 'dashboard']);
     }
 
-    toggleSidebar(): void {
+    toggleSidebar(restoreFocus = false): void {
         this.liveSidebarStateService.toggle('collection');
+        if (restoreFocus && this.enableFavoriteFolders()) {
+            this.folderView.focusSidebarToggle();
+        }
     }
 
     /**
@@ -337,10 +344,6 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         }
     }
 
-    setFavSortMode(mode: FavoritesChannelSortMode): void {
-        this.favoritesSort.setMode(mode);
-    }
-
     onGridItemSelected(item: UnifiedCollectionItem): void {
         if (isCatalogUnavailable(item)) return;
         this.viewStateSync.commitCurrent();
@@ -364,7 +367,11 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     }
 
     async onRemoveItem(item: UnifiedCollectionItem): Promise<void> {
-        await this.data.removeItem(this.mode(), item);
+        try {
+            await this.data.removeItem(this.mode(), item);
+        } catch {
+            this.notifications.error('PORTALS.FAVORITE_SAVE_FAILED');
+        }
     }
 
     async onFavoriteToggled(item: UnifiedCollectionItem): Promise<void> {
@@ -384,12 +391,11 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         }
     }
 
-    clearAllCurrent(): void {
-        this.clearAction.run();
-    }
-
     async onReorder(items: UnifiedCollectionItem[]): Promise<void> {
-        await this.data.reorder(items, this.mutationRequest());
+        await this.data.reorder(
+            this.folderView.mergeReorderedItems(items),
+            this.mutationRequest()
+        );
     }
 
     onItemPlayed(item: UnifiedCollectionItem): void {
@@ -408,16 +414,21 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     /** Take the just-cleared tab off screen and move to a remaining one. */
     private dropCurrentContentType(): void {
         this.data.dropContentType(this.selectedContentType());
-        this.contentType.autoSelect();
+        this.autoSelectContentType();
+    }
+
+    private loadCurrentScope(): Promise<void> {
+        return this.loadData({ mode: this.mode(), ...this.requestedScope() });
     }
 
     private async loadData(
         params: CollectionLoadRequest & { mode: CollectionMode }
     ): Promise<void> {
-        const items = await this.data.load(params);
-        if (!items) {
-            return;
-        }
+        const [items] = await Promise.all([
+            this.data.load(params),
+            this.folderView.load(),
+        ]);
+        if (!items) return;
 
         this.autoSelectContentType();
         if (
