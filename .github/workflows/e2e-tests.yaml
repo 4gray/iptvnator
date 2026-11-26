@@ -262,6 +262,64 @@ jobs:
                       dist/test-results/electron-backend-e2e/
                   retention-days: 7
 
+    # The self-hosted source-sync specs (including profiles-ipc) skip
+    # themselves unless their own config sets IPTVNATOR_E2E_SOURCE_SYNC, so
+    # the sharded run above never runs them. They need their own mock
+    # servers and web server, so they get one Ubuntu job.
+    electron-source-sync-e2e:
+        name: Electron source-sync E2E on Ubuntu
+        needs: build-electron-e2e
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        env:
+            IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS: '1'
+            NX_SKIP_NX_CACHE: true
+
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v6.1.0
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: '.nvmrc'
+                  cache: 'pnpm'
+
+            - name: Install Dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Download Electron E2E bundle
+              uses: actions/download-artifact@v8
+              with:
+                  name: electron-e2e-build
+                  path: dist
+
+            - name: Prepare Electron binary
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: node tools/testing/electron/ensure-electron-binary.mjs
+
+            # history-sync.e2e.ts drives a Playwright browser next to Electron.
+            - name: Install Playwright Chromium
+              run: pnpm exec playwright install --with-deps chromium
+
+            - name: Run source-sync E2E Tests
+              run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" pnpm exec playwright test --config=apps/electron-backend-e2e/playwright.source-sync.config.ts
+              env:
+                  CI: true
+
+            - name: Upload source-sync test results
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: playwright-report-electron-source-sync
+                  path: |
+                      dist/playwright-report/electron-backend-e2e/
+                      dist/test-results/electron-backend-e2e/
+                  retention-days: 7
+
     electron-e2e-summary:
         name: Electron E2E summary
         runs-on: ubuntu-latest
