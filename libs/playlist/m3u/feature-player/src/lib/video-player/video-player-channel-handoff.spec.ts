@@ -239,9 +239,12 @@ describe('VideoPlayerComponent — channel handoff', () => {
         const withheld = jest
             .spyOn(lock, 'isM3uGroupLocked')
             .mockReturnValue(true);
+        let answer: (allowed: boolean) => void = () => undefined;
         const unlock = jest
             .spyOn(lock, 'requestUnlock')
-            .mockResolvedValue(false);
+            .mockReturnValue(
+                new Promise<boolean>((resolve) => (answer = resolve))
+            );
         const isPlaybackOf = (channel: Channel) =>
             ChannelActions.setActiveChannel({
                 channel,
@@ -249,6 +252,10 @@ describe('VideoPlayerComponent — channel handoff', () => {
             });
 
         handOver([sampleChannel, film], film);
+        // The navigation that carries the handoff re-runs the effect while
+        // the prompt is open: one target asks only once.
+        handOver([sampleChannel, film], film);
+        answer(false);
         await fixture.whenStable();
 
         expect(unlock).toHaveBeenCalledTimes(1);

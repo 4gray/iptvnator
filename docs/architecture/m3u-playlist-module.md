@@ -2241,7 +2241,8 @@ coordinate holds dozens of rows.
   (`m3u-series-placement.util.ts`). One row at a season×episode holds the
   coordinate and the id derived from it, chosen independently of row order
   (`holdsCoordinateBefore`: the shorter name, then the name, the file name
-  and only then the playback key, whose URL tokens rotate), so a refresh that reorders "Part 1" and "Part 2" leaves each its
+  and only then the playback key, whose URL tokens rotate), so a refresh
+  that reorders "Part 1" and "Part 2" leaves each its
   watched mark and resume point, and a variant added later ("… FHD")
   normally leaves the episode its id. The other rows there with another URL
   (a second quality, a "Part 2", a trailer, a show whose title merely

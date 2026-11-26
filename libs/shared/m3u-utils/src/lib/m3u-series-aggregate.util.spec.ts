@@ -714,11 +714,12 @@ describe('buildM3uSeriesCatalog', () => {
         });
         const episodes = (rows: ReturnType<typeof row>[]) =>
             buildM3uSeriesCatalog(rows, 'pl-1')[0].seasons.get(1) ?? [];
+        // The longer names keep the clip an extra row at both numbers.
         const rows = [
             row('SHOW S1 E3'),
-            fallback('SHOW S1 E3'),
+            fallback('SHOW S1 E3 BACKUP'),
             row('SHOW S1 E5'),
-            fallback('SHOW S1 E5'),
+            fallback('SHOW S1 E5 BACKUP'),
         ];
 
         const listed = episodes(rows);
