@@ -141,7 +141,7 @@ for (const provider of ['xtream', 'stalker'] as const)
                 await page.waitForURL(/\/workspace\/global-recent$/);
                 await contentCardByTitle(page, title).click();
                 await expect(
-                    page.getByRole('button', { name: /^(Play|Resume)\b/ })
+                    page.locator('[data-testid="vod-primary-action"]')
                 ).toBeEnabled();
                 expect((await read()).state.revision).toBe(first.revision);
             }
