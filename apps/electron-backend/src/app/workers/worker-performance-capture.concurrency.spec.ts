@@ -6,13 +6,32 @@ import {
     releaseDatabaseWorkerPerformanceCapture,
     startWorkerPerformanceCapture,
     type WorkerPerformanceCapture,
+    type WorkerPerformanceCaptureRuntime,
 } from './worker-performance-capture';
+import { DEFAULT_WORKER_PERFORMANCE_RUNTIME } from './worker-performance-capture.runtime';
 import { createFakeRuntime } from './worker-performance-capture.test-harness';
 
 const PROFILING_ENV = 'IPTVNATOR_PERF_WORKER_PROFILING';
 
 const BLOCK_DURATION_MS = 20;
 const REAL_TIMER_TEST_TIMEOUT_MS = 30_000;
+
+/**
+ * The real Node histogram needs two timer turns to produce its first sample.
+ * CI scheduler delays can exceed the normal 50ms wait budget. Scale only
+ * the injectable test wait clock; preserve real timers, sampling, assertions,
+ * and the 50-poll safety limit. No production behavior is altered.
+ */
+const WAIT_DEADLINE_CLOCK_SCALE = 50;
+
+function createRuntimeWithScaledWaitDeadline(): WorkerPerformanceCaptureRuntime {
+    return {
+        ...DEFAULT_WORKER_PERFORMANCE_RUNTIME,
+        readMonotonicMs: () =>
+            DEFAULT_WORKER_PERFORMANCE_RUNTIME.readMonotonicMs() /
+            WAIT_DEADLINE_CLOCK_SCALE,
+    };
+}
 
 describe('worker performance capture concurrency and real timers', () => {
     const originalProfilingValue = process.env[PROFILING_ENV];
@@ -79,7 +98,9 @@ describe('worker performance capture concurrency and real timers', () => {
             process.env[PROFILING_ENV] = '1';
 
             // No `enabled` override: the env variable is the opt-in under test.
-            const capture = startWorkerPerformanceCapture();
+            const capture = startWorkerPerformanceCapture({
+                runtime: createRuntimeWithScaledWaitDeadline(),
+            });
 
             expect(capture).not.toBeNull();
 
