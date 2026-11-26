@@ -3,9 +3,6 @@
         [formGroup]="settingsForm"
         (ngSubmit)="onSubmit()"
         class="settings-layout"
-        [class.settings-layout--server]="
-            activeSection() === 'server' && !search.isSearching()
-        "
         novalidate
     >
         @if (!libraryReady()) {
@@ -153,6 +150,9 @@
                             (lockNow)="parentalLock.lockNow()"
                             (unlock)="parentalLock.unlock()"
                         />
+                    }
+                    @case ('profiles') {
+                        <app-settings-profiles-section />
                     }
                     @case ('server') {
                         <app-settings-server-section />

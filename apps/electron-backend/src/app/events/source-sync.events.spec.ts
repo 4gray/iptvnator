@@ -272,6 +272,123 @@ describe('native source transport and connection IPC', () => {
         );
     });
 
+    it('sends validated profile requests through the narrow source IPC route', async () => {
+        const send = handler(SOURCE_SYNC_REQUEST);
+        const profileId = '11111111-1111-4111-8111-111111111111';
+        await send(
+            {},
+            {
+                operation: 'profile-create',
+                profile: { name: 'Synthetic' },
+            }
+        );
+        await send({}, { operation: 'profiles-list', revision: '7' });
+        await send(
+            {},
+            {
+                operation: 'profile-delete',
+                id: profileId,
+                profile: { currentPin: '1234' },
+            }
+        );
+        const calls = (requestWithValidatedRedirects as jest.Mock).mock.calls;
+        expect(calls[1]).toEqual([
+            `${connection.apiUrl}/v1/profiles`,
+            expect.objectContaining({
+                method: 'POST',
+                data: { name: 'Synthetic' },
+                headers: expect.objectContaining({
+                    Authorization: 'Bearer synthetic-nas-token',
+                    'X-IPTVnator-Instance-Id': 'nas',
+                    'Content-Type': 'application/json',
+                }),
+            }),
+            expect.anything(),
+            0,
+        ]);
+        expect(calls[2][0]).toBe(`${connection.apiUrl}/v1/profiles`);
+        expect(calls[2][1]).toMatchObject({
+            method: 'GET',
+            headers: expect.objectContaining({
+                'If-None-Match': '"profiles-7"',
+            }),
+        });
+        expect(calls[3][0]).toBe(
+            `${connection.apiUrl}/v1/profiles/${profileId}`
+        );
+        expect(calls[3][1]).toMatchObject({
+            method: 'DELETE',
+            data: { currentPin: '1234' },
+        });
+    });
+
+    it('rejects an invalid profile payload before the source transport probes', async () => {
+        await expect(
+            handler(SOURCE_SYNC_REQUEST)({}, {
+                operation: 'profile-create',
+                profile: { name: 'Synthetic', unexpected: true },
+            } as never)
+        ).rejects.toThrow('Invalid source request');
+        expect(requestWithValidatedRedirects).not.toHaveBeenCalled();
+    });
+
+    it('sends profile targets over the hosted worker transport', async () => {
+        const apiUrl = 'http://127.0.0.1:4334/api';
+        const instanceId = 'synthetic-hosted-instance';
+        const request = jest.fn(async ({ path }: { path: string }) => ({
+            status: path === '/v1/instance' ? 200 : 201,
+            body:
+                path === '/v1/instance'
+                    ? { ...instance, instanceId }
+                    : { id: '11111111-1111-4111-8111-111111111111' },
+        }));
+        (readSourceServerConfig as jest.Mock).mockReturnValue({
+            apiUrl,
+            instanceId,
+            hosted: true,
+        });
+        jest.mocked(store.get).mockReturnValue(instanceId);
+        setHostedServerSession({ instanceId, code: 'synthetic-code', request });
+        await handler(SOURCE_SYNC_REQUEST)(
+            {},
+            {
+                operation: 'profile-create',
+                profile: { name: 'Synthetic' },
+            }
+        );
+        expect(request.mock.calls[1][0]).toEqual({
+            path: '/v1/profiles',
+            method: 'POST',
+            headers: { 'X-IPTVnator-Instance-Id': instanceId },
+            body: { name: 'Synthetic' },
+        });
+        expect(requestWithValidatedRedirects).not.toHaveBeenCalled();
+    });
+
+    it('propagates Retry-After from Axios profile responses', async () => {
+        (requestWithValidatedRedirects as jest.Mock)
+            .mockResolvedValueOnce({
+                status: 200,
+                headers: {},
+                data: instance,
+            })
+            .mockResolvedValueOnce({
+                status: 429,
+                headers: { 'retry-after': '30' },
+                data: { code: 'pin_rate_limited' },
+            });
+        await expect(
+            handler(SOURCE_SYNC_REQUEST)(
+                {},
+                {
+                    operation: 'profile-unlock',
+                    id: '11111111-1111-4111-8111-111111111111',
+                    profile: { pin: '1234' },
+                }
+            )
+        ).resolves.toMatchObject({ status: 429, retryAfter: 30 });
+    });
+
     it('withholds the transfer payload after a server change and forwards it only to the selected instance', async () => {
         const send = handler(SOURCE_SYNC_REQUEST);
         const request = {

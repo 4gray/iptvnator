@@ -43,7 +43,7 @@ $ruler-height: 34px;
     display: flex;
     align-items: center;
     padding: 0 14px;
-    font: 500 10px $font-mono;
+    font: 500 var(--app-text-2xs) $font-mono;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: $text-tertiary;
@@ -71,14 +71,14 @@ $ruler-height: 34px;
     display: flex;
     align-items: center;
     border-left: 1px solid $line-strong;
-    font: 11px $font-mono;
+    font: var(--app-text-2xs) $font-mono;
     color: $text-secondary;
     font-variant-numeric: tabular-nums;
 
     &.is-half {
         border-left-color: $line;
         color: $text-tertiary;
-        font-size: 10px;
+        font-size: var(--app-text-2xs);
     }
 }
 
@@ -88,7 +88,7 @@ $ruler-height: 34px;
     transform: translateX(-50%);
     background: $accent-live;
     color: $on-live;
-    font: 600 10.5px $font-mono;
+    font: 600 var(--app-text-2xs) $font-mono;
     padding: 3px 7px;
     border-radius: 5px;
     z-index: 5;
@@ -145,7 +145,7 @@ $ruler-height: 34px;
     height: 34px;
     padding: 0 18px;
     border-top: 1px solid $line;
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     color: $text-tertiary;
     flex: 0 0 auto;
 
@@ -154,7 +154,7 @@ $ruler-height: 34px;
     }
 
     kbd {
-        font: 10px $font-mono;
+        font: var(--app-text-2xs) $font-mono;
         color: $text-secondary;
         border: 1px solid $line-strong;
         border-radius: 4px;
@@ -205,12 +205,12 @@ $ruler-height: 34px;
 }
 
 .epg-guide__search-title {
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     font-weight: 500;
 }
 
 .epg-guide__search-meta {
-    font: 10.5px $font-mono;
+    font: var(--app-text-2xs) $font-mono;
     color: $text-tertiary;
 }
 
@@ -218,5 +218,5 @@ $ruler-height: 34px;
     padding: 14px;
     text-align: center;
     color: $text-tertiary;
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
 }

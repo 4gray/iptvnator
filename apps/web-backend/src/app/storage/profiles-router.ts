@@ -39,7 +39,11 @@ export function createProfilesRouter(
     const profiles = storage.profiles;
 
     router.use('/profiles', (req, res, next) => {
-        res.set('Cache-Control', 'no-store');
+        // A browser on another origin reads these headers only when listed.
+        res.set({
+            'Cache-Control': 'no-store',
+            'Access-Control-Expose-Headers': 'ETag, Retry-After',
+        });
         if (
             req.get('x-iptvnator-instance-id') !== storage.database.instanceId
         ) {
@@ -250,7 +254,7 @@ export function createProfilesRouter(
             ETag: etag,
             // Revalidated on every use; there is no PIN data in the list.
             'Cache-Control': 'no-cache',
-            'Access-Control-Expose-Headers': 'ETag',
+            'Access-Control-Expose-Headers': 'ETag, Retry-After',
         });
         if (
             req.method === 'GET' &&

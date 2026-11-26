@@ -4,6 +4,11 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { ParentalLockPromptRequest } from './parental-lock-prompt.token';
 
+export type PromptTexts = Pick<
+    ParentalLockPromptRequest,
+    'titleKey' | 'descriptionKey'
+>;
+
 type PromptLabels = Pick<
     ParentalLockPromptRequest,
     'titleKey' | 'descriptionKey' | 'submitKey'
@@ -45,12 +50,14 @@ export function unlockPinRequest(
 export function confirmPinRequest(
     hash: string,
     throttle: ParentalLockPinThrottle,
-    submitKey: string
+    submitKey: string,
+    labels: Pick<PromptLabels, 'titleKey' | 'descriptionKey'> = {}
 ): ParentalLockPromptRequest {
     return currentPinRequest(hash, throttle, {
         titleKey: 'PARENTAL_LOCK.PIN_DIALOG.CONFIRM_TITLE',
         descriptionKey: 'PARENTAL_LOCK.PIN_DIALOG.CONFIRM_DESCRIPTION',
         submitKey,
+        ...labels,
     });
 }
 

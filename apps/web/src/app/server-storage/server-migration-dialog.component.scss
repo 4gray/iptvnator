@@ -42,7 +42,7 @@
 
 .server-migration .server-migration__hint {
     color: var(--app-muted-color);
-    font-size: 0.8rem;
+    font-size: var(--app-text-sm);
 }
 
 .server-migration .server-migration__error {

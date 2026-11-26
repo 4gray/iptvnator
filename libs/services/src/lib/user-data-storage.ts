@@ -66,3 +66,8 @@ export const USER_DATA_STORAGE = new InjectionToken<UserDataStorage>(
     'USER_DATA_STORAGE',
     { providedIn: 'root', factory: createBrowserUserDataStorage }
 );
+
+export {
+    editPwaXtreamVisibility,
+    readPwaXtreamVisibility,
+} from './pwa-xtream-category-visibility';

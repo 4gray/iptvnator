@@ -22,11 +22,11 @@
     display: grid;
     gap: 8px;
     max-width: 72ch;
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     color: var(--app-body-color);
 }
 .settings-group__header h2 {
-    font-size: 18px;
+    font-size: var(--app-text-xl);
 }
 .activity-actions {
     display: flex;

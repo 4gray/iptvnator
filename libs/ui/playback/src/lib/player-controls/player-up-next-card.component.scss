@@ -89,7 +89,7 @@
 // looks designed without artwork.
 .player-up-next__placeholder {
     color: var(--pc-text-secondary, #9aa3b2);
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     font-weight: 700;
     letter-spacing: 0.04em;
 }
@@ -118,7 +118,7 @@
 
 .player-up-next__eyebrow {
     color: var(--pc-text-secondary, #9aa3b2);
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     letter-spacing: 0.04em;
     text-transform: uppercase;
     white-space: nowrap;
@@ -159,7 +159,7 @@
 
 .player-up-next__title {
     overflow: hidden;
-    font-size: 14px;
+    font-size: var(--app-text-md);
     font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -187,11 +187,11 @@
 }
 
 :host(.player-up-next--compact) .player-up-next__eyebrow {
-    font-size: 9px;
+    font-size: var(--app-text-2xs);
 }
 
 :host(.player-up-next--compact) .player-up-next__title {
-    font-size: 11.5px;
+    font-size: var(--app-text-xs);
 }
 
 // Collapsed: a single-line pill with the label and countdown; the thumbnail

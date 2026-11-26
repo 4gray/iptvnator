@@ -1,0 +1,25 @@
+:host {
+    display: block;
+}
+
+.profile-pin-dialog__content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.profile-pin-dialog__field {
+    width: 100%;
+
+    input {
+        letter-spacing: 0.3em;
+        font-size: var(--app-text-xl);
+    }
+}
+
+.profile-pin-dialog__error {
+    margin: 0;
+    color: var(--app-danger-text);
+    font-size: var(--app-text-sm);
+    overflow-wrap: anywhere;
+}

@@ -17,7 +17,7 @@ TV, browse movies and series, and pick up where you left off.
 [![CI](https://img.shields.io/github/actions/workflow/status/4gray/iptvnator/ci.yml?branch=master&label=CI)](https://github.com/4gray/iptvnator/actions/workflows/ci.yml)
 [![Downloads](https://img.shields.io/github/downloads/4gray/iptvnator/total)](https://github.com/4gray/iptvnator/releases)
 
-![IPTVnator dashboard with continue watching and live favorites in light and dark themes](./apps/website/public/screenshots/dashboard-themes.webp)
+![IPTVnator live channels with the inline player and program timeline](./apps/website/public/screenshots/screenshot-player.webp)
 
 > [!IMPORTANT]
 > IPTVnator is a **player**: it does not provide or sell subscriptions, channels,

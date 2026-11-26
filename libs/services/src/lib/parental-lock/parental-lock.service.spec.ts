@@ -559,6 +559,41 @@ describe('ParentalLockService', () => {
         expect(prompt.requestPin.mock.calls[0][0].mode).toBe('unlock');
     });
 
+    it('confirmPin asks for the PIN in an unlocked session and keeps the lock state', async () => {
+        storage.pinHash = await hashParentalLockPin('1234');
+        parentalLockEnabled.set(true);
+        prompt.requestPin.mockImplementation(
+            async (request: ParentalLockPromptRequest) =>
+                (await request.verify?.('1234')) ? '1234' : null
+        );
+        const service = await createService();
+        await service.requestUnlock();
+        TestBed.flushEffects();
+        expect(service.unlocked()).toBe(true);
+        prompt.requestPin.mockClear();
+
+        await expect(
+            service.confirmPin({ titleKey: 'SYNTHETIC.TITLE' })
+        ).resolves.toBe(true);
+        expect(prompt.requestPin).toHaveBeenCalledTimes(1);
+        expect(prompt.requestPin.mock.calls[0][0]).toMatchObject({
+            mode: 'unlock',
+            titleKey: 'SYNTHETIC.TITLE',
+            submitKey: 'PARENTAL_LOCK.PIN_DIALOG.CONFIRM',
+        });
+        expect(service.unlocked()).toBe(true);
+
+        prompt.requestPin.mockResolvedValueOnce(null);
+        await expect(service.confirmPin()).resolves.toBe(false);
+        expect(service.unlocked()).toBe(true);
+    });
+
+    it('confirmPin does not ask while the feature is off', async () => {
+        const service = await createService();
+        await expect(service.confirmPin()).resolves.toBe(true);
+        expect(prompt.requestPin).not.toHaveBeenCalled();
+    });
+
     it('labels each prompt with the verb of its flow', async () => {
         prompt.requestPin.mockImplementation(
             async (request: ParentalLockPromptRequest) =>

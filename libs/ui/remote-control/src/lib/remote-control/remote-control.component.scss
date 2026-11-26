@@ -73,13 +73,13 @@
     display: flex;
     align-items: center;
     gap: 7px;
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     color: var(--ink-dim);
     white-space: nowrap;
 }
 
 .now-card__label {
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     text-transform: uppercase;
     letter-spacing: 0.13em;
     color: var(--ink-dim);
@@ -87,7 +87,7 @@
 
 .now-card__channel {
     margin-top: 5px;
-    font-size: 18px;
+    font-size: var(--app-text-xl);
     font-weight: 700;
     line-height: 1.2;
 }
@@ -96,13 +96,13 @@
     margin-top: 6px;
     display: flex;
     justify-content: space-between;
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     color: var(--ink-dim);
 }
 
 .now-card__program {
     margin-top: 8px;
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     color: #b6d5ea;
 }
 
@@ -114,7 +114,7 @@
 }
 
 .cluster__title {
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     text-transform: uppercase;
     letter-spacing: 0.11em;
     color: var(--ink-dim);
@@ -219,7 +219,7 @@
 }
 
 .keypad__key--alt {
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     letter-spacing: 0.06em;
 }
 
@@ -240,7 +240,7 @@
     border: 1px solid rgba(167, 218, 255, 0.34);
     background: rgba(15, 38, 55, 0.84);
     color: var(--ink);
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     font-weight: 700;
     letter-spacing: 0.06em;
 }
@@ -271,7 +271,7 @@
 .volume-caption {
     margin-top: 6px;
     color: var(--ink-dim);
-    font-size: 12px;
+    font-size: var(--app-text-xs);
 }
 
 .remote__error {
@@ -279,14 +279,14 @@
     border: 1px solid rgba(255, 117, 132, 0.5);
     background: rgba(78, 12, 24, 0.65);
     color: #ffd9de;
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     padding: 10px 12px;
 }
 
 .remote__footer {
     text-align: center;
     color: rgba(213, 238, 255, 0.72);
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     padding-bottom: 10px;
 }
 

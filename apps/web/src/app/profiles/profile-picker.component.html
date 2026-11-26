@@ -1,0 +1,81 @@
+<main class="profile-picker" data-test-id="profile-picker">
+    @if (loading()) {
+        <p class="profile-picker__status" role="status">
+            {{ 'PROFILES.PICKER.LOADING' | translate }}
+        </p>
+    } @else if (failed()) {
+        <app-state-view
+            variant="offline"
+            [heading]="'PROFILES.PICKER.OFFLINE_TITLE' | translate"
+            [description]="'PROFILES.PICKER.OFFLINE_DESCRIPTION' | translate"
+            [retryable]="true"
+            [actionLabel]="'PROFILES.PICKER.CONTINUE' | translate"
+            (retry)="retry()"
+            (action)="continueAsDefault()"
+        />
+    } @else {
+        <h1 class="profile-picker__title">
+            {{ 'PROFILES.PICKER.TITLE' | translate }}
+        </h1>
+        <div
+            class="profile-picker__grid"
+            role="group"
+            [attr.aria-label]="'PROFILES.PICKER.TITLE' | translate"
+        >
+            @for (profile of profiles(); track profile.id; let index = $index) {
+                <button
+                    #tile
+                    type="button"
+                    class="profile-picker__tile"
+                    [class.profile-picker__tile--active]="
+                        profile.id === activeId()
+                    "
+                    [attr.data-test-id]="'profile-tile-' + profile.id"
+                    [attr.aria-current]="
+                        profile.id === activeId() ? 'true' : null
+                    "
+                    [disabled]="busy()"
+                    (click)="choose(profile)"
+                    (keydown)="onKeydown($event, index)"
+                >
+                    <app-profile-avatar
+                        class="profile-picker__avatar"
+                        [name]="profile.name"
+                        [colour]="profile.colour"
+                        [emoji]="profile.emoji"
+                    />
+                    <span class="profile-picker__name">{{ profile.name }}</span>
+                    @if (profile.kids || profile.hasPin) {
+                        <span class="profile-picker__meta">
+                            @if (profile.kids) {
+                                <span>{{
+                                    'PROFILES.BADGE_KIDS' | translate
+                                }}</span>
+                            }
+                            @if (profile.hasPin) {
+                                <mat-icon
+                                    [attr.aria-label]="
+                                        'PROFILES.BADGE_PIN' | translate
+                                    "
+                                    >lock</mat-icon
+                                >
+                            }
+                        </span>
+                    }
+                </button>
+            }
+        </div>
+        @if (error(); as key) {
+            <p class="profile-picker__error" role="alert">
+                {{ key | translate }}
+            </p>
+        }
+        <a
+            class="profile-picker__manage"
+            data-test-id="profile-picker-manage"
+            [routerLink]="['/workspace/settings', 'profiles']"
+            (click)="markPicked()"
+            >{{ 'PROFILES.PICKER.MANAGE' | translate }}</a
+        >
+    }
+</main>

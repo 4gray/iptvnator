@@ -10,6 +10,10 @@ import {
     serverAccessGuard,
     serverSignInGuard,
 } from './server-storage/server-access.guard';
+import {
+    profilePickerGuard,
+    profilePickerRouteGuard,
+} from './profiles/profile-picker.guard';
 import { settingsUnsavedChangesGuard } from './settings/settings-unsaved-changes.guard';
 
 // The workspace activates only once settings AND the parental lock state
@@ -81,7 +85,7 @@ export const routes: Routes = [
     },
     {
         path: 'workspace',
-        canActivate: [serverAccessGuard],
+        canActivate: [serverAccessGuard, profilePickerGuard],
         resolve: {
             settingsReady: settingsReadyResolver,
         },
@@ -211,6 +215,14 @@ export const routes: Routes = [
                 ],
             },
         ],
+    },
+    {
+        path: 'profile-picker',
+        canActivate: [serverAccessGuard, profilePickerRouteGuard],
+        loadComponent: () =>
+            import('./profiles/profile-picker.component').then(
+                (c) => c.ProfilePickerComponent
+            ),
     },
     {
         path: 'server-sign-in',

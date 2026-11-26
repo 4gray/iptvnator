@@ -11,7 +11,7 @@
     width: 300px;
     max-width: calc(100vw - 96px);
     padding: 10px 12px;
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     line-height: 1.4;
 }
 

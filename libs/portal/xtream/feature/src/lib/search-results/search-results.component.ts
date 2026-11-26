@@ -17,7 +17,10 @@ import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { DatabaseService } from '@iptvnator/services';
+import {
+    DatabaseService,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import { ContentCardComponent } from '@iptvnator/portal/shared/ui';
 import { SearchLayoutComponent } from '@iptvnator/portal/shared/ui';
 import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
@@ -122,11 +125,17 @@ export class SearchResultsComponent implements AfterViewInit {
             'false'
     );
 
-    /** Whether to exclude content from hidden categories */
+    private readonly isPwaPortalSearch =
+        !this.isGlobalSearch &&
+        !inject(RuntimeCapabilitiesService).supportsXtreamSqliteDataSource;
+    private readonly visibilityStorageKey = this.isPwaPortalSearch
+        ? 'xtream-pwa-search-exclude-hidden'
+        : SearchResultsComponent.EXCLUDE_HIDDEN_STORAGE_KEY;
+
+    /** Whether to exclude content from hidden categories. */
     readonly excludeHidden = signal(
-        localStorage.getItem(
-            SearchResultsComponent.EXCLUDE_HIDDEN_STORAGE_KEY
-        ) === 'true'
+        (localStorage.getItem(this.visibilityStorageKey) ??
+            String(this.isPwaPortalSearch)) === 'true'
     );
 
     readonly filterConfig = [
@@ -531,10 +540,7 @@ export class SearchResultsComponent implements AfterViewInit {
 
     toggleExcludeHidden(value: boolean) {
         this.excludeHidden.set(value);
-        localStorage.setItem(
-            SearchResultsComponent.EXCLUDE_HIDDEN_STORAGE_KEY,
-            String(value)
-        );
+        localStorage.setItem(this.visibilityStorageKey, String(value));
         if (this.searchTerm().length >= this.minSearchLength) {
             this.executeSearch();
         }

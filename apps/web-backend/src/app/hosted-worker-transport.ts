@@ -60,6 +60,12 @@ export function createHostedWorkerTransport(app: Express) {
                     });
                     response.on('error', reject);
                     response.on('end', () => {
+                        const retryAfter = response.headers['retry-after'];
+                        const retryAfterSeconds =
+                            typeof retryAfter === 'string' &&
+                            /^\d+$/.test(retryAfter)
+                                ? Number(retryAfter)
+                                : undefined;
                         const text = Buffer.concat(chunks).toString();
                         let body: unknown = text;
                         if (
@@ -78,6 +84,10 @@ export function createHostedWorkerTransport(app: Express) {
                         resolve({
                             status: response.statusCode!,
                             etag: response.headers.etag,
+                            ...(retryAfterSeconds !== undefined &&
+                            Number.isSafeInteger(retryAfterSeconds)
+                                ? { retryAfter: retryAfterSeconds }
+                                : {}),
                             body,
                         });
                     });

@@ -30,7 +30,7 @@
     gap: 8px;
     margin: 0;
     color: var(--app-eyebrow-color, var(--mat-sys-on-surface-variant));
-    font-size: 0.72rem;
+    font-size: var(--app-text-xs);
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -74,7 +74,7 @@
     border: 1px solid var(--app-separator);
     background: var(--mat-sys-surface-container);
     color: var(--app-body-color, var(--mat-sys-on-surface));
-    font-size: 0.72rem;
+    font-size: var(--app-text-xs);
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -136,14 +136,14 @@
 
 .channel-stat__label {
     color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
-    font-size: 0.72rem;
+    font-size: var(--app-text-xs);
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
 }
 
 .channel-stat__value {
-    font-size: 1.1rem;
+    font-size: var(--app-text-xl);
     font-weight: 600;
     letter-spacing: -0.02em;
     color: var(--app-heading-color, var(--mat-sys-on-surface));
@@ -153,7 +153,7 @@
 
     &--mono {
         font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
-        font-size: 0.92rem;
+        font-size: var(--app-text-lg);
         // JetBrains Mono is bundled up to 500; the value's 600 would be faked.
         font-weight: 500;
     }
@@ -162,7 +162,7 @@
         color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
         font-style: italic;
         font-weight: 500;
-        font-size: 0.88rem;
+        font-size: var(--app-text-md);
     }
 }
 
@@ -191,7 +191,7 @@
         flex: 1;
         min-width: 0;
         font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
-        font-size: 0.82rem;
+        font-size: var(--app-text-sm);
         line-height: 1.5;
         color: var(--app-body-color, var(--mat-sys-on-surface));
         overflow-wrap: anywhere;
@@ -234,7 +234,7 @@
 .channel-panel__eyebrow {
     margin: 0;
     color: var(--app-eyebrow-color, var(--mat-sys-on-surface-variant));
-    font-size: 0.72rem;
+    font-size: var(--app-text-xs);
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -264,7 +264,7 @@
 .channel-detail-row dt {
     margin: 0;
     color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
-    font-size: 0.72rem;
+    font-size: var(--app-text-xs);
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -273,7 +273,7 @@
 .channel-detail-row dd {
     margin: 0;
     color: var(--app-body-color, var(--mat-sys-on-surface));
-    font-size: 0.88rem;
+    font-size: var(--app-text-md);
     font-weight: 500;
     word-break: break-word;
     overflow-wrap: anywhere;
@@ -281,7 +281,7 @@
 
 .channel-detail-row__value--mono {
     font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
-    font-size: 0.82rem;
+    font-size: var(--app-text-sm);
 }
 
 .channel-detail-row__value--empty {
@@ -299,7 +299,7 @@
 .channel-chip-section__label {
     margin: 0;
     color: var(--app-eyebrow-color, var(--mat-sys-on-surface-variant));
-    font-size: 0.72rem;
+    font-size: var(--app-text-xs);
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;

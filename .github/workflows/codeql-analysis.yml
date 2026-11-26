@@ -9,9 +9,27 @@ on:
   workflow_dispatch:
   push:
     branches: [master]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.changes/**'
+      - '.plans/**'
+      - '.agents/**'
+      - '.codex/**'
+      - '.claude/**'
+      - 'apps/web/src/assets/i18n/**'
   pull_request:
     # The branches below must be a subset of the branches above
     branches: [master]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.changes/**'
+      - '.plans/**'
+      - '.agents/**'
+      - '.codex/**'
+      - '.claude/**'
+      - 'apps/web/src/assets/i18n/**'
   schedule:
     - cron: '0 20 * * 3'
 

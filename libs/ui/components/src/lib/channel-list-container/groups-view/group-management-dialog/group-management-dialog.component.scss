@@ -20,7 +20,7 @@
 }
 
 .selection-info {
-    font-size: 0.8125rem;
+    font-size: var(--app-text-sm);
     color: var(--mat-sys-on-surface-variant);
 
     strong {
@@ -72,7 +72,7 @@
     background: transparent;
     color: var(--mat-sys-on-surface);
     font: inherit;
-    font-size: 0.84rem;
+    font-size: var(--app-text-sm);
 
     &::placeholder {
         color: var(--mat-sys-on-surface-variant);
@@ -138,11 +138,11 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.8125rem;
+    font-size: var(--app-text-sm);
 }
 
 .item-count {
-    font-size: 0.8rem;
+    font-size: var(--app-text-sm);
     color: var(--mat-sys-on-surface-variant);
 }
 

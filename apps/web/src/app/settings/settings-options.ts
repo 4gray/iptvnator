@@ -170,6 +170,8 @@ export interface SettingsSectionVisibility {
     supportsRemoteControl: boolean;
     supportsServerStorage: boolean;
     supportsAndroidSettings?: boolean;
+    /** The profiles UI is on and the connected server supports profiles. */
+    supportsProfiles?: boolean;
 }
 
 export function buildSettingsSectionNavItems({
@@ -177,12 +179,14 @@ export function buildSettingsSectionNavItems({
     supportsRemoteControl,
     supportsServerStorage,
     supportsAndroidSettings = false,
+    supportsProfiles = false,
 }: SettingsSectionVisibility): SettingsSection[] {
     const capabilities = {
         'epg-display': supportsEpg,
         'remote-control': supportsRemoteControl,
         'server-storage': supportsServerStorage,
         'android-settings': supportsAndroidSettings,
+        profiles: supportsProfiles,
     };
     return SETTINGS_SECTION_DEFINITIONS.map((section) => ({
         id: section.id,

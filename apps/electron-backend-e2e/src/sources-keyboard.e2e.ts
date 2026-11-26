@@ -229,6 +229,22 @@ test.describe('Electron Sources keyboard', () => {
                 'mat-snack-bar-container.app-notification .source-removal-toast__undo'
             );
             await expect(undo).toBeFocused();
+            // The message and its actions share one row: a component toast
+            // does not get Material's row layout on its own.
+            const toast = page.locator(
+                'mat-snack-bar-container.app-notification app-source-removal-toast'
+            );
+            const label = await toast
+                .locator('.mat-mdc-snack-bar-label')
+                .boundingBox();
+            const actions = await toast
+                .locator('.mat-mdc-snack-bar-actions')
+                .boundingBox();
+            expect(label && actions).toBeTruthy();
+            expect(actions!.x).toBeGreaterThanOrEqual(
+                label!.x + label!.width - 1
+            );
+            expect(actions!.y).toBeLessThan(label!.y + label!.height);
             await page.keyboard.press('Enter');
 
             await expect(rows).toHaveCount(2);

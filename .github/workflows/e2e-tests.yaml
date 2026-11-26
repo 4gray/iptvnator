@@ -13,7 +13,19 @@ on:
             - '.claude/**'
             - 'apps/website/**'
     workflow_call:
+        inputs:
+            cross_platform:
+                description: 'Run macOS/Windows Electron shards and Windows hosted-server smoke in addition to Ubuntu'
+                type: boolean
+                required: false
+                default: true
     workflow_dispatch:
+        inputs:
+            cross_platform:
+                description: 'Run macOS/Windows Electron shards and Windows hosted-server smoke in addition to Ubuntu'
+                type: boolean
+                required: false
+                default: true
 
 # CI calls PR E2E only after fast validation. Its group must differ from the
 # caller: github.workflow is inherited by reusable workflows.
@@ -30,8 +42,77 @@ permissions:
     contents: read
 
 jobs:
+    # Builds the platform-independent Electron E2E JS/renderer/worker assets
+    # once and resolves the OS shard matrix so each shard downloads `dist/`
+    # instead of rebuilding 10 Nx targets from scratch.
+    build-electron-e2e:
+        name: Build Electron E2E bundle
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        outputs:
+            matrix: ${{ steps.plan.outputs.matrix }}
+            cross-platform: ${{ steps.plan.outputs.cross-platform }}
+        env:
+            CI: true
+            NX_SKIP_NX_CACHE: true
+            NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
+
+        steps:
+            - name: Resolve Electron E2E matrix
+              id: plan
+              env:
+                  EVENT_NAME: ${{ github.event_name }}
+                  INPUT_CROSS_PLATFORM: ${{ inputs.cross_platform }}
+              run: |
+                  set -euo pipefail
+                  if [ "${EVENT_NAME}" = "push" ] || [ "${INPUT_CROSS_PLATFORM}" = "true" ]; then
+                      cross_platform="true"
+                      matrix='{"include":[{"os":"ubuntu-latest","shard":1,"shard-total":3},{"os":"ubuntu-latest","shard":2,"shard-total":3},{"os":"ubuntu-latest","shard":3,"shard-total":3},{"os":"macos-latest","shard":1,"shard-total":2},{"os":"macos-latest","shard":2,"shard-total":2},{"os":"windows-latest","shard":1,"shard-total":4},{"os":"windows-latest","shard":2,"shard-total":4},{"os":"windows-latest","shard":3,"shard-total":4},{"os":"windows-latest","shard":4,"shard-total":4}]}'
+                  else
+                      cross_platform="false"
+                      matrix='{"include":[{"os":"ubuntu-latest","shard":1,"shard-total":3},{"os":"ubuntu-latest","shard":2,"shard-total":3},{"os":"ubuntu-latest","shard":3,"shard-total":3}]}'
+                  fi
+                  echo "cross-platform=${cross_platform}" >> "$GITHUB_OUTPUT"
+                  echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
+
+            - uses: actions/checkout@v7
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v6.1.0
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: '.nvmrc'
+                  cache: 'pnpm'
+
+            - name: Install Dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Build Electron E2E assets
+              run: pnpm nx run electron-backend:build-e2e
+
+            - name: Verify Electron E2E bundle
+              run: |
+                  test -f dist/apps/electron-backend/main.js
+                  test -f dist/apps/web/index.html
+                  test -d dist/apps/remote-control-web
+
+            - name: Upload Electron E2E bundle
+              uses: actions/upload-artifact@v7
+              with:
+                  name: electron-e2e-build
+                  path: |
+                      dist/apps/electron-backend/
+                      dist/apps/web/
+                      dist/apps/remote-control-web/
+                      dist/libs/
+                  if-no-files-found: error
+                  retention-days: 1
+
     electron-e2e-tests:
         name: Electron E2E on ${{ matrix.os }} (${{ matrix.shard }}/${{ matrix.shard-total }})
+        needs: build-electron-e2e
         runs-on: ${{ matrix.os }}
         # The sequential Electron suite is split into Playwright shards (one
         # runner each, split by spec file). Windows uses four shards: with
@@ -47,17 +128,7 @@ jobs:
             NX_SKIP_NX_CACHE: true
         strategy:
             fail-fast: false
-            matrix:
-                include:
-                    - { os: ubuntu-latest, shard: 1, shard-total: 3 }
-                    - { os: ubuntu-latest, shard: 2, shard-total: 3 }
-                    - { os: ubuntu-latest, shard: 3, shard-total: 3 }
-                    - { os: macos-latest, shard: 1, shard-total: 2 }
-                    - { os: macos-latest, shard: 2, shard-total: 2 }
-                    - { os: windows-latest, shard: 1, shard-total: 4 }
-                    - { os: windows-latest, shard: 2, shard-total: 4 }
-                    - { os: windows-latest, shard: 3, shard-total: 4 }
-                    - { os: windows-latest, shard: 4, shard-total: 4 }
+            matrix: ${{ fromJson(needs.build-electron-e2e.outputs.matrix) }}
 
         steps:
             - uses: actions/checkout@v7
@@ -73,6 +144,16 @@ jobs:
 
             - name: Install Dependencies
               run: pnpm install --frozen-lockfile
+
+            - name: Download Electron E2E bundle
+              uses: actions/download-artifact@v8
+              with:
+                  name: electron-e2e-build
+                  path: dist
+
+            - name: Verify downloaded Electron E2E bundle
+              run: |
+                  node -e "const fs = require('node:fs'); for (const p of ['dist/apps/electron-backend/main.js', 'dist/apps/web/index.html', 'dist/apps/remote-control-web']) { if (!fs.existsSync(p)) throw new Error('Missing prebuilt E2E output: ' + p); }"
 
             # The suite drives Electron through Playwright's _electron API and
             # never launches a Playwright browser (or records video, which
@@ -111,13 +192,13 @@ jobs:
 
             - name: Run Electron E2E Tests (Linux)
               if: runner.os == 'Linux'
-              run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" pnpm nx run electron-backend-e2e:e2e -- --shard=${{ matrix.shard }}/${{ matrix.shard-total }}
+              run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" pnpm exec playwright test --config=apps/electron-backend-e2e/playwright.config.ts --shard=${{ matrix.shard }}/${{ matrix.shard-total }}
               env:
                   CI: true
 
             - name: Run Electron E2E Tests (Windows/Mac)
               if: runner.os != 'Linux'
-              run: pnpm nx run electron-backend-e2e:e2e -- --shard=${{ matrix.shard }}/${{ matrix.shard-total }}
+              run: pnpm exec playwright test --config=apps/electron-backend-e2e/playwright.config.ts --shard=${{ matrix.shard }}/${{ matrix.shard-total }}
               env:
                   CI: true
 
@@ -135,6 +216,11 @@ jobs:
 
     hosted-server-smoke:
         name: Hosted server smoke on Windows
+        needs: build-electron-e2e
+        if: >-
+            ${{ !cancelled() &&
+                needs.build-electron-e2e.result == 'success' &&
+                needs.build-electron-e2e.outputs.cross-platform == 'true' }}
         runs-on: windows-latest
         timeout-minutes: 30
         env:
@@ -179,9 +265,9 @@ jobs:
     electron-e2e-summary:
         name: Electron E2E summary
         runs-on: ubuntu-latest
-        needs: electron-e2e-tests
-        # Summarize failed shards too, but not a cancelled (superseded) run.
-        if: ${{ !cancelled() }}
+        needs: [build-electron-e2e, electron-e2e-tests]
+        # Summarize failed shards too, but not a cancelled run or a failed build.
+        if: ${{ !cancelled() && needs.build-electron-e2e.result == 'success' }}
         timeout-minutes: 10
 
         steps:
@@ -201,12 +287,14 @@ jobs:
                   path: dist/e2e-shards/ubuntu-latest
 
             - name: Download shard reports (macOS)
+              if: needs.build-electron-e2e.outputs.cross-platform == 'true'
               uses: actions/download-artifact@v8
               with:
                   pattern: playwright-report-electron-macos-latest-*
                   path: dist/e2e-shards/macos-latest
 
             - name: Download shard reports (Windows)
+              if: needs.build-electron-e2e.outputs.cross-platform == 'true'
               uses: actions/download-artifact@v8
               with:
                   pattern: playwright-report-electron-windows-latest-*
@@ -215,9 +303,16 @@ jobs:
             # The script fails when a shard's results.json is missing or
             # duplicated, so a partial run is never summarized as complete.
             - name: Summarize Electron E2E semantic coverage per OS
+              env:
+                  CROSS_PLATFORM: ${{ needs.build-electron-e2e.outputs.cross-platform }}
               run: |
+                  set -euo pipefail
+                  oses=(ubuntu-latest)
+                  if [ "${CROSS_PLATFORM}" = "true" ]; then
+                      oses+=(macos-latest windows-latest)
+                  fi
                   status=0
-                  for os in ubuntu-latest macos-latest windows-latest; do
+                  for os in "${oses[@]}"; do
                       echo "## Electron E2E on $os" >> "$GITHUB_STEP_SUMMARY"
                       node tools/coverage/e2e-semantic-summary.mjs --project=electron-backend-e2e --input="dist/e2e-shards/$os" --output-dir="coverage/e2e/$os" || status=1
                   done
@@ -232,10 +327,15 @@ jobs:
                   retention-days: 7
 
     web-e2e-tests:
-        name: Web E2E on Ubuntu Chromium
+        name: Web E2E on Ubuntu Chromium (${{ matrix.shard }}/3)
         runs-on: ubuntu-latest
+        timeout-minutes: 25
         env:
             NX_SKIP_NX_CACHE: true
+        strategy:
+            fail-fast: false
+            matrix:
+                shard: [1, 2, 3]
 
         steps:
             - uses: actions/checkout@v7
@@ -259,25 +359,65 @@ jobs:
               run: sudo apt-get install -y fonts-noto-cjk
 
             - name: Run Web E2E Tests
-              run: pnpm nx run web-e2e:e2e -- --project=chromium --workers=2
+              run: pnpm nx run web-e2e:e2e -- --project=chromium --workers=2 --shard=${{ matrix.shard }}/3
               env:
                   CI: true
 
+            # Production PWA update recovery runs its own standalone config and
+            # does not shard; run it once on shard 1 and keep its unsharded
+            # results.json in a separate artifact so web-e2e-summary merges
+            # only the three sharded web-e2e reports.
             - name: Run production PWA update recovery
+              if: matrix.shard == 1
               run: pnpm nx run web-e2e:pwa-updates
-
-            - name: Summarize Web E2E semantic coverage
-              if: always()
-              run: pnpm run coverage:e2e:summary -- --project=web-e2e
 
             - name: Upload Web Test Results
               if: always()
               uses: actions/upload-artifact@v7
               with:
-                  name: playwright-report-web-ubuntu
+                  name: playwright-report-web-ubuntu-${{ matrix.shard }}
                   path: |
                       dist/playwright-report/web-e2e/
                       dist/test-results/web-e2e/
-                      dist/test-results/pwa-updates/
-                      coverage/e2e/
+                  retention-days: 7
+
+            - name: Upload PWA update recovery results
+              if: always() && matrix.shard == 1
+              uses: actions/upload-artifact@v7
+              with:
+                  name: playwright-report-pwa-updates-ubuntu
+                  path: dist/test-results/pwa-updates/
+                  if-no-files-found: ignore
+                  retention-days: 7
+
+    web-e2e-summary:
+        name: Web E2E summary
+        runs-on: ubuntu-latest
+        needs: web-e2e-tests
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: '.nvmrc'
+
+            - name: Download Web E2E shard reports
+              uses: actions/download-artifact@v8
+              with:
+                  pattern: playwright-report-web-ubuntu-*
+                  path: dist/e2e-shards/web-e2e
+
+            - name: Summarize Web E2E semantic coverage
+              run: node tools/coverage/e2e-semantic-summary.mjs --project=web-e2e --input=dist/e2e-shards/web-e2e --output-dir=coverage/e2e/web-e2e
+
+            - name: Upload Web semantic summary
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: e2e-semantic-summary-web
+                  path: coverage/e2e/web-e2e/
                   retention-days: 7

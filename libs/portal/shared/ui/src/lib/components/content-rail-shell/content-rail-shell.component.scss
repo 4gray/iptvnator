@@ -52,7 +52,7 @@
     display: inline-flex;
     align-items: baseline;
     gap: 8px;
-    font-size: 1.125rem;
+    font-size: var(--app-text-xl);
     font-weight: 600;
     line-height: 1.2;
     letter-spacing: -0.012em;
@@ -65,7 +65,7 @@
     gap: 2px;
     padding: 4px 8px 4px 10px;
     border-radius: 999px;
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     font-weight: 500;
     line-height: 1;
     letter-spacing: 0.005em;
