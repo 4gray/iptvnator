@@ -606,6 +606,23 @@ test('@m3u @xtream @collections upgrades the old flat list and organizes it with
     await folder(page, 'All channels').press('Enter');
     await expect(drawer).toBeFocused();
     await expect(titles(page)).toHaveText(reordered);
+
+    await page.setViewportSize({ width: 600, height: 360 });
+    await expect(
+        page.locator('app-unified-collection-page > .collection-header')
+    ).toBeVisible();
+    await expect
+        .poll(() =>
+            list(page)
+                .locator('.nav-list')
+                .evaluate((element) => element.clientHeight)
+        )
+        .toBeGreaterThanOrEqual(48);
+    await channel(page, reordered[0])
+        .locator('.channel-content')
+        .click({ trial: true });
+
+    await page.setViewportSize({ width: 390, height: 820 });
     await drawer.click();
     await expect(drawer).toHaveAttribute('aria-expanded', 'true');
     const openDrawer = page.locator(

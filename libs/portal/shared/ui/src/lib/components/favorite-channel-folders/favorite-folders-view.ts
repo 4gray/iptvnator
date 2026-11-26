@@ -66,15 +66,16 @@ export function createFavoriteFoldersView(options: {
     const flashedId = signal<string | null>(null);
     const droppedUid = signal<string | null>(null);
     let flashTimeout: ReturnType<typeof setTimeout> | undefined;
-    const desktop = document.defaultView?.matchMedia?.(
-        '(min-width: 641px) and (pointer: fine)'
-    );
-    const desktopDrag = signal(desktop?.matches ?? false);
-    const desktopChanged = (event: MediaQueryListEvent) =>
-        desktopDrag.set(event.matches);
-    desktop?.addEventListener('change', desktopChanged);
+    const watchMedia = (query: string) => {
+        const media = document.defaultView?.matchMedia?.(query);
+        const matches = signal(media?.matches ?? false);
+        const update = (event: MediaQueryListEvent) => matches.set(event.matches);
+        media?.addEventListener('change', update);
+        destroyRef.onDestroy(() => media?.removeEventListener('change', update));
+        return matches.asReadonly();
+    };
+    const desktopDrag = watchMedia('(min-width: 641px) and (pointer: fine)');
     destroyRef.onDestroy(() => {
-        desktop?.removeEventListener('change', desktopChanged);
         clearTimeout(flashTimeout);
         if (options.enabled()) panel?.clear();
     });
@@ -369,6 +370,7 @@ export function createFavoriteFoldersView(options: {
                 !selectionMode()
         ),
         panelFolded,
+        phoneLayout: watchMedia('(max-width: 640px)'),
         showPanel: () => setPanelFolded(false),
         droppedUid,
         startDrag: (channel: UnifiedFavoriteChannel) => {

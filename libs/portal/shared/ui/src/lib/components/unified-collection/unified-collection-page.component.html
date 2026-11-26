@@ -78,6 +78,7 @@
     @let headerInRail =
         enableFavoriteFolders() &&
         selectedContentType() === 'live' &&
+        !folderView.phoneLayout() &&
         !isSidebarCollapsed();
     <ng-template #collectionHeader>
         <div
