@@ -374,6 +374,38 @@ describe('withFavorites', () => {
         expect(store.isFavorite()).toBe(false);
     });
 
+    it('refreshes the same favorite status after an in-flight detail write', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        dataSource.getContentByXtreamId.mockResolvedValue({ id: 42 });
+        let persisted = false;
+        let finish!: () => void;
+        let started!: () => void;
+        const writing = new Promise<void>((resolve) => {
+            started = resolve;
+        });
+        dataSource.isFavorite.mockImplementation(async () => persisted);
+        dataSource.addFavorite.mockImplementation(async () => {
+            started();
+            await new Promise<void>((resolve) => {
+                finish = resolve;
+            });
+            persisted = true;
+        });
+
+        const toggle = store.toggleFavorite(42, 'synthetic-source', 'movie');
+        await writing;
+        window.dispatchEvent(new Event('iptvnator-favorites-changed'));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const readsDuringWrite = dataSource.isFavorite.mock.calls.length;
+        finish();
+        await expect(toggle).resolves.toBe(true);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(readsDuringWrite).toBe(1);
+        expect(dataSource.isFavorite).toHaveBeenCalledTimes(2);
+        expect(store.isFavorite()).toBe(true);
+    });
+
     it.each([
         [
             'XTREAM_FAVORITE_IDENTITY_CONFLICT',

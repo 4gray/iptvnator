@@ -139,9 +139,9 @@ describe('recently-viewed.operations', () => {
                 viewedAt: expect.objectContaining({ kind: 'sql' }),
             });
             expect(mockDrizzle.sql).toHaveBeenCalledWith(['CURRENT_TIMESTAMP']);
-            expect(mockDrizzle.eq).toHaveBeenCalledWith(
+            expect(mockDrizzle.inArray).toHaveBeenCalledWith(
                 schema.recentlyViewed.contentId,
-                42
+                expect.objectContaining({ kind: 'sql' })
             );
             expect(mockDrizzle.eq).toHaveBeenCalledWith(
                 schema.recentlyViewed.playlistId,
@@ -220,9 +220,9 @@ describe('recently-viewed.operations', () => {
 
             expect(deleteFn).toHaveBeenCalledWith(schema.recentlyViewed);
             expect(deleteWhere.mock.calls[0][0].conditions).toHaveLength(2);
-            expect(mockDrizzle.eq).toHaveBeenCalledWith(
+            expect(mockDrizzle.inArray).toHaveBeenCalledWith(
                 schema.recentlyViewed.contentId,
-                42
+                expect.objectContaining({ kind: 'sql' })
             );
             expect(mockDrizzle.eq).toHaveBeenCalledWith(
                 schema.recentlyViewed.playlistId,

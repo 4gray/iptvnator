@@ -404,13 +404,15 @@ the cached channels during the provider fetch and reloads after the replacement
 commits. It keeps the SQLite category ID for history and the provider category
 ID for parental locks. If saving the timestamp fails, the view still reloads for the same
 source in the current session. Open Favorites and Recently
-Viewed reload their rows after the commit. SQLite live favorite toggles,
+Viewed reload their rows after the commit. A detail favorite reread waits for
+a pending toggle of the same item. SQLite live favorite toggles,
 playback history writes and item removals wait for in-flight source work.
 They hold the source from channel lookup through the write and resolve the
 current row by provider identity. Collection actions also use the row's SQLite
 category, including removals from the Dashboard. If the channel moves, the
-lookup accepts a single typed match. Confirmed live playback uses the captured
-category for history writes. History recovery also prefers the original
+lookup accepts a single typed match. Live history keeps one row per source and
+provider stream, using the category of its latest confirmed playback. Deleting
+that entry also removes any older category copies. History recovery prefers the original
 live category and keeps ambiguous moves pending. Source and global history
 clears and individual removals run after already-confirmed writes and before
 subsequent writes in scope. This includes hiding a series from Continue

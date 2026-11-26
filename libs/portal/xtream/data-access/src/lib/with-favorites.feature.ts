@@ -47,6 +47,7 @@ export const withFavorites = function () {
             ) => {
                 const activity = inject(SourceActivityService);
                 const sqlite = () => runtime.supportsXtreamSqliteDataSource;
+                const pendingWrites = new Map<string, Promise<boolean>>();
                 let request = 0;
                 let activeTarget = '';
                 const publish = (owner: number, isFavorite: boolean) => {
@@ -194,9 +195,21 @@ export const withFavorites = function () {
                                 publish(owner, nextStatus);
                             return nextStatus;
                         };
-                        return sqlite() && contentType === 'live'
-                            ? activity.runWhenIdle(playlistId, write)
-                            : write();
+                        const run = () =>
+                            sqlite() && contentType === 'live'
+                                ? activity.runWhenIdle(playlistId, write)
+                                : write();
+                        const previous = pendingWrites.get(targetKey);
+                        const mutation = previous
+                            ? previous.catch(() => undefined).then(run)
+                            : run();
+                        pendingWrites.set(targetKey, mutation);
+                        try {
+                            return await mutation;
+                        } finally {
+                            if (pendingWrites.get(targetKey) === mutation)
+                                pendingWrites.delete(targetKey);
+                        }
                     },
 
                     async checkFavoriteStatus(
@@ -230,6 +243,9 @@ export const withFavorites = function () {
                             return;
                         }
 
+                        const mutation = pendingWrites.get(targetKey);
+                        if (mutation) await mutation.catch(() => undefined);
+                        if (owner !== request) return;
                         const target = await resolveTarget(
                             normalizedXtreamId,
                             playlistId,

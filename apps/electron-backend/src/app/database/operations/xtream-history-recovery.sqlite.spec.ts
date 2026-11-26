@@ -144,6 +144,27 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
         await removeRecentItem(db, 51002, 'duplicates');
         await restoreXtreamUserData(db, 'duplicates', [], []);
         const removedCopy = (await getRecentItems(db, 'duplicates', true)).length;
+        db.insert(schema.categories).values({ id: 13, playlistId: 'duplicates', xtreamId: 113, name: 'Synthetic movie category', type: 'movies' }).run();
+        db.insert(schema.content).values([
+            { id: 51010, categoryId: 13, xtreamId: 42, title: 'Synthetic movie', type: 'movie' },
+            { id: 51011, categoryId: 2, xtreamId: 42, title: 'Synthetic other source channel', type: 'live' },
+        ]).run();
+        await addRecentItem(db, 51010, 'duplicates');
+        await addRecentItem(db, 51011, 'q');
+        await addRecentItem(db, 51002, 'duplicates', { viewedAt: '2026-01-01T00:00:01.000Z' });
+        await addRecentItem(db, 51003, 'duplicates', { viewedAt: '2026-01-01T00:00:02.000Z' });
+        await addRecentItem(db, 51002, 'duplicates', { viewedAt: '2026-01-01T00:00:00.000Z' });
+        const readCopies = async () => (await getRecentItems(db, 'duplicates', true)).filter(row => row.type === 'live');
+        const latestCopy = (await readCopies()).map(row => [row.id, row.viewed_at]);
+        const liveCopyJournal = JSON.parse(await getAppState(db, key('duplicates'))).recentlyViewed.filter(row => row.contentType === 'live').map(row => row.liveCategoryXtreamId);
+        await removeRecentItem(db, 51002, 'duplicates');
+        await restoreXtreamUserData(db, 'duplicates', [], []);
+        const removedViaOldCopy = (await readCopies()).length;
+        db.insert(schema.recentlyViewed).values([51002, 51003].map(contentId => ({ contentId, playlistId: 'duplicates' }))).run();
+        await removeRecentItemsBatch(db, [{ contentId: 51002, playlistId: 'duplicates' }]);
+        const removedLegacyCopies = (await readCopies()).length;
+        const otherIdentityCopies = (await getRecentlyViewed(db)).filter(row => row.xtream_id === 42).map(row => row.id).sort((a,b) => a-b);
+        await removeRecentItem(db, 51010, 'duplicates');
         await setAppState(db, key('duplicates'), '');
         db.insert(schema.categories).values({ id: 12, playlistId: 'duplicates', xtreamId: 112, name: 'Synthetic third category', type: 'live' }).run();
         const liveCopies = entries => db.insert(schema.content).values(entries.map(([id, categoryId, xtreamId]) => ({
@@ -161,7 +182,7 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
         await deleteAllPlaylists(db);
         const allDeleted = await getAppState(db, key('q'));
         const setting = await getAppState(db, 'unrelated-setting');
-        console.log(JSON.stringify({ kept, currentTimestamp, confirmationOrder, indexedOrder, returned, resolvedReplay, rejected, rollback, cleared, other, explicit, largeExplicit, lookupRejected, lookupPreserved, globalClear, deleted, qJournal: !!qJournal, restoredCopy, removedCopy, movedCopy, resolvedMoves: movedJournal.resolved.map(row => row.xtreamId), allDeleted, setting }));
+        console.log(JSON.stringify({ kept, currentTimestamp, confirmationOrder, indexedOrder, returned, resolvedReplay, rejected, rollback, cleared, other, explicit, largeExplicit, lookupRejected, lookupPreserved, globalClear, deleted, qJournal: !!qJournal, restoredCopy, removedCopy, latestCopy, liveCopyJournal, removedViaOldCopy, removedLegacyCopies, otherIdentityCopies, movedCopy, resolvedMoves: movedJournal.resolved.map(row => row.xtreamId), allDeleted, setting }));
         sqlite.close();
     `;
     const result = JSON.parse(
@@ -206,6 +227,11 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
         qJournal: true,
         restoredCopy: [51002],
         removedCopy: 0,
+        latestCopy: [[51003, '2026-01-01T00:00:02.000Z']],
+        liveCopyJournal: [111],
+        removedViaOldCopy: 0,
+        removedLegacyCopies: 0,
+        otherIdentityCopies: [51010, 51011],
         movedCopy: [51006],
         resolvedMoves: [49],
         allDeleted: null,
