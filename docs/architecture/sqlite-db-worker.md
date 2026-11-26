@@ -317,8 +317,8 @@ and newly available archived entries. Native history mutations update that journ
 in their own transactions, including removal tombstones and explicit clears.
 `DB_ADD_RECENT_ITEM` accepts an optional confirmation timestamp so a delayed
 write preserves playback order. An older confirmation cannot replace a newer
-timestamp for the same row. Recent reads compare timestamps chronologically
-across ISO values and legacy SQLite values.
+timestamp for the same row. Global and per-playlist indexes order ISO and
+legacy SQLite timestamps chronologically without rewriting existing rows.
 `DB_RESTORE_XTREAM_USER_DATA` replays the current journal in one transaction so a
 watch or removal cannot be overwritten between replay chunks. This transaction
 contains saved history only; catalog writes keep the row budgets below. For live

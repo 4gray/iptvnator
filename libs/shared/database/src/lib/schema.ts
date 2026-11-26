@@ -141,6 +141,10 @@ export const content = sqliteTable(
     })
 );
 
+// The date guard excludes SQLite's non-deterministic 'now' from indexed rows.
+export const RECENTLY_VIEWED_CHRONOLOGY =
+    "CASE WHEN viewed_at GLOB '[0-9][0-9][0-9][0-9]-*' THEN julianday(viewed_at) END";
+
 // Recently viewed table
 export const recentlyViewed = sqliteTable(
     'recently_viewed',
@@ -164,6 +168,12 @@ export const recentlyViewed = sqliteTable(
             table.playlistId,
             sql`${table.viewedAt} DESC`
         ),
+        chronologyIdx: index('recently_viewed_chronology_idx').on(
+            sql.raw(RECENTLY_VIEWED_CHRONOLOGY)
+        ),
+        playlistChronologyIdx: index(
+            'recently_viewed_playlist_chronology_idx'
+        ).on(table.playlistId, sql.raw(RECENTLY_VIEWED_CHRONOLOGY)),
     })
 );
 

@@ -61,6 +61,7 @@ export function mockDrizzleOrmModule() {
             {
                 placeholder: (name: string) =>
                     mockDrizzle.sql.placeholder(name),
+                raw: (text: string) => ({ kind: 'sql', strings: [text] }),
             }
         ),
     };

@@ -216,6 +216,8 @@ const CREATE_TABLE_STATEMENTS = [
     `CREATE INDEX IF NOT EXISTS recently_viewed_playlist_idx ON recently_viewed(playlist_id)`,
     `CREATE INDEX IF NOT EXISTS recently_viewed_viewed_at_idx ON recently_viewed(viewed_at)`,
     `CREATE INDEX IF NOT EXISTS recently_viewed_playlist_viewed_idx ON recently_viewed(playlist_id, viewed_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS recently_viewed_chronology_idx ON recently_viewed(${schema.RECENTLY_VIEWED_CHRONOLOGY})`,
+    `CREATE INDEX IF NOT EXISTS recently_viewed_playlist_chronology_idx ON recently_viewed(playlist_id, ${schema.RECENTLY_VIEWED_CHRONOLOGY})`,
     // EPG tables
     `CREATE TABLE IF NOT EXISTS epg_channels (
       id TEXT PRIMARY KEY,

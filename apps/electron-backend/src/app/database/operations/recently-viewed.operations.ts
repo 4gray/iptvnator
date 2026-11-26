@@ -8,6 +8,8 @@ import {
     removeRecoveredHistory,
 } from './xtream-history-recovery';
 
+const viewedAtChronology = () => sql.raw(schema.RECENTLY_VIEWED_CHRONOLOGY);
+
 export async function getRecentlyViewed(db: AppDatabase) {
     return db
         .select({
@@ -42,7 +44,7 @@ export async function getRecentlyViewed(db: AppDatabase) {
             schema.playlists,
             eq(schema.categories.playlistId, schema.playlists.id)
         )
-        .orderBy(desc(sql`julianday(${schema.recentlyViewed.viewedAt})`))
+        .orderBy(desc(viewedAtChronology()))
         .limit(100);
 }
 
@@ -85,7 +87,7 @@ export async function getRecentItems(
             eq(schema.recentlyViewed.contentId, schema.content.id)
         )
         .where(eq(schema.recentlyViewed.playlistId, playlistId))
-        .orderBy(desc(sql`julianday(${schema.recentlyViewed.viewedAt})`));
+        .orderBy(desc(viewedAtChronology()));
     // Recovery must retain every entry; the ordinary browsing read stays capped.
     return all ? query : query.limit(100);
 }
@@ -122,7 +124,7 @@ export async function addRecentItem(
                 .set({
                     viewedAt: viewedAt
                         ? sql`CASE
-                            WHEN julianday(${schema.recentlyViewed.viewedAt}) > julianday(${viewedAt})
+                            WHEN (${viewedAtChronology()}) > julianday(${viewedAt})
                             THEN ${schema.recentlyViewed.viewedAt}
                             ELSE ${viewedAt}
                           END`

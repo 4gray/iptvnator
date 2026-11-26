@@ -35,6 +35,22 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
             .map(row => [row.playlist_id, row.viewed_at]);
         sqlite.prepare('DELETE FROM recently_viewed WHERE content_id = 4').run();
         sqlite.prepare('UPDATE recently_viewed SET viewed_at = ?').run('2026-01-01 00:00:00');
+        sqlite.prepare('UPDATE recently_viewed SET viewed_at = ? WHERE content_id = 3').run('now');
+        sqlite.prepare('UPDATE recently_viewed SET viewed_at = ? WHERE content_id = 3').run('2026-01-01 00:00:00');
+        const globalPlan = sqlite.prepare(\`EXPLAIN QUERY PLAN
+            SELECT r.viewed_at, c.id, p.name FROM recently_viewed r
+            JOIN content c ON c.id = r.content_id
+            JOIN categories cat ON cat.id = c.category_id
+            JOIN playlists p ON p.id = cat.playlist_id
+            ORDER BY \${schema.RECENTLY_VIEWED_CHRONOLOGY} DESC LIMIT 100\`).all();
+        const playlistPlan = sqlite.prepare(\`EXPLAIN QUERY PLAN
+            SELECT r.viewed_at, c.id FROM recently_viewed r
+            JOIN content c ON c.id = r.content_id
+            WHERE r.playlist_id = ?
+            ORDER BY \${schema.RECENTLY_VIEWED_CHRONOLOGY} DESC LIMIT 100\`).all('p');
+        const indexedOrder = [globalPlan, playlistPlan].map(plan =>
+            plan.some(row => row.detail.includes('_chronology_idx')) &&
+            plan.every(row => !row.detail.includes('USE TEMP B-TREE')));
         const key = id => 'xtream-history-recovery:' + id;
         const journal = (recentlyViewed = []) => JSON.stringify({ version: 1, contentTypes: ['movie'], recentlyViewed });
         const stale = [{ contentType: 'live', xtreamId: 10, viewedAt: '2020-01-01' }, { contentType: 'live', xtreamId: 20, viewedAt: '2020-01-01' }];
@@ -138,7 +154,7 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
         await deleteAllPlaylists(db);
         const allDeleted = await getAppState(db, key('q'));
         const setting = await getAppState(db, 'unrelated-setting');
-        console.log(JSON.stringify({ kept, currentTimestamp, confirmationOrder, returned, resolvedReplay, rejected, rollback, cleared, other, explicit, largeExplicit, lookupRejected, lookupPreserved, globalClear, deleted, qJournal: !!qJournal, restoredCopy, removedCopy, movedCopy, resolvedMoves: movedJournal.resolved.map(row => row.xtreamId), allDeleted, setting }));
+        console.log(JSON.stringify({ kept, currentTimestamp, confirmationOrder, indexedOrder, returned, resolvedReplay, rejected, rollback, cleared, other, explicit, largeExplicit, lookupRejected, lookupPreserved, globalClear, deleted, qJournal: !!qJournal, restoredCopy, removedCopy, movedCopy, resolvedMoves: movedJournal.resolved.map(row => row.xtreamId), allDeleted, setting }));
         sqlite.close();
     `;
     const result = JSON.parse(
@@ -167,6 +183,7 @@ it('keeps live history mutations and clears through real SQLite replay, rollback
             ['q', '2026-01-01T00:00:00.200Z'],
             ['p', '2026-01-01T00:00:00.100Z'],
         ],
+        indexedOrder: [true, true],
         returned: [10, 40, 99],
         resolvedReplay: [10, 40, 99],
         rejected: true,
