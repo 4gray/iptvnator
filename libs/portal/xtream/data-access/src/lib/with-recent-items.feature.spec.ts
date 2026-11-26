@@ -318,6 +318,65 @@ describe('withRecentItems', () => {
         }
     });
 
+    it('refreshes again after consent changes and discards reads from the previous consent', async () => {
+        const connection = localStorage.getItem(CONNECTION_KEY);
+        const key = 'iptvnator-server:synthetic-instance:history-consent-v1';
+        const priorConsent = localStorage.getItem(key);
+        const source = 'synthetic-source';
+        const row = {
+            id: 42,
+            xtream_id: 42,
+            type: 'series',
+            title: 'Synthetic shared series',
+        };
+        try {
+            localStorage.setItem(
+                CONNECTION_KEY,
+                JSON.stringify({
+                    apiUrl: 'https://history.example.test/api',
+                    instanceId: 'synthetic-instance',
+                })
+            );
+            await prepareSourceConnection();
+            localStorage.removeItem(key);
+            let complete!: (items: unknown[]) => void;
+            dataSource.getRecentItems.mockReturnValueOnce(
+                new Promise((resolve) => {
+                    complete = resolve;
+                })
+            );
+            patchState(store, { playlistId: source });
+            store.loadRecentItems({ id: source });
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            expect(dataSource.getRecentItems).toHaveBeenCalledWith(source);
+
+            localStorage.setItem(
+                key,
+                JSON.stringify({
+                    enabled: true,
+                    generation: 'synthetic-generation',
+                    deviceId: 'synthetic-device',
+                })
+            );
+            complete([{ ...row, xtream_id: 77 }]);
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            expect(store.recentItems()).toEqual([]);
+
+            dataSource.getRecentItems.mockResolvedValue([row]);
+            window.dispatchEvent(new Event('iptvnator-history-changed'));
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            expect(store.recentItems()).toEqual([
+                expect.objectContaining({ xtream_id: 42, type: 'series' }),
+            ]);
+        } finally {
+            if (connection == null) localStorage.removeItem(CONNECTION_KEY);
+            else localStorage.setItem(CONNECTION_KEY, connection);
+            if (priorConsent == null) localStorage.removeItem(key);
+            else localStorage.setItem(key, priorConsent);
+            await prepareSourceConnection();
+        }
+    });
+
     it('keeps a missing native row ID separate from the display key', async () => {
         dataSource.getRecentItems.mockResolvedValue([
             {

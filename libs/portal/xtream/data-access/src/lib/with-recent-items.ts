@@ -29,12 +29,12 @@ export interface RecentlyViewedItem extends PortalRecentItem {
 }
 
 const recentOperations = () => import('./xtream-recent-operations');
-const captureRecentOwner = (playlistId: string) =>
+const captureRecentOwner = (playlistId: string, consent?: 'history') =>
     captureHistoryOwner(
         sourceConnection()?.instanceId,
         playlistId,
         () => sourceConnection()?.instanceId,
-        'history'
+        consent
     );
 
 export const withRecentItems = function () {
@@ -55,9 +55,17 @@ export const withRecentItems = function () {
             const loadRecentItems = rxMethod<{ id: string }>(
                 pipe(
                     switchMap(async (playlist) => {
-                        const current = captureRecentOwner(playlist.id);
+                        // Keep listening across consent changes for the same source.
+                        const sourceCurrent = captureRecentOwner(playlist.id);
+                        const current = captureRecentOwner(
+                            playlist.id,
+                            'history'
+                        );
                         refresh = () => {
-                            if (current() && store.playlistId() === playlist.id)
+                            if (
+                                sourceCurrent() &&
+                                store.playlistId() === playlist.id
+                            )
                                 loadRecentItems(playlist);
                         };
                         const { loadXtreamRecent } = await recentOperations();
@@ -100,7 +108,10 @@ export const withRecentItems = function () {
                         switchMap(async ({ playlist, ...item }) => {
                             const playlistId = playlist()?.id;
                             if (!playlistId) return;
-                            const current = captureRecentOwner(playlistId);
+                            const current = captureRecentOwner(
+                                playlistId,
+                                'history'
+                            );
                             const sqlite =
                                 runtime.supportsXtreamSqliteDataSource;
                             const write = async () => {
@@ -142,7 +153,7 @@ export const withRecentItems = function () {
                 }): Promise<void> {
                     const playlistId = playlist()?.id;
                     if (!playlistId) return;
-                    const current = captureRecentOwner(playlistId);
+                    const current = captureRecentOwner(playlistId, 'history');
                     const { backfillXtreamRecentMetadata } =
                         await recentOperations();
                     if (!current()) return;
@@ -161,7 +172,10 @@ export const withRecentItems = function () {
                 clearRecentItems: rxMethod<{ id: string }>(
                     pipe(
                         switchMap(async (playlist) => {
-                            const current = captureRecentOwner(playlist.id);
+                            const current = captureRecentOwner(
+                                playlist.id,
+                                'history'
+                            );
                             const clear = async () => {
                                 if (!current()) return;
                                 await dataSource.clearRecentItems(playlist.id);
