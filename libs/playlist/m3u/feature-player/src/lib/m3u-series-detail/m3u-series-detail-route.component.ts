@@ -14,7 +14,11 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
-import { tmdbBackdropUrl, tmdbPosterUrl } from '@iptvnator/services';
+import {
+    SettingsStore,
+    tmdbBackdropUrl,
+    tmdbPosterUrl,
+} from '@iptvnator/services';
 import { selectActivePlaylist } from '@iptvnator/m3u-state';
 import { M3uSeriesCatalogService } from '@iptvnator/m3u-state/series-catalog';
 import { Store } from '@ngrx/store';
@@ -37,7 +41,6 @@ import {
     XtreamSerieEpisode,
 } from '@iptvnator/shared/interfaces';
 import { createLogger, PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
-import { extractDrmFromRaw, isDashChannel } from '@iptvnator/shared/m3u-utils';
 import { M3uSeries } from '@iptvnator/shared/m3u-utils/series';
 import {
     createPlaybackSessionKey,
@@ -46,6 +49,10 @@ import {
 import { buildM3uPlaybackPayload } from '../m3u-playback-payload.util';
 import { readStoredM3uVolume } from '../m3u-stored-volume.util';
 import { M3uEpisodeAccessService } from './m3u-episode-access.service';
+import {
+    m3uEpisodePlayerOverride,
+    m3uEpisodeStaysInline,
+} from './m3u-episode-player-override.util';
 import { resumeOffsetOf } from './m3u-episode-resume.util';
 import { toSeasonRecord } from './m3u-series-episode.adapter';
 import { M3uSeriesMenuService } from './m3u-series-menu.service';
@@ -108,6 +115,7 @@ export class M3uSeriesDetailRouteComponent {
     private readonly metadata = inject(M3uSeriesMetadataService);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly access = inject(M3uEpisodeAccessService);
+    private readonly settingsStore = inject(SettingsStore);
     protected readonly menu = inject(M3uSeriesMenuService);
     private readonly seasonContainer =
         viewChild<SeasonContainerComponent>('seasonContainer');
@@ -184,6 +192,14 @@ export class M3uSeriesDetailRouteComponent {
         const id = Number(this.playing()?.episode.id ?? '');
         return Number.isFinite(id) && id > 0 ? id : null;
     });
+
+    /** DASH and DRM episodes need an engine that can play them inline. */
+    protected readonly playerOverride = computed(() =>
+        m3uEpisodePlayerOverride(
+            this.playing()?.channel,
+            this.settingsStore.player()
+        )
+    );
 
     protected readonly playback = computed<ResolvedPortalPlayback | null>(
         () => {
@@ -540,8 +556,7 @@ export class M3uSeriesDetailRouteComponent {
     private playsExternally(channel: Channel): boolean {
         return (
             !this.portalPlayer.isEmbeddedPlayer() &&
-            !isDashChannel(channel) &&
-            !(channel.drm ?? extractDrmFromRaw(channel.raw))
+            !m3uEpisodeStaysInline(channel)
         );
     }
 

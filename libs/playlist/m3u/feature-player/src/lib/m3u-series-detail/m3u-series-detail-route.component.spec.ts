@@ -21,7 +21,7 @@ import {
     TmdbEnrichmentService,
 } from '@iptvnator/services';
 import { PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
-import { Channel } from '@iptvnator/shared/interfaces';
+import { Channel, VideoPlayer } from '@iptvnator/shared/interfaces';
 import { buildM3uSeriesCatalog } from '@iptvnator/shared/m3u-utils/series';
 import type { M3uSeriesDetailRouteComponent as ComponentType } from './m3u-series-detail-route.component';
 import { M3uEpisodeAccessService } from './m3u-episode-access.service';
@@ -132,6 +132,7 @@ class StubDetailMetaDirective {
 class StubInlinePlayerComponent {
     readonly playbackSessionKey = input<string>('');
     readonly playback = input<unknown>(null);
+    readonly playerOverride = input<VideoPlayer | null>(null);
     readonly seriesTitle = input<string | null>(null);
     readonly seriesEpisodes = input<unknown>(null);
     readonly episodePlaybackPositions = input<Map<number, unknown>>(new Map());
@@ -606,9 +607,16 @@ describe('M3uSeriesDetailRouteComponent', () => {
         };
 
         component.onEpisodeClicked(component.seasons()['1'][0]);
+        fixture.detectChanges();
 
         expect(portalPlayer.openResolvedPlayback).not.toHaveBeenCalled();
         expect(component.playback()?.streamUrl).toContain('.mpd');
+        // MPV/VLC have no inline engine and Video.js no Shaka path: the
+        // episode gets the engine the channel player uses for DASH.
+        const inline = fixture.debugElement
+            .query(By.directive(StubInlinePlayerComponent))
+            .injector.get(StubInlinePlayerComponent);
+        expect(inline.playerOverride()).toBe(VideoPlayer.Html5Player);
     });
 
     it('keeps an episode with raw-only DRM inline with an external player saved', async () => {
