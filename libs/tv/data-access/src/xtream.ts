@@ -266,5 +266,6 @@ export class XtreamProvider implements ProviderClient {
     }
     dispose() {
         this.catalogs.clear();
+        this.sortedList = undefined;
     }
 }
