@@ -209,6 +209,10 @@ export class SecondStreamCatalogService {
         return playback;
     }
 
+    rebindLiveCategory(item: UnifiedCollectionItem) {
+        return this.collection.rebindLiveCategory(item);
+    }
+
     isAllowed(item: UnifiedCollectionItem): boolean {
         this.version();
         if (this.locks.withholdsEverything() || isCatalogUnavailable(item))

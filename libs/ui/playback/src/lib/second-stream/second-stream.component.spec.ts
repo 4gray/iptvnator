@@ -9,6 +9,7 @@ import {
 } from '@iptvnator/portal/shared/data-access';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
 import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
+import { SourceActivityService } from '@iptvnator/services';
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import { TranslateModule } from '@ngx-translate/core';
 import { firstValueFrom, NEVER, Subject } from 'rxjs';
@@ -90,6 +91,8 @@ describe('SecondStreamComponent', () => {
         checkpoint: jest.fn().mockResolvedValue(undefined),
     };
     const blocked = signal<readonly string[]>([]);
+    const lockedCategory = signal<number | null>(null);
+    const rebindLiveCategory = jest.fn();
     const originalElectron = Object.getOwnPropertyDescriptor(
         window,
         'electron'
@@ -149,6 +152,8 @@ describe('SecondStreamComponent', () => {
         savePlaybackPosition.mockReset().mockResolvedValue(undefined);
         recordPlayback.mockReset().mockResolvedValue(undefined);
         blocked.set([]);
+        lockedCategory.set(null);
+        rebindLiveCategory.mockReset();
         activity.active.mockReturnValue(false);
         activity.begin.mockClear();
         activity.checkpoint.mockClear();
@@ -180,8 +185,11 @@ describe('SecondStreamComponent', () => {
                 {
                     provide: SecondStreamCatalogService,
                     useValue: {
+                        rebindLiveCategory,
                         isAllowed: (item: SecondStreamSelection['item']) =>
-                            !blocked().includes(item.playlistId),
+                            !blocked().includes(item.playlistId) &&
+                            (lockedCategory() === null ||
+                                item.categoryId !== lockedCategory()),
                     },
                 },
             ],
@@ -682,6 +690,47 @@ describe('SecondStreamComponent', () => {
         expect(component.active()).toBe(true);
         expect(third.controller.sessionId()).toBe('session-3');
     });
+
+    it.each([true, false])(
+        'rechecks an accepted companion against its refreshed category (locked: %s)',
+        async (locked) => {
+            const fixtureChoice = distinctSelection(2);
+            const item: SecondStreamSelection['item'] = {
+                ...fixtureChoice.item,
+                sourceType: 'xtream',
+                xtreamId: 42,
+                categoryId: 50,
+                xtreamCategoryRowId: 5,
+            };
+            const moved = { ...item, categoryId: 60, xtreamCategoryRowId: 6 };
+            const companion = await choose(2, {
+                item,
+                playback: { ...fixtureChoice.playback, isLive: true },
+            });
+            const originalPlayback = component.selectionAt(2)?.playback;
+            if (locked) lockedCategory.set(60);
+            rebindLiveCategory.mockResolvedValue(moved);
+
+            TestBed.inject(SourceActivityService).notifyLiveCatalogReplacement(
+                item.playlistId
+            );
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            TestBed.tick();
+
+            expect(rebindLiveCategory).toHaveBeenCalledWith(item);
+            if (locked) {
+                expect(component.openStreams().map(({ slot }) => slot)).toEqual(
+                    [1]
+                );
+                await component.close(2);
+                expect(component.selectionAt(2)).toBeNull();
+                return;
+            }
+            expect(component.selectionAt(2)?.item).toEqual(moved);
+            expect(component.selectionAt(2)?.playback).toBe(originalPlayback);
+            expect(companion.controller.sessionId()).toBe('session-2');
+        }
+    );
 
     it('waits for an exact mute acknowledgement before restoring primary sound on relock', async () => {
         await choose(2);

@@ -1007,6 +1007,7 @@ describe('PlaylistsService', () => {
     });
 
     it('aborts a guarded metadata update in one readwrite transaction when the row no longer matches', async () => {
+        localStorage.setItem(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG, '1');
         const replacementPlaylist = {
             _id: 'stalker-replaced',
             title: 'Restored Portal',
@@ -1052,6 +1053,7 @@ describe('PlaylistsService', () => {
     });
 
     it('merges and commits a matching guarded browser update through its cursor', async () => {
+        localStorage.setItem(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG, '1');
         const currentPlaylist = {
             _id: 'stalker-guarded-write',
             title: 'Original Portal',
@@ -1094,6 +1096,7 @@ describe('PlaylistsService', () => {
     });
 
     it('commits a browser conditional transform through the same readwrite cursor', async () => {
+        localStorage.setItem(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG, '1');
         const currentPlaylist = {
             _id: 'stalker-cursor-write',
             title: 'Original Portal',

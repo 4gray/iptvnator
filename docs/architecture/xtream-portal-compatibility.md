@@ -425,9 +425,10 @@ profile or sync consent changes before the write. An open history view reloads
 using the current consent when the same source's history changes. SQLite history
 keeps the confirmation time when a source delays the write. Delayed writes
 update the visible list only when it still belongs to their source.
-The selected and playing live channels are rebound by provider identity to their
-new SQLite rows. The active player keeps its session while allowed and checks
-the refreshed provider category for parental locks.
+The selected and playing live channels, including companion streams, are
+rebound by provider identity to their new SQLite rows. Each player keeps its
+session while allowed and checks the refreshed provider category for parental
+locks.
 Retained categories keep their SQLite IDs so playback queues, the guide and
 category history links still point to the same categories. During the launch
 session, a removed category falls back to Live TV. The app replaces that

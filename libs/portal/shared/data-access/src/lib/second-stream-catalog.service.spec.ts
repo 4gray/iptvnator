@@ -46,6 +46,7 @@ describe('SecondStreamCatalogService', () => {
         getPlaylist: jest.Mock;
         getCategories: jest.Mock;
         getContent: jest.Mock;
+        getContentByXtreamId: jest.Mock;
         getAllCategories: jest.Mock;
     };
     let resolve: jest.Mock;
@@ -104,6 +105,7 @@ describe('SecondStreamCatalogService', () => {
                     title: 'Synthetic hidden',
                 },
             ]),
+            getContentByXtreamId: jest.fn(),
         };
         resolve = jest
             .fn()
@@ -278,6 +280,42 @@ describe('SecondStreamCatalogService', () => {
         });
         expect(data.groups).toHaveLength(1);
     });
+
+    it.each([50, '50', null])(
+        'reclassifies a playing Xtream channel using its saved SQLite category (row category: %s)',
+        async (categoryId) => {
+            const item = {
+                uid: 'synthetic-live',
+                name: 'Synthetic channel',
+                sourceType: 'xtream' as const,
+                contentType: 'live' as const,
+                playlistId: playlist._id,
+                playlistName: playlist.title,
+                categoryId: 899,
+                xtreamCategoryRowId: 49,
+                xtreamId: 7,
+            };
+            xtream.getContentByXtreamId.mockResolvedValue(
+                categoryId === null ? null : { category_id: categoryId }
+            );
+            const refreshed = await service.rebindLiveCategory(item);
+            expect(xtream.getContentByXtreamId).toHaveBeenCalledWith(
+                item.xtreamId,
+                item.playlistId,
+                'live',
+                undefined,
+                item.xtreamCategoryRowId,
+                undefined,
+                true
+            );
+            expect(refreshed.categoryId).toBe(
+                categoryId === null ? undefined : 900
+            );
+            expect(refreshed.xtreamCategoryRowId).toBe(
+                categoryId === null ? undefined : 50
+            );
+        }
+    );
 
     it.each(['', SECOND_STREAM_HISTORY])(
         'waits for SQLite replacement before reading the live collection for scope "%s"',
