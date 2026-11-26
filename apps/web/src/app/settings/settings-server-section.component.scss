@@ -1,7 +1,8 @@
 // Settings → Server is built from the shared settings rows in
 // `settings.component.scss` (group header, sections, cards, setting-item).
-// The server, hosted-server and hosted-devices components share this file;
-// each rule below covers something those shared classes cannot express.
+// Every block on the Connection page shares this file: server, hosted-server,
+// hosted-devices and the activity, favorites and history sync sections. Each
+// rule below covers something those shared classes cannot express.
 
 // The group header carries the About action beside its h2; the shared
 // group header has no trailing action slot.
@@ -63,8 +64,39 @@
     list-style: none;
 }
 
+// Row text here carries unbroken strings: server addresses, provider ids
+// and titles in sync conflicts. Break them inside the row on narrow panes.
+.setting-item__meta > h4,
+.setting-item__meta > p {
+    overflow-wrap: anywhere;
+}
+
+// A sync section whose runtime never loads (no consent yet) renders no rows;
+// Angular leaves only comment nodes, so the empty frame disappears.
+.settings-card:empty {
+    display: none;
+}
+
+// A sync consent checkbox heads its row: its label reads like a row title
+// (`setting-item__meta h4`), and the box lines up with the row's text edge
+// instead of the checkbox's touch-target padding.
+.sync-toggle {
+    display: block;
+    // (40px state layer - 18px box) / 2 of padding on each side.
+    margin-inline-start: -11px;
+    color: var(--app-heading-color);
+    font-size: var(--app-text-md);
+}
+
+// The hints under a consent checkbox are separate paragraphs; the shared
+// 3px meta gap would run them together.
+.sync-toggle ~ p + p {
+    margin-block-start: var(--app-space-2);
+}
+
 button,
 input,
-a {
+a,
+mat-checkbox {
     app-region: no-drag;
 }

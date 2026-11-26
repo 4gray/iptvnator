@@ -85,6 +85,7 @@ export class HistorySyncRuntime {
     readonly parkedCount = signal(0);
     readonly localCount = signal(0);
     readonly error = signal(false);
+    readonly lastSync = signal<Date | null>(null);
     constructor() {
         const refresh = () => {
             this.enabled.set(historyEnabled());
@@ -303,6 +304,9 @@ export class HistorySyncRuntime {
     private async refreshNow(): Promise<void> {
         try {
             await this.sources.refresh();
+            // SourceSyncService reports an outage through its state instead of
+            // rejecting; only a refresh that reached the server is a sync.
+            const reached = this.sources.state() === 'connected';
             const client = this.ensure();
             for (const source of await this.rows()) {
                 if (!historyEnabled()) return;
@@ -310,6 +314,7 @@ export class HistorySyncRuntime {
                 await client.flush(source._id);
             }
             await this.summary();
+            if (reached && historyEnabled()) this.lastSync.set(new Date());
             this.state.set(
                 historyEnabled()
                     ? this.pending()

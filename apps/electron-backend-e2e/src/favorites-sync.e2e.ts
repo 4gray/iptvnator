@@ -961,7 +961,7 @@ test('syncs duplicate-URL M3U membership, offline conflicts and independent adds
                         (
                             await page
                                 .getByTestId('favorites-sync-settings')
-                                .locator('h2')
+                                .locator('h3')
                                 .boundingBox()
                         )?.x ?? -1
                 )

@@ -37,7 +37,7 @@ async function enable(page: Page) {
     await openSettingsSection(page, 'server');
     await page.getByTestId('history-sync-enable').getByRole('checkbox').check();
     await expect(
-        page.getByTestId('history-sync-settings').getByRole('status')
+        page.getByTestId('history-sync-state')
     ).toHaveText('History synchronized', { timeout: 30000 });
 }
 for (const provider of ['xtream', 'stalker'] as const)
