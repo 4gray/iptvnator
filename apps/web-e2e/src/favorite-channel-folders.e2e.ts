@@ -576,16 +576,25 @@ test('@m3u @xtream @collections upgrades the old flat list and organizes it with
     await sort.click();
     await page.getByRole('menuitemradio', { name: 'Custom order' }).click();
     await folder(page, 'Synthetic folder').click();
-    await page.getByRole('radio', { name: 'Movies', exact: true }).click();
+    const liveTab = page.getByRole('radio', { name: 'Live TV', exact: true });
+    const moviesTab = page.getByRole('radio', { name: 'Movies', exact: true });
+    const seriesTab = page.getByRole('radio', { name: 'Series', exact: true });
+    await liveTab.focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(moviesTab).toBeFocused();
     await expect(panel(page)).toHaveCount(0);
     await expect(
         page.getByText('Synthetic saved film', { exact: true })
     ).toBeVisible();
-    await page.getByRole('radio', { name: 'Series', exact: true }).click();
+    await page.keyboard.press('ArrowRight');
+    await expect(seriesTab).toBeFocused();
     await expect(
         page.getByText('Synthetic saved series', { exact: true })
     ).toBeVisible();
-    await page.getByRole('radio', { name: 'Live TV', exact: true }).click();
+    await page.keyboard.press('ArrowLeft');
+    await expect(moviesTab).toBeFocused();
+    await page.keyboard.press('ArrowLeft');
+    await expect(liveTab).toBeFocused();
     await expect(folder(page, 'Synthetic folder')).toHaveAttribute(
         'aria-pressed',
         'true'

@@ -140,6 +140,82 @@ describe('typed Stalker favorites collection', () => {
     });
 });
 
+describe('Stalker favorites without a provider ID', () => {
+    it.each([false, true])(
+        'clears the displayed legacy movie snapshots on reload (shared=%s)',
+        async (shared) => {
+            const live: StalkerPortalItem = {
+                category_id: 'itv',
+                title: 'Synthetic title',
+            };
+            const movie: StalkerPortalItem = {
+                ...live,
+                id: '  ',
+                category_id: 'vod',
+            };
+            const valid: StalkerPortalItem = {
+                ...live,
+                id: 'synthetic-source-1',
+            };
+            const source = {
+                _id: 'synthetic-source',
+                macAddress: '00:11:22:33:44:55',
+                title: 'Synthetic source',
+                favorites: [live, movie, movie, valid],
+            };
+            let stored = JSON.stringify(source);
+            const reopen = () => JSON.parse(stored) as typeof source;
+            const service = Object.assign(
+                Object.create(UnifiedFavoritesDataService.prototype),
+                {
+                    stalkerMetadata: { project: (value: unknown) => value },
+                    favoriteSync: {
+                        active: () => shared,
+                        project: async (value: unknown) => value,
+                    },
+                    playlistsService: {
+                        getPlaylistById: () => of(reopen()),
+                        preparePortalFavoriteActions: async () => undefined,
+                        transformPlaylistFavorites: (
+                            _id: string,
+                            transform: (
+                                favorites: StalkerPortalItem[]
+                            ) => StalkerPortalItem[]
+                        ) => {
+                            const current = reopen();
+                            current.favorites = transform(current.favorites);
+                            stored = JSON.stringify(current);
+                            return of(current);
+                        },
+                    },
+                    getPlaylistMeta: async () => reopen(),
+                }
+            ) as UnifiedFavoritesDataService;
+            const rows = () =>
+                service.getFavorites('playlist', source._id, 'stalker');
+            const movies = (await rows()).filter(
+                ({ contentType }) => contentType === 'movie'
+            );
+            expect(movies).toHaveLength(2);
+            expect(movies[0].stalkerId).toBe(valid.id);
+
+            const newerMovie = { ...movie, added_at: '2026-01-01T00:00:00Z' };
+            stored = JSON.stringify({
+                ...source,
+                favorites: [newerMovie, ...source.favorites],
+            });
+            await service.clearFavorites(movies);
+
+            expect(reopen().favorites).toEqual([newerMovie, live, valid]);
+            expect(
+                (await rows()).filter(
+                    ({ contentType }) => contentType === 'movie'
+                )
+            ).toHaveLength(1);
+        }
+    );
+});
+
 describe('legacy Stalker favorites in Recently Viewed', () => {
     const movie = {
         id: '42',

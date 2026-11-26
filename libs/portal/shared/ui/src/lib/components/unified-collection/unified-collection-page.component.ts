@@ -55,7 +55,7 @@ import {
     createClearCollectionAction,
     setupClearCollectionViewCommand,
 } from './unified-collection-clear-action';
-import { createCollectionContentTypeState } from './unified-collection-content-type';
+import { injectCollectionContentTypeState } from './unified-collection-content-type';
 import {
     buildCollectionDetailNavigation,
     buildCollectionPortalNavigation,
@@ -146,7 +146,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         getOpenLiveCollectionItemState(window.history.state)
     );
 
-    private readonly contentType = createCollectionContentTypeState(
+    private readonly contentType = injectCollectionContentTypeState(
         this.allItems,
         this.viewStateHistory.current()?.selectedContentType ?? 'live',
         {

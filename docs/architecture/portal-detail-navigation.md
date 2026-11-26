@@ -552,8 +552,10 @@ Xtream uses the provider stream ID. Stalker uses the provider ID and distinguish
 live and radio. Typed Stalker rows keep the same identity when another favorite
 with the same provider ID is added or removed. An old standalone order entry for
 the shared ID retains their group position and within-source order until the user
-reorders the rows. A missing folder document is the existing flat list. Creating
-a folder, moving saved channels, and deleting a folder write only the folder document.
+reorders the rows. Legacy Stalker favorites without provider IDs can be cleared by
+matching their stored snapshots. A missing folder document is the existing flat
+list. Creating a folder, moving saved channels, and deleting a folder write only
+the folder document.
 Deleting a folder clears all its assignments in the same write.
 
 Adding directly to a folder writes a pending marker before asking the provider
@@ -561,6 +563,7 @@ to save membership. The view publishes the folder change after both writes
 succeed. A failed or interrupted final write leaves the favorite unfiled and a
 retry checks membership before saving. A failed membership read stops the
 operation before saving and leaves the dialog open for another attempt.
-Folder choice and multi-select are independent of the playing channel. Reordering a
-filtered folder places the reordered channels back into their slots in the
-source scope’s full list.
+Folder choice and multi-select are independent of the playing channel. Reordering
+a filtered folder places the reordered channels back into their slots in the
+source scope’s full list. The content-type toggle keeps keyboard focus when the
+header moves between the live channel list and the movies or series view.

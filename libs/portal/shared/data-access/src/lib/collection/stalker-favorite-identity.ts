@@ -11,10 +11,7 @@ function providerId(item: StalkerPortalItem): string | undefined {
         .find(Boolean);
 }
 
-function stalkerCollectionReference(
-    item: StalkerPortalItem,
-    shared: boolean
-) {
+function stalkerCollectionReference(item: StalkerPortalItem, shared: boolean) {
     // Local historical radio favorites can carry the radio hint in their command.
     return stalkerFavoriteReference(
         !shared && isStalkerRadioItem(item) ? { ...item, radio: true } : item
@@ -41,15 +38,18 @@ export function matchStalkerFavoriteRows(
 ): Set<StalkerPortalItem> {
     const byProviderId = new Map<string, StalkerPortalItem[]>();
     const byIdentity = new Map<string, StalkerPortalItem[]>();
-    const identity = (favorite: StalkerPortalItem, id: string) =>
-        JSON.stringify(stalkerCollectionReference(favorite, shared) ?? id);
+    const identity = (favorite: StalkerPortalItem, id: string | undefined) =>
+        id
+            ? JSON.stringify(stalkerCollectionReference(favorite, shared) ?? id)
+            : JSON.stringify(['local snapshot', favorite]);
     for (const favorite of favorites) {
         const id = providerId(favorite);
-        if (!id) continue;
+        if (id) {
+            const sameId = byProviderId.get(id) ?? [];
+            sameId.push(favorite);
+            byProviderId.set(id, sameId);
+        }
         const key = identity(favorite, id);
-        const sameId = byProviderId.get(id) ?? [];
-        sameId.push(favorite);
-        byProviderId.set(id, sameId);
         const sameIdentity = byIdentity.get(key) ?? [];
         sameIdentity.push(favorite);
         byIdentity.set(key, sameIdentity);
@@ -60,10 +60,15 @@ export function matchStalkerFavoriteRows(
         const item = row.stalkerItem as StalkerPortalItem | undefined;
         if (item) {
             const id = providerId(item);
+            const matches = byIdentity.get(identity(item, id));
             if (id) {
-                for (const match of byIdentity.get(identity(item, id)) ?? []) {
+                for (const match of matches ?? []) {
                     selected.add(match);
                 }
+            } else {
+                // Each rendered local snapshot can select one persisted copy.
+                const match = matches?.pop();
+                if (match) selected.add(match);
             }
             continue;
         }

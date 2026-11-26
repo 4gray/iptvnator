@@ -1,6 +1,16 @@
-import { computed, Signal, signal, WritableSignal } from '@angular/core';
+import {
+    afterNextRender,
+    computed,
+    ElementRef,
+    inject,
+    Injector,
+    Signal,
+    signal,
+    WritableSignal,
+} from '@angular/core';
 import {
     CollectionContentType,
+    focusIfFocusLost,
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
 
@@ -24,6 +34,38 @@ export interface CollectionContentTypeState {
     select(value: CollectionContentType): void;
     /** Move off a tab the collection no longer has items for. */
     autoSelect(): void;
+}
+
+export function injectCollectionContentTypeState(
+    ...args: Parameters<typeof createCollectionContentTypeState>
+): CollectionContentTypeState {
+    const state = createCollectionContentTypeState(...args);
+    const host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+    const injector = inject(Injector);
+
+    return {
+        ...state,
+        select(value): void {
+            const group =
+                host.ownerDocument.activeElement?.closest('.content-toggle');
+            state.select(value);
+            if (!group || !host.contains(group)) return;
+
+            // Switching between the live rail and the grid can recreate the header.
+            afterNextRender(
+                () => {
+                    if (!group.isConnected) {
+                        focusIfFocusLost(
+                            host.querySelector<HTMLElement>(
+                                '.content-toggle [aria-checked="true"]'
+                            )
+                        );
+                    }
+                },
+                { injector }
+            );
+        },
+    };
 }
 
 export function createCollectionContentTypeState(
