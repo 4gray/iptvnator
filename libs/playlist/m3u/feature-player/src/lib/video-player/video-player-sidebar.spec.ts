@@ -186,6 +186,9 @@ describe('VideoPlayerComponent — collapsible channels rail', () => {
                     useValue: {
                         liveChannels,
                         splitsCatalog: signal(true),
+                        // The rail renders at once (`@defer (on immediate)`),
+                        // so its empty-state hint reads the index counts.
+                        index: signal({ counts: { movie: 0 } }),
                     },
                 },
                 {
