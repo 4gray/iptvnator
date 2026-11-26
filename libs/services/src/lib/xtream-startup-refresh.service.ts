@@ -3,6 +3,10 @@ import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { DatabaseService } from './database-electron.service';
 import { ParentalLockService } from './parental-lock';
 import { SourceActivityService } from './source-activity.service';
+import {
+    matchesXtreamStartupSource,
+    XtreamCatalogCommitService,
+} from './xtream-catalog-commit.service';
 import { XtreamCatalogFetchService } from './xtream-catalog-fetch.service';
 import { XtreamSelectedCatalogRefreshService } from './xtream-selected-catalog-refresh.service';
 
@@ -17,6 +21,7 @@ function hasUsableStreamId(value: unknown): boolean {
 @Injectable({ providedIn: 'root' })
 export class XtreamStartupRefreshService {
     private readonly db = inject(DatabaseService);
+    private readonly commit = inject(XtreamCatalogCommitService);
     private readonly fetcher = inject(XtreamCatalogFetchService);
     private readonly refresh = inject(XtreamSelectedCatalogRefreshService);
     private readonly activity = inject(SourceActivityService);
@@ -51,8 +56,12 @@ export class XtreamStartupRefreshService {
         }
 
         // Keep the saved catalog available while the provider responds.
-        const categories = await this.fetcher.categories(playlist, 'live');
-        const content = await this.fetcher.content(playlist, 'live');
+        const current = await this.commit.readCurrentOrNull(playlist._id);
+        if (!matchesXtreamStartupSource(playlist, current)) return false;
+        const categories = await this.fetcher.categories(current, 'live');
+        const contentSource = await this.commit.readCurrentOrNull(playlist._id);
+        if (!matchesXtreamStartupSource(playlist, contentSource)) return false;
+        const content = await this.fetcher.content(contentSource, 'live');
         const categoryIds = new Set(
             categories.map((category) =>
                 Number.parseInt(String(category?.category_id), 10)

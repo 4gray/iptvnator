@@ -3,13 +3,17 @@ import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { DatabaseService } from './database-electron.service';
 import { ParentalLockService } from './parental-lock';
 import { SourceActivityService } from './source-activity.service';
+import { XtreamCatalogCommitService } from './xtream-catalog-commit.service';
 import { XtreamCatalogFetchService } from './xtream-catalog-fetch.service';
 import { XtreamSelectedCatalogRefreshService } from './xtream-selected-catalog-refresh.service';
 import { XtreamStartupRefreshService } from './xtream-startup-refresh.service';
 
 const source: PlaylistMeta = {
     _id: 'source',
-    title: 'Test source',
+    title: 'Synthetic source',
+    serverUrl: 'https://startup.example.test',
+    username: 'synthetic',
+    password: 'synthetic',
     autoRefresh: true,
     count: 0,
     importDate: '2026-01-01',
@@ -23,10 +27,12 @@ describe('Xtream startup refresh', () => {
     const db = { getAllXtreamCategories: jest.fn() };
     const locksReadable = jest.fn(() => true);
     const fetcher = { categories: jest.fn(), content: jest.fn() };
+    const commit = { readCurrentOrNull: jest.fn() };
     const refresh = { refreshLiveOnStartup: jest.fn(), progress: () => null };
 
     beforeEach(() => {
         locksReadable.mockReturnValue(true);
+        commit.readCurrentOrNull.mockReset().mockResolvedValue(source);
         db.getAllXtreamCategories
             .mockReset()
             .mockResolvedValue([{ id: 11, xtream_id: 4 }]);
@@ -43,6 +49,7 @@ describe('Xtream startup refresh', () => {
         TestBed.configureTestingModule({
             providers: [
                 { provide: DatabaseService, useValue: db },
+                { provide: XtreamCatalogCommitService, useValue: commit },
                 { provide: XtreamCatalogFetchService, useValue: fetcher },
                 {
                     provide: XtreamSelectedCatalogRefreshService,
@@ -95,6 +102,41 @@ describe('Xtream startup refresh', () => {
             },
             expect.any(Function)
         );
+    });
+
+    it.each([
+        ['removed', null],
+        ['opted out', { ...source, autoRefresh: false }],
+        ['disabled Live TV', { ...source, xtreamContentTypes: ['movie'] }],
+        [
+            'changed provider',
+            { ...source, serverUrl: 'https://provider.example.test' },
+        ],
+        ['invalid connection', { ...source, serverUrl: '' }],
+        ['refreshed elsewhere', { ...source, updateDate: 100 }],
+    ])(
+        'does no provider work when a queued source is %s',
+        async (_scenario, current) => {
+            commit.readCurrentOrNull.mockResolvedValue(current);
+            await expect(service.refreshLive(source)).resolves.toBe(false);
+            expect(fetcher.categories).not.toHaveBeenCalled();
+            expect(fetcher.content).not.toHaveBeenCalled();
+            expect(refresh.refreshLiveOnStartup).not.toHaveBeenCalled();
+        }
+    );
+
+    it('stops after fetching categories if the source connection changed', async () => {
+        fetcher.categories.mockImplementationOnce(async () => {
+            commit.readCurrentOrNull.mockResolvedValue({
+                ...source,
+                username: 'changed',
+            });
+            return categories;
+        });
+        await expect(service.refreshLive(source)).resolves.toBe(false);
+        expect(fetcher.categories).toHaveBeenCalledTimes(1);
+        expect(fetcher.content).not.toHaveBeenCalled();
+        expect(refresh.refreshLiveOnStartup).not.toHaveBeenCalled();
     });
 
     it('does not notify live catalog readers if no replacement was committed', async () => {

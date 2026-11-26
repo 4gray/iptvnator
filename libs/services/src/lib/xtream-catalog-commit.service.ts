@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import {
+    normalizeXtreamContentTypes,
     normalizeXtreamServerUrl,
     type PlaylistMeta,
     type XtreamContentType,
@@ -20,6 +21,25 @@ export function sameXtreamCatalogConnection(
     return (
         JSON.stringify(identity(fetched)) === JSON.stringify(identity(accepted))
     );
+}
+
+export function matchesXtreamStartupSource(
+    queued: PlaylistMeta,
+    current: PlaylistMeta | null
+): current is PlaylistMeta {
+    if (
+        !current?.autoRefresh ||
+        current.updateDate !== queued.updateDate ||
+        !normalizeXtreamContentTypes(current.xtreamContentTypes).includes(
+            'live'
+        )
+    )
+        return false;
+    try {
+        return sameXtreamCatalogConnection(queued, current);
+    } catch {
+        return false;
+    }
 }
 
 export class XtreamCatalogConnectionChangedError extends Error {
@@ -74,9 +94,14 @@ export async function markImportUnfinished(
 /** Only constructed by the SQLite-backed edit-time scanner. */
 @Injectable({ providedIn: 'root' })
 export class XtreamCatalogCommitService {
-    async readCurrent(playlistId: string): Promise<PlaylistMeta> {
+    async readCurrentOrNull(playlistId: string): Promise<PlaylistMeta | null> {
         const current = await window.electron.dbGetAppPlaylist(playlistId);
-        if (!current || current._id !== playlistId)
+        return current?._id === playlistId ? current : null;
+    }
+
+    async readCurrent(playlistId: string): Promise<PlaylistMeta> {
+        const current = await this.readCurrentOrNull(playlistId);
+        if (!current)
             throw new Error('Could not read the current catalog connection.');
         return current;
     }

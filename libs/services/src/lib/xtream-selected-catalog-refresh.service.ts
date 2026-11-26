@@ -1,6 +1,5 @@
 import { inject, Injectable, signal } from '@angular/core';
 import {
-    normalizeXtreamContentTypes,
     PlaylistMeta,
     XtreamContentType,
     XTREAM_CONTENT_TYPES,
@@ -11,6 +10,7 @@ import { ParentalLockLockStore } from './parental-lock';
 import { SourceActivityService } from './source-activity.service';
 import {
     markImportUnfinished,
+    matchesXtreamStartupSource,
     sameXtreamCatalogConnection,
     XtreamCatalogCommitService,
     XtreamCatalogConnectionChangedError,
@@ -131,14 +131,7 @@ export class XtreamSelectedCatalogRefreshService {
         try {
             if (startup) {
                 const current = await this.commit.readCurrent(playlist._id);
-                if (
-                    !current.autoRefresh ||
-                    current.updateDate !== playlist.updateDate ||
-                    !normalizeXtreamContentTypes(
-                        current.xtreamContentTypes
-                    ).includes('live') ||
-                    !sameXtreamCatalogConnection(playlist, current)
-                )
+                if (!matchesXtreamStartupSource(playlist, current))
                     return false;
                 retainedCategoryIds = await startup.readRetainedCategoryIds?.();
             }
