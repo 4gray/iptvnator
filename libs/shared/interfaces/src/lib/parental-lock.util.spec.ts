@@ -6,6 +6,7 @@ import {
     lockedXtreamCategoryIds,
     normalizeParentalLockPlaylistLocks,
     normalizeParentalLockStore,
+    parentalLockSetKey,
     toParentalLockStalkerCategoryType,
     toParentalLockXtreamCategoryType,
 } from './parental-lock.util';
@@ -180,5 +181,50 @@ describe('normalizeParentalLockGroupTitles', () => {
         expect(
             normalizeParentalLockGroupTitles([' Adult ', ' Adult ', 'Adult', 7])
         ).toEqual([' Adult ', 'Adult']);
+    });
+
+    describe('parentalLockSetKey', () => {
+        const locks = {
+            xtream: [
+                { categoryType: 'live' as const, xtreamId: 7 },
+                { categoryType: 'movies' as const, xtreamId: 8 },
+            ],
+            stalker: [{ categoryType: 'itv' as const, categoryId: '3' }],
+            m3u: ['Synthetic A', 'Synthetic B'],
+        };
+        const empty = { xtream: [], stalker: [], m3u: [] };
+
+        it('ignores the order of entries and of sources', () => {
+            const reordered = {
+                xtream: [...locks.xtream].reverse(),
+                stalker: locks.stalker,
+                m3u: [...locks.m3u].reverse(),
+            };
+
+            expect(parentalLockSetKey({ 'pl-1': reordered }, 'pl-1')).toBe(
+                parentalLockSetKey({ 'pl-1': locks }, 'pl-1')
+            );
+            expect(
+                parentalLockSetKey({ 'pl-2': locks, 'pl-1': empty }, null)
+            ).toBe(parentalLockSetKey({ 'pl-2': reordered }, null));
+        });
+
+        it('changes with what a source, or any source, locks', () => {
+            const store = { 'pl-1': locks };
+            const more = {
+                'pl-1': locks,
+                'pl-2': { ...empty, m3u: ['Synthetic C'] },
+            };
+
+            expect(parentalLockSetKey(more, 'pl-1')).toBe(
+                parentalLockSetKey(store, 'pl-1')
+            );
+            expect(parentalLockSetKey(more, null)).not.toBe(
+                parentalLockSetKey(store, null)
+            );
+            expect(
+                parentalLockSetKey({ 'pl-1': { ...locks, m3u: [] } }, 'pl-1')
+            ).not.toBe(parentalLockSetKey(store, 'pl-1'));
+        });
     });
 });
