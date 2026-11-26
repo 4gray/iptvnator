@@ -114,6 +114,7 @@ describe('Android Device settings', () => {
             language: new FormControl('en'),
             startupBehavior: new FormControl('dashboard'),
             stripCountryPrefix: new FormControl(false),
+            m3uCatalogTabs: new FormControl(true),
         });
         fixture.componentRef.setInput('form', form);
         fixture.componentRef.setInput('languageEnum', Language);
