@@ -81,8 +81,8 @@ describe('Refreshed Xtream live playback', () => {
         const unknown = { ...playing, id: 'synthetic-unidentified-session' };
         const entries = new Map([
             [playing.id, { session: playing, source }],
-            [newer.id, { session: newer, source }],
-            [removed.id, { session: removed, source }],
+            [newer.id, { session: newer, source: { ...source } }],
+            [removed.id, { session: removed, source: { ...source } }],
             [
                 other.id,
                 {
@@ -100,7 +100,7 @@ describe('Refreshed Xtream live playback', () => {
             providers: [{ provide: DatabaseService, useValue: db }],
         });
         TestBed.runInInjectionContext(() =>
-            observeExternalLiveCatalog(entries, update)
+            observeExternalLiveCatalog(entries, new Map(), update)
         );
         TestBed.inject(SourceActivityService).notifyLiveCatalogReplacement(
             playlistId
@@ -112,6 +112,7 @@ describe('Refreshed Xtream live playback', () => {
 
         expect(db.getContentByXtreamId).toHaveBeenCalledTimes(3);
         expect(update).toHaveBeenCalledTimes(1);
+        expect(update.mock.calls[0][1]).toBe(source);
         expect(update).toHaveBeenCalledWith(playing, {
             ...source,
             categoryId: category.xtream_id,

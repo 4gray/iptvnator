@@ -15,6 +15,7 @@ describe('Xtream live playback through a startup refresh', () => {
         publishExternalSession,
         restoreElectron,
         runtime,
+        xtreamStore,
     } = setupLiveStreamLayoutNativeFixture();
     let fixture: ComponentFixture<LiveStreamLayoutComponent>;
     let component: LiveStreamLayoutComponent;
@@ -134,4 +135,52 @@ describe('Xtream live playback through a startup refresh', () => {
         expect(playing).not.toBeNull();
         expect(component.activePlayback()).toBe(playing);
     });
+
+    it.each([true, false])(
+        'confirms a pending external launch after its category is refreshed (session registered: %s)',
+        async (registered) => {
+            portalPlayer.isEmbeddedPlayer.set(false);
+            const confirmed = jest.fn();
+            let finish!: (session: ExternalPlayerSession) => void;
+            xtreamStore.openPlayer.mockReturnValueOnce(
+                new Promise((resolve) => {
+                    finish = resolve;
+                })
+            );
+            component.playLive(original, true, undefined, false, confirmed);
+            const opening: ExternalPlayerSession = {
+                id: 'synthetic-opening-session',
+                streamUrl: component.activeStreamUrl(),
+                title: 'Synthetic channel',
+                player: 'mpv',
+                status: 'launching',
+                canClose: false,
+                startedAt: '2026-01-01T00:00:00Z',
+                updatedAt: '2026-01-01T00:00:00Z',
+            };
+            if (registered) publishExternalSession(opening);
+            fixture.detectChanges();
+            TestBed.inject(SourceActivityService).notifyLiveCatalogReplacement(
+                playlist.id
+            );
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            fixture.detectChanges();
+            expect(confirmed).not.toHaveBeenCalled();
+
+            const playing = {
+                ...opening,
+                status: 'playing' as const,
+                canClose: true,
+            };
+            publishExternalSession(playing);
+            fixture.detectChanges();
+            expect(
+                TestBed.inject(XtreamExternalLiveSessions).state(opening.id)
+                    ?.source.categoryId
+            ).toBe(600);
+            finish(playing);
+            await fixture.whenStable();
+            expect(confirmed).toHaveBeenCalledTimes(1);
+        }
+    );
 });

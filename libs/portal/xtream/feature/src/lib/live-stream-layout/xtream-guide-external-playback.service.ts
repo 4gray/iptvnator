@@ -87,9 +87,9 @@ export class XtreamGuideExternalPlayback {
             if (!hasXtreamOpenedMedia(session)) return null;
             const source = this.sessions.state(session.id)?.source;
             if (!source) return null;
-            if (prior?.session.id === session.id && prior.lockSource === source)
-                return { ...prior, session };
             const launch = guideLaunchFromSource(source);
+            if (prior?.session.id === session.id && prior.lockSource === source)
+                return launch ? { ...prior, ...launch, session } : null;
             return launch ? { ...launch, session } : null;
         },
     });

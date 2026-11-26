@@ -114,8 +114,13 @@ export class XtreamExternalLiveSessions {
             unsubscribe?.();
             this.sessions.forEach((entry) => clearTimeout(entry.retry));
         });
-        observeExternalLiveCatalog(this.sessions, (session, source) =>
-            this.update(session, source)
+        observeExternalLiveCatalog(
+            this.sessions,
+            this.pending,
+            (session, source) => {
+                this.update(session, source);
+                this.revision.update((value) => value + 1);
+            }
         );
         effect(() => {
             this.lock.version();

@@ -45,6 +45,7 @@ export function observeExternalLiveCatalog(
         string,
         { session: ExternalPlayerSession; source: XtreamLiveSource }
     >,
+    pending: ReadonlyMap<string, { source: XtreamLiveSource }>,
     update: (session: ExternalPlayerSession, source: XtreamLiveSource) => void
 ): void {
     const db = inject(DatabaseService);
@@ -52,30 +53,40 @@ export function observeExternalLiveCatalog(
     inject(SourceActivityService)
         .liveCatalogReplacements$.pipe(takeUntilDestroyed(destroyRef))
         .subscribe((playlistId) => {
-            for (const entry of sessions.values()) {
-                const source = entry.source;
-                if (source.playlistId !== playlistId || !source.channel)
-                    continue;
-                void readRefreshedLivePlayback(
-                    db,
-                    playlistId,
-                    source.channel
-                ).then(({ item, categoryId }) => {
-                    if (
-                        destroyRef.destroyed ||
-                        sessions.get(entry.session.id) !== entry ||
-                        entry.source !== source
-                    )
-                        return;
-                    update(entry.session, {
-                        ...source,
-                        channel: item,
-                        categoryId,
-                        queue: source.queue
-                            ? replaceXtreamQueuedCopy(source.queue, item)
-                            : undefined,
-                    });
-                });
+            const sources = new Set(
+                [...sessions.values(), ...pending.values()].map(
+                    ({ source }) => source
+                )
+            );
+            for (const source of sources) {
+                const channel = source.channel;
+                if (source.playlistId !== playlistId || !channel) continue;
+                void readRefreshedLivePlayback(db, playlistId, channel).then(
+                    ({ item, categoryId }) => {
+                        if (destroyRef.destroyed || source.channel !== channel)
+                            return;
+                        const active = [...sessions.values()].filter(
+                            (entry) => entry.source === source
+                        );
+                        if (
+                            !active.length &&
+                            ![...pending.values()].some(
+                                (entry) => entry.source === source
+                            )
+                        )
+                            return;
+                        // The launch keeps this object until the player confirms it.
+                        Object.assign(source, {
+                            channel: item,
+                            categoryId,
+                            queue: source.queue
+                                ? replaceXtreamQueuedCopy(source.queue, item)
+                                : undefined,
+                        });
+                        for (const entry of active)
+                            update(entry.session, source);
+                    }
+                );
             }
         });
 }
