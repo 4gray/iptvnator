@@ -79,3 +79,23 @@ function containerExtension(url: string): string {
 
     return path.slice(lastDot + 1).toLowerCase();
 }
+
+/**
+ * The row behind an episode card, by the episode's own id, which the
+ * adapter carried over: two rows can share a URL and differ in headers, DRM
+ * or artwork, and a URL match would then play the first of them for either
+ * card.
+ */
+export function channelOfM3uEpisode(
+    series: M3uSeries<Channel> | null | undefined,
+    episodeId: string | number
+): Channel | null {
+    for (const episodes of series?.seasons.values() ?? []) {
+        for (const candidate of episodes) {
+            if (String(candidate.id) === String(episodeId)) {
+                return candidate.channel;
+            }
+        }
+    }
+    return null;
+}

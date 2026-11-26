@@ -54,7 +54,10 @@ import {
     m3uEpisodeStaysInline,
 } from './m3u-episode-player-override.util';
 import { resumeOffsetOf } from './m3u-episode-resume.util';
-import { toSeasonRecord } from './m3u-series-episode.adapter';
+import {
+    channelOfM3uEpisode,
+    toSeasonRecord,
+} from './m3u-series-episode.adapter';
 import { M3uSeriesMenuService } from './m3u-series-menu.service';
 import { M3uSeriesMetadataService } from './m3u-series-metadata.service';
 import { M3uSeriesPositionsService } from './m3u-series-positions.service';
@@ -456,7 +459,7 @@ export class M3uSeriesDetailRouteComponent {
     }
 
     private openEpisode(episode: XtreamSerieEpisode, fromStart = false): void {
-        const channel = this.channelOf(episode);
+        const channel = channelOfM3uEpisode(this.series(), episode.id);
         if (!channel) {
             return;
         }
@@ -542,11 +545,6 @@ export class M3uSeriesDetailRouteComponent {
     }
 
     /**
-     * The adapter put the row's own URL in `direct_source`, so the channel
-     * behind an episode is found by it rather than by a parallel lookup
-     * table that could drift out of step with the catalog.
-     */
-    /**
      * MPV and VLC have no inline engine: mounting the inline player for them
      * gives an empty stage and launches nothing. They get the episode the
      * way the `:view` player hands them a channel. DASH and any row with
@@ -558,25 +556,5 @@ export class M3uSeriesDetailRouteComponent {
             !this.portalPlayer.isEmbeddedPlayer() &&
             !m3uEpisodeStaysInline(channel)
         );
-    }
-
-    private channelOf(episode: XtreamSerieEpisode): Channel | null {
-        const series = this.series();
-        if (!series) {
-            return null;
-        }
-
-        // By the episode's own id, which the adapter carried over: two rows
-        // can share a URL and differ in headers, DRM or artwork, and a URL
-        // match would then play the first of them for either card.
-        for (const episodes of series.seasons.values()) {
-            for (const candidate of episodes) {
-                if (String(candidate.id) === String(episode.id)) {
-                    return candidate.channel;
-                }
-            }
-        }
-
-        return null;
     }
 }
