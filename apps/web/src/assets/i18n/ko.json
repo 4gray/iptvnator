@@ -946,7 +946,12 @@
         "ACCENT_AMBER": "호박색",
         "ACCENT_CORAL": "코랄",
         "ACCENT_MAGENTA": "마젠타",
-        "ACCENT_VIOLET": "보라"
+        "ACCENT_VIOLET": "보라",
+        "ACCENT_RED": "레드",
+        "ACCENT_CYAN": "시안",
+        "ACCENT_LIME": "라임",
+        "ACCENT_SLATE": "슬레이트",
+        "ACCENT_BROWN": "브라운"
     },
     "AUDIO_PLAYER": {
         "PLAY": "재생",

@@ -946,7 +946,12 @@
         "ACCENT_AMBER": "Бурштиновий",
         "ACCENT_CORAL": "Кораловий",
         "ACCENT_MAGENTA": "Малиновий",
-        "ACCENT_VIOLET": "Фіолетовий"
+        "ACCENT_VIOLET": "Фіолетовий",
+        "ACCENT_RED": "Червоний",
+        "ACCENT_CYAN": "Блакитний",
+        "ACCENT_LIME": "Лаймовий",
+        "ACCENT_SLATE": "Сланцевий",
+        "ACCENT_BROWN": "Коричневий"
     },
     "AUDIO_PLAYER": {
         "PLAY": "Відтворити",

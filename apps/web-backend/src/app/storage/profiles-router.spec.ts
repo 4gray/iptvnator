@@ -5,6 +5,10 @@ import {
     withServer,
 } from '../web-backend-app.spec-helpers';
 import { withTempStorage } from './server-storage.spec-helpers';
+import {
+    PROFILE_COLOURS,
+    PROFILE_LIMIT,
+} from '@iptvnator/shared/interfaces/profiles';
 import type { ServerInstanceInfo } from '@iptvnator/shared/interfaces';
 import type {
     ServerProfile,
@@ -394,6 +398,26 @@ describe('profiles routes', () => {
                 );
                 expect(others.map((p) => p.colour)).not.toContain(d.colour);
                 expect(d.colour).toBe(b.colour);
+            })
+        ));
+
+    it('gives every profile up to the limit its own colour', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const call = client(baseUrl, storage);
+                for (let i = 1; i < PROFILE_LIMIT; i++) {
+                    const response = await call('/profiles', {
+                        method: 'POST',
+                        body: { name: `P${i}` },
+                    });
+                    expect(response.status).toBe(201);
+                }
+                const list = await profilesIn(await call('/profiles'));
+                expect(list).toHaveLength(PROFILE_LIMIT);
+                const colours = list.map((p) => p.colour);
+                expect(new Set(colours).size).toBe(PROFILE_LIMIT);
+                for (const colour of colours)
+                    expect(PROFILE_COLOURS.map((c) => c.hex)).toContain(colour);
             })
         ));
 

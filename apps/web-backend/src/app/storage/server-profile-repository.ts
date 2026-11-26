@@ -4,6 +4,7 @@ import {
     DEFAULT_PERSONAL_SCOPE,
     DEFAULT_PROFILE_ID,
     isProfileId,
+    PROFILE_COLOURS,
     profileIdOfScope,
     profileScope,
     type PersonalScope,
@@ -15,17 +16,6 @@ import { ServerProfileHousehold } from './server-profile-household';
 /** The only household until a household level is added above profiles. */
 export const DEFAULT_HOUSEHOLD_ID = 'default';
 const DEFAULT_NAME = 'Default';
-/** Colours given in turn to new profiles that do not choose one. */
-export const PROFILE_COLOURS = [
-    '#3b82f6',
-    '#ef4444',
-    '#22c55e',
-    '#f59e0b',
-    '#a855f7',
-    '#14b8a6',
-    '#ec4899',
-    '#64748b',
-] as const;
 
 interface ProfileRow {
     id: string;
@@ -125,9 +115,10 @@ export class ServerProfileRepository {
         // After a deletion the count would repeat an order and a colour.
         const order = this.nextSortOrder();
         const used = new Set(this.list().map((p) => p.colour));
-        const pick =
-            PROFILE_COLOURS.find((c) => !used.has(c)) ??
-            PROFILE_COLOURS[order % PROFILE_COLOURS.length];
+        const pick = (
+            PROFILE_COLOURS.find(({ hex }) => !used.has(hex)) ??
+            PROFILE_COLOURS[order % PROFILE_COLOURS.length]
+        ).hex;
         this.sqlite.transaction(() => {
             this.sqlite
                 .prepare(
@@ -255,7 +246,7 @@ export class ServerProfileRepository {
             id: DEFAULT_PROFILE_ID,
             scope: DEFAULT_PERSONAL_SCOPE,
             name: row?.name ?? DEFAULT_NAME,
-            colour: row?.colour ?? PROFILE_COLOURS[0],
+            colour: row?.colour ?? PROFILE_COLOURS[0].hex,
             ...(row?.emoji ? { emoji: row.emoji } : {}),
             hasPin: !!row?.pin_hash,
             kids: !!row?.kids,

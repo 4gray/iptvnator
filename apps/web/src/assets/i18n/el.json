@@ -946,7 +946,12 @@
         "ACCENT_AMBER": "Κεχριμπαρί",
         "ACCENT_CORAL": "Κοραλλί",
         "ACCENT_MAGENTA": "Ματζέντα",
-        "ACCENT_VIOLET": "Βιολετί"
+        "ACCENT_VIOLET": "Βιολετί",
+        "ACCENT_RED": "Κόκκινο",
+        "ACCENT_CYAN": "Κυανό",
+        "ACCENT_LIME": "Λαχανί",
+        "ACCENT_SLATE": "Σχιστόλιθος",
+        "ACCENT_BROWN": "Καφέ"
     },
     "AUDIO_PLAYER": {
         "PLAY": "Αναπαραγωγή",

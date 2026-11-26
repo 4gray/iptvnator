@@ -946,7 +946,12 @@
         "ACCENT_AMBER": "Бурштынавы",
         "ACCENT_CORAL": "Каралавы",
         "ACCENT_MAGENTA": "Малінавы",
-        "ACCENT_VIOLET": "Фіялетавы"
+        "ACCENT_VIOLET": "Фіялетавы",
+        "ACCENT_RED": "Чырвоны",
+        "ACCENT_CYAN": "Блакітны",
+        "ACCENT_LIME": "Лаймавы",
+        "ACCENT_SLATE": "Шыфернасівы",
+        "ACCENT_BROWN": "Карычневы"
     },
     "AUDIO_PLAYER": {
         "PLAY": "Прайграць",

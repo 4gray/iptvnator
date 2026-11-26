@@ -946,7 +946,12 @@
         "ACCENT_AMBER": "Янтарный",
         "ACCENT_CORAL": "Коралловый",
         "ACCENT_MAGENTA": "Малиновый",
-        "ACCENT_VIOLET": "Фиолетовый"
+        "ACCENT_VIOLET": "Фиолетовый",
+        "ACCENT_RED": "Красный",
+        "ACCENT_CYAN": "Бирюзовый",
+        "ACCENT_LIME": "Лаймовый",
+        "ACCENT_SLATE": "Сланцевый",
+        "ACCENT_BROWN": "Коричневый"
     },
     "AUDIO_PLAYER": {
         "PLAY": "Воспроизвести",

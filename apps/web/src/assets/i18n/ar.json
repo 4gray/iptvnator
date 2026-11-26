@@ -946,7 +946,12 @@
         "ACCENT_AMBER": "كهرماني",
         "ACCENT_CORAL": "مرجاني",
         "ACCENT_MAGENTA": "أرجواني",
-        "ACCENT_VIOLET": "بنفسجي"
+        "ACCENT_VIOLET": "بنفسجي",
+        "ACCENT_RED": "أحمر",
+        "ACCENT_CYAN": "سماوي",
+        "ACCENT_LIME": "ليموني",
+        "ACCENT_SLATE": "رمادي مزرق",
+        "ACCENT_BROWN": "بني"
     },
     "AUDIO_PLAYER": {
         "PLAY": "تشغيل",

@@ -946,7 +946,12 @@
         "ACCENT_AMBER": "Kehribar",
         "ACCENT_CORAL": "Mercan",
         "ACCENT_MAGENTA": "Macenta",
-        "ACCENT_VIOLET": "Mor"
+        "ACCENT_VIOLET": "Mor",
+        "ACCENT_RED": "Kırmızı",
+        "ACCENT_CYAN": "Camgöbeği",
+        "ACCENT_LIME": "Misket limonu",
+        "ACCENT_SLATE": "Arduvaz",
+        "ACCENT_BROWN": "Kahverengi"
     },
     "AUDIO_PLAYER": {
         "PLAY": "Oynat",

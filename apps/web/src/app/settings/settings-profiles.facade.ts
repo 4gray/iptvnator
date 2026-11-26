@@ -188,9 +188,10 @@ export class SettingsProfilesFacade {
         takenColours: ReadonlySet<string>,
         submit: SettingsProfileDialogData['submit']
     ): Promise<void> {
-        const suggestedColour =
-            PROFILE_SWATCHES.find((colour) => !takenColours.has(colour)) ??
-            PROFILE_SWATCHES[0];
+        const suggestedColour = (
+            PROFILE_SWATCHES.find(({ hex }) => !takenColours.has(hex)) ??
+            PROFILE_SWATCHES[0]
+        ).hex;
         const ref = SettingsProfileDialogComponent.open(this.dialog, {
             profile,
             suggestedColour,

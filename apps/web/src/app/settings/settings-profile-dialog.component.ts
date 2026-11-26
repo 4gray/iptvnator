@@ -23,7 +23,6 @@ import {
     isValidParentalLockPin,
     PARENTAL_LOCK_PIN_MAX_LENGTH,
     PARENTAL_LOCK_PIN_MIN_LENGTH,
-    THEME_ACCENTS,
 } from '@iptvnator/shared/interfaces';
 import {
     DEFAULT_PROFILE_ID,
@@ -38,7 +37,10 @@ import {
 } from '@iptvnator/ui/dialog';
 import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 import type { ProfilesError } from '@iptvnator/services/profiles';
-import { isSingleEmoji } from '../profiles/profile-appearance';
+import {
+    isSingleEmoji,
+    PROFILE_SWATCHES,
+} from '../profiles/profile-appearance';
 import {
     profileErrorMessage,
     type ProfileErrorMessage,
@@ -104,7 +106,7 @@ export class SettingsProfileDialogComponent {
     readonly nameMax = PROFILE_NAME_MAX_LENGTH;
     readonly pinMin = PARENTAL_LOCK_PIN_MIN_LENGTH;
     readonly pinMax = PARENTAL_LOCK_PIN_MAX_LENGTH;
-    readonly swatches = THEME_ACCENTS.map((accent) => ({
+    readonly swatches = PROFILE_SWATCHES.map((accent) => ({
         id: accent.id,
         hex: accent.hex,
         labelKey: `THEMES.ACCENT_${accent.id.toUpperCase()}`,
