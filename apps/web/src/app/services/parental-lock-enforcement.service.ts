@@ -16,7 +16,10 @@ import {
     ParentalLockLockStore,
     ParentalLockService,
 } from '@iptvnator/services';
-import { toParentalLockXtreamCategoryType } from '@iptvnator/shared/interfaces';
+import {
+    parentalLockSetKey,
+    toParentalLockXtreamCategoryType,
+} from '@iptvnator/shared/interfaces';
 import { DeferredExternalSessions } from './parental-lock-external-sessions.deferred';
 import { PlaybackKeepAwakeService } from './playback-keep-awake.service';
 
@@ -62,7 +65,8 @@ export class ParentalLockEnforcementService {
         const externalSessions = new DeferredExternalSessions({
             injector: this.injector,
             isLocked: () => this.parentalLock.active(),
-            lockRevision: () => this.lockStore.revision(),
+            lockSetKey: (sourceId) =>
+                parentalLockSetKey(this.lockStore.lockSet(), sourceId),
             routeUrl: () => this.router.url,
         });
         this.externalSessions = externalSessions;

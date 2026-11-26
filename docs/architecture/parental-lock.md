@@ -606,7 +606,10 @@ every session from `onExternalPlayerSessionUpdate`:
   category, so an edit of that source's locks (of any source's, when the
   source is unknown) counts it as opened while unlocked, and so does any
   lock edit for one first reported after the edit that started before it.
-  Deleting another source or re-stamping the index leaves it alone. Closing uses `closeExternalPlayerSession(id, true)` and hides
+  Deleting another source or re-stamping the index leaves it alone, and so
+  does a save that changes no lock or only reorders them: edits are
+  compared by lock contents (`parentalLockSetKey`, order-insensitive), not
+  by the store revision. Closing uses `closeExternalPlayerSession(id, true)` and hides
   the session from the dock first; a launch without a closer yet is closed
   on its next update, a rejected close is retried every second, and a
   session that cannot be closed (`canClose: false`) is only hidden — shown
@@ -625,14 +628,18 @@ every session from `onExternalPlayerSessionUpdate`:
   once the first screen has rendered and the page is idle (one second,
   then an idle callback of at most five), and only where the bridge
   reports MPV/VLC or Embedded MPV. Until then it records when the page
-  started, when it last relocked or its lock set changed (other version
-  bumps while locked do not count), and, for each session's media, the
-  route it was opened from and whether the app was locked then (listener
-  registrations are not bridge calls). A failed chunk load is retried
+  started, when it last relocked or its lock set changed (by contents;
+  other version bumps do not count), and, for each session's media, the
+  route it was opened from, whether it came from the filtered catalog
+  (locked then and, at a first report, launched after the last relock or
+  lock edit; media opened unlocked stays so across a switch), and its
+  source's locks at that report (listener registrations are not bridge
+  calls). A failed chunk load is retried
   twice, five seconds apart. The tracker judges every listed session by
   those readings: one opened while unlocked before a relock it missed is
   closed when it loads; one opened while locked stays allowed even if the
-  PIN was entered before the load; one it never saw report counts as
+  PIN was entered, or the app unlocked and relocked, before the load,
+  unless its source's locks changed since; one it never saw report counts as
   opened while unlocked from any source; a session's source is the route
   of its launch rather than the route at the load; and the busy probe
   counts nothing yet.

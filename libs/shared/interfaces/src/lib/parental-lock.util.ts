@@ -255,6 +255,40 @@ export function isParentalLockPlaylistLocksEmpty(
  * Normalizes a persisted or user-supplied lock store. Entries that lock
  * nothing are dropped so the store never grows with empty playlists.
  */
+/**
+ * What one playlist locks, independent of entry order: saving a list
+ * unchanged moves its type's entries to the end. Empty without locks.
+ */
+function parentalLockPlaylistKey(
+    locks: ParentalLockPlaylistLocks | undefined
+): string {
+    if (!locks || isParentalLockPlaylistLocksEmpty(locks)) {
+        return '';
+    }
+    return JSON.stringify([
+        locks.xtream.map((l) => `${l.categoryType}:${l.xtreamId}`).sort(),
+        locks.stalker.map((l) => `${l.categoryType}:${l.categoryId}`).sort(),
+        [...locks.m3u].sort(),
+    ]);
+}
+
+/**
+ * The locks of a playlist (of every playlist when `null`) as a key that
+ * changes only with them. The lock store's revision also moves on a save
+ * that changed nothing, a re-stamp or a recovered read.
+ */
+export function parentalLockSetKey(
+    store: ParentalLockStore,
+    playlistId: string | null
+): string {
+    const ids = playlistId === null ? Object.keys(store).sort() : [playlistId];
+    return JSON.stringify(
+        ids
+            .map((id) => [id, parentalLockPlaylistKey(store[id])])
+            .filter(([, key]) => key !== '')
+    );
+}
+
 export function normalizeParentalLockStore(value: unknown): ParentalLockStore {
     const store: ParentalLockStore = {};
     if (!isRecord(value)) {

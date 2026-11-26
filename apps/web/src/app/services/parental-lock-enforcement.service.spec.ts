@@ -98,7 +98,7 @@ describe('ParentalLockEnforcementService', () => {
                 { provide: ParentalLockService, useValue: parentalLock },
                 {
                     provide: ParentalLockLockStore,
-                    useValue: { revision: signal(0) },
+                    useValue: { revision: signal(0), lockSet: () => ({}) },
                 },
                 { provide: XtreamStore, useValue: xtreamStore },
                 { provide: XTREAM_DATA_SOURCE, useValue: xtreamDataSource },
@@ -492,7 +492,7 @@ describe('ParentalLockEnforcementService apply serialization', () => {
                 },
                 {
                     provide: ParentalLockLockStore,
-                    useValue: { revision: signal(0) },
+                    useValue: { revision: signal(0), lockSet: () => ({}) },
                 },
                 { provide: XtreamStore, useValue: xtreamStore },
                 {
@@ -599,7 +599,7 @@ describe('ParentalLockEnforcementService busy probe', () => {
                 },
                 {
                     provide: ParentalLockLockStore,
-                    useValue: { revision: signal(0) },
+                    useValue: { revision: signal(0), lockSet: () => ({}) },
                 },
                 { provide: XtreamStore, useValue: {} },
                 { provide: XTREAM_DATA_SOURCE, useValue: {} },

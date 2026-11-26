@@ -5,10 +5,11 @@ import {
     ParentalLockService,
     ParentalLockSessionOwners,
 } from '@iptvnator/services';
-import type {
-    EmbeddedMpvSession,
-    ExternalPlayerSession,
-    PlaybackPositionData,
+import {
+    type EmbeddedMpvSession,
+    type ExternalPlayerSession,
+    parentalLockSetKey,
+    type PlaybackPositionData,
 } from '@iptvnator/shared/interfaces';
 import { ExternalPlaybackService } from './external-playback.service';
 import {
@@ -74,7 +75,7 @@ export class ParentalLockExternalSessions {
     private lockedAt = Number.NEGATIVE_INFINITY;
     private pageStartedAt = Number.NEGATIVE_INFINITY;
     private trackerStartedAt = Number.NEGATIVE_INFINITY;
-    private lockRevision = 0;
+    private lockSet = '';
     private wasLocked = true;
     private launchSources: ReadonlyMap<string, ExternalSessionLaunch> =
         new Map();
@@ -86,11 +87,11 @@ export class ParentalLockExternalSessions {
     /**
      * `handoff` carries what the eager half saw before this loaded: when the
      * page started (locked, or with the feature off), when it last locked or
-     * its lock set changed, and the route each session was first reported
-     * on. A session the page did not see open — still running across a
-     * reload or a crashed renderer — has an unknown history and is treated
-     * as opened unlocked; one opened while this was loading is judged by the
-     * relocks and lock edits it missed.
+     * its lock set changed, and how each session's media was opened. A
+     * session the page did not see open — still running across a reload or
+     * a crashed renderer — has an unknown history and is treated as opened
+     * unlocked; one opened while this was loading is judged by how it was
+     * opened and by the lock edits since.
      */
     start(handoff: ExternalSessionsHandoff): void {
         if (this.started) {
@@ -101,7 +102,7 @@ export class ParentalLockExternalSessions {
         this.lockedAt = handoff.lockedAt;
         this.launchSources = handoff.launchSources;
         this.trackerStartedAt = this.now();
-        this.lockRevision = handoff.lockRevision;
+        this.lockSet = handoff.lockSet;
         this.wasLocked = this.lock.active();
         const bridge = window.electron;
         bridge?.onExternalPlayerSessionUpdate?.((session) =>
@@ -127,11 +128,11 @@ export class ParentalLockExternalSessions {
     onLockChange(): void {
         // A session carries no category, so a lock-set change may withhold
         // what any open one plays, however it was opened.
-        // Only its own source's locks count: deleting another source or
-        // re-stamping the index also moves the revision.
-        const revision = this.locks.revision();
-        if (revision !== this.lockRevision) {
-            this.lockRevision = revision;
+        // Only its own source's locks count: an edit of another source also
+        // changes the lock set. A save that changed nothing changes neither.
+        const lockSet = this.lockKeyOf(null);
+        if (lockSet !== this.lockSet) {
+            this.lockSet = lockSet;
             this.lockedAt = this.now();
             this.sessions.forEach((entry) => {
                 const key = this.lockKeyOf(entry.sourceId);
@@ -180,23 +181,8 @@ export class ParentalLockExternalSessions {
             sourceId: this.launchSourceOf(session),
             closing: false,
         };
-        // New media while unlocked: a launch, or an in-place switch of a
-        // reused player (status reports alone do not count). A session first
-        // seen after a relock or lock edit it started before raced it.
         const switched =
             !!current && current.session.streamUrl !== session.streamUrl;
-        // Opened before this loaded: judged by the lock state at its launch,
-        // not now — the PIN may have been entered since.
-        const earlier = current ? undefined : this.launchBeforeLoad(session);
-        const unlockedMedia = earlier
-            ? !earlier.openedLocked
-            : !this.lock.active() && (!current || switched);
-        if (
-            unlockedMedia ||
-            (!current && Date.parse(session.startedAt) <= this.lockedAt)
-        ) {
-            entry.tainted = true;
-        }
         if (switched) {
             // New media plays the source it was switched from.
             entry.sourceId = sourceIdOfRoute(this.router.url);
@@ -205,6 +191,24 @@ export class ParentalLockExternalSessions {
         entry.sourceId = session.contentInfo?.playlistId ?? entry.sourceId;
         if (!current || switched) {
             entry.lockKey = this.lockKeyOf(entry.sourceId);
+        }
+        // Opened before this loaded: judged as the eager half saw its launch
+        // — the PIN may have been entered and the app relocked since — and
+        // by the lock edits after it.
+        const earlier = current ? undefined : this.launchBeforeLoad(session);
+        // New media while unlocked: a launch, or an in-place switch of a
+        // reused player (status reports alone do not count). A session first
+        // seen after a relock or lock edit it started before raced it.
+        const unlockedMedia = earlier
+            ? !earlier.openedLocked
+            : !this.lock.active() && (!current || switched);
+        const raced =
+            !current &&
+            (earlier
+                ? earlier.lockKey !== entry.lockKey
+                : Date.parse(session.startedAt) <= this.lockedAt);
+        if (unlockedMedia || raced) {
+            entry.tainted = true;
         }
         this.sessions.set(session.id, entry);
         this.enforce(entry);
@@ -309,13 +313,11 @@ export class ParentalLockExternalSessions {
     }
 
     /**
-     * What a lock edit is compared by: the source's locks, or the lock
-     * revision when the source cannot be told (any edit may concern it).
+     * What a lock edit is compared by: the source's locks, or every
+     * source's when it cannot be told (any edit may concern it).
      */
     private lockKeyOf(sourceId: string | null): string {
-        return sourceId === null
-            ? `revision:${this.locks.revision()}`
-            : JSON.stringify(this.locks.locksFor(sourceId));
+        return parentalLockSetKey(this.locks.lockSet(), sourceId);
     }
 
     /** The source route a new session was launched from, when known. */
@@ -338,7 +340,7 @@ export class ParentalLockExternalSessions {
      */
     private launchBeforeLoad(
         session: ExternalPlayerSession
-    ): Pick<ExternalSessionLaunch, 'openedLocked'> | undefined {
+    ): Partial<ExternalSessionLaunch> | undefined {
         if (Date.parse(session.startedAt) >= this.trackerStartedAt) {
             return undefined;
         }

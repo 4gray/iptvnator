@@ -104,6 +104,8 @@ export class ParentalLockLockStore {
             !this.pendingRewrite() &&
             this.staleIndex.isEmpty()
     );
+    /** Every playlist's locks; key them with `parentalLockSetKey`. */
+    readonly lockSet = this.locks.asReadonly();
     /** Bumps whenever the lock set changes; consumers re-query. */
     readonly revision = this.revisionState.asReadonly();
     readonly isEmpty = computed(() => Object.keys(this.locks()).length === 0);

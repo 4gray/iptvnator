@@ -6,6 +6,13 @@ import {
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+type Reported = {
+    id: string;
+    streamUrl: string;
+    startedAt?: string;
+    contentInfo?: { playlistId?: string };
+};
+
 describe('DeferredExternalSessions', () => {
     let clock: number;
     let locked: boolean;
@@ -18,10 +25,9 @@ describe('DeferredExternalSessions', () => {
     let load: jest.Mock;
     let injector: Injector;
 
-    let revision: number;
+    let lockSets: Record<string, string>;
     let routeUrl: string;
-    let emitSession:
-        ((session: { id: string; streamUrl: string }) => void) | undefined;
+    let emitSession: ((session: Reported) => void) | undefined;
     let stopWatching: jest.Mock;
 
     const create = () =>
@@ -29,7 +35,8 @@ describe('DeferredExternalSessions', () => {
             {
                 injector,
                 isLocked: () => locked,
-                lockRevision: () => revision,
+                lockSetKey: (id: string | null) =>
+                    `${id ?? '*'}:${lockSets[id ?? '*'] ?? ''}`,
                 routeUrl: () => routeUrl,
             },
             {
@@ -52,13 +59,13 @@ describe('DeferredExternalSessions', () => {
         class ParentalLockExternalSessions {}
         injector = { get: jest.fn(() => tracker) } as unknown as Injector;
         load = jest.fn(async () => ({ ParentalLockExternalSessions }));
-        revision = 0;
+        lockSets = {};
         routeUrl = '/workspace/playlists/m3u-1/all';
         emitSession = undefined;
         stopWatching = jest.fn();
         (window as { electron?: unknown }).electron = {
             onExternalPlayerSessionUpdate: (
-                callback: (session: { id: string; streamUrl: string }) => void
+                callback: (session: Reported) => void
             ) => {
                 emitSession = callback;
                 return stopWatching;
@@ -93,7 +100,7 @@ describe('DeferredExternalSessions', () => {
         expect(tracker.start).toHaveBeenCalledWith({
             pageStartedAt: 10_000,
             lockedAt: 10_000,
-            lockRevision: 0,
+            lockSet: '*:',
             launchSources: new Map(),
         });
         expect(stopWatching).toHaveBeenCalled();
@@ -141,49 +148,134 @@ describe('DeferredExternalSessions', () => {
         clock = 13_000;
         deferred.onLockChange();
         clock = 14_000;
-        revision = 1;
+        lockSets['*'] = 'm3u-1:Synthetic group';
         deferred.onLockChange();
 
         scheduled?.();
         await flush();
 
         expect(tracker.start).toHaveBeenCalledWith(
-            expect.objectContaining({ lockedAt: 14_000, lockRevision: 1 })
+            expect.objectContaining({
+                lockedAt: 14_000,
+                lockSet: '*:m3u-1:Synthetic group',
+            })
         );
     });
 
     it("hands over the route of each session's media", async () => {
         const film = 'http://stream.example/film.mkv';
+        const report = (id: string, streamUrl = film) =>
+            emitSession?.({
+                id,
+                streamUrl,
+                startedAt: new Date(11_000).toISOString(),
+            });
         create();
-        emitSession?.({ id: 'session-1', streamUrl: film });
+        report('session-1');
         routeUrl = '/workspace/xtreams/xtream-2/live';
         // A status report keeps the launch route; a switch takes the new one.
-        emitSession?.({ id: 'session-1', streamUrl: film });
-        emitSession?.({ id: 'session-2', streamUrl: film });
+        report('session-1');
+        report('session-2');
         routeUrl = '/workspace/dashboard';
-        emitSession?.({ id: 'session-3', streamUrl: film });
+        report('session-3');
         routeUrl = '/workspace/stalker/stalker-4/itv';
         // The PIN was entered: a switch now is media opened while unlocked.
         locked = false;
-        emitSession?.({
-            id: 'session-2',
-            streamUrl: 'http://stream.example/b',
+        report('session-2', 'http://stream.example/b');
+
+        scheduled?.();
+        await flush();
+
+        const launch = (sourceId: string | null, openedLocked: boolean) => ({
+            sourceId,
+            openedLocked,
+            lockKey: `${sourceId ?? '*'}:`,
         });
+        expect(tracker.start).toHaveBeenCalledWith(
+            expect.objectContaining({
+                launchSources: new Map([
+                    ['session-1', launch('m3u-1', true)],
+                    ['session-2', launch('stalker-4', false)],
+                    ['session-3', launch(null, true)],
+                ]),
+            })
+        );
+    });
+
+    describe('how a session was opened', () => {
+        const film = 'http://stream.example/film.mkv';
+        const handedOver = async (id = 'session-1') => {
+            scheduled?.();
+            await flush();
+            return tracker.start.mock.calls[0][0].launchSources.get(id);
+        };
+
+        it('counts media launched before a relock and reported after it as opened unlocked', async () => {
+            locked = false;
+            const deferred = create();
+            clock = 13_000;
+            locked = true;
+            deferred.onLockChange();
+            emitSession?.({
+                id: 'session-1',
+                streamUrl: film,
+                startedAt: new Date(12_000).toISOString(),
+            });
+
+            expect(await handedOver()).toMatchObject({ openedLocked: false });
+        });
+
+        it('keeps media opened unlocked counted so after a switch while locked', async () => {
+            locked = false;
+            const deferred = create();
+            emitSession?.({
+                id: 'session-1',
+                streamUrl: film,
+                startedAt: new Date(10_000).toISOString(),
+            });
+            clock = 12_000;
+            locked = true;
+            deferred.onLockChange();
+            emitSession?.({
+                id: 'session-1',
+                streamUrl: 'http://stream.example/b',
+                startedAt: new Date(10_000).toISOString(),
+            });
+
+            expect(await handedOver()).toMatchObject({ openedLocked: false });
+        });
+
+        it("hands over the locks of the session's source as it saw them", async () => {
+            create();
+            lockSets['xtream-2'] = 'live:7';
+            emitSession?.({
+                id: 'session-1',
+                streamUrl: film,
+                startedAt: new Date(11_000).toISOString(),
+                contentInfo: { playlistId: 'xtream-2' },
+            });
+            lockSets['xtream-2'] = 'live:7,live:8';
+
+            expect(await handedOver()).toMatchObject({
+                openedLocked: true,
+                lockKey: 'xtream-2:live:7',
+            });
+        });
+    });
+
+    it('moves nothing on a save that changed no lock', async () => {
+        locked = false;
+        const deferred = create();
+        clock = 14_000;
+        // An unchanged list saved: the store's revision moves, its lock
+        // set does not.
+        deferred.onLockChange();
 
         scheduled?.();
         await flush();
 
         expect(tracker.start).toHaveBeenCalledWith(
-            expect.objectContaining({
-                launchSources: new Map([
-                    ['session-1', { sourceId: 'm3u-1', openedLocked: true }],
-                    [
-                        'session-2',
-                        { sourceId: 'stalker-4', openedLocked: false },
-                    ],
-                    ['session-3', { sourceId: null, openedLocked: true }],
-                ]),
-            })
+            expect.objectContaining({ lockedAt: 10_000 })
         );
     });
 
