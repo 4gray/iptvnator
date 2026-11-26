@@ -35,6 +35,7 @@ import {
     M3uFavoriteChannel,
     M3uRecentlyViewedItem,
     Playlist,
+    type PlaylistMeta,
     PlaylistMetaUpdate,
     PlaylistRecentlyViewedItem,
     PlaylistRecentIdentity,
@@ -773,6 +774,15 @@ export class PlaylistsService {
 
     updatePlaylistMeta(updatedPlaylist: PlaylistMetaUpdate) {
         return this.updatePlaylistMetaInQueue(updatedPlaylist);
+    }
+
+    persistXtreamStartupUpdateDate(playlist: PlaylistMeta, updateDate: number) {
+        return this.serializePlaylistWrite(playlist._id, async () => {
+            const { persistXtreamStartupUpdateDate } = await import(
+                './xtream-catalog-commit.service'
+            );
+            return persistXtreamStartupUpdateDate(playlist, updateDate);
+        });
     }
 
     /** Applies a meta update only while the storage-current row still matches. */

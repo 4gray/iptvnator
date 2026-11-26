@@ -1,5 +1,8 @@
 import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
-import { XtreamCatalogCommitService } from './xtream-catalog-commit.service';
+import {
+    persistXtreamStartupUpdateDate,
+    XtreamCatalogCommitService,
+} from './xtream-catalog-commit.service';
 
 const playlist = {
     _id: 'synthetic-source',
@@ -105,10 +108,7 @@ it.each([true, false])(
     async (success) => {
         update.mockResolvedValue({ success });
         await expect(
-            new XtreamCatalogCommitService().persistStartupUpdateDate(
-                { ...playlist, updateDate: 42 },
-                73
-            )
+            persistXtreamStartupUpdateDate({ ...playlist, updateDate: 42 }, 73)
         ).resolves.toBe(success);
         expect(update).toHaveBeenCalledWith(
             playlist._id,

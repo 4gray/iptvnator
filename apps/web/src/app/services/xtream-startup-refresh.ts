@@ -1,5 +1,6 @@
 import type { Injector } from '@angular/core';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
+import { PlaylistsService } from '@iptvnator/services';
 import { NotificationService } from '@iptvnator/services/notifications';
 import { XtreamStartupRefreshService } from '@iptvnator/services/xtream-startup-refresh';
 import {
@@ -14,6 +15,7 @@ export async function refreshXtreamPlaylistsOnStartup(
     sources: PlaylistMeta[]
 ): Promise<void> {
     const refresh = injector.get(XtreamStartupRefreshService);
+    const playlists = injector.get(PlaylistsService);
     const store = injector.get(Store);
     let failed = false;
 
@@ -33,7 +35,9 @@ export async function refreshXtreamPlaylistsOnStartup(
                 current.userAgent === source.userAgent;
             let publish: boolean;
             try {
-                publish = await refresh.persistUpdateDate(source, updateDate);
+                publish = await firstValueFrom(
+                    playlists.persistXtreamStartupUpdateDate(source, updateDate)
+                );
             } catch {
                 failed = true;
                 // The catalog already committed. Refresh the current view

@@ -29,6 +29,33 @@ export class XtreamCatalogConnectionChangedError extends Error {
     }
 }
 
+function catalogCondition(playlist: PlaylistMeta) {
+    return {
+        playlistId: playlist._id,
+        serverUrl: playlist.serverUrl ?? '',
+        username: playlist.username ?? '',
+        password: playlist.password ?? '',
+        ...(typeof playlist.userAgent === 'string'
+            ? { userAgent: playlist.userAgent }
+            : {}),
+    };
+}
+
+export async function persistXtreamStartupUpdateDate(
+    playlist: PlaylistMeta,
+    updateDate: number
+): Promise<boolean> {
+    const result = await window.electron.dbUpdatePlaylist(
+        playlist._id,
+        { updateDate },
+        {
+            ...catalogCondition(playlist),
+            previousUpdateDate: playlist.updateDate ?? null,
+        }
+    );
+    return result.success === true;
+}
+
 /** Only constructed by the SQLite-backed edit-time scanner. */
 @Injectable({ providedIn: 'root' })
 export class XtreamCatalogCommitService {
@@ -37,18 +64,6 @@ export class XtreamCatalogCommitService {
         if (!current || current._id !== playlistId)
             throw new Error('Could not read the current catalog connection.');
         return current;
-    }
-
-    private condition(playlist: PlaylistMeta) {
-        return {
-            playlistId: playlist._id,
-            serverUrl: playlist.serverUrl ?? '',
-            username: playlist.username ?? '',
-            password: playlist.password ?? '',
-            ...(typeof playlist.userAgent === 'string'
-                ? { userAgent: playlist.userAgent }
-                : {}),
-        };
     }
 
     private requireSuccess(result: XtreamCatalogStateResult): void {
@@ -63,24 +78,9 @@ export class XtreamCatalogCommitService {
     async assertCurrent(playlist: PlaylistMeta): Promise<void> {
         this.requireSuccess(
             await window.electron.dbCheckXtreamCatalogConnection(
-                this.condition(playlist)
+                catalogCondition(playlist)
             )
         );
-    }
-
-    async persistStartupUpdateDate(
-        playlist: PlaylistMeta,
-        updateDate: number
-    ): Promise<boolean> {
-        const result = await window.electron.dbUpdatePlaylist(
-            playlist._id,
-            { updateDate },
-            {
-                ...this.condition(playlist),
-                previousUpdateDate: playlist.updateDate ?? null,
-            }
-        );
-        return result.success === true;
     }
 
     async setState(
@@ -92,7 +92,7 @@ export class XtreamCatalogCommitService {
             await window.electron.dbSetAppState(
                 key,
                 value,
-                this.condition(playlist)
+                catalogCondition(playlist)
             )
         );
     }

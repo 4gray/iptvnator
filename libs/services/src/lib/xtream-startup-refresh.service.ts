@@ -4,7 +4,6 @@ import { DatabaseService } from './database-electron.service';
 import { ParentalLockService } from './parental-lock';
 import { SourceActivityService } from './source-activity.service';
 import { XtreamCatalogFetchService } from './xtream-catalog-fetch.service';
-import { XtreamCatalogCommitService } from './xtream-catalog-commit.service';
 import { XtreamSelectedCatalogRefreshService } from './xtream-selected-catalog-refresh.service';
 
 function hasUsableStreamId(value: unknown): boolean {
@@ -22,20 +21,12 @@ export class XtreamStartupRefreshService {
     private readonly refresh = inject(XtreamSelectedCatalogRefreshService);
     private readonly activity = inject(SourceActivityService);
     private readonly locks = inject(ParentalLockService);
-    private readonly commit = inject(XtreamCatalogCommitService);
     private readonly publishedUpdates = new Map<string, number>();
 
     private readonly removedLiveCategories = new Map<string, Set<number>>();
 
     recordUpdate(playlistId: string, updateDate: number): void {
         this.publishedUpdates.set(playlistId, updateDate);
-    }
-
-    persistUpdateDate(
-        playlist: PlaylistMeta,
-        updateDate: number
-    ): Promise<boolean> {
-        return this.commit.persistStartupUpdateDate(playlist, updateDate);
     }
 
     matchesUpdate(playlistId: string, updateDate: number): boolean {
