@@ -420,10 +420,10 @@ lookup accepts a single typed match. Live history keeps one row per source and
 provider stream, using the category of its latest confirmed playback. Deleting
 that entry also removes any older category copies. Recovery records the newest
 legacy copy before replacement, prefers its original live category and keeps
-ambiguous moves pending. Source and global history
-clears and individual removals run after already-confirmed writes and before
-subsequent writes in scope. This includes hiding a series from Continue
-Watching. A delayed favorite or history action is canceled if its source
+ambiguous moves pending. Source and global history clears wait for the affected
+Xtream catalog replacements to finish recovery. Clears and individual removals
+run after already-confirmed writes and before subsequent writes in scope. This
+includes hiding a series from Continue Watching. A delayed favorite or history action is canceled if its source
 profile or sync consent changes before the write. Canceled favorite actions
 leave the displayed membership to the collection reload. Lock-triggered
 Xtream catalog reads wait for source replacement to release its hold. An open

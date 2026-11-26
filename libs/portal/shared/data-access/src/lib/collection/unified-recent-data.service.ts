@@ -19,6 +19,7 @@ import {
     DatabaseService,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    SourceActivityService,
 } from '@iptvnator/services';
 import {
     Channel,
@@ -71,6 +72,7 @@ export class UnifiedRecentDataService {
     private readonly playlistsService = inject(PlaylistsService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly historyOrder = inject(XtreamHistoryOrder);
+    private readonly activity = inject(SourceActivityService);
     private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
 
     async getRecentItems(
@@ -277,9 +279,15 @@ export class UnifiedRecentDataService {
             return this.clearRecentHistory(sourceId);
 
         const current = captureRecentSource(sourceId ?? undefined);
-        await this.historyOrder.run(sourceId, () =>
-            this.clearRecentHistory(sourceId, current)
-        );
+        const clear = () => this.clearRecentHistory(sourceId, current);
+        if (sourceId) return this.historyOrder.run(sourceId, clear, sourceId);
+        return this.historyOrder.run(null, async () => {
+            if (!current()) return;
+            const sources = (await this.getAllMeta())
+                .filter((source) => source._id && this.isXtreamPlaylist(source))
+                .map((source) => source._id);
+            await this.activity.runWhenIdle(sources, clear);
+        });
     }
 
     private async clearRecentHistory(

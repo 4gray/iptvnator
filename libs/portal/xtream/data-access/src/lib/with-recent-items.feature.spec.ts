@@ -115,6 +115,26 @@ describe('withRecentItems', () => {
         expect(activity.isBusy('synthetic-source')).toBe(false);
     });
 
+    it('holds a standalone source clear until replacement has recovered its history', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        const activity = TestBed.inject(SourceActivityService);
+        const release = activity.begin(['playlist-1']);
+        const cleared = new Promise<void>((resolve) => {
+            dataSource.clearRecentItems.mockImplementation(async () =>
+                resolve()
+            );
+        });
+        store.clearRecentItems({ id: 'playlist-1' });
+        try {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            expect(dataSource.clearRecentItems).not.toHaveBeenCalled();
+        } finally {
+            release();
+            await cleared;
+        }
+        expect(dataSource.clearRecentItems).toHaveBeenCalledWith('playlist-1');
+    });
+
     it('finishes deferred playback before clearing the same SQLite source', async () => {
         runtime.supportsXtreamSqliteDataSource = true;
         const activity = TestBed.inject(SourceActivityService);

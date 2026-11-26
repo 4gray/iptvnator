@@ -690,6 +690,42 @@ describe('UnifiedRecentDataService', () => {
         }
     );
 
+    it.each(['playlist', 'all'] as const)(
+        'makes a standalone %s clear wait for the catalog recovery journal',
+        async (scope) => {
+            jest.spyOn(
+                TestBed.inject(RuntimeCapabilitiesService),
+                'supportsXtreamSqliteDataSource',
+                'get'
+            ).mockReturnValue(true);
+            const playlistId = 'synthetic-replacing';
+            const activity = TestBed.inject(SourceActivityService);
+            store.select.mockReturnValue(
+                of([
+                    {
+                        _id: playlistId,
+                        title: 'Synthetic source',
+                        serverUrl: 'https://provider.example.test',
+                    },
+                ])
+            );
+            const release = activity.begin([playlistId]);
+            const clear =
+                scope === 'all'
+                    ? dbService.clearGlobalRecentlyViewed
+                    : dbService.clearPlaylistRecentItems;
+            const pending = service.clearRecentItems(scope, playlistId);
+            try {
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                expect(clear).not.toHaveBeenCalled();
+            } finally {
+                release();
+                await pending;
+            }
+            expect(clear).toHaveBeenCalledTimes(1);
+        }
+    );
+
     it('cancels queued native watches and clears when history consent changes', async () => {
         jest.spyOn(
             TestBed.inject(RuntimeCapabilitiesService),

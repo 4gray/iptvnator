@@ -186,7 +186,11 @@ export const withRecentItems = function () {
                                     patchState(store, { recentItems: [] });
                             };
                             if (runtime.supportsXtreamSqliteDataSource)
-                                await historyOrder.run(playlist.id, clear);
+                                await historyOrder.run(
+                                    playlist.id,
+                                    clear,
+                                    playlist.id
+                                );
                             else await clear();
                         })
                     )
