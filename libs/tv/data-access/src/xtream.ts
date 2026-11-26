@@ -29,6 +29,11 @@ export class XtreamProvider implements ProviderClient {
     };
     private client: XtreamClient;
     private catalogs = new Map<string, Record<string, unknown>[]>();
+    private sortedList?: {
+        key: string;
+        data: Record<string, unknown>[];
+        items: Media[];
+    };
     constructor(
         private source: Source,
         transport: ProviderTransport
@@ -96,22 +101,44 @@ export class XtreamProvider implements ProviderClient {
             id: text(r.category_id),
             name: text(r.category_name),
         }));
-        const matchesTitle = catalogTitleMatcher(query);
-        const categoryNames = new Map(categories.map((c) => [c.id, c.name]));
-        const items = data
-            .map((r) =>
-                this.media(r, kind, categoryNames.get(text(r.category_id)))
-            )
-            .filter(
-                (m) =>
-                    (!category || m.category === category) &&
-                    matchesTitle(m.title)
+        // Later pages reuse the sorted list: rebuilding and sorting every row for each
+        // 60-item page took seconds per page on low-end TV hardware with large catalogs.
+        const listKey = JSON.stringify([
+            kind,
+            category,
+            query,
+            sort,
+            categories.map((c) => c.id + c.name).join(),
+        ]);
+        let items =
+            this.sortedList?.data === data && this.sortedList.key === listKey
+                ? this.sortedList.items
+                : undefined;
+        if (!items) {
+            const matchesTitle = catalogTitleMatcher(query);
+            const categoryNames = new Map(
+                categories.map((c) => [c.id, c.name])
             );
-        return {
-            items: sortCatalog(
-                items,
+            items = sortCatalog(
+                data
+                    .map((r) =>
+                        this.media(
+                            r,
+                            kind,
+                            categoryNames.get(text(r.category_id))
+                        )
+                    )
+                    .filter(
+                        (m) =>
+                            (!category || m.category === category) &&
+                            matchesTitle(m.title)
+                    ),
                 kind === 'live' ? 'provider' : sort
-            ).slice(page * 60, (page + 1) * 60),
+            );
+            this.sortedList = { key: listKey, data, items };
+        }
+        return {
+            items: items.slice(page * 60, (page + 1) * 60),
             total: items.length,
             page,
             categories,
