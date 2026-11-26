@@ -68,6 +68,21 @@ export class XtreamCatalogCommitService {
         );
     }
 
+    async persistStartupUpdateDate(
+        playlist: PlaylistMeta,
+        updateDate: number
+    ): Promise<boolean> {
+        const result = await window.electron.dbUpdatePlaylist(
+            playlist._id,
+            { updateDate },
+            {
+                ...this.condition(playlist),
+                previousUpdateDate: playlist.updateDate ?? null,
+            }
+        );
+        return result.success === true;
+    }
+
     async setState(
         playlist: PlaylistMeta,
         key: string,

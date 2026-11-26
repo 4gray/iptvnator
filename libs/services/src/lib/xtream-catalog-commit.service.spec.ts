@@ -13,6 +13,7 @@ let descriptor: PropertyDescriptor | undefined;
 let write: jest.Mock;
 let check: jest.Mock;
 let read: jest.Mock;
+let update: jest.Mock;
 beforeEach(() => {
     descriptor = Object.getOwnPropertyDescriptor(window, 'electron');
     write = jest
@@ -22,12 +23,14 @@ beforeEach(() => {
         .fn()
         .mockResolvedValue({ success: true, conditionChecked: true });
     read = jest.fn().mockResolvedValue(playlist);
+    update = jest.fn();
     Object.defineProperty(window, 'electron', {
         configurable: true,
         value: {
             dbSetAppState: write,
             dbCheckXtreamCatalogConnection: check,
             dbGetAppPlaylist: read,
+            dbUpdatePlaylist: update,
         },
     });
 });
@@ -96,6 +99,31 @@ it('classifies terminal failures without writing state or acknowledging recovery
     expect(check).toHaveBeenCalledTimes(1);
     expect(write).not.toHaveBeenCalled();
 });
+
+it.each([true, false])(
+    'writes only the date with its expected source connection and previous date (%s)',
+    async (success) => {
+        update.mockResolvedValue({ success });
+        await expect(
+            new XtreamCatalogCommitService().persistStartupUpdateDate(
+                { ...playlist, updateDate: 42 },
+                73
+            )
+        ).resolves.toBe(success);
+        expect(update).toHaveBeenCalledWith(
+            playlist._id,
+            { updateDate: 73 },
+            {
+                playlistId: playlist._id,
+                serverUrl: playlist.serverUrl,
+                username: playlist.username,
+                password: playlist.password,
+                userAgent: playlist.userAgent,
+                previousUpdateDate: 42,
+            }
+        );
+    }
+);
 
 it.each([
     { success: true },

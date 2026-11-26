@@ -1,11 +1,13 @@
 import { eq } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import {
+    normalizeXtreamContentTypes,
     normalizeXtreamServerUrl,
     xtreamHistoryRecoveryKey,
     XTREAM_CONTENT_TYPES,
     type XtreamCatalogStateCondition,
     type XtreamCatalogStateResult,
+    type XtreamStartupRefreshCondition,
 } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 
@@ -57,6 +59,46 @@ export function checkXtreamCatalogConnection(
     return matches
         ? { success: true, conditionChecked: true }
         : { success: false, conditionChecked: true, connectionChanged: true };
+}
+
+export function setXtreamStartupRefreshDate(
+    db: AppDatabase,
+    updateDate: number,
+    condition: XtreamStartupRefreshCondition
+): { success: boolean } {
+    const lastUpdated = new Date(updateDate);
+    if (
+        !Number.isSafeInteger(updateDate) ||
+        !Number.isFinite(lastUpdated.getTime())
+    )
+        throw new Error('Invalid Xtream refresh timestamp.');
+
+    return db.transaction((tx) => {
+        if (!checkXtreamCatalogConnection(tx, condition).success)
+            return { success: false };
+        const source = schema.playlists;
+        const scope = eq(source.id, condition.playlistId);
+        const row = tx.select().from(source).where(scope).get();
+        if (!row) return { success: false };
+        const payload = row.payload ? JSON.parse(row.payload) : {};
+        const previous =
+            row.updateDate ??
+            (row.lastUpdated ? Date.parse(row.lastUpdated) : null);
+        if (
+            !(row.autoRefresh ?? payload.autoRefresh) ||
+            !normalizeXtreamContentTypes(payload.xtreamContentTypes).includes(
+                'live'
+            ) ||
+            previous !== condition.previousUpdateDate
+        )
+            return { success: false };
+
+        tx.update(source)
+            .set({ updateDate, lastUpdated: lastUpdated.toISOString() })
+            .where(scope)
+            .run();
+        return { success: true };
+    });
 }
 
 /** Compare and commit synchronously: no projection can interleave these steps. */

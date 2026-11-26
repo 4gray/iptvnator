@@ -1,9 +1,11 @@
 import type { Injector } from '@angular/core';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
-import { PlaylistsService } from '@iptvnator/services';
 import { NotificationService } from '@iptvnator/services/notifications';
 import { XtreamStartupRefreshService } from '@iptvnator/services/xtream-startup-refresh';
-import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    normalizeXtreamContentTypes,
+    type PlaylistMeta,
+} from '@iptvnator/shared/interfaces';
 import { Store } from '@ngrx/store';
 import { firstValueFrom } from 'rxjs';
 
@@ -12,7 +14,6 @@ export async function refreshXtreamPlaylistsOnStartup(
     sources: PlaylistMeta[]
 ): Promise<void> {
     const refresh = injector.get(XtreamStartupRefreshService);
-    const playlists = injector.get(PlaylistsService);
     const store = injector.get(Store);
     let failed = false;
 
@@ -32,14 +33,7 @@ export async function refreshXtreamPlaylistsOnStartup(
                 current.userAgent === source.userAgent;
             let publish: boolean;
             try {
-                publish = Boolean(
-                    await firstValueFrom(
-                        playlists.updatePlaylistMetaIfCurrent(
-                            { _id: source._id, updateDate },
-                            sameSource
-                        )
-                    )
-                );
+                publish = await refresh.persistUpdateDate(source, updateDate);
             } catch {
                 failed = true;
                 // The catalog already committed. Refresh the current view
@@ -48,7 +42,11 @@ export async function refreshXtreamPlaylistsOnStartup(
                     await firstValueFrom(store.select(selectAllPlaylistsMeta))
                 ).find(({ _id }) => _id === source._id);
                 publish =
-                    current?.updateDate === source.updateDate &&
+                    current?.autoRefresh === true &&
+                    normalizeXtreamContentTypes(
+                        current.xtreamContentTypes
+                    ).includes('live') &&
+                    current.updateDate === source.updateDate &&
                     sameSource(current);
             }
             if (publish) {

@@ -396,7 +396,9 @@ cache if the reply contains no live streams, if any stream lacks a valid ID, or
 if a stream references a category absent from the response.
 Before replacing live rows, the selected-catalog service waits for source
 activity to finish and rechecks the saved connection, preference and catalog
-selection. A successful refresh publishes the catalog timestamp so an open
+selection. The worker only writes the timestamp fields if the connection,
+preference, live selection and previous timestamp still match. A successful
+refresh publishes the catalog timestamp so an open
 Xtream view can reread live rows and refresh its search without resetting
 playback. The Electron second-stream picker waits for live replacement before
 reading a source, Favorites or Recently Viewed. An open live picker can show

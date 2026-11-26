@@ -1,8 +1,7 @@
 import { Injector } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { of, throwError } from 'rxjs';
+import { of } from 'rxjs';
 import { NotificationService } from '@iptvnator/services/notifications';
-import { PlaylistsService } from '@iptvnator/services';
 import { XtreamStartupRefreshService } from '@iptvnator/services/xtream-startup-refresh';
 import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { refreshXtreamPlaylistsOnStartup } from './xtream-startup-refresh';
@@ -25,11 +24,8 @@ it.each([true, false])(
                     useValue: {
                         refreshLive: async () => replaced,
                         recordUpdate: () => undefined,
+                        persistUpdateDate: async () => true,
                     },
-                },
-                {
-                    provide: PlaylistsService,
-                    useValue: { updatePlaylistMetaIfCurrent: () => of(source) },
                 },
                 { provide: Store, useValue: { dispatch: () => undefined } },
             ],
@@ -77,20 +73,12 @@ it('continues after an unavailable source and publishes only a saved refresh', a
     const recordUpdate = jest.fn();
     const dispatch = jest.fn();
     const error = jest.fn();
-    const updatePlaylistMetaIfCurrent = jest.fn((_patch, matches) => {
-        expect(matches(portal)).toBe(true);
-        expect(matches({ ...portal, userAgent: 'Changed client' })).toBe(false);
-        return of(portal);
-    });
+    const persistUpdateDate = jest.fn().mockResolvedValue(true);
     const injector = Injector.create({
         providers: [
             {
                 provide: XtreamStartupRefreshService,
-                useValue: { refreshLive, recordUpdate },
-            },
-            {
-                provide: PlaylistsService,
-                useValue: { updatePlaylistMetaIfCurrent },
+                useValue: { refreshLive, recordUpdate, persistUpdateDate },
             },
             { provide: Store, useValue: { dispatch } },
             { provide: NotificationService, useValue: { error } },
@@ -99,7 +87,11 @@ it('continues after an unavailable source and publishes only a saved refresh', a
     try {
         await refreshXtreamPlaylistsOnStartup(injector, [source, portal]);
         expect(refreshLive.mock.calls).toEqual([[source], [portal]]);
-        expect(updatePlaylistMetaIfCurrent).toHaveBeenCalledTimes(1);
+        expect(persistUpdateDate).toHaveBeenCalledTimes(1);
+        expect(persistUpdateDate).toHaveBeenCalledWith(
+            portal,
+            expect.any(Number)
+        );
         expect(recordUpdate).toHaveBeenCalledWith(
             portal._id,
             expect.any(Number)
@@ -118,6 +110,12 @@ it('continues after an unavailable source and publishes only a saved refresh', a
 it.each([
     ['open source', source, true],
     ['changed source', { ...source, userAgent: 'Changed client' }, false],
+    ['disabled source', { ...source, autoRefresh: false }, false],
+    [
+        'source without live TV',
+        { ...source, xtreamContentTypes: ['movie'] },
+        false,
+    ],
     ['newer source', { ...source, updateDate: 42 }, false],
 ])(
     'handles timestamp persistence failure for the %s',
@@ -129,15 +127,12 @@ it.each([
             providers: [
                 {
                     provide: XtreamStartupRefreshService,
-                    useValue: { refreshLive: async () => true, recordUpdate },
-                },
-                {
-                    provide: PlaylistsService,
                     useValue: {
-                        updatePlaylistMetaIfCurrent: () =>
-                            throwError(
-                                () => new Error('Synthetic timestamp failure')
-                            ),
+                        refreshLive: async () => true,
+                        recordUpdate,
+                        persistUpdateDate: async () => {
+                            throw new Error('Synthetic timestamp failure');
+                        },
                     },
                 },
                 {
@@ -164,3 +159,28 @@ it.each([
         }
     }
 );
+
+it('does not publish an update that the database rejected for a changed source', async () => {
+    const recordUpdate = jest.fn();
+    const dispatch = jest.fn();
+    const injector = Injector.create({
+        providers: [
+            {
+                provide: XtreamStartupRefreshService,
+                useValue: {
+                    refreshLive: async () => true,
+                    recordUpdate,
+                    persistUpdateDate: async () => false,
+                },
+            },
+            { provide: Store, useValue: { dispatch } },
+        ],
+    });
+    try {
+        await refreshXtreamPlaylistsOnStartup(injector, [source]);
+        expect(recordUpdate).not.toHaveBeenCalled();
+        expect(dispatch).not.toHaveBeenCalled();
+    } finally {
+        injector.destroy();
+    }
+});

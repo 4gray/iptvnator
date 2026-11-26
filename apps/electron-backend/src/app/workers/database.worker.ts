@@ -98,6 +98,7 @@ import { setPlaylistServerTimezone } from '../database/operations/playlist-serve
 import { checkXtreamCatalogConnection } from '../database/operations/xtream-catalog-state';
 import type {
     XtreamCatalogStateCondition,
+    XtreamStartupRefreshCondition,
     XtreamContentType,
 } from '@iptvnator/shared/interfaces';
 import {
@@ -843,9 +844,16 @@ async function executeRequest(
                     serverUrl?: string;
                     lastUpdated?: string;
                     autoRefresh?: boolean;
+                    updateDate?: number;
                 };
+                condition?: XtreamStartupRefreshCondition;
             };
-            return updatePlaylist(db, payload.playlistId, payload.updates);
+            return updatePlaylist(
+                db,
+                payload.playlistId,
+                payload.updates,
+                payload.condition
+            );
         }
 
         case 'DB_DELETE_PLAYLIST': {

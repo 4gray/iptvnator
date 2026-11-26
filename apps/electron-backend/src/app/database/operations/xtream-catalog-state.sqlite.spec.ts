@@ -34,6 +34,11 @@ const scenarios = [
     'completion-write-rollback',
     'ack-write-rollback',
     'ordinary-setting-write',
+    'refresh-date-preserves-a-concurrent-title-edit',
+    'refresh-date-rejects-a-connection-edit',
+    'refresh-date-rejects-a-disabled-source',
+    'refresh-date-rejects-disabled-live-tv',
+    'refresh-date-rejects-a-newer-refresh',
 ] as const;
 
 describe('conditional Xtream state with historical SQLite tables', () => {
@@ -176,6 +181,30 @@ describe('conditional Xtream state with historical SQLite tables', () => {
             await reset();
             const ordinary = await setAppState(db, 'unrelated-setting', 'synthetic-value');
             results['ordinary-setting-write'] = ordinary.success === true && ordinary.conditionChecked === undefined && (await getAppState(db, 'unrelated-setting')) === 'synthetic-value';
+            const timestamp = Date.parse('2026-01-02T00:00:00Z');
+            const timestampCondition = { ...condition, previousUpdateDate: null };
+            const sourceRow = () => db.select().from(schema.playlists).where(eq(schema.playlists.id, playlistId)).get();
+            for (const [name, edit] of [
+                ['refresh-date-preserves-a-concurrent-title-edit', { name: 'Synthetic new title' }],
+                ['refresh-date-rejects-a-connection-edit', { password: changed.password }],
+                ['refresh-date-rejects-a-disabled-source', { autoRefresh: false }],
+                ['refresh-date-rejects-disabled-live-tv', { xtreamContentTypes: ['movie'] }],
+                ['refresh-date-rejects-a-newer-refresh', { updateDate: timestamp + 1000 }],
+            ]) {
+                await reset();
+                await updatePlaylist(db, playlistId, { autoRefresh: true });
+                await updatePlaylist(db, playlistId, edit);
+                const before = sourceRow();
+                const result = await updatePlaylist(db, playlistId, {
+                    updateDate: timestamp, name: 'Synthetic stale title', password: 'synthetic-stale'
+                }, timestampCondition);
+                const expected = name === 'refresh-date-preserves-a-concurrent-title-edit';
+                const after = sourceRow();
+                results[name] = result.success === expected &&
+                    JSON.stringify(after) === JSON.stringify(expected
+                        ? { ...before, updateDate: timestamp, lastUpdated: new Date(timestamp).toISOString() }
+                        : before);
+            }
             sqlite.close();
             console.log(JSON.stringify(results));
         `;

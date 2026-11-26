@@ -10,6 +10,7 @@ import type {
     XtreamFavoriteRemovalRef,
     XtreamBackupFavoriteItem,
     XtreamCatalogStateCondition,
+    XtreamStartupRefreshCondition,
 } from '@iptvnator/shared/interfaces';
 import type { SourceProbeContext } from '@iptvnator/shared/interfaces';
 import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron';
@@ -898,8 +899,15 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('DB_GET_APP_PLAYLIST_FAVORITE_CHANNELS', playlistId),
     dbUpdatePlaylist: (
         playlistId: string,
-        updates: Partial<Playlist> | ElectronBridgePlaylistInput
-    ) => ipcRenderer.invoke('DB_UPDATE_PLAYLIST', playlistId, updates),
+        updates: Partial<Playlist> | ElectronBridgePlaylistInput,
+        condition?: XtreamStartupRefreshCondition
+    ) =>
+        ipcRenderer.invoke(
+            'DB_UPDATE_PLAYLIST',
+            playlistId,
+            updates,
+            ...(condition === undefined ? [] : [condition])
+        ),
     dbDeletePlaylist: (playlistId: string, operationId?: string) =>
         ipcRenderer.invoke('DB_DELETE_PLAYLIST', playlistId, operationId),
     dbDeleteXtreamContent: (

@@ -19,6 +19,7 @@ jest.mock('./content-metadata.operations', () => ({
 
 import * as schema from '@iptvnator/shared/database/schema';
 import { persistContentMetadataIfMissing } from './content-metadata.operations';
+import { recordRecoveredHistory } from './xtream-history-recovery';
 import {
     addRecentItem,
     clearPlaylistRecentItems,
@@ -151,6 +152,26 @@ describe('recently-viewed.operations', () => {
                 db,
                 42,
                 { backdropUrl: undefined }
+            );
+        });
+
+        it('keeps the newer live category copy while removing legacy duplicates', async () => {
+            const { db, deleteRun, insert, update } = createDbMock([
+                [
+                    { id: 9, contentId: 21, newer: 1 },
+                    { id: 10, contentId: 42, newer: 0 },
+                ],
+            ]);
+            await addRecentItem(db, 42, 'playlist-1', {
+                viewedAt: '2026-01-01T00:00:00.000Z',
+            });
+            expect(deleteRun).toHaveBeenCalledTimes(1);
+            expect(insert).not.toHaveBeenCalled();
+            expect(update).not.toHaveBeenCalled();
+            expect(recordRecoveredHistory).toHaveBeenLastCalledWith(
+                db,
+                'playlist-1',
+                21
             );
         });
     });

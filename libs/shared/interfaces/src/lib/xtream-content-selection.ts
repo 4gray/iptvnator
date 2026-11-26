@@ -11,6 +11,10 @@ export interface XtreamCatalogStateCondition {
     userAgent?: string;
 }
 
+export interface XtreamStartupRefreshCondition extends XtreamCatalogStateCondition {
+    previousUpdateDate: number | null;
+}
+
 export interface XtreamCatalogStateResult {
     success: boolean;
     conditionChecked?: true;

@@ -132,6 +132,31 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         payload: { playlistId, updates: playlistUpdates },
     },
     {
+        operation: 'DB_UPDATE_PLAYLIST',
+        args: [
+            playlistId,
+            { updateDate: 42 },
+            {
+                playlistId,
+                serverUrl: 'https://portal.example.test',
+                username: 'synthetic-user',
+                password: 'synthetic-password',
+                previousUpdateDate: null,
+            },
+        ],
+        payload: {
+            playlistId,
+            updates: { updateDate: 42 },
+            condition: {
+                playlistId,
+                serverUrl: 'https://portal.example.test',
+                username: 'synthetic-user',
+                password: 'synthetic-password',
+                previousUpdateDate: null,
+            },
+        },
+    },
+    {
         operation: 'DB_SET_PLAYLIST_SERVER_TIMEZONE',
         args: [
             playlistId,

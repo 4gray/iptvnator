@@ -5,7 +5,10 @@
 
 import { ipcMain } from 'electron';
 import { XTREAM_HISTORY_RECOVERY_PREFIX } from '@iptvnator/shared/interfaces';
-import type { XtreamCatalogStateCondition } from '@iptvnator/shared/interfaces';
+import type {
+    XtreamCatalogStateCondition,
+    XtreamStartupRefreshCondition,
+} from '@iptvnator/shared/interfaces';
 import { recoverLegacyProfile } from '../../services/legacy-profile-recovery';
 import { databaseWorkerClient } from '../../services/database-worker-client';
 import {
@@ -65,10 +68,13 @@ handleWorkerRequest(
             serverUrl?: string;
             lastUpdated?: string;
             autoRefresh?: boolean;
-        }
+            updateDate?: number;
+        },
+        condition?: XtreamStartupRefreshCondition
     ) => ({
         playlistId,
         updates,
+        ...(condition === undefined ? {} : { condition }),
     })
 );
 handleWorkerRequest('DB_GET_APP_STATE', (key: string) => ({ key }));

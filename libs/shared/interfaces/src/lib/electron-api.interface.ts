@@ -7,6 +7,7 @@ import type { XtreamConnectionFailure } from './xtream-connection-test';
 import type {
     XtreamCatalogStateCondition,
     XtreamCatalogStateResult,
+    XtreamStartupRefreshCondition,
 } from './xtream-content-selection';
 import type { ZoomLevelAction } from './zoom-level.util';
 import type {
@@ -1110,7 +1111,8 @@ export interface ElectronBridgeApi {
     ) => Promise<M3uFavoriteChannel[]>;
     dbUpdatePlaylist: (
         playlistId: string,
-        updates: Partial<Playlist> | ElectronBridgePlaylistInput
+        updates: Partial<Playlist> | ElectronBridgePlaylistInput,
+        condition?: XtreamStartupRefreshCondition
     ) => Promise<ElectronBridgeResult>;
     dbDeletePlaylist: (
         playlistId: string,

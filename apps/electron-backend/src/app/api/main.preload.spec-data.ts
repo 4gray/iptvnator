@@ -161,6 +161,32 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: [playlistId, playlistUpdates],
     },
     {
+        method: 'dbUpdatePlaylist',
+        args: [
+            playlistId,
+            { updateDate: 42 },
+            {
+                playlistId,
+                serverUrl: 'https://portal.example.test',
+                username: 'synthetic-user',
+                password: 'synthetic-password',
+                previousUpdateDate: null,
+            },
+        ],
+        channel: 'DB_UPDATE_PLAYLIST',
+        forwardedArgs: [
+            playlistId,
+            { updateDate: 42 },
+            {
+                playlistId,
+                serverUrl: 'https://portal.example.test',
+                username: 'synthetic-user',
+                password: 'synthetic-password',
+                previousUpdateDate: null,
+            },
+        ],
+    },
+    {
         method: 'dbSetPlaylistServerTimezone',
         args: [
             playlistId,
