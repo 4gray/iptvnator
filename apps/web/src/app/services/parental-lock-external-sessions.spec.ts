@@ -722,6 +722,20 @@ describe('ParentalLockExternalSessions', () => {
             expect(service.isBusy()).toBe(false);
         });
 
+        it('counts the older window when the newer film stops progressing', () => {
+            emitSession(film());
+            emitSession({ ...film(), id: 'session-2' });
+            emitPosition(position(100));
+            emitPosition({ ...position(20), sessionId: 'session-2' });
+
+            clock += EXTERNAL_PROGRESS_WINDOW_MS + 1;
+            emitPosition({ ...position(20), sessionId: 'session-2' });
+            expect(service.isBusy()).toBe(false);
+
+            emitPosition({ ...position(135), activityOnly: true });
+            expect(service.isBusy()).toBe(true);
+        });
+
         it('stops counting a film whose player closed', () => {
             emitSession(film());
             emitPosition(position(100));

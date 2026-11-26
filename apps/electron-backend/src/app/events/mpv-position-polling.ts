@@ -1,20 +1,12 @@
 import { createConnection } from 'net';
 import { PlayerContentInfo } from '@iptvnator/shared/interfaces';
-import { sendPlaybackPositionUpdate } from './external-player-runtime';
+import { ExternalPlayerPositionPollers } from './external-player-position-pollers';
+import {
+    sendPlaybackActivityUpdate,
+    sendPlaybackPositionUpdate,
+} from './external-player-runtime';
 
-/**
- * Playback-position polling of an external MPV over its IPC socket. One poll
- * runs at a time across launches: starting a new one stops the previous one.
- */
-let positionPollingInterval: NodeJS.Timeout | null = null;
-// The first poll waits for MPV to open its IPC socket. The handle is kept so
-// a player that exits during that wait does not start an orphaned interval.
-let positionPollingDelay: NodeJS.Timeout | null = null;
-// Bumped on every stop. A poll that was already awaiting an IPC reply when
-// polling stopped (for example when a reused player loads the next stream)
-// must not report what it reads under the previous content.
-let positionPollingGeneration = 0;
-let positionPollingSessionId: string | null = null;
+const pollers = new ExternalPlayerPositionPollers();
 
 async function getMpvProperty(
     socketPath: string,
@@ -79,18 +71,7 @@ async function getMpvProperty(
 }
 
 export function stopPositionPolling(sessionId?: string): void {
-    if (sessionId !== undefined && sessionId !== positionPollingSessionId)
-        return;
-    positionPollingGeneration += 1;
-    positionPollingSessionId = null;
-    if (positionPollingDelay) {
-        clearTimeout(positionPollingDelay);
-        positionPollingDelay = null;
-    }
-    if (positionPollingInterval) {
-        clearInterval(positionPollingInterval);
-        positionPollingInterval = null;
-    }
+    pollers.stop(sessionId);
 }
 
 export function startPositionPolling(
@@ -98,29 +79,27 @@ export function startPositionPolling(
     contentInfo: PlayerContentInfo,
     sessionId: string
 ): void {
-    stopPositionPolling();
-    positionPollingSessionId = sessionId;
-    const generation = positionPollingGeneration;
-    const isCurrent = () => generation === positionPollingGeneration;
-
-    positionPollingDelay = setTimeout(() => {
-        positionPollingDelay = null;
-        positionPollingInterval = setInterval(async () => {
-            try {
-                const position = await getMpvProperty(socketPath, 'time-pos');
-                if (!isCurrent()) return;
-                const duration = await getMpvProperty(socketPath, 'duration');
-                if (!isCurrent()) return;
-
-                if (position !== null) {
-                    sendPlaybackPositionUpdate(sessionId, contentInfo, {
-                        positionSeconds: Math.floor(position),
-                        durationSeconds: duration ? Math.floor(duration) : null,
-                    });
-                }
-            } catch {
-                if (isCurrent()) stopPositionPolling(sessionId);
+    pollers.start(sessionId, 2000, 5000, async (isCurrent) => {
+        try {
+            const position = await getMpvProperty(socketPath, 'time-pos');
+            if (!isCurrent() || position === null) return;
+            if (!pollers.isPrimary(sessionId)) {
+                sendPlaybackActivityUpdate(
+                    sessionId,
+                    contentInfo,
+                    Math.floor(position)
+                );
+                return;
             }
-        }, 5000);
-    }, 2000);
+
+            const duration = await getMpvProperty(socketPath, 'duration');
+            if (!isCurrent() || !pollers.isPrimary(sessionId)) return;
+            sendPlaybackPositionUpdate(sessionId, contentInfo, {
+                positionSeconds: Math.floor(position),
+                durationSeconds: duration ? Math.floor(duration) : null,
+            });
+        } catch {
+            if (isCurrent()) stopPositionPolling(sessionId);
+        }
+    });
 }

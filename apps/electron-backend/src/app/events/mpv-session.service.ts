@@ -107,6 +107,7 @@ export function shutdownMpvSession(): void {
         'kill reused mpv process on app shutdown',
         stopPositionPolling
     );
+    stopPositionPolling();
 }
 
 // MPV launches run one at a time; see MpvLaunchQueue. Each launch begins its

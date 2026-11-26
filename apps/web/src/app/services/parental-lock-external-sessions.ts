@@ -18,7 +18,7 @@ import { ExternalPlaybackService } from './external-playback.service';
 import type { ExternalSessionsHandoff } from './parental-lock-external-sessions.deferred';
 
 /**
- * MPV/VLC report a film's position every 5 s. A position that moved within
+ * MPV/VLC report a film's position every few seconds. A position that moved within
  * this window means the film is playing; a paused one stops moving.
  */
 export const EXTERNAL_PROGRESS_WINDOW_MS = 15_000;

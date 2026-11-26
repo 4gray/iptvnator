@@ -647,9 +647,11 @@ every session from `onExternalPlayerSessionUpdate`:
   closes a session of a withheld one, so an unlocked channel keeps
   playing.
 - **Idle relock.** Embedded MPV counts as busy while any session is
-  `playing` (up to four with multiview). An MPV/VLC film or episode counts while
-  its position, reported every 5 s, moved within the last 15 s, so a pause
-  lets the timer run. A session that reports no position does not count,
+  `playing` (up to four with multiview). Each independent MPV/VLC window
+  counts while its position moved within the last 15 s, so a pause lets
+  the timer run. MPV polls every 5 s and VLC every 2 s. Older windows
+  send activity samples that do not save a resume position. A session
+  that reports no position does not count,
   like live MPV/VLC: those players cannot report a pause, and an open,
   paused window must not keep the app unlocked indefinitely. Positions
   need `contentInfo` and, for MPV, the IPC socket, so M3U films (no
