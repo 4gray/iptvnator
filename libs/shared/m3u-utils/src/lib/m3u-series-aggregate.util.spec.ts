@@ -210,6 +210,31 @@ describe('buildM3uSeriesCatalog', () => {
         expect(ids([...parts].reverse())).toEqual(ids(parts));
     });
 
+    it('keeps the coordinate id with its row when the URL tokens rotate', () => {
+        // Two parts of equal name length: a tie broken on the URL would
+        // flip when the provider rotates the token in the path, moving the
+        // coordinate's id (and its watched mark) to the other part.
+        const part = (name: string, token: string, file: string) => ({
+            ...row(name),
+            url: `http://h.example/series/${token}/p/${file}.mp4`,
+        });
+        const idsByName = (token1: string, token2: string) =>
+            new Map(
+                (
+                    buildM3uSeriesCatalog(
+                        [
+                            part('SHOW S1 E1 Part 1', token1, 'one'),
+                            part('SHOW S1 E1 Part 2', token2, 'two'),
+                        ],
+                        'pl-1'
+                    )[0].seasons.get(1) ?? []
+                ).map((episode) => [episode.channel.name, episode.id])
+            );
+
+        // Before: part 1's URL sorts first; after the rotation, part 2's.
+        expect(idsByName('b', 'c')).toEqual(idsByName('z', 'a'));
+    });
+
     it('lists one stream once when a yeared and a bare title merge', () => {
         // The same file under both spellings: whichever is read first, the
         // shorter name takes the coordinate and the other folds into it.

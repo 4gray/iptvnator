@@ -162,24 +162,27 @@ function asHolder<T extends M3uArtworkBearing>(
 /**
  * Which of two rows at one coordinate holds it, independent of row order.
  * The shorter name first: a variant added later ("… FHD", "… Part 2")
- * usually extends the episode's own name, so the episode keeps its id. The
- * playback key breaks a tie, so equal lengths ("Part 1"/"Part 2") still
- * rank the same way on every refresh; the name itself, for one stream.
+ * usually extends the episode's own name, so the episode keeps its id.
+ * Equal lengths ("Part 1"/"Part 2") rank by the name itself, then the file
+ * name, and only then by the playback key: URLs carry tokens a provider
+ * rotates, and a tie broken on them would hand the coordinate's id — with
+ * its watched mark and resume point — to the other row after a refresh.
  */
 function holdsCoordinateBefore(
     candidate: M3uArtworkBearing & M3uPlaybackFields,
     holder: M3uArtworkBearing & M3uPlaybackFields
 ): boolean {
     const name = (row: M3uArtworkBearing) => (row.name ?? '').trim();
-    if (name(candidate).length !== name(holder).length) {
-        return name(candidate).length < name(holder).length;
+    const candidateName = name(candidate);
+    const holderName = name(holder);
+    if (candidateName.length !== holderName.length) {
+        return candidateName.length < holderName.length;
     }
-    const candidateKey = m3uPlaybackKey(candidate);
-    const holderKey = m3uPlaybackKey(holder);
-    if (candidateKey !== holderKey) return candidateKey < holderKey;
-    // The same stream under two names of one length: which row an entry
-    // shows must not depend on order either.
-    return name(candidate) < name(holder);
+    if (candidateName !== holderName) return candidateName < holderName;
+    const candidateFile = fileNameOf(candidate.url);
+    const holderFile = fileNameOf(holder.url);
+    if (candidateFile !== holderFile) return candidateFile < holderFile;
+    return m3uPlaybackKey(candidate) < m3uPlaybackKey(holder);
 }
 
 /** Lists a further row of `number`, from the `from`th slot on. */
