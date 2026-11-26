@@ -2104,8 +2104,12 @@ coordinate holds dozens of rows.
   hidden channel leaves the sidebar, numbering and zapping while a film left
   live only keeps the old behaviour. Path evidence first: `/live/` is live,
   `/series/` an episode, the Xtream `/movie/` segment a film whatever the
-  container. DASH (`.mpd`) is never a film: it is live unless `/series/`
-  makes it an episode, which the series page plays inline. The folder
+  container — unless the name carries a strong episode code (`S01E02`,
+  `1x02`, a trailing `N.BÖLÜM`): panels upload whole shows as VOD, and
+  those rows become episodes. A leading marker (`BÖLÜM 2`, Turkish for
+  "Part 2") stays a film. DASH (`.mpd`) is never a film: it is live
+  unless `/series/` makes it an episode, which the series page plays
+  inline. The folder
   names `/movies/` and `/vod/` count only for a file, not for a streaming
   container (`.m3u8`, `.m3u`, `.ts`). A container
   extension with no path evidence leaves the live list only when the row

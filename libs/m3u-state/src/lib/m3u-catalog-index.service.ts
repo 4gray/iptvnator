@@ -53,13 +53,16 @@ const emptyIndexOf = (): M3uCatalogIndex<Channel> =>
  * would be a second, weaker source of truth that could disagree with the
  * store after a refresh replaced the rows without changing their number.
  *
- * ## Why it is lazy
+ * ## When it is built
  *
- * `computed()` does not run until something reads it. A viewer who only ever
- * opens the live channel list never pays for the index at all, and the
+ * `computed()` does not run until something reads it. With the split on,
+ * the live channel list (`liveChannels`) and the rail (`sectionsOf`) read
+ * it, so it is built once per channel array when a playlist opens; with
+ * *M3U catalog sections* off neither reads it and it is never built. The
  * route session's existing "already loaded" guard means moving between the
  * live, movie and series sections does not re-dispatch `setChannels` and so
- * does not rebuild it.
+ * does not rebuild it. The series layer (`M3uSeriesCatalogService`) stays
+ * lazy: only the Series views read it.
  */
 @Injectable({ providedIn: 'root' })
 export class M3uCatalogIndexService implements M3uCatalogSectionsSource {
