@@ -30,6 +30,7 @@ import {
     getAndroidSettingsControls,
     RuntimeCapabilitiesService,
     ServerStorageStatusService,
+    SETTINGS_PROFILES_AVAILABLE,
     injectTranslationTick,
 } from '@iptvnator/services';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
@@ -72,6 +73,7 @@ import {
     SETTINGS_THEME_OPTIONS,
 } from './settings-options';
 import { SettingsParentalLockFacade } from './settings-parental-lock.facade';
+import { SettingsProfilesSectionComponent } from './settings-profiles-section.component';
 import { SettingsParentalLockSectionComponent } from './settings-parental-section.component';
 import { SettingsPlaybackSectionComponent } from './settings-playback-section.component';
 import { SettingsRemoteControlFacade } from './settings-remote-control.facade';
@@ -125,6 +127,7 @@ import { SettingsSnackbarService } from './settings-snackbar.service';
         SettingsPlaybackSectionComponent,
         SettingsRemoteControlSectionComponent,
         SettingsSearchResultsComponent,
+        SettingsProfilesSectionComponent,
         SettingsServerSectionComponent,
         SettingsTmdbSectionComponent,
     ],
@@ -258,15 +261,18 @@ export class SettingsComponent
     readonly updateChannelOptions = SETTINGS_UPDATE_CHANNEL_OPTIONS;
     readonly epgViewModeOptions = SETTINGS_EPG_VIEW_MODE_OPTIONS;
 
-    readonly sectionNavItems: SettingsSection[] = buildSettingsSectionNavItems({
-        supportsEpg: this.form.supportsEpgDisplay,
-        supportsRemoteControl: this.supportsRemoteControl,
-        supportsServerStorage: this.supportsServerStorage,
-        supportsAndroidSettings: !!this.androidSettingsControls,
-    });
-
+    private readonly supportsProfiles = inject(SETTINGS_PROFILES_AVAILABLE);
+    readonly sectionNavItems = computed<SettingsSection[]>(() =>
+        buildSettingsSectionNavItems({
+            supportsEpg: this.form.supportsEpgDisplay,
+            supportsRemoteControl: this.supportsRemoteControl,
+            supportsServerStorage: this.supportsServerStorage,
+            supportsAndroidSettings: !!this.androidSettingsControls,
+            supportsProfiles: this.supportsProfiles(),
+        })
+    );
     get sectionNav(): SettingsSection[] {
-        return this.sectionNavItems.filter((section) => section.visible);
+        return this.sectionNavItems().filter((section) => section.visible);
     }
 
     private readonly sectionParam = toSignal(
@@ -291,6 +297,8 @@ export class SettingsComponent
         // EPG support, `/settings/nonsense`) must not leave the address bar
         // lying about what is on screen.
         effect(() => {
+            // Sections that appear later (Profiles) join the navigation.
+            if (this.formReady()) this.settingsCtx.setSections(this.sectionNav);
             const section = this.sectionParam();
             if (section && !this.isNavigableSection(section)) {
                 void this.router.navigate(
@@ -299,6 +307,7 @@ export class SettingsComponent
                 );
             }
         });
+
 
         // Section pages share one scroll container (`main.workspace-content`);
         // without this, opening a long section, scrolling, and switching to a
@@ -386,8 +395,6 @@ export class SettingsComponent
         if (!shouldEnableServiceWorker()) this.appUpdate.checkAppVersion();
         this.appUpdate.init();
         void this.remoteControl.fetchLocalIpAddresses();
-
-        this.settingsCtx.setSections(this.sectionNav);
     }
 
     ngOnDestroy(): void {

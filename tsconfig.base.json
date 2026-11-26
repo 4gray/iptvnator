@@ -26,6 +26,9 @@
             "@iptvnator/services/history-sync": [
                 "libs/services/src/history-sync.ts"
             ],
+            "@iptvnator/services/profiles": [
+                "libs/services/src/profiles.ts"
+            ],
             "@iptvnator/services/history-events": [
                 "libs/services/src/history-events.ts"
             ],

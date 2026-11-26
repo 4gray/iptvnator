@@ -604,6 +604,10 @@ describe('profiles routes', () => {
                 expect(
                     Number(locked.headers.get('retry-after'))
                 ).toBeGreaterThan(0);
+                // Another origin's browser can read the countdown.
+                expect(
+                    locked.headers.get('access-control-expose-headers')
+                ).toContain('Retry-After');
             })
         ));
 

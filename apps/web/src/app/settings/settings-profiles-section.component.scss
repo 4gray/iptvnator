@@ -1,0 +1,102 @@
+:host {
+    display: block;
+}
+
+.settings-group {
+    gap: 12px;
+}
+
+.settings-group__header h2 {
+    font-size: var(--app-text-xl);
+}
+
+.profiles-status {
+    margin: 0;
+}
+
+.profiles-list {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding: 8px;
+    list-style: none;
+}
+
+.profiles-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 6px 8px;
+    min-width: 0;
+}
+
+.profiles-row__name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-weight: 600;
+}
+
+.profiles-row__actions {
+    display: inline-flex;
+    margin-inline-start: auto;
+}
+
+.profiles-badge {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--app-hover-overlay);
+    font-size: var(--app-text-sm);
+}
+
+.profiles-error {
+    margin: 0 16px 8px;
+    color: var(--app-danger-text);
+    overflow-wrap: anywhere;
+}
+
+.profiles-add {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px 16px;
+}
+
+.profiles-choice--on {
+    background: var(--app-selection-surface);
+}
+
+button {
+    app-region: no-drag;
+}
+
+// Phone breakpoint: the name takes its own line and the row actions sit under
+// it, with 44px touch targets.
+@media (max-width: 640px) {
+    .profiles-row__name {
+        flex: 1 1 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .profiles-row__actions {
+        flex-wrap: wrap;
+        margin-inline-start: 0;
+
+        button {
+            min-width: 44px;
+            min-height: 44px;
+        }
+    }
+
+    .profiles-add {
+        flex-direction: column;
+        align-items: stretch;
+
+        button {
+            min-height: 44px;
+        }
+    }
+}

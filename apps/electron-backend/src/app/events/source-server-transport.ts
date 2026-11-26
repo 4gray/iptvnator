@@ -5,6 +5,7 @@ import {
     type SourceServerResponse,
     type ServerInstanceInfo,
 } from '@iptvnator/shared/interfaces';
+import { isProfilePinRefusal } from './source-sync-profile-route';
 
 type Send = (
     apiUrl: string,
@@ -68,12 +69,14 @@ export class SourceServerTransport {
             );
             if (
                 response.status === 401 ||
-                response.status === 403 ||
+                (response.status === 403 &&
+                    !isProfilePinRefusal(request, response)) ||
                 response.status >= 500 ||
                 (response.status === 409 &&
                     (response.body as { code?: string })?.code ===
                         'instance_changed') ||
                 (response.status !== 304 &&
+                    response.status !== 204 &&
                     (typeof response.body !== 'object' ||
                         response.body === null))
             )
