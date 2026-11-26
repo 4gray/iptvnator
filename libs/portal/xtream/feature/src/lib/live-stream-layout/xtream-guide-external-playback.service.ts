@@ -18,7 +18,6 @@ import type {
 } from '@iptvnator/shared/interfaces';
 import {
     captureXtreamLiveOwner,
-    hasXtreamOpenedMedia,
     isXtreamLiveCategoryWithheld,
     sameXtreamLiveOwner,
     XtreamExternalLiveSessions,
@@ -31,6 +30,7 @@ import {
 
 import {
     guideLaunchFromSource,
+    hasXtreamOpenedMedia,
     withConfirmedChannelCopy,
     type ConfirmedLaunch,
     type GuideLaunch,

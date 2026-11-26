@@ -110,6 +110,7 @@ import {
     RecordingsService,
     RuntimeCapabilitiesService,
     SettingsStore,
+    SourceActivityService,
 } from '@iptvnator/services';
 import { LiveStreamAutoOpenStateService } from './live-stream-auto-open-state.service';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
@@ -132,6 +133,7 @@ import { XtreamGuideExternalPlayback } from './xtream-guide-external-playback.se
 import { scheduleKey } from './xtream-guide-schedules';
 import { retainXtreamPlayingSchedule } from './xtream-guide-now-playing';
 import { XtreamTuneRequests } from './xtream-tune-requests.service';
+import { readRefreshedLivePlayback } from './xtream-refreshed-live-playback';
 import { toSharedEpgProgram } from '../portal-channels-list/epg-preview-program';
 
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
@@ -748,27 +750,13 @@ export class LiveStreamLayoutComponent
         // which must keep the channel playing.
         effect(() => {
             this.parentalLock.version();
-            untracked(() => {
-                const categoryId = this.activeLiveProviderCategoryId;
-                const playlistId = this.xtreamStore.currentPlaylist()?.id;
-                if (
-                    !playlistId ||
-                    !this.isLiveCategoryWithheld(playlistId, categoryId)
-                )
-                    return;
-                this.tuneRequests.invalidate();
-                if (
-                    !this.usesEmbeddedPlayer() &&
-                    this.externalGuide.restoreConfirmedPanel()
-                )
-                    return;
-                this.panelPlayback.set(null);
-                this.activeLiveItemId.set(null);
-                this.activeGuideItem.set(null);
-                this.panelCatchupProgram.set(null);
-                this.activeLiveProviderCategoryId = null;
-            });
+            untracked(() => this.enforceActiveLiveCategory());
         });
+        inject(SourceActivityService)
+            .liveCatalogReplacements$.pipe(takeUntilDestroyed())
+            .subscribe(
+                (playlistId) => void this.refreshActiveLiveCategory(playlistId)
+            );
         effect((onCleanup) => {
             const intervalId = window.setInterval(() => {
                 this.currentTimeMs.set(Date.now());
@@ -1367,6 +1355,55 @@ export class LiveStreamLayoutComponent
             playlistId,
             categoryId,
         });
+    }
+
+    private enforceActiveLiveCategory(): void {
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        if (
+            !playlistId ||
+            !this.isLiveCategoryWithheld(
+                playlistId,
+                this.activeLiveProviderCategoryId
+            )
+        )
+            return;
+        this.tuneRequests.invalidate();
+        if (
+            !this.usesEmbeddedPlayer() &&
+            this.externalGuide.restoreConfirmedPanel()
+        )
+            return;
+        this.panelPlayback.set(null);
+        this.activeLiveItemId.set(null);
+        this.activeGuideItem.set(null);
+        this.panelCatchupProgram.set(null);
+        this.activeLiveProviderCategoryId = null;
+    }
+
+    private async refreshActiveLiveCategory(playlistId: string): Promise<void> {
+        const item = this.activeGuideItem();
+        const playback = this.activePlayback();
+        if (!item || !playback || this.activeOwner()?.playlistId !== playlistId)
+            return;
+        const generation = ++this.liveCategoryLookupGeneration;
+        this.activeLiveProviderCategoryId = 'unknown';
+        const refreshed = await readRefreshedLivePlayback(
+            this.databaseService,
+            playlistId,
+            item
+        );
+        if (
+            this.destroyRef.destroyed ||
+            generation !== this.liveCategoryLookupGeneration ||
+            this.activePlayback() !== playback ||
+            this.activeGuideItem() !== item
+        )
+            return;
+        this.activeLiveProviderCategoryId = refreshed.categoryId;
+        this.activeGuideItem.set(refreshed.item);
+        if (this.usesSelectionForRemote() && refreshed.item !== item)
+            this.channelNavigation.replacePlayingCopy(refreshed.item);
+        this.enforceActiveLiveCategory();
     }
 
     /**

@@ -16,6 +16,16 @@ import {
 
 export type GuideLaunchOutcome = false | 'ended' | 'failed' | 'retryable';
 
+export function hasXtreamOpenedMedia(
+    session: ExternalPlayerSession | null | undefined
+): session is ExternalPlayerSession & { status: 'opened' | 'playing' } {
+    return (
+        (session?.status === 'opened' || session?.status === 'playing') &&
+        !session.playbackIdle &&
+        session.mediaLoaded !== false
+    );
+}
+
 export function createXtreamLaunchCompletion() {
     let dispatched = false;
     let observed = false;
