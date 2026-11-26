@@ -913,13 +913,17 @@ const electronApi: ElectronBridgeApi = {
     dbDeleteXtreamContent: (
         playlistId: string,
         operationId?: string,
-        contentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[]
+        contentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[],
+        startupCondition?: XtreamStartupRefreshCondition
     ) =>
         ipcRenderer.invoke(
             'DB_DELETE_XTREAM_CONTENT',
             playlistId,
             operationId,
-            ...(contentTypes === undefined ? [] : [contentTypes])
+            ...(contentTypes === undefined && startupCondition === undefined
+                ? []
+                : [contentTypes]),
+            ...(startupCondition === undefined ? [] : [startupCondition])
         ),
     dbRestoreXtreamFavorites: (
         playlistId: string,

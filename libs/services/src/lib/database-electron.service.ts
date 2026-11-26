@@ -20,6 +20,7 @@ import type {
     XtreamBackupHiddenCategory,
     XtreamBackupRecentlyViewedItem,
     XtreamCategory,
+    XtreamStartupRefreshCondition,
 } from '@iptvnator/shared/interfaces';
 
 export interface XCategoryFromDb {
@@ -295,9 +296,11 @@ export class DatabaseService {
         playlistId: string,
         options?: DbOperationOptions & {
             contentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[];
+            startupCondition?: XtreamStartupRefreshCondition;
         }
     ): Promise<{
         success: boolean;
+        skipped?: true;
         favorites: XtreamBackupFavoriteItem[];
         recentlyViewed: XtreamBackupRecentlyViewedItem[];
         hiddenCategories: XtreamBackupHiddenCategory[];
@@ -309,7 +312,10 @@ export class DatabaseService {
                 window.electron.dbDeleteXtreamContent(
                     playlistId,
                     operationId,
-                    options?.contentTypes
+                    options?.contentTypes,
+                    ...(options?.startupCondition === undefined
+                        ? []
+                        : ([options.startupCondition] as const))
                 ),
             options
         );

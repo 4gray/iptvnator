@@ -396,9 +396,10 @@ cache if the reply contains no live streams, if any stream lacks a valid ID, or
 if a stream references a category absent from the response.
 Before replacing live rows, the selected-catalog service waits for source
 activity to finish and rechecks the saved connection, preference and catalog
-selection. Timestamp publication uses the playlist write queue. The worker
-only writes the timestamp fields if the connection,
-preference, live selection and previous timestamp still match. A successful
+selection. The worker checks the connection, preference, live selection and
+previous timestamp again in the transaction that starts invalidation. It drops
+a superseded refresh without touching the saved catalog. Timestamp publication
+uses the playlist write queue and the same worker condition. A successful
 refresh publishes the catalog timestamp so an open
 Xtream view can reread live rows and refresh its search without resetting
 playback. The Electron second-stream picker waits for live replacement before

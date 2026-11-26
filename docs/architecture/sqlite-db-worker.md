@@ -365,7 +365,10 @@ the main-process and EPG-worker connections give up after their 5 s
 - Category imports use at most 1,000 rows per `INSERT` to stay below SQLite's
   bound-parameter limit. All statements remain in one transaction, preserving
   provider order and rolling back earlier batches if a later batch fails.
-  Startup live refresh reuses the prior row ID of each retained provider
+  Startup live refresh checks the source connection, opt-in, catalog selection
+  and previous refresh date in the transaction that resets its import marker.
+  If any condition changed, invalidation returns before collecting or deleting
+  rows. Startup refresh reuses the prior row ID of each retained provider
   category from that source. New categories use the SQLite sequence. Startup
   refresh persists the current provider position so sorting by server order
   continues to match the response. Older rows use the insertion order.

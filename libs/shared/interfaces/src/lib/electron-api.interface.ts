@@ -1121,9 +1121,11 @@ export interface ElectronBridgeApi {
     dbDeleteXtreamContent: (
         playlistId: string,
         operationId?: string,
-        contentTypes?: import('./xtream-content-selection').XtreamContentType[]
+        contentTypes?: import('./xtream-content-selection').XtreamContentType[],
+        startupCondition?: XtreamStartupRefreshCondition
     ) => Promise<{
         success: boolean;
+        skipped?: true;
         favorites: XtreamBackupFavoriteItem[];
         recentlyViewed: XtreamBackupRecentlyViewedItem[];
         hiddenCategories: XtreamBackupHiddenCategory[];

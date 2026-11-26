@@ -8,6 +8,13 @@ type WorkerIpcContractCase = {
 };
 
 export const playlistId = 'playlist-1';
+const startupCondition = {
+    playlistId,
+    serverUrl: 'https://provider.example.test',
+    username: 'synthetic',
+    password: 'synthetic',
+    previousUpdateDate: 100,
+};
 export const operationId = 'operation-1';
 const playlist = { id: playlistId, name: 'Playlist', type: 'xtream' };
 const playlists = [playlist];
@@ -381,6 +388,17 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         operation: 'DB_DELETE_XTREAM_CONTENT',
         args: [playlistId, operationId],
         payload: { playlistId, operationId },
+        forwardsEvents: true,
+    },
+    {
+        operation: 'DB_DELETE_XTREAM_CONTENT',
+        args: [playlistId, operationId, ['live'], startupCondition],
+        payload: {
+            playlistId,
+            operationId,
+            contentTypes: ['live'],
+            startupCondition,
+        },
         forwardsEvents: true,
     },
     {

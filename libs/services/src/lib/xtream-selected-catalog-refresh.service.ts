@@ -10,9 +10,11 @@ import { DatabaseService } from './database-electron.service';
 import { ParentalLockLockStore } from './parental-lock';
 import { SourceActivityService } from './source-activity.service';
 import {
+    markImportUnfinished,
     sameXtreamCatalogConnection,
     XtreamCatalogCommitService,
     XtreamCatalogConnectionChangedError,
+    xtreamStartupRefreshCondition,
 } from './xtream-catalog-commit.service';
 import {
     XtreamPendingRestoreService,
@@ -29,6 +31,8 @@ import {
     XtreamCatalogFetchService,
     type FetchedXtreamCatalog,
 } from './xtream-catalog-fetch.service';
+
+const STARTUP_REFRESH_SUPERSEDED = Symbol('Xtream startup refresh superseded');
 
 export interface XtreamSelectedCatalogProgress {
     playlistId: string;
@@ -186,7 +190,7 @@ export class XtreamSelectedCatalogRefreshService {
                 }
                 markersStaged = true;
                 for (const type of types)
-                    await this.markUnfinished(playlist._id, type);
+                    await markImportUnfinished(this.db, playlist._id, type);
             }
             // Secure recovery before accepting metadata, but never replace a
             // catalog until the authoritative edit is accepted.
@@ -196,15 +200,24 @@ export class XtreamSelectedCatalogRefreshService {
                 acceptedConnectionChanged = true;
                 throw new XtreamCatalogConnectionChangedError();
             }
-            if (startup) await this.commit.assertCurrent(playlist);
             replacementStarted = true;
             if (markersStaged) types.forEach((type) => incomplete.add(type));
             const invalidated = await this.db.deleteXtreamPlaylistContent(
                 playlist._id,
                 {
                     contentTypes: types,
+                    ...(startup
+                        ? {
+                              startupCondition:
+                                  xtreamStartupRefreshCondition(playlist),
+                          }
+                        : {}),
                 }
             );
+            if (invalidated.skipped) {
+                replacementStarted = false;
+                throw STARTUP_REFRESH_SUPERSEDED;
+            }
             if (!invalidated.success)
                 throw new Error('Could not invalidate catalog cache.');
             // Unchanged connections acquire cleanup ownership after native
@@ -217,7 +230,7 @@ export class XtreamSelectedCatalogRefreshService {
             for (const { type, categories, content } of catalogs) {
                 // Deletion resets existing status keys to idle; re-arm before
                 // any native batch can commit without renderer cleanup.
-                await this.markUnfinished(playlist._id, type);
+                await markImportUnfinished(this.db, playlist._id, type);
                 const categoryType = type === 'movie' ? 'movies' : type;
                 publish(type, 'saving-categories');
                 const hiddenIds = saved.hiddenCategories
@@ -401,24 +414,11 @@ export class XtreamSelectedCatalogRefreshService {
             }
             if (cleanupFailed)
                 throw new Error('Could not clear incomplete catalog cache.');
+            if (error === STARTUP_REFRESH_SUPERSEDED) return false;
             throw error;
         } finally {
             this.progressState.set(null);
             release();
         }
-    }
-
-    private async markUnfinished(
-        playlistId: string,
-        type: XtreamContentType
-    ): Promise<void> {
-        if (
-            !(await this.db.setXtreamImportStatus(
-                playlistId,
-                type,
-                'importing'
-            ))
-        )
-            throw new Error('Could not retain unfinished catalog state.');
     }
 }

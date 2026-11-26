@@ -187,6 +187,41 @@ describe('edit-time Xtream catalog refresh', () => {
         expect(release).toHaveBeenCalledTimes(1);
     });
 
+    it('drops prepared recovery if a newer edit supersedes the startup invalidation', async () => {
+        const optedIn = { ...playlist, autoRefresh: true, updateDate: 100 };
+        readCurrent.mockResolvedValue(optedIn);
+        db.deleteXtreamPlaylistContent.mockResolvedValue({
+            success: false,
+            skipped: true,
+        });
+
+        await expect(
+            service.refreshLiveOnStartup(optedIn, {
+                type: 'live',
+                categories: [],
+                content: [],
+            })
+        ).resolves.toBe(false);
+
+        expect(db.deleteXtreamPlaylistContent).toHaveBeenCalledWith('p', {
+            contentTypes: ['live'],
+            startupCondition: {
+                playlistId: 'p',
+                serverUrl: playlist.serverUrl,
+                username: playlist.username,
+                password: playlist.password,
+                previousUpdateDate: 100,
+            },
+        });
+        expect(pending['clear']).toHaveBeenCalledWith('p', expect.any(Object));
+        expect(db.setAppState).toHaveBeenLastCalledWith(
+            'xtream-history-recovery:p',
+            ''
+        );
+        expect(db.saveXtreamCategories).not.toHaveBeenCalled();
+        expect(db.clearXtreamImportCache).not.toHaveBeenCalled();
+    });
+
     it('stamps startup categories with the lock list committed after an overlapping edit', async () => {
         lockedXtreamIds.mockReturnValue([7]);
         const optedIn = { ...playlist, autoRefresh: true };

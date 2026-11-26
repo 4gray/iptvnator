@@ -1045,6 +1045,7 @@ async function executeRequest(
                 playlistId: string;
                 operationId?: string;
                 contentTypes?: XtreamContentType[];
+                startupCondition?: XtreamStartupRefreshCondition;
             };
             const capturePhase =
                 createWorkerPerformancePhaseAdapter(performanceCapture);
@@ -1067,7 +1068,8 @@ async function executeRequest(
                         payload.playlistId,
                         controller.control,
                         capturePhase,
-                        payload.contentTypes
+                        payload.contentTypes,
+                        payload.startupCondition
                     );
 
                     controller.emitCompleted({

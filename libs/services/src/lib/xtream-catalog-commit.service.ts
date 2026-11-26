@@ -2,8 +2,10 @@ import { Injectable } from '@angular/core';
 import {
     normalizeXtreamServerUrl,
     type PlaylistMeta,
+    type XtreamContentType,
     type XtreamCatalogStateResult,
 } from '@iptvnator/shared/interfaces';
+import type { DatabaseService } from './database-electron.service';
 
 export function sameXtreamCatalogConnection(
     fetched: PlaylistMeta,
@@ -41,6 +43,13 @@ function catalogCondition(playlist: PlaylistMeta) {
     };
 }
 
+export function xtreamStartupRefreshCondition(playlist: PlaylistMeta) {
+    return {
+        ...catalogCondition(playlist),
+        previousUpdateDate: playlist.updateDate ?? null,
+    };
+}
+
 export async function persistXtreamStartupUpdateDate(
     playlist: PlaylistMeta,
     updateDate: number
@@ -48,12 +57,18 @@ export async function persistXtreamStartupUpdateDate(
     const result = await window.electron.dbUpdatePlaylist(
         playlist._id,
         { updateDate },
-        {
-            ...catalogCondition(playlist),
-            previousUpdateDate: playlist.updateDate ?? null,
-        }
+        xtreamStartupRefreshCondition(playlist)
     );
     return result.success === true;
+}
+
+export async function markImportUnfinished(
+    db: Pick<DatabaseService, 'setXtreamImportStatus'>,
+    playlistId: string,
+    type: XtreamContentType
+): Promise<void> {
+    if (!(await db.setXtreamImportStatus(playlistId, type, 'importing')))
+        throw new Error('Could not retain unfinished catalog state.');
 }
 
 /** Only constructed by the SQLite-backed edit-time scanner. */

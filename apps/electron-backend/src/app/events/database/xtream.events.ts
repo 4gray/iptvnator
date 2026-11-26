@@ -12,7 +12,8 @@ ipcMain.handle(
         event,
         playlistId: string,
         operationId?: string,
-        contentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[]
+        contentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[],
+        startupCondition?: import('@iptvnator/shared/interfaces').XtreamStartupRefreshCondition
     ) => {
         try {
             // Recovery is parked in DOM storage before this destructive IPC.
@@ -25,6 +26,9 @@ ipcMain.handle(
                     playlistId,
                     operationId,
                     contentTypes,
+                    ...(startupCondition === undefined
+                        ? {}
+                        : { startupCondition }),
                 }
             );
         } catch (error) {

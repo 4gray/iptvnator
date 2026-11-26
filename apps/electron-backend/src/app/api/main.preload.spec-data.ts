@@ -19,6 +19,13 @@ type PreloadInvokeCase = {
 };
 
 const playlistId = 'playlist-1';
+const startupCondition = {
+    playlistId,
+    serverUrl: 'https://provider.example.test',
+    username: 'synthetic',
+    password: 'synthetic',
+    previousUpdateDate: 100,
+};
 export const operationId = 'operation-1';
 const epgUrls = ['https://example.com/guide.xml'];
 const trustOptions = {
@@ -211,6 +218,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         args: [playlistId, operationId],
         channel: 'DB_DELETE_XTREAM_CONTENT',
         forwardedArgs: [playlistId, operationId],
+    },
+    {
+        method: 'dbDeleteXtreamContent',
+        args: [playlistId, operationId, ['live'], startupCondition],
+        channel: 'DB_DELETE_XTREAM_CONTENT',
+        forwardedArgs: [playlistId, operationId, ['live'], startupCondition],
     },
     {
         method: 'dbRestoreXtreamFavorites',

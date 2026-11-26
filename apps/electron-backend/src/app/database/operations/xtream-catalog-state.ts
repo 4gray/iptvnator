@@ -61,6 +61,31 @@ export function checkXtreamCatalogConnection(
         : { success: false, conditionChecked: true, connectionChanged: true };
 }
 
+/** Check the source as stored in SQLite at the start of a guarded write. */
+export function matchesXtreamStartupRefresh(
+    db: Pick<AppDatabase, 'select'>,
+    condition: XtreamStartupRefreshCondition
+): boolean {
+    if (!checkXtreamCatalogConnection(db, condition).success) return false;
+    const row = db
+        .select()
+        .from(schema.playlists)
+        .where(eq(schema.playlists.id, condition.playlistId))
+        .get();
+    if (!row) return false;
+    const payload = row.payload ? JSON.parse(row.payload) : {};
+    const previous =
+        row.updateDate ??
+        (row.lastUpdated ? Date.parse(row.lastUpdated) : null);
+    return (
+        Boolean(row.autoRefresh ?? payload.autoRefresh) &&
+        normalizeXtreamContentTypes(payload.xtreamContentTypes).includes(
+            'live'
+        ) &&
+        previous === condition.previousUpdateDate
+    );
+}
+
 export function setXtreamStartupRefreshDate(
     db: AppDatabase,
     updateDate: number,
@@ -74,28 +99,11 @@ export function setXtreamStartupRefreshDate(
         throw new Error('Invalid Xtream refresh timestamp.');
 
     return db.transaction((tx) => {
-        if (!checkXtreamCatalogConnection(tx, condition).success)
+        if (!matchesXtreamStartupRefresh(tx, condition))
             return { success: false };
-        const source = schema.playlists;
-        const scope = eq(source.id, condition.playlistId);
-        const row = tx.select().from(source).where(scope).get();
-        if (!row) return { success: false };
-        const payload = row.payload ? JSON.parse(row.payload) : {};
-        const previous =
-            row.updateDate ??
-            (row.lastUpdated ? Date.parse(row.lastUpdated) : null);
-        if (
-            !(row.autoRefresh ?? payload.autoRefresh) ||
-            !normalizeXtreamContentTypes(payload.xtreamContentTypes).includes(
-                'live'
-            ) ||
-            previous !== condition.previousUpdateDate
-        )
-            return { success: false };
-
-        tx.update(source)
+        tx.update(schema.playlists)
             .set({ updateDate, lastUpdated: lastUpdated.toISOString() })
-            .where(scope)
+            .where(eq(schema.playlists.id, condition.playlistId))
             .run();
         return { success: true };
     });
