@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { firstValueFrom, from, of } from 'rxjs';
+import { firstValueFrom, from, of, throwError } from 'rxjs';
 import { DatabaseService, PlaylistsService } from '@iptvnator/services';
 import {
     Channel,
@@ -40,6 +40,7 @@ describe('UnifiedFavoritesDataService', () => {
         getAllGlobalFavorites: jest.Mock;
         getContentByXtreamId: jest.Mock;
         getFavorites: jest.Mock;
+        getFavoritesOrThrow: jest.Mock;
     };
     let xtreamDataSource: {
         isFavorite: jest.Mock;
@@ -176,6 +177,7 @@ describe('UnifiedFavoritesDataService', () => {
             getAllGlobalFavorites: jest.fn().mockResolvedValue([]),
             getContentByXtreamId: jest.fn().mockResolvedValue(null),
             getFavorites: jest.fn().mockResolvedValue([]),
+            getFavoritesOrThrow: jest.fn().mockResolvedValue([]),
         };
         xtreamDataSource = {
             isFavorite: jest.fn().mockResolvedValue(true),
@@ -243,6 +245,46 @@ describe('UnifiedFavoritesDataService', () => {
         });
 
         service = TestBed.inject(UnifiedFavoritesDataService);
+    });
+
+    it.each(['m3u', 'stalker'] as const)(
+        'distinguishes a failed %s membership read from an empty list',
+        async (sourceType) => {
+            const sourceId = sourceType + '-1';
+            const error = new Error('Synthetic playlist read failure');
+            playlistsService.getPlaylistById.mockReturnValue(
+                throwError(() => error)
+            );
+            await expect(
+                service.getFavorites('playlist', sourceId, sourceType)
+            ).resolves.toEqual([]);
+            await expect(
+                service.getPlaylistFavoritesForMembership(sourceId, sourceType)
+            ).rejects.toBe(error);
+        }
+    );
+
+    it('reads actual Stalker membership even when playlist metadata has no favorites', async () => {
+        const source = { _id: 'synthetic-portal', favorites: stalkerFavorites };
+        store.select.mockReturnValue(of([{ ...source, favorites: [] }]));
+        playlistsService.getPlaylistById.mockReturnValue(of(source));
+        await expect(
+            service.getFavorites('playlist', source._id, 'stalker')
+        ).resolves.toEqual([]);
+        await expect(
+            service.getPlaylistFavoritesForMembership(source._id, 'stalker')
+        ).resolves.toHaveLength(stalkerFavorites.length);
+    });
+
+    it('propagates a native Xtream membership read failure', async () => {
+        const source = { _id: 'synthetic-portal' };
+        store.select.mockReturnValue(of([source]));
+        const error = new Error('Synthetic native favorites read failure');
+        databaseService.getFavoritesOrThrow.mockRejectedValue(error);
+        await expect(
+            service.getPlaylistFavoritesForMembership(source._id, 'xtream')
+        ).rejects.toBe(error);
+        expect(databaseService.getFavorites).not.toHaveBeenCalled();
     });
 
     it('keeps an unavailable Xtream favorite readable and removable without a catalog row', async () => {

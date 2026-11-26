@@ -344,7 +344,10 @@ export class FavoriteChannelFoldersService {
         );
         const loaded = await Promise.all(
             Array.from(sources.values(), ({ playlistId, sourceType }) =>
-                favorites.getFavorites('playlist', playlistId, sourceType)
+                favorites.getPlaylistFavoritesForMembership(
+                    playlistId,
+                    sourceType
+                )
             )
         );
         const keys = new Set<string>();

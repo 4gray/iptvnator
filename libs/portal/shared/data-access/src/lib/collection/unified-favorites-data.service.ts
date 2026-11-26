@@ -78,6 +78,14 @@ export class UnifiedFavoritesDataService {
         return this.getAllFavorites();
     }
 
+    /** A failed read cannot establish that it is safe to add membership. */
+    getPlaylistFavoritesForMembership(
+        playlistId: string,
+        sourceType: UnifiedCollectionItem['sourceType']
+    ): Promise<UnifiedCollectionItem[]> {
+        return this.getPlaylistFavorites(playlistId, sourceType, true);
+    }
+
     async addFavorite(item: UnifiedCollectionItem): Promise<void> {
         switch (item.sourceType) {
             case 'm3u':
@@ -476,13 +484,14 @@ export class UnifiedFavoritesDataService {
 
     private async getPlaylistFavorites(
         playlistId: string,
-        portalType?: string
+        portalType?: string,
+        strict = false
     ): Promise<UnifiedCollectionItem[]> {
         if (portalType === 'xtream')
-            return this.getXtreamPlaylistFavorites(playlistId);
+            return this.getXtreamPlaylistFavorites(playlistId, strict);
         if (portalType === 'stalker')
-            return this.getStalkerPlaylistFavorites(playlistId);
-        return this.getM3uPlaylistFavorites(playlistId);
+            return this.getStalkerPlaylistFavorites(playlistId, strict);
+        return this.getM3uPlaylistFavorites(playlistId, strict);
     }
 
     private async getM3uFavorites(): Promise<UnifiedCollectionItem[]> {
@@ -497,25 +506,30 @@ export class UnifiedFavoritesDataService {
     }
 
     private async getM3uPlaylistFavorites(
-        id: string
+        id: string,
+        strict: boolean
     ): Promise<UnifiedCollectionItem[]> {
-        const meta = await this.getPlaylistMeta(id);
-        return meta ? this.extractM3uFavorites(meta) : [];
+        const meta = await this.getPlaylistMeta(id, strict);
+        return meta ? this.extractM3uFavorites(meta, strict) : [];
     }
 
     private async extractM3uFavorites(
-        meta: PlaylistMeta
+        meta: PlaylistMeta,
+        strict = false
     ): Promise<UnifiedCollectionItem[]> {
-        if (!meta.favorites?.length) return [];
+        if (!strict && !meta.favorites?.length) return [];
 
         let playlist: PlaylistWithChannels | undefined;
         try {
             playlist = (await firstValueFrom(
                 this.playlistsService.getPlaylistById(meta._id)
             )) as PlaylistWithChannels | undefined;
-        } catch {
+        } catch (error) {
+            if (strict) throw error;
             return [];
         }
+        if (strict && !playlist)
+            throw new Error('Favorite source is unavailable');
         if (playlist) playlist = await this.favoriteSync.project(playlist);
         const favoriteIds = ((playlist?.favorites ?? []) as string[]).map(
             String
@@ -596,13 +610,19 @@ export class UnifiedFavoritesDataService {
     }
 
     private async getXtreamPlaylistFavorites(
-        playlistId: string
+        playlistId: string,
+        strict = false
     ): Promise<UnifiedCollectionItem[]> {
         try {
-            const meta = await this.getPlaylistMeta(playlistId);
+            const meta = await this.getPlaylistMeta(playlistId, strict);
             if (!(await this.xtreamFavoritesBridge(playlistId))) {
-                const rows =
-                    await this.xtreamDataSource.getFavorites(playlistId);
+                const rows = strict
+                    ? await this.xtreamDataSource.getFavorites(
+                          playlistId,
+                          false,
+                          true
+                      )
+                    : await this.xtreamDataSource.getFavorites(playlistId);
                 return this.applyOrder(
                     rows.map((row) => ({
                         ...this.mapXtreamContentItem(
@@ -620,7 +640,9 @@ export class UnifiedFavoritesDataService {
                 );
             }
 
-            const rows = await this.dbService.getFavorites(playlistId);
+            const rows = strict
+                ? await this.dbService.getFavoritesOrThrow(playlistId)
+                : await this.dbService.getFavorites(playlistId);
             return (rows as unknown as XtreamFavoriteRow[]).map((r) => ({
                 ...this.mapXtreamRow(r),
                 playlistId,
@@ -629,7 +651,8 @@ export class UnifiedFavoritesDataService {
                     meta?.xtreamContentTypes
                 ).includes(xtreamContentType(r.type)),
             }));
-        } catch {
+        } catch (error) {
+            if (strict) throw error;
             return [];
         }
     }
@@ -734,25 +757,30 @@ export class UnifiedFavoritesDataService {
     }
 
     private async getStalkerPlaylistFavorites(
-        id: string
+        id: string,
+        strict: boolean
     ): Promise<UnifiedCollectionItem[]> {
-        const meta = await this.getPlaylistMeta(id);
-        return meta ? this.extractStalkerFavorites(meta) : [];
+        const meta = await this.getPlaylistMeta(id, strict);
+        return meta ? this.extractStalkerFavorites(meta, strict) : [];
     }
 
     private async extractStalkerFavorites(
-        meta: PlaylistMeta
+        meta: PlaylistMeta,
+        strict = false
     ): Promise<UnifiedCollectionItem[]> {
-        if (!meta.favorites?.length) return [];
+        if (!strict && !meta.favorites?.length) return [];
         let playlist: Playlist | undefined;
         try {
             await this.playlistsService.preparePortalFavoriteActions();
             playlist = (await firstValueFrom(
                 this.playlistsService.getPlaylistById(meta._id)
             )) as Playlist | undefined;
-        } catch {
+        } catch (error) {
+            if (strict) throw error;
             return [];
         }
+        if (strict && !playlist)
+            throw new Error('Favorite source is unavailable');
         if (playlist) playlist = await this.favoriteSync.project(playlist);
         if (playlist) playlist = this.stalkerMetadata.project(playlist);
         const favs = Array.isArray(playlist?.favorites)
@@ -820,9 +848,13 @@ export class UnifiedFavoritesDataService {
     }
 
     private async getPlaylistMeta(
-        id: string
+        id: string,
+        required = false
     ): Promise<PlaylistMeta | undefined> {
-        return (await this.getAllMeta()).find((p) => p._id === id);
+        const meta = (await this.getAllMeta()).find((p) => p._id === id);
+        if (required && !meta)
+            throw new Error('Favorite source is unavailable');
+        return meta;
     }
 
     private async getSavedOrder(): Promise<string[]> {

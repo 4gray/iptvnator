@@ -167,6 +167,27 @@ describe('favorite provider references and projections', () => {
             expect(m3u.playlist!.items[0].name).toBe(title);
         }
     );
+    it('forwards strict cache-only reads through Xtream favorite sync', async () => {
+        const error = new Error('Synthetic storage read failure');
+        const getFavorites = jest.fn().mockRejectedValue(error);
+        const client = {
+            contexts: new Map(),
+            options: { consent: () => 'consent' },
+        } as unknown as FavoritesSyncClient;
+        const raw = { getFavorites } as unknown as IXtreamDataSource;
+        const adapter = new FavoritesXtreamAdapter(
+            client,
+            () => true,
+            false,
+            unlocked
+        );
+
+        await expect(
+            adapter.invoke(raw, 'getFavorites', ['source', false, true])
+        ).rejects.toBe(error);
+        expect(getFavorites).toHaveBeenCalledWith('source', false, true);
+    });
+
     it('preserves requested identity when a sparse Xtream favorite has no catalog row', async () => {
         const set = jest.fn(async () => undefined);
         const client = {

@@ -559,8 +559,8 @@ Deleting a folder clears all its assignments in the same write.
 Adding directly to a folder writes a pending marker before asking the provider
 to save membership. The view publishes the folder change after both writes
 succeed. A failed or interrupted final write leaves the favorite unfiled and a
-retry checks membership before saving, so it does not add a second favorite.
-Folder
-choice and multi-select are independent of the playing channel. Reordering a
+retry checks membership before saving. A failed membership read stops the
+operation before saving and leaves the dialog open for another attempt.
+Folder choice and multi-select are independent of the playing channel. Reordering a
 filtered folder places the reordered channels back into their slots in the
 source scope’s full list.

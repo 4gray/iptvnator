@@ -70,7 +70,10 @@ describe.each(['browser', 'electron'])(
                     },
                     {
                         provide: UnifiedFavoritesDataService,
-                        useValue: { addFavorite, getFavorites },
+                        useValue: {
+                            addFavorite,
+                            getPlaylistFavoritesForMembership: getFavorites,
+                        },
                     },
                 ],
             });
@@ -83,7 +86,7 @@ describe.each(['browser', 'electron'])(
             saved = [channel, xtream, stalker];
             getFavorites
                 .mockReset()
-                .mockImplementation(async (_scope, playlistId, sourceType) =>
+                .mockImplementation(async (playlistId, sourceType) =>
                     saved.filter(
                         (item) =>
                             item.playlistId === playlistId &&
@@ -181,7 +184,7 @@ describe.each(['browser', 'electron'])(
             expect(service.folderOf(channel)).toBe(service.folders()[0].id);
         });
 
-        it('leaves a failed final write invisible after restart and retries without a second membership write', async () => {
+        it('leaves a failed final write invisible and never retries membership without a successful read', async () => {
             let service = open();
             saved = [];
             addFavorite.mockImplementationOnce(
@@ -204,6 +207,18 @@ describe.each(['browser', 'electron'])(
             await service.load();
             expect(service.folders()).toEqual([]);
             expect(service.folderOf(channel)).toBeNull();
+            getFavorites.mockRejectedValueOnce(
+                new Error('Synthetic read failure')
+            );
+            await expect(
+                service.move(
+                    [channel],
+                    { name: 'Synthetic folder' },
+                    { add: true }
+                )
+            ).rejects.toThrow('Synthetic read failure');
+            expect(addFavorite).toHaveBeenCalledTimes(1);
+            expect(service.folders()).toEqual([]);
             await service.move(
                 [channel],
                 { name: 'Synthetic folder' },
