@@ -309,7 +309,7 @@ export class SecondStreamComponent implements OnDestroy {
     ): Promise<CompanionSlot | null> {
         if (!slot || this.busy() || !this.available())
             return Promise.resolve(null);
-        const previous = this.selectionAt(slot);
+        const previous = this.slots.at(slot);
         if (Boolean(previous) !== replace || this.isWithheld(slot))
             return Promise.resolve(null);
         const primary = this.primary();
@@ -326,7 +326,7 @@ export class SecondStreamComponent implements OnDestroy {
                 this.primary() === primary &&
                 primary.playback() === playback &&
                 !this.slots.isClosing(slot) &&
-                this.selectionAt(slot) === previous &&
+                this.slots.at(slot) === previous &&
                 !this.isWithheld(slot),
             findDuplicateSlot: (identity) => this.findDuplicateSlot(identity),
             accept: async (selection, allowed) => {

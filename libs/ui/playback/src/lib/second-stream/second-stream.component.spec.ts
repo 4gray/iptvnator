@@ -708,6 +708,7 @@ describe('SecondStreamComponent', () => {
                 playback: { ...fixtureChoice.playback, isLive: true },
             });
             const originalPlayback = component.selectionAt(2)?.playback;
+            const { result } = await dialogFor(2, true);
             if (locked) lockedCategory.set(60);
             rebindLiveCategory.mockResolvedValue(moved);
 
@@ -719,6 +720,8 @@ describe('SecondStreamComponent', () => {
 
             expect(rebindLiveCategory).toHaveBeenCalledWith(item);
             if (locked) {
+                expect(await result).toBeNull();
+                expect(dialogClose).toHaveBeenCalledTimes(1);
                 expect(component.openStreams().map(({ slot }) => slot)).toEqual(
                     [1]
                 );
@@ -729,6 +732,11 @@ describe('SecondStreamComponent', () => {
             expect(component.selectionAt(2)?.item).toEqual(moved);
             expect(component.selectionAt(2)?.playback).toBe(originalPlayback);
             expect(companion.controller.sessionId()).toBe('session-2');
+            expect(dialogClose).not.toHaveBeenCalled();
+            const replacement = distinctSelection(3);
+            afterClosed.next(replacement);
+            expect(await result).toBe(2);
+            expect(component.selectionAt(2)).toBe(replacement);
         }
     );
 
