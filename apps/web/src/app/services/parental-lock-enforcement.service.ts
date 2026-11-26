@@ -12,7 +12,10 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
-import { ParentalLockService } from '@iptvnator/services';
+import {
+    ParentalLockService,
+    SourceActivityService,
+} from '@iptvnator/services';
 import { toParentalLockXtreamCategoryType } from '@iptvnator/shared/interfaces';
 import { PlaybackKeepAwakeService } from './playback-keep-awake.service';
 
@@ -31,6 +34,7 @@ export const STALKER_ROUTE =
 @Injectable({ providedIn: 'root' })
 export class ParentalLockEnforcementService {
     private readonly parentalLock = inject(ParentalLockService);
+    private readonly sourceActivity = inject(SourceActivityService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
     private readonly injector = inject(EnvironmentInjector);
@@ -161,18 +165,22 @@ export class ParentalLockEnforcementService {
         const shouldPublish = (): boolean =>
             this.parentalLock.version() === version &&
             this.xtreamStore.playlistId?.() === playlistId;
-        await this.xtreamStore.reloadCategories(shouldPublish);
-        await this.xtreamStore.reloadCachedContent(shouldPublish);
-        if (!shouldPublish()) {
-            return;
-        }
-        // Stored in-portal search results are a separate array the search
-        // page renders directly; re-run the search so it reads filtered.
-        await this.xtreamStore.refreshSearchResults?.();
-        if (!shouldPublish() || !this.parentalLock.active()) {
-            return;
-        }
-        await this.stepOffWithheldXtreamSelection(playlistId, shouldPublish);
+        // An Electron cache miss can write categories. Keep the lock reload
+        // from refilling the catalog while startup is preserving SQLite IDs.
+        await this.sourceActivity.runWhenIdle(playlistId, async () => {
+            if (!shouldPublish()) return;
+            await this.xtreamStore.reloadCategories(shouldPublish);
+            if (!shouldPublish()) return;
+            await this.xtreamStore.reloadCachedContent(shouldPublish);
+            if (!shouldPublish()) return;
+            // Stored in-portal search results must also be read under the new lock.
+            await this.xtreamStore.refreshSearchResults?.();
+            if (shouldPublish() && this.parentalLock.active())
+                await this.stepOffWithheldXtreamSelection(
+                    playlistId,
+                    shouldPublish
+                );
+        });
     }
 
     /**

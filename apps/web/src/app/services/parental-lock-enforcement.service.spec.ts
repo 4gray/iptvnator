@@ -7,7 +7,10 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
-import { ParentalLockService } from '@iptvnator/services';
+import {
+    ParentalLockService,
+    SourceActivityService,
+} from '@iptvnator/services';
 import { ParentalLockEnforcementService } from './parental-lock-enforcement.service';
 import { PlaybackKeepAwakeService } from './playback-keep-awake.service';
 
@@ -292,6 +295,33 @@ describe('ParentalLockEnforcementService', () => {
                 (_p: string, _t: string, id: number) => id === providerId
             );
         }
+
+        it.each([false, true])(
+            'defers lock-driven catalog reads until source replacement releases (superseded: %s)',
+            async (superseded) => {
+                const activity = TestBed.inject(SourceActivityService);
+                const source = xtreamStore.playlistId()!;
+                const release = activity.begin([source]);
+                const applying = service.applyXtream(parentalLock.version());
+                try {
+                    await Promise.resolve();
+                    expect(xtreamStore.reloadCategories).not.toHaveBeenCalled();
+                    expect(
+                        xtreamStore.reloadCachedContent
+                    ).not.toHaveBeenCalled();
+                    if (superseded) parentalLock.version.update((n) => n + 1);
+                } finally {
+                    release();
+                    await applying;
+                }
+                expect(xtreamStore.reloadCategories).toHaveBeenCalledTimes(
+                    superseded ? 0 : 1
+                );
+                expect(xtreamStore.reloadCachedContent).toHaveBeenCalledTimes(
+                    superseded ? 0 : 1
+                );
+            }
+        );
 
         it('clears a selected item whose category the lock store withholds', async () => {
             router.url = '/workspace/xtreams/xtream-1/vod/42';

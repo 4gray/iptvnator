@@ -6,7 +6,13 @@ import {
     DatabaseService,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    SourceActivityService,
 } from '@iptvnator/services';
+import { collectionConsentKey } from '@iptvnator/services/history-events';
+import {
+    CONNECTION_KEY,
+    prepareSourceConnection,
+} from '@iptvnator/services/source-sync/connection';
 import {
     Channel,
     Playlist,
@@ -737,6 +743,59 @@ describe('UnifiedFavoritesDataService', () => {
             undefined
         );
     });
+
+    it.each([false, true])(
+        'keeps collection membership unchanged when a deferred action loses consent (favorite: %s)',
+        async (favorite) => {
+            const item: UnifiedCollectionItem = {
+                uid: 'xtream::synthetic-source::live:42',
+                name: 'Synthetic live channel',
+                sourceType: 'xtream',
+                contentType: 'live',
+                playlistId: 'synthetic-source',
+                playlistName: 'Synthetic source',
+                xtreamId: 42,
+                contentId: 12,
+            };
+            const connection = {
+                apiUrl: 'https://server.example.test/api',
+                instanceId: 'synthetic-instance',
+            };
+            const consent = collectionConsentKey(
+                connection.instanceId,
+                'favorites'
+            )!;
+            localStorage.setItem(CONNECTION_KEY, JSON.stringify(connection));
+            await prepareSourceConnection();
+            localStorage.setItem(consent, 'initial');
+            const collection = TestBed.inject(UnifiedCollectionDataService);
+            const activity = TestBed.inject(SourceActivityService);
+            const release = activity.begin([item.playlistId]);
+            try {
+                collection.allItems.set([item]);
+                collection.favoriteUidSet.set(
+                    new Set(favorite ? [item.uid] : [])
+                );
+                const pending = favorite
+                    ? collection.removeItem('favorites', item)
+                    : collection.toggleFavorite(item);
+                localStorage.setItem(consent, 'changed');
+                release();
+                await pending;
+                expect(collection.favoriteUidSet().has(item.uid)).toBe(
+                    favorite
+                );
+                expect(collection.allItems()).toEqual([item]);
+                expect(electronApi.dbAddFavorite).not.toHaveBeenCalled();
+                expect(electronApi.dbRemoveFavorite).not.toHaveBeenCalled();
+            } finally {
+                release();
+                localStorage.removeItem(consent);
+                localStorage.removeItem(CONNECTION_KEY);
+                await prepareSourceConnection();
+            }
+        }
+    );
 
     it('keeps a recent item heart empty when SQLite rejects its saved identity', async () => {
         const item: UnifiedCollectionItem = {

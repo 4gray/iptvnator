@@ -178,7 +178,8 @@ export class UnifiedCollectionDataService {
         item: UnifiedCollectionItem
     ): Promise<void> {
         if (mode === 'favorites') {
-            await this.favoritesData.removeFavorite(item);
+            if ((await this.favoritesData.removeFavorite(item)) === false)
+                return;
             this.favoriteUidSet.update((favoriteUids) => {
                 const nextFavoriteUids = new Set(favoriteUids);
                 nextFavoriteUids.delete(item.uid);
@@ -193,17 +194,18 @@ export class UnifiedCollectionDataService {
     }
 
     async toggleFavorite(item: UnifiedCollectionItem): Promise<void> {
-        const nextFavoriteUids = new Set(this.favoriteUidSet());
+        const wasFavorite = this.favoriteUidSet().has(item.uid);
+        const saved = wasFavorite
+            ? await this.favoritesData.removeFavorite(item)
+            : await this.favoritesData.addFavorite(item);
+        if (saved === false) return;
 
-        if (nextFavoriteUids.has(item.uid)) {
-            await this.favoritesData.removeFavorite(item);
-            nextFavoriteUids.delete(item.uid);
-        } else {
-            await this.favoritesData.addFavorite(item);
-            nextFavoriteUids.add(item.uid);
-        }
-
-        this.favoriteUidSet.set(nextFavoriteUids);
+        this.favoriteUidSet.update((favoriteUids) => {
+            const nextFavoriteUids = new Set(favoriteUids);
+            if (wasFavorite) nextFavoriteUids.delete(item.uid);
+            else nextFavoriteUids.add(item.uid);
+            return nextFavoriteUids;
+        });
     }
 
     async reorder(

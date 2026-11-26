@@ -421,10 +421,12 @@ ambiguous moves pending. Source and global history
 clears and individual removals run after already-confirmed writes and before
 subsequent writes in scope. This includes hiding a series from Continue
 Watching. A delayed favorite or history action is canceled if its source
-profile or sync consent changes before the write. An open history view reloads
-using the current consent when the same source's history changes. SQLite history
-and the portable history outbox and local archive keep the confirmation time when
-a source delays the write. Acknowledged shared history uses the
+profile or sync consent changes before the write. Canceled favorite actions
+leave the displayed membership to the collection reload. Lock-triggered
+Xtream catalog reads wait for source replacement to release its hold. An open
+history view reloads using the current consent when the same source's history
+changes. SQLite history and the portable history outbox and local archive keep
+the confirmation time when a source delays the write. Acknowledged shared history uses the
 [server clock](./pwa-self-hosted.md#recently-viewed-synchronization). Delayed writes update
 the visible list only when it still belongs to their source.
 The selected and playing live channels, including companion streams, are

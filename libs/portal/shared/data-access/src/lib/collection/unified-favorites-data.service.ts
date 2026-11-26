@@ -81,20 +81,20 @@ export class UnifiedFavoritesDataService {
         return this.getAllFavorites();
     }
 
-    async addFavorite(item: UnifiedCollectionItem): Promise<void> {
+    async addFavorite(item: UnifiedCollectionItem): Promise<boolean> {
         switch (item.sourceType) {
             case 'm3u':
                 await this.addM3uFavorite(item);
                 break;
             case 'xtream':
-                await this.writeXtreamFavorite(item, (current) =>
+                return this.writeXtreamFavorite(item, (current) =>
                     this.addXtreamFavorite(item, current)
                 );
-                break;
             case 'stalker':
                 await this.addStalkerFavorite(item);
                 break;
         }
+        return true;
     }
 
     /** A reused provider ID alone cannot determine a recent row's favorite status. */
@@ -118,7 +118,7 @@ export class UnifiedFavoritesDataService {
         );
     }
 
-    async removeFavorite(item: UnifiedCollectionItem): Promise<void> {
+    async removeFavorite(item: UnifiedCollectionItem): Promise<boolean> {
         switch (item.sourceType) {
             case 'm3u': {
                 await this.transformM3uFavorites(item.playlistId, (current) =>
@@ -131,10 +131,9 @@ export class UnifiedFavoritesDataService {
                 break;
             }
             case 'xtream':
-                await this.writeXtreamFavorite(item, (current) =>
+                return this.writeXtreamFavorite(item, (current) =>
                     this.removeXtreamFavorite(item, current)
                 );
-                break;
             case 'stalker': {
                 const sourceItemId = item.stalkerId ?? item.uid.split('::')[2];
                 await firstValueFrom(
@@ -147,6 +146,7 @@ export class UnifiedFavoritesDataService {
                 break;
             }
         }
+        return true;
     }
 
     private async addM3uFavorite(item: UnifiedCollectionItem): Promise<void> {
@@ -170,7 +170,7 @@ export class UnifiedFavoritesDataService {
     private writeXtreamFavorite(
         item: UnifiedCollectionItem,
         write: (current: () => boolean) => Promise<void>
-    ): Promise<void> {
+    ): Promise<boolean> {
         const current = captureHistoryOwner(
             sourceConnection()?.instanceId,
             item.playlistId,
@@ -178,7 +178,9 @@ export class UnifiedFavoritesDataService {
             'favorites'
         );
         const run = async () => {
-            if (current()) await write(current);
+            if (!current()) return false;
+            await write(current);
+            return current();
         };
         return this.isSqliteLive(item)
             ? this.activity.runWhenIdle(item.playlistId, run)
