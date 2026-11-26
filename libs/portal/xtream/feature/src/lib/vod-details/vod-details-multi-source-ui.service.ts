@@ -1,5 +1,5 @@
 import { Injectable, Signal, computed, inject, signal } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { SettingsStore } from '@iptvnator/services';
@@ -11,7 +11,6 @@ import {
     type VodSourceCandidate,
     type VodSourceDescriptor,
 } from '@iptvnator/shared/interfaces';
-import { TranslateService } from '@ngx-translate/core';
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
 import type { VodResetTarget } from './vod-details-reset-target';
 import { VodMultiSourceHostService } from './vod-multi-source-host.service';
@@ -39,8 +38,7 @@ export class VodDetailsMultiSourceUiService {
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly settingsStore = inject(SettingsStore);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translateService = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
 
     /** The vod id the route is showing; bound once by the host component. */
     private routeContentId: Signal<number> = signal(NaN);
@@ -279,13 +277,7 @@ export class VodDetailsMultiSourceUiService {
         this.settingsStore
             .updateSettings({ vodAutoFailover: enabled })
             .catch(() =>
-                this.snackBar.open(
-                    this.translateService.instant(
-                        'SETTINGS.SETTINGS_SAVE_FAILED'
-                    ),
-                    this.translateService.instant('CLOSE'),
-                    { duration: 10000 }
-                )
+                this.notifications.error('SETTINGS.SETTINGS_SAVE_FAILED')
             );
     }
 
@@ -303,22 +295,17 @@ export class VodDetailsMultiSourceUiService {
             return;
         }
 
-        this.snackBar
-            .open(
-                this.translateService.instant(
-                    'PORTALS.MULTI_SOURCE.SWITCHED_TO',
-                    { playlist: notice.playlistName }
-                ) +
-                    (notice.audioMayDiffer
-                        ? ` — ${this.translateService.instant(
-                              'PORTALS.MULTI_SOURCE.SWITCH_AUDIO_WARNING'
-                          )}`
-                        : ''),
-                this.translateService.instant('PORTALS.MULTI_SOURCE.UNDO'),
-                { duration: 10000 }
-            )
-            .onAction()
-            .subscribe(() => this.undoFailover());
+        const undo = {
+            labelKey: 'PORTALS.MULTI_SOURCE.UNDO',
+            run: () => this.undoFailover(),
+        };
+        this.notifications.info(
+            notice.audioMayDiffer
+                ? 'PORTALS.MULTI_SOURCE.SWITCHED_TO_AUDIO_MAY_DIFFER'
+                : 'PORTALS.MULTI_SOURCE.SWITCHED_TO',
+            { playlist: notice.playlistName },
+            { action: undo }
+        );
     }
 
     /** Return to the source that was playing before the automatic switch. */

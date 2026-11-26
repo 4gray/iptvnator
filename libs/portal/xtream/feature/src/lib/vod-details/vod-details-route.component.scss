@@ -9,7 +9,7 @@
     ::ng-deep .source-caption {
         flex: 0 0 100%;
         margin: 0;
-        font-size: 0.75rem;
+        font-size: var(--app-text-xs);
         line-height: 1.4;
         color: var(--text-muted);
 
@@ -88,7 +88,7 @@
             font-family:
                 ui-monospace, 'SFMono-Regular', 'SF Mono', Menlo, Consolas,
                 monospace;
-            font-size: 0.8125rem;
+            font-size: var(--app-text-sm);
             letter-spacing: 0.03em;
         }
     }

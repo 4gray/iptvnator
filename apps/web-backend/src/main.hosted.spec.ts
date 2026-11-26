@@ -1,10 +1,51 @@
+import type { Server } from 'node:http';
+import {
+    fetchTestServer,
+    requestTestServer,
+    serverOrigin,
+} from './app/http-server.spec-helpers';
 import { EventEmitter, once } from 'node:events';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { type AddressInfo, type Server } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { HostedServerWorkerMessage } from '@iptvnator/shared/interfaces';
 import type { ServerDatabase } from './app/storage/server-database';
+
+// Node fetch rewrites Host; exercise a proxy-preserved Host with raw HTTP.
+function proxyGet(
+    server: Server,
+    url: string,
+    options: { headers: Record<string, string> }
+) {
+    return new Promise<{
+        status: number;
+        cacheControl?: string;
+        json: () => Promise<Record<string, unknown>>;
+    }>((resolve, reject) => {
+        requestTestServer(
+            server,
+            url,
+            options,
+            (response) => {
+                let body = '';
+                response.setEncoding('utf8');
+                response.on('data', (chunk) => {
+                    body += chunk;
+                });
+                response.on('end', () =>
+                    resolve({
+                        status: response.statusCode!,
+                        cacheControl: response.headers['cache-control'],
+                        json: async () => JSON.parse(body),
+                    })
+                );
+                response.on('error', reject);
+            }
+        )
+            .on('error', reject)
+            .end();
+    });
+}
 
 jest.mock('./app/hosted-listener', () => {
     const actual = jest.requireActual<typeof import('./app/hosted-listener')>(
@@ -98,6 +139,8 @@ describe('hosted web backend worker', () => {
                                 : 'EADDRNOTAVAIL',
                     });
                 }
+                // Keep this test independent of a running desktop instance.
+                args[2] = 0;
                 const server = await actual.listenHosted(...args);
                 servers.push(server);
                 return server;
@@ -120,9 +163,10 @@ describe('hosted web backend worker', () => {
         expect(reply).toEqual({ ready: true, instanceId: expect.any(String) });
         expect(servers).toHaveLength(2);
         for (const server of servers) {
-            const { port } = server.address() as AddressInfo;
-            const origin = `http://127.0.0.1:${port}`;
+            const origin = serverOrigin(server);
+            const fetch = fetchTestServer(server);
             const page = await fetch(origin + '/workspace/dashboard');
+            expect(page.headers.get('cache-control')).toBe('no-cache');
             expect(await page.text()).toContain('Synthetic hosted app');
             const api = await fetch(origin + '/api/v1/instance');
             expect(api.status).toBe(200);
@@ -130,11 +174,69 @@ describe('hosted web backend worker', () => {
                 instanceId: database?.instanceId,
             });
         }
+        const remoteOrigin = 'https://library.example.test';
+        const configure = async (httpsOrigin: string, requestId: string) => {
+            const response = once(parent, 'reply');
+            parent.emit('message', { data: { httpsOrigin, requestId } });
+            return (await response)[0];
+        };
+        expect(await configure(remoteOrigin, 'enable')).toEqual({
+            https: true,
+            requestId: 'enable',
+            origin: remoteOrigin,
+        });
+        const remote = servers[2];
+        const remoteUrl = serverOrigin(remote);
+        const headers = { host: 'library.example.test', origin: remoteOrigin };
+        expect(
+            await proxyGet(remote, remoteUrl + '/workspace/dashboard', {
+                headers,
+            })
+        ).toMatchObject({ status: 200, cacheControl: 'no-store' });
+        expect(
+            (
+                await proxyGet(remote, remoteUrl + '/api/v1/instance', {
+                    headers,
+                }).then((response) => response.json())
+            ).instanceId
+        ).toBe(database?.instanceId);
+        expect(
+            (await proxyGet(remote, remoteUrl + '/api/v1/sources', { headers }))
+                .status
+        ).toBe(401);
+        expect(
+            await proxyGet(remote, remoteUrl + '/api/v1/sources', {
+                headers: {
+                    ...headers,
+                    authorization: 'Bearer synthetic-access-code',
+                },
+            })
+        ).toMatchObject({ status: 200, cacheControl: 'no-store' });
+        expect(
+            (
+                await proxyGet(remote, remoteUrl + '/', {
+                    headers: { ...headers, origin: 'https://attacker.test' },
+                })
+            ).status
+        ).toBe(403);
+        expect(await configure('', 'disable')).toEqual({
+            https: true,
+            requestId: 'disable',
+            origin: '',
+        });
+        await expect(
+            proxyGet(remote, remoteUrl + '/', { headers })
+        ).rejects.toThrow();
+        expect(database?.sqlite.open).toBe(true);
+        expect(servers.slice(0, 2).every((server) => server.listening)).toBe(
+            true
+        );
+        await configure(remoteOrigin, 'enable-again');
         parent.emit('message', { data: 'stop' });
         expect(await exited).toBe(0);
         expect(servers.every((server) => !server.listening)).toBe(true);
         expect(database?.sqlite.open).toBe(false);
-    });
+    }, 15000); // Includes the worker's five-second graceful shutdown deadline.
 
     it.each(['port', 'startup'] as const)(
         'closes the first listener and storage when the second reports a %s failure',
@@ -146,4 +248,139 @@ describe('hosted web backend worker', () => {
             expect(database?.sqlite.open).toBe(false);
         }
     );
+
+    it('serves explicit Home network mode and handles private worker requests', async () => {
+        process.env.IPTVNATOR_HOSTED_MODE = JSON.stringify({
+            mode: 'lan',
+            address: '',
+            access: 'open',
+        });
+        expect(await startWorker()).toMatchObject({ ready: true });
+        expect(servers).toHaveLength(1);
+        const result = once(parent, 'reply');
+        parent.emit('message', {
+            data: {
+                requestId: 'synthetic-list',
+                workerRequest: { method: 'GET', path: '/v1/devices' },
+            },
+        });
+        expect((await result)[0]).toMatchObject({
+            reply: 'synthetic-list',
+            response: { status: 200, body: { pending: [], devices: [] } },
+        });
+
+        const sourcePath = '/v1/sources/synthetic';
+        const created = once(parent, 'reply');
+        parent.emit('message', {
+            data: {
+                requestId: 'synthetic-create',
+                workerRequest: {
+                    method: 'PUT',
+                    path: sourcePath,
+                    headers: { 'if-none-match': '*' },
+                    body: {
+                        id: 'synthetic',
+                        title: 'Synthetic source',
+                        kind: 'xtream',
+                        serverUrl: 'https://provider.example.test',
+                        username: 'synthetic-user',
+                        password: 'synthetic-secret',
+                    },
+                },
+            },
+        });
+        expect((await created)[0]).toMatchObject({ response: { status: 201 } });
+        const server = servers[0];
+        const api = serverOrigin(server) + '/api';
+        const fetch = fetchTestServer(server);
+        const info = await fetch(api + '/v1/instance');
+        expect(await info.json()).toMatchObject({
+            auth: 'token',
+            capabilities: expect.arrayContaining(['browser-pairing-v1']),
+        });
+        const guest = await fetch(api + sourcePath);
+        expect(guest.status).toBe(401);
+        expect(await guest.json()).toMatchObject({ code: 'unauthorized' });
+        parent.emit('message', { data: 'stop' });
+        expect(await exited).toBe(0);
+    });
+
+    it('permits requests through an explicit proxy origin and rejects different origins', async () => {
+        const origin = 'https://library.example.test';
+        process.env.IPTVNATOR_HOSTED_MODE = JSON.stringify({
+            mode: 'proxy',
+            address: '',
+            origin,
+        });
+        expect(await startWorker()).toMatchObject({ ready: true });
+        expect(servers).toHaveLength(1);
+        const server = servers[0];
+        const url = serverOrigin(server) + '/api/v1/instance';
+        expect(
+            await proxyGet(server, url, {
+                headers: { host: new URL(origin).host, origin },
+            })
+        ).toMatchObject({ status: 200 });
+        expect(
+            await proxyGet(server, url, {
+                headers: {
+                    host: new URL(origin).host,
+                    origin: 'https://other.example.test',
+                },
+            })
+        ).toMatchObject({ status: 403 });
+        parent.emit('message', { data: 'stop' });
+        expect(await exited).toBe(0);
+    });
+
+    it('denies tunnel reads before Access authentication', async () => {
+        const origin = 'https://library.example.test';
+        const audience = 'a'.repeat(64);
+        process.env.IPTVNATOR_HOSTED_MODE = JSON.stringify({
+            mode: 'cloudflare',
+            origin,
+            team: 'example-team',
+            audience,
+            managed: false,
+        });
+        process.env.IPTVNATOR_CLOUDFLARE_ACCESS_ORIGIN = origin;
+        process.env.IPTVNATOR_CLOUDFLARE_ACCESS_TEAM = 'example-team';
+        process.env.IPTVNATOR_CLOUDFLARE_ACCESS_AUDIENCE = audience;
+        expect(await startWorker()).toMatchObject({ ready: true });
+        expect(servers).toHaveLength(1);
+        const server = servers[0];
+        const headers = { host: new URL(origin).host, origin };
+        for (const path of ['/', '/api/v1/instance']) {
+            expect(
+                await proxyGet(server, serverOrigin(server) + path, { headers })
+            ).toMatchObject({ status: 403 });
+        }
+        parent.emit('message', { data: 'stop' });
+        expect(await exited).toBe(0);
+    });
+
+    it('fails closed when tunnel Access configuration is missing', async () => {
+        process.env.IPTVNATOR_HOSTED_MODE = JSON.stringify({
+            mode: 'cloudflare',
+            origin: 'https://library.example.test',
+        });
+        delete process.env.IPTVNATOR_CLOUDFLARE_ACCESS_ORIGIN;
+        expect(await startWorker()).toEqual({ error: 'startup' });
+        expect(await exited).toBe(1);
+        expect(servers).toHaveLength(0);
+    });
+
+    it('reports an invalid TLS identity without opening an HTTPS listener', async () => {
+        process.env.IPTVNATOR_HOSTED_MODE = JSON.stringify({
+            mode: 'https',
+            origin: 'https://library.example.test',
+            address: '',
+            certificatePath: join(directory, 'missing-certificate.pem'),
+            keyPath: join(directory, 'missing-key.pem'),
+        });
+        expect(await startWorker()).toEqual({ error: 'tls' });
+        expect(await exited).toBe(1);
+        expect(servers).toHaveLength(0);
+        expect(database?.sqlite.open).toBe(false);
+    });
 });

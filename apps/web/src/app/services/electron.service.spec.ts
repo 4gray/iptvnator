@@ -3,11 +3,12 @@ import {
     ParentalLockExternalLaunches,
     SourceActivityService,
 } from '@iptvnator/services';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { TestBed } from '@angular/core/testing';
 import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { Observable, of } from 'rxjs';
+import { of } from 'rxjs';
 import { DialogService } from '@iptvnator/ui/components';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { SettingsStore } from '@iptvnator/services';
@@ -19,6 +20,7 @@ import {
     ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
     ERROR,
     PLAYLIST_PARSE_BY_URL,
+    PLAYLIST_UPDATE,
     STALKER_REQUEST,
     XTREAM_REQUEST,
     Playlist,
@@ -27,6 +29,15 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { ElectronService } from './electron.service';
 
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
+const SUCCESS_TOAST = expect.objectContaining({
+    politeness: 'polite',
+    panelClass: expect.arrayContaining(['app-notification--success']),
+});
+
 describe('ElectronService', () => {
     const session = { id: 'session-1' };
     let electronBridge: {
@@ -34,6 +45,7 @@ describe('ElectronService', () => {
         stalkerRequest: jest.Mock;
         autoUpdatePlaylists: jest.Mock;
         fetchPlaylistByUrl: jest.Mock;
+        updatePlaylistFromFilePath: jest.Mock;
         onPlayerError: jest.Mock;
         openInMpv: jest.Mock;
         openInVlc: jest.Mock;
@@ -53,6 +65,7 @@ describe('ElectronService', () => {
             stalkerRequest: jest.fn(),
             autoUpdatePlaylists: jest.fn(),
             fetchPlaylistByUrl: jest.fn(),
+            updatePlaylistFromFilePath: jest.fn(),
             onPlayerError: jest.fn(),
             openInMpv: jest.fn().mockResolvedValue(session),
             openInVlc: jest.fn().mockResolvedValue(session),
@@ -184,7 +197,7 @@ describe('ElectronService', () => {
             expect(post).not.toHaveBeenCalled();
         }
     );
-    it('preserves the HTTP status serialized by a rejected Stalker IPC request', async () => {
+    it('preserves the HTTP status serialized by a rejected Stalker IPC request without showing its text', async () => {
         const message =
             "Error invoking remote method 'STALKER_REQUEST': Error: HTTP Error 503: Service Unavailable";
         electronBridge.stalkerRequest.mockRejectedValue(new Error(message));
@@ -195,9 +208,13 @@ describe('ElectronService', () => {
                 params: { action: 'get_ordered_list' },
             })
         ).rejects.toThrow('503');
-        expect(translateService.instant).toHaveBeenCalledWith(
-            'PORTALS.REQUEST_ERRORS.STALKER',
-            { message, status: 503 }
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'PORTALS.REQUEST_ERRORS.STALKER_FAILED',
+            'CLOSE',
+            expect.objectContaining({ politeness: 'assertive' })
+        );
+        expect(JSON.stringify(snackBar.open.mock.calls)).not.toContain(
+            'Service Unavailable'
         );
     });
 
@@ -258,18 +275,14 @@ describe('ElectronService', () => {
                 });
                 expect(snackBar.open).toHaveBeenCalledTimes(1);
                 expect(snackBar.open).toHaveBeenCalledWith(
-                    'PORTALS.REQUEST_ERRORS.STALKER',
+                    'PORTALS.REQUEST_ERRORS.STALKER_FAILED',
                     'CLOSE',
-                    { duration: 5000 }
+                    ERROR_TOAST
                 );
-                // The toast carries the portal's own error, not Electron's
-                // "Error invoking remote method" wrapper.
-                expect(translateService.instant).toHaveBeenCalledWith(
-                    'PORTALS.REQUEST_ERRORS.STALKER',
-                    {
-                        message: `HTTP Error ${status}: ${status === 401 ? 'Unauthorized' : 'Forbidden'}`,
-                        status,
-                    }
+                // The toast names the failure; the portal's text stays in
+                // the log.
+                expect(JSON.stringify(snackBar.open.mock.calls)).not.toContain(
+                    'HTTP Error'
                 );
             }
         );
@@ -366,9 +379,10 @@ describe('ElectronService', () => {
                     message: `HTTP Error ${status}: ${status === 401 ? 'Unauthorized' : 'Forbidden'}`,
                 });
                 expect(snackBar.open).toHaveBeenCalledTimes(1);
-                expect(translateService.instant).toHaveBeenCalledWith(
-                    'PORTALS.REQUEST_ERRORS.XTREAM',
-                    { message: expect.stringContaining(`HTTP Error ${status}`) }
+                expect(snackBar.open).toHaveBeenCalledWith(
+                    'PORTALS.REQUEST_ERRORS.XTREAM_FAILED',
+                    'CLOSE',
+                    expect.objectContaining({ politeness: 'assertive' })
                 );
             }
         );
@@ -486,23 +500,26 @@ describe('ElectronService', () => {
 
         expect(translateService.instant).toHaveBeenCalledWith(
             'EXTERNAL_PLAYER.ERRORS.ACCESS_DENIED',
-            { player: 'VLC', error: 'HTTP 403' }
+            { player: 'VLC' }
         );
         expect(snackBar.open).toHaveBeenCalledWith(
             'EXTERNAL_PLAYER.ERRORS.ACCESS_DENIED',
             'CLOSE',
-            expect.objectContaining({ duration: 7000 })
+            ERROR_TOAST
         );
     });
 
-    it('keeps unclassified player output in the translated message', () => {
+    it('keeps unclassified player output out of the translated message', () => {
         const listener = electronBridge.onPlayerError.mock.calls[0][0];
 
         listener({ player: 'MPV', code: null, error: 'demuxer gave up' });
 
         expect(translateService.instant).toHaveBeenCalledWith(
-            'EXTERNAL_PLAYER.ERRORS.UNKNOWN',
-            { player: 'MPV', error: 'demuxer gave up' }
+            'EXTERNAL_PLAYER.ERRORS.REPORTED',
+            { player: 'MPV' }
+        );
+        expect(JSON.stringify(snackBar.open.mock.calls)).not.toContain(
+            'demuxer'
         );
     });
 
@@ -525,7 +542,7 @@ describe('ElectronService', () => {
         expect(snackBar.open).toHaveBeenCalledWith(
             'EXTERNAL_PLAYER.ERRORS.PREVIOUS_CLOSING',
             'CLOSE',
-            { duration: 5000 }
+            ERROR_TOAST
         );
     });
 
@@ -610,25 +627,29 @@ describe('ElectronService', () => {
             )
         );
 
+        const error = jest.spyOn(TestBed.inject(NotificationService), 'error');
+
         await service.sendIpcEvent(PLAYLIST_PARSE_BY_URL, {
             url: 'https://playlist.local/list.m3u',
         });
         await Promise.resolve();
 
-        expect(snackBar.open).toHaveBeenCalledWith(
+        expect(error).toHaveBeenCalledWith(
             'HOME.URL_UPLOAD.ERROR_INVALID_TLS',
-            'HOME.URL_UPLOAD.TRUST_TLS_HOST',
-            { duration: 10000 }
+            undefined,
+            {
+                action: {
+                    labelKey: 'HOME.URL_UPLOAD.TRUST_TLS_HOST',
+                    run: expect.any(Function),
+                },
+            }
         );
     });
 
     it('opens the trust-host confirmation from the toast action and retries after approval', async () => {
-        let showToast!: (ref: {
-            onAction: () => Observable<undefined>;
-        }) => void;
-        snackBar.open.mockImplementation(
-            () => new Promise((resolve) => (showToast = resolve))
-        );
+        const error = jest
+            .spyOn(TestBed.inject(NotificationService), 'error')
+            .mockImplementation(() => undefined);
         const securityPayload = {
             code: ELECTRON_BRIDGE_SECURITY_ERROR_CODES.InvalidTlsCertificate,
             host: 'playlist.local',
@@ -653,10 +674,10 @@ describe('ElectronService', () => {
         });
         await new Promise((resolve) => setTimeout(resolve));
 
-        // Nothing happens before the toast chunk has loaded.
+        // Nothing happens before the user takes the toast's action.
         expect(dialogService.openConfirmDialog).not.toHaveBeenCalled();
 
-        showToast({ onAction: () => of(undefined) });
+        error.mock.calls[0][2]?.action?.run();
         await new Promise((resolve) => setTimeout(resolve));
 
         expect(dialogService.openConfirmDialog).toHaveBeenCalledWith(
@@ -787,7 +808,7 @@ describe('ElectronService', () => {
             expect(snackBar.open).toHaveBeenCalledWith(
                 'HOME.PLAYLISTS.AUTO_REFRESH_UPDATE_SUCCESS',
                 undefined,
-                { duration: 2000 }
+                SUCCESS_TOAST
             );
         });
 
@@ -813,7 +834,7 @@ describe('ElectronService', () => {
             expect(snackBar.open).toHaveBeenCalledWith(
                 'HOME.PLAYLISTS.AUTO_REFRESH_UPDATE_PARTIAL',
                 'CLOSE',
-                { duration: 6000, panelClass: ['error-snackbar'] }
+                ERROR_TOAST
             );
             expect(
                 JSON.stringify((console.warn as jest.Mock).mock.calls)
@@ -839,7 +860,7 @@ describe('ElectronService', () => {
             expect(snackBar.open).toHaveBeenCalledWith(
                 'HOME.PLAYLISTS.AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED',
                 'CLOSE',
-                { duration: 6000, panelClass: ['error-snackbar'] }
+                ERROR_TOAST
             );
         });
 
@@ -859,7 +880,7 @@ describe('ElectronService', () => {
             expect(snackBar.open).toHaveBeenCalledWith(
                 'HOME.PLAYLISTS.AUTO_REFRESH_UPDATE_FAILED',
                 'CLOSE',
-                { duration: 6000, panelClass: ['error-snackbar'] }
+                ERROR_TOAST
             );
         });
 
@@ -879,7 +900,107 @@ describe('ElectronService', () => {
             expect(snackBar.open).toHaveBeenCalledWith(
                 'HOME.PLAYLISTS.AUTO_REFRESH_UPDATE_SKIPPED',
                 undefined,
-                { duration: 2000 }
+                SUCCESS_TOAST
+            );
+        });
+    });
+
+    describe('playlist refresh feedback', () => {
+        const fileSource = {
+            id: 'p1',
+            title: 'Synthetic list',
+            filePath: '/tmp/synthetic.m3u',
+        };
+        const urlSource = {
+            id: 'p1',
+            title: 'Synthetic list',
+            url: 'https://playlist.example.test/list.m3u',
+        };
+        const notify = (variant: 'error' | 'success') =>
+            jest
+                .spyOn(TestBed.inject(NotificationService), variant)
+                .mockImplementation(() => undefined);
+
+        it('confirms a refreshed playlist with a success toast', async () => {
+            const success = notify('success');
+            electronBridge.updatePlaylistFromFilePath.mockResolvedValue({
+                playlist: [],
+            });
+
+            await service.sendIpcEvent(PLAYLIST_UPDATE, fileSource);
+
+            expect(success).toHaveBeenCalledWith(
+                'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
+            );
+        });
+
+        it.each([
+            ['ENOENT: no such file', 'PLAYLIST_UPDATE_FILE_NOT_FOUND'],
+            ['EACCES: permission denied', 'PLAYLIST_UPDATE_FILE_ACCESS_ERROR'],
+            ['disk exploded', 'PLAYLIST_UPDATE_ERROR'],
+        ])(
+            'names a file refresh failure (%s) by key only',
+            async (message, key) => {
+                const error = notify('error');
+                electronBridge.updatePlaylistFromFilePath.mockRejectedValue(
+                    new Error(message)
+                );
+
+                await service.sendIpcEvent(PLAYLIST_UPDATE, fileSource);
+
+                expect(error).toHaveBeenCalledWith(`HOME.PLAYLISTS.${key}`);
+            }
+        );
+
+        it.each([
+            ['Request failed with status code 404', 'ERROR_404'],
+            ['Request failed with status code 403', 'ERROR_403'],
+            ['Request failed with status code 401', 'ERROR_401'],
+            ['socket hang up', 'ERROR_FETCH_FAILED'],
+        ])(
+            'names a URL refresh failure (%s) by key only',
+            async (message, key) => {
+                const error = notify('error');
+                electronBridge.fetchPlaylistByUrl.mockRejectedValue(
+                    new Error(message)
+                );
+
+                await service.sendIpcEvent(PLAYLIST_UPDATE, urlSource);
+
+                expect(error).toHaveBeenCalledWith(`HOME.URL_UPLOAD.${key}`);
+            }
+        );
+
+        it('names a failed URL import by its HTTP status', async () => {
+            const error = notify('error');
+            electronBridge.fetchPlaylistByUrl.mockRejectedValue(
+                new Error('Request failed with status code 404')
+            );
+
+            await service.sendIpcEvent(PLAYLIST_PARSE_BY_URL, {
+                url: urlSource.url,
+            });
+            await new Promise((resolve) => setTimeout(resolve));
+
+            expect(error).toHaveBeenCalledWith('HOME.URL_UPLOAD.ERROR_404');
+        });
+
+        it('says the host is unknown when a TLS error names none', async () => {
+            const error = notify('error');
+            electronBridge.fetchPlaylistByUrl.mockRejectedValue(
+                new Error(
+                    `${SECURITY_ERROR_PREFIX}${JSON.stringify({
+                        code: ELECTRON_BRIDGE_SECURITY_ERROR_CODES.InvalidTlsCertificate,
+                        message: 'Certificate is invalid.',
+                    })}`
+                )
+            );
+
+            await service.sendIpcEvent(PLAYLIST_UPDATE, urlSource);
+            error.mock.calls[0][2]?.action?.run();
+
+            expect(error).toHaveBeenLastCalledWith(
+                'HOME.URL_UPLOAD.ERROR_TLS_HOST_UNKNOWN'
             );
         });
     });

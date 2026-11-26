@@ -49,6 +49,8 @@ export interface WebBackendHttpResponse<T> {
     readonly statusText?: string;
     readonly request?: ClientRequest;
     readonly headers: { readonly location?: string };
+    /** Address of the hop that ended the redirect chain. */
+    readonly finalUrl?: string;
 }
 
 /** Injected transports must honor the same options and status contract as axios. */
@@ -133,6 +135,7 @@ export class ValidatedHttpClient implements WebBackendHttpClient {
                         try {
                             return {
                                 ...response,
+                                finalUrl: target.url.href,
                                 data: await readProviderBody(
                                     response.data,
                                     options.responseType === 'arraybuffer',

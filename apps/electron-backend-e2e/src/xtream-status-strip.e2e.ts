@@ -236,7 +236,7 @@ test('keeps cached portal statuses and scroll ownership consistent across all po
                 await expectTextContrast(strip.getByRole('button'));
                 const expectedToken =
                     next === 'unavailable'
-                        ? '--app-expiry-warn-text'
+                        ? '--app-status-expiry'
                         : '--app-danger-text';
                 const colors = await strip.evaluate((el, token) => {
                     const probe = document.createElement('span');

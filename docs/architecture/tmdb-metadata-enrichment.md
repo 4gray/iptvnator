@@ -62,8 +62,15 @@ copy. The receiving device needs writable IndexedDB. It compares the previous
 key and saves the replacement in one transaction. A failed local write can be
 retried in the same open dialog before expiry.
 Ordinary settings saves preserve the key already in IndexedDB unless the user
-edits that field. Other tabs reread the key after a save notification. The
-notification contains no key, and a tab keeps any unsaved key edit.
+edits that field. Save accepts a whitespace-only edit and displays the stored
+key. Backup import retains the last confirmed key and any draft key edit,
+including an edit whose write failed.
+Other tabs reread the key after a save notification. The
+notification contains no key, and a tab keeps any unsaved key edit. A key edit
+reverted after a failed storage write lets the form adopt the latest saved
+key. After storage succeeds, a newer key from another tab supersedes the
+submitted key. A key edited again before Save acknowledges the earlier
+submission stays staged.
 If the claim response is lost, start a new transfer. The sender reads the local
 saved key directly, so a draft or embedded build key is never sent. Neither the
 session nor the key is saved in the server library or shared user state.

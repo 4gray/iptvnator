@@ -43,7 +43,7 @@ $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
     // Reads as the panel's heading. Previously it sat at the same weight and
     // size as the hint and the action beside it, so all three scanned as
     // column headers over the list.
-    font-size: 15px;
+    font-size: var(--app-text-lg);
     font-weight: 600;
     letter-spacing: -0.01em;
     color: var(--app-on-surface);
@@ -54,7 +54,7 @@ $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
 
 .sources-menu__hint {
     flex: none;
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     line-height: 1.35;
     color: var(--app-eyebrow-color);
 }
@@ -86,7 +86,7 @@ $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
     padding: 10px 12px 8px;
     border-top: 1px solid var(--app-widget-border);
     margin-top: 4px;
-    font-size: 11.5px;
+    font-size: var(--app-text-xs);
     color: var(--app-eyebrow-color);
 }
 
@@ -111,7 +111,7 @@ $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
     background: none;
     color: var(--app-eyebrow-color);
     font: inherit;
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     cursor: pointer;
 
     &:hover {
@@ -160,7 +160,7 @@ $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
     outline: none;
     color: var(--app-on-surface);
     font: inherit;
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
 
     &::placeholder {
         color: var(--app-eyebrow-color);
@@ -172,7 +172,7 @@ $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
     padding: 18px 12px;
     text-align: center;
     color: var(--app-eyebrow-color);
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
 }
 
 // Controls live on their own line, below the heading, so nothing in the header
@@ -216,7 +216,7 @@ $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
     background: none;
     color: var(--app-eyebrow-color);
     font: inherit;
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     font-weight: 600;
     cursor: pointer;
     transition:
@@ -246,7 +246,7 @@ $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
 .filter-chip__count {
     font-family: $font-mono;
     font-weight: 700;
-    font-size: 9.5px;
+    font-size: var(--app-text-2xs);
     opacity: 0.7;
 }
 
@@ -260,7 +260,7 @@ $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
 .sources-menu__reduced {
     margin-left: 6px;
     font-family: $font-mono;
-    font-size: 10px;
+    font-size: var(--app-text-2xs);
     color: var(--app-eyebrow-color);
     white-space: nowrap;
 }
@@ -304,7 +304,7 @@ $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
     background: none;
     color: var(--app-eyebrow-color);
     font: inherit;
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     cursor: pointer;
 
     &:hover {

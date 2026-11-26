@@ -4,14 +4,18 @@ import {
     output,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
+import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
-import type { PlaylistType } from '../../add-playlist-menu/playlist-type';
 import { SOURCE_TYPE_ICONS } from '@iptvnator/shared/interfaces';
+import { StateViewComponent } from '@iptvnator/ui/state';
+import type { PlaylistType } from '../../add-playlist-menu/playlist-type';
 
-export type EmptyStateType =
-    'welcome-dashboard' | 'welcome-sources' | 'no-data';
+/**
+ * The first-run welcome of the dashboard and of Sources. Every other empty,
+ * no-results, error and offline view is `app-state-view`.
+ */
+export type EmptyStateType = 'welcome-dashboard' | 'welcome-sources';
 
 interface FeatureCard {
     icon: string;
@@ -24,6 +28,8 @@ interface SourceCard {
     type: PlaylistType;
     icon: string;
     nameKey: string;
+    /** The dashboard's link for this source type. */
+    linkKey: string;
     needsKey: string;
     addLabelKey: string;
     contentKeys: readonly string[];
@@ -58,6 +64,7 @@ const SOURCE_CARDS: readonly SourceCard[] = [
         type: 'url',
         icon: SOURCE_TYPE_ICONS.m3u,
         nameKey: 'HOME.PLAYLISTS.FEATURE_M3U',
+        linkKey: 'HOME.PLAYLISTS.FEATURE_M3U_LABEL',
         needsKey: 'HOME.PLAYLISTS.SOURCE_M3U_NEEDS',
         addLabelKey: 'HOME.PLAYLISTS.SOURCE_M3U_ADD',
         contentKeys: [
@@ -69,6 +76,7 @@ const SOURCE_CARDS: readonly SourceCard[] = [
         type: 'xtream',
         icon: SOURCE_TYPE_ICONS.xtream,
         nameKey: 'HOME.PLAYLISTS.FEATURE_XTREAM',
+        linkKey: 'HOME.PLAYLISTS.FEATURE_XTREAM_LABEL',
         needsKey: 'HOME.PLAYLISTS.SOURCE_XTREAM_NEEDS',
         addLabelKey: 'HOME.PLAYLISTS.SOURCE_XTREAM_ADD',
         contentKeys: [
@@ -82,6 +90,7 @@ const SOURCE_CARDS: readonly SourceCard[] = [
         type: 'stalker',
         icon: SOURCE_TYPE_ICONS.stalker,
         nameKey: 'HOME.PLAYLISTS.FEATURE_STALKER',
+        linkKey: 'HOME.PLAYLISTS.FEATURE_STALKER_LABEL',
         needsKey: 'HOME.PLAYLISTS.SOURCE_STALKER_NEEDS',
         addLabelKey: 'HOME.PLAYLISTS.SOURCE_STALKER_ADD',
         contentKeys: [
@@ -96,44 +105,21 @@ const SOURCE_CARDS: readonly SourceCard[] = [
 @Component({
     selector: 'app-empty-state',
     templateUrl: './empty-state.component.html',
-    styleUrls: [
-        './empty-state.component.scss',
-        './empty-state.welcome-dashboard.scss',
-        './empty-state.welcome-sources.scss',
-        './empty-state.responsive.scss',
-    ],
+    styleUrl: './empty-state.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatButtonModule, MatIcon, TranslatePipe],
+    imports: [MatButton, MatIcon, StateViewComponent, TranslatePipe],
 })
 export class EmptyStateComponent {
     readonly type = input.required<EmptyStateType>();
-
-    readonly icon = input<string>('inbox');
-    readonly titleKey = input<string>('');
-    readonly titleParams = input<Record<string, unknown>>();
-    readonly descriptionKey = input<string>('');
-    readonly primaryActionLabelKey = input<string | null>(null);
-    readonly secondaryActionLabelKey = input<string | null>(null);
-
     readonly showElectronOnlyValueProps = input<boolean>(false);
 
     readonly addPlaylistClicked = output<PlaylistType | undefined>();
-    readonly primaryActionClicked = output<void>();
-    readonly secondaryActionClicked = output<void>();
 
     readonly featureCards = FEATURE_CARDS;
     readonly sourceCards = SOURCE_CARDS;
 
     onAddPlaylist(type?: PlaylistType): void {
         this.addPlaylistClicked.emit(type);
-    }
-
-    onPrimaryAction(): void {
-        this.primaryActionClicked.emit();
-    }
-
-    onSecondaryAction(): void {
-        this.secondaryActionClicked.emit();
     }
 
     isFeatureCardVisible(card: FeatureCard): boolean {

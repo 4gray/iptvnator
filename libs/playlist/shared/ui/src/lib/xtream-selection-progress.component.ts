@@ -35,6 +35,7 @@ const typeKeys = {
         <app-dialog-shell
             icon="sync"
             [heading]="'WORKSPACE.SHELL.XTREAM_IMPORT_TITLE' | translate"
+            [subtitle]="'DIALOGS.XTREAM_SYNC' | translate"
             [showClose]="false"
         >
             <app-import-progress [view]="view()" [inline]="true" />

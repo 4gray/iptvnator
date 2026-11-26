@@ -1,3 +1,4 @@
+@use '../../../../../styles/app-controls' as controls;
 @use '../../../../../styles/focus-ring';
 
 :host {
@@ -151,7 +152,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.96rem;
+    font-size: var(--app-text-lg);
     font-weight: 600;
     letter-spacing: -0.01em;
     line-height: 1.2;
@@ -183,7 +184,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.82rem;
+    font-size: var(--app-text-sm);
     line-height: 1.2;
     opacity: 0.84;
 }
@@ -210,7 +211,7 @@
 }
 
 .epg-time {
-    font-size: 0.75rem;
+    font-size: var(--app-text-xs);
     line-height: 1;
     opacity: 0.72;
     font-variant-numeric: tabular-nums;
@@ -257,7 +258,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     line-height: 1.2;
     // A muted colour, not opacity: dimming the row text dropped it under
     // 4.5:1 on the light list.
@@ -278,29 +279,17 @@
         gap: 2px;
     }
 
+    // The kit's 28px square ghost icon buttons, in the row's own colour so
+    // they follow a selected row's tint.
     button {
-        width: 28px;
-        height: 28px;
-        /* border-radius: 10px; */
         color: inherit;
         opacity: 0.76;
-        transition:
-            opacity 0.15s ease,
-            background-color 0.15s ease,
-            transform 0.15s ease;
+        transition: opacity 0.15s ease;
+        @include controls.ghost-icon-button(28px, 18px);
 
         &:hover {
             opacity: 1;
-            background: color-mix(in srgb, currentColor 10%, transparent);
-            /* transform: translateY(-1px); */
         }
-    }
-
-    mat-icon {
-        width: 18px;
-        height: 18px;
-        font-size: 18px;
-        line-height: 18px;
     }
 
     /* Material keeps a 48px touch target on icon buttons; stacked 28px
@@ -404,11 +393,6 @@
     .channel-list-item.compact .channel-content {
         gap: 0;
     }
-}
-
-.favorite-button,
-.program-info-button {
-    padding: 0;
 }
 
 /* Reserved slot: keeps the column geometry stable while the row has no

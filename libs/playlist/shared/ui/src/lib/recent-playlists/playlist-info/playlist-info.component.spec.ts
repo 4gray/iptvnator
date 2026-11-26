@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { of, Subject } from 'rxjs';
@@ -24,6 +24,8 @@ const EXPORT_FILE_TYPE = 'HOME.PLAYLISTS.INFO_DIALOG.EXPORT_FILE_TYPE';
 
 import { PlaylistRefreshActionService } from '../../playlist-refresh-action.service';
 
+const ERR = expect.objectContaining({ politeness: 'assertive' });
+const OK = expect.objectContaining({ politeness: 'polite' });
 describe('PlaylistInfoComponent', () => {
     let component: PlaylistInfoComponent;
     let fixture: ComponentFixture<PlaylistInfoComponent>;
@@ -55,6 +57,8 @@ describe('PlaylistInfoComponent', () => {
     let snackBar: {
         open: jest.Mock;
     };
+    const expectSuccessToast = (key: string) =>
+        expect(snackBar.open).toHaveBeenCalledWith(key, undefined, OK);
     let store: {
         dispatch: jest.Mock;
     };
@@ -115,7 +119,7 @@ describe('PlaylistInfoComponent', () => {
             updateSettings: jest.fn().mockResolvedValue(undefined),
         };
         snackBar = {
-            open: jest.fn(),
+            open: jest.fn().mockResolvedValue(null),
         };
         store = {
             dispatch: jest.fn(),
@@ -166,7 +170,7 @@ describe('PlaylistInfoComponent', () => {
                     useValue: settingsStore,
                 },
                 {
-                    provide: MatSnackBar,
+                    provide: LazySnackBar,
                     useValue: snackBar,
                 },
                 {
@@ -237,16 +241,15 @@ describe('PlaylistInfoComponent', () => {
         expect(store.dispatch).toHaveBeenCalledWith(
             PlaylistActions.updatePlaylistMeta({ playlist: updatedPlaylist })
         );
-        expect(snackBar.open).toHaveBeenCalledWith(
-            'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS',
-            'CLOSE',
-            { duration: 3000 }
-        );
+        expectSuccessToast('HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS');
         expect(dialogRef.close).toHaveBeenCalledTimes(1);
     });
 
     it('saves a trimmed new M3U URL and refreshes from it (#1677)', async () => {
-        const refreshAction = { refresh: jest.fn(), isBlocked: () => false };
+        const refreshAction = {
+            refreshM3uSource: jest.fn().mockResolvedValue('refreshed'),
+            isBlocked: () => false,
+        };
         TestBed.overrideProvider(PlaylistRefreshActionService, {
             useValue: refreshAction,
         });
@@ -261,7 +264,7 @@ describe('PlaylistInfoComponent', () => {
         } as PlaylistMeta);
 
         // The saved (trimmed) source is what the refresh fetches.
-        expect(refreshAction.refresh).toHaveBeenCalledWith(
+        expect(refreshAction.refreshM3uSource).toHaveBeenCalledWith(
             expect.objectContaining({ _id: 'playlist-1', url })
         );
     });
@@ -323,10 +326,8 @@ describe('PlaylistInfoComponent', () => {
             '/tmp/export.m3u8',
             '#EXTM3U\n'
         );
-        expect(snackBar.open).toHaveBeenCalledWith(
-            'HOME.PLAYLISTS.INFO_DIALOG.PLAYLIST_EXPORT_SUCCESS',
-            'CLOSE',
-            { duration: 3000 }
+        expectSuccessToast(
+            'HOME.PLAYLISTS.INFO_DIALOG.PLAYLIST_EXPORT_SUCCESS'
         );
     });
 
@@ -413,11 +414,7 @@ describe('PlaylistInfoComponent', () => {
             }
         );
         expect(settingsStore.updateSettings).not.toHaveBeenCalled();
-        expect(snackBar.open).toHaveBeenCalledWith(
-            'EPG.FETCH_SUCCESS',
-            'CLOSE',
-            { duration: 3000 }
-        );
+        expectSuccessToast('EPG.FETCH_SUCCESS');
     });
 
     it('adds a detected playlist EPG source to global settings on request', async () => {
@@ -440,11 +437,7 @@ describe('PlaylistInfoComponent', () => {
                 'https://new-playlist.example.com/guide.xml',
             ],
         });
-        expect(snackBar.open).toHaveBeenCalledWith(
-            'SETTINGS.PLAYLIST_EPG_ADDED_GLOBAL',
-            'CLOSE',
-            { duration: 3000 }
-        );
+        expectSuccessToast('SETTINGS.PLAYLIST_EPG_ADDED_GLOBAL');
     });
 
     it('does not duplicate a playlist EPG source that already exists globally', async () => {
@@ -541,7 +534,7 @@ describe('PlaylistInfoComponent', () => {
             expect(snackBar.open).toHaveBeenCalledWith(
                 'SETTINGS.EPG_DATA_CLEAR_FAILED',
                 'CLOSE',
-                { duration: 3000 }
+                ERR
             );
         } finally {
             consoleError.mockRestore();
@@ -1119,7 +1112,7 @@ describe('PlaylistInfoComponent', () => {
                 expect(snackBar.open).toHaveBeenCalledWith(
                     'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED',
                     'CLOSE',
-                    { duration: 3000 }
+                    ERR
                 );
             } finally {
                 consoleError.mockRestore();
@@ -1133,7 +1126,7 @@ describe('PlaylistInfoComponent', () => {
             await createStalkerComponent();
             stalkerConnectionEditor.resolveConnection.mockResolvedValue({
                 status,
-                message: `error:${status}`,
+                messageKey: `error:${status}`,
             });
             component.playlistDetails
                 .get('portalUrl')
@@ -1148,7 +1141,7 @@ describe('PlaylistInfoComponent', () => {
             expect(snackBar.open).toHaveBeenCalledWith(
                 `error:${status}`,
                 'CLOSE',
-                { duration: 8000 }
+                ERR
             );
             expect(component.isSaving()).toBe(false);
         });
@@ -1156,8 +1149,7 @@ describe('PlaylistInfoComponent', () => {
         it('ignores a second Save while discovery is pending', async () => {
             await createStalkerComponent();
             let resolveDiscovery:
-                | ((value: { status: 'unreachable'; message: string }) => void)
-                | undefined;
+                ((value: Record<string, string>) => void) | undefined;
             stalkerConnectionEditor.resolveConnection.mockReturnValue(
                 new Promise((resolve) => {
                     resolveDiscovery = resolve;
@@ -1179,7 +1171,7 @@ describe('PlaylistInfoComponent', () => {
             ).toHaveBeenCalledTimes(1);
             resolveDiscovery?.({
                 status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.UNREACHABLE,
-                message: 'offline',
+                messageKey: 'offline',
             });
             await Promise.all([firstSave, secondSave]);
             expect(store.dispatch).not.toHaveBeenCalled();

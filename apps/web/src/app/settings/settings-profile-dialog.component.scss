@@ -1,0 +1,85 @@
+@use '../../../../../libs/ui/styles/focus-ring';
+
+:host {
+    display: block;
+}
+
+.profile-dialog {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.profile-dialog__preview {
+    display: flex;
+    justify-content: center;
+}
+
+.profile-dialog__swatches {
+    margin: 0;
+    padding: 0;
+    border: 0;
+
+    legend {
+        padding: 0;
+        margin-bottom: 8px;
+        font-size: var(--app-text-sm);
+        color: var(--mat-sys-on-surface-variant);
+    }
+}
+
+.profile-dialog__swatch-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.profile-dialog__swatch {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: 50%;
+    cursor: pointer;
+
+    &[aria-pressed='true'] {
+        outline: 2px solid var(--mat-sys-on-surface);
+        outline-offset: 2px;
+    }
+
+    &:focus-visible {
+        @include focus-ring.focus-ring-declarations($offset: 4px);
+    }
+}
+
+.profile-dialog__kids p,
+.profile-dialog__note {
+    margin: 4px 0 0;
+    font-size: var(--app-text-sm);
+    color: var(--mat-sys-on-surface-variant);
+    line-height: 1.5;
+}
+
+.profile-dialog__note {
+    margin: 0;
+}
+
+.profile-dialog__failure {
+    margin: 0;
+    padding: 8px 24px 0;
+    font-size: var(--app-text-sm);
+    color: var(--mat-sys-error);
+}
+
+// Phone breakpoint: the colour swatches get a 44px target.
+@media (max-width: 640px) {
+    .profile-dialog__swatch {
+        position: relative;
+
+        &::after {
+            content: '';
+            position: absolute;
+            inset: -6px;
+        }
+    }
+}

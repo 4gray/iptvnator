@@ -51,6 +51,16 @@ export type ValidatedAxiosRequestConfig = Omit<
     onConnect?: () => void;
 };
 
+/**
+ * The response of the hop that ended the redirect chain, plus that hop's
+ * address. Callers that care where a request really landed (a portal that
+ * redirects every path to its HTML page) read `finalUrl`; the axios
+ * `config.url` is per hop and not part of this contract.
+ */
+export type ValidatedAxiosResponse<T> = AxiosResponse<T> & {
+    finalUrl: string;
+};
+
 function copyHeadersWithoutSensitiveValues(
     headers: AxiosRequestConfig['headers']
 ): AxiosRequestConfig['headers'] {
@@ -84,29 +94,31 @@ function createPinnedLookup(addresses: readonly string[]): LookupFunction {
         family: isIP(address),
     }));
 
-    return (_hostname, options, callback) => {
-        const requestedFamily = options.family;
-        const eligibleRecords = requestedFamily
-            ? records.filter((record) => record.family === requestedFamily)
-            : records;
+    // Match dns.lookup's timing so a connect error cannot race TLS setup.
+    return (_hostname, options, callback) =>
+        queueMicrotask(() => {
+            const requestedFamily = options.family;
+            const eligibleRecords = requestedFamily
+                ? records.filter((record) => record.family === requestedFamily)
+                : records;
 
-        if (eligibleRecords.length === 0) {
-            const error = new Error(
-                'Validated URL has no connectable address'
-            ) as NodeJS.ErrnoException;
-            error.code = 'ENOTFOUND';
-            callback(error, []);
-            return;
-        }
+            if (eligibleRecords.length === 0) {
+                const error = new Error(
+                    'Validated URL has no connectable address'
+                ) as NodeJS.ErrnoException;
+                error.code = 'ENOTFOUND';
+                callback(error, []);
+                return;
+            }
 
-        if (options.all) {
-            callback(null, eligibleRecords);
-            return;
-        }
+            if (options.all) {
+                callback(null, eligibleRecords);
+                return;
+            }
 
-        const selected = eligibleRecords[0];
-        callback(null, selected.address, selected.family);
-    };
+            const selected = eligibleRecords[0];
+            callback(null, selected.address, selected.family);
+        });
 }
 
 function canonicalAddress(address: string): string {
@@ -247,7 +259,7 @@ export async function requestWithValidatedRedirects<T = unknown>(
     }: ValidatedAxiosRequestConfig = {},
     policy: RemoteUrlPolicy = {},
     maxRedirects = 5
-): Promise<AxiosResponse<T>> {
+): Promise<ValidatedAxiosResponse<T>> {
     const originalValidateStatus =
         config.validateStatus ??
         ((status: number) => status >= 200 && status < 300);
@@ -325,9 +337,9 @@ export async function requestWithValidatedRedirects<T = unknown>(
                     validateStatus: (status) => status >= 200 && status < 300,
                 });
                 onResponse?.();
-                return result;
+                return Object.assign(result, { finalUrl: validatedUrl.href });
             }
-            return response;
+            return Object.assign(response, { finalUrl: validatedUrl.href });
         }
 
         // No consumer owns intermediate bodies, including redirects rejected below.

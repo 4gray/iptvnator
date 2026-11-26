@@ -42,7 +42,7 @@
         font-size: 15px;
         width: 15px;
         height: 15px;
-        color: var(--app-success-color, #4ade80);
+        color: var(--app-status-success, #4ade80);
     }
 
     &__back-to-playing {
@@ -55,7 +55,7 @@
         border-radius: 999px;
         background: transparent;
         color: var(--text-secondary, rgba(255, 255, 255, 0.7));
-        font-size: 12.5px;
+        font-size: var(--app-text-sm);
         font-family: inherit;
         cursor: pointer;
 
@@ -99,7 +99,7 @@
     min-width: 0;
     overflow: hidden;
     color: inherit;
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -107,6 +107,6 @@
 .season-tabs__menu-count {
     flex: none;
     color: var(--app-muted-color);
-    font-size: 11.5px;
+    font-size: var(--app-text-xs);
     font-variant-numeric: tabular-nums;
 }

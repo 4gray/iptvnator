@@ -352,23 +352,16 @@
                 </div>
             }
             @if (contentError()) {
-                <section class="catalog-load-error" role="alert">
-                    <app-playlist-error-view
-                        [title]="'PORTALS.CATALOG_LOAD_ERROR.TITLE' | translate"
-                        [description]="
-                            'PORTALS.CATALOG_LOAD_ERROR.DESCRIPTION' | translate
-                        "
-                        [showActionButtons]="false"
-                    />
-                    <button
-                        mat-flat-button
-                        type="button"
-                        (click)="retryContent()"
-                    >
-                        <mat-icon>refresh</mat-icon>
-                        {{ 'RETRY' | translate }}
-                    </button>
-                </section>
+                <app-state-view
+                    class="catalog-load-error"
+                    variant="error"
+                    [heading]="'PORTALS.CATALOG_LOAD_ERROR.TITLE' | translate"
+                    [description]="
+                        'PORTALS.CATALOG_LOAD_ERROR.DESCRIPTION' | translate
+                    "
+                    [retryable]="true"
+                    (retry)="retryContent()"
+                />
             } @else if (watchFilter.pending()) {
                 <div
                     class="watch-filter-state"
@@ -450,12 +443,11 @@
         </div>
     }
 } @else {
-    <app-playlist-error-view
-        [title]="'PORTALS.ERROR_VIEW.NO_CATEGORY_SELECTED.TITLE' | translate"
+    <app-state-view
+        icon="category"
+        [heading]="'PORTALS.ERROR_VIEW.NO_CATEGORY_SELECTED.TITLE' | translate"
         [description]="
             'PORTALS.ERROR_VIEW.NO_CATEGORY_SELECTED.DESCRIPTION' | translate
         "
-        [showActionButtons]="false"
-        [viewType]="'EMPTY_CATEGORY'"
     />
 }

@@ -18,7 +18,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import {
     EpgRuntimeBridgeService,
     EpgService,
@@ -26,12 +26,13 @@ import {
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { catchError, debounceTime, defer, of, Subject, switchMap } from 'rxjs';
 import { provideFormFieldDefaults } from '../../form-field-defaults/form-field-defaults';
-import { DialogShellComponent } from '../../dialog-shell/dialog-shell.component';
+import { DialogShellComponent } from '@iptvnator/ui/dialog';
 import {
     DialogFooterDirective,
     DialogFooterStartDirective,
-} from '../../dialog-shell/dialog-shell.directives';
-import { dialogSize } from '../../dialog-shell/dialog-size';
+} from '@iptvnator/ui/dialog';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 export interface EpgMappingDialogData {
     channelKey: string;
@@ -54,6 +55,7 @@ const SEARCH_MIN_CHARS = 2;
     styleUrl: './epg-mapping-dialog.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        StateViewComponent,
         DialogFooterDirective,
         DialogFooterStartDirective,
         DialogShellComponent,
@@ -74,8 +76,7 @@ export class EpgMappingDialogComponent {
     );
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly epgService = inject(EpgService);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
 
     readonly searchMinChars = SEARCH_MIN_CHARS;
     readonly searchTerm = signal('');
@@ -162,11 +163,11 @@ export class EpgMappingDialogComponent {
             )
             .then((result) => {
                 if (!result?.success) {
-                    this.notify('EPG_MAPPING_DIALOG.SAVE_FAILED');
+                    this.notifications.error('EPG_MAPPING_DIALOG.SAVE_FAILED');
                     return;
                 }
                 this.epgService.refreshEpgData();
-                this.notify('EPG_MAPPING_DIALOG.SAVED');
+                this.notifications.success('EPG_MAPPING_DIALOG.SAVED');
                 this.dialogRef.close({
                     channelKey: this.data.channelKey,
                     epgChannelId,
@@ -177,11 +178,11 @@ export class EpgMappingDialogComponent {
     removeMapping(): void {
         this.epgBridge.deleteEpgMapping(this.data.channelKey).then((result) => {
             if (!result?.success) {
-                this.notify('EPG_MAPPING_DIALOG.SAVE_FAILED');
+                this.notifications.error('EPG_MAPPING_DIALOG.SAVE_FAILED');
                 return;
             }
             this.epgService.refreshEpgData();
-            this.notify('EPG_MAPPING_DIALOG.REMOVED');
+            this.notifications.success('EPG_MAPPING_DIALOG.REMOVED');
             this.dialogRef.close();
         });
     }
@@ -216,12 +217,6 @@ export class EpgMappingDialogComponent {
             } catch {
                 // Display name enrichment is cosmetic — keep the bare ID.
             }
-        });
-    }
-
-    private notify(key: string): void {
-        this.snackBar.open(this.translate.instant(key), undefined, {
-            duration: 2000,
         });
     }
 }

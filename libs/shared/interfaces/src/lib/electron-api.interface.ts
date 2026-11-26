@@ -1,4 +1,4 @@
-import type { HostedServerCommand, HostedServerStatus } from './hosted-server.interface';
+import type { HostedServerCommand, HostedServerStatus, HostedCloudflareCommand, HostedCloudflareStatus, HostedDeviceCommand, HostedDeviceResults } from './hosted-server.interface';
 export type ElectronBridgeAppMenuAction = 'settings' | 'check-for-updates';
 import type { AppUpdateChannel } from './app-update-channel.util';
 import type { SourceProbeContext, SourceHealthResult } from './source-health';
@@ -774,14 +774,18 @@ export interface ElectronBridgeApi {
         url: string,
         token: string,
         restart: boolean,
-        savedInstanceId?: string
+        savedInstanceIdOrHosted?: string | true
     ) => Promise<
         import('./source-sync.interface').SourceServerConnection & {
             tokenPersisted: boolean;
         }
     >;
+    hostedCloudflareControl?: (command: HostedCloudflareCommand) => Promise<HostedCloudflareStatus>;
     hostedServerControl?: (command: HostedServerCommand) => Promise<HostedServerStatus>;
     hostedServerAccessCode?: () => Promise<string>;
+    hostedDeviceControl?: <Command extends HostedDeviceCommand>(
+        command: Command
+    ) => Promise<HostedDeviceResults[Command['action']]>;
     sourceSyncDisconnect?: () => Promise<void>;
     sourceSyncForget?: () => Promise<void>;
     sourceSyncLocalSources?: () => Promise<Playlist[]>;

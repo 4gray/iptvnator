@@ -75,6 +75,27 @@ describe('runtime config helpers', () => {
         ).toBe(false);
     });
 
+    it.each([
+        ['Android Touch layout before the page adds its classes', 'TvShell', { postMessage: jest.fn() }],
+        ['Android Cloudflare library', 'HostedAccessApi', {}],
+    ] as const)('skips browser updates on %s', (_name, key, bridge) => {
+        Reflect.set(window, key, bridge);
+        try {
+            expect(shouldEnableServiceWorker(true, { serviceWorker: {} } as Navigator)).toBe(false);
+        } finally {
+            Reflect.deleteProperty(window, key);
+        }
+    });
+
+    it('keeps browser updates for a hosted page without a native bridge', () => {
+        Reflect.set(window, '__tvShell', { handheld: false });
+        try {
+            expect(shouldEnableServiceWorker(true, { serviceWorker: {} } as Navigator)).toBe(true);
+        } finally {
+            Reflect.deleteProperty(window, '__tvShell');
+        }
+    });
+
     it('disables service workers for the bundled TV Shell on loopback', () => {
         document.documentElement.classList.add('tv-shell');
         try {

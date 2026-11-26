@@ -1,4 +1,4 @@
-export default {
+module.exports = {
     displayName: '@iptvnator/shared/interfaces',
     preset: '../../../jest.preset.js',
     testEnvironment: 'node',

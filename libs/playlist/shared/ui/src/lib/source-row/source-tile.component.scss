@@ -57,15 +57,15 @@
     background: var(--app-muted-color);
 
     &[data-state='ok'] {
-        background: var(--app-success-color);
+        background: var(--app-status-success);
     }
 
     &[data-state='bad'] {
-        background: var(--app-live-color);
+        background: var(--app-status-live);
     }
 
     &[data-state='expired'] {
-        background: var(--app-expiry-warn-text);
+        background: var(--app-status-expiry);
     }
 }
 

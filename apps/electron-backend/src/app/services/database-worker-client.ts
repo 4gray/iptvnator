@@ -22,6 +22,12 @@ import {
     readSqlStatementsMessageCount,
 } from '../workers/database-worker-sql-statement-count';
 import { resolveWorkerRuntimeBootstrap } from '../workers/worker-runtime-paths';
+import {
+    DB_WORKER_CLOSE_TIMEOUT_MS,
+    DB_WORKER_DRAIN_TIMEOUT_MS,
+    waitForSettled,
+    waitForWorkerExit,
+} from './database-worker-drain';
 
 type PendingRequest = {
     resolve: (value: unknown) => void;
@@ -34,6 +40,15 @@ type PendingRequest = {
 type RequestOptions = {
     onEvent?: (event: DbOperationEvent) => void;
 };
+
+type CloseTimeouts = {
+    /** Budget for requests already accepted to finish. */
+    drainMs: number;
+    /** Budget for the worker to close SQLite and exit on its own. */
+    closeMs: number;
+};
+
+const noop = () => undefined;
 
 function createWorkerError(error: {
     message: string;
@@ -52,8 +67,35 @@ export class DatabaseWorkerClient {
     private readyResolve: (() => void) | null = null;
     private readyReject: ((reason?: unknown) => void) | null = null;
     private pendingRequests = new Map<string, PendingRequest>();
+    /** Settles with each request, including ones still awaiting readiness. */
+    private readonly acceptedRequests = new Set<Promise<unknown>>();
+    private closing: Promise<void> | null = null;
+    private closed = false;
 
-    async request<TResult>(
+    constructor(
+        private readonly closeTimeouts: CloseTimeouts = {
+            drainMs: DB_WORKER_DRAIN_TIMEOUT_MS,
+            closeMs: DB_WORKER_CLOSE_TIMEOUT_MS,
+        }
+    ) {}
+
+    request<TResult>(
+        operation: DbWorkerOperation,
+        payload: unknown,
+        options?: RequestOptions
+    ): Promise<TResult> {
+        const result = this.dispatchRequest<TResult>(
+            operation,
+            payload,
+            options
+        );
+        const settled = result.then(noop, noop);
+        this.acceptedRequests.add(settled);
+        void settled.then(() => this.acceptedRequests.delete(settled));
+        return result;
+    }
+
+    private async dispatchRequest<TResult>(
         operation: DbWorkerOperation,
         payload: unknown,
         options?: RequestOptions
@@ -108,6 +150,19 @@ export class DatabaseWorkerClient {
         });
     }
 
+    /**
+     * Asks the worker to build the title index `initDatabase()` deferred.
+     * Fire and forget: the build is not a request, so quitting never waits
+     * for it (the next launch resumes it).
+     */
+    async startContentTitleFtsBuild(): Promise<void> {
+        const worker = await this.ensureWorker();
+        if (this.worker !== worker) {
+            throw new Error('Database worker shut down or replaced');
+        }
+        worker.postMessage({ type: 'content-title-fts-build' });
+    }
+
     async cancel(operationId: string): Promise<{ success: boolean }> {
         if (!operationId) {
             return { success: false };
@@ -125,17 +180,50 @@ export class DatabaseWorkerClient {
         return { success: true };
     }
 
+    /**
+     * Stops the worker at once, rejecting whatever it has not answered yet.
+     * A later request starts a new worker.
+     */
     async shutdown(): Promise<void> {
         const currentWorker = this.worker;
-        const error = new Error('Database worker shut down');
-        this.readyReject?.(error);
-        this.resetWorkerState();
-        this.rejectAllPending(error);
+        this.detachWorker(new Error('Database worker shut down'));
 
         await currentWorker?.terminate();
     }
 
+    /**
+     * Closes the worker for good, for a process that is about to exit:
+     * waits, within a bounded budget, for every request it already accepted
+     * (a write sent just before quitting, or from the renderer's `pagehide`
+     * while the drain runs), then lets the worker close SQLite before it is
+     * terminated. Requests after that are rejected instead of starting a new
+     * worker. Never rejects, and never waits past its budgets.
+     */
+    drainAndShutdown(): Promise<void> {
+        this.closing ??= this.drainThenClose();
+        return this.closing;
+    }
+
+    private async drainThenClose(): Promise<void> {
+        await waitForSettled(this.acceptedRequests, this.closeTimeouts.drainMs);
+        this.closed = true;
+        const currentWorker = this.worker;
+        this.detachWorker(new Error('Database worker shut down'));
+        if (!currentWorker) {
+            return;
+        }
+
+        currentWorker.postMessage({ type: 'close' });
+        await waitForWorkerExit(currentWorker, this.closeTimeouts.closeMs);
+        await currentWorker.terminate().catch(noop);
+    }
+
     private async ensureWorker(): Promise<Worker> {
+        // Closing for good: never start a worker the exiting process would
+        // abandon mid-write.
+        if (this.closed || (this.closing && !this.worker)) {
+            throw new Error('Database worker shut down');
+        }
         const worker = this.worker ?? this.createWorker();
         await this.readyPromise;
         return worker;
@@ -308,6 +396,12 @@ export class DatabaseWorkerClient {
             this.readyReject(error);
         }
 
+        this.resetWorkerState();
+        this.rejectAllPending(error);
+    }
+
+    private detachWorker(error: Error): void {
+        this.readyReject?.(error);
         this.resetWorkerState();
         this.rejectAllPending(error);
     }

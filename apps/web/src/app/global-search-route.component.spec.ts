@@ -7,10 +7,8 @@ import { OPEN_STALKER_ITEM_STATE_KEY } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { ParentalLockService } from '@iptvnator/services';
 import { GlobalSearchRouteComponent } from './global-search-route.component';
-import {
-    type StalkerGlobalSearchItem,
-    StalkerGlobalSearchService,
-} from './stalker-global-search.service';
+import { StalkerGlobalSearchService } from './stalker-global-search.service';
+import type { StalkerGlobalSearchItem } from './stalker-global-search.types';
 
 describe('GlobalSearchRouteComponent', () => {
     const globalUrl = '/workspace/search?q=Fixture%20comet';
@@ -65,6 +63,7 @@ describe('GlobalSearchRouteComponent', () => {
         expect(preview.search.mock.calls[0][0]()).toEqual({
             term: 'Fixture comet',
             movies: false,
+            excludeHidden: false,
             series: true,
             sources: [source],
             lockVersion: 7,

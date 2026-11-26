@@ -372,12 +372,10 @@ so a cancelled or refused PIN leaves it showing the real state.
   from the current settings so Save cannot undo them.
 - One entry point per rail, the same on every portal type: the "Manage
   categories" button (`tune` icon; "Manage groups" on an M3U playlist).
-  Xtream and M3U render lock toggles inside their existing hide/show
-  dialogs while the feature is on; Stalker has no hide/show dialog, so its
-  button — shown only while the feature is on — opens the lock-only
-  `StalkerCategoryLockDialogComponent`, which also offers "Lock adult
-  (18+)" for genres the portal flags `censored`. All three list the locked
-  names and can rewrite the locks, so each opens only after
+  With parental lock enabled, all three render lock toggles in the dialog.
+  Stalker also offers "Lock adult (18+)" for genres the portal flags
+  `censored`. The editors can list locked names and rewrite the locks,
+  so with parental lock enabled each opens only after
   `requestUnlock()` succeeds — and closes itself, discarding the draft, the
   moment `active` becomes true again (idle relock, Lock now), since the
   PIN gate covers only the opening. The M3U group dialog does this only
@@ -385,8 +383,8 @@ so a cancelled or refused PIN leaves it showing the real state.
   the PIN. The Xtream dialog loads its candidates through the
   capability-selected data source (`IXtreamDataSource.getAllCategories`,
   which the PWA source answers from its session cache or the API), so PWA
-  users can set locks too; the hide/show checkboxes, the selection count
-  and the Select/Deselect-all actions remain Electron-only.
+  users can set locks too. Xtream hide/show controls require Electron SQLite.
+  Stalker hide/show controls work in the PWA and Electron.
   A deliberate non-choice: no dedicated lock button in the rail header
   (the header already carries search, sort and manage, and the lock is a
   category-management concern) and no keyword-based "adult" recognition

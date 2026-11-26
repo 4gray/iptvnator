@@ -179,7 +179,7 @@ test('a long programme remains keyboard-scrollable with reachable actions on a p
     await expect(dialog.locator('.epg-dialog__close')).toBeInViewport({
         ratio: 1,
     });
-    await expect(dialog.locator('.epg-dialog__btn--primary')).toBeInViewport({
+    await expect(dialog.locator('.epg-dialog__primary')).toBeInViewport({
         ratio: 1,
     });
     await page.screenshot({

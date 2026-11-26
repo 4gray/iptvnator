@@ -21,7 +21,7 @@ That means:
 - With server storage enabled, source definitions are shared by connected PWA
   and Electron clients. Each browser retains a local IndexedDB projection and
   its own Xtream user data. Progress and watched marks synchronize only after
-  enabling **Settings → Server → Viewing activity synchronization** on each
+  enabling **Settings → Connectivity → Viewing activity synchronization** on each
   client. Favorites have a separate **Sync favorites with this server** opt-in,
   initially off. Everyone with server access shares the consented collections.
 - Docker cannot launch local desktop players or Embedded MPV. If a stream does
@@ -147,25 +147,48 @@ define a health check against `/api/health`. If nginx or the backend exits
 after startup, the entrypoint exits the container so Docker Compose can apply
 the `restart: unless-stopped` policy.
 
+The bundled nginx requires Alpine package `1.30.7-r0` or later for
+CVE-2026-123007 and CVE-2026-123633. The default configuration serves HTTP/1.1.
+If a separate nginx reverse proxy terminates HTTP/2, update that proxy too.
+
 ## Run the server from the desktop app
 
-Open **Settings → Server** in the desktop app. Under **Server on this
-computer**, choose **Start server**. The server starts again the next time
-IPTVnator opens until you choose **Stop server**. Minimizing the app leaves it
-running. Quitting IPTVnator, shutting down the computer, or putting it to sleep
-makes the server unavailable to other devices. On macOS, closing the window
-can leave IPTVnator running. Use **Quit IPTVnator** to exit the app.
-If the server fails to start automatically, choose **Disable automatic start**
-to stop trying again when the app opens.
+Open **Settings → Connectivity**. Under **Server on this computer**, choose
+**Home network**, **Custom HTTPS**, or **Cloudflare Tunnel**, enter the
+settings, and click **Start server**. The app remembers the successful mode
+for autostart. Choose **Stop server** to stop hosting or **Disable automatic
+start** if the saved configuration fails at launch. The computer and app
+must stay running to serve other devices.
 
-To use a tablet or another computer, enable **Allow devices on my home
-network** before starting. Open the address shown in Settings on the other
-device and enter the access code. Use this option only on a trusted network.
-HTTP carries the code and library data without encryption.
+For **Home network**, select your private network interface. Use **Pair a
+device** to open a short-lived QR, scan it in IPTVnator on Android, and
+approve the matching code on the PC. To enroll a browser, open the invitation
+in that browser, choose **Pair this browser**, and approve its code on the PC.
+Each browser or Android device has its own revocable credential.
 
-Under **Connection on this device**, you can connect the desktop to its own
-server or to another server. Connecting to your own server lets you preview
-and import the desktop's original local sources into the shared library.
+Under **Connection on this device**, choose **Use this server** to connect
+the desktop to its hosted library and preview or import its local sources.
+
+## Optional HTTPS and Cloudflare Tunnel
+
+- For direct TLS, select **Custom HTTPS**. Enter the HTTPS origin and the
+  absolute paths to its PEM certificate chain and private key. Select the
+  network interface clients can reach, and ensure they trust the certificate.
+- For Cloudflare, select **Cloudflare Tunnel**. Publish the HTTP upstream
+  `http://127.0.0.1:4335`, preserve the public Host header, and add an Access
+  policy for the hostname. Cloudflare terminates public HTTPS.
+  Existing tunnel profiles with an origin certificate continue to use TLS
+  upstream and require the matching certificate name and trusted CA.
+  Android also needs Managed OAuth with dynamic client registration and the
+  exact redirect URI `org.tvshell.iptvnator://oauth/callback`.
+
+For Custom HTTPS, choose **Pair a device** and approve the Android device on
+the desktop. For Cloudflare Tunnel, choose **Connect device** after the public
+route is verified. Scan the QR in IPTVnator on Android to start native sign-in.
+A regular browser uses its Cloudflare Access session.
+
+See the [desktop hosting details](../docs/architecture/pwa-self-hosted.md#desktop-hosted-server)
+for certificate setup, Tunnel settings, TV approval and migration.
 
 ## Server Storage
 
@@ -178,10 +201,10 @@ and uploaded M3U text synchronize. Favorites and progress have separate opt-ins;
 Recently Viewed has a separate opt-in with explicit local-history import; EPG remains local. Visible source inventories refresh within a
 15-second polling interval.
 
-Settings → Server can preview and import the device's original local sources.
+Settings → Connectivity can preview and import the device's original local sources.
 Matching connections are deduplicated; the original library is retained.
 Disconnecting returns to that library without removing sources from NAS.
-Use **Reconnect** in Settings → Server to reuse the saved address and any
+Use **Reconnect** in Settings → Connectivity to reuse the saved address and any
 available token, or **Forget server** to clear them. The desktop app keeps the
 token across restarts when protected storage is available. In the browser,
 the token is kept in the current tab.
@@ -222,14 +245,18 @@ on a NAS or home server. The steps below use Docker.
    else runs the server, ask them for its address and token. This is not your
    IPTV provider's password. Changing the environment requires recreating the
    container with `docker compose -f docker/docker-compose.yml up -d`.
-4. In Electron, open **Settings → Server**, enter the app address and token,
+4. In Electron, open **Settings → Connectivity**, enter the app address and token,
    then choose **Connect**. Use the address from step 2, not the container's
    internal backend port, `/api/v1`, a provider login URL or an address with
    query parameters. The client adds `/api` automatically; an existing `/api`
    suffix is also accepted. Connection changes restart/reload the application.
-5. On a phone or another browser, open the same server address. The bundled
+5. In the Android app on a phone or tablet, open **Settings → Connectivity**,
+   enter the server address, and choose **Connect**. Enter the token from
+   step 3 if prompted. The Android app works with the default Docker `CLIENT_URL`
+   setting. Include the reverse-proxy path if the NAS is served under one.
+   In a browser, open the same server address. The bundled
    PWA discovers its server automatically. If it asks for a token, open
-   **Settings → Server** and enter the same token there. A standalone PWA can
+   **Settings → Connectivity** and enter the same token there. A standalone PWA can
    also connect manually through that page.
 6. After connecting, the page shows **Connected** and the last synchronization
    time. To copy the device's original sources, choose **Import local sources**,

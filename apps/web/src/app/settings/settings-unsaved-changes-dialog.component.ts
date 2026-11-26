@@ -60,6 +60,7 @@ export interface SettingsUnsavedChangesDialogData {
         <app-dialog-shell
             icon="edit_note"
             [heading]="'SETTINGS.UNSAVED_DIALOG_TITLE' | translate"
+            [subtitle]="'DIALOGS.UNSAVED_SETTINGS' | translate"
         >
             <p class="unsaved-dialog__message">
                 {{ 'SETTINGS.UNSAVED_DIALOG_MESSAGE' | translate }}

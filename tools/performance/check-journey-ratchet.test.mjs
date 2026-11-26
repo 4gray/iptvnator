@@ -539,7 +539,7 @@ test(
         const root = await mkdtemp(path.join(os.tmpdir(), 'journey-scope-'));
         t.after(() => rm(root, { recursive: true, force: true }));
         const workflow = parseYaml(await readFile(ciWorkflowPath, 'utf8'));
-        const scope = workflow.jobs['performance-journeys-scope'].steps.find(
+        const scope = workflow.jobs['fast-gates'].steps.find(
             (step) => step.id === 'scope'
         );
         const output = path.join(root, 'scope-output');

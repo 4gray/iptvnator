@@ -194,27 +194,27 @@
                 }
             </mat-card>
         } @empty {
-            <div class="grid-empty-state">
+            <div class="grid-list__state">
                 @if (refinementActive()) {
-                    <p role="status">
-                        {{
+                    <app-state-view
+                        class="grid-filter-clear"
+                        variant="no-results"
+                        icon="visibility_off"
+                        [heading]="
                             (sourceHasMore()
                                 ? 'WORKSPACE.REFINE_HIDE_WATCHED_PARTIAL'
                                 : 'WORKSPACE.REFINE_HIDE_WATCHED_EMPTY'
                             ) | translate
-                        }}
-                    </p>
-                    <button
-                        type="button"
-                        mat-button
-                        class="grid-filter-clear"
-                        (click)="clearRefinement.emit()"
-                    >
-                        {{ 'WORKSPACE.REFINE_WATCH_RESET' | translate }}
-                    </button>
+                        "
+                        [actionLabel]="
+                            'WORKSPACE.REFINE_WATCH_RESET' | translate
+                        "
+                        (action)="clearRefinement.emit()"
+                    />
                 } @else if (hasActiveSearch()) {
-                    <app-playlist-error-view
-                        [title]="
+                    <app-state-view
+                        variant="no-results"
+                        [heading]="
                             'PORTALS.SEARCH_VIEW.NO_RESULTS_FOR'
                                 | translate: { term: searchTerm() }
                         "
@@ -222,12 +222,11 @@
                             'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS'
                                 | translate
                         "
-                        [showActionButtons]="false"
-                        [viewType]="'NO_SEARCH_RESULTS'"
                     />
                 } @else {
-                    <app-playlist-error-view
-                        [title]="
+                    <app-state-view
+                        icon="video_library"
+                        [heading]="
                             'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE'
                                 | translate
                         "
@@ -235,8 +234,6 @@
                             'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.DESCRIPTION'
                                 | translate
                         "
-                        [showActionButtons]="false"
-                        [viewType]="'EMPTY_CATEGORY'"
                     />
                 }
             </div>
@@ -247,7 +244,7 @@
     <div class="grid-list__tail">
         <button
             type="button"
-            mat-stroked-button
+            mat-flat-button
             (click)="continueLoading.emit()"
         >
             {{ 'WORKSPACE.REFINE_HIDE_WATCHED_MORE' | translate }}
@@ -256,7 +253,7 @@
 }
 @if (isAppending()) {
     <div class="grid-list__tail" aria-live="polite">
-        <mat-spinner diameter="28" />
+        <mat-spinner diameter="24" />
         <span>{{ 'PORTALS.GRID.LOADING_MORE' | translate }}</span>
     </div>
 } @else if (appendError()) {

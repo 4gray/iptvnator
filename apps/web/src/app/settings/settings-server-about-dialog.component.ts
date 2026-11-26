@@ -6,6 +6,7 @@ const guide = 'https://github.com/4gray/iptvnator/blob/master/docker/README.md';
 
 export const SERVER_GUIDES = {
     desktop: guide + '#run-the-server-from-the-desktop-app',
+    https: guide + '#optional-https-and-cloudflare-tunnel',
     connection: guide + '#connect-your-clients',
 };
 
@@ -16,6 +17,7 @@ export const SERVER_GUIDES = {
         <app-dialog-shell
             icon="dns"
             [heading]="'SOURCE_SYNC.ABOUT_TITLE' | translate"
+            [subtitle]="'DIALOGS.SERVER_SYNC_ABOUT' | translate"
             [bodyFocusable]="true"
         >
             <div class="server-about">

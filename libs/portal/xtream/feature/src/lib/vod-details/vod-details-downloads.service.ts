@@ -157,6 +157,9 @@ export class VodDetailsDownloadsService {
             title: this.translateService.instant(
                 'DOWNLOADS.CANCEL_CONFIRM_TITLE'
             ),
+            subtitle:
+                this.activeDownload()?.title ||
+                this.translateService.instant('DIALOGS.CANCEL_DOWNLOAD'),
             message: this.translateService.instant(
                 'DOWNLOADS.CANCEL_CONFIRM_MESSAGE'
             ),

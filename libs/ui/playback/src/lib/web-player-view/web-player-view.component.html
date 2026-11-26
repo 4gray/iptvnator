@@ -211,36 +211,53 @@
     />
 }
 
-@if (androidPlayback.canOpen(resolvedPlayback())) {
+@let canOpenExternal = androidExternalAvailable() && !sharedControls;
+@let canOpenNative = androidPlayback.canOpen(resolvedPlayback());
+@if (canOpenExternal || canOpenNative) {
     <div class="web-player-android-actions dark-theme">
-        <button
-            mat-stroked-button
-            type="button"
-            [attr.data-tv-native-playback]="androidPlayback.attempt()"
-            [attr.aria-disabled]="androidPlayback.pending() || null"
-            (click)="
-                androidPlayback.open(
-                    resolvedPlayback(),
-                    resolvedIsLive(),
-                    effectiveStartTime(),
-                    showCaptions(),
-                    fullscreenSurface
-                )
-            "
-        >
-            {{ 'PLAYBACK_DIAGNOSTICS.ACTION_TRY_BUILT_IN_PLAYER' | translate }}
-        </button>
-        @if (androidPlayback.suspended()) {
+        @if (canOpenExternal) {
             <button
-                mat-stroked-button
+                mat-flat-button
                 type="button"
-                (click)="androidPlayback.returnToWeb()"
+                data-test-id="android-open-external-legacy"
+                (click)="openAndroidExternal()"
+            >
+                {{ 'PORTALS.DETAIL.OPEN_IN_EXTERNAL_PLAYER' | translate }}
+            </button>
+        }
+        @if (canOpenNative) {
+            <button
+                mat-flat-button
+                type="button"
+                [attr.data-tv-native-playback]="androidPlayback.attempt()"
+                [attr.aria-disabled]="androidPlayback.pending() || null"
+                (click)="
+                    androidPlayback.open(
+                        resolvedPlayback(),
+                        resolvedIsLive(),
+                        effectiveStartTime(),
+                        showCaptions(),
+                        fullscreenSurface
+                    )
+                "
             >
                 {{
-                    'PLAYBACK_DIAGNOSTICS.ACTION_RETURN_TO_WEB_PLAYER'
+                    'PLAYBACK_DIAGNOSTICS.ACTION_TRY_BUILT_IN_PLAYER'
                         | translate
                 }}
             </button>
+            @if (androidPlayback.suspended()) {
+                <button
+                    mat-flat-button
+                    type="button"
+                    (click)="androidPlayback.returnToWeb()"
+                >
+                    {{
+                        'PLAYBACK_DIAGNOSTICS.ACTION_RETURN_TO_WEB_PLAYER'
+                            | translate
+                    }}
+                </button>
+            }
         }
     </div>
 }

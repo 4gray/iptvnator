@@ -10,7 +10,7 @@ import {
     signal,
 } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { ActivatedRoute } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
@@ -110,8 +110,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     private readonly navigation = injectXtreamDetailNavigation('movie');
     private readonly xtreamStore = inject(XtreamStore);
     private readonly downloadsService = inject(DownloadsService);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translateService = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
     private readonly playback = inject(VodDetailsPlaybackService);
     /** Alternative sources for this movie in the user's other playlists */
     readonly multiSource = inject(VodMultiSourceHostService);
@@ -234,11 +233,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             resetTarget: this.msUi.primaryTarget,
             reportExternalLaunchFailure: (error) => {
                 this.logger.error('External launch failed', error);
-                this.snackBar.open(
-                    this.translateService.instant('PORTALS.PLAYBACK_ERROR'),
-                    undefined,
-                    { duration: 3000 }
-                );
+                this.notifications.error('PORTALS.PLAYBACK_ERROR');
             },
         });
 
@@ -611,13 +606,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     }
 
     showCopyNotification(): void {
-        this.snackBar.open(
-            this.translateService.instant('PORTALS.STREAM_URL_COPIED'),
-            undefined,
-            {
-                duration: 2000,
-            }
-        );
+        this.notifications.success('PORTALS.STREAM_URL_COPIED');
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {

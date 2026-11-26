@@ -28,7 +28,7 @@
 
 .time {
     font-family: $font-mono;
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     color: $text-tertiary;
     white-space: nowrap;
 }
@@ -38,7 +38,7 @@
     gap: 5px;
     margin-top: 7px;
     font-family: $font-mono;
-    font-size: 9.5px;
+    font-size: var(--app-text-2xs);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -57,13 +57,13 @@
     min-width: 0;
 }
 .title {
-    font-size: 14px;
+    font-size: var(--app-text-md);
     font-weight: 500;
     color: $text-primary;
     line-height: 1.3;
 }
 .desc {
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     color: $text-tertiary;
     margin-top: 3px;
     line-height: 1.4;
@@ -91,7 +91,7 @@
     gap: 5px;
     margin-top: 8px;
     font-family: $font-mono;
-    font-size: 9.5px;
+    font-size: var(--app-text-2xs);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -109,7 +109,7 @@
     gap: 6px;
 }
 .nowtag {
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     color: $text-tertiary;
     padding-right: 4px;
     white-space: nowrap;
@@ -153,7 +153,7 @@
     border: 1px solid $line-strong;
     background: $surface-2;
     color: $text-primary;
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;

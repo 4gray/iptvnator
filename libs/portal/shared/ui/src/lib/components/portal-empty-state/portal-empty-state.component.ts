@@ -4,17 +4,44 @@ import {
     input,
     output,
 } from '@angular/core';
-import { MatButton } from '@angular/material/button';
-import { MatIcon } from '@angular/material/icon';
+import {
+    StateSize,
+    StateVariant,
+    StateViewComponent,
+} from '@iptvnator/ui/state';
 
+/**
+ * The live layouts' content-area prompt ("select a channel", "channel list
+ * hidden") and the live lists' empty and no-results states, drawn by the
+ * shared `app-state-view`.
+ */
 @Component({
     selector: 'app-portal-empty-state',
-    templateUrl: './portal-empty-state.component.html',
-    styleUrl: './portal-empty-state.component.scss',
+    template: `
+        <app-state-view
+            [variant]="variant()"
+            [size]="size()"
+            [icon]="icon()"
+            [heading]="message()"
+            [description]="hint()"
+            [actionLabel]="actionLabel()"
+            [actionIcon]="actionIcon()"
+            (action)="action.emit()"
+        />
+    `,
+    styles: `
+        :host {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+        }
+    `,
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatButton, MatIcon],
+    imports: [StateViewComponent],
 })
 export class PortalEmptyStateComponent {
+    readonly variant = input<StateVariant>('empty');
+    readonly size = input<StateSize>('page');
     readonly icon = input<string>('live_tv');
     readonly message = input.required<string>();
     /** One short secondary sentence under the title. */

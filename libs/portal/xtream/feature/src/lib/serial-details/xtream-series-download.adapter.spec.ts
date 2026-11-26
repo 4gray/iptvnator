@@ -44,6 +44,34 @@ function episode(
 }
 
 describe('createXtreamSeriesDownloadAdapter', () => {
+    it('encodes the credentials and normalizes the server like playback', async () => {
+        // A `#` would end the path, so the provider would see "pa" as the
+        // password; `/` would add a path segment.
+        const candidate = createXtreamSeriesDownloadAdapter({
+            ...OPTIONS,
+            serverUrl: ' http://host.example/panel/ ',
+            username: ' user name ',
+            password: 'pa#ss/1%',
+        }).createCandidate(episode(), '1');
+        if (!candidate) throw new Error('expected a candidate');
+
+        expect((await candidate.prepare()).url).toBe(
+            'http://host.example/panel/series/user%20name/pa%23ss%2F1%25/55.mkv'
+        );
+    });
+
+    it('fails the submission instead of downloading from an unusable server URL', async () => {
+        const candidate = createXtreamSeriesDownloadAdapter({
+            ...OPTIONS,
+            serverUrl: 'not a url',
+        }).createCandidate(episode(), '1');
+        if (!candidate) throw new Error('expected a candidate');
+
+        await expect(candidate.prepare()).rejects.toThrow(
+            'Invalid Xtream server URL'
+        );
+    });
+
     it('creates a canonical candidate and prepares the complete Xtream request', async () => {
         const adapter = createXtreamSeriesDownloadAdapter(OPTIONS);
 
@@ -169,7 +197,7 @@ describe('createXtreamSeriesDownloadAdapter', () => {
         }
     );
 
-    it('preserves raw Xtream path concatenation and the mp4 extension fallback', async () => {
+    it('builds the episode path like playback and falls back to mp4', async () => {
         const adapter = createXtreamSeriesDownloadAdapter({
             ...OPTIONS,
             serverUrl: 'http://host/base//',
@@ -183,7 +211,7 @@ describe('createXtreamSeriesDownloadAdapter', () => {
 
         await expect(candidate?.prepare()).resolves.toEqual(
             expect.objectContaining({
-                url: 'http://host/base//series/u@ser/p/a/55.mp4',
+                url: 'http://host/base/series/u%40ser/p%2Fa/55.mp4',
             })
         );
     });

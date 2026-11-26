@@ -5,7 +5,7 @@ import {
     SecondStreamCatalogService,
     type SecondStreamSelection,
 } from '@iptvnator/portal/shared/data-access';
-import { dialogSize } from '@iptvnator/ui/components/dialog-size';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 import { firstValueFrom } from 'rxjs';
 import type {
     CompanionSlot,

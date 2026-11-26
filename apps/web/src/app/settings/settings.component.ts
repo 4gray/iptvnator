@@ -1,3 +1,4 @@
+import { isSettingsSaveShortcut } from './settings-save-shortcut';
 import { Store } from '@ngrx/store';
 import {
     PlaylistActions,
@@ -26,12 +27,14 @@ import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     EpgSourceReconciliationError,
+    getAndroidSettingsControls,
     RuntimeCapabilitiesService,
     ServerStorageStatusService,
+    SETTINGS_PROFILES_AVAILABLE,
     injectTranslationTick,
 } from '@iptvnator/services';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
-import { dialogSize } from '@iptvnator/ui/components/dialog-size';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 import {
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     Language,
@@ -41,6 +44,7 @@ import { firstValueFrom, map } from 'rxjs';
 import { BUILD_COMMIT } from '../../environments/build-commit';
 import { shouldEnableServiceWorker } from '../services/runtime-config';
 import { SettingsAboutSectionComponent } from './settings-about-section.component';
+import { SettingsAndroidDeviceSectionComponent } from './settings-android-device-section.component';
 import { SettingsAppUpdateFacade } from './settings-app-update.facade';
 import { SettingsBackupSectionComponent } from './settings-backup-section.component';
 import {
@@ -69,6 +73,7 @@ import {
     SETTINGS_THEME_OPTIONS,
 } from './settings-options';
 import { SettingsParentalLockFacade } from './settings-parental-lock.facade';
+import { SettingsProfilesSectionComponent } from './settings-profiles-section.component';
 import { SettingsParentalLockSectionComponent } from './settings-parental-section.component';
 import { SettingsPlaybackSectionComponent } from './settings-playback-section.component';
 import { SettingsRemoteControlFacade } from './settings-remote-control.facade';
@@ -112,6 +117,7 @@ import { SettingsSnackbarService } from './settings-snackbar.service';
         ReactiveFormsModule,
         TranslateModule,
         SettingsAboutSectionComponent,
+        SettingsAndroidDeviceSectionComponent,
         SettingsBackupSectionComponent,
         SettingsDashboardSectionComponent,
         SettingsEpgSectionComponent,
@@ -121,6 +127,7 @@ import { SettingsSnackbarService } from './settings-snackbar.service';
         SettingsPlaybackSectionComponent,
         SettingsRemoteControlSectionComponent,
         SettingsSearchResultsComponent,
+        SettingsProfilesSectionComponent,
         SettingsServerSectionComponent,
         SettingsTmdbSectionComponent,
     ],
@@ -180,6 +187,7 @@ export class SettingsComponent
 
     /** Flag that indicates whether the app runs in electron environment */
     readonly isDesktop = this.runtime.isElectron;
+    protected readonly androidSettingsControls = getAndroidSettingsControls();
     readonly isPwa = this.runtime.isPwa;
     readonly supportsDesktopFileSave = this.runtime.supportsDesktopFileSave;
     readonly supportsEpg = this.form.supportsEpg;
@@ -253,14 +261,18 @@ export class SettingsComponent
     readonly updateChannelOptions = SETTINGS_UPDATE_CHANNEL_OPTIONS;
     readonly epgViewModeOptions = SETTINGS_EPG_VIEW_MODE_OPTIONS;
 
-    readonly sectionNavItems: SettingsSection[] = buildSettingsSectionNavItems({
-        supportsEpg: this.form.supportsEpgDisplay,
-        supportsRemoteControl: this.supportsRemoteControl,
-        supportsServerStorage: this.supportsServerStorage,
-    });
-
+    private readonly supportsProfiles = inject(SETTINGS_PROFILES_AVAILABLE);
+    readonly sectionNavItems = computed<SettingsSection[]>(() =>
+        buildSettingsSectionNavItems({
+            supportsEpg: this.form.supportsEpgDisplay,
+            supportsRemoteControl: this.supportsRemoteControl,
+            supportsServerStorage: this.supportsServerStorage,
+            supportsAndroidSettings: !!this.androidSettingsControls,
+            supportsProfiles: this.supportsProfiles(),
+        })
+    );
     get sectionNav(): SettingsSection[] {
-        return this.sectionNavItems.filter((section) => section.visible);
+        return this.sectionNavItems().filter((section) => section.visible);
     }
 
     private readonly sectionParam = toSignal(
@@ -285,6 +297,8 @@ export class SettingsComponent
         // EPG support, `/settings/nonsense`) must not leave the address bar
         // lying about what is on screen.
         effect(() => {
+            // Sections that appear later (Profiles) join the navigation.
+            if (this.formReady()) this.settingsCtx.setSections(this.sectionNav);
             const section = this.sectionParam();
             if (section && !this.isNavigableSection(section)) {
                 void this.router.navigate(
@@ -293,6 +307,7 @@ export class SettingsComponent
                 );
             }
         });
+
 
         // Section pages share one scroll container (`main.workspace-content`);
         // without this, opening a long section, scrolling, and switching to a
@@ -352,17 +367,7 @@ export class SettingsComponent
     @HostListener('document:keydown', ['$event'])
     onSaveShortcut(event: KeyboardEvent): void {
         const host = this.hostElement.nativeElement;
-        if (
-            event.defaultPrevented ||
-            !(event.metaKey || event.ctrlKey) ||
-            event.altKey ||
-            event.shiftKey ||
-            event.key.toLowerCase() !== 's' ||
-            host.closest('[inert]') ||
-            host.ownerDocument.querySelector('.cdk-overlay-backdrop')
-        ) {
-            return;
-        }
+        if (!isSettingsSaveShortcut(event, host)) return;
         event.preventDefault();
         if (!this.settingsForm.pristine && this.settingsForm.valid) {
             this.onSubmit();
@@ -390,8 +395,6 @@ export class SettingsComponent
         if (!shouldEnableServiceWorker()) this.appUpdate.checkAppVersion();
         this.appUpdate.init();
         void this.remoteControl.fetchLocalIpAddresses();
-
-        this.settingsCtx.setSections(this.sectionNav);
     }
 
     ngOnDestroy(): void {
@@ -471,9 +474,7 @@ export class SettingsComponent
                 return false;
             }
             if (error instanceof EpgSourceReconciliationError) {
-                this.settingsSnackbar.open(
-                    this.translate.instant('SETTINGS.EPG_DATA_CLEAR_FAILED')
-                );
+                this.settingsSnackbar.error('SETTINGS.EPG_DATA_CLEAR_FAILED');
                 return false;
             }
             // A failed storage write still patches the in-memory store. Keep
@@ -500,9 +501,7 @@ export class SettingsComponent
     applyChangedSettings(): void {
         this.form.applySavedSettings();
         this.epg.fetchConfiguredEpg();
-        this.settingsSnackbar.open(
-            this.translate.instant('SETTINGS.SETTINGS_SAVED')
-        );
+        this.settingsSnackbar.success('SETTINGS.SETTINGS_SAVED');
     }
 
     async exportData(): Promise<void> {
@@ -512,7 +511,7 @@ export class SettingsComponent
 
     importData(): void {
         if (this.playlistReset.isRemovingAllPlaylists()) return;
-        this.backup.importData(() => this.discardChanges());
+        this.backup.importData(() => this.form.syncWithStore());
     }
 
     removeAll(): void {

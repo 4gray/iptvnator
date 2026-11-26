@@ -1,6 +1,6 @@
 import { Clipboard } from '@angular/cdk/clipboard';
 import { inject } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { TranslateService } from '@ngx-translate/core';
 import {
     PlaylistsService,
@@ -19,7 +19,7 @@ export class PlaylistInfoFileActions {
     private readonly clipboard = inject(Clipboard);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
     private readonly translate = inject(TranslateService);
     constructor(
         private readonly readPlaylist: () => PlaylistMeta,
@@ -55,26 +55,16 @@ export class PlaylistInfoFileActions {
                         savePath,
                         playlistAsString
                     );
-                    this.snackBar.open(
-                        this.translate.instant(
-                            'HOME.PLAYLISTS.INFO_DIALOG.PLAYLIST_EXPORT_SUCCESS'
-                        ),
-                        this.translate.instant('CLOSE'),
-                        { duration: 3000 }
+                    this.notifications.success(
+                        'HOME.PLAYLISTS.INFO_DIALOG.PLAYLIST_EXPORT_SUCCESS'
                     );
                 }
 
                 return;
             } catch (error) {
                 console.error('Failed to export playlist:', error);
-                this.snackBar.open(
-                    this.translate.instant(
-                        'HOME.PLAYLISTS.INFO_DIALOG.EXPORT_PLAYLIST_FAILED'
-                    ),
-                    this.translate.instant('CLOSE'),
-                    {
-                        duration: 3000,
-                    }
+                this.notifications.error(
+                    'HOME.PLAYLISTS.INFO_DIALOG.EXPORT_PLAYLIST_FAILED'
                 );
                 return;
             }
@@ -105,12 +95,8 @@ export class PlaylistInfoFileActions {
         if (url) {
             const success = this.clipboard.copy(url);
             if (success) {
-                this.snackBar.open(
-                    this.translate.instant(
-                        'HOME.PLAYLISTS.INFO_DIALOG.URL_COPIED'
-                    ),
-                    this.translate.instant('CLOSE'),
-                    { duration: 2000 }
+                this.notifications.success(
+                    'HOME.PLAYLISTS.INFO_DIALOG.URL_COPIED'
                 );
             }
         }

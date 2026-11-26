@@ -1,4 +1,7 @@
-import { assertActivityToken } from '../activity-sync/activity-sync.identity';
+import {
+    assertActivityToken,
+    keyPrefixRange,
+} from '../activity-sync/activity-sync.identity';
 import type {
     FavoriteAddress,
     FavoriteReference,
@@ -7,6 +10,10 @@ import type {
     FavoriteState,
     FavoriteLocalRecord,
 } from './favorites-sync.contract';
+import {
+    parsePersonalScope,
+    type PersonalScope,
+} from '../profiles/profile-scope';
 
 export const FAVORITES_SYNC_CAPABILITY = 'favorites-v1';
 export function favoriteReferenceKey(ref: FavoriteReference): string {
@@ -55,8 +62,12 @@ export function parseFavoriteReference(value: unknown): FavoriteReference {
 }
 export function parseFavoriteAddress(value: unknown): FavoriteAddress {
     const input = value as FavoriteAddress;
-    if (!input || input.scope !== 'shared')
+    let scope: PersonalScope;
+    try {
+        scope = parsePersonalScope(input?.scope);
+    } catch {
         throw new Error('Invalid favorite scope');
+    }
     for (const token of [
         input.instanceId,
         input.sourceId,
@@ -65,7 +76,7 @@ export function parseFavoriteAddress(value: unknown): FavoriteAddress {
         assertActivityToken(token);
     return {
         instanceId: input.instanceId,
-        scope: 'shared',
+        scope,
         sourceId: input.sourceId,
         sourceIncarnation: input.sourceIncarnation,
         content: parseFavoriteReference(input.content),
@@ -79,6 +90,20 @@ export function favoriteAddressKey(value: FavoriteAddress): string {
         a.sourceId,
         a.sourceIncarnation,
         a.content,
+    ]);
+}
+/** The `[from, to)` range of the `favoriteAddressKey`s of one scope within a source. */
+export function favoriteScopeKeyRange(
+    instanceId: string,
+    sourceId: string,
+    sourceIncarnation: string,
+    scope: PersonalScope
+): readonly [string, string] {
+    return keyPrefixRange([
+        instanceId,
+        parsePersonalScope(scope),
+        sourceId,
+        sourceIncarnation,
     ]);
 }
 export function parseFavoriteSnapshot(

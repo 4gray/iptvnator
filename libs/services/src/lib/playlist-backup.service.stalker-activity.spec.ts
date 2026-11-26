@@ -116,6 +116,40 @@ describe.each([false, true])(
                     )[playlist._id]
                 ).toEqual([local]);
         });
+        it('round-trips category visibility and distinguishes an old archive from an explicit clear', async () => {
+            const hidden = {
+                itv: ['same'],
+                series: ['same'],
+                radio: ['station'],
+            };
+            const h = setup({ ...playlist, hiddenStalkerCategories: hidden });
+            const backup = await h.service.exportBackup();
+            const entry = backup.manifest
+                .playlists[0] as StalkerPlaylistBackupEntry;
+            expect(entry.userState.hiddenCategories).toEqual(hidden);
+
+            const existing = { vod: ['local'] };
+            const target = setup({
+                ...playlist,
+                _id: 'synthetic-target',
+                hiddenStalkerCategories: existing,
+            });
+            for (const snapshot of [hidden, {}, undefined]) {
+                entry.userState.hiddenCategories = snapshot;
+                expect(
+                    await target.service.importBackup(
+                        JSON.stringify(backup.manifest)
+                    )
+                ).toMatchObject({ merged: 1, failed: 0 });
+                expect(target.restorePlaylist).toHaveBeenLastCalledWith(
+                    expect.objectContaining({
+                        _id: 'synthetic-target',
+                        hiddenStalkerCategories: snapshot ?? existing,
+                    })
+                );
+            }
+        });
+
         it('keeps positions when a historical archive omits them', async () => {
             const h = setup();
             const backup = await h.service.exportBackup();

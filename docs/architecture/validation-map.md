@@ -23,20 +23,31 @@ using its result as evidence. Docker validation can use
 
 ## Fast validation before expensive PR checks
 
-CI runs workflow lint, the PR release-note gate, affected lint and entry-point
-typechecks first. `Fast validation` requires those checks to pass (the note
-gate is intentionally skipped on master/manual runs). Unit validation, the
-production byte-budget build and performance journeys depend on that gate.
-PR E2E runs through `ci.yml` after fast validation and the byte-budget check,
-using `e2e-tests.yaml` as a reusable workflow. The full matrix is unchanged;
-master pushes and manual E2E dispatches still run directly. Caller/callee
-concurrency groups differ so the reusable workflow cannot cancel its caller.
+CI runs `Fast gates` (the PR release-note gate, workflow lint, and journey/E2E
+merge-diff scope detection in one dependency-free runner) in parallel with
+`Lint` (affected lint and entry-point typechecks). Unit validation, the
+production byte-budget build, performance journeys, and PR E2E depend directly
+on both jobs succeeding without queuing an intermediate fan-in runner.
+PR E2E runs through `ci.yml` using `e2e-tests.yaml` as a reusable workflow.
+`tools/packaging/pr-e2e-scope.mjs` scopes pure renderer/UI/library PRs to
+Ubuntu Electron E2E and sharded Web Chromium E2E, while PRs touching Electron
+main, SQLite/database, `web-backend`, desktop window/shell/shortcut/capability
+adapters (or diffs referencing OS-specific desktop branches),
+native/embedded-mpv, root build/lockfile configs, E2E workflows/fixtures, or
+carrying the `cross-platform-e2e` label run the full Ubuntu/macOS/Windows
+matrix and Windows hosted-server smoke. Master pushes and manual E2E dispatches
+always run the full cross-platform matrix. Caller/callee concurrency groups
+differ so the reusable workflow cannot cancel its caller.
 
 Packaging stays independent to protect rolling draft publication from CI
 cancellation. Selected packaging PRs run affected lint and entry-point
 typechecks before their matrix; selection and manual packaging are documented
-in [Release pipeline](release-pipeline.md#rolling-test-drafts). CodeQL and Docker
-retain their independent triggers.
+in [Release pipeline](release-pipeline.md#rolling-test-drafts). CodeQL retains
+its independent trigger (skipping docs/i18n-only paths), and Docker PR builds
+trigger on Docker, `web-backend` (including its `libs/shared/**`,
+`libs/tv/util/**`, and `apps/tv-setup/**` inputs), dependency, and build-script
+changes while `master` and tag pushes always build and publish multi-arch
+images.
 
 ## Unit And Type Checks
 
@@ -89,6 +100,24 @@ Conventions the gate relies on:
   `InstanceType<typeof SomeStore>` for signal stores, and
   `Object.defineProperty` or a writable mapped type for read-only capability
   flags.
+
+## Hosted HTTP tests in restricted Windows sessions
+
+The hosted HTTP specs use loopback TCP by default. If the Windows sandbox
+denies client connections with `EACCES`, use the in-memory HTTP transport for
+the focused suite from the repository root:
+
+```powershell
+$env:IPTVNATOR_TEST_HTTP_TRANSPORT = 'memory'
+$env:TS_NODE_TRANSPILE_ONLY = 'true'
+$specs = git ls-files 'apps/web-backend/*spec.ts' |
+    Where-Object { $_ -match 'cloudflare|hosted|sources-router|tmdb-transfer|device-approval|device-pairing' }
+node node_modules/jest/bin/jest.js --config apps/web-backend/jest.config.ts --runInBand --runTestsByPath $specs
+```
+
+This exercises the HTTP parser, request handlers, and listener lifecycle over
+paired streams. Run the default suite in a session with loopback access to
+validate TCP connections.
 
 ## Lint
 
@@ -159,6 +188,11 @@ all pages before reload/close and merge their counters before writing the report
 The parent merges those reports into Jest without replacing objects cached by
 existing instrumentation. Missing reports fail the test; assertion failures still
 propagate. The helper never creates synthetic hits or changes coverage thresholds.
+Instrument only files the Jest process does not load itself: a source that is
+also covered in process (for example `connection.ts`) is instrumented twice with
+different statement maps, and the merged report keeps the in-process copy's
+misses. For such a source, run its real-SQLite scenarios in process instead, as
+`content-title-fts.spec.ts` does on `node:sqlite`.
 
 Some `electron-backend` and `database` specs run SQLite code in the Electron
 binary under `ELECTRON_RUN_AS_NODE`, resolving it with `require('electron')`.
@@ -292,9 +326,11 @@ The Windows hosted server job runs the dedicated Electron target. It checks
 that the server's instance ID matches the one in its dedicated SQLite database
 after restarting the desktop with an active source profile.
 
-The Web E2E CI job runs Chromium with `--workers=2`; retry and timeout
-settings remain defined by the Playwright configuration. This override applies
-only to the Web E2E workflow step.
+The Web E2E CI job runs Chromium across three Ubuntu shards (`--workers=2`,
+`--shard=<n>/3`), with `web-e2e:pwa-updates` running once on shard 1 and
+uploaded as a separate artifact so `Web E2E summary` merges only the three
+sharded `results.json` reports; retry and timeout settings remain defined by
+the Playwright configuration.
 
 On pull requests, the CI Lint job summarizes which E2E suites project-level
 Nx affected selects for the PR merge diff. Use the preview to check that the
@@ -340,8 +376,11 @@ pnpm run coverage:e2e:summary
 ```
 
 The `electron-backend-e2e:e2e` target owns its `electron-backend:build-e2e`
-dependency, including renderer and remote-control assets. CI calls that target
-without a separate production build before each shard.
+dependency, including renderer and remote-control assets. In CI, a single
+`Build Electron E2E bundle` job builds those platform-independent assets once
+and uploads them as an artifact (`electron-e2e-build`) so every Electron E2E
+shard downloads `dist/` and runs Playwright directly without rebuilding ten
+Nx targets per shard.
 Each Electron E2E runner, including the Windows hosted-server smoke job,
 prepares the pinned Electron binary before building or launching the app.
 The helper verifies the binary version and uses the GitHub release asset API
@@ -351,6 +390,10 @@ checks for `xvfb-run` and missing shared libraries before starting Playwright.
 CI runs the Electron suite as Playwright shards (`--shard=<n>/<total>`, split
 by spec file because the suite is sequential): three shards on Ubuntu, four
 on Windows, and two on macOS, whose runners are the scarcest and queued longest.
+On pull requests that do not touch desktop/backend/native/build inputs (and do
+not carry the `cross-platform-e2e` label), CI runs only the three Ubuntu shards
+and summarizes Ubuntu; cross-platform PRs, `master` pushes, and default manual
+dispatches run and summarize all three operating systems.
 Windows uses the additional shard to keep slower runners within the existing
 30-minute job limit, including setup; each shard still uses one worker and
 the same tests, assertions, and retry policy. Each

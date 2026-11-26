@@ -74,6 +74,7 @@ import {
     xtreamCredentialsOf,
 } from './epg-refresh-coordinator.service';
 import { XtreamFavoriteMarksService } from './xtream-favorite-marks.service';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 export interface XtreamChannelListItem {
     readonly category_id?: string | number;
@@ -100,6 +101,7 @@ interface XtreamCategoryLike {
     styleUrls: ['./portal-channels-list.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        StateViewComponent,
         ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,
@@ -190,6 +192,8 @@ export class PortalChannelsListComponent implements OnDestroy {
     favorites = new Map<string, boolean>();
     epgPrograms = new Map<number, EpgProgram>();
     currentProgramsProgress = new Map<number, number>();
+    /** The playlist `epgPrograms` was filled for. */
+    private previewsPlaylistId: string | null = null;
 
     /** Leaves the shared refresh tick; called from `ngOnDestroy`. */
     private leaveEpgRefresh?: () => void;
@@ -384,19 +388,29 @@ export class PortalChannelsListComponent implements OnDestroy {
 
         if (this.runtime.supportsProviderEpg) {
             this.subscriptions.add(
-                this.epgQueueService.epgResult$.subscribe(
-                    ({ streamId, items }) => {
-                        if (!this.supportsProviderEpg) return;
-                        // The earliest-item fallback belongs to a row that has
-                        // nothing to show yet. Once a row holds a programme,
-                        // only one on air or upcoming may replace it: a refill
-                        // answered with the same finished window would
-                        // otherwise walk the row back to an older programme,
-                        // the very thing the refresh exists to prevent (#767).
-                        const program = this.pickProgramFor(streamId, items);
-                        if (program) this.applyProgram(streamId, program);
-                    }
-                )
+                this.epgQueueService.epgResult$.subscribe((result) => {
+                    if (!this.supportsProviderEpg) return;
+                    // A late answer for the playlist shown before: stream
+                    // ids repeat across accounts.
+                    const playlist = this.xtreamStore.currentPlaylist();
+                    if (
+                        playlist &&
+                        !this.epgQueueService.isResultFor(
+                            result,
+                            xtreamCredentialsOf(playlist)
+                        )
+                    )
+                        return;
+                    const { streamId, items } = result;
+                    // The earliest-item fallback belongs to a row that has
+                    // nothing to show yet. Once a row holds a programme,
+                    // only one on air or upcoming may replace it: a refill
+                    // answered with the same finished window would
+                    // otherwise walk the row back to an older programme,
+                    // the very thing the refresh exists to prevent (#767).
+                    const program = this.pickProgramFor(streamId, items);
+                    if (program) this.applyProgram(streamId, program);
+                })
             );
 
             // Nothing else re-evaluates the shown "current program" as
@@ -485,6 +499,20 @@ export class PortalChannelsListComponent implements OnDestroy {
         );
     }
 
+    /**
+     * Drop the previews on screen when the list now shows another playlist.
+     * Stream ids repeat across providers, so a kept preview would both show
+     * the other playlist's programme and keep the row from being requested.
+     */
+    private retirePreviewsOfOtherPlaylist(playlistId: string): void {
+        if (this.previewsPlaylistId === playlistId) return;
+        this.previewsPlaylistId = playlistId;
+        this.epgPrograms.clear();
+        this.currentProgramsProgress.clear();
+        // OnPush: the rows must drop it even if no replacement arrives.
+        this.cdr.markForCheck();
+    }
+
     private repickPreviewsForOffsetChange(): void {
         this.epgPrograms.clear();
         this.currentProgramsProgress.clear();
@@ -497,13 +525,20 @@ export class PortalChannelsListComponent implements OnDestroy {
             return;
         }
 
-        if (!this.xtreamStore.currentPlaylist()) return;
+        const playlist = this.xtreamStore.currentPlaylist();
+        if (!playlist) return;
+        this.retirePreviewsOfOtherPlaylist(playlist.id);
+        // The queue is shared: only this account's cached previews apply.
+        const credentials = xtreamCredentialsOf(playlist);
 
         const uncachedChannels: XtreamChannelListItem[] = [];
 
         // Apply cached results immediately
         for (const channel of channels) {
-            const cached = this.epgQueueService.getCached(channel.xtream_id);
+            const cached = this.epgQueueService.getCached(
+                channel.xtream_id,
+                credentials
+            );
             if (cached !== null) {
                 const previewProgram = pickEpgPreviewItem(
                     cached,
@@ -552,6 +587,8 @@ export class PortalChannelsListComponent implements OnDestroy {
 
         const playlist = this.xtreamStore.currentPlaylist();
         if (!playlist) return null;
+        this.retirePreviewsOfOtherPlaylist(playlist.id);
+        const credentials = xtreamCredentialsOf(playlist);
 
         const now = this.epgClockMs();
         const wallClockNow = Date.now();
@@ -567,7 +604,10 @@ export class PortalChannelsListComponent implements OnDestroy {
                 continue;
             }
 
-            const cached = this.epgQueueService.getCached(streamId);
+            const cached = this.epgQueueService.getCached(
+                streamId,
+                credentials
+            );
             if (cached === null) {
                 staleChannels.push(channel);
                 continue;
@@ -609,7 +649,7 @@ export class PortalChannelsListComponent implements OnDestroy {
 
         return {
             playlistId: playlist.id,
-            credentials: xtreamCredentialsOf(playlist),
+            credentials,
             // The whole slice, not just what is being fetched: the queue drops
             // anything outside the visible set it was last handed.
             visibleStreamIds: channels.map((channel) => channel.xtream_id),

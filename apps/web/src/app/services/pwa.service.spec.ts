@@ -229,7 +229,7 @@ describe('PwaService', () => {
     );
 
     it('translates the too-large upload message', () => {
-        expect(service.getErrorMessageByStatusCode(413)).toBe(
+        expect(service.getErrorKeyByStatusCode(413)).toBe(
             'HOME.URL_UPLOAD.ERROR_413'
         );
     });
@@ -268,7 +268,7 @@ describe('PwaService', () => {
             expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
                 'HOME.URL_UPLOAD.ERROR_FETCH_FAILED (ETIMEDOUT)',
                 'CLOSE',
-                { duration: 5000 }
+                expect.objectContaining({ politeness: 'assertive' })
             );
         } finally {
             rxjsConfig.onUnhandledError = previousHandler;
@@ -279,12 +279,14 @@ describe('PwaService', () => {
         const write = new Subject<Playlist>();
         updatePlaylist.mockReturnValueOnce(write);
         let settled = false;
+        let loaded: unknown;
         const pending = Promise.resolve(
             service.sendIpcEvent(PLAYLIST_UPDATE, {
                 id: 'playlist-1',
                 url: 'https://provider.example/list.m3u',
             })
-        ).then(() => {
+        ).then((result) => {
+            loaded = result;
             settled = true;
         });
 
@@ -307,6 +309,7 @@ describe('PwaService', () => {
         write.next({ _id: 'playlist-1' } as Playlist);
         await pending;
         expect(settled).toBe(true);
+        expect(loaded).toBe(true);
         expect(TestBed.inject(Store).dispatch).toHaveBeenCalledWith(
             expect.objectContaining({
                 playlistId: 'playlist-1',
@@ -316,7 +319,7 @@ describe('PwaService', () => {
         expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
             'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS',
             undefined,
-            { duration: 2000 }
+            expect.objectContaining({ politeness: 'polite' })
         );
     });
 
@@ -336,13 +339,14 @@ describe('PwaService', () => {
         await firstValueFrom(saveStarted);
         expect(updatePlaylist).toHaveBeenCalled();
         write.error(new Error('Synthetic transaction abort'));
-        await pending;
+        // The caller learns the source was not loaded (#1677).
+        await expect(pending).resolves.toBe(false);
 
         expect(TestBed.inject(Store).dispatch).not.toHaveBeenCalled();
         expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
             'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED',
             'CLOSE',
-            { duration: 5000 }
+            expect.objectContaining({ politeness: 'assertive' })
         );
     });
 
@@ -362,11 +366,11 @@ describe('PwaService', () => {
             { status: 500, statusText: 'Internal Server Error' }
         );
 
-        await expect(pending).resolves.toBeUndefined();
+        await expect(pending).resolves.toBe(false);
         expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
             expect.any(String),
             'CLOSE',
-            { duration: 5000 }
+            expect.objectContaining({ politeness: 'assertive' })
         );
     });
 
@@ -400,7 +404,7 @@ describe('PwaService', () => {
             expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
                 'HOME.URL_UPLOAD.ERROR_FETCH_FAILED (ENETUNREACH)',
                 'CLOSE',
-                { duration: 5000 }
+                expect.objectContaining({ politeness: 'assertive' })
             );
         } finally {
             rxjsConfig.onUnhandledError = previousHandler;

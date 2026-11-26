@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
@@ -5,6 +6,7 @@ import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access'
 import {
     RuntimeCapabilitiesService,
     ServerStorageStatusService,
+    SETTINGS_PROFILES_AVAILABLE,
 } from '@iptvnator/services';
 import { EMBEDDED_MPV_SUPPORT_RECHECK_MS } from '@iptvnator/shared/interfaces';
 import { SETTINGS_SEARCH_ENTRIES } from './settings-search-entries';
@@ -37,7 +39,11 @@ interface RuntimeStub {
     supportsEmbeddedMpv: boolean;
 }
 
-function setup(runtime: Partial<RuntimeStub> = {}, serverStorage = false) {
+function setup(
+    runtime: Partial<RuntimeStub> = {},
+    serverStorage = false,
+    profiles = false
+) {
     const router = { navigate: jest.fn().mockResolvedValue(true) };
     TestBed.configureTestingModule({
         providers: [
@@ -68,6 +74,10 @@ function setup(runtime: Partial<RuntimeStub> = {}, serverStorage = false) {
             },
             { provide: Router, useValue: router },
             {
+                provide: SETTINGS_PROFILES_AVAILABLE,
+                useValue: signal(profiles).asReadonly(),
+            },
+            {
                 provide: TranslateService,
                 useValue: {
                     instant: (key: string) => TRANSLATIONS[key] ?? key,
@@ -90,6 +100,41 @@ const DESKTOP: Partial<RuntimeStub> = {
 };
 
 describe('SettingsSearchService', () => {
+    describe('profiles', () => {
+        const PROFILES_ROWS = ['profiles-enabled', 'profiles-start'];
+
+        it('hides the Profiles section and its rows while profiles are unavailable', () => {
+            const { service } = setup();
+
+            expect(service.visibleSections().map(({ id }) => id)).not.toContain(
+                'profiles'
+            );
+            expect(service.visibleEntries().map(({ id }) => id)).not.toEqual(
+                expect.arrayContaining(PROFILES_ROWS)
+            );
+            expect(
+                service
+                    .visibleEntries()
+                    .some((entry) => entry.section === 'profiles')
+            ).toBe(false);
+            expect(service.search('profiles')).toEqual([]);
+        });
+
+        it('shows the section, its rows and the search results once available', () => {
+            const { service } = setup({}, true, true);
+
+            expect(service.visibleSections().map(({ id }) => id)).toContain(
+                'profiles'
+            );
+            expect(service.visibleEntries().map(({ id }) => id)).toEqual(
+                expect.arrayContaining(PROFILES_ROWS)
+            );
+            expect(
+                service.search('household').map(({ entry }) => entry.id)
+            ).toContain('profiles-enabled');
+        });
+    });
+
     it('gives every entry a unique id and a known section', () => {
         const ids = SETTINGS_SEARCH_ENTRIES.map((entry) => entry.id);
         const sectionIds = new Set(
@@ -124,6 +169,9 @@ describe('SettingsSearchService', () => {
 
         expect(sections).not.toContain('epg');
         expect(sections).not.toContain('remote-control');
+        expect(sections).not.toContain('android-device');
+        expect(entries).not.toContain('android-external-player');
+        expect(entries).not.toContain('android-device-advanced');
         expect(entries).not.toContain('epg-view-mode');
         expect(entries).not.toContain('recording-folder');
         expect(entries).not.toContain('mpv-player-path');
@@ -160,7 +208,32 @@ describe('SettingsSearchService', () => {
         expect(entries).not.toContain('embedded-mpv-frame-copy');
         // Connecting a server is available before any connection exists.
         expect(entries).toContain('source-server');
-        expect(entries.length).toBe(SETTINGS_SEARCH_ENTRIES.length - 4);
+        // The two Profiles rows stay out until profiles are available.
+        expect(entries.length).toBe(SETTINGS_SEARCH_ENTRIES.length - 8);
+    });
+
+    it('indexes Android settings when the handheld shell can open them', () => {
+        const shellWindow = window as Window & { __tvShell?: unknown };
+        shellWindow.__tvShell = {
+            handheld: true,
+            openDeviceSettings: jest.fn(),
+            openSettingsSection: jest.fn(),
+            openExternal: jest.fn(),
+        };
+        try {
+            const { service } = setup();
+            expect(service.visibleSections().map(({ id }) => id)).toContain(
+                'android-device'
+            );
+            expect(service.visibleEntries().map(({ id }) => id)).toEqual(
+                expect.arrayContaining([
+                    'android-external-player',
+                    'android-device-advanced',
+                ])
+            );
+        } finally {
+            delete shellWindow.__tvShell;
+        }
     });
 
     it('offers the server section and rows with server storage', () => {

@@ -3,14 +3,17 @@ import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
 import {
+    getAndroidSettingsControls,
     RuntimeCapabilitiesService,
     ServerStorageStatusService,
+    SETTINGS_PROFILES_AVAILABLE,
 } from '@iptvnator/services';
 import {
     EmbeddedMpvSupport,
     watchEmbeddedMpvSupport,
 } from '@iptvnator/shared/interfaces';
 import { SETTINGS_SEARCH_ENTRIES } from './settings-search-entries';
+
 import { rankSearchMatch, tokenizeSearchQuery } from './settings-search-rank';
 import {
     meetsSettingsRequirements,
@@ -34,6 +37,7 @@ import {
 export class SettingsSearchService {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly serverStorageStatus = inject(ServerStorageStatusService);
+    private readonly profilesAvailable = inject(SETTINGS_PROFILES_AVAILABLE);
     private readonly vodSourceDiscovery = inject(VodSourceDiscoveryService);
     private readonly router = inject(Router);
     private readonly translate = inject(TranslateService);
@@ -63,6 +67,7 @@ export class SettingsSearchService {
                 runtime.supportsEpg ||
                 runtime.supportsProviderEpg,
             'remote-control': runtime.supportsRemoteControl,
+            'android-settings': !!getAndroidSettingsControls(),
             'startup-window-mode': runtime.supportsStartupWindowMode,
             'portal-connectivity-guard':
                 runtime.supportsPortalConnectivityGuard,
@@ -73,6 +78,7 @@ export class SettingsSearchService {
             'embedded-mpv-frame-copy':
                 !!this.embeddedMpvSupport()?.frameCopyAvailable,
             'server-storage': this.serverStorageStatus.isActive(),
+            profiles: this.profilesAvailable(),
         };
     }
 

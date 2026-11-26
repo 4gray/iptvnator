@@ -18,6 +18,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
+import { getAndroidSettingsControls } from '@iptvnator/services';
 import {
     StreamFormat,
     VideoPlayer,
@@ -49,6 +50,7 @@ import { merge } from 'rxjs';
     styles: [':host { display: contents; }'],
 })
 export class SettingsPlaybackSectionComponent {
+    protected readonly androidSettingsControls = getAndroidSettingsControls();
     readonly mpvPlayerArgumentsPlaceholder = [
         '--ontop',
         '--autofit=640x360',

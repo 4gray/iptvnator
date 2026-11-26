@@ -38,11 +38,29 @@ describe('buildSettingsSectionNavItems', () => {
         return ids;
     }
 
+    it('shows the Profiles section only when the profiles UI is available', () => {
+        const base = {
+            supportsEpg: true,
+            supportsRemoteControl: true,
+            supportsServerStorage: true,
+        };
+        const visible = (supportsProfiles?: boolean) =>
+            buildSettingsSectionNavItems({
+                ...base,
+                supportsProfiles,
+            }).find((item) => item.id === 'profiles')?.visible;
+
+        expect(visible()).toBe(false);
+        expect(visible(false)).toBe(false);
+        expect(visible(true)).toBe(true);
+    });
+
     it('exposes feature-specific items only when their runtime capabilities are supported', () => {
         const supportedItems = buildSettingsSectionNavItems({
             supportsEpg: true,
             supportsRemoteControl: true,
             supportsServerStorage: true,
+            supportsAndroidSettings: true,
         });
         const unsupportedItems = buildSettingsSectionNavItems({
             supportsEpg: false,
@@ -58,6 +76,13 @@ describe('buildSettingsSectionNavItems', () => {
         ).toBe(false);
         expect(
             unsupportedItems.find((item) => item.id === 'remote-control')
+                ?.visible
+        ).toBe(false);
+        expect(
+            supportedItems.find((item) => item.id === 'android-device')
+        ).toMatchObject({ group: 'devices', visible: true });
+        expect(
+            unsupportedItems.find((item) => item.id === 'android-device')
                 ?.visible
         ).toBe(false);
     });
@@ -99,7 +124,9 @@ describe('buildSettingsSectionNavItems', () => {
             'dashboard',
             'tmdb',
             'parental',
+            'android-device',
             'remote-control',
+            'profiles',
             'server',
             'backup',
             'about',

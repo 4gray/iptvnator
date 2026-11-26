@@ -26,7 +26,7 @@
 
 .up-next__heading {
     margin: 0 8px 10px 4px;
-    font-size: 0.72rem;
+    font-size: var(--app-text-xs);
     font-weight: 700;
     letter-spacing: 0.18em;
     text-transform: uppercase;
@@ -130,14 +130,14 @@
     display: flex;
     gap: 8px;
     align-items: baseline;
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     font-weight: 700;
     letter-spacing: 0.04em;
     color: rgba(255, 255, 255, 0.72);
 }
 
 .up-next__now-playing {
-    font-size: 0.62rem;
+    font-size: var(--app-text-2xs);
     font-weight: 700;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -145,7 +145,7 @@
 }
 
 .up-next__title {
-    font-size: 0.9rem;
+    font-size: var(--app-text-md);
     font-weight: 600;
     line-height: 1.25;
     color: #fff;

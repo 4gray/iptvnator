@@ -7,22 +7,19 @@
         />
     }
 } @else if (visiblePlaylists().length === 0) {
-    <div class="sources-empty no-results-state" role="status">
-        <p class="sources-empty__message">
-            {{ 'WORKSPACE.SOURCES.NO_MATCHES' | translate }}
-        </p>
-        @if (hasFilters()) {
-            <button
-                mat-button
-                type="button"
-                class="sources-empty__reset"
-                (click)="resetFilters()"
-            >
-                <mat-icon>filter_alt_off</mat-icon>
-                {{ 'WORKSPACE.SOURCES.RESET_FILTERS' | translate }}
-            </button>
-        }
-    </div>
+    <app-state-view
+        class="sources-empty no-results-state"
+        variant="no-results"
+        size="panel"
+        [heading]="'WORKSPACE.SOURCES.NO_MATCHES' | translate"
+        [actionLabel]="
+            hasFilters()
+                ? ('WORKSPACE.SOURCES.RESET_FILTERS' | translate)
+                : null
+        "
+        actionIcon="filter_alt_off"
+        (action)="resetFilters()"
+    />
 } @else {
     <div
         class="sources-list"

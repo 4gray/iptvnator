@@ -1,4 +1,6 @@
 import { app, BrowserWindow, ipcMain, powerMonitor } from 'electron';
+import { Agent } from 'node:https';
+import { getCACertificates } from 'node:tls';
 import {
     SOURCE_SYNC_CAPABILITY,
     type ServerInstanceInfo,
@@ -26,80 +28,94 @@ import {
     disconnectSourceServerConfig,
     sourceServerToken,
 } from '../services/source-server-config';
-import { getHostedServerAccessCode } from '../services/hosted-server-session';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 import { SourceServerTransport } from './source-server-transport';
-
-function route(request: SourceServerRequest): { path: string; method: string } {
-    const id = encodeURIComponent(request.id ?? '');
-    switch (request.operation) {
-        case 'tmdb-transfer':
-            return { path: '/v1/tmdb-transfer', method: 'POST' };
-        case 'instance':
-            return { path: '/v1/instance', method: 'GET' };
-        case 'list':
-            return { path: '/v1/sources', method: 'GET' };
-        case 'get':
-            return { path: `/v1/sources/${id}`, method: 'GET' };
-        case 'create':
-            return { path: `/v1/sources/${id}`, method: 'PUT' };
-        case 'update':
-            return { path: `/v1/sources/${id}`, method: 'PATCH' };
-        case 'delete':
-            return { path: `/v1/sources/${id}`, method: 'DELETE' };
-        case 'clear':
-            return { path: '/v1/sources', method: 'DELETE' };
-        case 'history-read':
-            return { path: `/v1/history/sources/${id}`, method: 'GET' };
-        case 'history-apply':
-            return { path: '/v1/history/operations', method: 'POST' };
-        case 'favorites-context':
-            return { path: `/v1/favorites/sources/${id}`, method: 'GET' };
-        case 'favorites-list':
-            return {
-                path: `/v1/favorites/sources/${id}/items${request.cursor ? '?cursor=' + encodeURIComponent(request.cursor) : ''}`,
-                method: 'GET',
-            };
-        case 'favorites-read':
-            return { path: '/v1/favorites/read', method: 'POST' };
-        case 'favorites-apply':
-            return { path: '/v1/favorites/operations', method: 'POST' };
-        case 'activity-context':
-            return { path: `/v1/activity/sources/${id}`, method: 'GET' };
-        case 'activity-list':
-            return {
-                path: `/v1/activity/sources/${id}/items${request.cursor ? '?cursor=' + encodeURIComponent(request.cursor) : ''}`,
-                method: 'GET',
-            };
-        case 'activity-read':
-            return { path: '/v1/activity/read', method: 'POST' };
-        case 'activity-apply':
-            return { path: '/v1/activity/operations', method: 'POST' };
-        default:
-            throw new Error('Invalid source operation');
-    }
-}
+import {
+    getHostedServerAccessCode,
+    getHostedServerInstanceId,
+    hostedWorkerRequest,
+    HOSTED_SERVER_LOCAL_URL,
+} from '../services/hosted-server-session';
+import { HOSTED_SERVER_INSTANCE_ID, store } from '../services/store.service';
+import {
+    parseRetryAfter,
+    profileRequestTarget,
+} from './source-sync-profile-route';
+import { sourceRequestRoute as route } from './source-sync-request-route';
 
 export async function sourceServerRequest(
     apiUrl: string,
     token: string,
     request: SourceServerRequest,
-    instanceId?: string
+    instanceId?: string,
+    useHosted = false
 ): Promise<SourceServerResponse> {
-    const target = route(request);
+    const profileTarget = profileRequestTarget(request);
+    const target = profileTarget ?? route(request);
     if (request.source) validateSource(request.source);
-    const body =
-        request.operation === 'tmdb-transfer'
-            ? request.tmdbTransfer?.request
-            : (request.history ??
-              request.favorite ??
-              request.activity ??
-              request.source);
+    const body = profileTarget
+        ? profileTarget.body
+        : request.operation === 'tmdb-transfer'
+          ? request.tmdbTransfer?.request
+          : (request.history ??
+            request.favorite ??
+            request.activity ??
+            request.source);
+    const revisionHeaders =
+        profileTarget?.headers ??
+        (request.revision
+            ? {
+                  [request.operation === 'list' ? 'If-None-Match' : 'If-Match']:
+                      request.revision,
+              }
+            : {});
+    if (apiUrl === HOSTED_SERVER_LOCAL_URL + '/api') {
+        const hostedInstance = store.get(HOSTED_SERVER_INSTANCE_ID);
+        if (useHosted || (instanceId && instanceId === hostedInstance)) {
+            const worker = hostedWorkerRequest(
+                instanceId ? { apiUrl, instanceId } : undefined
+            );
+            if (!worker) throw new Error('SOURCE_SYNC.OFFLINE');
+            try {
+                const { retryAfter: workerRetryAfter, ...response } =
+                    await worker({
+                        ...target,
+                        headers: {
+                            ...(instanceId
+                                ? { 'X-IPTVnator-Instance-Id': instanceId }
+                                : {}),
+                            ...(request.operation === 'create'
+                                ? { 'If-None-Match': '*' }
+                                : {}),
+                            ...revisionHeaders,
+                        },
+                        body,
+                    });
+                const retryAfter = parseRetryAfter(workerRetryAfter);
+                return {
+                    ...response,
+                    ...(retryAfter !== undefined ? { retryAfter } : {}),
+                };
+            } catch {
+                throw new Error('SOURCE_SYNC.OFFLINE');
+            }
+        }
+    }
     try {
         const response = await requestWithValidatedRedirects(
             `${apiUrl}${target.path}`,
             {
                 method: target.method,
+                agentFactory: {
+                    createHttpsAgent: (lookup) =>
+                        new Agent({
+                            lookup,
+                            ca: [
+                                ...getCACertificates('default'),
+                                ...getCACertificates('system'),
+                            ],
+                        }),
+                },
                 timeout: ['get', 'create', 'update'].includes(request.operation)
                     ? 120000
                     : 15000,
@@ -117,13 +133,7 @@ export async function sourceServerRequest(
                     ...(request.operation === 'create'
                         ? { 'If-None-Match': '*' }
                         : {}),
-                    ...(request.revision
-                        ? {
-                              [request.operation === 'list'
-                                  ? 'If-None-Match'
-                                  : 'If-Match']: request.revision,
-                          }
-                        : {}),
+                    ...revisionHeaders,
                 },
                 data: body,
             },
@@ -134,9 +144,11 @@ export async function sourceServerRequest(
             },
             0
         );
+        const retryAfter = parseRetryAfter(response.headers['retry-after']);
         return {
             status: response.status,
             etag: response.headers['etag'],
+            ...(retryAfter !== undefined ? { retryAfter } : {}),
             body: response.data,
         };
     } catch {
@@ -178,6 +190,7 @@ export function registerSourceSyncEvents(
     ipcMain.handle(
         SOURCE_SYNC_REQUEST,
         async (_event, request: SourceServerRequest) => {
+            profileRequestTarget(request);
             const config = readSourceServerConfig();
             if (!config) throw new Error('SOURCE_SYNC.OFFLINE');
             if (request.operation === 'tmdb-transfer') {
@@ -200,8 +213,13 @@ export function registerSourceSyncEvents(
             url: string,
             token: string,
             restart: boolean,
-            savedInstanceId?: string
+            savedInstanceIdOrHosted?: string | true
         ) => {
+            const useHosted = savedInstanceIdOrHosted === true;
+            const savedInstanceId =
+                typeof savedInstanceIdOrHosted === 'string'
+                    ? savedInstanceIdOrHosted
+                    : undefined;
             let configured: ReturnType<typeof readSourceServerConfig> = null;
             try {
                 configured = readSourceServerConfig();
@@ -217,9 +235,38 @@ export function registerSourceSyncEvents(
                     : normalizeSourceServerUrl(url);
             if (typeof token !== 'string' || token.length > 8192)
                 throw new Error('Invalid access token');
-            const probe = await sourceServerRequest(apiUrl, token, {
-                operation: 'instance',
-            });
+            if (
+                useHosted &&
+                (apiUrl !== HOSTED_SERVER_LOCAL_URL + '/api' ||
+                    !hostedWorkerRequest())
+            )
+                throw new Error('SOURCE_SYNC.OFFLINE');
+            const previousInstance =
+                configured?.apiUrl === apiUrl
+                    ? configured.instanceId
+                    : undefined;
+            const hosted =
+                useHosted ||
+                (apiUrl === HOSTED_SERVER_LOCAL_URL + '/api' &&
+                    !!previousInstance &&
+                    (configured?.hosted === true ||
+                        previousInstance ===
+                            store.get(HOSTED_SERVER_INSTANCE_ID))) ||
+                (savedInstanceId !== undefined &&
+                    saved?.apiUrl === apiUrl &&
+                    saved.hosted === true &&
+                    apiUrl === HOSTED_SERVER_LOCAL_URL + '/api');
+            const probe = await sourceServerRequest(
+                apiUrl,
+                token,
+                {
+                    operation: 'instance',
+                },
+                useHosted || (hosted && savedInstanceId !== undefined)
+                    ? getHostedServerInstanceId()
+                    : previousInstance,
+                hosted
+            );
             if ([401, 403].includes(probe.status))
                 throw new Error('SOURCE_SYNC.LOCKED');
             if (probe.status >= 500)
@@ -257,7 +304,8 @@ export function registerSourceSyncEvents(
                 apiUrl,
                 token,
                 { operation: 'list' },
-                instance.instanceId
+                instance.instanceId,
+                hosted
             );
             if (check.status !== 200)
                 throw new Error(
@@ -275,7 +323,11 @@ export function registerSourceSyncEvents(
                     throw new Error('SOURCE_SYNC.SAVED_INSTANCE_CHANGED');
             }
             const persisted = saveSourceServerConfig(
-                { apiUrl, instanceId: instance.instanceId },
+                {
+                    apiUrl,
+                    instanceId: instance.instanceId,
+                    ...(hosted ? { hosted: true } : {}),
+                },
                 token
             );
             const needsRestart =

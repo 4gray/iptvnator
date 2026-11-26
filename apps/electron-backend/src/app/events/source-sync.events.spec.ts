@@ -1,4 +1,6 @@
 import { app, ipcMain } from 'electron';
+import { Agent } from 'node:https';
+import { getCACertificates } from 'node:tls';
 import {
     SOURCE_SYNC_CONFIGURE,
     SOURCE_SYNC_CONNECTION,
@@ -16,6 +18,8 @@ import {
     sourceServerToken,
 } from '../services/source-server-config';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
+import { setHostedServerSession } from '../services/hosted-server-session';
+import { HOSTED_SERVER_INSTANCE_ID, store } from '../services/store.service';
 import {
     registerSourceSyncEvents,
     sourceServerRequest,
@@ -37,6 +41,10 @@ jest.mock('../services/source-server-config', () => ({
 }));
 jest.mock('../util/validated-axios', () => ({
     requestWithValidatedRedirects: jest.fn(),
+}));
+jest.mock('../services/store.service', () => ({
+    HOSTED_SERVER_INSTANCE_ID: 'HOSTED_SERVER_INSTANCE_ID',
+    store: { get: jest.fn() },
 }));
 
 const connection = {
@@ -63,6 +71,7 @@ describe('native source transport and connection IPC', () => {
     const prepareRestart = jest.fn();
     beforeEach(() => {
         jest.clearAllMocks();
+        jest.mocked(store.get).mockReturnValue(undefined);
         (readSourceServerConfig as jest.Mock).mockReturnValue(connection);
         (readSavedSourceServerConfig as jest.Mock).mockReturnValue(null);
         (requestWithValidatedRedirects as jest.Mock).mockResolvedValue({
@@ -71,6 +80,103 @@ describe('native source transport and connection IPC', () => {
             data: instance,
         });
         registerSourceSyncEvents(prepareRestart);
+    });
+
+    afterEach(() => setHostedServerSession());
+
+    it('routes only the recognized hosted instance or explicit desktop selection over IPC', async () => {
+        const apiUrl = 'http://127.0.0.1:4334/api';
+        const instanceId = 'synthetic-hosted-instance';
+        const request = jest.fn(async ({ path }: { path: string }) => ({
+            status: 200,
+            body: path === '/v1/instance' ? { ...instance, instanceId } : [],
+        }));
+        jest.mocked(store.get).mockImplementation((key) =>
+            key === HOSTED_SERVER_INSTANCE_ID ? instanceId : undefined
+        );
+        setHostedServerSession({ instanceId, code: 'synthetic-code', request });
+
+        await sourceServerRequest(
+            apiUrl,
+            '',
+            { operation: 'instance' },
+            'other-instance'
+        );
+        expect(request).not.toHaveBeenCalled();
+        expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(1);
+        await handler(SOURCE_SYNC_CONFIGURE)({}, apiUrl, '', true, true);
+        expect(request.mock.calls.map(([value]) => value.path)).toEqual([
+            '/v1/instance',
+            '/v1/sources',
+        ]);
+        expect(saveSourceServerConfig).toHaveBeenCalledWith(
+            { apiUrl, instanceId, hosted: true },
+            ''
+        );
+
+        setHostedServerSession({
+            instanceId: 'replacement',
+            code: 'synthetic-code',
+            request,
+        });
+        await expect(
+            sourceServerRequest(apiUrl, '', { operation: 'clear' }, instanceId)
+        ).rejects.toThrow('SOURCE_SYNC.INSTANCE_CHANGED');
+        setHostedServerSession();
+        await expect(
+            sourceServerRequest(apiUrl, '', { operation: 'list' }, instanceId)
+        ).rejects.toThrow('SOURCE_SYNC.OFFLINE');
+        expect(request).toHaveBeenCalledTimes(2);
+        expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(1);
+    });
+
+    it('reconnects a saved hosted server through the worker only if its identity matches', async () => {
+        const apiUrl = 'http://127.0.0.1:4334/api';
+        const instanceId = 'synthetic-hosted-instance';
+        jest.mocked(readSourceServerConfig).mockReturnValue(null);
+        jest.mocked(readSavedSourceServerConfig).mockReturnValue({
+            apiUrl,
+            instanceId,
+            hosted: true,
+            disconnected: true,
+        });
+        const configure = handler(SOURCE_SYNC_CONFIGURE);
+        const request = jest
+            .fn()
+            .mockResolvedValueOnce({
+                status: 200,
+                body: { ...instance, instanceId: 'replacement' },
+            })
+            .mockResolvedValueOnce({
+                status: 200,
+                body: { ...instance, instanceId },
+            })
+            .mockResolvedValueOnce({ status: 200, body: [] });
+
+        setHostedServerSession({
+            instanceId: 'replacement',
+            code: 'synthetic-code',
+            request,
+        });
+        await expect(
+            configure({}, apiUrl, '', true, instanceId)
+        ).rejects.toThrow('SOURCE_SYNC.SAVED_INSTANCE_CHANGED');
+        expect(saveSourceServerConfig).not.toHaveBeenCalled();
+        expect(sourceServerToken).not.toHaveBeenCalled();
+
+        setHostedServerSession({ instanceId, code: 'synthetic-code', request });
+        await expect(
+            configure({}, apiUrl, '', true, instanceId)
+        ).resolves.toMatchObject({
+            apiUrl,
+            instanceId,
+        });
+        expect(request.mock.calls.map(([value]) => value.path)).toEqual([
+            '/v1/instance',
+            '/v1/instance',
+            '/v1/sources',
+        ]);
+        expect(requestWithValidatedRedirects).not.toHaveBeenCalled();
     });
 
     it.each(['connect', 'disconnect'])(
@@ -164,6 +270,123 @@ describe('native source transport and connection IPC', () => {
             },
             0
         );
+    });
+
+    it('sends validated profile requests through the narrow source IPC route', async () => {
+        const send = handler(SOURCE_SYNC_REQUEST);
+        const profileId = '11111111-1111-4111-8111-111111111111';
+        await send(
+            {},
+            {
+                operation: 'profile-create',
+                profile: { name: 'Synthetic' },
+            }
+        );
+        await send({}, { operation: 'profiles-list', revision: '7' });
+        await send(
+            {},
+            {
+                operation: 'profile-delete',
+                id: profileId,
+                profile: { currentPin: '1234' },
+            }
+        );
+        const calls = (requestWithValidatedRedirects as jest.Mock).mock.calls;
+        expect(calls[1]).toEqual([
+            `${connection.apiUrl}/v1/profiles`,
+            expect.objectContaining({
+                method: 'POST',
+                data: { name: 'Synthetic' },
+                headers: expect.objectContaining({
+                    Authorization: 'Bearer synthetic-nas-token',
+                    'X-IPTVnator-Instance-Id': 'nas',
+                    'Content-Type': 'application/json',
+                }),
+            }),
+            expect.anything(),
+            0,
+        ]);
+        expect(calls[2][0]).toBe(`${connection.apiUrl}/v1/profiles`);
+        expect(calls[2][1]).toMatchObject({
+            method: 'GET',
+            headers: expect.objectContaining({
+                'If-None-Match': '"profiles-7"',
+            }),
+        });
+        expect(calls[3][0]).toBe(
+            `${connection.apiUrl}/v1/profiles/${profileId}`
+        );
+        expect(calls[3][1]).toMatchObject({
+            method: 'DELETE',
+            data: { currentPin: '1234' },
+        });
+    });
+
+    it('rejects an invalid profile payload before the source transport probes', async () => {
+        await expect(
+            handler(SOURCE_SYNC_REQUEST)({}, {
+                operation: 'profile-create',
+                profile: { name: 'Synthetic', unexpected: true },
+            } as never)
+        ).rejects.toThrow('Invalid source request');
+        expect(requestWithValidatedRedirects).not.toHaveBeenCalled();
+    });
+
+    it('sends profile targets over the hosted worker transport', async () => {
+        const apiUrl = 'http://127.0.0.1:4334/api';
+        const instanceId = 'synthetic-hosted-instance';
+        const request = jest.fn(async ({ path }: { path: string }) => ({
+            status: path === '/v1/instance' ? 200 : 201,
+            body:
+                path === '/v1/instance'
+                    ? { ...instance, instanceId }
+                    : { id: '11111111-1111-4111-8111-111111111111' },
+        }));
+        (readSourceServerConfig as jest.Mock).mockReturnValue({
+            apiUrl,
+            instanceId,
+            hosted: true,
+        });
+        jest.mocked(store.get).mockReturnValue(instanceId);
+        setHostedServerSession({ instanceId, code: 'synthetic-code', request });
+        await handler(SOURCE_SYNC_REQUEST)(
+            {},
+            {
+                operation: 'profile-create',
+                profile: { name: 'Synthetic' },
+            }
+        );
+        expect(request.mock.calls[1][0]).toEqual({
+            path: '/v1/profiles',
+            method: 'POST',
+            headers: { 'X-IPTVnator-Instance-Id': instanceId },
+            body: { name: 'Synthetic' },
+        });
+        expect(requestWithValidatedRedirects).not.toHaveBeenCalled();
+    });
+
+    it('propagates Retry-After from Axios profile responses', async () => {
+        (requestWithValidatedRedirects as jest.Mock)
+            .mockResolvedValueOnce({
+                status: 200,
+                headers: {},
+                data: instance,
+            })
+            .mockResolvedValueOnce({
+                status: 429,
+                headers: { 'retry-after': '30' },
+                data: { code: 'pin_rate_limited' },
+            });
+        await expect(
+            handler(SOURCE_SYNC_REQUEST)(
+                {},
+                {
+                    operation: 'profile-unlock',
+                    id: '11111111-1111-4111-8111-111111111111',
+                    profile: { pin: '1234' },
+                }
+            )
+        ).resolves.toMatchObject({ status: 429, retryAfter: 30 });
     });
 
     it('withholds the transfer payload after a server change and forwards it only to the selected instance', async () => {
@@ -388,6 +611,26 @@ describe('native source transport and connection IPC', () => {
             (requestWithValidatedRedirects as jest.Mock).mock.calls[0][1]
                 .headers
         ).not.toHaveProperty('Authorization');
+    });
+
+    it('adds system CAs to the default trust roots on the pinned HTTPS agent', async () => {
+        await sourceServerRequest(connection.apiUrl, '', {
+            operation: 'instance',
+        });
+        const config = jest.mocked(requestWithValidatedRedirects).mock
+            .calls[0][1];
+        const lookup = jest.fn();
+        const agent = config?.agentFactory?.createHttpsAgent?.(lookup);
+        expect(agent).toBeInstanceOf(Agent);
+        expect(agent).toMatchObject({
+            options: {
+                lookup,
+                ca: [
+                    ...getCACertificates('default'),
+                    ...getCACertificates('system'),
+                ],
+            },
+        });
     });
 
     it('validates the server and access token before persisting and restarting', async () => {

@@ -5,8 +5,7 @@ import {
     inject,
     signal,
 } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { TranslateService } from '@ngx-translate/core';
+import { NotificationService } from '@iptvnator/services/notifications';
 import {
     EPISODE_DOWNLOAD_SUBMISSIONS,
     SeasonDownloadCoordinator,
@@ -91,8 +90,7 @@ const EPISODE_DOWNLOAD_STATES: Record<
 export class SeasonDownloadPresenter {
     private readonly coordinator = inject(SeasonDownloadCoordinator);
     private readonly downloadsService = inject(DownloadsService);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly notifications = inject(NotificationService);
     private readonly sources = signal<SeasonDownloadPresenterSources | null>(
         null
     );
@@ -225,7 +223,7 @@ export class SeasonDownloadPresenter {
 
         const result = await this.coordinator.enqueueOne(row.candidate);
         if (result === EPISODE_DOWNLOAD_SUBMISSIONS.Failed) {
-            this.notify('DOWNLOADS.EPISODE_DOWNLOAD_FAILED');
+            this.notifications.error('DOWNLOADS.EPISODE_DOWNLOAD_FAILED');
         }
     }
 
@@ -276,9 +274,7 @@ export class SeasonDownloadPresenter {
     }
 
     private notify(key: string, params?: object): void {
-        this.snackBar.open(this.translate.instant(key, params), undefined, {
-            duration: 5000,
-        });
+        this.notifications.info(key, params);
     }
 
     private createPresentation(

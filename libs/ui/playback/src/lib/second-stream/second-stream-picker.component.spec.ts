@@ -288,6 +288,22 @@ describe('SecondStreamPickerComponent', () => {
         expect(component.groupLoading()).toBe(false);
     });
 
+    it('names the chosen playlist once its source list has loaded', async () => {
+        await component.loadSources();
+        let resolveSources: (
+            value: { id: string; name: string }[]
+        ) => void = () => undefined;
+        sources.mockReturnValueOnce(
+            new Promise((resolve) => (resolveSources = resolve))
+        );
+        const pending = component.loadSources();
+        component.changeSource('p');
+        expect(component.sourceName()).toBe('');
+        resolveSources([{ id: 'p', name: 'Synthetic playlist' }]);
+        await pending;
+        expect(component.sourceName()).toBe('Synthetic playlist');
+    });
+
     it('retries loading playlist choices and resets filters on source changes', async () => {
         await component.loadSources();
         const source = { id: 'p', name: 'Synthetic playlist' };
@@ -309,6 +325,19 @@ describe('SecondStreamPickerComponent', () => {
         expect(component.hasContentTypes()).toBe(false);
         component.changeSource(component.historySource);
         expect(component.hasContentTypes()).toBe(true);
+    });
+
+    it('keeps the search, group and catalogue view when the current source is picked again', () => {
+        component.changeSource('p');
+        load.mockClear();
+        component.vod.type.set('movie');
+        component.search.set('kept query');
+        component.group.set('News');
+        component.changeSource('p');
+        expect(component.vod.type()).toBe('movie');
+        expect(component.search()).toBe('kept query');
+        expect(component.group()).toBe('News');
+        expect(load).not.toHaveBeenCalled();
     });
 
     it('returns a failed group load to a selectable state', async () => {

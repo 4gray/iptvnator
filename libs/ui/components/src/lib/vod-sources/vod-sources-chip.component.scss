@@ -61,7 +61,7 @@ $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
 .sources-chip__count {
     font-family: $font-mono;
     font-weight: 700;
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     line-height: 1.3;
     border-radius: 999px;
     padding: 2px 8px;

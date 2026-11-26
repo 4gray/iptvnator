@@ -1,0 +1,204 @@
+import { ipcMain, type IpcMainInvokeEvent } from 'electron';
+import {
+    HOSTED_DEVICE_CONTROL,
+    HOSTED_PAIRING_PASSWORD_MAX_LENGTH,
+    HOSTED_PAIRING_PASSWORD_MIN_LENGTH,
+    type HostedDeviceList,
+    type HostedServerStatus,
+} from '@iptvnator/shared/interfaces';
+import {
+    getHostedServerAccessCode,
+    getHostedServerInstanceId,
+    HOSTED_SERVER_LOCAL_URL,
+    hostedWorkerRequest,
+} from './hosted-server-session';
+
+const pairingId = /^[A-Za-z0-9_-]{43}$/;
+const deviceId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
+
+async function request<T = unknown>(
+    path: string,
+    code: string,
+    options?: RequestInit
+): Promise<T> {
+    const worker = hostedWorkerRequest();
+    if (worker) {
+        const response = await worker({
+            path: `/v1${path}`,
+            method: options?.method ?? 'GET',
+            ...(typeof options?.body === 'string'
+                ? { body: JSON.parse(options.body) }
+                : {}),
+        });
+        if (response.status < 200 || response.status >= 300)
+            throw new Error('Hosted device request failed');
+        return response.status === 204
+            ? (undefined as T)
+            : (response.body as T);
+    }
+    const response = await fetch(`${HOSTED_SERVER_LOCAL_URL}/api/v1${path}`, {
+        ...options,
+        headers: {
+            Authorization: `Bearer ${code}`,
+            'Content-Type': 'application/json',
+        },
+        redirect: 'error',
+        signal: AbortSignal.timeout(4000),
+    });
+    if (!response.ok) throw new Error('Hosted device request failed');
+    return response.status === 204
+        ? (undefined as T)
+        : ((await response.json()) as T);
+}
+
+export function registerHostedDeviceEvents(
+    checkSender: (event: IpcMainInvokeEvent) => void,
+    status: () => HostedServerStatus,
+    enqueue: <T>(operation: () => Promise<T>) => Promise<T>
+): void {
+    ipcMain.handle(HOSTED_DEVICE_CONTROL, (event, command: unknown) => {
+        checkSender(event);
+        if (!command || typeof command !== 'object' || !('action' in command))
+            throw new Error('Invalid hosted device request');
+        return enqueue(async () => {
+            const current = status();
+            const code = getHostedServerAccessCode();
+            if (current.state !== 'running' || !code)
+                throw new Error('Hosted server is unavailable');
+
+            switch (command.action) {
+                case 'invite': {
+                    const endpoint = current.endpoint ?? current.lanUrl;
+                    if (!endpoint)
+                        throw new Error('Hosted sharing is unavailable');
+                    const cloudflare = current.mode === 'cloudflare';
+                    const instanceId = getHostedServerInstanceId();
+                    if (cloudflare && (current.publicRoute !== 'access-protected' || !instanceId))
+                        throw new Error('Cloudflare Access route is unavailable');
+                    const { inviteId, expiresAt } = await request<{
+                        inviteId: unknown;
+                        expiresAt: unknown;
+                    }>('/device-pairing/invite', code, {
+                        method: 'POST',
+                        ...(current.mode
+                            ? { body: JSON.stringify({ origin: endpoint }) }
+                            : {}),
+                    });
+                    if (
+                        typeof inviteId !== 'string' ||
+                        !pairingId.test(inviteId) ||
+                        typeof expiresAt !== 'string' ||
+                        !Number.isFinite(Date.parse(expiresAt))
+                    )
+                        throw new Error('Invalid hosted device invitation');
+                    const url = new URL(cloudflare ? '/connect-device.html' : '/pair-device', endpoint);
+                    url.hash = cloudflare
+                        ? new URLSearchParams({ 'iptvnator-access': instanceId!, invite: inviteId }).toString()
+                        : inviteId;
+                    return { url: url.href, expiresAt };
+                }
+                case 'list': {
+                    const invite = 'inviteId' in command ? command.inviteId : undefined;
+                    const query = current.mode === 'cloudflare' &&
+                        typeof invite === 'string' && pairingId.test(invite)
+                        ? '?invite=' + invite
+                        : '';
+                    const { pending, devices, inviteActive } =
+                        await request<HostedDeviceList>('/devices' + query, code);
+                    return {
+                        ...(typeof inviteActive === 'boolean' ? { inviteActive } : {}),
+                        pending: pending.map(
+                            ({
+                                claimId,
+                                inviteId,
+                                name,
+                                confirmationCode,
+                            }) => ({
+                                claimId,
+                                inviteId,
+                                name,
+                                confirmationCode,
+                            })
+                        ),
+                        devices: devices.map(({ id, name, canApprove }) => ({
+                            id,
+                            name,
+                            canApprove: canApprove === true,
+                        })),
+                    };
+                }
+                case 'approve': {
+                    if (
+                        !('claimId' in command) ||
+                        typeof command.claimId !== 'string' ||
+                        !pairingId.test(command.claimId)
+                    )
+                        throw new Error('Invalid hosted device claim');
+                    await request('/device-pairing/approve', code, {
+                        method: 'POST',
+                        body: JSON.stringify({ claimId: command.claimId }),
+                    });
+                    return;
+                }
+                case 'revoke':
+                case 'set-device-approval': {
+                    if (
+                        !('deviceId' in command) ||
+                        typeof command.deviceId !== 'string' ||
+                        !deviceId.test(command.deviceId)
+                    )
+                        throw new Error('Invalid hosted device ID');
+                    const path = `/devices/${command.deviceId}`;
+                    if (command.action === 'revoke') {
+                        await request(path, code, { method: 'DELETE' });
+                        return;
+                    }
+                    if (
+                        !('canApprove' in command) ||
+                        typeof command.canApprove !== 'boolean'
+                    )
+                        throw new Error(
+                            'Invalid hosted device approval setting'
+                        );
+                    await request(`${path}/approval`, code, {
+                        method: 'PUT',
+                        body: JSON.stringify({
+                            canApprove: command.canApprove,
+                        }),
+                    });
+                    return;
+                }
+                case 'browser-settings': {
+                    const { passwordConfigured } = await request<{
+                        passwordConfigured: unknown;
+                    }>('/device-pairing/browser-settings', code);
+                    if (typeof passwordConfigured !== 'boolean')
+                        throw new Error('Invalid hosted pairing settings');
+                    return { passwordConfigured };
+                }
+                case 'set-browser-password': {
+                    if (!current.httpsOrigin || current.mode === 'cloudflare')
+                        throw new Error('Hosted HTTPS access is unavailable');
+                    const password =
+                        'password' in command ? command.password : undefined;
+                    if (
+                        password !== null &&
+                        (typeof password !== 'string' ||
+                            password.length <
+                                HOSTED_PAIRING_PASSWORD_MIN_LENGTH ||
+                            password.length >
+                                HOSTED_PAIRING_PASSWORD_MAX_LENGTH)
+                    )
+                        throw new Error('Invalid hosted pairing password');
+                    await request('/device-pairing/browser-settings', code, {
+                        method: 'POST',
+                        body: JSON.stringify({ password }),
+                    });
+                    return;
+                }
+                default:
+                    throw new Error('Invalid hosted device request');
+            }
+        });
+    });
+}

@@ -63,7 +63,7 @@
 </div>
 @if (loading()) {
     <div class="all-items-progress" role="status">
-        <mat-spinner diameter="14" aria-hidden="true" />
+        <mat-spinner diameter="16" aria-hidden="true" />
         <span>{{ 'PORTALS.LOADING_ALL_CHANNELS' | translate }}</span>
         @if (progress(); as loadProgress) {
             <span class="all-items-progress__count"
@@ -130,8 +130,10 @@
                     (keyboardActivated)="channelActivated.emit(channel)"
                 />
             } @empty {
-                <app-playlist-error-view
-                    [title]="
+                <app-state-view
+                    [variant]="searchTerm() ? 'no-results' : 'empty'"
+                    [icon]="searchTerm() ? null : 'tv_off'"
+                    [heading]="
                         (searchTerm()
                             ? 'PORTALS.SEARCH_VIEW.NO_RESULTS_FOR'
                             : 'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE'
@@ -142,10 +144,6 @@
                             ? 'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS'
                             : 'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.DESCRIPTION'
                         ) | translate
-                    "
-                    [showActionButtons]="false"
-                    [viewType]="
-                        searchTerm() ? 'NO_SEARCH_RESULTS' : 'EMPTY_CATEGORY'
                     "
                 />
             }

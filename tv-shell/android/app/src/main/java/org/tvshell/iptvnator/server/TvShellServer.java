@@ -50,7 +50,7 @@ public final class TvShellServer extends NanoHTTPD {
             public byte[] read(String relativePath) throws IOException {
                 return readAsset(relativePath);
             }
-        }, "/api", prefs.layoutWidth());
+        }, "/api", prefs.useTvLayout(context) ? prefs.layoutWidth() : ShellSite.DEVICE_VIEWPORT);
         this.backend = new WebBackend(new AndroidHttpFetcher(), "/api");
         setAsyncRunner(new DefaultAsyncRunner() {
             @Override
@@ -103,6 +103,20 @@ public final class TvShellServer extends NanoHTTPD {
     /** Screen width in CSS px (Android dp), so index.html can pin the page scale. */
     public void setScreenWidth(int cssWidth) {
         site.setScreenWidth(cssWidth);
+    }
+
+    public android.webkit.WebResourceResponse bundledResource(String path) {
+        try {
+            ShellSite.Resource resource = site.serve(path);
+            return new android.webkit.WebResourceResponse(
+                resource.contentType.split(";", 2)[0], "UTF-8",
+                resource.status, resource.status == 200 ? "OK" : "Unavailable",
+                java.util.Collections.singletonMap("Cache-Control", resource.cacheControl),
+                new ByteArrayInputStream(resource.body));
+        } catch (IOException | RuntimeException e) {
+            return new android.webkit.WebResourceResponse("text/plain", "UTF-8", 404,
+                "Unavailable", java.util.Collections.emptyMap(), null);
+        }
     }
 
     private byte[] readAsset(String relativePath) throws IOException {

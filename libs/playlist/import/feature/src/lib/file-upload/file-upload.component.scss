@@ -72,14 +72,14 @@
     }
 
     &__title {
-        font-size: 15px;
+        font-size: var(--app-text-lg);
         font-weight: 600;
         color: var(--app-heading-color);
         letter-spacing: -0.005em;
     }
 
     &__subtitle {
-        font-size: 12.5px;
+        font-size: var(--app-text-sm);
         color: var(--app-muted-color);
         margin-bottom: 6px;
     }
@@ -90,7 +90,7 @@
         justify-content: center;
         padding: 8px 18px;
         border-radius: 9px;
-        font-size: 13px;
+        font-size: var(--app-text-sm);
         font-weight: 600;
         color: var(--app-heading-color);
         background: transparent;
@@ -148,7 +148,7 @@
     }
 
     &__name {
-        font-size: 14px;
+        font-size: var(--app-text-md);
         font-weight: 600;
         color: var(--app-heading-color);
         white-space: nowrap;
@@ -157,7 +157,7 @@
     }
 
     &__size {
-        font-size: 12px;
+        font-size: var(--app-text-xs);
         color: var(--app-muted-color);
     }
 

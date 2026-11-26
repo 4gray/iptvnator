@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TranslateModule } from '@ngx-translate/core';
 import { PortalEmptyStateComponent } from './portal-empty-state.component';
 
 describe('PortalEmptyStateComponent', () => {
@@ -6,7 +7,7 @@ describe('PortalEmptyStateComponent', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [PortalEmptyStateComponent],
+            imports: [PortalEmptyStateComponent, TranslateModule.forRoot()],
         }).compileComponents();
 
         fixture = TestBed.createComponent(PortalEmptyStateComponent);
@@ -17,14 +18,14 @@ describe('PortalEmptyStateComponent', () => {
     it('renders only the icon and message by default', () => {
         const host: HTMLElement = fixture.nativeElement;
 
-        expect(host.querySelector('.empty-state-icon')?.textContent).toBe(
-            'live_tv'
-        );
-        expect(host.querySelector('.empty-state-title')?.textContent).toBe(
+        expect(
+            host.querySelector('.app-state-view__icon mat-icon')?.textContent
+        ).toBe('live_tv');
+        expect(host.querySelector('.app-state-view__title')?.textContent).toBe(
             'Nothing here'
         );
-        expect(host.querySelector('.empty-state-hint')).toBeNull();
-        expect(host.querySelector('.empty-state-action')).toBeNull();
+        expect(host.querySelector('.app-state-view__description')).toBeNull();
+        expect(host.querySelector('button')).toBeNull();
     });
 
     it('renders the hint and a labelled action that emits on click', () => {
@@ -37,12 +38,12 @@ describe('PortalEmptyStateComponent', () => {
 
         const host: HTMLElement = fixture.nativeElement;
         const button = host.querySelector<HTMLButtonElement>(
-            'button.empty-state-action'
+            'button[data-state-action="action"]'
         );
 
-        expect(host.querySelector('.empty-state-hint')?.textContent).toBe(
-            'Try the button'
-        );
+        expect(
+            host.querySelector('.app-state-view__description')?.textContent
+        ).toBe('Try the button');
         expect(button?.textContent).toContain('Do it');
         expect(button?.querySelector('mat-icon')?.textContent).toBe(
             'chevron_right'

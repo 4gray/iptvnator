@@ -10,14 +10,14 @@
 
 .auto-import__privacy {
     margin: 0 0 12px;
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     color: var(--app-muted-color);
     line-height: 1.45;
 }
 
 .auto-import__empty {
     margin: 0 0 8px;
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     color: var(--app-muted-color);
 }
 
@@ -50,7 +50,7 @@
 }
 
 .auto-import__confidence {
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     border-radius: 999px;
     padding: 2px 8px;
     border: 1px solid var(--app-widget-header-border);
@@ -79,7 +79,7 @@
     display: flex;
     gap: 10px;
     min-width: 0;
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
 
     dt {
         flex: 0 0 130px;
@@ -97,6 +97,6 @@
 
 .auto-import__candidate-note {
     margin: 8px 0 0;
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     color: var(--app-muted-color);
 }

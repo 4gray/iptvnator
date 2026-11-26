@@ -1,4 +1,5 @@
 @use '@angular/material' as mat;
+@use '../../../../styles/app-controls' as controls;
 
 :host {
     display: contents;
@@ -19,7 +20,7 @@
         ),
         rgba(8, 10, 16, 0.68);
     backdrop-filter: blur(14px);
-    z-index: 1000;
+    z-index: var(--app-z-overlay);
 }
 
 .workspace-loading-overlay__card {
@@ -90,7 +91,7 @@
     border: 1px solid var(--app-separator);
     background: var(--app-hover-overlay);
     color: var(--sync-secondary);
-    font-size: 0.72rem;
+    font-size: var(--app-text-xs);
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -131,20 +132,9 @@
 }
 
 .workspace-loading-overlay__action {
-    @include mat.button-overrides(
-        (
-            outlined-label-text-color: var(--sync-accent),
-            outlined-label-text-weight: 600,
-            outlined-outline-color: var(--sync-secondary),
-            outlined-state-layer-color: var(--app-on-surface),
-            outlined-disabled-label-text-color: var(--sync-secondary),
-            outlined-disabled-outline-color: var(--app-separator),
-        )
-    );
-
     justify-self: center;
     min-width: 180px;
-    border-radius: 999px;
+    @include controls.secondary-button(md);
 }
 
 :host ::ng-deep .workspace-loading-overlay__card .mat-mdc-progress-bar {

@@ -21,7 +21,7 @@
         var(--app-content-bg, #161a22);
     color: var(--app-heading-color, #d8dce8);
     font-family: inherit;
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     font-weight: 500;
     line-height: 1.4;
     white-space: nowrap;

@@ -5,7 +5,7 @@
         display: inline-flex;
         flex-direction: column;
         align-items: flex-start;
-        gap: 2px;
+        gap: var(--app-space-0-5);
         min-width: 0;
         line-height: 1.1;
         text-align: left;
@@ -22,7 +22,7 @@
         max-width: min(42vw, 360px);
         overflow: hidden;
         color: $meta-color;
-        font-size: 0.78rem;
+        font-size: var(--app-text-xs);
         font-weight: 500;
         line-height: 1.2;
         opacity: 0.72;
@@ -38,15 +38,15 @@
 @mixin secondary-action-button {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--app-space-2);
     min-height: 64px;
-    padding: 0 24px;
+    padding: 0 var(--app-space-6);
     font-size: 1rem;
     font-weight: 600;
     background: color-mix(in srgb, var(--app-on-surface) 6%, transparent);
     color: var(--text-primary, #fff);
     border: 1px solid color-mix(in srgb, var(--app-on-surface) 14%, transparent);
-    border-radius: 16px;
+    border-radius: var(--app-radius-3xl);
     cursor: pointer;
     transition: all 0.2s ease;
 
@@ -160,7 +160,7 @@
     background: var(--tag-bg, rgba(255, 255, 255, 0.08));
     color: var(--text-secondary, rgba(255, 255, 255, 0.7));
     border: 1px solid var(--tag-border, rgba(255, 255, 255, 0.12));
-    border-radius: 16px;
+    border-radius: var(--app-radius-3xl);
     cursor: pointer;
     transition:
         background 0.2s ease,
@@ -286,7 +286,7 @@
         flex: 1;
         justify-content: center;
         min-height: 58px;
-        padding: 10px 16px;
+        padding: var(--app-space-2-5) var(--app-space-4);
     }
 
     .play-btn__meta {
@@ -301,7 +301,7 @@
         flex: 1;
         justify-content: center;
         min-height: 58px;
-        padding: 10px 16px;
+        padding: var(--app-space-2-5) var(--app-space-4);
     }
 
     ::ng-deep .play-btn__meta {
@@ -318,15 +318,15 @@
 @mixin light-primary-button {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--app-space-2-5);
     box-sizing: border-box;
-    padding: 0 20px 0 16px;
+    padding: 0 var(--app-space-5) 0 var(--app-space-4);
     border: 0;
-    border-radius: 10px;
+    border-radius: var(--app-radius-lg);
     background: var(--app-cta-bg, #f2f4f8);
     color: var(--app-cta-fg, #0a0e14);
     font-family: inherit;
-    font-size: 13.5px;
+    font-size: var(--app-text-md);
     font-weight: 600;
     line-height: 1.15;
     white-space: nowrap;
@@ -394,12 +394,12 @@
 
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--app-space-2);
     box-sizing: border-box;
     padding: 0 18px;
-    border-radius: 10px;
+    border-radius: var(--app-radius-lg);
     font-family: inherit;
-    font-size: 13.5px;
+    font-size: var(--app-text-md);
     font-weight: 600;
     line-height: 1;
     white-space: nowrap;

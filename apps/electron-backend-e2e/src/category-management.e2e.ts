@@ -132,9 +132,15 @@ test.describe('Electron Xtream Category Management', () => {
                     await applyTheme(app.mainWindow, theme);
                     const bulk = dialog.locator('.bulk-actions button');
                     await expect(bulk.first()).toHaveCSS('height', '32px');
-                    await expect(bulk.first()).toHaveCSS('font-size', '12.5px');
-                    await expect(bulk.last()).toHaveCSS('border-top-left-radius', '8px');
-                    await expect(bulk.last()).toHaveCSS('border-top-style', 'none');
+                    await expect(bulk.first()).toHaveCSS('font-size', '13px');
+                    await expect(bulk.last()).toHaveCSS(
+                        'border-top-left-radius',
+                        '8px'
+                    );
+                    await expect(bulk.last()).toHaveCSS(
+                        'border-top-style',
+                        'none'
+                    );
                 }
                 const rows = dialog.locator('.category-item');
                 const names = (
@@ -181,9 +187,9 @@ test.describe('Electron Xtream Category Management', () => {
                 await search().fill('no matching mock category');
                 await expect(select()).toBeDisabled();
                 await expect(deselect()).toBeDisabled();
-                await expect(dialog.locator('.empty-message')).toHaveText(
-                    'No matching categories found'
-                );
+                await expect(
+                    dialog.locator('.empty-message .app-state-view__title')
+                ).toHaveText('No matching categories found');
                 await search().fill('');
                 await expect(checkbox(outside[0])).not.toBeChecked();
                 await expect(checkbox(outside[1])).toBeChecked();
@@ -567,7 +573,9 @@ async function refreshFromWorkspaceHeader(page: Page): Promise<void> {
         .getByRole('button', { name: 'Refresh playlist', exact: true })
         .click();
 
-    const refreshOverlay = page.locator('app-workspace-shell-import-overlay .workspace-loading-overlay');
+    const refreshOverlay = page.locator(
+        'app-workspace-shell-import-overlay .workspace-loading-overlay'
+    );
     await expect(refreshOverlay).toBeVisible({ timeout: 5000 });
     await expect(
         refreshOverlay.getByRole('heading', {

@@ -151,7 +151,6 @@ describe('database schema statements', () => {
         columnMigrationStatements,
         indexMigrationStatements,
         normalizeXtreamContentAddedEpochs,
-        ensureContentTitleFts,
     } = __databaseConnectionTestHooks;
     const ensureDownloadsPauseResumeSchema = (
         __databaseConnectionTestHooks as unknown as {
@@ -417,58 +416,6 @@ describe('database schema statements', () => {
         expect(transaction).not.toHaveBeenCalled();
     });
 
-    it('rebuilds the content title FTS index once for existing content', () => {
-        const selectGet = jest.fn().mockReturnValue(undefined);
-        const rebuildRun = jest.fn();
-        const stateRun = jest.fn();
-        const prepare = jest.fn((statement: string) => {
-            if (statement.includes('SELECT value FROM app_state')) {
-                return { get: selectGet };
-            }
-            if (statement.includes('content_title_fts')) {
-                return { run: rebuildRun };
-            }
-            if (statement.includes('INSERT INTO app_state')) {
-                return { run: stateRun };
-            }
-
-            throw new Error(`Unexpected statement: ${compactSql(statement)}`);
-        });
-        const transaction = jest.fn((callback: () => void) => callback);
-        const sqlite = {
-            prepare,
-            transaction,
-        } as unknown as Parameters<typeof ensureContentTitleFts>[0];
-
-        ensureContentTitleFts(sqlite);
-
-        expect(transaction).toHaveBeenCalledTimes(1);
-        expect(rebuildRun).toHaveBeenCalledTimes(1);
-        expect(stateRun).toHaveBeenCalledWith(
-            'migration:content-title-fts-trigram:v1'
-        );
-    });
-
-    it('skips content title FTS rebuild after it has run', () => {
-        const selectGet = jest.fn().mockReturnValue({ value: 'done' });
-        const prepare = jest.fn((statement: string) => {
-            if (statement.includes('SELECT value FROM app_state')) {
-                return { get: selectGet };
-            }
-
-            throw new Error(`Unexpected statement: ${compactSql(statement)}`);
-        });
-        const transaction = jest.fn((callback: () => void) => callback);
-        const sqlite = {
-            prepare,
-            transaction,
-        } as unknown as Parameters<typeof ensureContentTitleFts>[0];
-
-        ensureContentTitleFts(sqlite);
-
-        expect(transaction).not.toHaveBeenCalled();
-    });
-
     it('backfills the content title FTS index before content-mutating migrations', () => {
         const callOrder: string[] = [];
         const runMigrations = (
@@ -496,6 +443,10 @@ describe('database schema statements', () => {
                             return undefined;
                         },
                     };
+                }
+                // A catalog small enough to rebuild during startup.
+                if (statement.includes('SELECT COUNT(*) AS n FROM')) {
+                    return { get: () => ({ n: 0 }) };
                 }
                 if (
                     statement.includes(

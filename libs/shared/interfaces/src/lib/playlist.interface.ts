@@ -1,3 +1,4 @@
+import type { HiddenStalkerCategories } from './stalker-category-visibility';
 import { PlaylistRecentlyViewedItem } from './playlist-recently-viewed.interface';
 import { StalkerPortalItem } from './stalker-portal-item.interface';
 
@@ -117,6 +118,8 @@ export interface Playlist {
         tariffPlanName?: string;
         status?: number;
     };
+    /** Hidden provider genre/category IDs, independently scoped to each Stalker section. */
+    hiddenStalkerCategories?: HiddenStalkerCategories;
     /** Hidden M3U group titles for the groups view */
     hiddenGroupTitles?: string[];
 }

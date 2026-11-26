@@ -1,6 +1,4 @@
-import type { ParentalLockService } from '@iptvnator/services';
 import {
-    ALL_CATEGORIES_WITHHELD,
     createPortalRequestError,
     type PlaylistMeta,
     readPortalRequestFailure,
@@ -92,17 +90,4 @@ export async function loadStalkerSearchPage(
     throw new Error('Malformed Stalker search response');
 }
 
-/** Search must apply the parental lock for the catalog each row came from. */
-export function resolveSearchWithheldCategoryIds(
-    parentalLock: ParentalLockService,
-    playlistId: string,
-    contentType: StalkerSearchContentType
-): ReadonlySet<string> {
-    if (!parentalLock.active()) {
-        return new Set();
-    }
-    if (parentalLock.withholdsEverything?.()) {
-        return ALL_CATEGORIES_WITHHELD;
-    }
-    return new Set(parentalLock.lockedStalkerIds(playlistId, contentType));
-}
+export { resolveStalkerWithheldCategoryIds as resolveSearchWithheldCategoryIds } from './stores/utils/stalker-parental-lock.utils';

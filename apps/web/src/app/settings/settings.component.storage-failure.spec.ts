@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { of } from 'rxjs';
 import { EpgSourceReconciliationError } from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
@@ -10,14 +10,24 @@ import {
     configureSettingsComponentTestBed,
     createElectronStub,
     createEpgBridgeStub,
-    MatSnackBarStub,
+    LazySnackBarStub,
     MockSettingsStore,
     stubSettingsSideEffects,
 } from './test-stubs/settings-test-harness.stub';
 
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
+
 /** Matches the snackbar config used by `SettingsSnackbarService.error`. */
 const ERROR_SNACKBAR_CONFIG = expect.objectContaining({
-    panelClass: ['settings-snackbar', 'settings-snackbar--error'],
+    politeness: 'assertive',
+    panelClass: [
+        'app-notification',
+        'app-notification--error',
+        'app-notification--above-save-bar',
+    ],
 });
 
 /**
@@ -30,7 +40,7 @@ describe('SettingsComponent storage failures', () => {
     let component: SettingsComponent;
     let fixture: ComponentFixture<SettingsComponent>;
     let settingsStore: MockSettingsStore;
-    let snackBar: MatSnackBarStub;
+    let snackBar: LazySnackBarStub;
     let epgBridge: Partial<EpgRuntimeBridgeService>;
     const originalElectron = window.electron;
 
@@ -46,7 +56,7 @@ describe('SettingsComponent storage failures', () => {
         settingsStore = TestBed.inject(
             SettingsStore
         ) as unknown as MockSettingsStore;
-        snackBar = TestBed.inject(MatSnackBar) as unknown as MatSnackBarStub;
+        snackBar = TestBed.inject(LazySnackBar) as unknown as LazySnackBarStub;
 
         component = fixture.componentInstance;
         stubSettingsSideEffects(component);
@@ -93,7 +103,6 @@ describe('SettingsComponent storage failures', () => {
     });
 
     it('marks the form pristine only after the settings write succeeded', async () => {
-        settingsStore.updateSettings.mockResolvedValue(undefined);
         const save = jest.spyOn(component.form, 'save');
         jest.spyOn(component.epg, 'fetchConfiguredEpg').mockImplementation();
         component.settingsForm.markAsDirty();
@@ -116,8 +125,8 @@ describe('SettingsComponent storage failures', () => {
 
         expect(snackBar.open).toHaveBeenCalledWith(
             'SETTINGS.SETTINGS_RUNTIME_UPDATE_FAILED',
-            undefined,
-            expect.any(Object)
+            'CLOSE',
+            ERROR_TOAST
         );
         expect(snackBar.open).not.toHaveBeenCalledWith(
             'SETTINGS.SETTINGS_SAVE_FAILED',
@@ -147,8 +156,8 @@ describe('SettingsComponent storage failures', () => {
         );
         expect(snackBar.open).toHaveBeenCalledWith(
             'SETTINGS.SETTINGS_RUNTIME_UPDATE_FAILED',
-            undefined,
-            expect.any(Object)
+            'CLOSE',
+            ERROR_TOAST
         );
         expect(component.settingsForm.dirty).toBe(true);
     });
@@ -210,9 +219,9 @@ describe('SettingsComponent storage failures', () => {
             mpvPlayerPath: '/saved/mpv',
             vlcPlayerPath: '/saved/vlc',
         });
-        settingsStore.updateSettings
-            .mockRejectedValueOnce(new EpgSourceReconciliationError())
-            .mockResolvedValue(undefined);
+        settingsStore.applyNextUpdateThen(() =>
+            Promise.reject(new EpgSourceReconciliationError())
+        );
         component.onSubmit();
         await fixture.whenStable();
         expect(component.form.epgUrl.dirty).toBe(true);
@@ -230,14 +239,16 @@ describe('SettingsComponent storage failures', () => {
         expect(window.electron.setVlcPlayerPath).toHaveBeenCalledWith(
             '/saved/vlc'
         );
+        // The list equals the saved one, so it is not rewritten; the dirty
+        // array still asks the store to retry the source cleanup.
         expect(settingsStore.updateSettings).toHaveBeenLastCalledWith(
-            expect.objectContaining({ epgUrl: [] }),
+            expect.not.objectContaining({ epgUrl: expect.anything() }),
             { retryEpgCleanup: true }
         );
         expect(snackBar.open).toHaveBeenCalledWith(
             'SETTINGS.EPG_DATA_CLEAR_FAILED',
-            undefined,
-            expect.any(Object)
+            'CLOSE',
+            ERROR_TOAST
         );
         component.onSubmit();
         await save.mock.results[1].value;

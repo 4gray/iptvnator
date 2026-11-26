@@ -1,4 +1,8 @@
 export const SOURCE_SYNC_CAPABILITY = 'sources-v1';
+// The hosted pairing page selects the same browser profile as the web player.
+export const SOURCE_SERVER_CONNECTION_KEY = 'iptvnator:source-server';
+export const SOURCE_SERVER_DISABLED_KEY = 'iptvnator:source-server-disabled';
+export const HOSTED_BROWSER_TOKEN_PREFIX = 'iptvnator:paired-browser:';
 
 export interface SourceDefinition {
     id: string;
@@ -96,7 +100,14 @@ export interface SourceServerRequest {
         | 'favorites-list'
         | 'favorites-read'
         | 'favorites-apply'
-        | 'tmdb-transfer';
+        | 'tmdb-transfer'
+        | 'profiles-list'
+        | 'profiles-set-enabled'
+        | 'profiles-order'
+        | 'profile-create'
+        | 'profile-update'
+        | 'profile-delete'
+        | 'profile-unlock';
     tmdbTransfer?: {
         connection: SourceServerConnection;
         request: TmdbTransferRequest;
@@ -114,6 +125,13 @@ export interface SourceServerRequest {
         address: import('./activity-sync/activity-sync.contract').ActivityAddress;
         operation?: import('./activity-sync/activity-sync.contract').ActivityOperation;
     };
+    profile?:
+        | import('./profiles/profiles.contract').UpdateServerProfilesRequest
+        | import('./profiles/profiles.contract').ReorderServerProfilesRequest
+        | import('./profiles/profiles.contract').CreateServerProfileRequest
+        | import('./profiles/profiles.contract').UpdateServerProfileRequest
+        | import('./profiles/profiles.contract').DeleteServerProfileRequest
+        | import('./profiles/profiles.contract').UnlockServerProfileRequest;
     id?: string;
     source?: SourceDefinition;
     revision?: string;
@@ -122,5 +140,11 @@ export interface SourceServerRequest {
 export interface SourceServerResponse {
     status: number;
     etag?: string;
+    /**
+     * Whole seconds parsed from a `Retry-After` delta-seconds header
+     * (`pin_locked`, `pin_rate_limited`); absent when it is missing or not a
+     * non-negative integer.
+     */
+    retryAfter?: number;
     body?: unknown;
 }

@@ -61,7 +61,8 @@ import {
     buildWatchedEpisodePosition,
     resolveEpisodeInfo,
 } from './season-watch-toggle.util';
-import { dialogSize } from '../dialog-shell/dialog-size';
+import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
+import { StateViewComponent } from '@iptvnator/ui/state';
 
 const EPISODE_VIEW_MODE_KEY = 'iptvnator_episode_view_mode';
 
@@ -85,6 +86,7 @@ export function readSavedEpisodeViewMode(): EpisodeViewMode {
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [SeasonDownloadPresenter, SeasonWatchPresenter],
     imports: [
+        StateViewComponent,
         DetailSectionHeaderComponent,
         EpisodeItemComponent,
         EpisodeSkeletonComponent,

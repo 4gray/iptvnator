@@ -356,12 +356,20 @@ describe('PlaybackDiagnosticPanelComponent', () => {
             '--playback-diagnostic-source-hover': '#252d3b',
             '--playback-diagnostic-source-selected': '#243b5c',
             '--playback-diagnostic-source-border': '#657086',
-            '--playback-diagnostic-source-ok-foreground': '#4ade80',
+            '--playback-diagnostic-source-ok-foreground':
+                'var(--app-status-success)',
             '--playback-diagnostic-source-ok-surface': '#173928',
-            '--playback-diagnostic-source-warn-foreground': '#ffcf99',
+            '--playback-diagnostic-source-warn-foreground':
+                'var(--app-status-warning)',
             '--playback-diagnostic-source-warn-surface': '#422e1d',
-            '--playback-diagnostic-source-bad-foreground': '#ff9aa6',
+            '--playback-diagnostic-source-bad-foreground':
+                'var(--app-status-danger)',
             '--playback-diagnostic-source-bad-surface': '#451f27',
+            // The always-dark overlay declares the dark status hues itself,
+            // so a light app theme cannot leak its darker hues in.
+            '--app-status-success': '#4ade80',
+            '--app-status-warning': '#fbbf24',
+            '--app-status-danger': '#ff8d9b',
         };
 
         expect(alternatives.classList).toContain('dark-theme');
@@ -413,10 +421,14 @@ describe('PlaybackDiagnosticPanelComponent', () => {
         expect(
             contrastRatio(color('--playback-diagnostic-source-border'), surface)
         ).toBeGreaterThanOrEqual(3);
-        for (const tone of ['ok', 'warn', 'bad']) {
+        for (const [tone, status] of [
+            ['ok', 'success'],
+            ['warn', 'warning'],
+            ['bad', 'danger'],
+        ]) {
             expect(
                 contrastRatio(
-                    color(`--playback-diagnostic-source-${tone}-foreground`),
+                    color(`--app-status-${status}`),
                     color(`--playback-diagnostic-source-${tone}-surface`)
                 )
             ).toBeGreaterThanOrEqual(4.5);

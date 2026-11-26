@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { provideRouter, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
@@ -18,6 +18,11 @@ import {
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { ConfirmDialogData, DialogService } from '@iptvnator/ui/components';
 import { PlaylistErrorViewComponent } from './playlist-error-view.component';
+
+const SUCCESS_TOAST = expect.objectContaining({
+    politeness: 'polite',
+    panelClass: expect.arrayContaining(['app-notification--success']),
+});
 
 const XTREAM_PLAYLIST = {
     _id: 'xtream-1',
@@ -49,7 +54,7 @@ describe('PlaylistErrorViewComponent removal', () => {
         };
         dialogService = { openConfirmDialog: jest.fn() };
         store = { dispatch: jest.fn() };
-        snackBar = { open: jest.fn() };
+        snackBar = { open: jest.fn().mockResolvedValue(null) };
 
         TestBed.configureTestingModule({
             imports: [PlaylistErrorViewComponent, TranslateModule.forRoot()],
@@ -69,7 +74,7 @@ describe('PlaylistErrorViewComponent removal', () => {
                 },
                 { provide: DialogService, useValue: dialogService },
                 { provide: MatDialog, useValue: { open: jest.fn() } },
-                { provide: MatSnackBar, useValue: snackBar },
+                { provide: LazySnackBar, useValue: snackBar },
                 { provide: Store, useValue: store },
                 provideRouter([]),
             ],
@@ -110,6 +115,9 @@ describe('PlaylistErrorViewComponent removal', () => {
         expect(dialogService.openConfirmDialog).toHaveBeenCalledWith(
             expect.objectContaining({
                 confirmLabel: 'HOME.PLAYLISTS.REMOVE',
+                subtitle: expect.stringMatching(
+                    /^Portal · DIALOGS\.SOURCE_KIND\./
+                ),
                 tone: 'destructive',
             })
         );
@@ -137,7 +145,7 @@ describe('PlaylistErrorViewComponent removal', () => {
         expect(snackBar.open).toHaveBeenCalledWith(
             'HOME.PLAYLISTS.REMOVE_DIALOG.SUCCESS',
             undefined,
-            { duration: 2000 }
+            SUCCESS_TOAST
         );
         expect(navigate).toHaveBeenCalledWith(['/']);
     });

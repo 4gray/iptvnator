@@ -1,127 +1,176 @@
-@switch (type()) {
-    @case ('welcome-dashboard') {
-        <div class="empty-state welcome-dashboard">
-            <div class="welcome-dashboard__hero">
-                <div class="welcome-dashboard__illustration-container">
-                    <svg class="welcome-dashboard__illustration" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="40" y="40" width="432" height="432" rx="80" class="icon-background"/>
-                        <rect x="134" y="387" width="244" height="18" rx="4" class="monitor-base"/>
-                        <rect x="238" y="347" width="36" height="40" rx="4" class="monitor-stand"/>
-                        <rect x="88" y="102" width="336" height="245" rx="12" stroke="currentColor" stroke-width="12" fill="none" class="screen-border"/>
-                        <circle cx="256" cy="280" r="16" class="wifi-dot"/>
-                        <path d="M 220 250 Q 256 220, 292 250" stroke="currentColor" stroke-width="14" fill="none" stroke-linecap="round" class="wifi-arc arc-1"/>
-                        <path d="M 200 230 Q 256 185, 312 230" stroke="currentColor" stroke-width="14" fill="none" stroke-linecap="round" class="wifi-arc arc-2"/>
-                        <path d="M 180 210 Q 256 150, 332 210" stroke="currentColor" stroke-width="14" fill="none" stroke-linecap="round" class="wifi-arc arc-3"/>
-                    </svg>
-                </div>
+<div
+    class="welcome"
+    [class.welcome-dashboard]="type() === 'welcome-dashboard'"
+    [class.welcome-sources]="type() === 'welcome-sources'"
+>
+    <app-state-view
+        class="welcome__state"
+        [heading]="
+            (type() === 'welcome-dashboard'
+                ? 'HOME.PLAYLISTS.WELCOME_TITLE'
+                : 'HOME.PLAYLISTS.SOURCES_WELCOME_TITLE'
+            ) | translate
+        "
+        [description]="
+            type() === 'welcome-dashboard'
+                ? ('HOME.PLAYLISTS.DASHBOARD_WELCOME_TAGLINE' | translate) +
+                  ' ' +
+                  ('HOME.PLAYLISTS.DASHBOARD_WELCOME_DESCRIPTION' | translate)
+                : ('HOME.PLAYLISTS.SOURCES_WELCOME_BODY' | translate)
+        "
+        [headingLevel]="2"
+        [actionLabel]="'WORKSPACE.SOURCES.ADD_SOURCE' | translate"
+        actionIcon="add"
+        (action)="onAddPlaylist()"
+    >
+        <svg
+            appStateIcon
+            class="welcome__glyph"
+            viewBox="0 0 512 512"
+            aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+        >
+            <rect
+                x="40"
+                y="40"
+                width="432"
+                height="432"
+                rx="96"
+                class="welcome__glyph-tile"
+            />
+            <rect
+                x="134"
+                y="387"
+                width="244"
+                height="18"
+                rx="4"
+                class="welcome__glyph-ink"
+            />
+            <rect
+                x="238"
+                y="347"
+                width="36"
+                height="40"
+                rx="4"
+                class="welcome__glyph-ink"
+            />
+            <rect
+                x="88"
+                y="102"
+                width="336"
+                height="245"
+                rx="12"
+                stroke-width="14"
+                fill="none"
+                class="welcome__glyph-line"
+            />
+            <circle cx="256" cy="280" r="16" class="welcome__glyph-ink" />
+            <path
+                d="M 220 250 Q 256 220, 292 250"
+                stroke-width="14"
+                fill="none"
+                stroke-linecap="round"
+                class="welcome__glyph-line"
+            />
+            <path
+                d="M 200 230 Q 256 185, 312 230"
+                stroke-width="14"
+                fill="none"
+                stroke-linecap="round"
+                class="welcome__glyph-line"
+            />
+            <path
+                d="M 180 210 Q 256 150, 332 210"
+                stroke-width="14"
+                fill="none"
+                stroke-linecap="round"
+                class="welcome__glyph-line"
+            />
+        </svg>
 
-                <h2 class="welcome-dashboard__title">{{ 'HOME.PLAYLISTS.WELCOME_TITLE' | translate }}</h2>
-                <p class="welcome-dashboard__tagline">{{ 'HOME.PLAYLISTS.DASHBOARD_WELCOME_TAGLINE' | translate }}</p>
-                <p class="welcome-dashboard__description">{{ 'HOME.PLAYLISTS.DASHBOARD_WELCOME_DESCRIPTION' | translate }}</p>
+        @if (type() === 'welcome-dashboard') {
+            <ul class="welcome__links" role="list">
+                @for (card of sourceCards; track card.type) {
+                    <li>
+                        <button
+                            mat-button
+                            type="button"
+                            class="welcome__link"
+                            (click)="onAddPlaylist(card.type)"
+                        >
+                            <mat-icon aria-hidden="true">{{
+                                card.icon
+                            }}</mat-icon>
+                            {{ card.linkKey | translate }}
+                        </button>
+                    </li>
+                }
+            </ul>
 
-                <button
-                    mat-raised-button
-                    type="button"
-                    class="welcome-dashboard__cta"
-                    (click)="onAddPlaylist()"
-                >
-                    <mat-icon>add_circle</mat-icon>
-                    {{ 'HOME.PLAYLISTS.ADD_YOUR_FIRST' | translate }}
-                </button>
-            </div>
-
-            <ul class="welcome-dashboard__cards" role="list">
+            <ul
+                class="welcome__features"
+                role="list"
+                [attr.aria-label]="
+                    'HOME.PLAYLISTS.VALUE_PROPS_LABEL' | translate
+                "
+            >
                 @for (card of featureCards; track card.titleKey) {
                     @if (isFeatureCardVisible(card)) {
-                        <li class="feature-card">
-                            <div class="feature-card__icon-wrap">
-                                <mat-icon class="feature-card__icon">{{ card.icon }}</mat-icon>
-                            </div>
-                            <h3 class="feature-card__title">{{ card.titleKey | translate }}</h3>
-                            <p class="feature-card__desc">{{ card.descKey | translate }}</p>
+                        <li class="welcome__feature feature-card">
+                            <mat-icon
+                                class="welcome__feature-icon"
+                                aria-hidden="true"
+                                >{{ card.icon }}</mat-icon
+                            >
+                            <span
+                                class="welcome__feature-title feature-card__title"
+                                >{{ card.titleKey | translate }}</span
+                            >
+                            <span
+                                class="welcome__feature-desc feature-card__desc"
+                                >{{ card.descKey | translate }}</span
+                            >
                         </li>
                     }
                 }
             </ul>
-        </div>
-    }
-    @case ('welcome-sources') {
-        <div class="empty-state welcome-sources">
-            <header class="welcome-sources__header">
-                <div class="welcome-sources__icon-wrap">
-                    <mat-icon class="welcome-sources__icon">playlist_add</mat-icon>
-                </div>
-                <h2 class="welcome-sources__title">{{ 'HOME.PLAYLISTS.SOURCES_WELCOME_TITLE' | translate }}</h2>
-                <p class="welcome-sources__body">{{ 'HOME.PLAYLISTS.SOURCES_WELCOME_BODY' | translate }}</p>
-            </header>
-
-            <div class="welcome-sources__grid">
+        } @else {
+            <ul class="welcome__sources" role="list">
                 @for (card of sourceCards; track card.type) {
-                    <article class="source-card">
-                        <div class="source-card__head">
-                            <mat-icon class="source-card__icon">{{ card.icon }}</mat-icon>
-                            <h3 class="source-card__name">{{ card.nameKey | translate }}</h3>
+                    <li class="welcome__source source-card">
+                        <mat-icon
+                            class="welcome__source-icon"
+                            aria-hidden="true"
+                            >{{ card.icon }}</mat-icon
+                        >
+                        <div class="welcome__source-copy">
+                            <h3 class="welcome__source-name source-card__name">
+                                {{ card.nameKey | translate }}
+                            </h3>
+                            <p class="welcome__source-needs source-card__needs">
+                                {{ card.needsKey | translate }}
+                            </p>
+                            <ul class="welcome__source-content" role="list">
+                                @for (chip of card.contentKeys; track chip) {
+                                    <li
+                                        class="welcome__source-chip source-card__chip"
+                                    >
+                                        {{ chip | translate }}
+                                    </li>
+                                }
+                            </ul>
                         </div>
-                        <p class="source-card__needs">{{ card.needsKey | translate }}</p>
-                        <ul class="source-card__chips" role="list">
-                            @for (chip of card.contentKeys; track chip) {
-                                <li class="source-card__chip">{{ chip | translate }}</li>
-                            }
-                        </ul>
                         <button
-                            mat-raised-button
+                            mat-flat-button
                             type="button"
-                            class="source-card__cta"
+                            class="welcome__source-add source-card__cta"
                             (click)="onAddPlaylist(card.type)"
                         >
-                            <mat-icon>add</mat-icon>
                             {{ card.addLabelKey | translate }}
                         </button>
-                    </article>
+                    </li>
                 }
-            </div>
-        </div>
-    }
-    @case ('no-data') {
-        <div class="empty-state no-data-state">
-            <div class="empty-icon-container">
-                <mat-icon class="empty-icon">{{ icon() }}</mat-icon>
-            </div>
-
-            <div class="content">
-                @if (titleKey()) {
-                    <h3 class="title small">{{ titleKey() | translate: titleParams() }}</h3>
-                }
-                @if (descriptionKey()) {
-                    <p class="description">{{ descriptionKey() | translate }}</p>
-                }
-
-                @if (primaryActionLabelKey() || secondaryActionLabelKey()) {
-                    <div class="actions">
-                        @if (primaryActionLabelKey(); as primaryLabel) {
-                            <button
-                                mat-raised-button
-                                type="button"
-                                class="primary-button"
-                                (click)="onPrimaryAction()"
-                            >
-                                <mat-icon>add_circle</mat-icon>
-                                {{ primaryLabel | translate }}
-                            </button>
-                        }
-                        @if (secondaryActionLabelKey(); as secondaryLabel) {
-                            <button
-                                mat-button
-                                type="button"
-                                class="secondary-button"
-                                (click)="onSecondaryAction()"
-                            >
-                                {{ secondaryLabel | translate }}
-                            </button>
-                        }
-                    </div>
-                }
-            </div>
-        </div>
-    }
-}
+            </ul>
+        }
+    </app-state-view>
+</div>

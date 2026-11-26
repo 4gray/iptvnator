@@ -124,6 +124,8 @@ playback attempt before offering an external player. It records a web failure
 by attempt, including network and browser access errors reported by the engine,
 and failures where the media element has only a blob URL. It uses the URL from
 Media3 for the offer.
+Android playback attempts and native launch requests use `createRandomId()`
+so they also work on plain HTTP home-network hosts.
 Turning Media3 off rechecks the current attempt for a deferred format or decode
 error and uses the web player's URL for the standalone offer.
 Delayed native media errors retain the media element, source and load-attempt

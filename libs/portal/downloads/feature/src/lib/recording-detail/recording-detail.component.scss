@@ -22,7 +22,7 @@
 
 .recording-detail__path {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     opacity: 0.75;
     word-break: break-all;
 }
@@ -73,20 +73,20 @@
 
     time {
         color: var(--mat-sys-on-surface-variant);
-        font-size: 0.82rem;
+        font-size: var(--app-text-sm);
         font-variant-numeric: tabular-nums;
     }
 }
 
 .recording-detail__program-title {
-    font-size: 0.9rem;
+    font-size: var(--app-text-md);
     font-weight: 600;
 }
 
 .recording-detail__program-desc {
     margin-top: 2px;
     color: var(--mat-sys-on-surface-variant);
-    font-size: 0.8rem;
+    font-size: var(--app-text-sm);
 }
 
 button[mat-flat-button] {

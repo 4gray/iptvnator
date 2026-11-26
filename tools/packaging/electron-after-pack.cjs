@@ -10,6 +10,7 @@ const {
 } = require('./linux-frame-copy-profile.cjs');
 const fs = require('fs');
 const path = require('path');
+const { bundleCloudflared } = require('./cloudflared-bundle.cjs');
 const {
     preparePackagedFrameCopyArtifacts,
 } = require('./embedded-mpv-frame-copy-files.cjs');
@@ -263,6 +264,15 @@ async function afterPackHook(params) {
     }
 
     log(`embedded MPV ${params.electronPlatformName} runtime validated`);
+
+    if (isTruthy(process.env.IPTVNATOR_BUNDLE_CLOUDFLARED)) {
+        await bundleCloudflared(
+            resourceDir,
+            params.electronPlatformName,
+            resolveElectronBuilderArchName(params.arch)
+        );
+        log('bundled pinned cloudflared connector');
+    }
 }
 
 function getResourceDir(params) {

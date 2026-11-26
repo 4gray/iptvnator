@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { MatSnackBar, MatSnackBarRef } from '@angular/material/snack-bar';
+import type { MatSnackBarRef } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
@@ -35,8 +36,10 @@ export interface SourceRemovalOptions {
 
 interface PendingRemoval {
     playlist: PlaylistMeta;
-    /** Its Undo toast, set once opened. */
+    /** Its Undo toast, set once created. */
     snackBar?: MatSnackBarRef<SourceRemovalToastComponent>;
+    /** The Undo toast reached the screen (its enter animation finished). */
+    opened: boolean;
     /** The playlist was the active one; `next` replaced it, if any. */
     wasActive: boolean;
     wasOnItsRoute: boolean;
@@ -70,7 +73,7 @@ export class SourceRemovalService {
     private readonly activity = inject(SourceActivityService);
     private readonly router = inject(Router);
     private readonly runtime = inject(RuntimeCapabilitiesService);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
     /** Progress of a long delete; its row comes back to show it. */
@@ -115,9 +118,14 @@ export class SourceRemovalService {
         ) {
             return;
         }
-        // A second delete commits the first at once.
+        // A second delete commits the first at once, but only once its Undo
+        // was on screen: a delete nobody could undo yet is cancelled instead.
         if (this.pending) {
-            this.settle(this.pending);
+            if (this.pending.opened) {
+                this.settle(this.pending);
+            } else {
+                this.undo(this.pending);
+            }
         }
 
         const wasActive =
@@ -148,13 +156,14 @@ export class SourceRemovalService {
             wasOnItsRoute,
             previousUrl,
             next: replacement,
+            opened: false,
             undone: false,
             settled: false,
             timer: undefined,
         };
-        const snackBar = this.snackBar.openFromComponent(
-            SourceRemovalToastComponent,
-            {
+        this.pending = removal;
+        void this.notifications
+            .fromComponent(SourceRemovalToastComponent, {
                 data: {
                     message,
                     undoLabel: this.translate.instant(
@@ -164,17 +173,41 @@ export class SourceRemovalService {
                     returnFocusTo: options.returnFocusTo ?? null,
                     commitNow: () => this.settle(removal),
                 },
-                duration: SOURCE_REMOVAL_UNDO_MS,
-                panelClass: 'app-toast',
-            }
-        );
-        removal.snackBar = snackBar;
-        removal.timer = setTimeout(
-            () => this.settle(removal),
-            SOURCE_REMOVAL_UNDO_MS
-        );
-        this.pending = removal;
-        snackBar.onAction().subscribe(() => this.undo(removal));
+                durationMs: SOURCE_REMOVAL_UNDO_MS,
+            })
+            .then((snackBar) => {
+                // A second delete can commit this one while the chunk loads.
+                if (removal.settled) {
+                    snackBar?.dismiss();
+                    return;
+                }
+                // Without the Undo control the delete must not run.
+                if (!snackBar) {
+                    this.undo(removal);
+                    return;
+                }
+                removal.snackBar = snackBar;
+                snackBar.onAction().subscribe(() => this.undo(removal));
+                // The full Undo window starts once the control is on screen,
+                // not when the toast is created: another toast opened in the
+                // same tick can replace it before it is ever painted.
+                snackBar.afterOpened().subscribe(() => {
+                    if (removal.settled) {
+                        return;
+                    }
+                    removal.opened = true;
+                    removal.timer = setTimeout(
+                        () => this.settle(removal),
+                        SOURCE_REMOVAL_UNDO_MS
+                    );
+                });
+                // Closed before it opened: nobody saw Undo, so keep the source.
+                snackBar.afterDismissed().subscribe(() => {
+                    if (!removal.opened) {
+                        this.undo(removal);
+                    }
+                });
+            });
     }
 
     /** Ends the Undo window: commits the delete unless it was undone. */
@@ -260,13 +293,9 @@ export class SourceRemovalService {
                     commit();
                 }
             } else if (!this.progress.takeCancelled(playlist._id)) {
-                this.snackBar.open(
-                    this.translate.instant('WORKSPACE.SOURCES.REMOVE_FAILED', {
-                        name: this.nameOf(playlist),
-                    }),
-                    this.translate.instant('CLOSE'),
-                    { duration: 5000, panelClass: 'app-toast' }
-                );
+                this.notifications.error('WORKSPACE.SOURCES.REMOVE_FAILED', {
+                    name: this.nameOf(playlist),
+                });
             }
         } finally {
             this.progress.clear(playlist._id);

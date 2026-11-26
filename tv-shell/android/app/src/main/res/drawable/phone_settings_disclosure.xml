@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_activated="true">
+        <vector android:width="20dp" android:height="20dp"
+            android:viewportWidth="24" android:viewportHeight="24">
+            <path android:strokeColor="@color/phone_settings_muted" android:strokeWidth="2"
+                android:strokeLineCap="round" android:strokeLineJoin="round"
+                android:pathData="M6,15L12,9L18,15" />
+        </vector>
+    </item>
+    <item>
+        <vector android:width="20dp" android:height="20dp"
+            android:viewportWidth="24" android:viewportHeight="24">
+            <path android:strokeColor="@color/phone_settings_muted" android:strokeWidth="2"
+                android:strokeLineCap="round" android:strokeLineJoin="round"
+                android:pathData="M6,9L12,15L18,9" />
+        </vector>
+    </item>
+</selector>

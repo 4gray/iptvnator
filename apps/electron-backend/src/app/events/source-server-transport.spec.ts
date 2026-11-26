@@ -97,3 +97,106 @@ it('keeps profile verification isolated when an older connection probe finishes 
     expect(send.mock.calls[3][1]).toBe('selected-token');
     expect(originalToken).not.toHaveBeenCalled();
 });
+
+it('keeps verification after a profile PIN refusal and a profile delete', async () => {
+    const send = jest.fn(
+        async (
+            _url: string,
+            _token: string,
+            request: SourceServerRequest,
+            instanceId?: string
+        ): Promise<SourceServerResponse> => {
+            if (request.operation === 'instance')
+                return {
+                    status: 200,
+                    body: {
+                        service: 'iptvnator',
+                        apiVersion: 1,
+                        storage: 'server',
+                        instanceId,
+                        capabilities: ['sources-v1'],
+                    },
+                };
+            if (request.operation === 'profile-unlock')
+                return { status: 403, body: { code: 'wrong_pin' } };
+            if (request.operation === 'profile-delete') return { status: 204 };
+            return { status: 200, body: {} };
+        }
+    );
+    const transport = new SourceServerTransport(send);
+    const connection = { apiUrl: 'https://nas.test/api', instanceId: 'nas' };
+    const token = () => 'synthetic-token';
+    await transport.execute(
+        connection,
+        {
+            operation: 'profile-unlock',
+            id: '11111111-1111-4111-8111-111111111111',
+            profile: { pin: '1234' },
+        },
+        token
+    );
+    await transport.execute(connection, { operation: 'profiles-list' }, token);
+    await transport.execute(
+        connection,
+        {
+            operation: 'profile-delete',
+            id: '11111111-1111-4111-8111-111111111111',
+        },
+        token
+    );
+    await transport.execute(connection, { operation: 'profiles-list' }, token);
+    expect(send.mock.calls.map(([, , request]) => request.operation)).toEqual([
+        'instance',
+        'profile-unlock',
+        'profiles-list',
+        'profile-delete',
+        'profiles-list',
+    ]);
+});
+
+it('revokes verification after a plain profile 403', async () => {
+    const send = jest.fn(
+        async (
+            _url: string,
+            _token: string,
+            request: SourceServerRequest,
+            instanceId?: string
+        ): Promise<SourceServerResponse> =>
+            request.operation === 'instance'
+                ? {
+                      status: 200,
+                      body: {
+                          service: 'iptvnator',
+                          apiVersion: 1,
+                          storage: 'server',
+                          instanceId,
+                          capabilities: ['sources-v1'],
+                      },
+                  }
+                : request.operation === 'profile-unlock'
+                  ? { status: 403, body: { code: 'forbidden' } }
+                  : { status: 200, body: {} }
+    );
+    const transport = new SourceServerTransport(send);
+    const connection = { apiUrl: 'https://nas.test/api', instanceId: 'nas' };
+    await transport.execute(
+        connection,
+        {
+            operation: 'profile-unlock',
+            id: '11111111-1111-4111-8111-111111111111',
+            profile: { pin: '1234' },
+        },
+        () => 'synthetic-token'
+    );
+    await transport.execute(
+        connection,
+        { operation: 'profiles-list' },
+        () => 'synthetic-token'
+    );
+    expect(send.mock.calls.map(([, , request]) => request.operation)).toEqual([
+        'instance',
+        'profile-unlock',
+        'instance',
+        'profiles-list',
+    ]);
+});

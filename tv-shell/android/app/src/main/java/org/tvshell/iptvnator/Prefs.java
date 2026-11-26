@@ -1,6 +1,9 @@
 package org.tvshell.iptvnator;
 
+import android.app.UiModeManager;
 import android.content.Context;
+import android.content.res.Configuration;
+import android.content.pm.PackageManager;
 import android.content.SharedPreferences;
 
 /** The shell's few settings. */
@@ -22,7 +25,52 @@ public class Prefs {
         prefs = context.getApplicationContext().getSharedPreferences(NAME, Context.MODE_PRIVATE);
     }
 
-    /** CSS layout width of the web app (960 = big & phone-like, 1280 = desktop, 1600 = dense). */
+    public enum LayoutMode { AUTO, TOUCH, TV }
+
+    public LayoutMode layoutMode() {
+        try {
+            return LayoutMode.valueOf(prefs.getString("layoutMode", LayoutMode.AUTO.name()));
+        } catch (IllegalArgumentException e) {
+            return LayoutMode.AUTO;
+        }
+    }
+
+    public void setLayoutMode(LayoutMode mode) {
+        prefs.edit().putString("layoutMode", mode.name()).apply();
+    }
+
+    /** Device type stays stable when the phone rotates or the window changes size. */
+    public boolean useTvLayout(Context context) {
+        return LayoutPolicy.useTvLayout(layoutMode().name(), isTvDevice(context),
+            context.getResources().getConfiguration().screenWidthDp);
+    }
+
+    public static boolean isTvDevice(Context context) {
+        UiModeManager ui = (UiModeManager) context.getSystemService(Context.UI_MODE_SERVICE);
+        PackageManager pm = context.getPackageManager();
+        return LayoutPolicy.isTvDevice(ui != null && ui.getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION,
+            pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK),
+            pm.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN));
+    }
+
+    /** Empty selects the bundled local library and clears the server address. */
+    public String hostedOrigin() { return prefs.getString("hostedOrigin", ""); }
+
+    public String approvalOrigin() { return prefs.getString("approvalOrigin", ""); }
+
+    public void setApprovalOrigin(String origin) { prefs.edit().putString("approvalOrigin", origin).apply(); }
+
+    public boolean usesNasLibrary() { return prefs.getBoolean("nasLibrary", false); }
+
+    public void setNasLibrary(String appBase) {
+        prefs.edit().putString("hostedOrigin", appBase).putBoolean("nasLibrary", true).remove("savedHostedOrigin").apply();
+    }
+
+    public void setHostedOrigin(String origin) {
+        prefs.edit().putString("hostedOrigin", origin).remove("nasLibrary").remove("savedHostedOrigin").apply();
+    }
+
+    /** CSS layout width used in TV mode. */
     public int layoutWidth() {
         return prefs.getInt(KEY_LAYOUT_WIDTH, DEFAULT_LAYOUT_WIDTH);
     }

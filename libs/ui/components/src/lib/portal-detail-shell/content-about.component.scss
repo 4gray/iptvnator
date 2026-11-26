@@ -11,7 +11,7 @@
     border-top: 1px solid var(--tag-border, rgba(255, 255, 255, 0.12));
 
     &__heading {
-        font-size: 1.125rem;
+        font-size: var(--app-text-xl);
         font-weight: 700;
         margin: 0 0 16px 0;
         color: var(--text-primary, #fff);
@@ -53,7 +53,7 @@
     }
 
     &__description {
-        font-size: 0.9375rem;
+        font-size: var(--app-text-lg);
         line-height: 1.6;
         color: var(--text-secondary, rgba(255, 255, 255, 0.7));
         margin: 0 0 14px 0;
@@ -74,7 +74,7 @@
     align-items: center;
     gap: 4px;
     padding: 4px 12px;
-    font-size: 0.8125rem;
+    font-size: var(--app-text-sm);
     font-weight: 500;
     background: var(--tag-bg, rgba(255, 255, 255, 0.1));
     border: 1px solid var(--tag-border, rgba(255, 255, 255, 0.2));
@@ -110,7 +110,7 @@
 }
 
 .about ::ng-deep .details__meta-item {
-    font-size: 0.875rem;
+    font-size: var(--app-text-md);
 
     .label {
         color: var(--text-muted, rgba(255, 255, 255, 0.5));
