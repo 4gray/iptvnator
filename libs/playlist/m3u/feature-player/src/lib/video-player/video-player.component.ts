@@ -760,6 +760,7 @@ export class VideoPlayerComponent
     private statusSubscription?: Subscription;
     private lastKnownVolume = 1;
     private lastRecordedRecentKey = '';
+    private pendingWithheldHandoff: string | null = null;
     private lastExternalSessionStateKey = this.getExternalSessionStateKey(
         this.externalPlayback.activeSession()
     );
@@ -973,6 +974,23 @@ export class VideoPlayerComponent
                 targetId
             );
             if (!matchedChannel) {
+                return;
+            }
+
+            // Favorites and Recently viewed list rows of locked groups, and
+            // a handoff can launch MPV/VLC before the enforcement resets
+            // the active row: a withheld target asks for the PIN first.
+            const playlistId = this.activePlaylistId();
+            if (
+                playlistId &&
+                this.isGroupWithheld(playlistId, matchedChannel)
+            ) {
+                this.clearConsumedChannelOpenState();
+                void this.openWithheldHandoff(
+                    playlistId,
+                    matchedChannel,
+                    currentView
+                );
                 return;
             }
 
@@ -1314,6 +1332,42 @@ export class VideoPlayerComponent
             },
             record
         );
+    }
+
+    private isGroupWithheld(playlistId: string, channel: Channel): boolean {
+        return this.parentalLock.isM3uGroupLocked(
+            playlistId,
+            channel.group?.title ?? ''
+        );
+    }
+
+    /**
+     * Opens a handed-over row of a withheld group once the PIN is given.
+     * The navigation that carried the handoff can re-run the effect while
+     * the prompt is open, so one target asks only once.
+     */
+    private async openWithheldHandoff(
+        playlistId: string,
+        channel: Channel,
+        view: string | null | undefined
+    ): Promise<void> {
+        const key = `${playlistId}::${channel.id}::${channel.url}`;
+        if (this.pendingWithheldHandoff === key) {
+            return;
+        }
+        this.pendingWithheldHandoff = key;
+        try {
+            await this.parentalLock.requestUnlock();
+        } finally {
+            this.pendingWithheldHandoff = null;
+        }
+        if (
+            this.activePlaylistId() !== playlistId ||
+            this.isGroupWithheld(playlistId, channel)
+        ) {
+            return;
+        }
+        this.store.dispatch(handoffAction(channel, view, this.catalogIndex));
     }
 
     private clearConsumedChannelOpenState(): void {
