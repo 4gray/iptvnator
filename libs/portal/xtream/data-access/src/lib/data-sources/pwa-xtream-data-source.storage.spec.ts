@@ -40,6 +40,43 @@ describe('PwaXtreamDataSource injected user data storage', () => {
         };
     });
     afterEach(() => localStorage.clear());
+
+    it('rejects strict membership reads until storage is ready and readable', async () => {
+        const storage = {
+            ready: jest.fn().mockResolvedValue(false),
+            getItem: jest.fn().mockReturnValue(null),
+            setItem: jest.fn(),
+            removeItem: jest.fn(),
+        };
+        TestBed.configureTestingModule({
+            providers: [
+                PwaXtreamDataSource,
+                { provide: USER_DATA_STORAGE, useValue: storage },
+                { provide: ParentalLockService, useValue: parentalLock },
+                { provide: XtreamApiService, useValue: apiService },
+                { provide: PlaylistsService, useValue: playlistsService },
+            ],
+        });
+        const source = TestBed.inject(PwaXtreamDataSource);
+
+        await expect(source.getFavorites('p1', false)).resolves.toEqual([]);
+        await expect(source.getFavorites('p1', false, true)).rejects.toThrow(
+            'Favorite membership is unavailable'
+        );
+
+        storage.ready.mockResolvedValue(true);
+        storage.getItem.mockReturnValue('{');
+        await expect(source.getFavorites('p1', false)).resolves.toEqual([]);
+        await expect(source.getFavorites('p1', false, true)).rejects.toThrow(
+            SyntaxError
+        );
+
+        storage.getItem.mockReturnValue(null);
+        await expect(source.getFavorites('p1', false, true)).resolves.toEqual(
+            []
+        );
+    });
+
     it('reads and writes favorites through it, not localStorage', async () => {
         const values = new Map<string, string>();
         const storage = {

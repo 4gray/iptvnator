@@ -101,6 +101,44 @@ describe('ChannelContextMenuComponent', () => {
         expect(rows()[0].dataset['testid']).toBe('channel-open-in-playlist');
     });
 
+    it.each([
+        ['add', 'ADD_TITLE'],
+        ['move', 'MOVE_TITLE'],
+    ])('offers the %s folder action', async (action, label) => {
+        const menu = render({ favoriteFolderAction: action });
+        const selected = jest.fn();
+        menu.favoriteFolderRequested.subscribe(selected);
+
+        await openAt(10, 20);
+
+        expect(rowTexts()).toEqual([
+            `drive_file_move WORKSPACE.FAVORITE_FOLDERS.${label}…`,
+        ]);
+        rows()[0].click();
+        expect(selected).toHaveBeenCalledWith(action);
+    });
+
+    it('returns focus to the more actions button before opening the picker', async () => {
+        const menu = render({ favoriteFolderAction: 'move' });
+        const origin = document.createElement('button');
+        fixture.nativeElement.appendChild(origin);
+        origin.addEventListener('click', (event) => menu.open(event));
+        const focusBeforePicker = jest.fn();
+        menu.favoriteFolderRequested.subscribe(() =>
+            focusBeforePicker(document.activeElement)
+        );
+        origin.focus();
+
+        origin.click();
+        fixture.detectChanges();
+        await Promise.resolve();
+        fixture.detectChanges();
+        rows()[0].focus();
+        rows()[0].click();
+
+        expect(focusBeforePicker).toHaveBeenCalledWith(origin);
+    });
+
     it('moves an open menu to the new pointer position', async () => {
         render({ showDetails: true });
         await openAt(10, 20);

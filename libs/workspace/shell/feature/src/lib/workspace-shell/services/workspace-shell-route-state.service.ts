@@ -14,6 +14,7 @@ import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     buildPortalRailLinks,
     PortalRailLink,
+    WorkspaceFavoriteFoldersPanel,
 } from '@iptvnator/portal/shared/util';
 import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { APP_ICONS } from '@iptvnator/ui/components/app-icons';
@@ -24,6 +25,7 @@ import {
 import {
     parseWorkspaceShellRoute,
     WorkspacePortalContext,
+    WorkspaceShellContextPanel,
     WorkspaceStartupPreferencesService,
 } from '@iptvnator/workspace/shell/util';
 import { getProviderFromPlaylist } from './helpers/workspace-shell-route-utils';
@@ -40,6 +42,7 @@ export class WorkspaceShellRouteStateService {
     private readonly translate = inject(TranslateService);
     private readonly destroyRef = inject(DestroyRef);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly favoriteFolders = inject(WorkspaceFavoriteFoldersPanel);
 
     private readonly languageTick = injectTranslationTick();
 
@@ -158,10 +161,13 @@ export class WorkspaceShellRouteStateService {
             return context;
         }
     );
-    readonly contextPanel = computed(() => this.currentRoute().contextPanel);
-    readonly showContextPanel = computed(
-        () => this.currentRoute().contextPanel !== 'none'
-    );
+    readonly contextPanel = computed<WorkspaceShellContextPanel>(() => {
+        const route = this.currentRoute();
+        return route.kind === 'global-favorites' && this.favoriteFolders.state()
+            ? 'favorite-folders'
+            : route.contextPanel;
+    });
+    readonly showContextPanel = computed(() => this.contextPanel() !== 'none');
     /**
      * Whether the context sidebar would actually render content for the
      * current route. Mirrors the guard conditions in the sidebar's template:
@@ -181,6 +187,7 @@ export class WorkspaceShellRouteStateService {
                 );
             case 'settings':
             case 'collection':
+            case 'favorite-folders':
                 return true;
             default:
                 return false;
@@ -193,6 +200,11 @@ export class WorkspaceShellRouteStateService {
      */
     readonly contextDrawerLabelKeys = computed(() => {
         switch (this.contextPanel()) {
+            case 'favorite-folders':
+                return {
+                    aria: 'WORKSPACE.FAVORITE_FOLDERS.OPEN_FOLDERS',
+                    tooltip: 'WORKSPACE.FAVORITE_FOLDERS.CHANNEL_FOLDERS',
+                };
             case 'settings':
                 return {
                     aria: 'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOGGLE',

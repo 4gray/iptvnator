@@ -46,6 +46,7 @@ export class StubChannelListItemComponent {
     readonly showFavoriteButton = input(false);
     readonly showProgramInfoButton = input(false);
     readonly showDetailsContextMenu = input(false);
+    readonly showContextMenuButton = input(false);
     readonly isFavorite = input(false);
     readonly clicked = output<void>();
     readonly activated = output<void>();

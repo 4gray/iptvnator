@@ -26,8 +26,8 @@ export class PwaCollectionStorage {
         private readonly storage: UserDataStorage
     ) {}
 
-    getLocalFavorites(playlistId: string): XtreamContentItem[] {
-        const allFavorites = this.getFavoritesFromStorage();
+    getLocalFavorites(playlistId: string, strict = false): XtreamContentItem[] {
+        const allFavorites = this.getFavoritesFromStorage(strict);
         const playlistFavorites = allFavorites[playlistId] || [];
         const contentById = this.resolveItems(playlistId, playlistFavorites);
         const migrated = playlistFavorites.map((id) => {
@@ -51,11 +51,16 @@ export class PwaCollectionStorage {
         ];
     }
 
-    getFavoritesFromStorage(): Record<string, CollectionKey[]> {
+    getFavoritesFromStorage(strict = false): Record<string, CollectionKey[]> {
         try {
             const data = this.storage.getItem(XTREAM_USER_DATA_KEYS.favorites);
-            return normalizeFavoriteStorage(data ? JSON.parse(data) : {});
-        } catch {
+            return normalizeFavoriteStorage(
+                data === null || (!strict && data === '')
+                    ? {}
+                    : JSON.parse(data)
+            );
+        } catch (error) {
+            if (strict) throw error;
             return {};
         }
     }

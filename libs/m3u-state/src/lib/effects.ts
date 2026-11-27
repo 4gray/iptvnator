@@ -1,4 +1,5 @@
 import { inject, Injectable, Injector } from '@angular/core';
+import { FavoriteChannelMembershipEvents } from '@iptvnator/services/favorites-events';
 import { NotificationService } from '@iptvnator/services/notifications';
 import { Router } from '@angular/router';
 import { EpgService } from '@iptvnator/epg/data-access';
@@ -77,6 +78,7 @@ export class PlaylistEffects {
     private epgService = inject(EpgService);
     private router = inject(Router);
     private readonly notifications = inject(NotificationService);
+    private readonly favoriteMembership = inject(FavoriteChannelMembershipEvents);
     private storage = inject(StorageMap);
     private store = inject(Store);
     private settingsStore = inject(SettingsStore);
@@ -99,15 +101,24 @@ export class PlaylistEffects {
                 // when a conflict makes the write run again on a fresh read.
                 mergeMap(([{ channel }, favorites, playlistId]) => {
                     const added = favorites.includes(channel.url);
-                    return this.playlistsService.transformPlaylistFavorites(
-                        playlistId,
-                        (current) => {
+                    return this.playlistsService
+                        .transformPlaylistFavorites(playlistId, (current) => {
                             const others = current.filter(
-                                (favorite) => favorite !== channel.url
+                                (favorite) =>
+                                    favorite !== channel.url &&
+                                    favorite !== channel.id
                             );
                             return added ? [...others, channel.url] : others;
-                        }
-                    );
+                        })
+                        .pipe(
+                            tap(() => {
+                                this.favoriteMembership.notify({
+                                    sourceType: 'm3u',
+                                    playlistId,
+                                    streamUrl: channel.url,
+                                });
+                            })
+                        );
                 }),
                 tap(() => {
                     this.notifications.success('CHANNELS.FAVORITES_UPDATED');

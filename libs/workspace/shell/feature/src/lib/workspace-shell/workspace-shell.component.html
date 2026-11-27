@@ -51,6 +51,7 @@
         [parentalLockState]="facade.parentalLockState()"
         [showContextDrawerToggle]="facade.hasContextPanelContent()"
         [isContextDrawerOpen]="drawerOpen"
+        [isFavoriteFolderDrawer]="facade.contextPanel() === 'favorite-folders'"
         [contextDrawerToggleAriaKey]="facade.contextDrawerLabelKeys().aria"
         [contextDrawerTooltipKey]="facade.contextDrawerLabelKeys().tooltip"
         (backRequested)="facade.goBack()"

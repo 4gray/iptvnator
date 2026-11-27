@@ -1,7 +1,8 @@
 /* eslint-disable playwright/expect-expect -- These are Node assertion-based configuration contract tests. */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { join } from 'node:path';
@@ -49,27 +50,32 @@ function readResolvedWebBuildTask(): NxGraphTask | undefined {
     };
     delete environment['NO_COLOR'];
 
-    const graph = JSON.parse(
+    const directory = mkdtempSync(join(tmpdir(), 'iptvnator-web-build-graph-'));
+    const graphPath = join(directory, 'graph.json');
+    try {
         execFileSync(
             process.execPath,
             [
                 join(workspaceRoot, 'node_modules/nx/dist/bin/nx.js'),
                 'run',
                 'web:build',
-                '--graph=stdout',
+                `--graph=${graphPath}`,
             ],
             {
                 cwd: workspaceRoot,
                 encoding: 'utf8',
                 env: environment,
             }
-        )
-    ) as NxGraph;
+        );
+        const graph = JSON.parse(readFileSync(graphPath, 'utf8')) as NxGraph;
 
-    return Object.values(graph.tasks.tasks).find(
-        (task) =>
-            task.target.project === 'web' && task.target.target === 'build'
-    );
+        return Object.values(graph.tasks.tasks).find(
+            (task) =>
+                task.target.project === 'web' && task.target.target === 'build'
+        );
+    } finally {
+        rmSync(directory, { recursive: true, force: true });
+    }
 }
 
 const e2eProject = readProject('apps/electron-backend-e2e/project.json');

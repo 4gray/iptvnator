@@ -1,14 +1,13 @@
 /**
  * A version upgrade waits for every earlier connection to close. Only the
- * upgrader owns cleanup; another opener of that same version retries above it.
- * Keep this separate from source/settings databases: hooks must access those.
+ * upgrader owns the operation; another opener of that version retries above it.
+ * Use a dedicated database so the operation can access application storage.
  * Closing/crashing a tab releases its connection without a lease or a timer.
  */
-export async function withIndexedDbCleanupOwnership<T>(
-    profile: string,
+export async function withIndexedDbExclusiveAccess<T>(
+    name: string,
     operation: () => Promise<T>
 ): Promise<T> {
-    const name = `iptvnator-source-cleanup:${profile}`;
     let version: number | undefined;
     for (;;) {
         const claim = await new Promise<{

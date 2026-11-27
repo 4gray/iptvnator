@@ -77,6 +77,14 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
             ).rejects.toThrow();
         });
 
+        it('rejects a failed favorite removal instead of acknowledging it', async () => {
+            harness.dbService.removeFromFavorites.mockResolvedValue(false);
+
+            await expect(
+                harness.dataSource.removeFavorite(202, playlistId)
+            ).rejects.toThrow('Favorite could not be removed');
+        });
+
         it('delegates favorites operations to the DB', async () => {
             harness.dbService.isFavorite.mockResolvedValue(true);
 
