@@ -28,8 +28,8 @@ function buildM3uPayloadSearchConditions(searchTerm: string, broad: boolean) {
 
     return getSearchWordPlans(searchTerm)
         .map((plan) => {
-            const tokenConditions = plan.tokenGroups
-                .map((tokens) => {
+            const tokenArm = and(
+                ...plan.tokenGroups.map((tokens) => {
                     const mode =
                         groupIndex === 0 && isShortSearchTokenGroup(tokens)
                             ? 'prefix'
@@ -40,18 +40,14 @@ function buildM3uPayloadSearchConditions(searchTerm: string, broad: boolean) {
                             ? buildLikePatterns(token, 'contains')
                             : buildM3uPayloadTextFieldPatterns(token, mode)
                     );
-                    const likeConditions = patterns.map(
-                        (pattern) =>
-                            sql`${playlists.payload} LIKE ${pattern} ESCAPE '\\'`
+                    return or(
+                        ...patterns.map(
+                            (pattern) =>
+                                sql`${playlists.payload} LIKE ${pattern} ESCAPE '\\'`
+                        )
                     );
-                    return or(...likeConditions);
                 })
-                .filter((condition) => condition !== undefined);
-
-            const tokenArm =
-                tokenConditions.length > 0
-                    ? and(...tokenConditions)
-                    : undefined;
+            );
             if (plan.compound === null) {
                 return tokenArm;
             }
@@ -63,9 +59,7 @@ function buildM3uPayloadSearchConditions(searchTerm: string, broad: boolean) {
                 (pattern) =>
                     sql`${playlists.payload} LIKE ${pattern} ESCAPE '\\'`
             );
-            return tokenArm === undefined
-                ? or(...compoundConditions)
-                : or(tokenArm, ...compoundConditions);
+            return or(tokenArm, ...compoundConditions);
         })
         .filter((condition) => condition !== undefined);
 }
