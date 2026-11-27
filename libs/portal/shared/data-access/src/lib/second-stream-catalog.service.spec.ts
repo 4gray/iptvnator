@@ -312,7 +312,7 @@ describe('SecondStreamCatalogService', () => {
                 categoryId === null ? undefined : 900
             );
             expect(refreshed.xtreamCategoryRowId).toBe(
-                categoryId === null ? undefined : 50
+                categoryId === null ? item.xtreamCategoryRowId : 50
             );
         }
     );

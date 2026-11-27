@@ -44,9 +44,11 @@ export class SecondStreamCollectionService {
         return {
             ...item,
             categoryId: category?.xtream_id,
-            xtreamCategoryRowId: Number.isSafeInteger(categoryRowId)
-                ? categoryRowId
-                : undefined,
+            // Keep the preferred key so later requests still reject ambiguous moves.
+            xtreamCategoryRowId:
+                Number.isSafeInteger(categoryRowId) && categoryRowId > 0
+                    ? categoryRowId
+                    : xtreamCategoryRowId,
         };
     }
 
