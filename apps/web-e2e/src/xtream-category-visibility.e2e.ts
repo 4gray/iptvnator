@@ -75,8 +75,13 @@ for (const section of [
         if (section.type === 'movie') {
             await expect(manage).toBeEnabled();
             await manage.press('Enter');
-            await dialog.getByRole('searchbox').fill(name);
-            await dialog.getByRole('searchbox').focus();
+            // Let Material move focus into the opened dialog before taking
+            // control. Otherwise its delayed autofocus can undo a D-pad move.
+            await expect(dialog.locator(':focus')).toHaveCount(1);
+            const search = dialog.getByRole('searchbox');
+            await search.fill(name);
+            await expect(dialog.locator('[data-category-id]')).toHaveCount(1);
+            await search.focus();
             await page.keyboard.press('ArrowDown');
             await expect(checkbox).toBeFocused();
             await expect(checkbox).not.toBeChecked();
