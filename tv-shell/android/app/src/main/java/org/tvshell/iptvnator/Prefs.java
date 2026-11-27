@@ -80,7 +80,7 @@ public class Prefs {
     }
 
     public boolean nativePlayback() {
-        return prefs.getBoolean(KEY_NATIVE_PLAYBACK, false);
+        return prefs.getBoolean(KEY_NATIVE_PLAYBACK, true);
     }
 
     public void setNativePlayback(boolean enabled) {

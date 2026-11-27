@@ -28,7 +28,15 @@ export function hlsWorkerConfig(
     }
     const url = new URL('assets/hls.worker.js', doc.baseURI);
     url.searchParams.set('v', Hls.version);
-    return { workerPath: url.href };
+    // Deeper buffer than the hls.js defaults (30 s target / 60 s max): absorbs
+    // CDN jitter and provider stalls on a fast link. Back-buffer stays bounded
+    // so 1 GB devices do not churn memory seeking backwards in live streams.
+    return {
+        workerPath: url.href,
+        maxBufferLength: 60,
+        maxMaxBufferLength: 120,
+        backBufferLength: 60,
+    };
 }
 
 function safeLocalStorage(): Pick<Storage, 'getItem'> | undefined {
