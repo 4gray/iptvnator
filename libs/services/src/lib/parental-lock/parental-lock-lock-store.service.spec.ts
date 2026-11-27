@@ -1,5 +1,8 @@
 import { TestBed } from '@angular/core/testing';
-import { ParentalLockStore } from '@iptvnator/shared/interfaces';
+import {
+    parentalLockSetKey,
+    ParentalLockStore,
+} from '@iptvnator/shared/interfaces';
 import { DatabaseService } from '../database-electron.service';
 import { RuntimeCapabilitiesService } from '../runtime-capabilities.service';
 import { ParentalLockLockStore } from './parental-lock-lock-store.service';
@@ -107,6 +110,69 @@ describe('ParentalLockLockStore', () => {
         expect(store.readable()).toBe(true);
     });
 
+    it('tells which sources have a locked category', async () => {
+        storage.readLocks.mockResolvedValueOnce({
+            ...stored,
+            'pl-2': { xtream: [], stalker: [], m3u: [] },
+            'pl-3': { xtream: [], stalker: [], m3u: ['Synthetic Group'] },
+        });
+        await store.load();
+
+        expect(store.hasLocks('pl-1')).toBe(true);
+        expect(store.hasLocks('pl-2')).toBe(false);
+        expect(store.hasLocks('pl-3')).toBe(true);
+        expect(store.hasLocks('pl-4')).toBe(false);
+        expect(store.hasLocks('constructor')).toBe(false);
+        expect(store.hasLocks(null)).toBe(true);
+    });
+
+    it('reports no locked source when every entry is empty', async () => {
+        storage.readLocks.mockResolvedValueOnce({
+            'pl-2': { xtream: [], stalker: [], m3u: [] },
+        });
+        await store.load();
+
+        expect(store.hasLocks(null)).toBe(false);
+    });
+
+    it('keys the lock set by what is locked, not by the writes', async () => {
+        storage.readLocks.mockResolvedValueOnce({
+            'pl-1': {
+                xtream: [
+                    { categoryType: 'live', xtreamId: 7 },
+                    { categoryType: 'movies', xtreamId: 8 },
+                ],
+                stalker: [],
+                m3u: [],
+            },
+            'pl-2': { xtream: [], stalker: [], m3u: [] },
+        });
+        await store.load();
+        const key = (id: string | null) =>
+            parentalLockSetKey(store.lockSet(), id);
+        const source = key('pl-1');
+        const every = key(null);
+        const revision = store.revision();
+
+        // Saving a list unchanged moves its entries behind the other
+        // type's; saving an empty one for an unlocked source adds none.
+        await store.setXtreamLocks('pl-1', 'live', [7]);
+        await store.setM3uLocks('pl-2', []);
+
+        expect(store.revision()).toBeGreaterThan(revision);
+        expect(key('pl-1')).toBe(source);
+        expect(key(null)).toBe(every);
+
+        await store.setM3uLocks('pl-2', ['Synthetic Group']);
+
+        expect(key('pl-1')).toBe(source);
+        expect(key(null)).not.toBe(every);
+
+        await store.setXtreamLocks('pl-1', 'movies', [8, 9]);
+
+        expect(key('pl-1')).not.toBe(source);
+    });
+
     it('re-derives the SQLite index from the store on load', async () => {
         await store.load();
         // ensureReadable awaits the reconcile that load() started.
@@ -205,11 +271,13 @@ describe('ParentalLockLockStore', () => {
         await store.load();
         await store.ensureReadable();
         const before = store.revision();
+        const lockSetBefore = store.lockSet();
         let resolveStamp: (ok: boolean) => void = () => undefined;
         setCategoryLocks.mockImplementation(
             () => new Promise<boolean>((resolve) => (resolveStamp = resolve))
         );
 
+        const stampsBefore = setCategoryLocks.mock.calls.length;
         const writing = store.replacePlaylistLocks('pl-1', {
             xtream: [{ categoryType: 'movies', xtreamId: 3 }],
             stalker: [],
@@ -217,18 +285,24 @@ describe('ParentalLockLockStore', () => {
         });
         for (
             let i = 0;
-            i < 50 && storage.writeLocks.mock.calls.length === 0;
+            i < 50 && setCategoryLocks.mock.calls.length === stampsBefore;
             i += 1
         ) {
             await Promise.resolve();
         }
         expect(storage.writeLocks).toHaveBeenCalled();
         expect(store.revision()).toBe(before);
+        // A launch racing the edit is judged against the locks that filtered
+        // the lists, not the ones still being stamped.
+        expect(store.lockSet()).toBe(lockSetBefore);
 
         setCategoryLocks.mockResolvedValue(true);
         resolveStamp(true);
         await expect(writing).resolves.toBe(true);
         expect(store.revision()).toBe(before + 1);
+        expect(store.lockSet()['pl-1']?.xtream).toEqual([
+            { categoryType: 'movies', xtreamId: 3 },
+        ]);
     });
 
     it('serializes overlapping edits so neither overwrites the other', async () => {

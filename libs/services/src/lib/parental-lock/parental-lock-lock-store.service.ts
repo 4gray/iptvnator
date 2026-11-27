@@ -5,6 +5,7 @@ import {
     lockedStalkerCategoryIds,
     lockedXtreamCategoryIds,
     normalizeParentalLockPlaylistLocks,
+    PARENTAL_LOCK_XTREAM_CATEGORY_TYPES,
     ParentalLockPlaylistLocks,
     ParentalLockStalkerCategoryType,
     ParentalLockStore,
@@ -15,6 +16,8 @@ import { RuntimeCapabilitiesService } from '../runtime-capabilities.service';
 import { ParentalLockStaleIndex } from './parental-lock-stale-index';
 import { ParentalLockStorageService } from './parental-lock-storage';
 import {
+    applyLockListEdit,
+    type LockListEdit,
     lockRemovalGate,
     stampXtreamIndex,
     withM3uLocks,
@@ -22,26 +25,6 @@ import {
     withStalkerLocks,
     withXtreamLocks,
 } from './parental-lock-store.util';
-
-/**
- * A full replacement list, or an edit of the CURRENT list. The edit form is
- * evaluated inside the write queue, so single-row toggles issued back to
- * back each see the previous toggle's result instead of one shared snapshot.
- */
-export type LockListEdit<T> = readonly T[] | ((current: readonly T[]) => T[]);
-
-function applyLockListEdit<T>(
-    edit: LockListEdit<T>,
-    current: readonly T[]
-): T[] {
-    return typeof edit === 'function' ? edit(current) : [...edit];
-}
-
-const XTREAM_CATEGORY_TYPES: readonly ParentalLockXtreamCategoryType[] = [
-    'live',
-    'movies',
-    'series',
-];
 
 /**
  * The lock store: WHICH categories are locked, per playlist, persisted
@@ -60,6 +43,7 @@ export class ParentalLockLockStore {
 
     private readonly locks = signal<ParentalLockStore>({});
     private readonly revisionState = signal(0);
+    private readonly publishedLocks = signal<ParentalLockStore>({});
     private readonly loadedState = signal(false);
     private loading: Promise<void> | null = null;
     /**
@@ -104,6 +88,13 @@ export class ParentalLockLockStore {
             !this.pendingRewrite() &&
             this.staleIndex.isEmpty()
     );
+    /**
+     * Every playlist's locks as last published with `revision`; key them
+     * with `parentalLockSetKey`. An edit still being applied (the in-memory
+     * copy changes before the index is stamped) keeps its previous locks
+     * here, so a launch it races is judged against what filtered the lists.
+     */
+    readonly lockSet = this.publishedLocks.asReadonly();
     /** Bumps whenever the lock set changes; consumers re-query. */
     readonly revision = this.revisionState.asReadonly();
     readonly isEmpty = computed(() => Object.keys(this.locks()).length === 0);
@@ -124,16 +115,14 @@ export class ParentalLockLockStore {
                     this.unreadable.set(true);
                 } else {
                     this.locks.set(locks);
-                    for (const playlistId of Object.keys(locks)) {
-                        this.staleIndex.mark(playlistId);
-                    }
+                    this.staleIndex.mark(...Object.keys(locks));
                     // Awaited: catalog reads issued before the index agrees
                     // with the store would serve rows stamped unlocked, and
                     // nothing would reload them afterwards.
                     await this.reconcileXtreamIndex();
                 }
                 this.loadedState.set(true);
-                this.revisionState.update((value) => value + 1);
+                this.publish();
             })();
         }
         return this.loading;
@@ -158,10 +147,8 @@ export class ParentalLockLockStore {
             // The index may carry stamps from a write that failed before
             // the read did; re-derive it from the recovered store as load()
             // does.
-            for (const playlistId of Object.keys(locks)) {
-                this.staleIndex.mark(playlistId);
-            }
-            this.revisionState.update((value) => value + 1);
+            this.staleIndex.mark(...Object.keys(locks));
+            this.publish();
         }
         await this.reconcileXtreamIndex();
         return this.readable();
@@ -176,8 +163,13 @@ export class ParentalLockLockStore {
         if (
             await this.staleIndex.reconcile((id) => this.stampXtreamLocks(id))
         ) {
-            this.revisionState.update((value) => value + 1);
+            this.publish();
         }
+    }
+
+    private publish(): void {
+        this.publishedLocks.set(this.locks());
+        this.revisionState.update((value) => value + 1);
     }
 
     setRemovalGate(gate: () => boolean): void {
@@ -206,6 +198,20 @@ export class ParentalLockLockStore {
 
     lockedGroupTitles(playlistId: string): string[] {
         return this.locks()[playlistId]?.m3u ?? [];
+    }
+
+    /** Whether the source (any source when `null`) has a locked category. */
+    hasLocks(playlistId: string | null): boolean {
+        const store = this.locks();
+        if (playlistId === null) {
+            return Object.values(store).some(
+                (locks) => !isParentalLockPlaylistLocksEmpty(locks)
+            );
+        }
+        return (
+            Object.prototype.hasOwnProperty.call(store, playlistId) &&
+            !isParentalLockPlaylistLocksEmpty(store[playlistId])
+        );
     }
 
     /**
@@ -291,7 +297,7 @@ export class ParentalLockLockStore {
                 playlistId,
                 this.locksFor(playlistId),
                 locks,
-                XTREAM_CATEGORY_TYPES
+                PARENTAL_LOCK_XTREAM_CATEGORY_TYPES
             );
         });
     }
@@ -326,7 +332,7 @@ export class ParentalLockLockStore {
             this.locks.set({});
             this.unreadable.set(false);
             this.staleIndex.clear();
-            this.revisionState.update((value) => value + 1);
+            this.publish();
             return this.rewritePersistedStore();
         });
     }
@@ -351,7 +357,7 @@ export class ParentalLockLockStore {
         }
         if (written === this.pendingRewrite()) {
             this.pendingRewrite.set(!written);
-            this.revisionState.update((value) => value + 1);
+            this.publish();
         }
         return written;
     }
@@ -400,7 +406,7 @@ export class ParentalLockLockStore {
                 }))
             ) {
                 this.staleIndex.unmark(playlistId);
-                this.revisionState.update((value) => value + 1);
+                this.publish();
                 return true;
             }
             // The clear (partly) reached the index but the store still holds
@@ -425,7 +431,7 @@ export class ParentalLockLockStore {
         this.markStaleWhileStamping(playlistId);
         if (await this.stampXtreamLocks(playlistId, categoryTypes)) {
             this.staleIndex.unmark(playlistId);
-            this.revisionState.update((value) => value + 1);
+            this.publish();
             return true;
         }
         await this.rollBack(playlistId, previous, categoryTypes);
@@ -470,7 +476,7 @@ export class ParentalLockLockStore {
         } else {
             this.staleIndex.unmark(playlistId);
         }
-        this.revisionState.update((value) => value + 1);
+        this.publish();
     }
 
     /**
@@ -497,7 +503,7 @@ export class ParentalLockLockStore {
         } else {
             this.staleIndex.unmark(playlistId);
         }
-        this.revisionState.update((value) => value + 1);
+        this.publish();
     }
 
     /** Keep a category insert and lock edits in the same write order. */
@@ -507,12 +513,9 @@ export class ParentalLockLockStore {
         save: (lockedIds: number[]) => Promise<void>
     ): Promise<void> {
         return this.enqueue(async () => {
-            if (!(await this.ensureReadable())) {
-                throw new Error(
-                    'Could not read parental locks for the refresh.'
-                );
-            }
-            await save(this.lockedXtreamIds(playlistId, categoryType));
+            if (!(await this.ensureReadable()))
+                throw new Error('Could not read parental locks for refresh.');
+            return save(this.lockedXtreamIds(playlistId, categoryType));
         });
     }
 
@@ -522,7 +525,7 @@ export class ParentalLockLockStore {
      */
     async stampXtreamLocks(
         playlistId: string,
-        categoryTypes: readonly ParentalLockXtreamCategoryType[] = XTREAM_CATEGORY_TYPES,
+        categoryTypes: readonly ParentalLockXtreamCategoryType[] = PARENTAL_LOCK_XTREAM_CATEGORY_TYPES,
         locks: ParentalLockPlaylistLocks = this.locksFor(playlistId)
     ): Promise<boolean> {
         return (
@@ -546,16 +549,14 @@ export class ParentalLockLockStore {
         // edit. Here only the STORE must be known: the index of the
         // playlist being written is deliberately stale while it is
         // re-stamped, and a rollback must still be able to write.
-        if (this.unreadable()) {
-            return false;
-        }
+        if (this.unreadable()) return false;
         const next = withPlaylistLocksInStore(this.locks(), playlistId, locks);
         if (!(await this.storage.writeLocks(next))) {
             return false;
         }
         this.locks.set(next);
         if (options.publish !== false) {
-            this.revisionState.update((value) => value + 1);
+            this.publish();
         }
         return true;
     }

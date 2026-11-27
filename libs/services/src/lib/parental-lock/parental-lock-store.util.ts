@@ -9,6 +9,20 @@ import {
 } from '@iptvnator/shared/interfaces';
 
 /**
+ * A full replacement list, or an edit of the CURRENT list. The edit form is
+ * evaluated inside the write queue, so single-row toggles issued back to
+ * back each see the previous toggle's result instead of one shared snapshot.
+ */
+export type LockListEdit<T> = readonly T[] | ((current: readonly T[]) => T[]);
+
+export function applyLockListEdit<T>(
+    edit: LockListEdit<T>,
+    current: readonly T[]
+): T[] {
+    return typeof edit === 'function' ? edit(current) : [...edit];
+}
+
+/**
  * Pure builders for the next lock set of one playlist: each replaces the
  * entries of ONE category type (or the M3U group list) and leaves the other
  * types untouched, so a dialog editing Live TV cannot drop the Movies locks.

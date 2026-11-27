@@ -55,6 +55,27 @@ describe('ExternalPlayerSessionRegistry', () => {
         );
     });
 
+    it('lists the sessions whose player may still run', () => {
+        const begin = (title: string) =>
+            registry.beginSession({
+                player: 'mpv',
+                title,
+                streamUrl: 'https://streams.example.test/one.m3u8',
+            });
+        const launching = begin('Launching');
+        const opened = begin('Opened');
+        const closed = begin('Closed');
+        const failed = begin('Failed');
+        registry.markOpened(opened.id);
+        registry.markClosed(closed.id);
+        registry.markError(failed.id, 'synthetic failure');
+
+        expect(registry.listOpenSessions().map(({ id }) => id)).toEqual([
+            launching.id,
+            opened.id,
+        ]);
+    });
+
     it('keeps close capability and closes the session explicitly', async () => {
         const session = registry.beginSession({
             player: 'vlc',

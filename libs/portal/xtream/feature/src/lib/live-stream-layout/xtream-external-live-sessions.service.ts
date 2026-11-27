@@ -10,8 +10,10 @@ import {
     isLiveExternalPlayerSession,
     PORTAL_EXTERNAL_PLAYBACK,
 } from '@iptvnator/portal/shared/util';
-import { ParentalLockService } from '@iptvnator/services';
-import type { XtreamPlaylistData } from '@iptvnator/portal/xtream/data-access';
+import {
+    ParentalLockService,
+    ParentalLockSessionOwners,
+} from '@iptvnator/services';
 import type {
     EpgProgram,
     ExternalPlayerSession,
@@ -30,35 +32,13 @@ import {
     type GuideLaunchOutcome,
     type XtreamOwnedLaunch as Launch,
 } from './xtream-native-handoff';
+import { sameXtreamLiveOwner, type XtreamLiveOwner } from './xtream-live-owner';
 
-export type XtreamLiveOwner = Pick<
-    XtreamPlaylistData,
-    'serverUrl' | 'username' | 'password'
-> & {
-    playlistId: string;
-};
-
-export function captureXtreamLiveOwner(
-    playlist?: XtreamPlaylistData | null
-): XtreamLiveOwner | undefined {
-    if (!playlist?.id) return undefined;
-    const { id: playlistId, serverUrl, username, password } = playlist;
-    return { playlistId, serverUrl, username, password };
-}
-
-export function sameXtreamLiveOwner(
-    left: XtreamLiveOwner | undefined,
-    right: XtreamLiveOwner | undefined
-): boolean {
-    return (
-        !!left &&
-        !!right &&
-        left.playlistId === right.playlistId &&
-        left.serverUrl === right.serverUrl &&
-        left.username === right.username &&
-        left.password === right.password
-    );
-}
+export {
+    captureXtreamLiveOwner,
+    sameXtreamLiveOwner,
+    type XtreamLiveOwner,
+} from './xtream-live-owner';
 
 export interface XtreamLiveSource extends XtreamLiveOwner {
     categoryId: number | null | 'unknown';
@@ -110,7 +90,15 @@ export class XtreamExternalLiveSessions {
         const unsubscribe = window.electron?.onExternalPlayerSessionUpdate?.(
             (session) => this.update(session)
         );
+        // Relock closes only sessions of a withheld category (enforce), so
+        // the app-wide closer for uncategorized sessions leaves these alone.
+        const release = inject(ParentalLockSessionOwners).claim(
+            (session) =>
+                this.sessions.has(session.id) ||
+                (!!session.launchId && this.pending.has(session.launchId))
+        );
         this.destroyRef.onDestroy(() => {
+            release();
             unsubscribe?.();
             this.sessions.forEach((entry) => clearTimeout(entry.retry));
         });

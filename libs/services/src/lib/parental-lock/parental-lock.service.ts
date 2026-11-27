@@ -17,10 +17,8 @@ import {
 import { RuntimeCapabilitiesService } from '../runtime-capabilities.service';
 import { SettingsStore } from '../settings-store.service';
 import { ParentalLockIdleTimer } from './parental-lock-idle-timer';
-import {
-    LockListEdit,
-    ParentalLockLockStore,
-} from './parental-lock-lock-store.service';
+import { ParentalLockLockStore } from './parental-lock-lock-store.service';
+import type { LockListEdit } from './parental-lock-store.util';
 import { PARENTAL_LOCK_PROMPT } from './parental-lock-prompt.token';
 import {
     isParentalLockWorkerFilterMissing,
