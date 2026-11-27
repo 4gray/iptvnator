@@ -1,15 +1,21 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { XtreamUrlService } from '@iptvnator/portal/xtream/data-access';
 import { SourceActivityService } from '@iptvnator/services';
 import type { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
 import { setupLiveStreamLayoutNativeFixture } from './live-stream-layout-native.test-fixture';
-import { playlist, sampleChannel } from './live-stream-layout-stubs.spec-data';
+import {
+    epgItem,
+    playlist,
+    sampleChannel,
+} from './live-stream-layout-stubs.spec-data';
 import { XtreamExternalLiveSessions } from './xtream-external-live-sessions.service';
 
 describe('Xtream live playback through a startup refresh', () => {
     const {
         closeSession,
         databaseService,
+        epgItems,
         parentalLock,
         portalPlayer,
         publishExternalSession,
@@ -219,6 +225,54 @@ describe('Xtream live playback through a startup refresh', () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
         expect(component.activePlayback()).toBe(playing);
         expect(confirmed).not.toHaveBeenCalled();
+    });
+
+    it('withholds a stale archive selection whose channel moved to a locked category', async () => {
+        xtreamStore.selectedItem.set(original);
+        epgItems.set([epgItem('Synthetic archived program', 0, 1)]);
+        parentalLock.isXtreamCategoryLocked.mockImplementation(
+            (_source, _type, category) => category === 600
+        );
+        parentalLock.active.set(true);
+        TestBed.inject(SourceActivityService).notifyLiveCatalogReplacement(
+            playlist.id
+        );
+
+        await component.onProgramActivated({
+            type: 'timeshift',
+            program: component.controlledEpgPrograms()[0],
+        });
+
+        expect(
+            TestBed.inject(XtreamUrlService).resolveCatchupUrl
+        ).not.toHaveBeenCalled();
+        expect(component.activePlayback()).toBeNull();
+    });
+
+    it('drops an archive request if its catalog changes while resolving the URL', async () => {
+        xtreamStore.selectedItem.set(original);
+        epgItems.set([epgItem('Synthetic archived program', 0, 1)]);
+        const resolveUrl = jest.mocked(
+            TestBed.inject(XtreamUrlService).resolveCatchupUrl
+        );
+        let finish!: (url: string) => void;
+        resolveUrl.mockReturnValueOnce(
+            new Promise((resolve) => {
+                finish = resolve;
+            })
+        );
+        const opening = component.onProgramActivated({
+            type: 'timeshift',
+            program: component.controlledEpgPrograms()[0],
+        });
+        expect(resolveUrl).toHaveBeenCalled();
+        TestBed.inject(SourceActivityService).notifyLiveCatalogReplacement(
+            playlist.id
+        );
+        finish('https://media.example.test/archived-program.ts');
+        await opening;
+
+        expect(component.activePlayback()).toBeNull();
     });
 
     it.each([true, false])(

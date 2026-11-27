@@ -117,6 +117,7 @@ import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import { injectXtreamRecentHistory } from '../xtream-recent-history';
 
 import {
+    replaceXtreamQueuedCopy,
     sameXtreamChannelCopy,
     XtreamLiveChannelNavigationService,
     type XtreamLiveChannelItem,
@@ -1568,16 +1569,27 @@ export class LiveStreamLayoutComponent
                     : this.channelNavigation.displayedChannels()),
             displayedChannels || fromPreview ? 'replace' : 'on-channel-change'
         );
-        const category = this.readLiveProviderCategoryId(item);
+        const revision = this.sourceActivity.liveCatalogRevision(playlist.id);
+        const refreshed = revision
+            ? await readRefreshedLivePlayback(
+                  this.databaseService,
+                  playlist.id,
+                  item
+              )
+            : undefined;
+        if (refreshed?.item === null) return;
+        const channel = refreshed?.item ?? item;
+        const category =
+            refreshed?.categoryId ?? this.readLiveProviderCategoryId(channel);
         const resolved =
-            category === 'unknown'
-                ? await this.lookupLiveProviderCategoryId(playlist.id, item)
+            !refreshed && category === 'unknown'
+                ? await this.lookupLiveProviderCategoryId(playlist.id, channel)
                 : category;
-        if (
-            !this.tuneRequests.isCurrent(request) ||
-            this.isLiveCategoryWithheld(playlist.id, resolved)
-        )
-            return;
+        const playbackAllowed = () =>
+            this.tuneRequests.isCurrent(request) &&
+            revision === this.sourceActivity.liveCatalogRevision(playlist.id) &&
+            !this.isLiveCategoryWithheld(playlist.id, resolved);
+        if (!playbackAllowed()) return;
         const catchupUrl = await this.xtreamUrlService.resolveCatchupUrl(
             playlist.id,
             {
@@ -1589,24 +1601,22 @@ export class LiveStreamLayoutComponent
                 referrer: playlist.referrer,
                 origin: playlist.origin,
             },
-            item.xtream_id,
+            channel.xtream_id,
             startTimestamp,
             stopTimestamp,
             playlist.serverTimezone
         );
-        if (
-            !this.tuneRequests.isCurrent(request) ||
-            this.isLiveCategoryWithheld(playlist.id, resolved)
-        ) {
-            return;
-        }
+        if (!playbackAllowed()) return;
+        const playbackQueue = refreshed
+            ? replaceXtreamQueuedCopy(queue, channel)
+            : queue;
 
         // The archive is served by the same panel as the live stream, with
         // the same header requirements.
         const playback: ResolvedPortalPlayback = {
             streamUrl: catchupUrl,
-            title: this.getCatchupPlaybackTitle(item, program),
-            thumbnail: item.poster_url ?? item.stream_icon ?? null,
+            title: this.getCatchupPlaybackTitle(channel, program),
+            thumbnail: channel.poster_url ?? channel.stream_icon ?? null,
             isLive: false,
             userAgent: playlist.userAgent,
             referer: playlist.referrer,
@@ -1615,24 +1625,35 @@ export class LiveStreamLayoutComponent
         const inline = this.usesEmbeddedPlayer();
         if (this.usesSelectionForRemote()) {
             if (displayedChannels) {
-                this.selectGuideLiveItem(item, resolved);
-                this.channelNavigation.capture(item, queue, 'replace');
+                this.selectGuideLiveItem(channel, resolved);
+                this.channelNavigation.capture(
+                    channel,
+                    playbackQueue,
+                    'replace'
+                );
             }
-            this.activeLiveItemId.set(item.xtream_id);
+            this.activeLiveItemId.set(channel.xtream_id);
             this.activeLiveProviderCategoryId =
-                this.resolveLiveProviderCategoryId(item, resolved);
+                this.resolveLiveProviderCategoryId(channel, resolved);
             this.activeOwner.set(request.owner);
-            this.activeGuideItem.set(item);
+            this.activeGuideItem.set(channel);
             this.panelCatchupProgram.set(program);
             this.panelPlayback.set(playback);
         }
         if (inline) return;
 
-        this.externalGuide.start(playback, item, program, resolved, queue, {
-            replaceWith: this.guide.isOpen()
-                ? this.settingsStore.player?.()
-                : undefined,
-        });
+        this.externalGuide.start(
+            playback,
+            channel,
+            program,
+            resolved,
+            playbackQueue,
+            {
+                replaceWith: this.guide.isOpen()
+                    ? this.settingsStore.player?.()
+                    : undefined,
+            }
+        );
     }
 
     private selectGuideLiveItem(
