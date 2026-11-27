@@ -446,6 +446,9 @@ The detail shell owns vertical scrolling and follows the app's overscroll
 policy so dragging past the content cannot expose a gap beneath the workspace
 header in standalone apps.
 
+Cast and crew cards share a fixed width. Names and roles wrap in full, with
+breaks inside words only when a word is too wide for the card.
+
 The pieces are shared and provider-neutral (`libs/ui/components/src/lib/detail-ui/`):
 `app-meta-chip` (pill; `rating` and `status` variants; facets as projected
 `.meta-chip__facet` buttons), `app-detail-action-button` (the light primary
