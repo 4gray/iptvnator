@@ -695,3 +695,46 @@ jobs:
                   fail_ci_if_error: true
                   disable_search: true
                   token: ${{ secrets.CODECOV_TOKEN }}
+
+    # Master pushes write a new run-scoped jest-transform-* snapshot (~205 MB)
+    # on every commit. Prune older master snapshots in a separate
+    # least-privilege job (never on pull requests, no checkout) keeping the two
+    # newest entries so in-flight PRs restoring the previous cache are
+    # unaffected and the repo stays below GitHub's 10 GB eviction threshold.
+    prune-jest-cache:
+        name: Prune stale Jest caches
+        needs: unit-and-typecheck
+        if: >-
+            ${{ !cancelled() &&
+                github.event_name == 'push' &&
+                github.ref == 'refs/heads/master' &&
+                needs.unit-and-typecheck.result == 'success' }}
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        continue-on-error: true
+        permissions:
+            actions: write
+
+        steps:
+            - name: Prune old master Jest transform caches
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  set -euo pipefail
+                  stale_ids="$(
+                      gh api \
+                          "repos/${GITHUB_REPOSITORY}/actions/caches?ref=refs/heads/master&key=jest-transform-&sort=created_at&direction=desc&per_page=100" \
+                          --paginate \
+                          --jq '.actions_caches[].id' |
+                          tail -n +3
+                  )"
+                  deleted=0
+                  while IFS= read -r cache_id; do
+                      [ -n "$cache_id" ] || continue
+                      if gh api -X DELETE "repos/${GITHUB_REPOSITORY}/actions/caches/${cache_id}"; then
+                          deleted=$((deleted + 1))
+                      else
+                          echo "::warning::Could not delete cache ${cache_id}; continuing."
+                      fi
+                  done <<< "$stale_ids"
+                  echo "Pruned ${deleted} stale master jest-transform cache(s)."
