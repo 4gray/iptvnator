@@ -309,7 +309,10 @@ handler as the header Back.
   toolbar through the panels' `[epgToolbarAction]` content slot beside the
   channel name (the "where is this from" answer sits on the now-playing
   surface and survives the collapsed state; it is absent for radio, which
-  has no EPG panel, and without EPG support), and an "Open in <playlist>"
+  has no EPG panel, and without EPG support). The toolbar uses the kit's
+  compact secondary button. Its visible label can end in an ellipsis while
+  its accessible label and tooltip retain the full display label. The other
+  surface is an "Open in <playlist>"
   entry in `app-global-favorites-list`'s row context menu
   (`openInPlaylistRequested`), which also covers radio rows and rows that
   are not playing. Both label with `playlistDisplayLabel` (a stored playlist
