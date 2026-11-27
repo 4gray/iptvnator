@@ -285,7 +285,30 @@ async function drag(
         await page.keyboard.press('Escape');
         await expect(target).not.toHaveClass(/folder-row--drag-over/);
     }
+    if (folderDrop === 'commit') {
+        await target.evaluate((element) => {
+            const observer = new MutationObserver(() => {
+                if (!element.classList.contains('folder-row--received')) return;
+                element.setAttribute(
+                    'data-test-drop-animation',
+                    getComputedStyle(element, '::after').animationName
+                );
+                observer.disconnect();
+            });
+            element.removeAttribute('data-test-drop-animation');
+            observer.observe(element, { attributeFilter: ['class'] });
+        });
+    }
     await page.mouse.up();
+    if (folderDrop === 'commit') {
+        const reducedMotion = await page.evaluate(
+            () => matchMedia('(prefers-reduced-motion: reduce)').matches
+        );
+        await expect(target).toHaveAttribute(
+            'data-test-drop-animation',
+            reducedMotion ? 'none' : /folder-received$/
+        );
+    }
 }
 
 function railWidth(rail: Locator): Promise<number> {

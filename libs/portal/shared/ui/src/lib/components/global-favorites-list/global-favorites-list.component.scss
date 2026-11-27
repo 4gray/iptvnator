@@ -31,31 +31,11 @@
 }
 
 .nav-list {
-    --channel-row-gap: 2px;
-
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
     padding: 8px 8px 12px;
     display: flex;
     flex-direction: column;
-    gap: var(--channel-row-gap);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-    .folder-drop-leave {
-        display: grid;
-        grid-template-rows: minmax(0, 1fr);
-        overflow: clip;
-        pointer-events: none;
-        animation: folder-drop-leave 190ms ease-out both;
-    }
-}
-
-@keyframes folder-drop-leave {
-    to {
-        grid-template-rows: minmax(0, 0fr);
-        margin-block-end: calc(-1 * var(--channel-row-gap));
-        opacity: 0;
-    }
+    gap: 2px;
 }

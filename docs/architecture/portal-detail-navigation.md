@@ -570,3 +570,5 @@ a filtered folder places the reordered channels back into their slots in the
 source scope’s full list. The content-type toggle keeps keyboard focus when the
 header moves between the live channel list and the movies or series view.
 On phones, the header sits above the capped channel list to leave room for rows.
+Desktop drops highlight the destination and confirm the move with a brief CSS
+effect that becomes a static highlight with reduced motion.

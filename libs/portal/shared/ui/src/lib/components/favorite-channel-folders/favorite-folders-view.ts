@@ -64,7 +64,6 @@ export function createFavoriteFoldersView(options: {
     const dragOriginId = signal<string | null>(null);
     const dragTargetId = signal<string | null>(null);
     const flashedId = signal<string | null>(null);
-    const droppedUid = signal<string | null>(null);
     let flashTimeout: ReturnType<typeof setTimeout> | undefined;
     const watchMedia = (query: string) => {
         const media = document.defaultView?.matchMedia?.(query);
@@ -284,7 +283,6 @@ export function createFavoriteFoldersView(options: {
 
         clearTimeout(flashTimeout);
         flashedId.set(null);
-        droppedUid.set(channel.uid);
         try {
             await store().move(
                 [item],
@@ -292,12 +290,8 @@ export function createFavoriteFoldersView(options: {
             );
             clearTimeout(flashTimeout);
             flashedId.set(destination);
-            flashTimeout = setTimeout(() => {
-                flashedId.set(null);
-                droppedUid.set(null);
-            }, 420);
+            flashTimeout = setTimeout(() => flashedId.set(null), 420);
         } catch {
-            droppedUid.set(null);
             notifications.error(LABELS + '.SAVE_FAILED');
         }
     }
@@ -372,7 +366,6 @@ export function createFavoriteFoldersView(options: {
         panelFolded,
         phoneLayout: watchMedia('(max-width: 640px)'),
         showPanel: () => setPanelFolded(false),
-        droppedUid,
         startDrag: (channel: UnifiedFavoriteChannel) => {
             if (desktopDrag() && folders().length && store().canFile(channel))
                 dragOriginId.set(membership().get(channel.uid) ?? UNFILED);

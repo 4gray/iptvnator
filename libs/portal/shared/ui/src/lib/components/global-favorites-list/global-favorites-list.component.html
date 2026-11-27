@@ -58,9 +58,6 @@
             !folderView()?.selectionMode() && !!folderView()?.canFile(ch);
         <app-channel-list-item
             [class.stack-actions]="showFolderActions"
-            [animate.leave]="
-                folderView()?.droppedUid() === ch.uid ? 'folder-drop-leave' : ''
-            "
             [isDraggable]="
                 canDragDrop() ||
                 (canDragToFolder() && !!folderView()?.canFile(ch))
