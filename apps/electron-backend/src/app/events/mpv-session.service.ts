@@ -72,6 +72,7 @@ export interface OpenExternalPlayerRequest {
     startTime?: number;
     headers?: Record<string, string>;
     launchId?: string;
+    requestId?: string;
 }
 
 const reusableMpvProcess = new MpvReusableProcess();
@@ -106,6 +107,7 @@ export function shutdownMpvSession(): void {
         'kill reused mpv process on app shutdown',
         stopPositionPolling
     );
+    stopPositionPolling();
 }
 
 // MPV launches run one at a time; see MpvLaunchQueue. Each launch begins its
@@ -124,12 +126,9 @@ export function openMpvPlayer(
     }
     const displacedSessionId = externalPlayerSessions.getActiveSessionId();
     const session = externalPlayerSessions.beginSession({
+        ...request,
         player: 'mpv',
-        launchId: request.launchId,
-        title: request.title,
-        thumbnail: request.thumbnail,
         streamUrl: request.url,
-        contentInfo: request.contentInfo,
     });
     return mpvLaunchQueue.enqueue(session, (queue) =>
         launchMpvPlayer(request, session, displacedSessionId, queue)

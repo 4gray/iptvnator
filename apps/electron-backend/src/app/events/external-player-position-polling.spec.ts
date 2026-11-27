@@ -196,6 +196,28 @@ describe('external player position polling lifetime', () => {
 
         expect(createConnectionMock).not.toHaveBeenCalled();
     });
+
+    it.each([
+        ['MPV', openMpv],
+        ['VLC', openVlc],
+    ] as const)(
+        'continues polling an earlier independent %s window',
+        async (_player, open) => {
+            const first = await open();
+            const second = await open();
+            exitProcess(second);
+            createConnectionMock.mockClear();
+
+            await jest.advanceTimersByTimeAsync(7_100);
+            expect(createConnectionMock).toHaveBeenCalled();
+
+            exitProcess(first);
+            await jest.advanceTimersByTimeAsync(5_000);
+            createConnectionMock.mockClear();
+            await jest.advanceTimersByTimeAsync(10_000);
+            expect(createConnectionMock).not.toHaveBeenCalled();
+        }
+    );
 });
 
 function deferred<T>() {
@@ -330,6 +352,31 @@ describe('VLC in-flight polling ownership', () => {
         await open(nextContent);
         exitProcess(old);
         await expectNextSessionPolling();
+    });
+
+    it('reports activity from the older VLC window without publishing its resume position', async () => {
+        const activity = jest.spyOn(runtime, 'sendPlaybackActivityUpdate');
+        await open();
+        const oldId = runtime.externalPlayerSessions.getActiveSessionId();
+        await open(nextContent);
+
+        await expectNextSessionPolling();
+
+        expect(activity).toHaveBeenCalledWith(oldId, contentInfo, 42);
+        expect(updates).not.toHaveBeenCalledWith(oldId, contentInfo, snapshot);
+    });
+
+    it('stops polling the older VLC window when playback ends', async () => {
+        await open();
+        await open(nextContent);
+        snapshots.mockResolvedValueOnce(null);
+
+        await jest.advanceTimersByTimeAsync(3_500);
+        expect(states).toHaveBeenCalledTimes(1);
+
+        snapshots.mockClear();
+        await jest.advanceTimersByTimeAsync(4_000);
+        expect(snapshots).toHaveBeenCalledTimes(2);
     });
 
     it('drops an in-flight snapshot after the current child exits', async () => {

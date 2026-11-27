@@ -317,7 +317,9 @@ export class PlaybackPositionRuntimeBridgeService {
             return undefined;
         }
 
-        return this.bridge?.onPlaybackPositionUpdate?.(callback);
+        return this.bridge?.onPlaybackPositionUpdate?.((data) => {
+            if (!data.activityOnly) callback(data);
+        });
     }
 
     private get bridge(): PlaybackPositionElectronBridge | undefined {

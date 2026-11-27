@@ -22,11 +22,13 @@ import {
     shouldReuseVlcInstance,
 } from './external-player-launch-context';
 import { resolveEffectiveExternalPlaybackRequest } from './external-player-playback-request';
+import { ExternalPlayerPositionPollers } from './external-player-position-pollers';
 import {
     buildPlayerStartError,
     ExternalPlaybackSnapshot,
     externalPlayerSessions,
     maskUrlForLogs,
+    sendPlaybackActivityUpdate,
     sendPlaybackPositionUpdate,
     sendPlayerErrorNotification,
     traceExternalPlayer,
@@ -63,16 +65,11 @@ export interface OpenVlcPlayerRequest {
     startTime?: number;
     headers?: Record<string, string>;
     launchId?: string;
+    requestId?: string;
 }
 
 const reusableVlcProcess = new VlcReusableProcess();
-let vlcPollingInterval: NodeJS.Timeout | null = null;
-// Kept so a player that exits before the first poll cannot leave an orphaned
-// interval behind.
-let vlcPollingDelay: NodeJS.Timeout | null = null;
-// Invalidate replies already awaiting RC when polling stops or is replaced.
-let vlcPollingGeneration = 0;
-let vlcPollingSessionId: string | null = null;
+const vlcPollers = new ExternalPlayerPositionPollers();
 
 function getVlcPath(options: PlayerPathOptions = {}): string {
     return (
@@ -82,17 +79,7 @@ function getVlcPath(options: PlayerPathOptions = {}): string {
 }
 
 function stopVlcPositionPolling(sessionId?: string): void {
-    if (sessionId !== undefined && sessionId !== vlcPollingSessionId) return;
-    vlcPollingGeneration += 1;
-    vlcPollingSessionId = null;
-    if (vlcPollingDelay) {
-        clearTimeout(vlcPollingDelay);
-        vlcPollingDelay = null;
-    }
-    if (vlcPollingInterval) {
-        clearInterval(vlcPollingInterval);
-        vlcPollingInterval = null;
-    }
+    vlcPollers.stop(sessionId);
 }
 
 function startVlcPositionPolling(
@@ -102,39 +89,43 @@ function startVlcPositionPolling(
     onSnapshot?: (snapshot: ExternalPlaybackSnapshot) => void,
     onStopped?: () => void
 ): void {
-    stopVlcPositionPolling();
-    vlcPollingSessionId = sessionId;
-    const generation = vlcPollingGeneration;
-    const isCurrent = () => generation === vlcPollingGeneration;
-
-    vlcPollingDelay = setTimeout(() => {
-        vlcPollingDelay = null;
-        vlcPollingInterval = setInterval(async () => {
-            try {
-                const snapshot = await getVlcPlaybackSnapshot(port);
-                if (!isCurrent()) return;
-
-                if (snapshot) {
+    vlcPollers.start(sessionId, 1500, 2000, async (isCurrent) => {
+        const primary = vlcPollers.isPrimary(sessionId);
+        // A reply requested before a newer window launched should not
+        // change the old session. Its next poll observes it in the background.
+        const ownsReply = () =>
+            isCurrent() && primary === vlcPollers.isPrimary(sessionId);
+        try {
+            const snapshot = await getVlcPlaybackSnapshot(port);
+            if (!ownsReply()) return;
+            if (snapshot) {
+                if (primary) {
                     onSnapshot?.(snapshot);
                     sendPlaybackPositionUpdate(
                         sessionId,
                         contentInfo,
                         snapshot
                     );
-                    return;
+                } else {
+                    sendPlaybackActivityUpdate(
+                        sessionId,
+                        contentInfo,
+                        snapshot.positionSeconds
+                    );
                 }
-
-                const playbackState = await getVlcPlaybackState(port);
-                if (!isCurrent()) return;
-                if (playbackState === 'stopped') {
-                    onStopped?.();
-                    stopVlcPositionPolling(sessionId);
-                }
-            } catch {
-                if (isCurrent()) stopVlcPositionPolling(sessionId);
+                return;
             }
-        }, 2000);
-    }, 1500);
+
+            const playbackState = await getVlcPlaybackState(port);
+            if (!ownsReply()) return;
+            if (playbackState === 'stopped') {
+                if (primary) onStopped?.();
+                stopVlcPositionPolling(sessionId);
+            }
+        } catch {
+            if (ownsReply()) stopVlcPositionPolling(sessionId);
+        }
+    });
 }
 
 function getFreePort(): Promise<number> {
@@ -160,7 +151,9 @@ export function setVlcReuseInstance(reuseInstance: boolean): void {
         const sessionId = reusableVlcProcess.currentSessionId();
         reusableVlcProcess.stopStored(
             'clean up vlc process after disabling reuse',
-            () => stopVlcPositionPolling(sessionId ?? undefined),
+            () => {
+                if (sessionId) stopVlcPositionPolling(sessionId);
+            },
             true
         );
     }
@@ -172,11 +165,11 @@ export function setVlcReuseInstance(reuseInstance: boolean): void {
  * playing after quit.
  */
 export function shutdownVlcSession(): void {
-    const sessionId = reusableVlcProcess.currentSessionId();
     reusableVlcProcess.stopStored(
         'kill reused vlc process on app shutdown',
-        () => stopVlcPositionPolling(sessionId ?? undefined)
+        stopVlcPositionPolling
     );
+    stopVlcPositionPolling();
 }
 
 export async function openVlcPlayer({
@@ -190,6 +183,7 @@ export async function openVlcPlayer({
     startTime,
     headers,
     launchId,
+    requestId,
 }: OpenVlcPlayerRequest) {
     externalPlayerProcessTeardownGate.assertLaunchAllowed();
     const isFlatpak = isRunningInFlatpak();
@@ -203,6 +197,7 @@ export async function openVlcPlayer({
     const session = externalPlayerSessions.beginSession({
         player: 'vlc',
         launchId,
+        requestId,
         title,
         thumbnail,
         streamUrl: url,

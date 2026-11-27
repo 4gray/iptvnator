@@ -12,8 +12,15 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
-import { ParentalLockService } from '@iptvnator/services';
-import { toParentalLockXtreamCategoryType } from '@iptvnator/shared/interfaces';
+import {
+    ParentalLockLockStore,
+    ParentalLockService,
+} from '@iptvnator/services';
+import {
+    parentalLockSetKey,
+    toParentalLockXtreamCategoryType,
+} from '@iptvnator/shared/interfaces';
+import { DeferredExternalSessions } from './parental-lock-external-sessions.deferred';
 import { PlaybackKeepAwakeService } from './playback-keep-awake.service';
 
 const XTREAM_ROUTE =
@@ -31,12 +38,14 @@ export const STALKER_ROUTE =
 @Injectable({ providedIn: 'root' })
 export class ParentalLockEnforcementService {
     private readonly parentalLock = inject(ParentalLockService);
+    private readonly lockStore = inject(ParentalLockLockStore);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
     private readonly injector = inject(EnvironmentInjector);
     private readonly router = inject(Router);
     private readonly store = inject(Store);
     private readonly keepAwake = inject(PlaybackKeepAwakeService);
+    private externalSessions: DeferredExternalSessions | null = null;
     private readonly activeChannel = this.store.selectSignal(selectActive);
     private started = false;
     private lastVersion = -1;
@@ -50,10 +59,22 @@ export class ParentalLockEnforcementService {
         }
         this.started = true;
         // Playback counts as activity: video through the keep-awake
-        // tracker, and audio (the radio player) read directly, since the
-        // keep-awake service deliberately ignores <audio>.
+        // tracker, audio (the radio player) read directly, since the
+        // keep-awake service deliberately ignores <audio>, and the players
+        // that render outside the page (Embedded MPV, MPV/VLC films).
+        const externalSessions = new DeferredExternalSessions({
+            injector: this.injector,
+            isLocked: () => this.parentalLock.active(),
+            lockSetKey: (sourceId) =>
+                parentalLockSetKey(this.lockStore.lockSet(), sourceId),
+            routeUrl: () => this.router.url,
+        });
+        this.externalSessions = externalSessions;
         this.parentalLock.registerBusyProbe(
-            () => this.keepAwake.hasPlayingVideo() || hasPlayingAudio()
+            () =>
+                this.keepAwake.hasPlayingVideo() ||
+                hasPlayingAudio() ||
+                externalSessions.isBusy()
         );
         // The Stalker step is loaded as soon as a Stalker route opens, so a
         // relock there can run it synchronously instead of awaiting a chunk.
@@ -94,6 +115,7 @@ export class ParentalLockEnforcementService {
                 if (this.parentalLock.active()) {
                     this.failClosedNow();
                 }
+                this.externalSessions?.onLockChange();
                 this.scheduleApply();
             });
         });

@@ -289,7 +289,10 @@ describe('PlaybackPositionRuntimeBridgeService', () => {
 
     it('subscribes to playback-position updates only when update events are supported', () => {
         const unsubscribe = jest.fn();
-        const onPlaybackPositionUpdate = jest.fn(() => unsubscribe);
+        const onPlaybackPositionUpdate = jest.fn<
+            () => void,
+            [(data: PlaybackPositionData) => void]
+        >(() => unsubscribe);
         window.electron = {
             ...window.electron,
             onPlaybackPositionUpdate,
@@ -303,7 +306,15 @@ describe('PlaybackPositionRuntimeBridgeService', () => {
         runtimeCapabilities.supportsPlaybackPositionUpdates = true;
 
         expect(service.onPlaybackPositionUpdate(callback)).toBe(unsubscribe);
-        expect(onPlaybackPositionUpdate).toHaveBeenCalledWith(callback);
+        expect(onPlaybackPositionUpdate).toHaveBeenCalledWith(
+            expect.any(Function)
+        );
+        const receive = onPlaybackPositionUpdate.mock.calls[0][0];
+        const position = createPosition();
+        receive({ ...position, activityOnly: true });
+        expect(callback).not.toHaveBeenCalled();
+        receive(position);
+        expect(callback).toHaveBeenCalledWith(position);
     });
 
     describe.each([

@@ -12,6 +12,8 @@ export interface PlaybackPositionData {
     playlistId?: string;
     updatedAt?: string;
     sessionId?: string;
+    /** Native playback activity for the idle timer. This sample is not saved. */
+    activityOnly?: true;
     activitySessionId?: string;
     /** Capture time used to compare positions during checkpoint recovery. */
     activityPlayedAt?: string;

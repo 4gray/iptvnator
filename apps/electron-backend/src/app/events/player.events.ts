@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import {
     CLOSE_EXTERNAL_PLAYER_SESSION,
+    LIST_EXTERNAL_PLAYER_SESSIONS,
     type ExternalPlayerName,
     PLAYBACK_SET_KEEP_AWAKE,
     PlayerContentInfo,
@@ -102,7 +103,8 @@ ipcMain.handle(
         contentInfo?: PlayerContentInfo,
         startTime?: number,
         headers?: Record<string, string>,
-        launchId?: string
+        launchId?: string,
+        requestId?: string
     ) => {
         await waitForPathIfBareName('mpv', store.get(MPV_PLAYER_PATH));
         return openMpvPlayer({
@@ -116,6 +118,7 @@ ipcMain.handle(
             startTime,
             headers,
             launchId,
+            requestId,
         });
     }
 );
@@ -148,7 +151,8 @@ ipcMain.handle(
         contentInfo?: PlayerContentInfo,
         startTime?: number,
         headers?: Record<string, string>,
-        launchId?: string
+        launchId?: string,
+        requestId?: string
     ) => {
         await waitForPathIfBareName('vlc', store.get(VLC_PLAYER_PATH));
         return openVlcPlayer({
@@ -162,6 +166,7 @@ ipcMain.handle(
             startTime,
             headers,
             launchId,
+            requestId,
         });
     }
 );
@@ -186,6 +191,10 @@ ipcMain.handle(
     async (_event, sessionId: string, exact?: boolean) => {
         return externalPlayerSessions.closeSession(sessionId, exact === true);
     }
+);
+
+ipcMain.handle(LIST_EXTERNAL_PLAYER_SESSIONS, () =>
+    externalPlayerSessions.listOpenSessions()
 );
 
 ipcMain.handle(PLAYBACK_SET_KEEP_AWAKE, (event, active: boolean) => {
