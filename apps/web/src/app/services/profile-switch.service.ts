@@ -28,6 +28,10 @@ export class ProfileSwitchService {
     private queue: Promise<void> = Promise.resolve();
     /** The newest scope asked for; an older switch still draining gives way to it. */
     private target: PersonalScope = activePersonalScope();
+    /** The scope the clients and lists were last rebuilt for. */
+    private settled: PersonalScope = activePersonalScope();
+    /** A switch has moved the scope and is still re-listing for it. */
+    private rescoping = false;
 
     constructor() {
         // Later changes of the active profile (picker, switcher, a deleted profile).
@@ -37,12 +41,17 @@ export class ProfileSwitchService {
     /** Runs switches one at a time; resolves once this device is on `scope`. */
     apply(scope: PersonalScope): Promise<void> {
         this.target = scope;
+        // A switch still re-listing over the network must not keep this
+        // device on a profile the runtime has already left (start-up gave
+        // up and fell back to Default): move the scope now, and let the
+        // queued switch rebuild what depends on it.
+        if (this.rescoping) setActivePersonalScope(scope);
         this.queue = this.queue.catch(noop).then(() => this.switchTo(scope));
         return this.queue;
     }
 
     private async switchTo(scope: PersonalScope): Promise<void> {
-        if (activePersonalScope() === scope) return;
+        if (this.settled === scope && activePersonalScope() === scope) return;
         const activity = this.injector.get(ActivitySyncRuntime);
         const favorites = this.injector.get(FavoritesSyncRuntime);
         const history = this.injector.get(HistorySyncRuntime);
@@ -51,22 +60,28 @@ export class ProfileSwitchService {
         // fell back to Default): the newer apply owns the switch.
         if (this.target !== scope) return;
         setActivePersonalScope(scope);
-        // Readers that outlive the switch drop the old profile's data now.
-        window.dispatchEvent(new Event('iptvnator-profile-switched'));
-        // A scope change rebuilds each client on its next use; list afresh.
-        await Promise.all([
-            activity.refresh().catch(noop),
-            favorites.refresh().catch(noop),
-            history.refresh().catch(noop),
-        ]);
-        await refreshFavoriteViews(
-            this.injector.get(PlaylistsService),
-            (playlist) => favorites.project(playlist),
-            this.injector.get(Router),
-            this.injector.get(Store)
-        ).catch(noop);
-        window.dispatchEvent(new Event('iptvnator-history-changed'));
-        announceActivityChange();
+        this.rescoping = true;
+        try {
+            // Readers that outlive the switch drop the old profile's data now.
+            window.dispatchEvent(new Event('iptvnator-profile-switched'));
+            // A scope change rebuilds each client on its next use; list afresh.
+            await Promise.all([
+                activity.refresh().catch(noop),
+                favorites.refresh().catch(noop),
+                history.refresh().catch(noop),
+            ]);
+            await refreshFavoriteViews(
+                this.injector.get(PlaylistsService),
+                (playlist) => favorites.project(playlist),
+                this.injector.get(Router),
+                this.injector.get(Store)
+            ).catch(noop);
+            window.dispatchEvent(new Event('iptvnator-history-changed'));
+            announceActivityChange();
+        } finally {
+            this.rescoping = false;
+            this.settled = scope;
+        }
     }
 
     /** What the old profile owes is sent, or stays queued under its own scope, before the scope moves. */

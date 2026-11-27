@@ -132,6 +132,27 @@ describe('ProfileSwitchService', () => {
         stop();
     });
 
+    it('leaves a profile at once when start-up falls back to Default during its re-listing', async () => {
+        const { service, activity, stop } = setup();
+        TestBed.tick();
+        let release!: () => void;
+        const slow = new Promise<void>((resolve) => (release = resolve));
+        // The first refresh (draining) is quick; the one for the new scope hangs.
+        activity.refresh
+            .mockImplementationOnce(() => Promise.resolve())
+            .mockImplementationOnce(() => slow);
+        const first = service.apply(KIDS);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(activePersonalScope()).toBe(KIDS);
+        const second = service.apply('shared');
+        // Not queued behind the network: the scope has already moved.
+        expect(activePersonalScope()).toBe('shared');
+        release();
+        await Promise.all([first, second]);
+        expect(activePersonalScope()).toBe('shared');
+        stop();
+    });
+
     it('follows the active profile and runs one switch at a time', async () => {
         const { service, log, scope, stop } = setup();
         const first = service.apply(KIDS);
