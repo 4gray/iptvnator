@@ -646,6 +646,49 @@ describe('SecondStreamComponent', () => {
         expect(await result).toBeNull();
     });
 
+    it('rejects a cached Xtream companion choice when the catalog commits during dialog close', async () => {
+        const available = distinctSelection(2);
+        const stale = {
+            ...available,
+            item: { ...available.item, sourceType: 'xtream' as const },
+            catalogRevision: 0,
+        };
+        const { result } = await dialogFor(2);
+        TestBed.inject(SourceActivityService).notifyLiveCatalogReplacement(
+            stale.item.playlistId
+        );
+        afterClosed.next(stale);
+        expect(await result).toBeNull();
+        expect(component.selectionAt(2)).toBeNull();
+
+        await choose(2, { ...stale, catalogRevision: 1 });
+    });
+
+    it('drops an Xtream replacement choice when the catalog commits during audio handoff', async () => {
+        await choose(2);
+        expect(await component.swap()).toBe(true);
+        const retained = component.selectionAt(2);
+        const muted = deferredAck();
+        volume.mockClear().mockReturnValueOnce(muted.promise);
+        const available = distinctSelection(3);
+        const stale = {
+            ...available,
+            item: { ...available.item, sourceType: 'xtream' as const },
+            catalogRevision: 0,
+        };
+        const { result } = await dialogFor(2, true);
+        afterClosed.next(stale);
+        await Promise.resolve();
+        expect(volume.mock.calls).toEqual([['session-2', 0]]);
+        TestBed.inject(SourceActivityService).notifyLiveCatalogReplacement(
+            stale.item.playlistId
+        );
+        muted.confirm();
+
+        expect(await result).toBeNull();
+        expect(component.selectionAt(2)).toBe(retained);
+    });
+
     it('returns sound and the large window to the primary before replacing a swapped companion', async () => {
         await choose(2);
         expect(await component.swap()).toBe(true);

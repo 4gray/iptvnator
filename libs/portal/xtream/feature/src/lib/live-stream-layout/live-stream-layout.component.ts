@@ -212,6 +212,7 @@ export class LiveStreamLayoutComponent
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly parentalLock = inject(ParentalLockService);
     private readonly databaseService = inject(DatabaseService);
+    private readonly sourceActivity = inject(SourceActivityService);
     private readonly liveAutoOpenState = inject(LiveStreamAutoOpenStateService);
     private readonly dataSource = inject(XTREAM_DATA_SOURCE, {
         optional: true,
@@ -752,8 +753,8 @@ export class LiveStreamLayoutComponent
             this.parentalLock.version();
             untracked(() => this.enforceActiveLiveCategory());
         });
-        inject(SourceActivityService)
-            .liveCatalogReplacements$.pipe(takeUntilDestroyed())
+        this.sourceActivity.liveCatalogReplacements$
+            .pipe(takeUntilDestroyed())
             .subscribe(
                 (playlistId) => void this.refreshActiveLiveCategory(playlistId)
             );
@@ -944,38 +945,66 @@ export class LiveStreamLayoutComponent
     ): void {
         const request = this.tuneRequests.begin();
         const { owner } = request;
-        if (
+        const revision = owner
+            ? this.sourceActivity.liveCatalogRevision(owner.playlistId)
+            : 0;
+        const launchesExternal =
+            !!owner &&
             startPlayback &&
-            owner &&
             !this.usesEmbeddedPlayer() &&
-            this.externalGuide.hasSessionUpdates
-        ) {
-            const category = this.readLiveProviderCategoryId(item);
+            this.externalGuide.hasSessionUpdates;
+        if (owner && (revision || launchesExternal)) {
+            const { playlistId } = owner;
             const keepPanel =
+                launchesExternal &&
                 (remote || this.guide.isOpen()) &&
                 !!this.externalGuide.confirmed();
-            const start = (resolved: typeof category) => {
+            const start = (
+                channel: XtreamLiveChannelItem,
+                category: number | null | 'unknown',
+                checkedRevision: number
+            ) => {
                 if (
-                    !this.tuneRequests.isCurrent(request) ||
-                    this.isLiveCategoryWithheld(owner.playlistId, resolved)
+                    this.destroyRef.destroyed ||
+                    !this.tuneRequests.isCurrent(request)
                 )
                     return;
+                const latestRevision =
+                    this.sourceActivity.liveCatalogRevision(playlistId);
+                if (checkedRevision !== latestRevision) {
+                    readCommittedCatalog(latestRevision);
+                    return;
+                }
+                if (this.isLiveCategoryWithheld(playlistId, category)) return;
                 this.applyLivePlayback(
-                    item,
-                    true,
+                    channel,
+                    startPlayback,
                     displayedChannels,
                     remote,
-                    resolved,
+                    category,
                     onConfirmed,
                     keepPanel
                 );
             };
-            if (category === 'unknown')
-                void this.lookupLiveProviderCategoryId(
-                    owner.playlistId,
+            // Route rows and queued copies can outlive a catalog replacement.
+            const readCommittedCatalog = (latestRevision: number) =>
+                void readRefreshedLivePlayback(
+                    this.databaseService,
+                    playlistId,
                     item
-                ).then(start);
-            else start(category);
+                ).then(({ item: channel, categoryId }) =>
+                    start(channel, categoryId, latestRevision)
+                );
+            if (revision) readCommittedCatalog(revision);
+            else {
+                const category = this.readLiveProviderCategoryId(item);
+                if (category === 'unknown')
+                    void this.lookupLiveProviderCategoryId(
+                        playlistId,
+                        item
+                    ).then((resolved) => start(item, resolved, revision));
+                else start(item, category, revision);
+            }
             return;
         }
         this.applyLivePlayback(

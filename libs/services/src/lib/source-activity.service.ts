@@ -6,11 +6,20 @@ import { Subject } from 'rxjs';
 export class SourceActivityService {
     private readonly counts = signal<ReadonlyMap<string, number>>(new Map());
     private readonly waiters = new Set<() => void>();
+    private readonly liveCatalogRevisions = new Map<string, number>();
     private readonly liveCatalogReplacements = new Subject<string>();
     readonly liveCatalogReplacements$ =
         this.liveCatalogReplacements.asObservable();
 
+    liveCatalogRevision(sourceId: string): number {
+        return this.liveCatalogRevisions.get(sourceId) ?? 0;
+    }
+
     notifyLiveCatalogReplacement(sourceId: string): void {
+        this.liveCatalogRevisions.set(
+            sourceId,
+            this.liveCatalogRevision(sourceId) + 1
+        );
         this.liveCatalogReplacements.next(sourceId);
     }
 

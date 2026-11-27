@@ -206,6 +206,23 @@ describe('SecondStreamPickerComponent', () => {
         expect(load).not.toHaveBeenCalled();
         expect(vodService.browse).not.toHaveBeenCalled();
     });
+    it('passes the selected Xtream source revision through the dialog result', async () => {
+        const activity = TestBed.inject(SourceActivityService);
+        const item = { ...row.item, sourceType: 'xtream' as const };
+        const playback = { streamUrl: 'https://media.example.test/live' };
+        resolve.mockResolvedValue(playback);
+        activity.notifyLiveCatalogReplacement(item.playlistId);
+        activity.notifyLiveCatalogReplacement('other-source');
+
+        await component.choose({ ...row, item });
+
+        expect(close).toHaveBeenCalledWith({
+            item,
+            playback,
+            catalogRevision: 1,
+        });
+    });
+
     it('does not open a channel whose resolution finishes after source changes', async () => {
         let finish!: (value: unknown) => void;
         resolve.mockImplementation(() => new Promise((r) => (finish = r)));

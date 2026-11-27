@@ -65,6 +65,7 @@ import type { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 })
 export class SecondStreamPickerComponent {
     private readonly catalog = inject(SecondStreamCatalogService);
+    private readonly activity = inject(SourceActivityService);
     private readonly dialog =
         inject<
             MatDialogRef<SecondStreamPickerComponent, SecondStreamSelection>
@@ -163,8 +164,8 @@ export class SecondStreamPickerComponent {
         this.dialog.beforeClosed().subscribe(cancelRequests);
         inject(DestroyRef).onDestroy(cancelRequests);
         void this.loadSources();
-        inject(SourceActivityService)
-            .liveCatalogReplacements$.pipe(takeUntilDestroyed())
+        this.activity.liveCatalogReplacements$
+            .pipe(takeUntilDestroyed())
             .subscribe((sourceId) => {
                 const source = this.source();
                 if (
@@ -355,9 +356,15 @@ export class SecondStreamPickerComponent {
     }
 
     async choose(row: SecondStreamChannel): Promise<void> {
-        await this.resolve(row.item.uid, this.openSlot(row.item), async () => ({
-            item: row.item,
+        const { item } = row;
+        const catalogRevision =
+            item.sourceType === 'xtream' && item.contentType === 'live'
+                ? this.activity.liveCatalogRevision(item.playlistId)
+                : undefined;
+        await this.resolve(item.uid, this.openSlot(item), async () => ({
+            item,
             playback: await this.catalog.resolve(row),
+            ...(catalogRevision === undefined ? {} : { catalogRevision }),
         }));
     }
 

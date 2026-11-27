@@ -437,7 +437,10 @@ the visible list only when it still belongs to their source.
 The selected and playing live channels, including companion streams, are
 rebound by provider identity to their new SQLite rows. Each player keeps its
 session while allowed and checks the refreshed provider category for parental
-locks.
+locks. After a replacement, a new tune resolves its channel against SQLite
+before playback, including selections from cached queues. A pending Xtream
+live companion choice is discarded if its source is refreshed before the
+choice can be installed.
 Retained categories keep their SQLite IDs so playback queues, the guide and
 category history links still point to the same categories. During the launch
 session, a removed category falls back to Live TV. The app replaces that

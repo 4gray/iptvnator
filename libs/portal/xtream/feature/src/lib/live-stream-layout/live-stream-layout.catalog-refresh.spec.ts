@@ -107,11 +107,18 @@ describe('Xtream live playback through a startup refresh', () => {
 
     it('discards a refresh result after the viewer tunes another channel', async () => {
         let finish!: (row: typeof refreshed) => void;
-        databaseService.getContentByXtreamId.mockReturnValueOnce(
-            new Promise((resolve) => {
-                finish = resolve;
-            })
-        );
+        const next = { ...original, xtream_id: 202 };
+        databaseService.getContentByXtreamId
+            .mockReturnValueOnce(
+                new Promise((resolve) => {
+                    finish = resolve;
+                })
+            )
+            .mockResolvedValueOnce(next);
+        databaseService.getAllXtreamCategories.mockResolvedValue([
+            { id: 1, xtream_id: 1 },
+            { id: 4, xtream_id: 600 },
+        ]);
         component.playLive(original, true);
         fixture.detectChanges();
         const activity = TestBed.inject(SourceActivityService);
@@ -120,9 +127,11 @@ describe('Xtream live playback through a startup refresh', () => {
         activity.notifyLiveCatalogReplacement(playlist.id);
         expect(databaseService.getContentByXtreamId).toHaveBeenCalledTimes(1);
 
-        component.playLive({ ...original, xtream_id: 202 }, true);
+        component.playLive(next, true);
+        await new Promise((resolve) => setTimeout(resolve, 0));
         fixture.detectChanges();
         const playing = component.activePlayback();
+        expect(playing?.catalogIdentity?.id).toBe(next.xtream_id);
         finish(refreshed);
         await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -134,6 +143,62 @@ describe('Xtream live playback through a startup refresh', () => {
         fixture.detectChanges();
         expect(playing).not.toBeNull();
         expect(component.activePlayback()).toBe(playing);
+    });
+
+    it('revalidates a cached tune while the previous channel is being rebound', async () => {
+        const next = {
+            ...original,
+            xtream_id: 202,
+            title: 'Synthetic next channel',
+        };
+        let finish!: (row: typeof original) => void;
+        databaseService.getContentByXtreamId
+            .mockReturnValueOnce(
+                new Promise((resolve) => {
+                    finish = resolve;
+                })
+            )
+            .mockResolvedValueOnce({ ...next, category_id: 4 });
+        databaseService.getAllXtreamCategories.mockResolvedValue([
+            { id: 1, xtream_id: 1 },
+            { id: 4, xtream_id: 600 },
+        ]);
+        component.playLive(original, true);
+        fixture.detectChanges();
+
+        TestBed.inject(SourceActivityService).notifyLiveCatalogReplacement(
+            playlist.id
+        );
+        component.playLive(next, true);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(component.activePlayback()?.title).toBe(next.title);
+        finish(original);
+        await fixture.whenStable();
+
+        parentalLock.isXtreamCategoryLocked.mockImplementation(
+            (_source, _type, category) => category === 600
+        );
+        parentalLock.active.set(true);
+        parentalLock.version.update((version) => version + 1);
+        fixture.detectChanges();
+        expect(component.activePlayback()).toBeNull();
+    });
+
+    it('withholds a cached tune moved to a locked category even before any channel is playing', async () => {
+        parentalLock.isXtreamCategoryLocked.mockImplementation(
+            (_source, _type, category) => category === 600
+        );
+        parentalLock.active.set(true);
+        TestBed.inject(SourceActivityService).notifyLiveCatalogReplacement(
+            playlist.id
+        );
+        const confirmed = jest.fn();
+
+        component.playLive(original, true, undefined, false, confirmed);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(component.activePlayback()).toBeNull();
+        expect(confirmed).not.toHaveBeenCalled();
     });
 
     it.each([true, false])(

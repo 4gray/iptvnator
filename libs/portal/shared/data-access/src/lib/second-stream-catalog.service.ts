@@ -46,6 +46,7 @@ export interface SecondStreamChannel {
 export interface SecondStreamSelection {
     item: UnifiedCollectionItem;
     playback: ResolvedPortalPlayback;
+    catalogRevision?: number;
 }
 export interface SecondStreamCatalog {
     groups: SecondStreamSource[];
