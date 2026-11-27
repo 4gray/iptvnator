@@ -234,6 +234,66 @@ describe('WorkspaceShellContextSidebarComponent', () => {
         expect(onCreate).toHaveBeenCalledTimes(1);
     });
 
+    it('opens the keyboard folder menu only for a named folder and targets its actions by id', async () => {
+        const onRename = jest.fn();
+        const onRemove = jest.fn();
+        const panel = TestBed.inject(WorkspaceFavoriteFoldersPanel);
+        panel.set({
+            entries: [
+                { id: 'all', name: 'All channels', count: 1 },
+                { id: 'unfiled', name: 'Without folder', count: 0 },
+                { id: 'weather', name: 'Weather', count: 1 },
+            ],
+            selectedId: 'all',
+            onSelect: jest.fn(),
+            onCreate: jest.fn(),
+            onCollapse: jest.fn(),
+            onRename,
+            onRemove,
+        });
+        fixture.componentRef.setInput('variant', 'favorite-folders');
+        fixture.detectChanges();
+
+        const article = fixture.nativeElement as HTMLElement;
+        const named = article.querySelector<HTMLButtonElement>(
+            '[data-favorite-folder-row="weather"]'
+        )!;
+        const unfiled = article.querySelector<HTMLButtonElement>(
+            '[data-favorite-folder-row="unfiled"]'
+        )!;
+        function openMenu(row: HTMLButtonElement) {
+            return row.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key: 'F10',
+                    shiftKey: true,
+                    bubbles: true,
+                    cancelable: true,
+                })
+            );
+        }
+        openMenu(unfiled);
+        expect(document.querySelector('[role="menu"]')).toBeNull();
+        expect(openMenu(named)).toBe(false);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const menuItems = Array.from(
+            document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
+        );
+        expect(menuItems).toHaveLength(2);
+        const rename = menuItems.find((item) =>
+            item.textContent?.includes('RENAME_TITLE')
+        );
+        expect(rename).toBeDefined();
+        rename?.click();
+        expect(onRename).toHaveBeenCalledWith('weather');
+        expect(onRemove).not.toHaveBeenCalled();
+
+        panel.clear();
+        fixture.detectChanges();
+        expect(article.querySelector('[data-favorite-folder-row]')).toBeNull();
+    });
+
     describe('live sidebar collapse', () => {
         function setupLiveCategory(section: 'live' | 'itv' | 'vod'): void {
             fixture.componentRef.setInput('variant', 'category');

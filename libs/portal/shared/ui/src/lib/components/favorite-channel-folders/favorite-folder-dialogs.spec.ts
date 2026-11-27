@@ -36,6 +36,7 @@ describe('FavoriteFolderDialogs', () => {
         folders: signal([currentFolder, otherFolder]),
         folderOf: jest.fn(() => currentFolder.id),
         create: jest.fn(),
+        rename: jest.fn(),
         move: jest.fn(),
         remove: jest.fn(),
     };
@@ -44,6 +45,7 @@ describe('FavoriteFolderDialogs', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        folders.folders.set([currentFolder, otherFolder]);
         TestBed.configureTestingModule({
             imports: [NoopAnimationsModule, TranslateModule.forRoot()],
             providers: [
@@ -120,6 +122,75 @@ describe('FavoriteFolderDialogs', () => {
         await panel.close();
 
         await expect(result).resolves.toBe(false);
+        expect(folders.move).not.toHaveBeenCalled();
+    });
+
+    it('prepopulates a rename and saves the name for the selected folder', async () => {
+        folders.rename.mockResolvedValueOnce(undefined);
+        const result = service.rename(currentFolder);
+        const panel = await dialog();
+        const field = await panel.getHarness(MatInputHarness);
+        expect(await field.getValue()).toBe(currentFolder.name);
+
+        await field.setValue('Morning bulletins');
+        const save = await panel.getHarness(
+            MatButtonHarness.with({ text: 'SETTINGS.UNSAVED_DIALOG_SAVE' })
+        );
+        await save.click();
+
+        await expect(result).resolves.toBe(true);
+        expect(folders.rename).toHaveBeenCalledWith(
+            currentFolder.id,
+            'Morning bulletins'
+        );
+        expect(folders.create).not.toHaveBeenCalled();
+    });
+
+    it('moves multiple rows to Without folder and retains their per-source identities', async () => {
+        const rows = [
+            channel,
+            { ...channel, uid: 'xtream::second::live:3', playlistId: 'second' },
+        ];
+        folders.move.mockResolvedValueOnce(undefined);
+        const result = service.move(rows);
+        const panel = await dialog();
+        expect(await panel.getText()).toContain(prefix + 'MOVE_CHANNELS_TITLE');
+        const picker = await panel.getHarness(MatSelectHarness);
+        expect(await picker.getValueText()).toBe(prefix + 'WITHOUT_FOLDER');
+        const move = await panel.getHarness(
+            MatButtonHarness.with({ text: prefix + 'MOVE_CONFIRM' })
+        );
+        await move.click();
+
+        await expect(result).resolves.toBe(true);
+        expect(folders.move).toHaveBeenCalledWith(rows, null, undefined);
+    });
+
+    it('disables an add when its destination disappears and submits a surviving destination', async () => {
+        folders.move.mockResolvedValueOnce(undefined);
+        const result = service.move([channel], { add: true });
+        const panel = await dialog();
+        const picker = await panel.getHarness(MatSelectHarness);
+        const add = await panel.getHarness(
+            MatButtonHarness.with({ text: prefix + 'ADD_CONFIRM' })
+        );
+        expect(await picker.getValueText()).toBe(currentFolder.name);
+        folders.folders.set([otherFolder]);
+        expect(await add.isDisabled()).toBe(true);
+        expect(folders.move).not.toHaveBeenCalled();
+
+        await picker.open();
+        await picker.clickOptions({ text: otherFolder.name });
+        await add.click();
+        await expect(result).resolves.toBe(true);
+        expect(folders.move).toHaveBeenCalledWith([channel], otherFolder.id, {
+            add: true,
+        });
+    });
+
+    it('keeps an empty selection from opening a move dialog', async () => {
+        await expect(service.move([])).resolves.toBe(false);
+        expect(TestBed.inject(MatDialog).openDialogs).toHaveLength(0);
         expect(folders.move).not.toHaveBeenCalled();
     });
 

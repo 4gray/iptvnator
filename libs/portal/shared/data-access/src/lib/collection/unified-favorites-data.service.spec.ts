@@ -264,6 +264,32 @@ describe('UnifiedFavoritesDataService', () => {
         }
     );
 
+    it.each(['m3u', 'stalker'] as const)(
+        'rejects a %s membership read after its source is removed',
+        async (sourceType) => {
+            const sourceId = sourceType + '-1';
+            const read = () =>
+                service.getPlaylistFavoritesForMembership(sourceId, sourceType);
+            playlistsService.getPlaylistById.mockReturnValue(of(undefined));
+            await expect(read()).rejects.toThrow(
+                'Favorite source is unavailable'
+            );
+            expect(playlistsService.getPlaylistById).toHaveBeenCalledWith(
+                sourceId
+            );
+
+            playlistsService.getPlaylistById.mockClear();
+            store.select.mockReturnValue(of([]));
+            await expect(
+                service.getFavorites('playlist', sourceId, sourceType)
+            ).resolves.toEqual([]);
+            await expect(read()).rejects.toThrow(
+                'Favorite source is unavailable'
+            );
+            expect(playlistsService.getPlaylistById).not.toHaveBeenCalled();
+        }
+    );
+
     it('reads actual Stalker membership even when playlist metadata has no favorites', async () => {
         const source = { _id: 'synthetic-portal', favorites: stalkerFavorites };
         store.select.mockReturnValue(of([{ ...source, favorites: [] }]));
@@ -276,14 +302,37 @@ describe('UnifiedFavoritesDataService', () => {
         ).resolves.toHaveLength(stalkerFavorites.length);
     });
 
-    it('propagates a native Xtream membership read failure', async () => {
-        const source = { _id: 'synthetic-portal' };
+    it('propagates a native Xtream membership read failure and retries from SQLite', async () => {
+        const source = { _id: 'synthetic-portal', title: 'Synthetic source' };
         store.select.mockReturnValue(of([source]));
         const error = new Error('Synthetic native favorites read failure');
-        databaseService.getFavoritesOrThrow.mockRejectedValue(error);
+        databaseService.getFavoritesOrThrow.mockRejectedValueOnce(error);
         await expect(
             service.getPlaylistFavoritesForMembership(source._id, 'xtream')
         ).rejects.toBe(error);
+
+        databaseService.getFavoritesOrThrow.mockResolvedValueOnce([
+            {
+                id: 20,
+                favorite_id: 3,
+                playlist_id: source._id,
+                xtream_id: 13,
+                title: 'Synthetic channel',
+                type: 'live',
+            },
+        ]);
+        await expect(
+            service.getPlaylistFavoritesForMembership(source._id, 'xtream')
+        ).resolves.toEqual([
+            expect.objectContaining({
+                favoriteId: 3,
+                contentId: 20,
+                playlistId: source._id,
+                playlistName: source.title,
+                xtreamId: 13,
+                contentType: 'live',
+            }),
+        ]);
         expect(databaseService.getFavorites).not.toHaveBeenCalled();
     });
 
@@ -314,6 +363,10 @@ describe('UnifiedFavoritesDataService', () => {
                 posterUrl: 'abc.png',
                 position: 3,
             })
+        );
+        electronApi.dbRemoveFavorite.mockResolvedValueOnce({ success: false });
+        await expect(service.removeFavorite(item)).rejects.toThrow(
+            'Favorite could not be removed'
         );
         await service.removeFavorite(item);
         expect(electronApi.dbRemoveFavorite).toHaveBeenCalledWith(
@@ -452,6 +505,22 @@ describe('UnifiedFavoritesDataService', () => {
                 posterUrl: 'movie.png',
             }),
         ]);
+        await expect(
+            service.getPlaylistFavoritesForMembership('xtream-1', 'xtream')
+        ).resolves.toEqual(items);
+        expect(xtreamDataSource.getFavorites).toHaveBeenLastCalledWith(
+            'xtream-1',
+            false,
+            true
+        );
+        const error = new Error('Synthetic portable favorites read failure');
+        xtreamDataSource.getFavorites.mockRejectedValue(error);
+        await expect(
+            service.getPlaylistFavoritesForMembership('xtream-1', 'xtream')
+        ).rejects.toBe(error);
+        await expect(
+            service.getFavorites('playlist', 'xtream-1', 'xtream')
+        ).resolves.toEqual([]);
     });
 
     it('does not load Stalker portals through the PWA Xtream global favorites path', async () => {
@@ -507,6 +576,12 @@ describe('UnifiedFavoritesDataService', () => {
         expect(items[0].radio).toBe('true');
         expect(items[0].m3uChannel).toBe(m3uChannels[1]);
         expect(items[1].m3uChannel).toBe(m3uChannels[0]);
+        store.select.mockReturnValue(
+            of([{ _id: 'm3u-1', title: 'M3U List', favorites: [] }])
+        );
+        await expect(
+            service.getPlaylistFavoritesForMembership('m3u-1', 'm3u')
+        ).resolves.toEqual(items);
     });
 
     it('keeps Stalker radio favorites in the live collection with radio metadata', async () => {
@@ -919,6 +994,12 @@ describe('UnifiedFavoritesDataService', () => {
     });
 
     it('adds Stalker favorites through portal favorites', async () => {
+        playlistsService.addPortalFavorite.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                favorites: stalkerFavorites,
+            })
+        );
         await service.addFavorite({
             uid: 'stalker::stalker-1::101',
             name: 'Stalker One',
@@ -942,6 +1023,12 @@ describe('UnifiedFavoritesDataService', () => {
                 category_id: 'itv',
                 cmd: 'ffmpeg http://stalker/101',
                 logo: 'one.png',
+            })
+        );
+        expect(store.dispatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                playlist: { _id: 'stalker-1', favorites: stalkerFavorites },
+                persist: false,
             })
         );
     });
