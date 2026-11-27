@@ -162,8 +162,9 @@ public final class NativePlayerActivity extends Activity {
             // Deeper buffers than the ExoPlayer defaults (min 15 s, max 53 s):
             // on a fast link the extra headroom absorbs CDN jitter and provider
             // stalls without raising latency enough to matter for live TV.
+            // DefaultLoadControl requires minBufferMs >= bufferForPlaybackMs.
             .setLoadControl(new DefaultLoadControl.Builder()
-                .setBufferDurationsMs(10_000, 90_000, 25_000, 25_000)
+                .setBufferDurationsMs(30_000, 90_000, 30_000, 30_000)
                 .build())
             .setSeekBackIncrementMs(15_000)
             .setSeekForwardIncrementMs(30_000)
