@@ -78,6 +78,13 @@ export const SETTINGS_SECTION_DEFINITIONS: readonly SettingsSectionDefinition[] 
             requires: ['remote-control'],
             group: 'devices',
         },
+        {
+            id: 'profiles',
+            navLabelKey: 'SETTINGS.NAV_PROFILES',
+            icon: 'group',
+            requires: ['profiles'],
+            group: 'devices',
+        },
         { id: 'server', navLabelKey: 'SOURCE_SYNC.TITLE', icon: 'dns', group: 'data' },
         {
             id: 'backup',

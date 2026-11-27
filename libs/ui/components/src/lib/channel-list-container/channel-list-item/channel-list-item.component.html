@@ -3,6 +3,10 @@
     [class.compact]="!showEpg()"
     cdkDrag
     [cdkDragDisabled]="!isDraggable()"
+    (cdkDragStarted)="dragStarted.emit()"
+    (cdkDragMoved)="dragMoved.emit($event)"
+    (cdkDragReleased)="dragReleased.emit($event)"
+    (cdkDragEnded)="dragEnded.emit()"
     cdkDragPreviewContainer="parent"
     [class.active]="selected()"
     (click)="onClick($event)"
@@ -12,6 +16,14 @@
 >
     @if (isDraggable()) {
         <mat-icon cdkDragHandle class="drag-icon">drag_indicator</mat-icon>
+    }
+    @if (selectionChecked() !== null) {
+        <mat-checkbox
+            [checked]="selectionChecked()"
+            [aria-label]="displayName()"
+            (click)="$event.stopPropagation()"
+            (change)="selectionChanged.emit()"
+        />
     }
     <button
         type="button"
@@ -99,9 +111,13 @@
     @if (
         (showProgramInfoButton() && showEpg()) ||
         showFavoriteButton() ||
-        showAuxActionButton()
+        showAuxActionButton() ||
+        showContextMenuButton()
     ) {
-        <div class="action-buttons">
+        <div
+            class="action-buttons"
+            [class.action-buttons--with-menu]="showContextMenuButton()"
+        >
             @if (showFavoriteButton()) {
                 <button
                     mat-icon-button
@@ -148,6 +164,21 @@
                     (click)="onProgramInfoClick($event)"
                 >
                     <mat-icon>info_outline</mat-icon>
+                </button>
+            }
+            @if (showContextMenuButton()) {
+                <button
+                    mat-icon-button
+                    type="button"
+                    class="context-menu-button"
+                    [attr.aria-label]="
+                        'WORKSPACE.SHELL.MORE_ACTIONS' | translate
+                    "
+                    [matTooltip]="'WORKSPACE.SHELL.MORE_ACTIONS' | translate"
+                    aria-haspopup="menu"
+                    (click)="onContextMenu($event)"
+                >
+                    <mat-icon>more_horiz</mat-icon>
                 </button>
             }
         </div>

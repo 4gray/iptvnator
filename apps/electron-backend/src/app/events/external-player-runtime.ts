@@ -120,6 +120,21 @@ export function sendPlaybackPositionUpdate(
     });
 }
 
+/** A background window can keep the idle lock open without saving its offset. */
+export function sendPlaybackActivityUpdate(
+    sessionId: string,
+    contentInfo: PlayerContentInfo,
+    positionSeconds: number
+): void {
+    if (!App.mainWindow || App.mainWindow.isDestroyed()) return;
+    App.mainWindow.webContents.send('playback-position-update', {
+        ...contentInfo,
+        sessionId,
+        positionSeconds,
+        activityOnly: true,
+    });
+}
+
 export function maskUrlForLogs(rawUrl: string): string {
     try {
         const parsed = new URL(rawUrl);

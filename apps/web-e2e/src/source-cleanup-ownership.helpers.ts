@@ -12,7 +12,7 @@ export async function verifySourceCleanupOwnership(
     const source = await readFile(
         resolve(
             __dirname,
-            '../../../libs/services/src/lib/source-sync/indexeddb-cleanup-ownership.ts'
+            '../../../libs/services/src/lib/indexeddb-exclusive-access.ts'
         ),
         'utf8'
     );
@@ -23,10 +23,8 @@ export async function verifySourceCleanupOwnership(
         },
     }).outputText;
     const context = await browser.newContext({ serviceWorkers: 'block' });
-    await context.addInitScript(() =>
-        Object.defineProperty(navigator, 'locks', { value: undefined })
-    );
-    await context.route('**/__cleanup-owner__', (route) =>
+    const ownerUrl = 'http://cleanup.fixture.invalid/__cleanup-owner__';
+    await context.route(ownerUrl, (route) =>
         route.fulfill({
             contentType: 'text/html',
             body: '<!doctype html>',
@@ -34,19 +32,20 @@ export async function verifySourceCleanupOwnership(
     );
     const first = await context.newPage();
     const second = await context.newPage();
-    await first.goto('/__cleanup-owner__');
-    await second.goto('/__cleanup-owner__');
+    await first.goto(ownerUrl);
+    await second.goto(ownerUrl);
+    expect(
+        await first.evaluate(() => window.isSecureContext || !!navigator.locks)
+    ).toBe(false);
     const firstTask = first
         .evaluate(
             async ({ code, ending }) => {
                 const url = URL.createObjectURL(
                     new Blob([code], { type: 'text/javascript' })
                 );
-                const { withIndexedDbCleanupOwnership: own } = await import(
-                    url
-                );
+                const { withIndexedDbExclusiveAccess: own } = await import(url);
                 URL.revokeObjectURL(url);
-                await own('profile', async () => {
+                await own('iptvnator-source-cleanup:profile', async () => {
                     localStorage.setItem('first-entered', '1');
                     await new Promise<void>((resolve) =>
                         Reflect.set(globalThis, 'releaseCleanup', resolve)
@@ -83,11 +82,9 @@ export async function verifySourceCleanupOwnership(
                 const url = URL.createObjectURL(
                     new Blob([code], { type: 'text/javascript' })
                 );
-                const { withIndexedDbCleanupOwnership: own } = await import(
-                    url
-                );
+                const { withIndexedDbExclusiveAccess: own } = await import(url);
                 URL.revokeObjectURL(url);
-                await own('profile', async () => {
+                await own('iptvnator-source-cleanup:profile', async () => {
                     localStorage.setItem('second-entered', '1');
                 });
                 return 'completed';
@@ -106,9 +103,12 @@ export async function verifySourceCleanupOwnership(
             const url = URL.createObjectURL(
                 new Blob([code], { type: 'text/javascript' })
             );
-            const { withIndexedDbCleanupOwnership: own } = await import(url);
+            const { withIndexedDbExclusiveAccess: own } = await import(url);
             URL.revokeObjectURL(url);
-            await own('other-profile', async () => undefined);
+            await own(
+                'iptvnator-source-cleanup:other-profile',
+                async () => undefined
+            );
         }, code);
         if (ending === 'close') await first.close();
         else

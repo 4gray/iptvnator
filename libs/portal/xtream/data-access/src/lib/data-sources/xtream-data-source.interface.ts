@@ -323,13 +323,11 @@ export interface IXtreamDataSource {
     // Favorites Operations
     // =========================================================================
 
-    /**
-     * Get all favorites for a playlist
-     */
-    /** Cache-only archive reads keep membership actions independent of provider availability. */
+    /** Cache-only reads avoid contacting the provider. Strict reads reject unavailable membership. */
     getFavorites(
         playlistId: string,
-        hydrate?: boolean
+        hydrate?: boolean,
+        strict?: boolean
     ): Promise<XtreamFavoriteItem[]>;
 
     /**

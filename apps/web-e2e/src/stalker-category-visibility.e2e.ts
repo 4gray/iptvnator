@@ -57,31 +57,44 @@ test('@pwa @stalker saves hidden genres across reload and restores them with the
         ),
     });
     await page.goto(catalog);
-    await manage.focus();
-    await page.keyboard.press('Enter');
-    await expect(genre).not.toBeChecked();
+    const search = dialog.getByRole('searchbox');
     const save = dialog.getByRole('button', { name: 'Save', exact: true });
-    await dialog.getByRole('searchbox').focus();
-    await page.keyboard.press('ArrowDown');
-    await expect(genre).toBeFocused();
+    const openGenreWithRemote = async () => {
+        // A trial click waits for a stable, actionable trigger without clicking.
+        // Open it with the remote's OK key, not a mouse action.
+        await manage.click({ trial: true });
+        await manage.press('Enter');
+        await expect(genre).toBeVisible();
+        await expect(genre).not.toBeChecked();
+
+        // Match the Xtream remote test: isolate the target row so that the
+        // next downward move is towards the footer, not another category.
+        await search.fill('Fixture shows');
+        await expect(dialog.getByRole('checkbox')).toHaveCount(1);
+        await expect(genre).toBeVisible();
+        await save.click({ trial: true });
+        await search.focus();
+        await expect(search).toBeFocused();
+        await page.keyboard.press('ArrowDown');
+        await expect(genre).toBeFocused();
+    };
+    await openGenreWithRemote();
     await page.keyboard.press('Enter');
     await expect(genre).toBeChecked();
     await page.keyboard.press('ArrowDown');
     await expect(genre).not.toBeFocused();
     await page.keyboard.press('F9');
     await expect(dialog).toBeHidden();
-    await manage.focus();
+    await openGenreWithRemote();
     await page.keyboard.press('Enter');
-    await expect(genre).not.toBeChecked();
-    await dialog.getByRole('searchbox').focus();
+    await expect(genre).toBeChecked();
     await page.keyboard.press('ArrowDown');
-    await expect(genre).toBeFocused();
-    await page.keyboard.press('Enter');
-    await page.keyboard.press('ArrowDown');
+    await expect(genre).not.toBeFocused();
     if (!(await save.evaluate((button) => button === document.activeElement))) {
         await page.keyboard.press('ArrowRight');
     }
     await expect(save).toBeFocused();
     await page.keyboard.press('Enter');
+    await expect(dialog).toBeHidden();
     await expect(movie).toBeVisible();
 });

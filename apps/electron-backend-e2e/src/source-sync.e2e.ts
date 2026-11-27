@@ -300,7 +300,9 @@ for (const failReceipt of [false, true]) {
                 await expect(
                     notice.getByRole('button', { name: /hide server notice/i })
                 ).toHaveCount(0);
-                await notice.getByRole('link', { name: 'Server' }).click();
+                await notice
+                    .getByRole('link', { name: 'Connectivity' })
+                    .click();
                 await expect(
                     page.getByTestId('source-server-connect')
                 ).toBeVisible();

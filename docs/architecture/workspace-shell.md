@@ -496,6 +496,35 @@ The shell decides which secondary panel to show from the current route:
     1. `WorkspaceSettingsContextPanelComponent`
 5. Downloads sections
     1. `WorkspaceCollectionContextPanelComponent`
+6. `/workspace/global-favorites` on Live TV, once a folder exists
+    1. `WorkspaceFavoriteFoldersPanelComponent`
+
+Favorite channel folders use the same context drawer on phones. The first folder
+action lives above the flat channel list and moves to the folder panel when it
+opens. All channels and Without folder use the same source and search filters
+as the list. The folder filter changes the rows available for browsing without
+changing the mounted player or its selection. Movies and Series have no folder
+panel, and returning to Live TV restores its folder within the page.
+
+Right-clicking a user-created folder opens its rename and delete actions. The
+menu targets that folder without selecting it. If a deleted folder was active,
+the list switches to Without folder, or returns to the flat list if it was the
+last folder. The deleted folder's channels stay in Favorites.
+
+On global Favorites Live TV, the expanded channel list owns the collection
+title, actions, and content tabs, so playback starts at the top of its own
+pane. The folder panel and channel toolbar align their title rows. Channel
+rows stack the favorite and overflow actions. The list's overflow menu
+enters bulk selection, and finishing selection restores focus to that menu.
+When the list is collapsed, the collection header carries the restore button.
+On desktop, the folders header has the same hide chevron as a portal's
+category panel. The show-folders chevron is at the start of the collection
+header, even while the channel list is folded. The two states are saved
+independently, and the phone drawer can open regardless of the desktop state.
+A newly created first folder opens the folder rail.
+The desktop folder rail uses the shared edge resize handle and remembers its
+own width. Its responsive cap leaves room for the channels and player while
+preserving the preferred width for larger windows.
 
 The context panel is part of the shell contract. New workspace-level routes
 should explicitly decide whether they need one rather than adding local

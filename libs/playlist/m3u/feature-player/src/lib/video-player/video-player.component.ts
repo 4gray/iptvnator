@@ -112,7 +112,11 @@ import {
 } from '@iptvnator/ui/playback';
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
-import { ChannelListLoadingStateComponent } from '@iptvnator/ui/components';
+import {
+    ChannelListLoadingStateComponent,
+    M3U_FAVORITE_FOLDER_MENU,
+} from '@iptvnator/ui/components';
+import { M3uFavoriteFolderMenuService } from './m3u-favorite-folder-menu.service';
 import {
     EpgPreferencesService,
     DataService,
@@ -229,6 +233,10 @@ function isInsideScrollableRegion(
         },
         M3uEpgGuideSourceService,
         { provide: EPG_GUIDE_SOURCE, useExisting: M3uEpgGuideSourceService },
+        {
+            provide: M3U_FAVORITE_FOLDER_MENU,
+            useClass: M3uFavoriteFolderMenuService,
+        },
     ],
     templateUrl: './video-player.component.html',
     changeDetection: ChangeDetectionStrategy.OnPush,

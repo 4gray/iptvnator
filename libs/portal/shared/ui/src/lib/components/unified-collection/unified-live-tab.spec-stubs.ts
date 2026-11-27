@@ -43,6 +43,7 @@ export class StubResizableDirective {
 })
 export class StubGlobalFavoritesListComponent {
     readonly channels = input.required<UnifiedFavoriteChannel[]>();
+    readonly folderView = input<unknown>(null);
     readonly mode = input<'favorites' | 'recent'>('favorites');
     readonly showEpg = input(true);
     readonly favoriteUids = input<ReadonlySet<string>>(new Set<string>());

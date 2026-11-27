@@ -13,6 +13,7 @@ export * from './lib/series-quick-start';
 export * from './lib/portal-shell-actions';
 export * from './lib/portal-collection-context';
 export * from './lib/portal-collection-context.service';
+export * from './lib/workspace-favorite-folders-panel';
 export * from './lib/portal-collection-items';
 export * from './lib/live-epg-panel-state';
 export * from './lib/live-sidebar-state';

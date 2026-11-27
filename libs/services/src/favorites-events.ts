@@ -1,5 +1,29 @@
-import { InjectionToken } from '@angular/core';
+import { Injectable, InjectionToken } from '@angular/core';
 import type { Playlist } from '@iptvnator/shared/interfaces';
+import { Subject } from 'rxjs';
+
+export type ChangedFavoriteChannel = {
+    readonly playlistId: string;
+} & (
+    | { readonly sourceType: 'm3u'; readonly streamUrl: string }
+    | { readonly sourceType: 'xtream'; readonly xtreamId: number }
+    | {
+          readonly sourceType: 'stalker';
+          readonly stalkerId: string | number;
+          readonly radio?: 'true';
+      }
+);
+
+@Injectable({ providedIn: 'root' })
+export class FavoriteChannelMembershipEvents {
+    private readonly changes = new Subject<ChangedFavoriteChannel>();
+    readonly changed$ = this.changes.asObservable();
+
+    notify(channel: ChangedFavoriteChannel): void {
+        this.changes.next(channel);
+    }
+}
+
 /** App composition supplies the optional domain; ordinary source/legacy writes never enqueue. */
 export interface FavoritesPlaylistBridge {
     active(): boolean;

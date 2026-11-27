@@ -545,14 +545,18 @@ describe('external player launch handlers', () => {
                     undefined,
                     undefined,
                     undefined,
-                    'synthetic-launch'
+                    'synthetic-launch',
+                    'synthetic-request'
                 )
             ).catch(() => undefined);
             await afterLaunch();
             const sessionId = externalPlayerSessions.getActiveSessionId();
             expect(
-                externalPlayerSessions.getSession(sessionId ?? '')?.launchId
-            ).toBe('synthetic-launch');
+                externalPlayerSessions.getSession(sessionId ?? '')
+            ).toMatchObject({
+                launchId: 'synthetic-launch',
+                requestId: 'synthetic-request',
+            });
             proc.emit('error', new Error('spawn ENOENT'));
             const args: string[] = (spawn as jest.Mock).mock.calls[0][1];
             if (args.some((arg) => arg.startsWith('--rc-unix='))) {

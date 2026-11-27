@@ -1,5 +1,6 @@
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { NotificationService } from '@iptvnator/services/notifications';
+import { FavoriteChannelMembershipEvents } from '@iptvnator/services/favorites-events';
 import { DestroyRef, inject } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import {
@@ -40,7 +41,8 @@ export const withFavorites = function () {
                 // The store exists from startup; NotificationService loads the
                 // snack-bar chunk on the first toast, not at startup.
                 notifications = inject(NotificationService),
-                translate = inject(TranslateService)
+                translate = inject(TranslateService),
+                favoriteMembership = inject(FavoriteChannelMembershipEvents)
             ) => {
                 const sqlite = () => runtime.supportsXtreamSqliteDataSource;
                 let request = 0;
@@ -154,17 +156,24 @@ export const withFavorites = function () {
                         );
                         let nextStatus = !currentStatus;
                         try {
-                            if (currentStatus)
+                            if (currentStatus) {
                                 await dataSource.removeFavorite(
                                     target,
                                     playlistId
                                 );
-                            else
+                            } else {
                                 await dataSource.addFavorite(
                                     target,
                                     playlistId,
                                     backdropUrl
                                 );
+                            }
+                            if (contentType === 'live')
+                                favoriteMembership.notify({
+                                    sourceType: 'xtream',
+                                    playlistId,
+                                    xtreamId: normalizedXtreamId,
+                                });
                         } catch (error) {
                             nextStatus = currentStatus;
                             if (activeTarget === targetKey) {

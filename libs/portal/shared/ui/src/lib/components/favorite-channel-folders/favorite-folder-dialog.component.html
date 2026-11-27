@@ -1,0 +1,118 @@
+<form novalidate [attr.aria-busy]="pending()" (submit)="submit($event)">
+    <app-dialog-shell
+        bodyLayout="column"
+        [icon]="labels.icon"
+        [iconTone]="data.action === 'remove' ? 'warn' : 'default'"
+        [heading]="labels.title | translate"
+        [subtitle]="
+            data.action === 'create'
+                ? ('WORKSPACE.FAVORITE_FOLDERS.NEW_FOLDER_SUBTITLE' | translate)
+                : data.action === 'move'
+                  ? data.items.length === 1
+                      ? data.items[0].name
+                      : ('WORKSPACE.FAVORITE_FOLDERS.SELECTED_CHANNELS'
+                        | translate: { count: data.items.length })
+                  : data.folder.name
+        "
+        [showClose]="!pending()"
+    >
+        @if (data.action === 'remove') {
+            <p>
+                {{
+                    'WORKSPACE.FAVORITE_FOLDERS.DELETE_CONFIRMATION' | translate
+                }}
+            </p>
+        }
+
+        @if (data.action === 'move') {
+            <mat-form-field>
+                <mat-label>
+                    {{ 'WORKSPACE.FAVORITE_FOLDERS.DESTINATION' | translate }}
+                </mat-label>
+                <mat-select
+                    [attr.cdkFocusInitial]="showName() ? null : ''"
+                    [value]="destination()"
+                    [disabled]="pending()"
+                    (selectionChange)="chooseDestination($event.value)"
+                >
+                    <mat-option
+                        [value]="withoutFolder"
+                        [disabled]="isUnavailable(null)"
+                    >
+                        {{
+                            'WORKSPACE.FAVORITE_FOLDERS.WITHOUT_FOLDER'
+                                | translate
+                        }}
+                    </mat-option>
+                    @for (folder of folders(); track folder.id) {
+                        <mat-option
+                            [value]="folder.id"
+                            [disabled]="isUnavailable(folder.id)"
+                        >
+                            {{ folder.name }}
+                        </mat-option>
+                    }
+                    <mat-option [value]="newFolder">
+                        {{
+                            'WORKSPACE.FAVORITE_FOLDERS.NEW_FOLDER' | translate
+                        }}
+                    </mat-option>
+                </mat-select>
+            </mat-form-field>
+        }
+
+        @if (showName()) {
+            <mat-form-field>
+                <mat-label>
+                    {{ 'WORKSPACE.FAVORITE_FOLDERS.FOLDER_NAME' | translate }}
+                </mat-label>
+                <input
+                    #nameInput
+                    matInput
+                    cdkFocusInitial
+                    name="favoriteFolderName"
+                    required
+                    [formControl]="name"
+                    [errorStateMatcher]="errorMatcher"
+                    [readonly]="pending()"
+                    (input)="clearErrors()"
+                />
+                @if (nameError(); as error) {
+                    <mat-error role="alert">{{ error | translate }}</mat-error>
+                }
+            </mat-form-field>
+        }
+
+        @if (saveError()) {
+            <p class="save-error" role="alert">
+                {{ 'WORKSPACE.FAVORITE_FOLDERS.SAVE_FAILED' | translate }}
+            </p>
+        }
+
+        <div appDialogFooter>
+            <button
+                mat-button
+                type="button"
+                [attr.cdkFocusInitial]="data.action === 'remove' ? '' : null"
+                [disabled]="pending()"
+                (click)="cancel()"
+            >
+                {{ 'CANCEL' | translate }}
+            </button>
+            <button
+                #confirm
+                mat-flat-button
+                type="submit"
+                [class.app-destructive-button]="data.action === 'remove'"
+                [disabled]="!canSubmit()"
+            >
+                {{
+                    (pending()
+                        ? 'WORKSPACE.FAVORITE_FOLDERS.SAVING'
+                        : labels.confirm
+                    ) | translate
+                }}
+            </button>
+        </div>
+    </app-dialog-shell>
+</form>

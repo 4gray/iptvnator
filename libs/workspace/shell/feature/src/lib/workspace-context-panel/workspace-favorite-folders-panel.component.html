@@ -1,0 +1,106 @@
+<header class="folder-header">
+    <h2 id="workspace-favorite-folders-heading">
+        {{ 'WORKSPACE.FAVORITE_FOLDERS.CHANNEL_FOLDERS' | translate }}
+    </h2>
+    <div class="folder-header-actions">
+        <button
+            type="button"
+            mat-icon-button
+            data-favorite-folder-create
+            [matTooltip]="'WORKSPACE.FAVORITE_FOLDERS.NEW_FOLDER' | translate"
+            [attr.aria-label]="
+                'WORKSPACE.FAVORITE_FOLDERS.NEW_FOLDER' | translate
+            "
+            (click)="panel().onCreate()"
+        >
+            <mat-icon>create_new_folder</mat-icon>
+        </button>
+        <button
+            type="button"
+            mat-icon-button
+            class="hide-folders"
+            data-favorite-folder-hide
+            aria-controls="workspace-favorite-folders"
+            aria-expanded="true"
+            [matTooltip]="'WORKSPACE.FAVORITE_FOLDERS.HIDE_FOLDERS' | translate"
+            [attr.aria-label]="
+                'WORKSPACE.FAVORITE_FOLDERS.HIDE_FOLDERS' | translate
+            "
+            (click)="panel().onCollapse()"
+        >
+            <mat-icon>chevron_left</mat-icon>
+        </button>
+    </div>
+</header>
+<div class="folder-list">
+    @let state = panel();
+    @for (folder of state.entries; track folder.id) {
+        @let label =
+            folder.labelKey ? (folder.labelKey | translate) : folder.name;
+        @let canDrop = folder.id !== 'all';
+        @let hasFolderActions = canDrop && folder.id !== 'unfiled';
+        @let dragActive =
+            !!state.dragOriginId && canDrop && folder.id !== state.dragOriginId;
+        @if ($index === 2) {
+            <hr />
+        }
+        <button
+            #folderRow
+            type="button"
+            class="folder-row"
+            [attr.aria-pressed]="folder.id === state.selectedId"
+            [attr.aria-haspopup]="hasFolderActions ? 'menu' : null"
+            [attr.aria-keyshortcuts]="hasFolderActions ? 'Shift+F10' : null"
+            [attr.data-favorite-folder-row]="folder.id"
+            [attr.data-favorite-folder-target]="canDrop ? folder.id : null"
+            [matContextMenuTriggerFor]="folderActions"
+            [matContextMenuTriggerData]="{ id: folder.id }"
+            [matContextMenuTriggerDisabled]="!hasFolderActions"
+            [class.folder-row--drop-ready]="dragActive"
+            [class.folder-row--drag-over]="
+                dragActive && folder.id === state.dragTargetId
+            "
+            [class.folder-row--received]="folder.id === state.flashedId"
+            (click)="selectFolder(folder.id)"
+            (keydown.shift.f10)="
+                hasFolderActions && openKeyboardMenu($event, folderRow)
+            "
+            (keydown.contextmenu)="
+                hasFolderActions && openKeyboardMenu($event, folderRow)
+            "
+        >
+            <mat-icon>
+                @switch (folder.id) {
+                    @case ('all') {
+                        list
+                    }
+                    @case ('unfiled') {
+                        folder_off
+                    }
+                    @default {
+                        {{
+                            folder.id === state.selectedId
+                                ? 'folder_open'
+                                : 'folder'
+                        }}
+                    }
+                }
+            </mat-icon>
+            <span class="folder-name" [title]="label ?? ''">{{ label }}</span>
+            <span class="folder-count">{{ folder.count }}</span>
+        </button>
+    }
+</div>
+
+<mat-menu #folderActions="matMenu">
+    <ng-template matMenuContent let-id="id">
+        <button mat-menu-item type="button" (click)="panel().onRename(id)">
+            <mat-icon>edit</mat-icon>
+            {{ 'WORKSPACE.FAVORITE_FOLDERS.RENAME_TITLE' | translate }}
+        </button>
+        <button mat-menu-item type="button" (click)="panel().onRemove(id)">
+            <mat-icon>delete</mat-icon>
+            {{ 'WORKSPACE.FAVORITE_FOLDERS.DELETE_TITLE' | translate }}
+        </button>
+    </ng-template>
+</mat-menu>

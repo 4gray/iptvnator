@@ -931,8 +931,11 @@ export class DatabaseService {
         }
 
         try {
-            await window.electron.dbRemoveFavorite(contentId, playlistId);
-            return true;
+            const result = await window.electron.dbRemoveFavorite(
+                contentId,
+                playlistId
+            );
+            return result.success;
         } catch (error) {
             console.error('Error removing from favorites:', error);
             return false;

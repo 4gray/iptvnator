@@ -9,12 +9,11 @@ import type {
  * - `expanded`: categories rail + channels rail + player.
  * - `categories-hidden`: channels rail + player. The categories rail is
  *   folded away but stays one click off through the channels header's
- *   category dropdown. Surfaces without a categories rail (`m3u`,
- *   `collection`) treat it exactly like `expanded`.
- * - `collapsed`: player only ("theater").
+ *   category dropdown. Single-rail surfaces treat it like `expanded`.
+ * - `collapsed`: the surface's rail is hidden (both rails in a portal).
  *
- * There is deliberately no "channels hidden, categories visible" state: a
- * category click has to bring the channels back anyway.
+ * Portal categories and channels are nested. Global Favorites gives its
+ * folders and channels their own state so either rail can stay open.
  */
 export type LiveSidebarState = 'expanded' | 'categories-hidden' | 'collapsed';
 
@@ -24,12 +23,14 @@ export type LiveSidebarState = 'expanded' | 'categories-hidden' | 'collapsed';
  * Xtream/Stalker portal or of the favorites/recent collection pages — the
  * user made that choice in one context, not in all of them.
  */
-export type LiveSidebarSurface = 'm3u' | 'portal' | 'collection';
+export type LiveSidebarSurface =
+    'm3u' | 'portal' | 'collection' | 'favorite-folders';
 
 export const LIVE_SIDEBAR_SURFACES: readonly LiveSidebarSurface[] = [
     'm3u',
     'portal',
     'collection',
+    'favorite-folders',
 ];
 
 /**

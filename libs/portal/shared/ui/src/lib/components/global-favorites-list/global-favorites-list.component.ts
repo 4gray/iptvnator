@@ -1,3 +1,5 @@
+import { FavoriteFoldersToolbarComponent } from '../favorite-channel-folders/favorite-folders-toolbar.component';
+import type { FavoriteFoldersView } from '../favorite-channel-folders/favorite-folders-view';
 import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import {
     ChannelContextMenuComponent,
@@ -5,6 +7,7 @@ import {
 } from '@iptvnator/ui/components';
 import {
     CdkDragDrop,
+    CdkDragRelease,
     DragDropModule,
     moveItemInArray,
 } from '@angular/cdk/drag-drop';
@@ -12,6 +15,7 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    HostListener,
     inject,
     input,
     output,
@@ -66,6 +70,7 @@ export type GlobalFavoritesListMode = 'favorites' | 'recent';
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         StateViewComponent,
+        FavoriteFoldersToolbarComponent,
         ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,
@@ -96,6 +101,7 @@ export class GlobalFavoritesListComponent {
 
     readonly channels = input.required<UnifiedFavoriteChannel[]>();
     readonly mode = input<GlobalFavoritesListMode>('favorites');
+    readonly folderView = input<FavoriteFoldersView | null>(null);
     /** Host switch for programme lines; each row also needs its guide. */
     readonly showEpg = input(true);
     /**
@@ -134,6 +140,9 @@ export class GlobalFavoritesListComponent {
     readonly epgMappingChanged = output<void>();
 
     readonly contextMenuChannel = signal<EnrichedUnifiedFavorite | null>(null);
+    private isDragging = false;
+    private dragCancelled = false;
+    private releasedFolderId: string | null = null;
     readonly contextMenuUnavailable = computed(() => {
         const channel = this.contextMenuChannel();
         return !!channel && isCatalogUnavailable(channel);
@@ -152,8 +161,51 @@ export class GlobalFavoritesListComponent {
             this.mode() === 'favorites' &&
             this.draggable() &&
             this.isCustomSort() &&
-            !this.hasSearchTerm()
+            !this.hasSearchTerm() &&
+            !this.folderView()?.selectionMode()
     );
+
+    readonly canDragToFolder = computed(
+        () => this.draggable() && !!this.folderView()?.canDragToFolder()
+    );
+
+    protected onDragStarted(channel: UnifiedFavoriteChannel): void {
+        this.isDragging = true;
+        this.dragCancelled = false;
+        this.releasedFolderId = null;
+        this.folderView()?.startDrag(channel);
+    }
+
+    protected onDragReleased({ event }: CdkDragRelease): void {
+        this.isDragging = false;
+        if (!this.dragCancelled) {
+            this.releasedFolderId =
+                this.folderView()?.destinationAt(event) ?? null;
+        }
+    }
+
+    protected onDragEnded(channel: UnifiedFavoriteChannel): void {
+        // CDK completes its animation before restoring the row's DOM.
+        const destination = this.releasedFolderId;
+        this.releasedFolderId = null;
+        void this.folderView()?.endDrag(channel, destination);
+    }
+
+    @HostListener('document:keydown.escape', ['$event'])
+    protected cancelDrag(event: Event): void {
+        if (!this.isDragging || !this.folderView()) return;
+        event.preventDefault();
+        this.dragCancelled = true;
+        this.folderView()?.clearDrag();
+    }
+
+    protected onSelectionEscape(event: Event): void {
+        const folders = this.folderView();
+        if (!folders?.selectionMode() || this.dialog.openDialogs.length) return;
+        event.stopPropagation();
+        event.preventDefault();
+        folders.finishSelection();
+    }
 
     readonly hasSearchTerm = computed(
         () => this.searchTermInput().trim().length > 0
@@ -201,17 +253,30 @@ export class GlobalFavoritesListComponent {
     readonly isUnavailable = isCatalogUnavailable;
 
     onPlaybackRequested(channel: UnifiedFavoriteChannel): void {
+        if (this.folderView()?.selectionMode()) {
+            this.onChannelClick(channel);
+            return;
+        }
         if (!isCatalogUnavailable(channel))
             this.playbackRequested.emit(channel);
     }
 
     onChannelClick(channel: UnifiedFavoriteChannel): void {
+        const folders = this.folderView();
+        if (folders?.selectionMode()) {
+            if (folders.canFile(channel)) folders.toggleSelected(channel.uid);
+            return;
+        }
         if (isCatalogUnavailable(channel)) return;
         this.channelSelected.emit(channel);
     }
 
     onChannelActivate(channel: UnifiedFavoriteChannel): void {
-        if (this.openStreamOnDoubleClick() && !isCatalogUnavailable(channel)) {
+        if (
+            !this.folderView()?.selectionMode() &&
+            this.openStreamOnDoubleClick() &&
+            !isCatalogUnavailable(channel)
+        ) {
             this.playbackRequested.emit(channel);
         }
     }
@@ -229,6 +294,7 @@ export class GlobalFavoritesListComponent {
     }
 
     hasChannelContextMenu(channel: UnifiedFavoriteChannel): boolean {
+        if (this.folderView()?.canFile(channel)) return true;
         if (isCatalogUnavailable(channel)) return this.mode() === 'recent';
         return (
             Boolean(channel.m3uChannel) ||
@@ -333,6 +399,11 @@ export class GlobalFavoritesListComponent {
         this.removeRequested.emit(channel);
     }
 
+    moveContextMenuChannel(): void {
+        const channel = this.contextMenuChannel();
+        if (channel) void this.folderView()?.moveOne(channel);
+    }
+
     isChannelFavorite(channel: UnifiedFavoriteChannel): boolean {
         return (
             this.mode() === 'favorites' || this.favoriteUids().has(channel.uid)
@@ -340,7 +411,12 @@ export class GlobalFavoritesListComponent {
     }
 
     onDrop(event: CdkDragDrop<EnrichedUnifiedFavorite[]>): void {
-        if (!this.canDragDrop()) {
+        if (
+            this.dragCancelled ||
+            !this.canDragDrop() ||
+            !event.isPointerOverContainer ||
+            event.previousIndex === event.currentIndex
+        ) {
             return;
         }
 

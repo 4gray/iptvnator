@@ -51,6 +51,7 @@ const ERR = expect.objectContaining({ politeness: 'assertive' });
 })
 class StubUnifiedLiveTabComponent {
     readonly items = input.required<UnifiedCollectionItem[]>();
+    readonly folderView = input<unknown>(null);
     readonly mode = input<'favorites' | 'recent'>('favorites');
     readonly searchTerm = input('');
     readonly autoOpenItem = input<unknown>(null);

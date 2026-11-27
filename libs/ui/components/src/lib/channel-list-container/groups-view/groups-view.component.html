@@ -305,6 +305,9 @@
                         [logo]="getLogoForChannel(channel)"
                         [showEpg]="shouldShowEpg()"
                         [showDetailsContextMenu]="true"
+                        [showContextMenuButton]="
+                            folderMenu?.available() ?? false
+                        "
                         [isRadio]="channel?.radio === 'true'"
                         [epgProgram]="
                             $safeNavigationMigration(
@@ -319,9 +322,8 @@
                         [selected]="activeChannelUrl() === channel?.url"
                         [showFavoriteButton]="true"
                         [isFavorite]="
-                            channel?.url
-                                ? favoriteIds().has(channel.url)
-                                : false
+                            favoriteIds().has(channel.url) ||
+                            favoriteIds().has(channel.id)
                         "
                         (clicked)="onChannelClick(channel)"
                         (activated)="onChannelActivate(channel)"
@@ -369,6 +371,8 @@
 }
 
 <app-channel-context-menu
+    [favoriteFolderAction]="folderMenu?.action(contextMenuChannel()) ?? null"
+    (favoriteFolderRequested)="folderMenu?.open(contextMenuChannel(), $event)"
     [showMapEpg]="supportsEpgMapping"
     [showDetails]="true"
     (mapEpg)="openEpgMapping()"

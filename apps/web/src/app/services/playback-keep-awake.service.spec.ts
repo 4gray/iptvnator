@@ -1,4 +1,7 @@
-import { PlaybackKeepAwakeService } from './playback-keep-awake.service';
+import {
+    PLAYBACK_STALL_RELEASE_MS,
+    PlaybackKeepAwakeService,
+} from './playback-keep-awake.service';
 
 type ElectronWindow = {
     electron?: Pick<typeof window.electron, 'setPlaybackKeepAwake'>;
@@ -85,6 +88,93 @@ describe('PlaybackKeepAwakeService', () => {
             second.dispatchEvent(new Event('pause'));
             expect(setPlaybackKeepAwake).toHaveBeenLastCalledWith(false);
             second.remove();
+        });
+
+        describe('a stream that stops advancing', () => {
+            let currentTime: number;
+
+            beforeEach(() => {
+                jest.useFakeTimers();
+                currentTime = 10;
+                Object.defineProperty(video, 'currentTime', {
+                    configurable: true,
+                    get: () => currentTime,
+                });
+            });
+
+            afterEach(() => {
+                jest.useRealTimers();
+            });
+
+            it.each(['waiting', 'stalled'] as const)(
+                'releases after %s without progress and holds again on playing',
+                (eventType) => {
+                    video.dispatchEvent(new Event('playing'));
+                    video.dispatchEvent(new Event(eventType));
+                    jest.advanceTimersByTime(PLAYBACK_STALL_RELEASE_MS - 1);
+                    expect(setPlaybackKeepAwake).toHaveBeenLastCalledWith(true);
+
+                    jest.advanceTimersByTime(1);
+                    expect(setPlaybackKeepAwake).toHaveBeenLastCalledWith(
+                        false
+                    );
+                    expect(service.hasPlayingVideo()).toBe(false);
+
+                    video.dispatchEvent(new Event('playing'));
+                    expect(setPlaybackKeepAwake).toHaveBeenLastCalledWith(true);
+                    expect(setPlaybackKeepAwake).toHaveBeenCalledTimes(3);
+                }
+            );
+
+            it('keeps the lock when the video plays on from its buffer', () => {
+                video.dispatchEvent(new Event('playing'));
+                video.dispatchEvent(new Event('stalled'));
+                currentTime = 40;
+                jest.advanceTimersByTime(PLAYBACK_STALL_RELEASE_MS);
+                expect(setPlaybackKeepAwake).toHaveBeenCalledTimes(1);
+                expect(service.hasPlayingVideo()).toBe(true);
+            });
+
+            it('releases a video that advanced a little and froze without another event', () => {
+                video.dispatchEvent(new Event('playing'));
+                video.dispatchEvent(new Event('waiting'));
+                currentTime = 11;
+                jest.advanceTimersByTime(PLAYBACK_STALL_RELEASE_MS);
+                expect(service.hasPlayingVideo()).toBe(true);
+
+                jest.advanceTimersByTime(PLAYBACK_STALL_RELEASE_MS);
+                expect(service.hasPlayingVideo()).toBe(false);
+            });
+
+            it('stops checking once playing reports the video resumed', () => {
+                video.dispatchEvent(new Event('playing'));
+                video.dispatchEvent(new Event('waiting'));
+                video.dispatchEvent(new Event('playing'));
+                jest.advanceTimersByTime(PLAYBACK_STALL_RELEASE_MS * 2);
+                expect(service.hasPlayingVideo()).toBe(true);
+            });
+
+            it('restarts the check when a recovered video stalls again', () => {
+                video.dispatchEvent(new Event('playing'));
+                video.dispatchEvent(new Event('waiting'));
+                jest.advanceTimersByTime(5_000);
+                currentTime = 15;
+                video.dispatchEvent(new Event('waiting'));
+                jest.advanceTimersByTime(PLAYBACK_STALL_RELEASE_MS - 5_000);
+                expect(service.hasPlayingVideo()).toBe(true);
+
+                jest.advanceTimersByTime(5_000);
+                expect(service.hasPlayingVideo()).toBe(false);
+            });
+
+            it('does not let repeated stall events postpone the release', () => {
+                video.dispatchEvent(new Event('playing'));
+                video.dispatchEvent(new Event('waiting'));
+                jest.advanceTimersByTime(PLAYBACK_STALL_RELEASE_MS / 2);
+                video.dispatchEvent(new Event('stalled'));
+                jest.advanceTimersByTime(PLAYBACK_STALL_RELEASE_MS / 2);
+                expect(service.hasPlayingVideo()).toBe(false);
+            });
         });
 
         it('does not react to repeated playing events of a tracked video', () => {
