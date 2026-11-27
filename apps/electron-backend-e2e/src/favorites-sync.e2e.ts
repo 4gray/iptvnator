@@ -23,6 +23,7 @@ import {
     contentCardByTitle,
     clearCurrentUnifiedCollection,
 } from './electron-test-fixtures';
+import { applyTheme } from './theme-contrast';
 const frontendUrl = `http://localhost:${process.env['SOURCE_SYNC_WEB_PORT'] ?? '4317'}`;
 test.skip(
     process.env['IPTVNATOR_E2E_SOURCE_SYNC'] !== '1',
@@ -932,10 +933,10 @@ test('syncs duplicate-URL M3U membership, offline conflicts and independent adds
         if (await backdrop.isVisible()) await backdrop.click();
         const surfaces: string[] = [];
         for (const dark of [false, true]) {
-            await page.evaluate(
-                (dark) => document.body.classList.toggle('dark-theme', dark),
-                dark
-            );
+            // Same boundary SettingsService applies: the preset id plus both mode
+            // classes. Toggling only `dark-theme` leaves `light-theme` on the
+            // body, and its palette wins.
+            await applyTheme(page, dark ? 'dark' : 'light');
             await page
                 .getByTestId('favorites-sync-settings')
                 .scrollIntoViewIfNeeded();
