@@ -721,9 +721,7 @@ test('syncs duplicate-URL M3U membership, offline conflicts and independent adds
             })
         );
         await page.goto(`${frontendUrl}/workspace/sources`);
-        await page
-            .getByRole('button', { name: 'Add playlist', exact: true })
-            .click();
+        await page.locator('[data-test-id="header-add-source"]').click();
         const dialog = page.locator('mat-dialog-container');
         await dialog.getByRole('radio', { name: /file/i }).click();
         await dialog.locator('input[type="file"]').setInputFiles({
@@ -731,7 +729,7 @@ test('syncs duplicate-URL M3U membership, offline conflicts and independent adds
             mimeType: 'audio/x-mpegurl',
             buffer: Buffer.from(rawM3u),
         });
-        await dialog.getByRole('button', { name: /add playlist/i }).click();
+        await dialog.getByRole('button', { name: /add source/i }).click();
         await expect(dialog).toHaveCount(0);
         const { instanceId } = await (
             await fetch(`${server.apiUrl}/v1/instance`)

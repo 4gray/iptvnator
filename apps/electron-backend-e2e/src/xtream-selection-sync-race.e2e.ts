@@ -114,10 +114,8 @@ test('connected active-source sync waits for an edit-time catalog save before bo
             `${process.platform === 'darwin' ? 'Meta' : 'Control'}+K`
         );
         const commands = page.locator('app-workspace-command-palette');
-        await commands.locator('input[type="search"]').fill('Playlist details');
-        await commands
-            .getByRole('button', { name: /Playlist details/ })
-            .click();
+        await commands.locator('input[type="search"]').fill('Source details');
+        await commands.getByRole('button', { name: /Source details/ }).click();
         const dialog = page.locator('mat-dialog-container').last();
         await dialog.locator('input[formcontrolname="title"]').fill(renamed);
         await dialog

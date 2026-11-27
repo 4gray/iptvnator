@@ -46,9 +46,7 @@ test('TLS recovery stays in the import focus scope and retries only after approv
                 }
             );
         });
-        await page
-            .getByRole('button', { name: 'Add playlist', exact: true })
-            .click();
+        await page.locator('[data-test-id="header-add-source"]').click();
         const dialog = page.getByRole('dialog').filter({
             has: page.getByRole('textbox', { name: /Playlist URL/ }),
         });
@@ -56,10 +54,10 @@ test('TLS recovery stays in the import focus scope and retries only after approv
             .getByRole('textbox', { name: /Playlist URL/ })
             .fill('https://fixture.invalid/list.m3u');
         await dialog
-            .getByRole('textbox', { name: 'Playlist title' })
+            .getByRole('textbox', { name: 'Source title' })
             .fill('Trusted draft');
         await dialog
-            .getByRole('button', { name: 'Add playlist', exact: true })
+            .getByRole('button', { name: 'Add source', exact: true })
             .click();
         await expect(dialog.getByRole('alert')).toContainText('Certificate');
         await expect(page.locator('mat-snack-bar-container')).toHaveCount(0);
@@ -102,7 +100,7 @@ test('TLS recovery stays in the import focus scope and retries only after approv
             .press('Enter');
         await expect(dialog).toBeVisible();
         await expect(
-            dialog.getByRole('textbox', { name: 'Playlist title' })
+            dialog.getByRole('textbox', { name: 'Source title' })
         ).toHaveValue('Trusted draft');
         await expect(trust).toBeFocused();
         await page.keyboard.press('Enter');

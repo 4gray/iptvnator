@@ -818,7 +818,7 @@ export class UnifiedFavoritesDataService {
                     meta.title ||
                     meta.filename ||
                     this.translate.instant(
-                        'WORKSPACE.DASHBOARD.STALKER_PORTAL'
+                        'WORKSPACE.SHELL.STALKER_PORTAL'
                     ),
                 logo: ct === 'live' ? poster : null,
                 posterUrl: ct !== 'live' ? poster : null,

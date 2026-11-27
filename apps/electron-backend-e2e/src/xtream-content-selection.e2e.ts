@@ -109,7 +109,7 @@ test('desktop shows scanning for newly enabled Movies and Series and preserves a
                 await expect(page).toHaveURL(/\/workspace\/sources$/);
                 await expect(
                     dialog.getByRole('heading', {
-                        name: 'Syncing playlist',
+                        name: 'Syncing account',
                         exact: true,
                     })
                 ).toBeVisible();

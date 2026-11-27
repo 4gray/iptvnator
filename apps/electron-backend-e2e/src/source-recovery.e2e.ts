@@ -81,9 +81,7 @@ async function faultSource() {
 }
 
 async function openForm(page: Page, method: RegExp) {
-    await page
-        .getByRole('button', { name: 'Add playlist', exact: true })
-        .click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('radio', { name: method }).click();
     return dialog;
@@ -102,7 +100,7 @@ test('M3U URL without an optional title keeps its URL-derived name', async ({
             .getByRole('textbox', { name: /Playlist URL/ })
             .fill(source.origin + '/list.m3u');
         await dialog
-            .getByRole('button', { name: 'Add playlist', exact: true })
+            .getByRole('button', { name: 'Add source', exact: true })
             .click();
         await expect(dialog).toBeHidden();
         await page.getByRole('link', { name: 'Sources', exact: true }).click();
@@ -127,14 +125,14 @@ test('M3U error keeps input, pending submit is single-flight, Cancel retires lat
             .getByRole('textbox', { name: /Playlist URL/ })
             .fill(source.origin + '/list.m3u');
         await dialog
-            .getByRole('textbox', { name: 'Playlist title' })
+            .getByRole('textbox', { name: 'Source title' })
             .fill('Preserved draft');
         await dialog
-            .getByRole('button', { name: 'Add playlist', exact: true })
+            .getByRole('button', { name: 'Add source', exact: true })
             .click();
         await expect(dialog.getByRole('alert')).toContainText('404');
         await expect(
-            dialog.getByRole('textbox', { name: 'Playlist title' })
+            dialog.getByRole('textbox', { name: 'Source title' })
         ).toHaveValue('Preserved draft');
         await page.screenshot({
             animations: 'disabled',
@@ -142,13 +140,13 @@ test('M3U error keeps input, pending submit is single-flight, Cancel retires lat
         });
         source.state.m3u = 'pending';
         await dialog
-            .getByRole('button', { name: 'Add playlist', exact: true })
+            .getByRole('button', { name: 'Add source', exact: true })
             .click();
         await expect(dialog.getByRole('status')).toContainText(
             'Fetching playlist'
         );
         await expect(
-            dialog.getByRole('button', { name: 'Add playlist', exact: true })
+            dialog.getByRole('button', { name: 'Add source', exact: true })
         ).toBeDisabled();
         await expect.poll(() => source.state.waiting).toBe(1);
         await page.screenshot({
@@ -163,16 +161,16 @@ test('M3U error keeps input, pending submit is single-flight, Cancel retires lat
         source.release();
         dialog = await openForm(page, /M3U URL/);
         await expect(
-            dialog.getByRole('textbox', { name: 'Playlist title' })
+            dialog.getByRole('textbox', { name: 'Source title' })
         ).toHaveValue('');
         await dialog
             .getByRole('textbox', { name: /Playlist URL/ })
             .fill(source.origin + '/list.m3u');
         await dialog
-            .getByRole('textbox', { name: 'Playlist title' })
+            .getByRole('textbox', { name: 'Source title' })
             .fill('Committed once');
         await dialog
-            .getByRole('button', { name: 'Add playlist', exact: true })
+            .getByRole('button', { name: 'Add source', exact: true })
             .click();
         await expect(dialog).toBeHidden();
         await page.getByRole('link', { name: 'Sources', exact: true }).click();
@@ -203,7 +201,7 @@ test('Stalker Cancel retires discovery, category Retry preserves the selection',
                 .fill(source.origin + '/portal.php');
             await dialog.locator('#macAddress').fill('00:1A:79:5E:40:31');
             await dialog
-                .getByRole('button', { name: 'Add playlist', exact: true })
+                .getByRole('button', { name: 'Add source', exact: true })
                 .click();
         };
         await fill('Cancelled source');

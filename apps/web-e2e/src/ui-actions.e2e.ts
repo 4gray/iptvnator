@@ -27,9 +27,7 @@ test('@ui @stalker additional fields survive folding, import and editing', async
 }) => {
     await interceptPwaProviderRequests(page);
     await page.goto('/');
-    await page
-        .getByRole('button', { name: 'Add playlist', exact: true })
-        .click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.locator('mat-dialog-container');
     await dialog.getByRole('radio', { name: /^Stalker portal/ }).click();
     const form = dialog.locator('app-stalker-portal-import');
@@ -50,7 +48,7 @@ test('@ui @stalker additional fields survive folding, import and editing', async
     await summary.click();
     await expect(form.locator('#password')).toBeHidden();
     await dialog
-        .getByRole('button', { name: 'Add playlist', exact: true })
+        .getByRole('button', { name: 'Add source', exact: true })
         .click();
     await expect(dialog).toBeHidden();
 
@@ -60,7 +58,7 @@ test('@ui @stalker additional fields survive folding, import and editing', async
         .filter({ hasText: 'UI identity fixture' });
     await row.locator('.source-row__more').click();
     await page
-        .getByRole('menuitem', { name: 'Playlist info', exact: true })
+        .getByRole('menuitem', { name: 'Source details', exact: true })
         .click();
     const edit = page.locator('app-playlist-info');
     await expect(edit.locator('details')).toHaveAttribute('open', '');
@@ -189,7 +187,7 @@ test('@ui @xtream hidden channel list offers a styled restore action', async ({
     await addXtreamPortal(page, 'UI hidden channels', pwaMocks);
     await page.getByRole('link', { name: 'Live TV', exact: true }).click();
     await expect(
-        page.getByRole('heading', { name: 'Live Categories', exact: true })
+        page.getByRole('heading', { name: 'Live categories', exact: true })
     ).toBeVisible();
     await page
         .locator('app-workspace-context-panel .category-item')

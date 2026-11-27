@@ -251,7 +251,7 @@ test.describe('Parental lock UI', () => {
             dialog.locator('[data-test-id="category-locked-count"]')
         ).toBeVisible();
         await expect(
-            dialog.getByRole('button', { name: 'Deselect All', exact: true })
+            dialog.getByRole('button', { name: 'Deselect all', exact: true })
         ).toBeEnabled();
         const visibility = dialog.getByRole('checkbox').first();
         await expect(visibility).toBeChecked();
@@ -369,14 +369,14 @@ test.describe('Parental lock UI', () => {
             /^https?:\/\/(?:channel\.icons\.url|example\.channels|xml-url)\//,
             (route) => route.abort()
         );
-        await page.getByRole('button', { name: 'Add playlist' }).click();
+        await page.locator('[data-test-id="header-add-source"]').click();
         const addDialog = page.locator('mat-dialog-container');
         await addDialog.getByRole('radio', { name: /M3U file/i }).click();
         await page.setInputFiles('input[type="file"]', M3U_FIXTURE);
         await Promise.all([
             page.waitForURL(/\/workspace\/playlists\/.+\/all$/),
             addDialog
-                .getByRole('button', { name: 'Add playlist', exact: true })
+                .getByRole('button', { name: 'Add source', exact: true })
                 .click(),
         ]);
         const groupsUrl = page.url().replace(/\/all$/, '/groups');

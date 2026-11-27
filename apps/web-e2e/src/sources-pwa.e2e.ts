@@ -30,7 +30,7 @@ test('@sources @pwa keeps the welcome page reachable on a phone', async ({
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/workspace/sources');
 
-    const heading = page.getByRole('heading', { name: 'Add your first playlist' });
+    const heading = page.getByRole('heading', { name: 'Add your first source' });
     await expect(heading).toBeInViewport({ ratio: 1 });
     const addStalker = page.getByRole('button', {
         name: 'Add Stalker',

@@ -28,6 +28,9 @@ import { DownloadOfflineSeasonSelectionService } from './download-offline-season
 import { DownloadOfflineRouteNavigationService } from './download-offline-route-navigation.service';
 
 const TRANSLATIONS = {
+    PORTALS: {
+        VIEW_IN_PORTAL: 'View in source',
+    },
     DOWNLOADS: {
         ACTION_FAILED: 'Action failed',
         MORE_ACTIONS: 'More actions',
@@ -36,7 +39,6 @@ const TRANSLATIONS = {
         OFFLINE_DETAIL: {
             AVAILABLE: 'Available offline',
             PLAY: 'Play offline',
-            VIEW_IN_PORTAL: 'View in portal',
             VIEW_IN_PORTAL_UNAVAILABLE: 'The source is unavailable',
             DOWNLOADED_EPISODES: '{{count}} downloaded episodes',
             FILE_SIZE: '{{size}}',
@@ -333,7 +335,7 @@ describe('DownloadOfflineDetailComponent', () => {
         ).toBeTruthy();
         expect(button('offline-play').textContent).toContain('Play offline');
         expect(button('view-in-portal').textContent).toContain(
-            'View in portal'
+            'View in source'
         );
         expect(
             (fixture.nativeElement as HTMLElement)

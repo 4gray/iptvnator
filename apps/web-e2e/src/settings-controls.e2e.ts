@@ -59,9 +59,7 @@ test('@sources @web import methods keep one tab stop and select with arrows', as
     page,
 }) => {
     await page.goto('/');
-    await page
-        .getByRole('button', { name: 'Add playlist', exact: true })
-        .click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const group = page.getByRole('radiogroup', { name: 'Connection method' });
     const first = group.getByRole('radio', { name: /^M3U URL/ });
     await first.press('ArrowRight');

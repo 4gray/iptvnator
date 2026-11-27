@@ -174,7 +174,7 @@ test('missing archived history and categories survive enabling and resolve on a 
             .locator('#backup')
             .getByRole('button', { name: 'Export', exact: true })
             .click();
-        await expect(page.getByText('Playlist backup exported.')).toBeVisible();
+        await expect(page.getByText('Source backup exported.')).toBeVisible();
         const exported = (
             JSON.parse(readFileSync(output, 'utf8')) as PlaylistBackupManifestV1
         ).playlists.find(
@@ -359,7 +359,7 @@ test('native history missing from a replacement catalog stays parked until the p
             .locator('#backup')
             .getByRole('button', { name: 'Export', exact: true })
             .click();
-        await expect(page.getByText('Playlist backup exported.')).toBeVisible();
+        await expect(page.getByText('Source backup exported.')).toBeVisible();
         const exported = (
             JSON.parse(readFileSync(output, 'utf8')) as PlaylistBackupManifestV1
         ).playlists.find(

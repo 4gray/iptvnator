@@ -219,7 +219,7 @@ for (const collection of ['favorites', 'recentlyViewed'] as const) {
             if (collection === 'favorites')
                 await openGlobalFavorites(app.mainWindow);
             else await openGlobalRecent(app.mainWindow);
-            await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');
+            await switchUnifiedCollectionScope(app.mainWindow, 'All sources');
             await app.mainWindow
                 .getByRole('button', { name: 'Fixture Alpha', exact: true })
                 .click();

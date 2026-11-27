@@ -304,7 +304,7 @@ test('ordinary refresh retry retains recovery ownership before later history rem
             .locator('#backup')
             .getByRole('button', { name: 'Export', exact: true })
             .click();
-        await expect(page.getByText('Playlist backup exported.')).toBeVisible();
+        await expect(page.getByText('Source backup exported.')).toBeVisible();
         const exported = (
             JSON.parse(readFileSync(output, 'utf8')) as PlaylistBackupManifestV1
         ).playlists.find(

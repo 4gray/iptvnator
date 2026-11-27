@@ -83,7 +83,7 @@ for (const provider of ['xtream', 'stalker'] as const) {
             provider === 'xtream' ? /\/live(?:[/?#]|$)/ : /\/itv(?:[/?#]|$)/;
         await expect(page).toHaveURL(livePath);
         const categories = page.getByRole('heading', {
-            name: 'Live Categories',
+            name: 'Live categories',
             exact: true,
         });
         await expect(categories).toBeVisible();

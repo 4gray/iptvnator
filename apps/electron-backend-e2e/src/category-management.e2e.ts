@@ -44,11 +44,11 @@ test.describe('Electron Xtream Category Management', () => {
             await expect(rows).toHaveCount(800);
             const dialog = await openManageCategoriesDialog(app.mainWindow);
             await dialog
-                .getByRole('button', { name: 'Deselect All', exact: true })
+                .getByRole('button', { name: 'Deselect all', exact: true })
                 .click();
             await dialog.locator('input[type="search"]').fill('Visible');
             await dialog
-                .getByRole('button', { name: 'Select Filtered', exact: true })
+                .getByRole('button', { name: 'Select filtered', exact: true })
                 .click();
             await expect(dialog.locator('.selection-info')).toHaveText(
                 'Total selected: 200 / 800'
@@ -163,12 +163,12 @@ test.describe('Electron Xtream Category Management', () => {
                 await search().fill('a');
                 const select = () =>
                     dialog.getByRole('button', {
-                        name: 'Select Filtered',
+                        name: 'Select filtered',
                         exact: true,
                     });
                 const deselect = () =>
                     dialog.getByRole('button', {
-                        name: 'Deselect Filtered',
+                        name: 'Deselect filtered',
                         exact: true,
                     });
                 await expect(rows).toHaveCount(matched.length);
@@ -260,7 +260,7 @@ test.describe('Electron Xtream Category Management', () => {
 
             await dialog
                 .getByRole('button', {
-                    name: 'Deselect All',
+                    name: 'Deselect all',
                     exact: true,
                 })
                 .click();
@@ -270,7 +270,7 @@ test.describe('Electron Xtream Category Management', () => {
 
             await dialog
                 .getByRole('button', {
-                    name: 'Select All',
+                    name: 'Select all',
                     exact: true,
                 })
                 .click();
@@ -371,7 +371,7 @@ test.describe('Electron Xtream Category Management', () => {
 
             await dialog
                 .getByRole('button', {
-                    name: 'Deselect All',
+                    name: 'Deselect all',
                     exact: true,
                 })
                 .click();
@@ -453,7 +453,7 @@ test.describe('Electron Xtream Category Management', () => {
             let dialog = await openManageCategoriesDialog(app.mainWindow);
             await dialog
                 .getByRole('button', {
-                    name: 'Deselect All',
+                    name: 'Deselect all',
                     exact: true,
                 })
                 .click();
@@ -487,7 +487,7 @@ test.describe('Electron Xtream Category Management', () => {
 
             dialog = await openManageCategoriesDialog(app.mainWindow);
             await dialog
-                .getByRole('button', { name: 'Select All', exact: true })
+                .getByRole('button', { name: 'Select all', exact: true })
                 .click();
             await expect(
                 dialog.locator('.category-item mat-checkbox input:checked')
@@ -515,7 +515,7 @@ async function openManageCategoriesDialog(page: Page) {
 
     await expect(dialog).toBeVisible();
     await expect(
-        dialog.getByRole('button', { name: 'Select All', exact: true })
+        dialog.getByRole('button', { name: 'Select all', exact: true })
     ).toBeVisible();
     // Wait for the category list to render — Angular needs a CD cycle after
     // isLoading() flips to false before the @for items are painted.
@@ -564,13 +564,13 @@ async function refreshFromWorkspaceHeader(page: Page): Promise<void> {
         )
         .click();
     await page
-        .getByRole('menuitem', { name: 'Refresh playlist', exact: true })
+        .getByRole('menuitem', { name: 'Refresh source', exact: true })
         .click();
 
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
     await dialog
-        .getByRole('button', { name: 'Refresh playlist', exact: true })
+        .getByRole('button', { name: 'Refresh source', exact: true })
         .click();
 
     const refreshOverlay = page.locator(
@@ -579,7 +579,7 @@ async function refreshFromWorkspaceHeader(page: Page): Promise<void> {
     await expect(refreshOverlay).toBeVisible({ timeout: 5000 });
     await expect(
         refreshOverlay.getByRole('heading', {
-            name: 'Refreshing playlist',
+            name: 'Refreshing account',
             exact: true,
         })
     ).toBeVisible();

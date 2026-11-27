@@ -22,7 +22,7 @@ import {
 //   1. The header row never spills past its edge. Actions that do not fit
 //      move into "More actions", which never holds a single action.
 //   4. The dashboard field launches global search instead of sitting there
-//      disabled ("Search in this playlist" with nothing to search).
+//      disabled ("Search in this source" with nothing to search).
 //   5. The keyboard shortcuts button left the header; the palette opens the
 //      same dialog.
 // ---------------------------------------------------------------------------
@@ -160,7 +160,7 @@ test.describe('Workspace header at the minimum window', () => {
             await expect(search).toBeEnabled();
             await expect(search).toHaveAttribute(
                 'placeholder',
-                'Search all playlists...'
+                'Search all sources...'
             );
             await expectHeaderFits(page);
             await page.screenshot({

@@ -318,18 +318,18 @@ async function resolveRendererWindowIdentity(
 }
 
 async function seedPlaylist(page: Page, playlistUrl: string): Promise<void> {
-    await page.getByRole('button', { name: 'Add playlist' }).first().click();
+    await page.getByRole('button', { name: 'Add source' }).first().click();
     const dialog = page.locator('mat-dialog-container').last();
     await expect(
-        dialog.getByRole('heading', { name: 'Add playlist' })
+        dialog.getByRole('heading', { name: 'Add source' })
     ).toBeVisible();
     await dialog
         .getByRole('textbox', { name: 'Playlist URL (m3u, m3u8)' })
         .fill(playlistUrl);
     await dialog
-        .getByRole('textbox', { name: 'Playlist title' })
+        .getByRole('textbox', { name: 'Source title' })
         .fill(SOURCE_TITLE);
-    await dialog.getByRole('button', { name: 'Add playlist' }).last().click();
+    await dialog.getByRole('button', { name: 'Add source' }).last().click();
     await expect(dialog).toBeHidden();
     await waitForM3uCatalog(page);
     await openSources(page);

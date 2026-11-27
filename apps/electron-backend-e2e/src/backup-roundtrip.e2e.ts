@@ -104,7 +104,7 @@ test.describe('Electron playlist backup round-trip', () => {
                 .getByRole('button', { name: 'Export', exact: true })
                 .click();
             await expect(
-                app.mainWindow.getByText('Playlist backup exported.')
+                app.mainWindow.getByText('Source backup exported.')
             ).toBeVisible();
             const exported = JSON.parse(
                 readFileSync(exportPath, 'utf8')
@@ -198,7 +198,7 @@ test.describe('Electron playlist backup round-trip', () => {
                 .getByRole('button', { name: 'Export', exact: true })
                 .click();
             await expect(
-                app.mainWindow.getByText('Playlist backup exported.')
+                app.mainWindow.getByText('Source backup exported.')
             ).toBeVisible({ timeout: 15000 });
 
             // The exported manifest must reference hidden categories by
@@ -277,7 +277,7 @@ test.describe('Electron playlist backup round-trip', () => {
                 .getByRole('button', { name: 'Export', exact: true })
                 .click();
             await expect(
-                app.mainWindow.getByText('Playlist backup exported.')
+                app.mainWindow.getByText('Source backup exported.')
             ).toBeVisible({ timeout: 15000 });
             const pendingManifest = JSON.parse(
                 readFileSync(pendingExportPath, 'utf-8')

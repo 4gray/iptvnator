@@ -1725,14 +1725,49 @@ after the first render. Text on screen must follow the current language:
   and `createVodDetailsHeroState` take the tick as `language`.
 - `instant` is fine at event time, for snackbar, dialog and confirm text.
 
+## Terminology And Copy
+
+English (`apps/web/src/assets/i18n/en.json`) is the source text, and the
+other locales follow its meaning. Use these nouns in UI copy, tooltips and
+ARIA labels:
+
+| Term | Meaning | Use it when |
+| --- | --- | --- |
+| source | Any configured entry: an M3U playlist, an Xtream account or a Stalker portal | The text applies to every type: "Add source", "Remove source", "Search all sources", "This source" |
+| M3U playlist | An M3U/M3U8 file, URL or pasted text | Only M3U behavior is meant: URL fetch, file refresh, `url-tvg`, export as M3U |
+| Xtream account | An Xtream Codes server plus username and password | Only Xtream is meant: account refresh, "Xtream accounts" filter |
+| Stalker portal | A Stalker/Ministra portal URL plus MAC address | Only Stalker is meant: portal URL, MAC, device IDs |
+| provider | The company that sells or runs the service behind a source | Its data, guide, DRM or support: "ask your provider". Never the configured entry |
+| favorite | An item the user starred (US spelling, as in en) | "Favorites", "Add to favorites"; "Global favorites" for all sources |
+| recently viewed | The watch history collection | The rail, page and clear dialogs; the dashboard rail "Recently watched" is the only exception |
+| catch-up | Replaying a past programme from the source's archive | "EPG & catch-up"; "archive" names the server-side storage, not the feature |
+
+Translation keys keep their historical names (`HOME.PLAYLISTS.*`,
+`*_PLAYLIST*`, `PORTALS.*`) even when the English text says "source". Do not
+rename a key only to match its text.
+
+Write UI strings in sentence case: capitalize the first word and proper nouns
+only. This covers buttons, menu items, headings, dialog titles, settings rows,
+tab labels, tooltips and ARIA labels. Keep these capitalized:
+
+- product and format names: IPTVnator, Xtream, Xtream Codes, Stalker,
+  Ministra, M3U, EPG, XMLTV, TMDB, MPV, VLC, IINA, YouTube;
+- keyboard keys: Esc, Enter, Space, Ctrl/Cmd+K;
+- names of other UI places, written as they appear there: "Go to Sources",
+  "Hide from Continue watching", "Settings → Server";
+- theme names, which are proper names: "Night Owl".
+
+A locale follows its own language's capitalization rules. Fix casing in a
+locale only where it copied English Title Case.
+
 ## Source Type Icons
 
 `SOURCE_TYPE_ICONS` in `@iptvnator/shared/interfaces` is the only source of
-provider icons: Xtream `cloud`, Stalker `cast`, the M3U family
+source-type icons: Xtream `cloud`, Stalker `cast`, the M3U family
 `playlist_play`, and per playlist `link` (URL), `description` (local file or
 text) and `subject` (pasted text in the add flow). Use
-`getPlaylistSourceIcon()` for a stored playlist. An icon never stands for two
-providers, and the Dashboard rail icon is never a provider icon.
+`getPlaylistSourceIcon()` for a stored source. An icon never stands for two
+source types, and the Dashboard rail icon is never a source-type icon.
 
 ## Empty, Error And Offline States
 

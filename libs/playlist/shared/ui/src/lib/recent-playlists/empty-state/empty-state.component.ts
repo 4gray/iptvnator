@@ -89,7 +89,7 @@ const SOURCE_CARDS: readonly SourceCard[] = [
     {
         type: 'stalker',
         icon: SOURCE_TYPE_ICONS.stalker,
-        nameKey: 'HOME.PLAYLISTS.FEATURE_STALKER',
+        nameKey: 'WORKSPACE.SHELL.STALKER_PORTAL',
         linkKey: 'HOME.PLAYLISTS.FEATURE_STALKER_LABEL',
         needsKey: 'HOME.PLAYLISTS.SOURCE_STALKER_NEEDS',
         addLabelKey: 'HOME.PLAYLISTS.SOURCE_STALKER_ADD',

@@ -84,7 +84,7 @@ test('@persistence @m3u @electron keeps legacy SQLite membership and persists gl
         app = await restartElectronApp(app, dataDir);
         const openFavorites = async () => {
             await openWorkspaceSection(app.mainWindow, 'Global favorites');
-            await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');
+            await switchUnifiedCollectionScope(app.mainWindow, 'All sources');
         };
         const titles = () =>
             app.mainWindow.locator('app-global-favorites-list .channel-name');

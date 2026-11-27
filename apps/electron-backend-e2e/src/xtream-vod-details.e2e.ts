@@ -84,11 +84,11 @@ test.describe('Xtream VOD Details', () => {
                 app.mainWindow.locator(
                     '[data-testid="xtream-vod-fallback-status"]'
                 )
-            ).toContainText('Portal metadata unavailable');
+            ).toContainText('Source metadata unavailable');
             await expect(
                 app.mainWindow.locator('[data-testid="xtream-vod-fallback"]')
             ).toContainText(
-                'Extended metadata was not provided by this portal.'
+                'Extended metadata was not provided by this source.'
             );
 
             const playButton = app.mainWindow
@@ -135,7 +135,7 @@ test.describe('Xtream VOD Details', () => {
             const player = page.locator('app-portal-inline-player');
             const header = player.locator('.player-shell__header');
             const copy = player.getByRole('button', {
-                name: 'Copy Stream URL',
+                name: 'Copy stream URL',
             });
             const close = player.getByRole('button', { name: 'Close player' });
             // Exercise the real button without overwriting the host clipboard.

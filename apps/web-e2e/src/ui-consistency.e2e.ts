@@ -72,7 +72,7 @@ test('@ui @m3u navigation uses one font role across native group and provider bu
         /^https?:\/\/(?:channel\.icons\.url|example\.channels|xml-url)\//,
         (route) => route.abort()
     );
-    await page.getByRole('button', { name: 'Add playlist' }).click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.locator('mat-dialog-container');
     await dialog.getByRole('radio', { name: /M3U file/i }).click();
     await page.setInputFiles(
@@ -80,7 +80,7 @@ test('@ui @m3u navigation uses one font role across native group and provider bu
         join(__dirname, 'fixtures/test.m3u')
     );
     await dialog
-        .getByRole('button', { name: 'Add playlist', exact: true })
+        .getByRole('button', { name: 'Add source', exact: true })
         .click();
     await page.waitForURL(/\/all$/);
     await page.getByRole('link', { name: 'Groups', exact: true }).click();
@@ -103,7 +103,7 @@ test('@ui @a11y @m3u group keyboard focus shares the selected edge in both theme
     page,
     browserName,
 }, testInfo) => {
-    await page.getByRole('button', { name: 'Add playlist' }).click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.locator('mat-dialog-container');
     await dialog.getByRole('radio', { name: /M3U file/i }).click();
     await dialog.locator('input[type=file]').setInputFiles({
@@ -114,7 +114,7 @@ test('@ui @a11y @m3u group keyboard focus shares the selected edge in both theme
         ),
     });
     await dialog
-        .getByRole('button', { name: 'Add playlist', exact: true })
+        .getByRole('button', { name: 'Add source', exact: true })
         .click();
     await page.waitForURL(/\/all$/);
     await page.getByRole('link', { name: 'Groups', exact: true }).click();

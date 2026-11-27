@@ -1,7 +1,7 @@
 <div class="apd">
     <app-dialog-shell
         icon="playlist_add"
-        [heading]="'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate"
+        [heading]="'WORKSPACE.SHELL.ADD_PLAYLIST' | translate"
         [subtitle]="'DIALOGS.ADD_SOURCE' | translate"
     >
         <div
@@ -146,7 +146,7 @@
                         "
                         (click)="submitUrlPlaylist()"
                     >
-                        {{ 'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate }}
+                        {{ 'WORKSPACE.SHELL.ADD_PLAYLIST' | translate }}
                     </button>
                 }
                 @case ('file') {
@@ -156,7 +156,7 @@
                         [disabled]="!fileUpload()?.selectedFile()"
                         (click)="fileUpload()?.confirm()"
                     >
-                        {{ 'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate }}
+                        {{ 'WORKSPACE.SHELL.ADD_PLAYLIST' | translate }}
                     </button>
                 }
                 @case ('text') {
@@ -170,7 +170,7 @@
                             )
                         "
                     >
-                        {{ 'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate }}
+                        {{ 'WORKSPACE.SHELL.ADD_PLAYLIST' | translate }}
                     </button>
                 }
                 @case ('xtream') {
@@ -201,7 +201,7 @@
                         "
                         (click)="xtreamImport()?.addPlaylist()"
                     >
-                        {{ 'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate }}
+                        {{ 'WORKSPACE.SHELL.ADD_PLAYLIST' | translate }}
                     </button>
                 }
                 @case ('stalker') {
@@ -216,7 +216,7 @@
                             [disabled]="!stalkerImport()?.form?.valid"
                             (click)="stalkerImport()?.addPlaylist()"
                         >
-                            {{ 'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate }}
+                            {{ 'WORKSPACE.SHELL.ADD_PLAYLIST' | translate }}
                         </button>
                     }
                 }

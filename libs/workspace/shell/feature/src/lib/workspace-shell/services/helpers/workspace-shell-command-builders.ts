@@ -110,7 +110,7 @@ export function getPlaylistCommandDefinitions(
             id: 'refresh-playlist',
             group: 'playlist',
             icon: 'sync',
-            labelKey: 'WORKSPACE.SHELL.COMMANDS.REFRESH_PLAYLIST_LABEL',
+            labelKey: 'HOME.PLAYLISTS.REFRESH',
             descriptionKey:
                 'WORKSPACE.SHELL.COMMANDS.REFRESH_PLAYLIST_DESCRIPTION',
             priority: 20,
@@ -121,7 +121,7 @@ export function getPlaylistCommandDefinitions(
             id: 'playlist-info',
             group: 'playlist',
             icon: 'info',
-            labelKey: 'WORKSPACE.SHELL.COMMANDS.PLAYLIST_INFO_LABEL',
+            labelKey: 'HOME.PLAYLISTS.INFO_DIALOG.PLAYLIST_DETAILS',
             descriptionKey:
                 'WORKSPACE.SHELL.COMMANDS.PLAYLIST_INFO_DESCRIPTION',
             priority: 30,

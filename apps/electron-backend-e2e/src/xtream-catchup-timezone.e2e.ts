@@ -209,7 +209,7 @@ test('@epg @xtream @electron renders catch-up start times in the panel timezone 
         });
         captured = captureTimeshiftRequests(app.mainWindow);
         await openGlobalFavorites(app.mainWindow);
-        await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');
+        await switchUnifiedCollectionScope(app.mainWindow, 'All sources');
         const restoredRow = channelItemByTitle(app.mainWindow, CHANNEL).first();
         await expect(restoredRow).toBeVisible({ timeout: 20000 });
         await restoredRow.click();

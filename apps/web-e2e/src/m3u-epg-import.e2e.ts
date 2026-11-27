@@ -44,9 +44,7 @@ async function stored(page: Page) {
 }
 
 async function openImport(page: Page) {
-    await page
-        .getByRole('button', { name: 'Add playlist', exact: true })
-        .click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     return page.getByRole('dialog');
 }
 
@@ -99,7 +97,7 @@ for (const enabled of [true, false]) {
             .getByRole('textbox', { name: /Playlist URL/ })
             .fill(playlistUrl);
         await dialog
-            .getByRole('textbox', { name: 'Playlist title' })
+            .getByRole('textbox', { name: 'Source title' })
             .fill('EPG URL');
         // Method switches retain the choice and do not inspect the remote playlist.
         await dialog
@@ -113,7 +111,7 @@ for (const enabled of [true, false]) {
         expect(parseRequests).toBe(0);
         expect(providerRequests).toBe(0);
         await dialog
-            .getByRole('button', { name: 'Add playlist', exact: true })
+            .getByRole('button', { name: 'Add source', exact: true })
             .click();
         await expect(dialog).toBeHidden();
         await expect
@@ -169,7 +167,7 @@ for (const method of ['M3U file', 'Raw m3u text']) {
             await dialog.locator('textarea').fill(raw);
         }
         await dialog
-            .getByRole('button', { name: 'Add playlist', exact: true })
+            .getByRole('button', { name: 'Add source', exact: true })
             .click();
         await expect(dialog).toBeHidden();
         await expect

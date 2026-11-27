@@ -146,7 +146,7 @@ test.describe('Electron Recently Viewed', () => {
                 .poll(() => visibleLiveTitles(app.mainWindow))
                 .toEqual(['Recent Channel Two', 'Recent Channel One']);
 
-            await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');
+            await switchUnifiedCollectionScope(app.mainWindow, 'All sources');
             await expect
                 .poll(() => visibleLiveTitles(app.mainWindow))
                 .toEqual(['Recent Channel Two', 'Recent Channel One']);
@@ -175,7 +175,7 @@ test.describe('Electron Recently Viewed', () => {
             await waitForM3uCatalog(app.mainWindow);
             const recentPath = sourceRecentPath(app.mainWindow);
             await openPlaylistRecent(app.mainWindow);
-            await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');
+            await switchUnifiedCollectionScope(app.mainWindow, 'All sources');
             await expect
                 .poll(() => visibleLiveTitles(app.mainWindow))
                 .toEqual(['Recent Channel Two', 'Recent Channel One']);
@@ -240,7 +240,7 @@ test.describe('Electron Recently Viewed', () => {
             );
 
             await openPlaylistRecent(app.mainWindow);
-            await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');
+            await switchUnifiedCollectionScope(app.mainWindow, 'All sources');
             await expect
                 .poll(() => visibleLiveTitles(app.mainWindow))
                 .toEqual(['Context Recent Two', 'Context Recent One']);
@@ -345,7 +345,7 @@ test.describe('Electron Recently Viewed', () => {
             await switchUnifiedCollectionContent(app.mainWindow, 'Series');
             await expectVisibleContentCardTitle(app.mainWindow, seriesTitle);
 
-            await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');
+            await switchUnifiedCollectionScope(app.mainWindow, 'All sources');
             await switchUnifiedCollectionContent(app.mainWindow, 'Live TV');
             await expect(
                 channelItemByTitle(app.mainWindow, liveTitle)
@@ -364,7 +364,7 @@ test.describe('Electron Recently Viewed', () => {
             await waitForXtreamCatalog(app.mainWindow, { cached: true });
             const recentPath = sourceRecentPath(app.mainWindow);
             await openPlaylistRecent(app.mainWindow);
-            await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');
+            await switchUnifiedCollectionScope(app.mainWindow, 'All sources');
             await switchUnifiedCollectionContent(app.mainWindow, 'Live TV');
             await expect(
                 channelItemByTitle(app.mainWindow, liveTitle)
@@ -637,7 +637,7 @@ test.describe('Electron Recently Viewed', () => {
                 contentCardByTitle(app.mainWindow, seriesTitle)
             ).toHaveCount(1);
 
-            await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');
+            await switchUnifiedCollectionScope(app.mainWindow, 'All sources');
             await switchUnifiedCollectionContent(app.mainWindow, 'Live TV');
             await expect(
                 channelItemByTitle(app.mainWindow, liveTitle)
@@ -660,7 +660,7 @@ test.describe('Electron Recently Viewed', () => {
             await waitForStalkerCatalog(app.mainWindow);
             const recentPath = sourceRecentPath(app.mainWindow);
             await openPlaylistRecent(app.mainWindow);
-            await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');
+            await switchUnifiedCollectionScope(app.mainWindow, 'All sources');
             await switchUnifiedCollectionContent(app.mainWindow, 'Live TV');
             await expect(
                 channelItemByTitle(app.mainWindow, liveTitle)

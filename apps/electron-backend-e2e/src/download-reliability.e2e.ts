@@ -43,7 +43,7 @@ async function useDownloadsFolder(
                 filePaths: [target],
             }) as Awaited<ReturnType<typeof dialog.showOpenDialog>>;
     }, folder);
-    await app.mainWindow.getByRole('button', { name: 'Change Folder' }).click();
+    await app.mainWindow.getByRole('button', { name: 'Change folder' }).click();
 }
 
 test.describe('Electron download reliability', () => {

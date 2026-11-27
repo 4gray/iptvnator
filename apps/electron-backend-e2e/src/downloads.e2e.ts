@@ -179,7 +179,7 @@ test.describe('Electron Downloads', () => {
             // First launch runs the IndexedDB→SQLite playlist migration before
             // the playlists query resolves, so allow extra time here.
             await expect(
-                app.mainWindow.getByText('Add a playlist to start downloading')
+                app.mainWindow.getByText('Add a source to start downloading')
             ).toBeVisible({ timeout: 20000 });
         } finally {
             await closeElectronApp(app);
@@ -225,7 +225,7 @@ test.describe('Electron Downloads', () => {
                     }) as Awaited<ReturnType<typeof dialog.showOpenDialog>>;
             }, downloadsDir);
             await app.mainWindow
-                .getByRole('button', { name: 'Change Folder' })
+                .getByRole('button', { name: 'Change folder' })
                 .click();
             await expect(
                 app.mainWindow.getByTestId('downloads-folder')
@@ -463,7 +463,7 @@ test.describe('Electron Downloads', () => {
                     }) as Awaited<ReturnType<typeof dialog.showOpenDialog>>;
             }, downloadsDir);
             await app.mainWindow
-                .getByRole('button', { name: 'Change Folder' })
+                .getByRole('button', { name: 'Change folder' })
                 .click();
             await expect(
                 app.mainWindow.getByTestId('downloads-folder')
@@ -619,7 +619,7 @@ test.describe('Electron Downloads', () => {
             ]);
 
             const viewInPortal = app.mainWindow.getByRole('button', {
-                name: 'View in portal',
+                name: 'View in source',
                 exact: true,
             });
             await expect(viewInPortal).toBeEnabled({ timeout: 20000 });
@@ -645,7 +645,7 @@ test.describe('Electron Downloads', () => {
             ).toHaveCount(0);
             await expect(
                 providerDetail.getByRole('button', {
-                    name: 'Play Local',
+                    name: 'Play local',
                     exact: true,
                 })
             ).toHaveCount(0);
@@ -858,7 +858,7 @@ test.describe('Electron Downloads', () => {
                     }) as Awaited<ReturnType<typeof dialog.showOpenDialog>>;
             }, downloadsDir);
             await app.mainWindow
-                .getByRole('button', { name: 'Change Folder' })
+                .getByRole('button', { name: 'Change folder' })
                 .click();
 
             const common = {
@@ -947,7 +947,7 @@ test.describe('Electron Downloads', () => {
                     }) as Awaited<ReturnType<typeof dialog.showOpenDialog>>;
             }, downloadsDir);
             await app.mainWindow
-                .getByRole('button', { name: 'Change Folder' })
+                .getByRole('button', { name: 'Change folder' })
                 .click();
             await expect(
                 app.mainWindow.getByTestId('downloads-folder')
@@ -1118,7 +1118,7 @@ test.describe('Electron Downloads', () => {
                     }) as Awaited<ReturnType<typeof dialog.showOpenDialog>>;
             }, downloadsDir);
             await app.mainWindow
-                .getByRole('button', { name: 'Change Folder' })
+                .getByRole('button', { name: 'Change folder' })
                 .click();
             await expect(
                 app.mainWindow.getByTestId('downloads-folder')

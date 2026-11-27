@@ -76,7 +76,7 @@ test.describe('@xtream inline series fullscreen', () => {
             await expect(close).toHaveCSS('border-top-style', 'none');
             await expect(
                 actions.getByRole('button', {
-                    name: 'Copy Stream URL',
+                    name: 'Copy stream URL',
                     exact: true,
                 })
             ).toHaveCSS('height', '40px');

@@ -271,7 +271,7 @@ for (const clearScope of ['none', 'source', 'global'] as const)
                 .getByRole('button', { name: 'Export', exact: true })
                 .click();
             await expect(
-                page.getByText('Playlist backup exported.')
+                page.getByText('Source backup exported.')
             ).toBeVisible();
             const exported = (
                 JSON.parse(

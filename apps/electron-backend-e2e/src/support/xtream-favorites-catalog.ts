@@ -197,11 +197,11 @@ export async function refreshFavoriteCatalog(
             )
             .click();
         await page
-            .getByRole('menuitem', { name: 'Refresh playlist', exact: true })
+            .getByRole('menuitem', { name: 'Refresh source', exact: true })
             .click();
         const dialog = page.locator('mat-dialog-container');
         await dialog
-            .getByRole('button', { name: 'Refresh playlist', exact: true })
+            .getByRole('button', { name: 'Refresh source', exact: true })
             .click();
         await expect(dialog).toHaveCount(0);
     }

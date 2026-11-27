@@ -34,9 +34,7 @@ for (const available of [true, false]) {
             });
         });
         await page.goto('/');
-        await page
-            .getByRole('button', { name: 'Add playlist', exact: true })
-            .click();
+        await page.locator('[data-test-id="header-add-source"]').click();
         const dialog = page.getByRole('dialog');
         const urlInput = dialog.locator('[formcontrolname="playlistUrl"]');
         await urlInput.fill(sourceUrl);
@@ -53,7 +51,7 @@ for (const available of [true, false]) {
             dialog.getByText('Xtream may be available', { exact: true })
         ).toBeVisible();
         await expect(
-            dialog.getByRole('button', { name: 'Add playlist', exact: true })
+            dialog.getByRole('button', { name: 'Add source', exact: true })
         ).toBeEnabled();
         expect(requested).toEqual([]);
 
@@ -84,7 +82,7 @@ for (const available of [true, false]) {
             .click();
         await expect(dialog.getByRole('status')).toContainText(
             available
-                ? 'Connected. The portal is active.'
+                ? 'Connected. The account is active.'
                 : 'Could not establish a secure connection'
         );
         expect(requested).toEqual([providerUrl]);
@@ -101,7 +99,7 @@ for (const available of [true, false]) {
             dialog.locator('app-url-upload [formcontrolname="userAgent"]')
         ).toHaveValue('VLC/3.0.21');
         await expect(
-            dialog.getByRole('button', { name: 'Add playlist', exact: true })
+            dialog.getByRole('button', { name: 'Add source', exact: true })
         ).toBeEnabled();
 
         await dialog
@@ -111,7 +109,7 @@ for (const available of [true, false]) {
             dialog.getByRole('button', { name: 'Set up Xtream', exact: true })
         ).toHaveCount(0);
         await expect(
-            dialog.getByRole('button', { name: 'Add playlist', exact: true })
+            dialog.getByRole('button', { name: 'Add source', exact: true })
         ).toBeDisabled();
     });
 }
@@ -120,9 +118,7 @@ test('@web @m3u plain and tokenized playlist URLs stay on the M3U path', async (
     page,
 }) => {
     await page.goto('/');
-    await page
-        .getByRole('button', { name: 'Add playlist', exact: true })
-        .click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.getByRole('dialog');
     for (const url of [
         'https://lists.example/main.m3u',
@@ -133,7 +129,7 @@ test('@web @m3u plain and tokenized playlist URLs stay on the M3U path', async (
             dialog.getByRole('button', { name: 'Set up Xtream', exact: true })
         ).toHaveCount(0);
         await expect(
-            dialog.getByRole('button', { name: 'Add playlist', exact: true })
+            dialog.getByRole('button', { name: 'Add source', exact: true })
         ).toBeEnabled();
     }
 });
@@ -142,9 +138,7 @@ test('@web @m3u @xtream optional settings and server details are disclosed only 
     page,
 }) => {
     await page.goto('/');
-    await page
-        .getByRole('button', { name: 'Add playlist', exact: true })
-        .click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.getByRole('dialog');
     await expect(dialog.locator('.app-dialog__subtitle')).toHaveCount(0);
     const userAgent = dialog.locator(

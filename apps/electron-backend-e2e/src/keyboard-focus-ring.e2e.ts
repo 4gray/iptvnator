@@ -646,7 +646,7 @@ test.describe('Keyboard focus ring', () => {
             );
             expect(
                 report['sources list (dark)'].map((stop) => stop.label)
-            ).toContain('Playlist actions');
+            ).toContain('Source actions');
 
             // The live EPG list: its rows are Tab stops (`role="button"`)
             // with their own inset ring, then the row's info button.

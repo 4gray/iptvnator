@@ -88,7 +88,7 @@ export class PlaylistErrorViewComponent {
         }
 
         this.dialogService.openConfirmDialog({
-            title: this.translate.instant('HOME.PLAYLISTS.REMOVE_DIALOG.TITLE'),
+            title: this.translate.instant('HOME.PLAYLISTS.REMOVE'),
             subtitle: sourceDialogSubtitle(currentPlaylist, (key) =>
                 this.translate.instant(key)
             ),

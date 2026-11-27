@@ -37,7 +37,7 @@ interface StalkerEditorRow extends CategoryEditorRow {
     template: `
         <app-category-editor
             [(categories)]="categories"
-            subtitle="WORKSPACE.CONTEXT.STALKER_PORTAL"
+            subtitle="WORKSPACE.SHELL.STALKER_PORTAL"
             [showLocks]="parentalLock.enabled()"
             [showBulkLocks]="true"
             [isSaving]="isSaving()"

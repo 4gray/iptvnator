@@ -245,7 +245,7 @@ for (const routeRetry of [false, true])
                 saved
             );
             await openGlobalRecent(page);
-            await switchUnifiedCollectionScope(page, 'All playlists');
+            await switchUnifiedCollectionScope(page, 'All sources');
             // A Live-only history omits the content toggle and selects Live itself.
             const recent = channelItemByTitle(page, retainedTitle).first();
             await expect(recent).toBeVisible();
@@ -283,7 +283,7 @@ for (const routeRetry of [false, true])
                 .getByRole('button', { name: 'Export', exact: true })
                 .click();
             await expect(
-                page.getByText('Playlist backup exported.')
+                page.getByText('Source backup exported.')
             ).toBeVisible();
             const exported = (
                 JSON.parse(

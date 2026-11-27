@@ -31,7 +31,7 @@ test('@pwa @stalker saves hidden genres across reload and restores them with the
     await expect(movie).toBeVisible();
     await manage.click();
     await dialog.getByRole('searchbox').fill('fixture');
-    await dialog.getByRole('button', { name: 'Deselect Filtered' }).click();
+    await dialog.getByRole('button', { name: 'Deselect filtered' }).click();
     await expect(genre).not.toBeChecked();
     await dialog.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(dialog).toBeHidden();

@@ -195,7 +195,7 @@ async function importDashPlaylistFromText(
     await dialog.getByRole('radio', { name: /Raw m3u text/i }).click();
     await dialog.locator('textarea').fill(playlist);
     await dialog
-        .getByRole('button', { name: 'Add playlist', exact: true })
+        .getByRole('button', { name: 'Add source', exact: true })
         .click();
     await dialog.waitFor({ state: 'detached' });
     await waitForM3uCatalog(app.mainWindow);
@@ -568,7 +568,7 @@ for (const configuredPlayer of ['videojs', 'mpv', 'artplayer']) {
                     openCollection === openGlobalRecent ||
                     openCollection === openGlobalFavorites
                 ) {
-                    await switchUnifiedCollectionScope(page, 'All playlists');
+                    await switchUnifiedCollectionScope(page, 'All sources');
                 }
                 const collection = page.locator('app-unified-live-tab');
                 await channelItemByTitle(page, 'ClearKey DASH').first().click();

@@ -166,7 +166,7 @@ test.describe('Dialog shell', () => {
             await page.setViewportSize({ width: 1024, height: 520 });
             const dialog = await openAccountInfoDialog(page);
             const body = dialog.getByRole('region', {
-                name: 'Account Information',
+                name: 'Account information',
             });
             await expect(body).toBeFocused();
             // The header-end slot (status pills) leaves the tile centred

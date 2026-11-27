@@ -73,7 +73,7 @@ for (const language of ['en', 'ru']) {
             name:
                 language === 'ru'
                     ? 'Копировать URL-адрес потока'
-                    : 'Copy Stream URL',
+                    : 'Copy stream URL',
             exact: true,
         });
         const close = shell.getByRole('button', {

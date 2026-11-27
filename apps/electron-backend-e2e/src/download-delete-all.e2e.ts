@@ -51,7 +51,7 @@ test('@downloads @persistence @electron keeps finished downloads when every play
                     filePaths: [folder],
                 }) as Awaited<ReturnType<typeof dialog.showOpenDialog>>;
         }, downloadsDir);
-        await page.getByRole('button', { name: 'Change Folder' }).click();
+        await page.getByRole('button', { name: 'Change folder' }).click();
         await expect(page.getByTestId('downloads-folder')).toContainText(
             'e2e-downloads'
         );
@@ -79,7 +79,7 @@ test('@downloads @persistence @electron keeps finished downloads when every play
             .getByRole('button', { name: 'Delete everything', exact: true })
             .click();
         await expect(
-            page.getByText('All playlists and playlist data were removed.')
+            page.getByText('All sources and source data were removed.')
         ).toBeVisible();
         expect(
             await page.evaluate(

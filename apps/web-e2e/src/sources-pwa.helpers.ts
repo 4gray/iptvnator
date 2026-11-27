@@ -111,7 +111,7 @@ export async function addXtreamPortal(
     await setInputValue(dialog.locator('#password'), identity.password);
 
     const addButton = dialog.getByRole('button', {
-        name: 'Add playlist',
+        name: 'Add source',
         exact: true,
     });
     await expect(addButton).toBeEnabled({ timeout: 10_000 });
@@ -131,12 +131,12 @@ export async function addM3uUrlPlaylist(
         M3U_PLAYLIST_URL
     );
     await setInputValue(
-        dialog.getByRole('textbox', { name: 'Playlist title' }),
+        dialog.getByRole('textbox', { name: 'Source title' }),
         title
     );
 
     const addButton = dialog.getByRole('button', {
-        name: 'Add playlist',
+        name: 'Add source',
         exact: true,
     });
     await expect(addButton).toBeEnabled({ timeout: 10_000 });
@@ -161,7 +161,7 @@ export async function addStalkerPortal(
     );
 
     const addButton = dialog.getByRole('button', {
-        name: 'Add playlist',
+        name: 'Add source',
         exact: true,
     });
     await expect(addButton).toBeEnabled({ timeout: 10_000 });
@@ -282,7 +282,7 @@ export function expectNoElectronDbRuntimeErrors(errors: RuntimeErrors): void {
 }
 
 async function openAddPlaylistDialog(page: Page): Promise<void> {
-    await page.getByRole('button', { name: 'Add playlist' }).click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     await expect(page.locator('mat-dialog-container')).toBeVisible();
 }
 

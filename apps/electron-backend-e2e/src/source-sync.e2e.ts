@@ -80,14 +80,12 @@ async function browserClient(page: Page, apiUrl: string, token = '') {
     }
     await page.goto(`${frontendUrl}/workspace/sources`);
     await expect(
-        page.getByRole('button', { name: 'Add playlist', exact: true })
+        page.locator('[data-test-id="header-add-source"]')
     ).toBeVisible();
 }
 
 async function addTextSource(page: Page, title: string) {
-    await page
-        .getByRole('button', { name: 'Add playlist', exact: true })
-        .click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.locator('mat-dialog-container');
     await dialog.getByRole('radio', { name: /file/i }).click();
     await dialog.locator('input[type="file"]').setInputFiles({
@@ -98,7 +96,7 @@ async function addTextSource(page: Page, title: string) {
         ),
     });
     await dialog
-        .getByRole('button', { name: 'Add playlist', exact: true })
+        .getByRole('button', { name: 'Add source', exact: true })
         .click();
     await expect(dialog).toBeHidden();
 }
@@ -660,7 +658,7 @@ test('authenticates the PWA and retains its isolated source cache while NAS is o
         await expect(status).toHaveCount(0);
         await openSources(page);
         await expect(
-            page.getByRole('button', { name: 'Add playlist', exact: true })
+            page.locator('[data-test-id="header-add-source"]')
         ).toBeVisible();
         await addTextSource(page, 'Authenticated NAS source');
         await openSources(page);

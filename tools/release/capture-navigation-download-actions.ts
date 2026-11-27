@@ -30,7 +30,7 @@ async function openDownloadsPage(page: Page): Promise<void> {
  * The download manager authorizes the OS Downloads folder by default, which
  * would put fixture bytes into the maintainer's real Downloads directory and
  * show a personal home path in the frame. The capture stubs the folder dialog
- * (`installDownloadFolderDialogStub`), so "Change Folder" lands on the
+ * (`installDownloadFolderDialogStub`), so "Change folder" lands on the
  * isolated folder without any native UI.
  */
 async function ensureCaptureDownloadFolder(page: Page): Promise<void> {
@@ -42,7 +42,7 @@ async function ensureCaptureDownloadFolder(page: Page): Promise<void> {
         return;
     }
 
-    await page.getByRole('button', { name: 'Change Folder' }).click();
+    await page.getByRole('button', { name: 'Change folder' }).click();
     await page
         .locator('[data-test-id="downloads-folder"]')
         .filter({ hasText: CAPTURE_DOWNLOAD_FOLDER_NAME })

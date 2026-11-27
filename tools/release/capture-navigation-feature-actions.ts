@@ -26,10 +26,10 @@ async function openLibraryWatched(page: Page): Promise<void> {
     await openXtreamSection(page, 'vod', 'Action & Mystery');
     const watched = page.locator('[data-testid="vod-watched-toggle"]');
     await watched.waitFor();
-    if ((await watched.getAttribute('aria-label')) === 'Mark as Watched') {
+    if ((await watched.getAttribute('aria-label')) === 'Mark as watched') {
         await watched.click();
     }
-    await page.getByRole('button', { name: 'Mark as Unwatched', exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Mark as unwatched', exact: true }).waitFor();
 }
 
 async function openDemoPlayback(page: Page): Promise<void> {

@@ -64,7 +64,7 @@ export async function addXtreamPortal(
         password = DEFAULT_PASSWORD,
     } = options;
 
-    await page.getByRole('button', { name: 'Add playlist' }).click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
     // v0.22 redesign: tabs were replaced with a flat 5-card radio picker.
@@ -76,7 +76,7 @@ export async function addXtreamPortal(
     await setInputValue(dialog.locator('#password'), password);
 
     await dialog
-        .getByRole('button', { name: 'Add playlist', exact: true })
+        .getByRole('button', { name: 'Add source', exact: true })
         .click();
     await page.waitForSelector('mat-dialog-container', { state: 'detached' });
     await page.waitForURL(/xtreams.*vod/);

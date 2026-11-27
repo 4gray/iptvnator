@@ -195,7 +195,7 @@ test('server-connected desktop refreshes cached re-enabled catalogs and exports 
             .locator('#backup')
             .getByRole('button', { name: 'Export', exact: true })
             .click();
-        await expect(page.getByText('Playlist backup exported.')).toBeVisible();
+        await expect(page.getByText('Source backup exported.')).toBeVisible();
         const exported = (
             JSON.parse(readFileSync(output, 'utf8')) as PlaylistBackupManifestV1
         ).playlists.find(
@@ -221,7 +221,7 @@ test('server-connected desktop refreshes cached re-enabled catalogs and exports 
             .getByRole('button', { name: 'Delete everything', exact: true })
             .click();
         await expect(
-            page.getByText('All playlists and playlist data were removed.')
+            page.getByText('All sources and source data were removed.')
         ).toBeVisible();
         expect(
             await page.evaluate((key) => localStorage.getItem(key), serverKey)
@@ -301,7 +301,7 @@ test('standalone Settings bulk deletion clears dormant catalog data without touc
             .getByRole('button', { name: 'Delete everything', exact: true })
             .click();
         await expect(
-            page.getByText('All playlists and playlist data were removed.')
+            page.getByText('All sources and source data were removed.')
         ).toBeVisible();
         expect(
             await page.evaluate(() => window.electron.dbGetAppPlaylists())

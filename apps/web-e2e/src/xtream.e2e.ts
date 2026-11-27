@@ -61,7 +61,7 @@ test.use({ serviceWorkers: 'block' });
 
 async function openPlaylistDetailsDialog(page: Page, title: string) {
     const playlistSettingsButton = page.getByRole('button', {
-        name: 'Playlist Settings',
+        name: 'Source settings',
     });
 
     if (await playlistSettingsButton.isVisible()) {
@@ -77,7 +77,7 @@ async function openPlaylistDetailsDialog(page: Page, title: string) {
             .first();
         await expect(sourceRow).toBeVisible();
         await sourceRow.locator('.source-row__more').click();
-        await page.getByRole('menuitem', { name: 'Playlist info' }).click();
+        await page.getByRole('menuitem', { name: 'Source details' }).click();
     }
 
     const dialog = page.locator('mat-dialog-container');

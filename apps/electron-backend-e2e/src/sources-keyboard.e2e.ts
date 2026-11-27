@@ -215,7 +215,7 @@ test.describe('Electron Sources keyboard', () => {
             await row.locator('.source-row__more').focus();
             await page.keyboard.press('Enter');
             const remove = page.getByRole('menuitem', {
-                name: 'Remove playlist',
+                name: 'Remove source',
             });
             await expect(remove).toBeVisible();
             await waitForMenuFocus(page);

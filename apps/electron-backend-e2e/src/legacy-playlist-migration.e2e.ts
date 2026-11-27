@@ -124,7 +124,7 @@ async function verifyBackupReloadRecovery(
     await openSettingsSection(page, 'backup');
     const backup = page.locator('#backup');
     await backup.getByRole('button', { name: 'Export', exact: true }).click();
-    await expect(page.getByText('Playlist backup exported.')).toBeVisible();
+    await expect(page.getByText('Source backup exported.')).toBeVisible();
     await app.evaluate(() => {
         (globalThis as typeof globalThis & StartupTestGlobals)[
             '__failPlaylistReads'
