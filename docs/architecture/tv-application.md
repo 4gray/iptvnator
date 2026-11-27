@@ -536,10 +536,15 @@ server pagination; provider order omits the parameter. Its page cache already
 keys all parameters, including sort. This follows the existing Angular Stalker
 request and the middleware's [VOD implementation](https://github.com/iptvhakr/stalker_portal/blob/master/server/lib/vod.class.php).
 Portals that ignore ordering cannot be globally repaired by sorting one page.
-Xtream sorts the complete fetched catalog before taking a client page. Its
-framework-free `xtreamCatalogTimestamp` uses the shared epoch validity policy,
-accepts provider ISO dates and falls back from missing series `added` to
-`last_modified`, with an on-screen explanation. Release year is never recency.
+Xtream sorts matching rows before taking a client page and retains one ordered
+list of row references per provider instance. Each page uses the latest category
+labels and maps only its own rows to media items. The temporary browser storage
+key `iptvnator.tv.disableXtreamCatalogOrderCache` set to `1` disables reuse on
+reload. Remove the key and reload to enable reuse. Retire the switch within two
+TV releases. The framework-free `xtreamCatalogTimestamp` uses the shared epoch
+validity policy, accepts provider ISO dates and falls back from missing series
+`added` to `last_modified`, with an on-screen explanation. Release year is never
+recency.
 Missing/invalid dates go last; ties explicitly preserve provider ordinal because
 Chromium 68 does not promise stable native sorting. M3U without addition dates
 keeps playlist order with a visible explanation; alphabetical VOD remains
