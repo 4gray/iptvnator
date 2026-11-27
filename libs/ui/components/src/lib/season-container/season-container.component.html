@@ -115,6 +115,7 @@
                         [episode]="episode"
                         [layout]="effectiveViewMode()"
                         [bare]="metaState() === 'bare'"
+                        [watchControl]="watchControls()"
                         [position]="getEpisodePosition(episode)"
                         [showStill]="hasUsableStill(episode)"
                         [launching]="isEpisodeLaunching(episode)"

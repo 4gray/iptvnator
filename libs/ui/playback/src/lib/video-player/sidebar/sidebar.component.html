@@ -1,5 +1,7 @@
 <app-channel-list-container
     [channelList]="channels()"
+    [managementChannels]="managementChannels()"
+    [emptyHint]="emptyHint()"
     [channelsLoading]="channelsLoading()"
     [activeView]="activeView()"
     [recentItems]="activePlaylist()?.recentlyViewed ?? []"

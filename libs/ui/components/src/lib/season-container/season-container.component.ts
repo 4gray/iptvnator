@@ -147,6 +147,11 @@ export class SeasonContainerComponent implements OnInit {
     /** True while a host is persisting a season-level watched toggle. */
     readonly seasonWatchBatchRunning = input(false);
     /**
+     * Whether episodes offer a watched toggle; a host whose runtime cannot
+     * persist positions passes false.
+     */
+    readonly watchControls = input(true);
+    /**
      * True while some seasons' episode lists are not loaded yet (Stalker
      * lazy-VOD): blocks the series-wide "fully watched" verdict and hides the
      * count from the series action label.

@@ -1,6 +1,9 @@
-import { Component, input, output } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { Component, contentChild, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { Store } from '@ngrx/store';
+import { FavoritesActions } from '@iptvnator/m3u-state';
 import { TmdbEnrichmentService } from '@iptvnator/services';
 import { Channel, ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import {
@@ -8,7 +11,12 @@ import {
     TranslatePipe,
     TranslateService,
 } from '@ngx-translate/core';
-import { CastCrewRowComponent } from '@iptvnator/ui/components';
+import {
+    CastCrewRowComponent,
+    DetailActionButtonComponent,
+    DetailActionsTemplateDirective,
+    DetailIconButtonComponent,
+} from '@iptvnator/ui/components';
 import { MockPipe } from 'ng-mocks';
 import type { M3uVodDetailComponent as M3uVodDetailComponentType } from './m3u-vod-detail.component';
 
@@ -26,9 +34,14 @@ jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
 @Component({
     selector: 'app-portal-detail-shell',
     standalone: true,
-    template: '<ng-content />',
+    imports: [NgTemplateOutlet],
+    // The action row is projected as a template, as the real shell does it.
+    template: `<ng-content /><ng-container
+            [ngTemplateOutlet]="actions()?.templateRef ?? null"
+        />`,
 })
 class StubPortalDetailShellComponent {
+    readonly actions = contentChild(DetailActionsTemplateDirective);
     readonly title = input<string>();
     readonly kindLabel = input<string | null>(null);
     readonly description = input<string>();
@@ -92,6 +105,11 @@ describe('M3uVodDetailComponent', () => {
     let M3uVodDetailComponent: typeof M3uVodDetailComponentType;
     let fixture: ComponentFixture<M3uVodDetailComponentType>;
     let enrichMovie: jest.Mock;
+    const favorites = signal<string[]>([]);
+    const storeMock = {
+        dispatch: jest.fn(),
+        selectSignal: jest.fn(() => favorites),
+    };
 
     beforeAll(async () => {
         ({ M3uVodDetailComponent } =
@@ -133,10 +151,13 @@ describe('M3uVodDetailComponent', () => {
 
     beforeEach(async () => {
         enrichMovie = jest.fn().mockResolvedValue(null);
+        favorites.set([]);
+        storeMock.dispatch.mockClear();
 
         await TestBed.configureTestingModule({
             imports: [M3uVodDetailComponent, TranslateModule.forRoot()],
             providers: [
+                { provide: Store, useValue: storeMock },
                 {
                     provide: TmdbEnrichmentService,
                     useValue: {
@@ -154,6 +175,9 @@ describe('M3uVodDetailComponent', () => {
                 set: {
                     imports: [
                         CastCrewRowComponent,
+                        DetailActionButtonComponent,
+                        DetailActionsTemplateDirective,
+                        DetailIconButtonComponent,
                         StubPortalDetailShellComponent,
                         StubPortalInlinePlayerComponent,
                         MockPipe(
@@ -404,5 +428,26 @@ describe('M3uVodDetailComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-portal-inline-player')
         ).toBeNull();
+    });
+
+    it('favourites the film from the detail view, external players included', async () => {
+        // The split keeps films out of the channel list and its star, so
+        // this toggle is the only way to favourite one.
+        const film = channel();
+        await create({ channel: film, inlinePlayerAvailable: false });
+        const toggle = (): HTMLButtonElement =>
+            fixture.nativeElement.querySelector(
+                '[data-testid="m3u-vod-favorite-toggle"]'
+            );
+
+        expect(toggle().getAttribute('aria-pressed')).toBe('false');
+        toggle().click();
+        expect(storeMock.dispatch).toHaveBeenCalledWith(
+            FavoritesActions.updateFavorites({ channel: film })
+        );
+
+        favorites.set([film.url]);
+        fixture.detectChanges();
+        expect(toggle().getAttribute('aria-pressed')).toBe('true');
     });
 });

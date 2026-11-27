@@ -1,4 +1,4 @@
-@if (!hasAnyGroups() && withheldGroupCount() === 0) {
+@if (!hasAnyGroups() && withheldGroupCount() === 0 && !hasManageableGroups()) {
     <app-state-view
         class="groups-view-empty-state"
         size="panel"

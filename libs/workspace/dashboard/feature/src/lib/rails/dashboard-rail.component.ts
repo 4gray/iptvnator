@@ -22,7 +22,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { SettingsStore } from '@iptvnator/services';
-import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
+import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils/name-strip';
 import type { DashboardRemainingLabel } from './dashboard-playback.utils';
 
 export interface DashboardRailAction {

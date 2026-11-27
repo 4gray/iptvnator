@@ -25,6 +25,13 @@
         @include grid.remove-button;
     }
 
+    // Same chip as Remove, in the opposite corner so the two never overlap.
+    .favorite-button {
+        @include grid.remove-button;
+        right: auto;
+        left: 4px;
+    }
+
     .thumbnail-wrapper {
         @include grid.thumbnail-wrapper;
 

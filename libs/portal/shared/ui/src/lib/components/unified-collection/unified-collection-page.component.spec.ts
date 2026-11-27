@@ -77,6 +77,8 @@ class StubUnifiedGridTabComponent {
     readonly mode = input<'favorites' | 'recent'>('favorites');
     readonly contentType = input<'movie' | 'series'>('movie');
     readonly searchTerm = input('');
+    readonly favoriteUids = input<ReadonlySet<string>>(new Set<string>());
+    readonly favoriteToggled = output<UnifiedCollectionItem>();
 
     readonly itemSelected = output<UnifiedCollectionItem>();
     readonly removeItem = output<UnifiedCollectionItem>();
@@ -159,9 +161,7 @@ describe('UnifiedCollectionPageComponent', () => {
         removeRecentItemsBatch: jest.fn(),
         clearRecentItems: jest.fn(),
     };
-    const dialogService = {
-        openConfirmDialog: jest.fn(),
-    };
+    const dialogService = { openConfirmDialog: jest.fn() };
     const snackBar = { open: jest.fn().mockResolvedValue(null) };
     const workspaceViewCommands = {
         registerCommand: jest.fn(),

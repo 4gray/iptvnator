@@ -51,6 +51,7 @@ import {
     UnifiedCollectionDataService,
 } from '@iptvnator/portal/shared/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { openPendingNonLiveItem } from './unified-collection-pending-open';
 import { UnifiedLiveTabComponent } from './unified-live-tab.component';
 import { UnifiedGridTabComponent } from './unified-grid-tab.component';
 import {
@@ -420,7 +421,19 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         }
 
         this.autoSelectContentType();
-        if (
+        // A dashboard handoff arrives typed 'live' even for an M3U film or
+        // episode; the live tab would never find it, so it is opened here.
+        const opened = openPendingNonLiveItem(
+            items,
+            this.pendingAutoOpenLiveItem(),
+            this.router
+        );
+        if (opened) {
+            this.onLiveAutoOpenHandled();
+            if (!opened.navigated) {
+                this.selectedContentType.set(opened.item.contentType);
+            }
+        } else if (
             this.pendingAutoOpenLiveItem() &&
             items.some((item) => item.contentType === 'live')
         ) {

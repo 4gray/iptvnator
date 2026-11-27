@@ -112,7 +112,9 @@ export function resolveActiveCategoryLabel(ctx: SearchScopeContext): string {
         );
     }
 
-    return translateRailSection(section, translate);
+    // An M3U section has no category the header knows of; repeating the
+    // section name would read "Movies / Movies".
+    return '';
 }
 
 export function resolveSearchScopeLabel(ctx: SearchScopeContext): string {

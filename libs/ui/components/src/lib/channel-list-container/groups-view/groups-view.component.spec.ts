@@ -552,6 +552,65 @@ describe('GroupsViewComponent', () => {
         ]);
     });
 
+    it('keeps hidden and locked groups the manage-groups dialog never listed', async () => {
+        // A host that lists part of the playlist must not unhide or unlock
+        // the rest on Save: the host replaces both stored lists.
+        const hiddenGroupTitlesChanged = jest.fn();
+        const lockedGroupTitlesChanged = jest.fn();
+        component.hiddenGroupTitlesChanged.subscribe(hiddenGroupTitlesChanged);
+        component.lockedGroupTitlesChanged.subscribe(lockedGroupTitlesChanged);
+        parentalLock.lockedGroupTitles.mockReturnValue(['Late Series', 'News']);
+        fixture.componentRef.setInput('playlistId', 'playlist-a');
+        fixture.componentRef.setInput('lockedGroupTitles', ['Late Series']);
+        fixture.componentRef.setInput('managementGroups', [
+            { key: 'News', count: 2 },
+        ]);
+        fixture.componentRef.setInput('hiddenGroupTitles', [
+            'Old Films',
+            'News',
+        ]);
+        fixture.detectChanges();
+        dialog.open.mockReturnValue({
+            afterClosed: () =>
+                of({ hiddenGroupTitles: [], lockedGroupTitles: [] }),
+        });
+
+        await component.openGroupManagement();
+
+        // News was listed and cleared; the unlisted titles survive.
+        expect(hiddenGroupTitlesChanged).toHaveBeenCalledWith(['Old Films']);
+        expect(lockedGroupTitlesChanged).toHaveBeenCalledWith(['Late Series']);
+    });
+
+    it('keeps the manage action when only the management list has groups', async () => {
+        setInputs({ groupedChannels: {} });
+        fixture.componentRef.setInput('managementGroups', [
+            { key: 'Films', count: 3 },
+        ]);
+        fixture.detectChanges();
+        dialog.open.mockReturnValue({ afterClosed: () => of(undefined) });
+
+        expect(
+            fixture.nativeElement.querySelector('.groups-view-empty-state')
+        ).toBeNull();
+        const manageButton = fixture.nativeElement.querySelector(
+            '.groups-nav-action--manage'
+        ) as HTMLButtonElement | null;
+        expect(manageButton).not.toBeNull();
+
+        await component.openGroupManagement();
+        expect(dialog.open.mock.calls[0][1].data.groups).toEqual([
+            { key: 'Films', count: 3 },
+        ]);
+
+        // No group anywhere: the empty state stays.
+        fixture.componentRef.setInput('managementGroups', []);
+        fixture.detectChanges();
+        expect(
+            fixture.nativeElement.querySelector('.groups-view-empty-state')
+        ).not.toBeNull();
+    });
+
     it('opens the manage-groups dialog without lock toggles while the lock store is unreadable', async () => {
         fixture.componentRef.setInput('playlistId', 'playlist-a');
         fixture.componentRef.setInput('lockedGroupTitles', []);

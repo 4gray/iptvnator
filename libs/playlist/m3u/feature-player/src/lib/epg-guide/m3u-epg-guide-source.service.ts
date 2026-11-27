@@ -4,7 +4,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { SettingsStore, injectTranslationTick } from '@iptvnator/services';
-import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
+import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils/name-strip';
 import { Channel } from '@iptvnator/shared/interfaces';
 import type { EpgProgram } from '@iptvnator/shared/interfaces';
 import {
