@@ -55,7 +55,7 @@ interface HistorySeries {
     readonly request: DashboardSeriesEpisodesRequest;
     readonly newest: PlaybackPositionData;
     readonly positions: readonly PlaybackPositionData[];
-    readonly allowUnmappedLatest: boolean;
+    readonly checkOtherCatalogs: boolean;
 }
 
 interface HistoryCandidate {
@@ -134,14 +134,14 @@ function watchedCandidates(
                   )
                 : latest;
         if (!newest) continue;
-        const allowUnmappedLatest =
+        const checkOtherCatalogs =
             request.provider === 'stalker' &&
             !newest.activityIdentity &&
             ambiguousParents.has(resolvedKey);
         if (
             !isPortalPlaybackWatched(newest) &&
             newest.seasonNumber !== 0 &&
-            !(allowUnmappedLatest && positions.some(isPortalPlaybackWatched))
+            !(checkOtherCatalogs && positions.some(isPortalPlaybackWatched))
         ) {
             continue;
         }
@@ -160,7 +160,7 @@ function watchedCandidates(
                 : item;
         candidates.push({
             item: detailItem,
-            series: { request, newest, positions, allowUnmappedLatest },
+            series: { request, newest, positions, checkOtherCatalogs },
         });
     }
     return candidates;
@@ -264,6 +264,9 @@ export function createWatchedHistory(options: WatchedHistoryOptions) {
                 const result = classifyDashboardSeries({
                     ...candidate.series,
                     episodes,
+                    otherStalkerCatalogs: candidate.series.checkOtherCatalogs
+                        ? catalogs.getOtherStalkerCatalogs(request)
+                        : undefined,
                 });
                 const stale =
                     result.continuation.kind === 'unknown' &&

@@ -110,7 +110,7 @@ export function createDashboardContinueWatching(
     const ambiguousParents = computed(() =>
         ambiguousDashboardStalkerSeriesParents(deps.items())
     );
-    const allowUnmapped = (
+    const hasUnscopedCollision = (
         item: PortalActivityItem,
         newest: PlaybackPositionData
     ) =>
@@ -129,7 +129,7 @@ export function createDashboardContinueWatching(
             deps.items(),
             deps.storedPosition,
             (item, newest) =>
-                allowUnmapped(item, newest) &&
+                hasUnscopedCollision(item, newest) &&
                 newest.seriesXtreamId !== undefined &&
                 !!deps
                     .episodeRows(item.playlist_id, newest.seriesXtreamId)
@@ -169,7 +169,9 @@ export function createDashboardContinueWatching(
                         seriesXtreamId
                     ) ?? [newest],
                     episodes: seriesEpisodes.get(request),
-                    allowUnmappedLatest: allowUnmapped(item, newest),
+                    otherStalkerCatalogs: hasUnscopedCollision(item, newest)
+                        ? seriesEpisodes.getOtherStalkerCatalogs(request)
+                        : undefined,
                 });
                 requests.push(
                     continuation.kind === 'unknown' && continuation.stale

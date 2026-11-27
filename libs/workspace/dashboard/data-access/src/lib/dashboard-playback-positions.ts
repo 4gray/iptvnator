@@ -5,8 +5,10 @@ import {
     type PortalActivityItem,
     type StalkerPortalItem,
 } from '@iptvnator/shared/interfaces';
-import { dashboardStalkerSeriesMode } from './dashboard-series-episodes-request';
-import { matchesStalkerSeriesPosition } from './dashboard-series-continuation.util';
+import {
+    dashboardStalkerSeriesMode,
+    type DashboardStalkerSeriesMode,
+} from './dashboard-series-episodes-request';
 
 const logger = createLogger('DashboardData');
 
@@ -102,6 +104,21 @@ export function newestDashboardStalkerSeriesPosition(
         }
     }
     return selected;
+}
+
+export function matchesStalkerSeriesPosition(
+    position: PlaybackPositionData,
+    mode: DashboardStalkerSeriesMode,
+    parentId: string | number | undefined
+): boolean {
+    const identity = position.activityIdentity;
+    return (
+        !identity ||
+        (identity.provider === 'stalker' &&
+            identity.kind === 'episode' &&
+            identity.mode === mode &&
+            identity.seriesId === String(parentId))
+    );
 }
 
 export function newestPlaybackPosition(

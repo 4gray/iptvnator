@@ -1815,7 +1815,10 @@ The VOD-series contract is cross-surface:
   same mapped episode lists and compatible saved positions for regular,
   embedded VOD and lazy Ministra series. After a known episode finishes,
   Continue Watching can show the next mapped episode, or omit a series whose
-  run has no next episode.
+  run has no next episode. If regular and VOD series share a parent ID, an
+  unscoped recent position missing from the current list can be skipped only
+  when another loaded catalog for that parent matches it. A remaining unlisted
+  latest position keeps the series eligible for a list refresh.
 - Episode downloads from regular series, embedded VOD `series[]`, and lazy
   Ministra VOD `is_series=1` capture the rendered parent/episode metadata and
   provider category in a versioned offline snapshot. The focused Download

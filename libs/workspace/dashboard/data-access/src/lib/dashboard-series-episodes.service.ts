@@ -141,6 +141,19 @@ export class DashboardSeriesEpisodesService {
             : undefined;
     }
 
+    getOtherStalkerCatalogs(
+        request: DashboardSeriesEpisodesRequest
+    ): DashboardLoadedSeasons[] {
+        if (request.provider !== 'stalker') return [];
+        const catalogs: DashboardLoadedSeasons[] = [];
+        for (const mode of ['regular', 'embedded', 'lazy'] as const) {
+            if (mode === request.mode) continue;
+            const entry = this.get({ ...request, mode });
+            if (entry?.status === 'loaded') catalogs.push(entry.seasons);
+        }
+        return catalogs;
+    }
+
     /**
      * Queues missing lists and lists from a previous source. Later rounds
      * retry failures and refresh old or stale lists after their cooldowns.

@@ -402,8 +402,9 @@ describe('Shared dashboard Stalker episode lookup', () => {
             continuation: { kind: 'unknown', stale: true },
             fullyWatched: false,
         });
+        const otherStalkerCatalogs = catalogs.getOtherStalkerCatalogs(regular);
         expect(
-            classifyDashboardSeries({ ...input, allowUnmappedLatest: true })
+            classifyDashboardSeries({ ...input, otherStalkerCatalogs })
         ).toEqual({
             continuation: { kind: 'finished' },
             fullyWatched: true,
@@ -417,26 +418,28 @@ describe('Shared dashboard Stalker episode lookup', () => {
                 ...input,
                 newest: sameCatalog,
                 positions: [...legacyRows, sameCatalog],
-                allowUnmappedLatest: true,
+                otherStalkerCatalogs,
             })
         ).toEqual({
             continuation: { kind: 'unknown', stale: true },
             fullyWatched: false,
         });
 
-        const sqlite = await loadDashboardPlaybackPositions(
-            { getAllPlaybackPositions: async () => input.positions },
-            [SOURCE._id]
-        );
+        const loadSqlite = (positions: PlaybackPositionData[]) =>
+            loadDashboardPlaybackPositions(
+                { getAllPlaybackPositions: async () => positions },
+                [SOURCE._id]
+            );
+        const sqlite = signal(await loadSqlite(input.positions));
         const rail = TestBed.runInInjectionContext(() =>
             createDashboardContinueWatching({
                 items: signal([regularItem, embeddedItem]),
                 historyLoaded: signal(true),
                 playlists: signal([SOURCE]),
                 storedPosition: (item) =>
-                    storedDashboardPlaybackPositionForItem(sqlite, item),
+                    storedDashboardPlaybackPositionForItem(sqlite(), item),
                 episodeRows: (playlistId, parentId) =>
-                    sqlite.episodesBySeries.get(
+                    sqlite().episodesBySeries.get(
                         seriesPlaybackPositionMapKey(playlistId, parentId)
                     ),
                 positionsLoadedFor: signal(new Set([SOURCE._id])),
@@ -444,6 +447,29 @@ describe('Shared dashboard Stalker episode lookup', () => {
             })
         );
         expect(rail.items()).toEqual([embeddedItem]);
+
+        const newRegularEpisode = {
+            ...otherCatalog,
+            contentXtreamId: 700,
+            episodeNumber: 3,
+            updatedAt: '2026-10-04T10:00:10Z',
+        };
+        for (const updatedAt of [
+            '2026-10-04T10:00:10Z',
+            '2026-10-04T10:00:08Z',
+        ]) {
+            sqlite.set(
+                await loadSqlite([
+                    ...input.positions,
+                    { ...newRegularEpisode, updatedAt },
+                ])
+            );
+            expect(rail.continuationFor(regularItem)).toEqual({
+                kind: 'unknown',
+                stale: true,
+            });
+            expect(rail.items()).toContain(regularItem);
+        }
     });
 
     it('hydrates one full Electron source for a batch before authenticated catalog requests', async () => {
