@@ -38,19 +38,32 @@ export class ProfileSwitchService {
         effect(() => void this.apply(this.profiles.scope()));
     }
 
-    /** Runs switches one at a time; resolves once this device is on `scope`. */
-    apply(scope: PersonalScope): Promise<void> {
+    /**
+     * Runs switches one at a time; resolves once this device is on `scope`.
+     * `moved` runs the moment the scope changes, before the re-listing: a
+     * caller that publishes the shown profile does it there, so the profile
+     * shown and the scope that writes reach never differ. It does not run when
+     * the device is already on `scope` or a newer switch took over.
+     */
+    apply(scope: PersonalScope, moved?: () => void): Promise<void> {
         this.target = scope;
         // A switch still re-listing over the network must not keep this
         // device on a profile the runtime has already left (start-up gave
         // up and fell back to Default): move the scope now, and let the
         // queued switch rebuild what depends on it.
-        if (this.rescoping) setActivePersonalScope(scope);
-        this.queue = this.queue.catch(noop).then(() => this.switchTo(scope));
+        // A switch that waits to be published must not: the shown profile
+        // still belongs to the scope in place.
+        if (this.rescoping && !moved) setActivePersonalScope(scope);
+        this.queue = this.queue
+            .catch(noop)
+            .then(() => this.switchTo(scope, moved));
         return this.queue;
     }
 
-    private async switchTo(scope: PersonalScope): Promise<void> {
+    private async switchTo(
+        scope: PersonalScope,
+        moved?: () => void
+    ): Promise<void> {
         if (this.settled === scope && activePersonalScope() === scope) return;
         const activity = this.injector.get(ActivitySyncRuntime);
         const favorites = this.injector.get(FavoritesSyncRuntime);
@@ -62,6 +75,7 @@ export class ProfileSwitchService {
         setActivePersonalScope(scope);
         this.rescoping = true;
         try {
+            moved?.();
             // Readers that outlive the switch drop the old profile's data now.
             window.dispatchEvent(new Event('iptvnator-profile-switched'));
             // A scope change rebuilds each client on its next use; list afresh.

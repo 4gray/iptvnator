@@ -153,6 +153,47 @@ describe('ProfileSwitchService', () => {
         stop();
     });
 
+    it('keeps writing to the old scope until the drain is done, and calls `moved` once the scope is the new one', async () => {
+        const { service, activity, log, stop } = setup();
+        TestBed.tick();
+        let release!: () => void;
+        activity.client.flush.mockImplementationOnce(
+            () => new Promise<void>((resolve) => (release = resolve))
+        );
+        const seen: string[] = [];
+        const done = service.apply(KIDS, () => {
+            seen.push(`moved@${activePersonalScope()}`);
+            // The re-listing has not started: the shown profile follows first.
+            seen.push(`relisted:${log.some((e) => e.endsWith(`@${KIDS}`))}`);
+        });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        // The gap: a write now still reaches the old profile.
+        expect(activePersonalScope()).toBe('shared');
+        expect(seen).toEqual([]);
+        release();
+        await done;
+        expect(seen).toEqual([`moved@${KIDS}`, 'relisted:false']);
+        stop();
+    });
+
+    it('does not call `moved` when a newer switch took over before the scope moved', async () => {
+        const { service, activity, stop } = setup();
+        TestBed.tick();
+        let release!: () => void;
+        activity.client.flush.mockImplementationOnce(
+            () => new Promise<void>((resolve) => (release = resolve))
+        );
+        const moved = jest.fn();
+        const first = service.apply(KIDS, moved);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const second = service.apply('shared');
+        release();
+        await Promise.all([first, second]);
+        expect(moved).not.toHaveBeenCalled();
+        expect(activePersonalScope()).toBe('shared');
+        stop();
+    });
+
     it('follows the active profile and runs one switch at a time', async () => {
         const { service, log, scope, stop } = setup();
         const first = service.apply(KIDS);

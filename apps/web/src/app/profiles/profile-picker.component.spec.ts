@@ -211,14 +211,26 @@ describe('ProfilePickerComponent', () => {
                     (resolve) => (release = () => resolve(undefined))
                 )
         );
-        fake.runtime.scope.set('shared');
         void choose(ADULT_ID);
         await new Promise((resolve) => setTimeout(resolve, 20));
-        expect(apply).toHaveBeenCalledWith('shared');
+        expect(apply).toHaveBeenCalledWith(
+            `profile:${ADULT_ID}`,
+            expect.any(Function)
+        );
         expect(navigateByUrl).not.toHaveBeenCalled();
         release();
         await new Promise((resolve) => setTimeout(resolve, 20));
         expect(navigateByUrl).toHaveBeenCalled();
+    });
+
+    it('keeps the old profile and shows the error when the switch cannot be made', async () => {
+        const { fake, choose, navigateByUrl, el } = await setup();
+        fake.runtime.switchTo.mockResolvedValueOnce(false);
+        await choose(ADULT_ID);
+        expect(fake.runtime.select).not.toHaveBeenCalled();
+        expect(fake.activeId()).toBe(DEFAULT_PROFILE_ID);
+        expect(navigateByUrl).not.toHaveBeenCalled();
+        expect(el.textContent).toContain('PROFILES.ERRORS.GENERIC');
     });
 
     it('selects a plain profile and goes to the return url', async () => {

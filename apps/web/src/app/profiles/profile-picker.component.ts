@@ -145,13 +145,17 @@ export class ProfilePickerComponent {
             )
                 return;
             if (profile.hasPin && !(await this.askPin(profile))) return;
-            if (!this.runtime.select(profile.id)) {
+            // The workspace opens on the chosen profile's state, never the
+            // old one's, and the shown profile changes only once it has moved.
+            const profileSwitch = await loadProfileSwitch(this.injector);
+            const switched = await this.runtime.switchTo(
+                profile.id,
+                (scope, moved) => profileSwitch.apply(scope, moved)
+            );
+            if (!switched) {
                 this.error.set('PROFILES.ERRORS.GENERIC');
                 return;
             }
-            // The workspace opens on the chosen profile's state, never the old one's.
-            const profileSwitch = await loadProfileSwitch(this.injector);
-            await profileSwitch.apply(this.runtime.scope());
             markProfilePicked();
             await this.router.navigateByUrl(this.returnUrl);
         } finally {
