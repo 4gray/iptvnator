@@ -2329,6 +2329,10 @@
             "UNKNOWN_CHANNEL": "Canal desconhecido"
         },
         "GLOBAL_RECENT": {
+            "WATCHED": "Vistos",
+            "SEE_ALL": "Ver tudo",
+            "SEE_ALL_WATCHED": "Ver todos os títulos vistos",
+            "NO_WATCHED_ITEMS": "Nenhum título visto",
             "NO_PLAYLISTS_TITLE": "Ainda não viste nada.",
             "NO_PLAYLISTS_BODY": "Adiciona uma playlist e o teu histórico de visualização aparecerá aqui.",
             "NO_ITEMS_TITLE": "Ainda não viste nada.",

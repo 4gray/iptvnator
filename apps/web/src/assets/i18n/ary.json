@@ -2329,6 +2329,10 @@
             "UNKNOWN_CHANNEL": "غير معروف"
         },
         "GLOBAL_RECENT": {
+            "WATCHED": "تفرّجتي فيه",
+            "SEE_ALL": "بيّن كلشي",
+            "SEE_ALL_WATCHED": "شوف كلشي اللي تفرّجتي فيه",
+            "NO_WATCHED_ITEMS": "ما كاين حتى عنوان تفرّجتي فيه",
             "NO_PLAYLISTS_TITLE": "ما تشاف حتى شي حاجة دابا",
             "NO_PLAYLISTS_BODY": "زيد قائمة تشغيل وسجل التفرج ديالك غادي يبان هنا.",
             "NO_ITEMS_TITLE": "ما تشاف حتى شي حاجة دابا",

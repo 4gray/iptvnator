@@ -46,3 +46,30 @@
 .content-card__activation:focus-visible .cover-title-overlay {
     opacity: 1;
 }
+
+:host(.content-card--compact) {
+    .content-card__activation {
+        display: flex;
+        align-items: center;
+        gap: var(--app-space-3);
+    }
+
+    .content-card .thumbnail-wrapper {
+        flex: 0 0 48px;
+        min-width: 0;
+
+        .poster {
+            object-fit: contain;
+            background: var(--app-widget-bg);
+        }
+    }
+
+    .content-card .card-info {
+        min-width: 0;
+        padding: var(--app-space-1) var(--app-space-2) var(--app-space-1) 0;
+
+        h3 {
+            overflow-wrap: anywhere;
+        }
+    }
+}

@@ -49,7 +49,11 @@ export class CollectionViewStateHistory {
      * so a repeated read never spends a `replaceState` on an identical value.
      */
     commit(next: CollectionViewState): void {
-        const nextCollectionViewState = buildCollectionViewState(next);
+        const nextCollectionViewState = buildCollectionViewState({
+            ...next,
+            watchedPage: getCollectionViewState(window.history.state)
+                ?.watchedPage,
+        });
         if (isSameCollectionViewState(this.state(), nextCollectionViewState)) {
             return;
         }
@@ -155,6 +159,15 @@ export function pushOpenCollectionDetailState(
                 buildOpenCollectionDetailItemState(item),
         },
         document.title
+    );
+}
+
+export function setupCollectionPopState(restore: () => void): void {
+    if (typeof window === 'undefined') return;
+
+    window.addEventListener('popstate', restore);
+    inject(DestroyRef).onDestroy(() =>
+        window.removeEventListener('popstate', restore)
     );
 }
 

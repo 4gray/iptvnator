@@ -2329,6 +2329,10 @@
             "UNKNOWN_CHANNEL": "未知"
         },
         "GLOBAL_RECENT": {
+            "WATCHED": "已看完",
+            "SEE_ALL": "查看全部",
+            "SEE_ALL_WATCHED": "顯示所有已看完的影片",
+            "NO_WATCHED_ITEMS": "沒有已看完的影片",
             "NO_PLAYLISTS_TITLE": "還沒有觀看記錄",
             "NO_PLAYLISTS_BODY": "新增播放清單後，您的觀看歷史會顯示在這裡。",
             "NO_ITEMS_TITLE": "還沒有觀看記錄",

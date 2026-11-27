@@ -2329,6 +2329,10 @@
             "UNKNOWN_CHANNEL": "알 수 없는 채널"
         },
         "GLOBAL_RECENT": {
+            "WATCHED": "시청 완료",
+            "SEE_ALL": "모두 보기",
+            "SEE_ALL_WATCHED": "시청 완료한 콘텐츠 모두 보기",
+            "NO_WATCHED_ITEMS": "시청 완료한 콘텐츠가 없습니다",
             "NO_PLAYLISTS_TITLE": "아직 시청 기록이 없습니다",
             "NO_PLAYLISTS_BODY": "플레이리스트를 추가하면 시청 기록이 여기에 표시됩니다.",
             "NO_ITEMS_TITLE": "아직 시청 기록이 없습니다",

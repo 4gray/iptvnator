@@ -209,6 +209,37 @@ describe('Stalker second stream', () => {
         expect(stalkerSecondStreamType(seriesItem({ ...raw }))).toBe(expected);
     });
 
+    it('rejects an advertised regular season without episodes for watch-state lookups', async () => {
+        sendIpcEvent.mockResolvedValue({
+            js: [
+                {
+                    id: 'season-1',
+                    name: 'Season 1',
+                    cmd: '/media/season-one',
+                    series: [1],
+                },
+                {
+                    id: 'season-2',
+                    name: 'Season 2',
+                    cmd: '/media/season-two',
+                    series: [],
+                },
+            ],
+        });
+        await expect(
+            service.episodes(
+                playlist,
+                seriesItem(),
+                new AbortController().signal,
+                {
+                    requireComplete: true,
+                }
+            )
+        ).rejects.toMatchObject({
+            message: 'Stalker main season has no listed episodes',
+        });
+    });
+
     it('collects and orders regular seasons without hydrating the VOD catalog', async () => {
         sendIpcEvent.mockImplementation((_event, { params }) =>
             Promise.resolve({
@@ -308,6 +339,29 @@ describe('Stalker second stream', () => {
             expect.objectContaining({ id: '42', favoriteContentType: 'vod' })
         );
         expect(sendIpcEvent).not.toHaveBeenCalled();
+    });
+
+    it('refreshes an embedded list using the original typed metadata reference', async () => {
+        const raw = { id: '42', cmd: '/media/embedded', series: [1] };
+        metadata.mockResolvedValue({ ...raw, series: [1, 2] });
+        const episodes = await service.episodes(
+            playlist,
+            seriesItem(raw),
+            new AbortController().signal,
+            { refreshEmbedded: true }
+        );
+
+        expect(metadata).toHaveBeenCalledWith(
+            playlist,
+            expect.objectContaining({
+                ...raw,
+                favoriteContentType: 'vod',
+            }),
+            expect.any(AbortSignal)
+        );
+        expect(episodes['1'].map((episode) => episode.episode_num)).toEqual([
+            1, 2,
+        ]);
     });
 
     it('traverses lazy VOD seasons using provider coordinates and keeps scoped playback identities', async () => {

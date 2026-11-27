@@ -9,24 +9,32 @@ export const COLLECTION_RELOAD_STATE_KEY =
 export interface CollectionViewState {
     selectedContentType?: CollectionContentType;
     scope?: CollectionScope;
+    watchedPage?: number;
 }
 
 export function buildCollectionViewState(params: {
     selectedContentType?: CollectionContentType | null;
     scope?: CollectionScope | null;
+    watchedPage?: number;
 }): CollectionViewState | null {
     const selectedContentType = normalizeCollectionContentType(
         params.selectedContentType
     );
     const scope = normalizeCollectionScope(params.scope);
+    const page = params.watchedPage;
+    const watchedPage =
+        page !== undefined && Number.isSafeInteger(page) && page > 1
+            ? page
+            : undefined;
 
-    if (!selectedContentType && !scope) {
+    if (!selectedContentType && !scope && !watchedPage) {
         return null;
     }
 
     return {
         ...(selectedContentType ? { selectedContentType } : {}),
         ...(scope ? { scope } : {}),
+        ...(watchedPage ? { watchedPage } : {}),
     };
 }
 
@@ -41,6 +49,7 @@ export function getCollectionViewState(
             'selectedContentType'
         ] as CollectionContentType | null,
         scope: candidate?.['scope'] as CollectionScope | null,
+        watchedPage: candidate?.['watchedPage'] as number | undefined,
     });
 }
 

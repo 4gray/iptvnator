@@ -2329,6 +2329,10 @@
             "UNKNOWN_CHANNEL": "Sconosciuto"
         },
         "GLOBAL_RECENT": {
+            "WATCHED": "Guardati",
+            "SEE_ALL": "Mostra tutto",
+            "SEE_ALL_WATCHED": "Mostra tutti i titoli guardati",
+            "NO_WATCHED_ITEMS": "Nessun titolo guardato",
             "NO_PLAYLISTS_TITLE": "Ancora nessun contenuto guardato",
             "NO_PLAYLISTS_BODY": "Aggiungi una playlist e la tua cronologia di visione apparirà qui.",
             "NO_ITEMS_TITLE": "Ancora nessun contenuto guardato",

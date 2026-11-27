@@ -2329,6 +2329,10 @@
             "UNKNOWN_CHANNEL": "قناة غير معروفة"
         },
         "GLOBAL_RECENT": {
+            "WATCHED": "تمت المشاهدة",
+            "SEE_ALL": "عرض الكل",
+            "SEE_ALL_WATCHED": "عرض كل ما تمت مشاهدته",
+            "NO_WATCHED_ITEMS": "لا توجد عناوين تمت مشاهدتها",
             "NO_PLAYLISTS_TITLE": "لا توجد مشاهدات بعد",
             "NO_PLAYLISTS_BODY": "أضف قائمة تشغيل وسيظهر سجل المشاهدة هنا.",
             "NO_ITEMS_TITLE": "لا توجد مشاهدات بعد",

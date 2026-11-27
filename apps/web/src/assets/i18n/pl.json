@@ -2329,6 +2329,10 @@
             "UNKNOWN_CHANNEL": "Nieznany kanał"
         },
         "GLOBAL_RECENT": {
+            "WATCHED": "Obejrzane",
+            "SEE_ALL": "Pokaż wszystkie",
+            "SEE_ALL_WATCHED": "Pokaż wszystkie obejrzane tytuły",
+            "NO_WATCHED_ITEMS": "Brak obejrzanych tytułów",
             "NO_PLAYLISTS_TITLE": "Jeszcze nic nie oglądano",
             "NO_PLAYLISTS_BODY": "Dodaj listę odtwarzania, a historia oglądania pojawi się tutaj.",
             "NO_ITEMS_TITLE": "Jeszcze nic nie oglądano",

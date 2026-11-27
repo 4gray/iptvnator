@@ -10,32 +10,47 @@ import {
     computed,
     inject,
     input,
+    linkedSignal,
     output,
     signal,
     untracked,
+    viewChild,
 } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { StateViewComponent } from '@iptvnator/ui/state';
 import { TranslatePipe } from '@ngx-translate/core';
 import { APP_ICONS } from '@iptvnator/ui/components/app-icons';
 import { PortalDetailShellComponent } from '@iptvnator/ui/components';
-import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
+import {
+    PlaylistContextFacade,
+    sourceDisplayName,
+} from '@iptvnator/playlist/shared/util';
+import {
+    registerWorkspaceBack,
+    WorkspaceBackNavigationService,
+} from '@iptvnator/portal/shared/data-access';
 import {
     UnifiedCollectionDetailDirective,
     UnifiedCollectionPageComponent,
+    WatchedHistoryComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
+    COLLECTION_VIEW_STATE_KEY,
     CollectionScope,
+    getCollectionViewState,
     PortalProvider,
+    queryParamSignal,
     SeriesResumeTarget,
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
+import { createWatchedHistory } from '@iptvnator/workspace/dashboard/data-access';
 import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
 
 type UnifiedPortalType = 'm3u' | 'xtream' | 'stalker';
 type CollectionMode = 'favorites' | 'recent';
+const EMPTY_ITEMS: readonly UnifiedCollectionItem[] = [];
 
 interface ComponentOutputRef {
     subscribe(callback: () => void): { unsubscribe(): void };
@@ -203,6 +218,7 @@ export class GlobalCollectionDetailHostComponent implements OnDestroy {
         GlobalCollectionDetailHostComponent,
         UnifiedCollectionDetailDirective,
         UnifiedCollectionPageComponent,
+        WatchedHistoryComponent,
     ],
     template: `
         @if (hasNoPlaylists()) {
@@ -218,10 +234,13 @@ export class GlobalCollectionDetailHostComponent implements OnDestroy {
             />
         } @else {
             <app-unified-collection-page
+                #collection
                 [mode]="mode()"
-                [playlistId]="activePlaylistId() ?? undefined"
-                [portalType]="activePortalType() ?? undefined"
+                [playlistId]="collectionPlaylistId()"
+                [portalType]="collectionPortalType()"
                 [defaultScope]="effectiveDefaultScope()"
+                [headerContent]="isRecent() ? watchedPreview : null"
+                [alternateContent]="watchedExpanded() ? watchedFull : null"
             >
                 <ng-template
                     unifiedCollectionDetail
@@ -243,6 +262,35 @@ export class GlobalCollectionDetailHostComponent implements OnDestroy {
                     }
                 </ng-template>
             </app-unified-collection-page>
+
+            <ng-template #watchedPreview>
+                <app-watched-history
+                    [items]="watched.items()"
+                    [loading]="watched.loading()"
+                    [hasMore]="watched.hasMore()"
+                    [seeAllQueryParams]="watchedLinkParams()"
+                    (seeAllActivated)="collection.rememberScroll()"
+                    (itemSelected)="collection.onGridItemSelected($event)"
+                />
+            </ng-template>
+
+            <ng-template #watchedFull>
+                <app-watched-history
+                    [expanded]="true"
+                    [items]="watched.items()"
+                    [searchTerm]="collection.workspaceSearchTerm()"
+                    [loading]="collection.isLoading() || watched.loading()"
+                    [hasMore]="watched.hasMore()"
+                    [scopeLabel]="
+                        collection.effectiveScope() === 'playlist'
+                            ? (scopePlaylistName() ??
+                              ('PORTALS.THIS_PLAYLIST' | translate))
+                            : ('PORTALS.ALL_PLAYLISTS' | translate)
+                    "
+                    (itemSelected)="collection.onGridItemSelected($event)"
+                    (loadMoreRequested)="loadMoreWatched()"
+                />
+            </ng-template>
         }
     `,
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -252,9 +300,24 @@ export class GlobalCollectionRouteComponent {
     private readonly store = inject(Store);
     private readonly shellActions = inject(WORKSPACE_SHELL_ACTIONS);
     private readonly router = inject(Router);
+    private readonly route = inject(ActivatedRoute);
+    private readonly backNavigation = inject(WorkspaceBackNavigationService);
+    private readonly collection = viewChild(UnifiedCollectionPageComponent);
 
     readonly mode = input<CollectionMode>('favorites');
     readonly defaultScope = input<CollectionScope | undefined>(undefined);
+    readonly isRecent = computed(() => this.mode() === 'recent');
+    private readonly view = queryParamSignal(this.route, 'view');
+    private readonly scopeParam = queryParamSignal(this.route, 'scope');
+    private readonly playlistParam = queryParamSignal(this.route, 'playlistId');
+    readonly watchedExpanded = computed(
+        () => this.isRecent() && this.view() === 'watched'
+    );
+    private readonly watchedPage = linkedSignal(() =>
+        this.watchedExpanded()
+            ? (getCollectionViewState(history.state)?.watchedPage ?? 1)
+            : 1
+    );
 
     private readonly playlists = this.store.selectSignal(
         selectAllPlaylistsMeta
@@ -263,19 +326,97 @@ export class GlobalCollectionRouteComponent {
 
     readonly emptyState = computed(() => EMPTY_STATE_BY_MODE[this.mode()]);
 
-    readonly activePlaylistId = computed(
-        () => this.playlistContext.activePlaylist()?._id ?? null
+    private readonly scopedPlaylistId = computed(() =>
+        this.isRecent() && this.scopeParam() === 'playlist'
+            ? this.playlistParam() || undefined
+            : undefined
     );
-    readonly activePortalType = computed<UnifiedPortalType | null>(() => {
-        const provider = this.playlistContext.activeProvider();
-        return provider ? providerToPortalType(provider) : null;
+    private readonly scopedPlaylist = computed(() => {
+        const id = this.scopedPlaylistId();
+        return id
+            ? this.playlists().find((playlist) => playlist._id === id)
+            : this.playlistContext.activePlaylist();
     });
-    readonly effectiveDefaultScope = computed<CollectionScope | undefined>(
-        () =>
-            this.activePlaylistId()
-                ? 'playlist'
-                : (this.defaultScope() ?? 'all')
+    readonly collectionPlaylistId = computed(
+        () => this.scopedPlaylistId() ?? this.scopedPlaylist()?._id
     );
+    readonly scopePlaylistName = computed(() => {
+        const playlist = this.scopedPlaylist();
+        return playlist && sourceDisplayName(playlist);
+    });
+    readonly collectionPortalType = computed<UnifiedPortalType | undefined>(
+        () => {
+            const playlist = this.scopedPlaylist();
+            return playlist
+                ? providerToPortalType(
+                      this.playlistContext.getProviderForPlaylist(playlist)
+                  )
+                : undefined;
+        }
+    );
+    readonly effectiveDefaultScope = computed<CollectionScope>(() =>
+        !this.isRecent() && this.collectionPlaylistId()
+            ? 'playlist'
+            : (this.defaultScope() ?? 'all')
+    );
+    readonly watched = createWatchedHistory({
+        active: this.isRecent,
+        expanded: this.watchedExpanded,
+        page: this.watchedPage,
+        items: computed(() => this.collection()?.scopedItems() ?? EMPTY_ITEMS),
+    });
+    readonly watchedLinkParams = computed(() => {
+        const collection = this.collection();
+        const scope = collection?.effectiveScope() ?? 'all';
+        return {
+            view: 'watched',
+            scope,
+            playlistId: scope === 'playlist' ? collection?.playlistId() : null,
+        };
+    });
+
+    constructor() {
+        registerWorkspaceBack({
+            available: () =>
+                this.watchedExpanded() &&
+                !this.collection()?.selectedDetailItem(),
+            run: () => this.closeWatched(),
+        });
+        let detailWasVisible = false;
+        effect(() => {
+            const detailVisible = Boolean(
+                this.collection()?.selectedDetailItem()
+            );
+            if (detailWasVisible && !detailVisible) {
+                untracked(() => this.watched.refresh());
+            }
+            detailWasVisible = detailVisible;
+        });
+    }
+
+    private closeWatched(): void {
+        const historyUrl = this.router.createUrlTree([], {
+            relativeTo: this.route,
+            queryParams: { view: null },
+            queryParamsHandling: 'merge',
+        });
+        this.backNavigation.back(() => this.router.serializeUrl(historyUrl));
+    }
+
+    loadMoreWatched(): void {
+        const watchedPage = this.watchedPage() + 1;
+        history.replaceState(
+            {
+                ...history.state,
+                [COLLECTION_VIEW_STATE_KEY]: {
+                    ...getCollectionViewState(history.state),
+                    watchedPage,
+                },
+            },
+            document.title
+        );
+        this.watchedPage.set(watchedPage);
+    }
 
     addPlaylist(): void {
         this.shellActions.openAddPlaylistDialog();

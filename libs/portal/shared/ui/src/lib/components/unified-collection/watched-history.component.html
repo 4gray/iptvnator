@@ -1,0 +1,98 @@
+@if (expanded()) {
+    <section class="watched-full" data-testid="workspace-recent-watched-full">
+        <header class="watched-header">
+            <div class="watched-heading">
+                <h1>{{ 'WORKSPACE.GLOBAL_RECENT.WATCHED' | translate }}</h1>
+                <p>{{ scopeLabel() }}</p>
+            </div>
+        </header>
+
+        <div
+            class="watched-content app-scrollbar"
+            data-collection-scroll="watched"
+            [attr.aria-busy]="loading() || null"
+        >
+            @if (gridItems().length > 0) {
+                <div class="watched-grid">
+                    @for (item of gridItems(); track item.uid) {
+                        <app-content-card
+                            [title]="item.name"
+                            [type]="displayType(item)"
+                            [posterUrl]="item.posterUrl ?? undefined"
+                            [allowPostersOnly]="false"
+                            [showTypeBadge]="false"
+                            (cardClick)="itemSelected.emit(item)"
+                        />
+                    }
+                </div>
+            } @else if (!loading()) {
+                <app-state-view
+                    [variant]="normalizedSearch() ? 'no-results' : 'empty'"
+                    icon="history"
+                    [heading]="
+                        (normalizedSearch()
+                            ? 'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS'
+                            : 'WORKSPACE.GLOBAL_RECENT.NO_WATCHED_ITEMS'
+                        ) | translate
+                    "
+                />
+            }
+
+            @if (loading() || hasMore()) {
+                <div class="watched-actions">
+                    @if (loading()) {
+                        <mat-spinner
+                            [diameter]="spinnerDiameter"
+                            [attr.aria-label]="'LOADING' | translate"
+                        />
+                    }
+                    @if (hasMore()) {
+                        <button
+                            type="button"
+                            mat-button
+                            data-testid="workspace-recent-watched-more"
+                            [disabled]="loading()"
+                            (click)="loadMoreRequested.emit()"
+                        >
+                            {{ 'CHANNELS.LOAD_MORE' | translate }}
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+    </section>
+} @else if (items().length > 0) {
+    <app-content-rail-shell
+        class="watched-rail"
+        data-testid="workspace-recent-watched-rail"
+        [label]="'WORKSPACE.GLOBAL_RECENT.WATCHED' | translate"
+        [seeAllLink]="historyLink"
+        [seeAllLabel]="'WORKSPACE.GLOBAL_RECENT.SEE_ALL' | translate"
+        [seeAllQueryParams]="seeAllQueryParams()"
+        (seeAllActivated)="onSeeAll($event)"
+    >
+        @for (item of items(); track item.uid) {
+            <div class="watched-rail-card" role="listitem">
+                <app-content-card
+                    [title]="item.name"
+                    [type]="displayType(item)"
+                    [posterUrl]="item.posterUrl ?? undefined"
+                    [allowPostersOnly]="false"
+                    [showTypeBadge]="false"
+                    [compact]="true"
+                    (cardClick)="itemSelected.emit(item)"
+                />
+            </div>
+        }
+    </app-content-rail-shell>
+} @else if (!loading() && hasMore()) {
+    <a
+        mat-button
+        class="watched-fallback"
+        [routerLink]="historyLink"
+        [queryParams]="seeAllQueryParams()"
+        (click)="onSeeAll($event)"
+    >
+        {{ 'WORKSPACE.GLOBAL_RECENT.SEE_ALL_WATCHED' | translate }}
+    </a>
+}

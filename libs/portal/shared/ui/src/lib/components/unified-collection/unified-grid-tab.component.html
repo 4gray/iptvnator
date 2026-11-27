@@ -14,7 +14,7 @@
         "
     />
 } @else {
-    <div class="grid-container">
+    <div class="grid-container" data-collection-scroll="grid">
         @for (item of filteredItems(); track trackByUid($index, item)) {
             <app-content-card
                 [allowPostersOnly]="!hasActiveSearch() && !isUnavailable(item)"

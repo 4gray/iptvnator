@@ -2329,6 +2329,10 @@
             "UNKNOWN_CHANNEL": "Onbekend kanaal"
         },
         "GLOBAL_RECENT": {
+            "WATCHED": "Bekeken",
+            "SEE_ALL": "Alles tonen",
+            "SEE_ALL_WATCHED": "Alle bekeken titels tonen",
+            "NO_WATCHED_ITEMS": "Geen bekeken titels",
             "NO_PLAYLISTS_TITLE": "Nog niets bekeken",
             "NO_PLAYLISTS_BODY": "Voeg een afspeellijst toe en uw kijkgeschiedenis verschijnt hier.",
             "NO_ITEMS_TITLE": "Nog niets bekeken",

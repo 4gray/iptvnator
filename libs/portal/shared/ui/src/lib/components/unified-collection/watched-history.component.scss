@@ -1,0 +1,86 @@
+@use '../../../../../../../ui/styles/app-controls' as controls;
+@use '../../styles/content-grid' as grid;
+
+:host {
+    display: contents;
+}
+
+.watched-rail {
+    flex-shrink: 0;
+    margin-inline: var(--app-space-4);
+    --rail-gap: var(--app-space-3);
+}
+
+.watched-rail-card {
+    flex: 0 0 clamp(148px, 18cqw, 172px);
+    min-width: 0;
+    scroll-snap-align: start;
+
+    app-content-card {
+        display: block;
+    }
+}
+
+.watched-fallback {
+    align-self: flex-start;
+    margin: var(--app-space-2) var(--app-space-4);
+    @include controls.ghost-button(sm);
+}
+
+.watched-full {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.watched-header {
+    padding: var(--app-space-2-5) var(--app-space-4);
+    border-bottom: 1px solid var(--app-separator);
+}
+
+.watched-heading {
+    min-width: 0;
+
+    h1,
+    p {
+        margin: 0;
+    }
+
+    h1 {
+        font-size: var(--app-text-lg);
+        font-weight: 600;
+        color: var(--app-on-surface);
+    }
+
+    p {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: var(--app-text-sm);
+        color: var(--app-eyebrow-color);
+    }
+}
+
+.watched-content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--app-space-4);
+}
+
+.watched-grid {
+    @include grid.content-grid;
+}
+
+.watched-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--app-space-2);
+    padding-block: var(--app-space-4);
+
+    button {
+        @include controls.secondary-button;
+    }
+}

@@ -279,8 +279,8 @@ all, and none inside the hero.
        it has something to continue: once its newest episode is watched, or is
        an extra (season 0),
        `DashboardSeriesEpisodesService` fetches its episode list
-       (`get_series_info`, two lookups at a time) and
-       `resolveDashboardSeriesContinuation` applies
+       (Xtream `get_series_info` or Stalker series metadata, two lookups at
+       a time) and the shared series classifier applies
        `getSeriesNextUp`, the rule the series page's quick start follows
        too. Like Plex's On Deck and Jellyfin's Next Up it goes on from the
        episode watched last, not from the first gap in the list: the first
@@ -299,7 +299,7 @@ all, and none inside the hero.
        in (loading, failed, empty, or not holding the episode played last:
        a list cached before that episode is fetched again in the next
        round), for
-       series that cannot be looked up (Stalker), and for series never
+       series that cannot be looked up, and for series never
        looked up, a series keeps its newest episode rather than vanish on a
        guess. `planDashboardSeriesLookups` picks the series to look up:
        newest first until `CONTINUE_WATCHING_VISIBLE_ITEMS` (20, the rail's
@@ -307,7 +307,7 @@ all, and none inside the hero.
        and series that need no lookup; a finished series frees its slot, so
        an older one is looked up next, up to
        `CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT` (40) lookups. Lists are kept
-       per session and per source (server and username: an edited playlist
+       per session and per provider identity (an edited playlist
        is looked up again, and a late answer for the old source is
        dropped). Lookups are background requests (`suppressErrorLog`: a
        failure is logged, never a toast). Each `reloadPlaybackPositions()`
@@ -318,15 +318,14 @@ all, and none inside the hero.
        than `DASHBOARD_SERIES_EPISODES_MAX_AGE_MS` (1 h) is fetched again so
        newly added episodes show up, the old list standing until the new
        one arrives (a failed refresh keeps it, and waits for the same delay).
-       A source that failed two lookups in a row is not asked for its other
+       A source that failed two transport lookups in a row is not asked for its other
        series until the delay has passed either: a portal that is down or
        expired costs two requests per delay, not one per series per dashboard
        visit. Within one round, more
        series to look past never repeat a request, and the request list
        compares by value, so playlist store churn elsewhere in the app does
        not trigger lookups. Finished titles
-       stay in `globalRecentVodItems()` and on the Global Recent page ("See
-       all");
+       stay in `globalRecentVodItems()` and on the [Global Recent page](workspace-shell.md#watched-history);
        the rail's count badge counts only the listed ones. The list stays
        empty until `continueWatchingSettled()`: the history has loaded (on
        the PWA that includes its Xtream data-source read, not only the

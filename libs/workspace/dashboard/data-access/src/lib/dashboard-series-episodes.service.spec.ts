@@ -16,7 +16,12 @@ const credentials = {
     password: 'pass',
 };
 
-function request(seriesId: number): DashboardSeriesEpisodesRequest {
+function request(
+    seriesId: number
+): Extract<
+    DashboardSeriesEpisodesRequest,
+    { readonly credentials: typeof credentials }
+> {
     return { playlistId: 'xtream-1', seriesId, credentials };
 }
 
@@ -118,6 +123,31 @@ describe('DashboardSeriesEpisodesService', () => {
         });
     });
 
+    it('invalidates a cached Xtream list when a refresh misses advertised main-season episodes', async () => {
+        let now = Date.now();
+        jest.spyOn(Date, 'now').mockImplementation(() => now);
+        const episodes = { '1': [{ id: '901', episode_num: 1 }] };
+        getSeriesInfo.mockResolvedValueOnce({ episodes }).mockResolvedValue({
+            episodes: { '1': [{ id: '901', episode_num: 1 }] },
+            seasons: [
+                { season_number: 1, episode_count: 1 },
+                { season_number: 2, episode_count: 2 },
+            ],
+        });
+
+        service.request([request(900)], 1);
+        await new Promise((resolve) => setTimeout(resolve));
+        expect(service.get(request(900))).toEqual({
+            status: 'loaded',
+            seasons: episodes,
+        });
+        now += DASHBOARD_SERIES_EPISODES_MAX_AGE_MS;
+        service.request([request(900)], 2);
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(service.get(request(900))).toEqual({ status: 'failed' });
+    });
+
     describe('in lookup rounds', () => {
         const flush = () => new Promise((resolve) => setTimeout(resolve));
         const entry = (seriesId: number) =>
@@ -163,6 +193,30 @@ describe('DashboardSeriesEpisodesService', () => {
             expect(getSeriesInfo).toHaveBeenCalledTimes(3);
             await flush();
             expect(status(900)).toBe('loaded');
+        });
+
+        it('allows independent callers to refresh the same shared list', async () => {
+            const history = {};
+            const ask = service.request.bind(service);
+            getSeriesInfo.mockResolvedValue({ episodes: seasons(901) });
+            ask([request(900)], 10);
+            await flush();
+            ask([request(900)], 1, history);
+
+            now += DASHBOARD_SERIES_EPISODES_MAX_AGE_MS;
+            ask([request(900)], 1, history);
+            expect(getSeriesInfo).toHaveBeenCalledTimes(1);
+
+            getSeriesInfo.mockResolvedValue({ episodes: seasons(901, 902) });
+            ask([request(900)], 2, history);
+            expect(getSeriesInfo).toHaveBeenCalledTimes(2);
+            ask([request(900)], 11);
+            await flush();
+            expect(getSeriesInfo).toHaveBeenCalledTimes(2);
+            expect(entry(900)).toEqual({
+                status: 'loaded',
+                seasons: seasons(901, 902),
+            });
         });
 
         it('stops asking a source after two failures in a row, until the retry delay has passed', async () => {

@@ -7,7 +7,7 @@ import {
     CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT,
     CONTINUE_WATCHING_VISIBLE_ITEMS,
     planDashboardSeriesLookups,
-    resolveDashboardSeriesContinuation,
+    classifyDashboardSeries,
     selectSeriesContinuationCandidates,
     type DashboardSeriesCandidate,
 } from './dashboard-series-continuation.util';
@@ -68,6 +68,27 @@ function candidate(newest: PlaybackPositionData): DashboardSeriesCandidate {
         seriesXtreamId: SERIES,
         newest,
     };
+}
+
+function resolveDashboardSeriesContinuation(
+    candidate: DashboardSeriesCandidate,
+    positions: readonly PlaybackPositionData[],
+    episodes: DashboardSeriesEpisodes | null | undefined
+) {
+    return classifyDashboardSeries({
+        request: {
+            playlistId: candidate.item.playlist_id,
+            seriesId: candidate.seriesXtreamId,
+            credentials: {
+                serverUrl: 'https://fixture.example.test',
+                username: 'fixture',
+                password: 'synthetic',
+            },
+        },
+        newest: candidate.newest,
+        positions,
+        episodes,
+    }).continuation;
 }
 
 describe('resolveDashboardSeriesContinuation', () => {
@@ -369,7 +390,7 @@ describe('selectSeriesContinuationCandidates', () => {
             ...overrides,
         }) as PortalRecentItem;
 
-    it('keeps Xtream series whose newest episode is watched or an extra, newest first', () => {
+    it('keeps both providers’ series whose newest episode is watched or an extra, newest first', () => {
         const positions = new Map<number, PlaybackPositionData | null>([
             [1, row(11, WATCHED)],
             // In progress: it simply continues.
@@ -377,8 +398,8 @@ describe('selectSeriesContinuationCandidates', () => {
             [3, row(13, WATCHED)],
             // A movie leaves on its own once watched.
             [4, { ...row(14, WATCHED), contentType: 'vod' }],
-            // Stalker episode lists cannot be looked up.
             [5, row(15, WATCHED)],
+            [9, row(19, WATCHED)],
             // Without its series id there is nothing to look up.
             [6, { ...row(16, WATCHED), seriesXtreamId: undefined }],
             [7, null],
@@ -391,6 +412,7 @@ describe('selectSeriesContinuationCandidates', () => {
             item(3),
             item(4, { type: 'movie' }),
             item(5, { source: 'stalker' }),
+            item(9, { source: 'stalker', type: 'movie', watch_kind: 'series' }),
             item(6),
             item(7),
             item(8),
@@ -404,6 +426,8 @@ describe('selectSeriesContinuationCandidates', () => {
         expect(candidates.map((c) => [c.item.id, c.seriesXtreamId])).toEqual([
             [1, SERIES],
             [3, SERIES],
+            [5, SERIES],
+            [9, SERIES],
             [8, SERIES],
         ]);
     });

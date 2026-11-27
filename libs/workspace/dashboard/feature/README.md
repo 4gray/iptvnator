@@ -21,8 +21,10 @@ rails also require the underlying data slice to have at least one item.
   so the end credits count as watched). A series whose newest episode is
   watched stays with the episode it continues with (the first one not
   watched after the one watched last, from the portal's episode list) and
-  leaves once none follows it. Extras (season 0) never change that. Finished
-  titles stay in Global Recent. Contract:
+  leaves once none follows it. The dashboard checks Xtream and Stalker
+  episode lists. Extras (season 0) stand apart when a series has regular
+  seasons. Finished titles stay in Global Recent, which also has a Watched
+  rail for movies and fully watched series. Contract:
   `docs/architecture/workspace-dashboard.md#data-flow`.
 - `liveFavorites` shows favorited live TV channels from
   `DashboardDataService.globalFavoriteLiveItems()` using the channel layout

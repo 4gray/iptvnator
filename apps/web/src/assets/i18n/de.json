@@ -2329,6 +2329,10 @@
             "UNKNOWN_CHANNEL": "Unbekannt"
         },
         "GLOBAL_RECENT": {
+            "WATCHED": "Angesehen",
+            "SEE_ALL": "Alle anzeigen",
+            "SEE_ALL_WATCHED": "Alle angesehenen Titel anzeigen",
+            "NO_WATCHED_ITEMS": "Keine angesehenen Titel",
             "NO_PLAYLISTS_TITLE": "Noch nichts angesehen",
             "NO_PLAYLISTS_BODY": "Füge eine Wiedergabeliste hinzu, und dein Wiedergabeverlauf erscheint hier.",
             "NO_ITEMS_TITLE": "Noch nichts angesehen",

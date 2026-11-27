@@ -4,13 +4,13 @@ import {
     Component,
     ElementRef,
     OnDestroy,
-    effect,
     input,
+    output,
     signal,
     viewChild,
 } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
-import { RouterLink } from '@angular/router';
+import { Params, RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 
 /**
@@ -36,6 +36,8 @@ export class ContentRailShellComponent implements AfterViewInit, OnDestroy {
     /** Subtle pill next to the label. Hidden when null or <= 0. */
     readonly totalCount = input<number | null>(null);
     readonly seeAllLink = input<string[] | null>(null);
+    readonly seeAllQueryParams = input<Params | null>(null);
+    readonly seeAllActivated = output<MouseEvent>();
     /**
      * Already-translated label for the see-all link. Falls back to the
      * dashboard's "Manage all" translation when null, so dashboard callers
@@ -45,32 +47,30 @@ export class ContentRailShellComponent implements AfterViewInit, OnDestroy {
     /** Optional active-accent decoration (e.g. the currently-scoped section). */
     readonly active = input<boolean>(false);
 
-    private readonly track = viewChild.required<ElementRef<HTMLDivElement>>('track');
+    private readonly track =
+        viewChild.required<ElementRef<HTMLDivElement>>('track');
 
     readonly canScrollLeft = signal(false);
     readonly canScrollRight = signal(false);
-    private readonly viewReady = signal(false);
-
     private resizeObserver?: ResizeObserver;
-
-    constructor() {
-        // Re-measure whenever the track contents change (projected cards).
-        effect(() => {
-            if (!this.viewReady()) return;
-            // Wait one frame so projected content lays out first.
-            requestAnimationFrame(() => this.updateScrollState());
-        });
-    }
+    private contentObserver?: MutationObserver;
 
     ngAfterViewInit(): void {
-        this.viewReady.set(true);
         this.updateScrollState();
-        this.resizeObserver = new ResizeObserver(() => this.updateScrollState());
-        this.resizeObserver.observe(this.track().nativeElement);
+        this.resizeObserver = new ResizeObserver(() =>
+            this.updateScrollState()
+        );
+        this.contentObserver = new MutationObserver(() =>
+            this.updateScrollState()
+        );
+        const track = this.track().nativeElement;
+        this.resizeObserver.observe(track);
+        this.contentObserver.observe(track, { childList: true });
     }
 
     ngOnDestroy(): void {
         this.resizeObserver?.disconnect();
+        this.contentObserver?.disconnect();
     }
 
     onScroll(): void {

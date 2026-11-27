@@ -116,6 +116,29 @@ Provider route integration:
 4. Workspace routes no longer rely on nested provider shell components for
    hidden local chrome.
 
+### Watched history
+
+The global Recently Viewed page opens on All playlists by default. Its source
+switcher scopes both the history and the compact Watched rail. The content tabs
+apply to the history list. The rail mixes up to eight movies and series in
+history order and opens their existing detail views. Its compact cards show the
+full portrait cover next to the title.
+
+See all opens `view=watched` on the same route, with the caller's playlist scope.
+This view displays completed movies and series together and returns to the
+history entry with its tab, scope and scroll position. It is a projection of
+retained history and saved playback positions. A series qualifies when a
+complete provider episode list confirms that all episodes in its run are
+watched. For a series that reached the finale with skipped episodes, history
+retains the entry and the Watched projection omits it.
+
+The history reads positions in bulk for the relevant playlists and shares the
+dashboard's [series list cache](workspace-dashboard.md#data-flow). It checks up
+to twelve series in the preview and checks the full view in batches of twenty.
+Unknown progress or episode lists stay out of Watched. When the preview has
+only unchecked candidates beyond its lookup budget, its entry point remains
+available as a link in the history header.
+
 ## Shell Structure
 
 The shell is intentionally split into four persistent regions:
@@ -339,6 +362,7 @@ label (else the translated "Back"), whether Escape on the page runs it, and
 | Page | Registered by | Back runs | ≤640 px |
 | --- | --- | --- | --- |
 | Portal, collection, offline and recording details | `PortalDetailShellComponent` while `backAvailable()` | the host's `backClicked` | replaces the drawer toggle |
+| Watched history | `GlobalCollectionRouteComponent` while the Watched grid is open | history Back, with Recently Viewed as the parent | replaces the drawer toggle |
 | Xtream and Stalker Discover and actor pages | `DiscoverViewComponent`, `ActorViewComponent` | the route's history Back; parent: the catalog section Discover lists (`vod` for movies, `series` for TV), the portal's default section for actor | (no drawer) |
 | In-portal search, Xtream and Stalker | `SearchLayoutComponent` while `backAvailable()` and no inline detail replaces the results | history Back; parent: the portal's default section | (no drawer) |
 | Settings | `WorkspaceSettingsContextPanelComponent`, which exists exactly while the settings route shows | history Back; parent: the first workspace view (`WorkspaceStartupPreferencesService.resolveDashboardPath()`: the dashboard, or sources when it is hidden) | beside the drawer toggle |

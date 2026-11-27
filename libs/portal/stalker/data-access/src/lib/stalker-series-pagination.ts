@@ -9,6 +9,23 @@ export interface StalkerSeriesPage<T> {
           };
 }
 
+/** The portal answered, but its response cannot establish a complete list. */
+export class IncompleteStalkerSeriesCatalogError extends Error {}
+
+export function assertCompleteStalkerSeasons(
+    episodeCounts: readonly number[],
+    isMainSeason: (index: number) => boolean = () => true
+): void {
+    if (
+        episodeCounts.some((count) => count > 0) &&
+        episodeCounts.some((count, index) => count === 0 && isMainSeason(index))
+    ) {
+        throw new IncompleteStalkerSeriesCatalogError(
+            'Stalker main season has no listed episodes'
+        );
+    }
+}
+
 function count(value: unknown): number | undefined {
     if (value === null || value === undefined || value === '') return undefined;
     const parsed = Number(value);
@@ -35,7 +52,9 @@ export async function fetchStalkerSeriesPages<
         const js = response?.js;
         const rows = Array.isArray(js) ? js : js?.data;
         if (!Array.isArray(rows)) {
-            throw new Error('Malformed Stalker season episodes response');
+            throw new IncompleteStalkerSeriesCatalogError(
+                'Malformed Stalker season episodes response'
+            );
         }
         const envelope = Array.isArray(js) ? undefined : js;
         if (page === 1) {
@@ -49,7 +68,9 @@ export async function fetchStalkerSeriesPages<
                     page <= pages &&
                     (page > 1 || pages > 1))
             ) {
-                throw new Error('Incomplete Stalker series list');
+                throw new IncompleteStalkerSeriesCatalogError(
+                    'Incomplete Stalker series list'
+                );
             }
             return [...items.values()];
         }
@@ -60,13 +81,17 @@ export async function fetchStalkerSeriesPages<
                 row.id === null ||
                 String(row.id).trim() === ''
             ) {
-                throw new Error('Malformed Stalker series item');
+                throw new IncompleteStalkerSeriesCatalogError(
+                    'Malformed Stalker series item'
+                );
             }
             const id = String(row.id);
             if (!items.has(id)) items.set(id, row);
         }
         if (items.size === previousSize) {
-            throw new Error('Stalker series pagination made no progress');
+            throw new IncompleteStalkerSeriesCatalogError(
+                'Stalker series pagination made no progress'
+            );
         }
         if (total !== undefined) {
             if (items.size >= total) return [...items.values()];
@@ -78,5 +103,7 @@ export async function fetchStalkerSeriesPages<
             if (!pageSize || rows.length < pageSize) return [...items.values()];
         }
     }
-    throw new Error('Stalker series pagination exceeded 1000 pages');
+    throw new IncompleteStalkerSeriesCatalogError(
+        'Stalker series pagination exceeded 1000 pages'
+    );
 }

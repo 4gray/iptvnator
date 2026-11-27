@@ -101,4 +101,18 @@ describe('collection view state validation', () => {
             })
         ).toEqual({ selectedContentType: 'movie', scope: 'all' });
     });
+
+    it('restores a loaded watched page from the browser entry', () => {
+        expect(buildCollectionViewState({ watchedPage: 3 })).toEqual({
+            watchedPage: 3,
+        });
+        expect(
+            getCollectionViewState({ [stateKey]: { watchedPage: 3 } })
+        ).toEqual({
+            watchedPage: 3,
+        });
+        expect(
+            getCollectionViewState({ [stateKey]: { watchedPage: '3' } })
+        ).toBeNull();
+    });
 });

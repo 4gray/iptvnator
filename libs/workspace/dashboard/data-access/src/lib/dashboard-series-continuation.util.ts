@@ -4,6 +4,7 @@ import {
     type SeriesEpisodeEntry,
     type SeriesNextUp,
 } from '@iptvnator/portal/shared/util';
+import { reconcileStalkerSeriesPositions } from '@iptvnator/portal/stalker/data-access';
 import {
     resolvePortalActivityWatchKind,
     isCatalogUnavailable,
@@ -11,6 +12,12 @@ import {
     type PortalRecentItem,
     type XtreamSerieEpisode,
 } from '@iptvnator/shared/interfaces';
+import {
+    dashboardStalkerSeriesKey,
+    dashboardStalkerSeriesMode,
+    type DashboardSeriesEpisodesRequest,
+    type DashboardStalkerSeriesMode,
+} from './dashboard-series-episodes-request';
 import type { DashboardSeriesEpisodes } from './dashboard-series-episodes.service';
 
 /**
@@ -53,27 +60,47 @@ export interface DashboardSeriesCandidate {
 }
 
 export function dashboardRecentItemKey(
-    item: Pick<PortalRecentItem, 'playlist_id' | 'type' | 'xtream_id' | 'id'>
+    item: Pick<
+        PortalRecentItem,
+        | 'playlist_id'
+        | 'type'
+        | 'xtream_id'
+        | 'id'
+        | 'source'
+        | 'watch_kind'
+        | 'stalker_item'
+    >
 ): string {
+    if (
+        item.source === 'stalker' &&
+        resolvePortalActivityWatchKind(item) === 'series'
+    ) {
+        return dashboardStalkerSeriesKey(
+            item.playlist_id,
+            item.xtream_id ?? item.id,
+            dashboardStalkerSeriesMode(item.stalker_item)
+        );
+    }
     return `${item.playlist_id}::${item.type}::${item.xtream_id ?? item.id}`;
 }
 
 /**
- * Xtream series in the history whose newest episode is watched, or is an
- * extra (season 0), which never takes a series' place even left unfinished:
- * whether they stay on Continue Watching, and with which episode, depends
- * on the episode list. Series from other providers cannot be looked up and
- * keep their place.
+ * Series whose newest episode is watched or a special need an episode list
+ * to tell whether they continue with a later episode.
  */
 export function selectSeriesContinuationCandidates(
     items: readonly PortalRecentItem[],
-    storedPosition: (item: PortalRecentItem) => PlaybackPositionData | null
+    storedPosition: (item: PortalRecentItem) => PlaybackPositionData | null,
+    hasOtherWatchedEpisodes?: (
+        item: PortalRecentItem,
+        newest: PlaybackPositionData
+    ) => boolean
 ): DashboardSeriesCandidate[] {
     const candidates: DashboardSeriesCandidate[] = [];
     for (const item of items) {
         if (
             isCatalogUnavailable(item) ||
-            item.source !== 'xtream' ||
+            (item.source !== 'xtream' && item.source !== 'stalker') ||
             resolvePortalActivityWatchKind(item) !== 'series'
         ) {
             continue;
@@ -82,9 +109,11 @@ export function selectSeriesContinuationCandidates(
         const seriesXtreamId = Number(newest?.seriesXtreamId);
         if (
             newest?.contentType === 'episode' &&
-            (isPortalPlaybackWatched(newest) || newest.seasonNumber === 0) &&
             Number.isInteger(seriesXtreamId) &&
-            seriesXtreamId > 0
+            seriesXtreamId > 0 &&
+            (isPortalPlaybackWatched(newest) ||
+                newest.seasonNumber === 0 ||
+                hasOtherWatchedEpisodes?.(item, newest))
         ) {
             candidates.push({ item, seriesXtreamId, newest });
         }
@@ -157,65 +186,151 @@ export function planDashboardSeriesLookups(input: {
     return { window, continuations };
 }
 
-export function resolveDashboardSeriesContinuation(
-    candidate: DashboardSeriesCandidate,
-    seriesPositions: readonly PlaybackPositionData[],
-    episodes: DashboardSeriesEpisodes | null | undefined
-): DashboardSeriesContinuation {
+export interface DashboardSeriesClassification {
+    readonly continuation: DashboardSeriesContinuation;
+    readonly fullyWatched: boolean;
+}
+
+const unknownSeries: DashboardSeriesClassification = {
+    continuation: { kind: 'unknown' },
+    fullyWatched: false,
+};
+
+/** The rail may be caught up even when an earlier episode was skipped. */
+export function classifyDashboardSeries(input: {
+    readonly request: DashboardSeriesEpisodesRequest;
+    readonly newest: PlaybackPositionData;
+    readonly positions: readonly PlaybackPositionData[];
+    readonly episodes: DashboardSeriesEpisodes | null | undefined;
+    /** An untyped row may belong to another Stalker series with the same parent id. */
+    readonly allowUnmappedLatest?: boolean;
+}): DashboardSeriesClassification {
+    const { request, newest, episodes } = input;
     if (episodes?.status !== 'loaded') {
-        return { kind: 'unknown' };
+        return unknownSeries;
     }
-    // A list cached before the newest episode was played cannot say what
-    // follows it: the provider may list more by now.
     const listed = listedEpisodeIds(episodes.seasons);
-    if (!listed.includes(candidate.newest.contentXtreamId)) {
-        return listed.length > 0
-            ? { kind: 'unknown', stale: true }
-            : { kind: 'unknown' };
+    if (!listed?.size) {
+        return unknownSeries;
+    }
+    const positions = input.positions.filter(
+        (row) =>
+            row.contentType === 'episode' &&
+            row.seriesXtreamId === request.seriesId &&
+            (row.playlistId === undefined ||
+                row.playlistId === request.playlistId) &&
+            (request.provider !== 'stalker' ||
+                matchesStalkerSeriesPosition(
+                    row,
+                    request.mode,
+                    request.item.stalkerId
+                ))
+    );
+    const stalker =
+        request.provider === 'stalker'
+            ? reconcileStalkerSeriesPositions({
+                  seriesXtreamId: request.seriesId,
+                  episodesBySeason: episodes.seasons,
+                  seriesPositions: positions,
+              })
+            : null;
+    // A compatible Ministra legacy id counts as listed even when a scoped
+    // row also exists and supplies the actual progress.
+    const newestIsListed =
+        listed.has(newest.contentXtreamId) ||
+        (stalker &&
+            [...stalker.legacyPositionByTrackingId.values()].some(
+                (row) => row.contentXtreamId === newest.contentXtreamId
+            ));
+    if (
+        !positions.some((row) => row.contentXtreamId === newest.contentXtreamId)
+    ) {
+        return unknownSeries;
+    }
+    if (
+        !newestIsListed &&
+        !(
+            request.provider === 'stalker' &&
+            input.allowUnmappedLatest &&
+            !newest.activityIdentity
+        )
+    ) {
+        return {
+            continuation: { kind: 'unknown', stale: true },
+            fullyWatched: false,
+        };
     }
     let nextUp: SeriesNextUp | null;
     try {
         nextUp = getSeriesNextUp({
             seasons: episodes.seasons,
-            playbackPositions: new Map(
-                seriesPositions.map((row) => [row.contentXtreamId, row])
-            ),
+            playbackPositions:
+                stalker?.positionsByTrackingId ??
+                new Map(positions.map((row) => [row.contentXtreamId, row])),
         });
     } catch {
-        // A malformed episode list says nothing about what comes next.
-        return { kind: 'unknown' };
+        return unknownSeries;
     }
-    // `start`: none of the episodes played is in the list.
     if (!nextUp || nextUp.kind === 'start') {
-        return { kind: 'unknown' };
+        return unknownSeries;
     }
     if (nextUp.kind === 'caught-up') {
-        return { kind: 'finished' };
+        return {
+            continuation: { kind: 'finished' },
+            fullyWatched: nextUp.skipped === null,
+        };
     }
     const { entry } = nextUp;
-    if (entry.position && !isPortalPlaybackWatched(entry.position)) {
-        return { kind: 'continue', position: entry.position };
-    }
-    const episodeId = Number(entry.episode?.id);
-    if (!Number.isInteger(episodeId) || episodeId <= 0) {
-        return { kind: 'unknown' };
-    }
     return {
-        kind: 'continue',
-        position: nextEpisodeRow(candidate, episodeId, entry),
+        continuation: {
+            kind: 'continue',
+            position:
+                entry.position && !isPortalPlaybackWatched(entry.position)
+                    ? entry.position
+                    : nextEpisodeRow(request.seriesId, newest, entry),
+        },
+        fullyWatched: false,
     };
 }
 
-/** Every episode id the list names; a malformed season names none. */
+export function matchesStalkerSeriesPosition(
+    position: PlaybackPositionData,
+    mode: DashboardStalkerSeriesMode,
+    parentId: string | number | undefined
+): boolean {
+    const identity = position.activityIdentity;
+    return (
+        !identity ||
+        (identity.provider === 'stalker' &&
+            identity.kind === 'episode' &&
+            identity.mode === mode &&
+            identity.seriesId === String(parentId))
+    );
+}
+
+/** Reject incomplete catalog shapes and ambiguous tracking ids. */
 function listedEpisodeIds(
     seasons: Readonly<Record<string, readonly XtreamSerieEpisode[]>>
-): number[] {
-    const ids: number[] = [];
+): Set<number> | null {
+    if (!seasons || typeof seasons !== 'object' || Array.isArray(seasons)) {
+        return null;
+    }
+    const ids = new Set<number>();
     for (const episodes of Object.values(seasons)) {
-        if (Array.isArray(episodes)) {
-            for (const episode of episodes) {
-                ids.push(Number(episode?.id));
+        if (!Array.isArray(episodes)) {
+            return null;
+        }
+        for (const episode of episodes) {
+            const id = toEpisodeNumber(episode?.id);
+            if (
+                id === null ||
+                id === 0 ||
+                ids.has(id) ||
+                toEpisodeNumber(episode?.episode_num) === null
+            ) {
+                return null;
             }
+            ids.add(id);
         }
     }
     return ids;
@@ -223,29 +338,35 @@ function listedEpisodeIds(
 
 /** The row an episode not started yet stands for: 0:00 and no progress. */
 function nextEpisodeRow(
-    candidate: DashboardSeriesCandidate,
-    episodeId: number,
+    seriesId: number,
+    newest: PlaybackPositionData,
     entry: SeriesEpisodeEntry
 ): PlaybackPositionData {
     const seasonNumber = toEpisodeNumber(entry.seasonNumber);
     const episodeNumber = toEpisodeNumber(entry.episode.episode_num);
     return {
-        contentXtreamId: episodeId,
+        contentXtreamId: Number(entry.episode.id),
         contentType: 'episode',
-        seriesXtreamId: candidate.seriesXtreamId,
+        seriesXtreamId: seriesId,
         ...(seasonNumber !== null && episodeNumber !== null
             ? { seasonNumber, episodeNumber }
             : {}),
         positionSeconds: 0,
-        playlistId: candidate.newest.playlistId,
-        updatedAt: candidate.newest.updatedAt,
+        playlistId: newest.playlistId,
+        updatedAt: newest.updatedAt,
+        ...(entry.episode.activityIdentity
+            ? { activityIdentity: entry.episode.activityIdentity }
+            : {}),
     };
 }
 
 function toEpisodeNumber(value: unknown): number | null {
-    if (value === null || value === undefined || value === '') {
+    if (
+        (typeof value !== 'number' && typeof value !== 'string') ||
+        String(value).trim() === ''
+    ) {
         return null;
     }
     const number = Number(value);
-    return Number.isInteger(number) && number >= 0 ? number : null;
+    return Number.isSafeInteger(number) && number >= 0 ? number : null;
 }

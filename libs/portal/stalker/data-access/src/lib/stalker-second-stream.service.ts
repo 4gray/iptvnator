@@ -30,13 +30,17 @@ import {
     type StalkerSearchContentType,
 } from './stalker-search-page';
 import {
+    getVodSeriesSeasonNumber,
     mapRegularSeriesEpisodes,
     mapRegularSeriesSeasons,
     mapVodSeriesEpisodes,
     mapVodSeriesSeasonsToVm,
     type StalkerMappedEpisode,
 } from './stalker-series.adapters';
-import { fetchStalkerSeriesPages } from './stalker-series-pagination';
+import {
+    assertCompleteStalkerSeasons,
+    fetchStalkerSeriesPages,
+} from './stalker-series-pagination';
 import { StalkerSessionService } from './stalker-session.service';
 import {
     createStalkerInfo,
@@ -53,7 +57,7 @@ import {
 } from './stores/utils';
 
 export function stalkerSecondStreamType(
-    item: UnifiedCollectionItem
+    item: Pick<UnifiedCollectionItem, 'contentType' | 'stalkerItem'>
 ): StalkerSearchContentType {
     const raw = item.stalkerItem as
         (StalkerVodSource & { favoriteContentType?: string }) | undefined;
@@ -205,7 +209,8 @@ export class StalkerSecondStreamService {
     async episodes(
         playlist: PlaylistMeta,
         item: UnifiedCollectionItem,
-        signal: AbortSignal
+        signal: AbortSignal,
+        options?: { refreshEmbedded?: boolean; requireComplete?: boolean }
     ) {
         const type = stalkerSecondStreamType(item);
         const original = item.stalkerItem as StalkerVodSource;
@@ -251,6 +256,13 @@ export class StalkerSecondStreamService {
                     )
                 ).filter((episode) => episode.is_episode === true);
             }
+            if (options?.requireComplete) {
+                assertCompleteStalkerSeasons(
+                    mapped.map((season) => season.episodes.length),
+                    (index) =>
+                        getVodSeriesSeasonNumber(mapped[index], mapped) > 0
+                );
+            }
             return mapVodSeriesEpisodes(mapped, {
                 parentSeriesId: parentId ?? id,
                 activityParentSeriesId: id,
@@ -271,22 +283,33 @@ export class StalkerSecondStreamService {
                       ),
                   () => !signal.aborted
               );
-        const series =
-            embedded && !original?.series?.length
-                ? await this.favorites.metadata(playlist, {
-                      ...original,
-                      info: original?.info ?? undefined,
-                      is_series: original?.is_series ?? undefined,
-                      id,
-                      favoriteContentType: type,
-                  })
-                : original;
+        let series = original;
+        if (
+            embedded &&
+            (options?.refreshEmbedded || !original?.series?.length)
+        ) {
+            const reference = {
+                ...original,
+                info: original?.info ?? undefined,
+                is_series: original?.is_series ?? undefined,
+                id,
+                favoriteContentType: type,
+            } as const;
+            series = options?.refreshEmbedded
+                ? await this.favorites.metadata(playlist, reference, signal)
+                : await this.favorites.metadata(playlist, reference);
+        }
         signal.throwIfAborted();
+        const seasons = mapRegularSeriesSeasons(
+            embedded ? series : null,
+            sortByNumericValue(rows)
+        );
+        if (options?.requireComplete)
+            assertCompleteStalkerSeasons(
+                seasons.map((season) => season.series?.length ?? 0)
+            );
         return mapRegularSeriesEpisodes(
-            mapRegularSeriesSeasons(
-                embedded ? series : null,
-                sortByNumericValue(rows)
-            ),
+            seasons,
             item.posterUrl ?? undefined,
             item.name,
             id,

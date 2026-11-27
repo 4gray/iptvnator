@@ -1,4 +1,14 @@
-import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import { createLogger } from '@iptvnator/portal/shared/util/logger';
+import {
+    resolvePortalActivityWatchKind,
+    type PlaybackPositionData,
+    type PortalActivityItem,
+    type StalkerPortalItem,
+} from '@iptvnator/shared/interfaces';
+import { dashboardStalkerSeriesMode } from './dashboard-series-episodes-request';
+import { matchesStalkerSeriesPosition } from './dashboard-series-continuation.util';
+
+const logger = createLogger('DashboardData');
 
 /** What the loader reads positions through (PORTAL_PLAYBACK_POSITIONS). */
 export interface DashboardPlaybackPositionSource {
@@ -33,6 +43,65 @@ export function seriesPlaybackPositionMapKey(
     seriesXtreamId: number
 ): string {
     return `${playlistId}::${seriesXtreamId}`;
+}
+
+export function storedDashboardPlaybackPositionForItem(
+    maps: DashboardPlaybackPositionMaps,
+    item: PortalActivityItem
+): PlaybackPositionData | null {
+    const watchKind = resolvePortalActivityWatchKind(item);
+    const id = Number(item.xtream_id);
+    if (!watchKind || !Number.isFinite(id)) return null;
+    if (watchKind === 'movie') {
+        return (
+            maps.byContent.get(
+                playbackPositionMapKey(item.playlist_id, id, 'vod')
+            ) ?? null
+        );
+    }
+    if (item.source === 'stalker') {
+        return newestDashboardStalkerSeriesPosition(
+            maps,
+            item.playlist_id,
+            id,
+            item.xtream_id,
+            item.stalker_item
+        );
+    }
+    // Older Xtream recent rows can name an episode. A matching parent wins
+    // when it shares its id with an episode from another series.
+    return (
+        maps.newestBySeries.get(
+            seriesPlaybackPositionMapKey(item.playlist_id, id)
+        ) ??
+        maps.byContent.get(
+            playbackPositionMapKey(item.playlist_id, id, 'episode')
+        ) ??
+        null
+    );
+}
+
+export function newestDashboardStalkerSeriesPosition(
+    maps: DashboardPlaybackPositionMaps,
+    playlistId: string,
+    parentId: number,
+    rawId: string | number | undefined,
+    rawItem: StalkerPortalItem | undefined
+): PlaybackPositionData | null {
+    const key = seriesPlaybackPositionMapKey(playlistId, parentId);
+    const newest = maps.newestBySeries.get(key);
+    if (!newest?.activityIdentity) return newest ?? null;
+    const mode = dashboardStalkerSeriesMode(rawItem);
+    if (matchesStalkerSeriesPosition(newest, mode, rawId)) return newest;
+
+    // Stalker can reuse a parent id across its regular and VOD catalogs.
+    let selected: PlaybackPositionData | null = null;
+    for (const row of maps.episodesBySeries.get(key) ?? []) {
+        if (matchesStalkerSeriesPosition(row, mode, rawId)) {
+            selected = newestPlaybackPosition(selected, row);
+        }
+    }
+    return selected;
 }
 
 export function newestPlaybackPosition(
@@ -90,11 +159,10 @@ export async function loadDashboardPlaybackPositions(
                     playlistId,
                     positions: await source.getAllPlaybackPositions(playlistId),
                 };
-            } catch (err) {
-                console.warn(
-                    '[DashboardData] Failed to load playback positions for playlist',
-                    playlistId,
-                    err
+            } catch (error) {
+                logger.warn(
+                    'Failed to load playback positions for a playlist',
+                    error
                 );
                 return { playlistId, positions: [] };
             }

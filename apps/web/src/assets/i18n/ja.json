@@ -2329,6 +2329,10 @@
             "UNKNOWN_CHANNEL": "不明なチャンネル"
         },
         "GLOBAL_RECENT": {
+            "WATCHED": "視聴済み",
+            "SEE_ALL": "すべて表示",
+            "SEE_ALL_WATCHED": "視聴済みのタイトルをすべて表示",
+            "NO_WATCHED_ITEMS": "視聴済みのタイトルはありません",
             "NO_PLAYLISTS_TITLE": "視聴履歴はまだありません",
             "NO_PLAYLISTS_BODY": "プレイリストを追加すると、視聴履歴がここに表示されます。",
             "NO_ITEMS_TITLE": "視聴履歴はまだありません",

@@ -1204,6 +1204,7 @@ describe('UnifiedCollectionPageComponent', () => {
                 fixture.nativeElement.querySelector('.skeleton-list')
             ).toBeNull();
             expect(liveTab()?.items()).toEqual([liveItem]);
+            expect(fixture.componentInstance.scopedItems()).toEqual([]);
             expect(liveTab()?.reloading()).toBe(false);
             expect(contentRegion().getAttribute('aria-busy')).toBe('true');
             expect(scopeToggleValue()).toBe('all');

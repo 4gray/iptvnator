@@ -7,12 +7,13 @@ import {
     defaultXtreamPassword,
     defaultXtreamUsername,
     expect,
-    expectVisibleContentCardTitle,
     goToDashboard,
     launchElectronApp,
     openGlobalRecent,
     openSources,
     resetMockServers,
+    switchUnifiedCollectionContent,
+    switchUnifiedCollectionScope,
     test,
     waitForXtreamWorkspaceReady,
     xtreamMockServer,
@@ -273,62 +274,74 @@ test.describe('Dashboard Continue Watching', () => {
         });
     }
 
-    test('@dashboard @persistence @electron leaves finished movies off Continue Watching and keeps them in the history', async ({
+    test('@dashboard @persistence @electron moves finished movies to watched history and preserves playlist scope through details', async ({
         dataDir,
         request,
     }) => {
-        test.setTimeout(120_000);
+        test.setTimeout(180_000);
         await resetMockServers(request, ['xtream']);
         const vodFixture = await fetchXtreamVodFixture(request, {
             username: defaultXtreamUsername,
             password: defaultXtreamPassword,
         });
         const app = await launchElectronApp(dataDir);
-        await routePlayableStreams(app.mainWindow);
+        const page = app.mainWindow;
+        await routePlayableStreams(page);
+        const watchedRail = page.locator(
+            '[data-testid="workspace-recent-watched-rail"]'
+        );
+        const watchedView = page.locator(
+            '[data-testid="workspace-recent-watched-full"]'
+        );
+        const history = page.locator('app-unified-grid-tab');
 
         try {
-            await addXtreamPortal(app.mainWindow, {
+            await addXtreamPortal(page, {
                 name: 'Continue Watching Source',
             });
-            await waitForXtreamWorkspaceReady(app.mainWindow);
-            await app.mainWindow
+            await waitForXtreamWorkspaceReady(page);
+            await page
                 .getByRole('link', { name: 'Movies', exact: true })
                 .click();
-            await clickCategoryByNameExact(
-                app.mainWindow,
-                vodFixture.categoryName
-            );
-            const finished = await playMovieAt(app.mainWindow, 0);
-            const halfway = await playMovieAt(app.mainWindow, 1);
+            await clickCategoryByNameExact(page, vodFixture.categoryName);
+            const finished = await playMovieAt(page, 0);
+            const halfway = await playMovieAt(page, 1);
             expect(halfway.title).not.toBe(finished.title);
 
             // Stopped while the end credits rolled: 61 s of 59 min left.
-            await saveMoviePosition(app.mainWindow, finished, 3491, 3552);
-            await saveMoviePosition(app.mainWindow, halfway, 2700, 5400);
+            await saveMoviePosition(page, finished, 3491, 3552);
+            await saveMoviePosition(page, halfway, 2700, 5400);
 
-            await goToDashboard(app.mainWindow);
-            await expect(railCard(app.mainWindow, halfway.title)).toHaveCount(
-                1,
-                { timeout: 20_000 }
-            );
-            await expect(railCard(app.mainWindow, finished.title)).toHaveCount(
-                0
-            );
+            await openGlobalRecent(page);
+            await expect(watchedRail).toContainText(finished.title);
+            await expect(watchedRail).not.toContainText(halfway.title);
+            await expect(
+                history.getByRole('button', {
+                    name: halfway.title,
+                    exact: true,
+                })
+            ).toBeVisible();
 
-            await railCard(app.mainWindow, halfway.title)
+            await goToDashboard(page);
+            await expect(railCard(page, halfway.title)).toHaveCount(1, {
+                timeout: 20_000,
+            });
+            await expect(railCard(page, finished.title)).toHaveCount(0);
+
+            await railCard(page, halfway.title)
                 .locator(`[data-test-id="${RAIL}-card-actions"]`)
                 .click();
-            await app.mainWindow
+            await page
                 .getByRole('menuitem', { name: /mark as watched/i })
                 .click();
 
             // Nothing unfinished is left, so the rail itself goes away.
-            await expect(
-                app.mainWindow.locator(`[data-test-id="${RAIL}"]`)
-            ).toHaveCount(0, { timeout: 20_000 });
+            await expect(page.getByTestId(RAIL)).toHaveCount(0, {
+                timeout: 20_000,
+            });
             await expect
                 .poll(() =>
-                    app.mainWindow.evaluate(
+                    page.evaluate(
                         async ({ playlistId, vodId }) =>
                             (
                                 await window.electron.dbGetAllPlaybackPositions(
@@ -347,10 +360,93 @@ test.describe('Dashboard Continue Watching', () => {
                     durationSeconds: 5400,
                 });
 
-            // The page lists only movies here, so it shows no content toggle.
-            await openGlobalRecent(app.mainWindow);
-            await expectVisibleContentCardTitle(app.mainWindow, finished.title);
-            await expectVisibleContentCardTitle(app.mainWindow, halfway.title);
+            const otherCredentials = {
+                username: 'minimal',
+                password: 'minimal',
+            };
+            const otherFixture = await fetchXtreamVodFixture(
+                request,
+                otherCredentials
+            );
+            await openSources(page);
+            await addXtreamPortal(page, {
+                ...otherCredentials,
+                name: 'Other Watching Source',
+            });
+            await waitForXtreamWorkspaceReady(page);
+            await page
+                .getByRole('link', { name: 'Movies', exact: true })
+                .click();
+            await clickCategoryByNameExact(page, otherFixture.categoryName);
+            const other = await playMovieAt(page, 0);
+            expect(other.playlistId).not.toBe(finished.playlistId);
+            expect([finished.title, halfway.title]).not.toContain(other.title);
+            await saveMoviePosition(page, other, 3491, 3552);
+            const liveTitle = await page.evaluate(async (id) => {
+                const [channel] = await window.electron.dbGetContent(
+                    id,
+                    'live'
+                );
+                await window.electron.dbAddRecentItem(channel.id, id);
+                return channel.title;
+            }, other.playlistId);
+
+            await openGlobalRecent(page);
+            await switchUnifiedCollectionContent(page, 'Movies');
+            const scope = page.locator('.scope-toggle');
+            const thisPlaylist = scope.getByRole('radio', {
+                name: 'This playlist',
+            });
+            await expect(
+                scope.getByRole('radio', { name: 'All playlists' })
+            ).toBeChecked();
+            await expect(watchedRail).toContainText(finished.title);
+            await expect(watchedRail).toContainText(halfway.title);
+            await expect(watchedRail).toContainText(other.title);
+            await expect(
+                history.getByRole('button', {
+                    name: finished.title,
+                    exact: true,
+                })
+            ).toBeVisible();
+
+            await switchUnifiedCollectionScope(page, 'This playlist');
+            await switchUnifiedCollectionContent(page, 'Live TV');
+            await expect(watchedRail).toContainText(other.title);
+            await expect(watchedRail).not.toContainText(finished.title);
+            await expect(watchedRail).not.toContainText(liveTitle);
+            await watchedRail.getByRole('link', { name: 'See all' }).click();
+            await expect(page).toHaveURL(
+                (url) =>
+                    url.searchParams.get('view') === 'watched' &&
+                    url.searchParams.get('scope') === 'playlist' &&
+                    url.searchParams.get('playlistId') === other.playlistId
+            );
+            const fullScope = watchedView.getByText('Other Watching Source', {
+                exact: true,
+            });
+            await expect(fullScope).toBeVisible();
+            await expect(watchedView).not.toContainText(finished.title);
+            await watchedView
+                .getByRole('button', { name: other.title, exact: true })
+                .click();
+            await expect(page.locator('app-content-hero')).toContainText(
+                other.title
+            );
+            await page.getByTestId('workspace-header-back').click();
+            await expect(watchedView).toContainText(other.title);
+            await expect(fullScope).toBeVisible();
+            await page.getByTestId('workspace-header-back').click();
+            await expect(page).toHaveURL(
+                (url) => !url.searchParams.has('view')
+            );
+            await expect(watchedRail).toContainText(other.title);
+            await expect(thisPlaylist).toBeChecked();
+            await expect(
+                page
+                    .locator('.content-toggle')
+                    .getByRole('radio', { name: 'Live TV' })
+            ).toBeChecked();
         } finally {
             await closeElectronApp(app);
         }

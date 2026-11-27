@@ -1810,8 +1810,12 @@ The VOD-series contract is cross-surface:
 - `extractStalkerItemType()` normalizes those activity records to dashboard
   type `series`.
 - The dashboard resolves episode progress by the parent `seriesXtreamId` and
-  renders the saved season/episode metadata. It does not infer episode numbers
-  from provider payloads.
+  renders saved season/episode metadata for an in-progress episode. Continue
+  Watching and [Watched history](workspace-shell.md#watched-history) use the
+  same mapped episode lists and compatible saved positions for regular,
+  embedded VOD and lazy Ministra series. After a known episode finishes,
+  Continue Watching can show the next mapped episode, or omit a series whose
+  run has no next episode.
 - Episode downloads from regular series, embedded VOD `series[]`, and lazy
   Ministra VOD `is_series=1` capture the rendered parent/episode metadata and
   provider category in a versioned offline snapshot. The focused Download

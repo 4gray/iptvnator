@@ -10,12 +10,12 @@ import {
     Component,
     computed,
     contentChild,
-    DestroyRef,
     ElementRef,
     HostListener,
     inject,
     input,
     signal,
+    TemplateRef,
 } from '@angular/core';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconButton } from '@angular/material/button';
@@ -25,7 +25,7 @@ import { MatProgressBar } from '@angular/material/progress-bar';
 import { NotificationService } from '@iptvnator/services/notifications';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import {
     ChannelListSkeletonComponent,
     MenuItemRadioCheckDirective,
@@ -36,7 +36,6 @@ import {
     clearNavigationStateKeys,
     CollectionContentType,
     CollectionScope,
-    FavoritesChannelSortMode,
     getOpenLiveCollectionItemState,
     isTypingInInput,
     LiveLayoutSidebarStateService,
@@ -67,11 +66,13 @@ import { createFavoritesSortState } from './unified-collection-favorites-sort';
 import {
     CollectionViewStateHistory,
     pushOpenCollectionDetailState,
+    setupCollectionPopState,
     setupCollectionViewStateSync,
 } from './unified-collection-history';
 import { createCollectionModeLabels } from './unified-collection-labels';
 import { setupCollectionLoad } from './unified-collection-load';
 import { createCollectionScopeState } from './unified-collection-scope';
+import { createCollectionScrollState } from './unified-collection-scroll';
 import { collectionSkeletonShowsEpg } from './unified-collection-skeleton';
 import { UnifiedCollectionDetailDirective } from './unified-collection-detail.directive';
 import { StateViewComponent } from '@iptvnator/ui/state';
@@ -107,10 +108,11 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         alias: 'playlistId',
     });
     readonly defaultScope = input<CollectionScope>();
+    readonly headerContent = input<TemplateRef<unknown> | null>(null);
+    readonly alternateContent = input<TemplateRef<unknown> | null>(null);
 
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
-    private readonly destroyRef = inject(DestroyRef);
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly data = inject(UnifiedCollectionDataService);
     private readonly notifications = inject(NotificationService);
@@ -138,7 +140,6 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     readonly showReloadIndicator = this.data.showReloadIndicator;
     readonly allItems = this.data.allItems;
     readonly favoriteUidSet = this.data.favoriteUidSet;
-    readonly skeletonRows = Array.from({ length: 12 }, (_, i) => i);
     readonly skeletonCards = Array.from({ length: 8 }, (_, i) => i);
     readonly pendingAutoOpenLiveItem = signal(
         getOpenLiveCollectionItemState(window.history.state)
@@ -156,7 +157,11 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     readonly hasMovies = this.contentType.hasMovies;
     readonly hasSeries = this.contentType.hasSeries;
     readonly showContentToggle = this.contentType.showToggle;
-    readonly currentTypeItems = this.contentType.currentTypeItems;
+    readonly currentTypeItems = computed(() =>
+        this.alternateContent()
+            ? EMPTY_ITEMS
+            : this.contentType.currentTypeItems()
+    );
     readonly currentTypeLabelKey = this.contentType.currentTypeLabelKey;
 
     readonly scopeKey = computed(() => this.mode());
@@ -169,6 +174,19 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     readonly scope = this.scopeState.scope;
     readonly showScopeToggle = this.scopeState.showToggle;
     readonly effectiveScope = this.scopeState.effective;
+    readonly scopedItems = computed(() => {
+        const request = this.data.loadedRequest();
+        return request?.scope === this.effectiveScope() &&
+            (request.scope === 'all' ||
+                (request.playlistId === this.playlistId() &&
+                    request.portalType === this.portalType()))
+            ? this.allItems()
+            : EMPTY_ITEMS;
+    });
+    private readonly scrollState = createCollectionScrollState(
+        this.hostElement
+    );
+    readonly rememberScroll = this.scrollState.commit;
     /** Skeleton rows reserve the programme line like the rows they stand for. */
     readonly skeletonShowsEpg = computed(() =>
         collectionSkeletonShowsEpg(this.portalType(), this.effectiveScope(), {
@@ -205,6 +223,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     readonly favSortMode = this.favoritesSort.mode;
     readonly favSortLabelKey = this.favoritesSort.labelKey;
     readonly favSortOptions = this.favoritesSort.options;
+    readonly setFavSortMode = this.favoritesSort.setMode;
     readonly showFavSortButton = computed(
         () =>
             this.mode() === 'favorites' &&
@@ -238,13 +257,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         isPlaylistScope: () => this.mutationRequest().scope === 'playlist',
         data: this.data,
         dropCurrentType: () => this.dropCurrentContentType(),
-        reload: () =>
-            this.loadData({
-                mode: this.mode(),
-                portalType: this.portalType(),
-                playlistId: this.playlistId(),
-                scope: this.effectiveScope(),
-            }),
+        reload: () => this.loadCurrentCollection(),
     });
     private readonly detailState = createCollectionDetailState({
         items: this.allItems,
@@ -270,32 +283,23 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
             run: () => this.clearAllCurrent(),
         });
 
-        if (typeof window !== 'undefined') {
-            const onPopState = () => {
-                this.viewStateSync.restore();
-                this.detailState.syncFromHistory();
-            };
-            window.addEventListener('popstate', onPopState);
-            this.destroyRef.onDestroy(() => {
-                window.removeEventListener('popstate', onPopState);
-            });
-        }
+        setupCollectionPopState(() => this.restoreHistory());
     }
 
     ngAfterContentInit(): void {
+        this.restoreHistory();
+    }
+
+    private restoreHistory(): void {
         this.viewStateSync.restore();
         this.detailState.syncFromHistory();
+        this.scrollState.restore();
     }
 
     @HostListener('window:iptvnator-history-changed')
     @HostListener('window:iptvnator-favorites-changed')
     onFavoritesChanged(): void {
-        void this.loadData({
-            mode: this.mode(),
-            portalType: this.portalType(),
-            playlistId: this.playlistId(),
-            scope: this.effectiveScope(),
-        });
+        void this.loadCurrentCollection();
     }
 
     onScopeChange(value: CollectionScope): void {
@@ -323,6 +327,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     @HostListener('document:keydown', ['$event'])
     handleSidebarShortcut(event: KeyboardEvent): void {
         if (
+            !this.alternateContent() &&
             this.showSidebarToggle() &&
             (event.metaKey || event.ctrlKey) &&
             event.key.toLowerCase() === 'b' &&
@@ -337,13 +342,12 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         }
     }
 
-    setFavSortMode(mode: FavoritesChannelSortMode): void {
-        this.favoritesSort.setMode(mode);
-    }
-
     onGridItemSelected(item: UnifiedCollectionItem): void {
         if (isCatalogUnavailable(item)) return;
         this.viewStateSync.commitCurrent();
+        if (this.headerContent() || this.alternateContent()) {
+            this.rememberScroll();
+        }
 
         if (this.detailState.canOpen(item)) {
             pushOpenCollectionDetailState(item);
@@ -405,6 +409,15 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         clearNavigationStateKeys([OPEN_LIVE_COLLECTION_ITEM_STATE_KEY]);
     }
 
+    private loadCurrentCollection(): Promise<void> {
+        return this.loadData({
+            mode: this.mode(),
+            portalType: this.portalType(),
+            playlistId: this.playlistId(),
+            scope: this.effectiveScope(),
+        });
+    }
+
     /** Take the just-cleared tab off screen and move to a remaining one. */
     private dropCurrentContentType(): void {
         this.data.dropContentType(this.selectedContentType());
@@ -437,3 +450,5 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         this.contentType.autoSelect();
     }
 }
+
+const EMPTY_ITEMS: UnifiedCollectionItem[] = [];

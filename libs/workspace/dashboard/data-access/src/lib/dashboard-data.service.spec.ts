@@ -32,6 +32,7 @@ import {
 import {
     DashboardSeriesEpisodesService,
     dashboardSeriesEpisodesKey,
+    dashboardSeriesEpisodesRequestKey,
     type DashboardSeriesEpisodes,
     type DashboardSeriesEpisodesRequest,
 } from './dashboard-series-episodes.service';
@@ -191,15 +192,15 @@ describe('DashboardDataService', () => {
     >(new Map());
     const seriesEpisodeAnswers = new Map<string, DashboardSeriesEpisodes>();
     const seriesEpisodesMock = {
-        episodes: seriesEpisodeEntries.asReadonly(),
+        get: (request: DashboardSeriesEpisodesRequest) =>
+            seriesEpisodeEntries().get(
+                dashboardSeriesEpisodesRequestKey(request)
+            ),
         request: jest.fn((requests: DashboardSeriesEpisodesRequest[]) => {
             seriesEpisodeEntries.update((entries) => {
                 const next = new Map(entries);
-                for (const { playlistId, seriesId } of requests) {
-                    const key = dashboardSeriesEpisodesKey(
-                        playlistId,
-                        seriesId
-                    );
+                for (const request of requests) {
+                    const key = dashboardSeriesEpisodesRequestKey(request);
                     next.set(
                         key,
                         seriesEpisodeAnswers.get(key) ?? { status: 'loading' }

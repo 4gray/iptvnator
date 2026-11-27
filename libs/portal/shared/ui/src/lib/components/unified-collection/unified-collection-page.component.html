@@ -7,6 +7,8 @@
     />
 } @else if (isDetailPending()) {
     <app-portal-detail-shell [isLoading]="true" [backAvailable]="false" />
+} @else if (alternateContent(); as alternate) {
+    <ng-container [ngTemplateOutlet]="alternate" />
 } @else if (isLoading()) {
     <div class="collection-header">
         <span class="collection-title">{{ title() | translate }}</span>
@@ -209,6 +211,8 @@
             />
         }
     </div>
+
+    <ng-container [ngTemplateOutlet]="headerContent()" />
 
     <div
         class="collection-content"

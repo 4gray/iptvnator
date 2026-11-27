@@ -10,6 +10,7 @@ import { StalkerPortalRepairService } from './stalker-portal-repair.service';
 import { executeStalkerRequest } from './stores/utils/stalker-request.utils';
 import { firstNonBlankStalkerId } from './stalker-vod.utils';
 import { StalkerPagedCatalog } from './stalker-paged-client';
+import { IncompleteStalkerSeriesCatalogError } from './stalker-series-pagination';
 
 /** Resolve commands on the receiving device; commands never enter sync snapshots. */
 @Injectable({ providedIn: 'root' })
@@ -31,15 +32,17 @@ export class StalkerFavoritePlaybackResolver {
 
     metadata(
         playlist: PlaylistMeta,
-        item: StalkerPortalItem & { info?: { name?: string } }
+        item: StalkerPortalItem & { info?: { name?: string } },
+        signal?: AbortSignal
     ): Promise<StalkerPortalItem> {
-        return this.lookup(playlist, item, false);
+        return this.lookup(playlist, item, false, signal);
     }
 
     private async lookup(
         playlist: PlaylistMeta,
         item: StalkerPortalItem & { info?: { name?: string } },
-        requireCommand: boolean
+        requireCommand: boolean,
+        backgroundSignal?: AbortSignal
     ): Promise<StalkerPortalItem> {
         playlist = {
             ...playlist,
@@ -149,9 +152,11 @@ export class StalkerFavoritePlaybackResolver {
         const bulk = selected();
         if (bulk) return bulk;
         const catalog = new StalkerPagedCatalog((params) =>
-            executeStalkerRequest(this.deps, playlist, params)
+            executeStalkerRequest(this.deps, playlist, params, {
+                silent: !!backgroundSignal,
+            })
         );
-        const signal = new AbortController().signal;
+        const signal = backgroundSignal ?? new AbortController().signal;
         const title = String(
             item.title ?? item.name ?? item.info?.name ?? ''
         ).trim();
@@ -187,6 +192,11 @@ export class StalkerFavoritePlaybackResolver {
             // shortcut: legacy-only aliases need a complete scan within 20 pages; use a direct ID endpoint when available.
             if (resolved && (canonicalFound || (!search && complete)))
                 return resolved;
+            if (backgroundSignal && !search && complete) {
+                throw new IncompleteStalkerSeriesCatalogError(
+                    'Stalker series missing from the current catalog'
+                );
+            }
         }
         throw new Error('nothing_to_play');
     }

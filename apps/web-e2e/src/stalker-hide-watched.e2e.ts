@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { seriesMenuRow } from './e2e-helpers';
 import { expect, test } from './fixtures';
 import { configureMockProviderBackend } from './provider-target-route';
 import {
@@ -103,6 +104,139 @@ test('@web @pwa @stalker @playback hides a movie completed in the inline player 
         .getByRole('button', { name: 'Clear watch status', exact: true })
         .click();
     await expect(cards).toHaveCount(1);
+});
+
+test('@web @pwa @stalker @persistence moves a completed series from Continue Watching to watched history', async ({
+    page,
+}) => {
+    test.setTimeout(120_000);
+    const title = 'Harbor Signal';
+    const movieTitle = 'Harbor Lights';
+    const mediaUrl = `${MOCK_SERVER}/stream/tv-video.webm`;
+    await configureMockProviderBackend(page);
+    await interceptStalkerRequests(page);
+    await page.route('**/stalker?**', async (route) => {
+        const params = new URL(route.request().url()).searchParams;
+        if (params.get('action') === 'create_link') {
+            return route.fulfill({
+                json: { payload: { js: { cmd: mediaUrl } } },
+            });
+        }
+        if (
+            params.get('type') !== 'vod' ||
+            params.get('action') !== 'get_ordered_list'
+        ) {
+            return route.fallback();
+        }
+        return route.fulfill({
+            json: {
+                payload: {
+                    js: {
+                        data: [
+                            {
+                                id: '43',
+                                name: title,
+                                cmd: 'ffrt4://vod/43/index.m3u8',
+                                is_series: 0,
+                                has_files: 1,
+                                series: ['1', '2'],
+                            },
+                            {
+                                id: '44',
+                                name: movieTitle,
+                                cmd: mediaUrl,
+                                use_http_tmp_link: 0,
+                                use_load_balancing: 0,
+                            },
+                        ],
+                        total_items: 2,
+                    },
+                },
+            },
+        });
+    });
+    await selectWebPlayer(page, 'HTML5 video player');
+    await page.goto('/');
+    await addStalkerPortal(page, {
+        name: 'Harbor Source',
+        mac: '00:1A:79:AF:10:08',
+    });
+
+    const grid = page.locator('app-grid-list');
+    const video = page.locator('app-portal-inline-player video').first();
+    const waitForPlayback = () =>
+        expect
+            .poll(
+                () =>
+                    video.evaluate(
+                        (element) => (element as HTMLVideoElement).currentTime
+                    ),
+                { timeout: 20_000 }
+            )
+            .toBeGreaterThan(3);
+    await grid.getByRole('button', { name: movieTitle, exact: true }).click();
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await waitForPlayback();
+    await page.locator('[data-test-id="workspace-header-back"]').click();
+
+    await grid.getByRole('button', { name: title, exact: true }).click();
+    const episodes = page.locator('.episode-item');
+    await expect(episodes).toHaveCount(2);
+    await episodes.first().click();
+    await waitForPlayback();
+    await page
+        .getByRole('button', { name: 'Close player', exact: true })
+        .click();
+
+    const dashboard = page.getByRole('link', {
+        name: 'Dashboard',
+        exact: true,
+    });
+    const continueWatching = page.locator(
+        '[data-test-id="dashboard-continue-watching-rail"]'
+    );
+    await dashboard.click();
+    await expect(continueWatching).toContainText(title);
+    await expect(continueWatching).toContainText(movieTitle);
+    await continueWatching.getByText(title, { exact: true }).click();
+
+    const markSeries = await seriesMenuRow(page, 'toggle-series-watched');
+    await expect(markSeries).toContainText('Mark series as watched (2)');
+    await markSeries.click();
+    await expect(page.locator('.episode-item--watched')).toHaveCount(2);
+
+    await dashboard.click();
+    await expect(continueWatching).toContainText(movieTitle);
+    await expect(continueWatching).not.toContainText(title);
+
+    await page
+        .getByRole('link', { name: 'Recently viewed', exact: true })
+        .click();
+    const watchedRail = page.locator(
+        '[data-testid="workspace-recent-watched-rail"]'
+    );
+    const history = page.locator('app-unified-grid-tab');
+    const seriesInHistory = history.getByRole('button', {
+        name: title,
+        exact: true,
+    });
+    const movieInHistory = history.getByRole('button', {
+        name: movieTitle,
+        exact: true,
+    });
+    await expect(seriesInHistory).toBeVisible();
+    await expect(movieInHistory).toBeVisible();
+    await expect(watchedRail).toContainText(title);
+    await expect(watchedRail).not.toContainText(movieTitle);
+    await watchedRail.getByRole('link', { name: 'See all' }).click();
+    await expect(page).toHaveURL(
+        (url) => url.searchParams.get('view') === 'watched'
+    );
+    const watchedView = page.getByTestId('workspace-recent-watched-full');
+    await expect(watchedView).toContainText(title);
+    await page.locator('[data-test-id="workspace-header-back"]').click();
+    await expect(seriesInHistory).toBeVisible();
+    await expect(movieInHistory).toBeVisible();
 });
 
 test('@web @pwa @stalker keeps sparse filtered pages reachable in a wide grid without a scrollbar', async ({

@@ -9,7 +9,12 @@
             }
         </h3>
         @if (seeAllLink(); as link) {
-            <a class="rail__see-all" [routerLink]="link">
+            <a
+                class="rail__see-all"
+                [routerLink]="link"
+                [queryParams]="seeAllQueryParams()"
+                (click)="seeAllActivated.emit($event)"
+            >
                 <span class="rail__see-all-label">
                     @if (seeAllLabel()) {
                         {{ seeAllLabel() }}
@@ -37,6 +42,7 @@
         <div
             #track
             class="rail__track"
+            data-collection-scroll="rail"
             (scroll)="onScroll()"
             role="list"
         >

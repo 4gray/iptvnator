@@ -19,16 +19,18 @@ import {
     CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS,
     dashboardRecentItemKey,
     planDashboardSeriesLookups,
-    resolveDashboardSeriesContinuation,
+    classifyDashboardSeries,
     selectSeriesContinuationCandidates,
     type DashboardSeriesContinuation,
 } from './dashboard-series-continuation.util';
 import {
     DashboardSeriesEpisodesService,
-    dashboardSeriesEpisodesKey,
+    createDashboardSeriesEpisodesRequest,
     sameDashboardSeriesEpisodesRequests,
     type DashboardSeriesEpisodesRequest,
 } from './dashboard-series-episodes.service';
+import { ambiguousDashboardStalkerSeriesParents } from './dashboard-series-episodes-request';
+import { seriesPlaybackPositionMapKey } from './dashboard-playback-positions';
 
 /** What the rail reads from the dashboard's history and playback positions. */
 export interface DashboardContinueWatchingDeps {
@@ -88,7 +90,7 @@ export interface DashboardContinueWatching {
  * newest episode is watched, or is an extra, goes on with an episode only
  * the portal's episode list names, so the series to look past are fetched
  * through `DashboardSeriesEpisodesService` and resolved with
- * `resolveDashboardSeriesContinuation`. Call from an injection context.
+ * `classifyDashboardSeries`. Call from an injection context.
  */
 export function createDashboardContinueWatching(
     deps: DashboardContinueWatchingDeps
@@ -105,9 +107,34 @@ export function createDashboardContinueWatching(
         resolvePortalActivityWatchKind(item) === 'series' ||
         !isPortalPlaybackWatched(deps.storedPosition(item));
 
-    /** Xtream series whose newest episode is watched or an extra. */
+    const ambiguousParents = computed(() =>
+        ambiguousDashboardStalkerSeriesParents(deps.items())
+    );
+    const allowUnmapped = (
+        item: PortalActivityItem,
+        newest: PlaybackPositionData
+    ) =>
+        item.source === 'stalker' &&
+        !newest.activityIdentity &&
+        newest.seriesXtreamId !== undefined &&
+        ambiguousParents().has(
+            seriesPlaybackPositionMapKey(
+                item.playlist_id,
+                newest.seriesXtreamId
+            )
+        );
+
     const candidates = computed(() =>
-        selectSeriesContinuationCandidates(deps.items(), deps.storedPosition)
+        selectSeriesContinuationCandidates(
+            deps.items(),
+            deps.storedPosition,
+            (item, newest) =>
+                allowUnmapped(item, newest) &&
+                newest.seriesXtreamId !== undefined &&
+                !!deps
+                    .episodeRows(item.playlist_id, newest.seriesXtreamId)
+                    ?.some(isPortalPlaybackWatched)
+        )
     );
 
     /**
@@ -116,82 +143,57 @@ export function createDashboardContinueWatching(
      * are known, so a finished series frees its slot for an older one.
      */
     const lookupPlan = computed(() => {
-        const episodes = seriesEpisodes.episodes();
-        return planDashboardSeriesLookups({
+        const playlists = new Map(
+            deps.playlists().map((playlist) => [playlist._id, playlist])
+        );
+        const requests: DashboardSeriesEpisodesRequest[] = [];
+        const plan = planDashboardSeriesLookups({
             items: deps.items(),
             candidates: candidates(),
             listedWithoutLookup,
-            resolve: (candidate) =>
-                resolveDashboardSeriesContinuation(
-                    candidate,
-                    deps.episodeRows(
-                        candidate.item.playlist_id,
-                        candidate.seriesXtreamId
-                    ) ?? [candidate.newest],
-                    episodes.get(
-                        dashboardSeriesEpisodesKey(
-                            candidate.item.playlist_id,
-                            candidate.seriesXtreamId
-                        )
-                    )
-                ),
-        });
-    });
-
-    /**
-     * The episode lists to fetch: the plan's candidates, with credentials.
-     * Equal lists keep the previous value, so playlist store churn
-     * (favourites, refreshes, M3U playback) does not run the lookup effect
-     * again.
-     */
-    const requests = computed<DashboardSeriesEpisodesRequest[]>(
-        () => {
-            const playlists = new Map(
-                deps.playlists().map((playlist) => [playlist._id, playlist])
-            );
-            const { window, continuations } = lookupPlan();
-            const next: DashboardSeriesEpisodesRequest[] = [];
-            for (const { item, seriesXtreamId } of window) {
-                const playlist = playlists.get(item.playlist_id);
-                if (
-                    playlist?.serverUrl &&
-                    playlist.username &&
-                    playlist.password
-                ) {
-                    const continuation = continuations.get(
-                        dashboardRecentItemKey(item)
-                    );
-                    next.push({
-                        playlistId: item.playlist_id,
-                        seriesId: seriesXtreamId,
-                        credentials: {
-                            serverUrl: playlist.serverUrl,
-                            username: playlist.username,
-                            password: playlist.password,
-                            userAgent: playlist.userAgent?.trim() || undefined,
-                        },
-                        // The list predates the episode played last.
-                        ...(continuation?.kind === 'unknown' &&
-                        continuation.stale
-                            ? { refresh: true }
-                            : {}),
-                    });
+            resolve: (candidate) => {
+                const { item, newest, seriesXtreamId } = candidate;
+                const request = createDashboardSeriesEpisodesRequest(
+                    item,
+                    playlists.get(item.playlist_id),
+                    seriesXtreamId
+                );
+                if (!request) {
+                    return { kind: 'unknown' };
                 }
-            }
-            return next;
-        },
-        { equal: sameDashboardSeriesEpisodesRequests }
-    );
-
-    const lookupsSettled = computed(() => {
-        const episodes = seriesEpisodes.episodes();
-        return requests().every(({ playlistId, seriesId }) => {
-            const status = episodes.get(
-                dashboardSeriesEpisodesKey(playlistId, seriesId)
-            )?.status;
-            return status === 'loaded' || status === 'failed';
+                const { continuation } = classifyDashboardSeries({
+                    request,
+                    newest,
+                    positions: deps.episodeRows(
+                        item.playlist_id,
+                        seriesXtreamId
+                    ) ?? [newest],
+                    episodes: seriesEpisodes.get(request),
+                    allowUnmappedLatest: allowUnmapped(item, newest),
+                });
+                requests.push(
+                    continuation.kind === 'unknown' && continuation.stale
+                        ? { ...request, refresh: true }
+                        : request
+                );
+                return continuation;
+            },
         });
+        return { ...plan, requests };
     });
+
+    // Equal requests keep the previous value so unrelated playlist changes
+    // do not trigger another round of episode lookups.
+    const requests = computed(() => lookupPlan().requests, {
+        equal: sameDashboardSeriesEpisodesRequests,
+    });
+
+    const lookupsSettled = computed(() =>
+        requests().every((request) => {
+            const status = seriesEpisodes.get(request)?.status;
+            return status === 'loaded' || status === 'failed';
+        })
+    );
 
     /** What each looked-up series continues with, by recent item key. */
     const continuations = computed(() => lookupPlan().continuations);

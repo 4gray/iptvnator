@@ -2329,6 +2329,10 @@
             "UNKNOWN_CHANNEL": "Bilinmiyor"
         },
         "GLOBAL_RECENT": {
+            "WATCHED": "İzlenenler",
+            "SEE_ALL": "Tümünü göster",
+            "SEE_ALL_WATCHED": "İzlenen tüm içerikleri göster",
+            "NO_WATCHED_ITEMS": "İzlenen içerik yok",
             "NO_PLAYLISTS_TITLE": "Henüz hiçbir şey izlenmedi",
             "NO_PLAYLISTS_BODY": "Bir oynatma listesi ekleyin; izleme geçmişiniz burada görünecek.",
             "NO_ITEMS_TITLE": "Henüz hiçbir şey izlenmedi",

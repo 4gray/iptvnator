@@ -2329,6 +2329,10 @@
             "UNKNOWN_CHANNEL": "Canal desconhecido"
         },
         "GLOBAL_RECENT": {
+            "WATCHED": "Assistidos",
+            "SEE_ALL": "Ver tudo",
+            "SEE_ALL_WATCHED": "Ver todos os títulos assistidos",
+            "NO_WATCHED_ITEMS": "Nenhum título assistido",
             "NO_PLAYLISTS_TITLE": "Nada assistido ainda",
             "NO_PLAYLISTS_BODY": "Adicione uma lista de reprodução e seu histórico de visualização aparecerá aqui.",
             "NO_ITEMS_TITLE": "Nada assistido ainda",

@@ -41,7 +41,6 @@ import {
     PortalActivityType,
     PortalFavoriteItem,
     PortalRecentItem,
-    resolvePortalActivityWatchKind,
 } from '@iptvnator/shared/interfaces';
 import {
     buildStalkerFavoriteItems,
@@ -75,7 +74,7 @@ import { createDashboardContinueWatching } from './dashboard-continue-watching';
 import {
     emptyDashboardPlaybackPositionMaps,
     loadDashboardPlaybackPositions,
-    playbackPositionMapKey,
+    storedDashboardPlaybackPositionForItem,
     seriesPlaybackPositionMapKey,
 } from './dashboard-playback-positions';
 
@@ -318,44 +317,10 @@ export class DashboardDataService {
     private storedPlaybackPositionForItem(
         item: PortalActivityItem
     ): PlaybackPositionData | null {
-        // The progress model, not the routing type: a Stalker embedded-VOD
-        // row routes as a movie but tracks episodes under its parent id,
-        // and a `vod` lookup for it finds nothing.
-        const watchKind = resolvePortalActivityWatchKind(item);
-        if (!watchKind) {
-            return null;
-        }
-        const xtreamId =
-            typeof item.xtream_id === 'number'
-                ? item.xtream_id
-                : Number(item.xtream_id);
-        if (!Number.isFinite(xtreamId)) {
-            return null;
-        }
-
-        if (watchKind === 'movie') {
-            const key = playbackPositionMapKey(
-                item.playlist_id,
-                xtreamId,
-                'vod'
-            );
-            return this.playbackPositionMaps().byContent.get(key) ?? null;
-        }
-
-        // Series recent_items rows carry either the series id (the series
-        // landing page writes the series itself) or, for direct-play flows,
-        // the episode id. Match both shapes through keyed maps so card renders
-        // do not scan every saved playback position.
-        const episodePosition =
-            this.playbackPositionMaps().byContent.get(
-                playbackPositionMapKey(item.playlist_id, xtreamId, 'episode')
-            ) ?? null;
-        const seriesPosition =
-            this.playbackPositionMaps().newestBySeries.get(
-                seriesPlaybackPositionMapKey(item.playlist_id, xtreamId)
-            ) ?? null;
-        // Episode and series ids can collide; parent ownership beats recency.
-        return seriesPosition ?? episodePosition;
+        return storedDashboardPlaybackPositionForItem(
+            this.playbackPositionMaps(),
+            item
+        );
     }
 
     /**

@@ -1,12 +1,33 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, Injector, signal } from '@angular/core';
 import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import {
-    XtreamApiService,
-    type XtreamCredentials,
-} from '@iptvnator/portal/xtream/data-access';
-import type { XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
+    IncompleteStalkerSeriesCatalogError,
+    StalkerSecondStreamService,
+} from '@iptvnator/portal/stalker/data-access';
+import { XtreamApiService } from '@iptvnator/portal/xtream/data-access';
+import type {
+    XtreamSerieDetails,
+    XtreamSerieEpisode,
+} from '@iptvnator/shared/interfaces';
+import {
+    dashboardSeriesEpisodesPassword,
+    dashboardSeriesEpisodesRequestKey,
+    dashboardSeriesEpisodesSource,
+    type DashboardSeriesEpisodesRequest,
+} from './dashboard-series-episodes-request';
+import {
+    createDashboardStalkerPlaylistLoader,
+    DashboardIncompleteCatalogError,
+} from './dashboard-stalker-playlist-loader';
 
-/** The episode list of one Xtream series, as far as the dashboard knows it. */
+export {
+    createDashboardSeriesEpisodesRequest,
+    dashboardSeriesEpisodesKey,
+    dashboardSeriesEpisodesRequestKey,
+    sameDashboardSeriesEpisodesRequests,
+    type DashboardSeriesEpisodesRequest,
+} from './dashboard-series-episodes-request';
+
 export type DashboardSeriesEpisodes =
     | { readonly status: 'loading' }
     | { readonly status: 'failed' }
@@ -15,171 +36,156 @@ export type DashboardSeriesEpisodes =
           readonly seasons: Readonly<Record<string, XtreamSerieEpisode[]>>;
       };
 
-export interface DashboardSeriesEpisodesRequest {
-    readonly playlistId: string;
-    readonly seriesId: number;
-    readonly credentials: XtreamCredentials;
-    /**
-     * The loaded list predates the episode played last: fetch it again in
-     * the next round, once DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS has
-     * passed since it loaded, instead of waiting for its age.
-     */
-    readonly refresh?: boolean;
+type DashboardLoadedSeasons = Extract<
+    DashboardSeriesEpisodes,
+    { status: 'loaded' }
+>['seasons'];
+
+interface SeriesLookupState {
+    readonly source: string;
+    password: string | undefined;
+    loadedAt?: number;
+    failedAt?: number;
+    attempt?: SeriesLookupAttempt;
+}
+
+interface SeriesLookupAttempt {
+    readonly key: string;
+    readonly request: DashboardSeriesEpisodesRequest;
+    readonly state: SeriesLookupState;
+    readonly controller: AbortController;
+    readonly loadStalkerPlaylist?: ReturnType<
+        typeof createDashboardStalkerPlaylistLoader
+    >;
+    followUp?: DashboardSeriesEpisodesRequest;
 }
 
 /** At most this many lookups run at once, so a visit cannot flood the portal. */
 const MAX_CONCURRENT_LOOKUPS = 2;
 
-/**
- * How long a loaded list counts as current. A provider adds episodes while
- * the app stays open, so an older list is fetched again in the next lookup
- * round, the old one standing until the new one arrives.
- */
+/** An older list can be refreshed in the next lookup round. */
 export const DASHBOARD_SERIES_EPISODES_MAX_AGE_MS = 60 * 60 * 1000;
 
-/**
- * How long a failed lookup, and a source whose lookups keep failing, are
- * left alone. Lookup rounds follow the user (each dashboard entry is one),
- * so without this a portal that is down or expired would be asked for
- * every series on every visit.
- */
+/** Failed sources and stale lists are retried only after this delay. */
 export const DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS = 5 * 60 * 1000;
 
-/**
- * Failures in a row after which a source's remaining lookups are skipped
- * for the retry delay: the portal, not the series, is the problem.
- */
 const SOURCE_FAILURES_TO_TRIP = 2;
 
-export function dashboardSeriesEpisodesKey(
-    playlistId: string,
-    seriesId: number
-): string {
-    return `${playlistId}::${seriesId}`;
-}
-
-/** Another server or account is another catalog. */
-function sourceOf(request: DashboardSeriesEpisodesRequest): string {
-    return JSON.stringify([
-        request.credentials.serverUrl,
-        request.credentials.username,
-        request.credentials.userAgent?.trim() || undefined,
-    ]);
-}
-
-/** Same series, same credentials, same refresh hint, same order. */
-export function sameDashboardSeriesEpisodesRequests(
-    requestsA: readonly DashboardSeriesEpisodesRequest[],
-    requestsB: readonly DashboardSeriesEpisodesRequest[]
+function hasIncompleteXtreamSeasons(
+    advertised: XtreamSerieDetails['seasons'] | undefined,
+    episodes: DashboardLoadedSeasons
 ): boolean {
-    return (
-        requestsA.length === requestsB.length &&
-        requestsA.every((a, index) => {
-            const b = requestsB[index];
-            return (
-                a.playlistId === b.playlistId &&
-                a.seriesId === b.seriesId &&
-                a.credentials.serverUrl === b.credentials.serverUrl &&
-                a.credentials.username === b.credentials.username &&
-                a.credentials.password === b.credentials.password &&
-                (a.credentials.userAgent?.trim() || undefined) ===
-                    (b.credentials.userAgent?.trim() || undefined) &&
-                !!a.refresh === !!b.refresh
-            );
-        })
+    if (!Array.isArray(advertised) || advertised.length === 0) return false;
+    const hasMainSeason = advertised.some(
+        (season) => Number(season?.season_number) > 0
     );
+    return advertised.some((season) => {
+        const number = Number(season?.season_number);
+        const expected = Number(season?.episode_count);
+        if (
+            !Number.isSafeInteger(number) ||
+            number < 0 ||
+            !Number.isSafeInteger(expected) ||
+            expected <= 0 ||
+            (hasMainSeason && number === 0)
+        ) {
+            return false;
+        }
+        const actual =
+            episodes[number]?.length ??
+            Object.values(episodes).reduce(
+                (count, rows) =>
+                    count +
+                    (Array.isArray(rows)
+                        ? rows.filter((row) => Number(row?.season) === number)
+                              .length
+                        : 0),
+                0
+            );
+        return actual < expected;
+    });
 }
 
 /**
- * Episode lists for the series Continue Watching has to look past: a series
- * whose newest episode is watched, or is an extra, goes on with an episode
- * only the portal's `get_series_info` names. Lists are kept per session and
- * source. A failed lookup, or a list older than
- * DASHBOARD_SERIES_EPISODES_MAX_AGE_MS, is tried again in a later lookup
- * round, once DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS has passed since the
- * failure. A source that fails SOURCE_FAILURES_TO_TRIP lookups in a row is
- * not asked for the rest of its series until then either. Lookups run in
- * the background, so a failure is logged, never shown.
+ * The dashboard and watched history share episode lists, source backoff and
+ * concurrency. Each consumer decides when a new lookup round starts.
  */
 @Injectable({ providedIn: 'root' })
 export class DashboardSeriesEpisodesService {
     private readonly api = inject(XtreamApiService);
+    private readonly injector = inject(Injector);
     private readonly logger = createLogger('DashboardSeriesEpisodes');
     private readonly entries = signal<
         ReadonlyMap<string, DashboardSeriesEpisodes>
     >(new Map());
-    private readonly queue: DashboardSeriesEpisodesRequest[] = [];
-    /** The source each series was last asked for, and the round it was last asked in. */
-    private readonly sources = new Map<string, string>();
-    private readonly rounds = new Map<string, number>();
-    /** The password of each series' last attempt: a corrected one retries a failed attempt. */
-    private readonly passwords = new Map<string, string>();
-    private readonly loadedAt = new Map<string, number>();
-    /** When each series' last lookup failed, until one succeeds. */
-    private readonly failedAt = new Map<string, number>();
-    /** Each source's failures in a row, and when the last one happened. */
+    private readonly queue: SeriesLookupAttempt[] = [];
+    private readonly lookupStates = new Map<string, SeriesLookupState>();
+    private readonly rounds = new WeakMap<object, Map<string, number>>();
+    private readonly singleConsumer = {};
     private readonly sourceFailures = new Map<
         string,
         { count: number; at: number }
-    >();
-    private readonly inFlight = new Set<string>();
-    /**
-     * A request that arrived with another password while its series was in
-     * flight: asked again once the attempt with the old one has failed.
-     */
-    private readonly followUps = new Map<
-        string,
-        DashboardSeriesEpisodesRequest
     >();
     private active = 0;
 
     readonly episodes = this.entries.asReadonly();
 
+    get(
+        request: DashboardSeriesEpisodesRequest
+    ): DashboardSeriesEpisodes | undefined {
+        const key = dashboardSeriesEpisodesRequestKey(request);
+        const entry = this.entries().get(key);
+        return this.lookupStates.get(key)?.source ===
+            dashboardSeriesEpisodesSource(request)
+            ? entry
+            : undefined;
+    }
+
     /**
-     * Queues every series whose list is missing or comes from another
-     * source. A failed lookup, or a list past its age, is asked again only
-     * in a later `round` (the caller's deliberate lookup rounds) and after
-     * the retry delay: the same round asking again, for more series, never
-     * repeats a request. A failed lookup is also asked again at once with a
-     * corrected password. A list being refreshed stands until the new one
-     * arrives.
+     * Queues missing lists and lists from a previous source. Later rounds
+     * retry failures and refresh old or stale lists after their cooldowns.
+     * A corrected password can retry a failed lookup right away. Each caller
+     * uses its own stable consumer token when supplying independent rounds.
      */
     request(
         requests: readonly DashboardSeriesEpisodesRequest[],
-        round = 0
+        round = 0,
+        consumer = this.singleConsumer
     ): void {
+        let rounds = this.rounds.get(consumer);
+        if (!rounds) {
+            rounds = new Map();
+            this.rounds.set(consumer, rounds);
+        }
         const next = new Map(this.entries());
         const now = Date.now();
         let queued = false;
+        let loadStalkerPlaylist: SeriesLookupAttempt['loadStalkerPlaylist'];
         for (const request of requests) {
-            const key = dashboardSeriesEpisodesKey(
-                request.playlistId,
-                request.seriesId
-            );
-            const source = sourceOf(request);
+            const key = dashboardSeriesEpisodesRequestKey(request);
+            const source = dashboardSeriesEpisodesSource(request);
+            const password = dashboardSeriesEpisodesPassword(request);
+            const previous = this.lookupStates.get(key);
+            const sameSource = previous?.source === source;
+            const state: SeriesLookupState = sameSource
+                ? previous
+                : { source, password };
             const entry = next.get(key);
-            const sameSource = this.sources.get(key) === source;
-            if (sameSource && this.inFlight.has(`${key}#${source}`)) {
-                if (this.passwords.get(key) !== request.credentials.password) {
-                    this.followUps.set(key, request);
+            const lastRound = rounds.get(key) ?? -1;
+            const laterRound = round > lastRound;
+            rounds.set(key, Math.max(round, lastRound));
+            if (state.attempt) {
+                if (state.password !== password) {
+                    state.attempt.followUp = request;
                 }
                 continue;
             }
-            const laterRound = round > (this.rounds.get(key) ?? -1);
-            this.rounds.set(
-                key,
-                Math.max(round, this.rounds.get(key) ?? round)
-            );
-            const passwordChanged =
-                this.passwords.get(key) !== request.credentials.password;
-            // The last attempt failed (a first lookup or a refresh of a list
-            // that stands) and the password differs: a deliberate retry.
             const correctedPassword =
-                sameSource && passwordChanged && this.failedAt.has(key);
+                state.failedAt !== undefined && state.password !== password;
             const retryDue =
-                now - (this.failedAt.get(key) ?? -Infinity) >=
+                now - (state.failedAt ?? -Infinity) >=
                 DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS;
-            const listAge = now - (this.loadedAt.get(key) ?? 0);
+            const listAge = now - (state.loadedAt ?? 0);
             const due =
                 !entry ||
                 !sameSource ||
@@ -195,17 +201,30 @@ export class DashboardSeriesEpisodesService {
             if (!due) {
                 continue;
             }
+            if (!sameSource) {
+                previous?.attempt?.controller.abort();
+            }
             if (correctedPassword) {
-                // A corrected password is a deliberate retry of the source.
                 this.sourceFailures.delete(source);
             }
             if (!sameSource || entry?.status !== 'loaded') {
                 next.set(key, { status: 'loading' });
             }
-            this.sources.set(key, source);
-            this.passwords.set(key, request.credentials.password);
-            this.inFlight.add(`${key}#${source}`);
-            this.queue.push(request);
+            state.password = password;
+            if (request.provider === 'stalker') {
+                loadStalkerPlaylist ??= createDashboardStalkerPlaylistLoader(
+                    this.injector
+                );
+            }
+            state.attempt = {
+                key,
+                request,
+                state,
+                controller: new AbortController(),
+                loadStalkerPlaylist,
+            };
+            this.lookupStates.set(key, state);
+            this.queue.push(state.attempt);
             queued = true;
         }
         if (queued) {
@@ -216,89 +235,124 @@ export class DashboardSeriesEpisodesService {
 
     private pump(): void {
         while (this.active < MAX_CONCURRENT_LOOKUPS) {
-            const request = this.queue.shift();
-            if (!request) {
+            const attempt = this.queue.shift();
+            if (!attempt) {
                 return;
             }
+            if (attempt.controller.signal.aborted) {
+                continue;
+            }
             this.active++;
-            void this.load(request).finally(() => {
+            void this.load(attempt).finally(() => {
                 this.active--;
                 this.pump();
             });
         }
     }
 
-    private async load(request: DashboardSeriesEpisodesRequest): Promise<void> {
-        const key = dashboardSeriesEpisodesKey(
-            request.playlistId,
-            request.seriesId
-        );
-        const source = sourceOf(request);
-        let seasons: Readonly<Record<string, XtreamSerieEpisode[]>> | null =
-            null;
+    private async load(attempt: SeriesLookupAttempt): Promise<void> {
+        const { key, state, controller } = attempt;
+        const { source } = state;
+        let seasons: DashboardLoadedSeasons | null = null;
+        let incompleteCatalog = false;
         const skipped = this.isTripped(source);
         if (skipped) {
-            // The source failed its last lookups: asking for more series
-            // would only repeat the answer.
             this.logger.debug('Skipped a series lookup on a failing source');
         } else {
             try {
-                const details = await this.api.getSeriesInfo(
-                    request.credentials,
-                    request.seriesId,
-                    { suppressErrorLog: true }
-                );
-                seasons = details?.episodes ?? {};
+                seasons = await this.loadSeasons(attempt);
             } catch (error) {
-                this.logger.warn(
-                    'Could not load the episodes of a series',
-                    error
-                );
+                incompleteCatalog =
+                    error instanceof DashboardIncompleteCatalogError ||
+                    error instanceof IncompleteStalkerSeriesCatalogError;
+                if (!controller.signal.aborted) {
+                    this.logger.warn(
+                        'Could not load the episodes of a series',
+                        error
+                    );
+                }
             }
         }
-        const now = Date.now();
-        this.inFlight.delete(`${key}#${source}`);
-        // A follow-up belongs to the source it was asked for: one queued for
-        // another source stands until that source's own attempt is over.
-        const queued = this.followUps.get(key);
-        const followUp =
-            queued && sourceOf(queued) === source ? queued : undefined;
-        if (followUp) {
-            this.followUps.delete(key);
-        }
-        // The series was asked for from another source meanwhile.
-        if (this.sources.get(key) !== source) {
+        // The same playlist can point at a different catalog before a request returns.
+        if (controller.signal.aborted) {
             return;
         }
+
+        const now = Date.now();
+        state.attempt = undefined;
         if (seasons) {
-            this.loadedAt.set(key, now);
-            this.failedAt.delete(key);
+            state.loadedAt = now;
+            state.failedAt = undefined;
             this.sourceFailures.delete(source);
-            if (followUp) {
-                this.passwords.set(key, followUp.credentials.password);
+            if (attempt.followUp) {
+                state.password = dashboardSeriesEpisodesPassword(
+                    attempt.followUp
+                );
             }
             this.entries.update((entries) =>
                 new Map(entries).set(key, { status: 'loaded', seasons })
             );
             return;
         }
-        if (skipped) {
-            // Due again with the source, whose cooldown a skip must not
-            // extend: a round after it could never reach a recovered portal.
-            this.failedAt.set(key, this.sourceFailures.get(source)?.at ?? now);
-        } else {
-            this.recordFailure(key, source);
+
+        // A skip follows the existing source cooldown, without extending it.
+        state.failedAt = skipped
+            ? (this.sourceFailures.get(source)?.at ?? now)
+            : now;
+        if (incompleteCatalog) {
+            this.sourceFailures.delete(source);
+        } else if (!skipped) {
+            const failures = this.sourceFailures.get(source);
+            this.sourceFailures.set(source, {
+                count: (failures?.count ?? 0) + 1,
+                at: now,
+            });
         }
-        // A failed refresh keeps the list it had.
-        if (this.entries().get(key)?.status !== 'loaded') {
+        // A transport failure can keep the known list. An incomplete answer
+        // establishes that the stored list cannot prove completion anymore.
+        if (incompleteCatalog || this.entries().get(key)?.status !== 'loaded') {
+            state.loadedAt = undefined;
             this.entries.update((entries) =>
                 new Map(entries).set(key, { status: 'failed' })
             );
         }
-        if (followUp) {
-            // The password was corrected while the old one was being tried.
-            this.request([followUp], this.rounds.get(key));
+        if (attempt.followUp) {
+            this.request([attempt.followUp]);
         }
+    }
+
+    private async loadSeasons(
+        attempt: SeriesLookupAttempt
+    ): Promise<DashboardLoadedSeasons> {
+        const {
+            request,
+            loadStalkerPlaylist,
+            controller: { signal },
+        } = attempt;
+        if (request.provider === 'stalker') {
+            if (!loadStalkerPlaylist)
+                throw new Error('Stalker playlist loader unavailable');
+            const playlist = await loadStalkerPlaylist(request.playlist);
+            signal.throwIfAborted();
+            return this.injector
+                .get(StalkerSecondStreamService)
+                .episodes(playlist, request.item, signal, {
+                    refreshEmbedded: true,
+                    requireComplete: true,
+                });
+        }
+        const details = await this.api.getSeriesInfo(
+            request.credentials,
+            request.seriesId,
+            { suppressErrorLog: true }
+        );
+        const episodes = details?.episodes ?? {};
+        if (hasIncompleteXtreamSeasons(details?.seasons, episodes)) {
+            throw new DashboardIncompleteCatalogError(
+                'Incomplete Xtream series list'
+            );
+        }
+        return episodes;
     }
 
     private isTripped(source: string): boolean {
@@ -308,15 +362,5 @@ export class DashboardSeriesEpisodesService {
             failures.count >= SOURCE_FAILURES_TO_TRIP &&
             Date.now() - failures.at < DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS
         );
-    }
-
-    private recordFailure(key: string, source: string): void {
-        const now = Date.now();
-        this.failedAt.set(key, now);
-        const failures = this.sourceFailures.get(source);
-        this.sourceFailures.set(source, {
-            count: (failures?.count ?? 0) + 1,
-            at: now,
-        });
     }
 }

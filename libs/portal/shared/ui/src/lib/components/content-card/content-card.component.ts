@@ -25,7 +25,10 @@ const LABELLED_CONTENT_TYPES: ReadonlySet<string> = new Set(['live', 'radio']);
     imports: [DatePipe, MatIcon, MatIconButton, MatTooltip, TranslatePipe],
     templateUrl: './content-card.component.html',
     styleUrl: './content-card.component.scss',
-    host: { '[class.content-card--posters-only]': 'postersOnly()' },
+    host: {
+        '[class.content-card--posters-only]': 'postersOnly()',
+        '[class.content-card--compact]': 'compact()',
+    },
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ContentCardComponent {
@@ -58,6 +61,7 @@ export class ContentCardComponent {
 
     /** Whether to render the type badge (live/movie/series) on the poster */
     readonly showTypeBadge = input<boolean>(true);
+    readonly compact = input(false);
 
     /**
      * Whether this card may join the posters-only wall

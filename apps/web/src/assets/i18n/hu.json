@@ -2329,6 +2329,10 @@
             "UNKNOWN_CHANNEL": "Ismeretlen"
         },
         "GLOBAL_RECENT": {
+            "WATCHED": "Megnézve",
+            "SEE_ALL": "Összes megjelenítése",
+            "SEE_ALL_WATCHED": "Az összes megnézett cím megjelenítése",
+            "NO_WATCHED_ITEMS": "Nincsenek megnézett címek",
             "NO_PLAYLISTS_TITLE": "Még nincs megtekintett tartalom",
             "NO_PLAYLISTS_BODY": "Adjon hozzá egy lejátszási listát, és megtekintési előzményei itt fognak megjelenni.",
             "NO_ITEMS_TITLE": "Még nincs megtekintett tartalom",

@@ -2,6 +2,7 @@
     appChannelScrollFocus
     [attr.aria-label]="'HOME.PLAYLISTS.CHANNELS' | translate"
     class="nav-list app-scrollbar"
+    data-collection-scroll="channels"
     cdkDropList
     [cdkDropListDisabled]="!canDragDrop()"
     (cdkDropListDropped)="onDrop($event)"
