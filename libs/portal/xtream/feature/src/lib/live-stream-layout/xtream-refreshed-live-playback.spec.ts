@@ -27,7 +27,7 @@ describe('Refreshed Xtream live playback', () => {
         const unidentified = { xtream_id: item.xtream_id };
         await expect(
             readRefreshedLivePlayback(db, playlistId, unidentified)
-        ).resolves.toEqual({ item: unidentified, categoryId: 'unknown' });
+        ).resolves.toEqual({ item: null, categoryId: 'unknown' });
         expect(db.getContentByXtreamId).not.toHaveBeenCalled();
     });
 
@@ -35,7 +35,7 @@ describe('Refreshed Xtream live playback', () => {
         db.getContentByXtreamId.mockResolvedValue(null);
         await expect(
             readRefreshedLivePlayback(db, playlistId, item)
-        ).resolves.toEqual({ item, categoryId: 'unknown' });
+        ).resolves.toEqual({ item: null, categoryId: 'unknown' });
         expect(db.getContentByXtreamId).toHaveBeenCalledWith(
             item.xtream_id,
             playlistId,

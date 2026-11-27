@@ -201,6 +201,26 @@ describe('Xtream live playback through a startup refresh', () => {
         expect(confirmed).not.toHaveBeenCalled();
     });
 
+    it('keeps an open stream but rejects a cached tune removed by the refresh', async () => {
+        const removed = { ...original, xtream_id: 203 };
+        databaseService.getContentByXtreamId.mockResolvedValue(null);
+        component.playLive(original, true);
+        const playing = component.activePlayback();
+        expect(playing).not.toBeNull();
+
+        TestBed.inject(SourceActivityService).notifyLiveCatalogReplacement(
+            playlist.id
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(component.activePlayback()).toBe(playing);
+
+        const confirmed = jest.fn();
+        component.playLive(removed, true, undefined, false, confirmed);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(component.activePlayback()).toBe(playing);
+        expect(confirmed).not.toHaveBeenCalled();
+    });
+
     it.each([true, false])(
         'confirms a pending external launch after its category is refreshed (session registered: %s)',
         async (registered) => {

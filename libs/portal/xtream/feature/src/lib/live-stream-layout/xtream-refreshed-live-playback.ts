@@ -15,10 +15,13 @@ export async function readRefreshedLivePlayback(
     >,
     playlistId: string,
     item: XtreamLiveChannelItem
-): Promise<{ item: XtreamLiveChannelItem; categoryId: number | 'unknown' }> {
+): Promise<{
+    item: XtreamLiveChannelItem | null;
+    categoryId: number | 'unknown';
+}> {
     const preferred = Number(item.category_id);
     if (!Number.isSafeInteger(preferred) || preferred <= 0)
-        return { item, categoryId: 'unknown' };
+        return { item: null, categoryId: 'unknown' };
     const [row, categories] = await Promise.all([
         db.getContentByXtreamId(
             item.xtream_id,
@@ -35,7 +38,7 @@ export async function readRefreshedLivePlayback(
         (category) => category.id === row?.category_id
     )?.xtream_id;
     return {
-        item: row ? { ...item, ...row } : item,
+        item: row ? { ...item, ...row } : null,
         categoryId: providerId ?? 'unknown',
     };
 }
@@ -77,11 +80,15 @@ export function observeExternalLiveCatalog(
                             return;
                         // The launch keeps this object until the player confirms it.
                         Object.assign(source, {
-                            channel: item,
+                            channel: item ?? channel,
                             categoryId,
-                            queue: source.queue
-                                ? replaceXtreamQueuedCopy(source.queue, item)
-                                : undefined,
+                            queue:
+                                source.queue && item
+                                    ? replaceXtreamQueuedCopy(
+                                          source.queue,
+                                          item
+                                      )
+                                    : source.queue,
                         });
                         for (const entry of active)
                             update(entry.session, source);

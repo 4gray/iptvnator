@@ -960,7 +960,7 @@ export class LiveStreamLayoutComponent
                 (remote || this.guide.isOpen()) &&
                 !!this.externalGuide.confirmed();
             const start = (
-                channel: XtreamLiveChannelItem,
+                channel: XtreamLiveChannelItem | null,
                 category: number | null | 'unknown',
                 checkedRevision: number
             ) => {
@@ -975,7 +975,11 @@ export class LiveStreamLayoutComponent
                     readCommittedCatalog(latestRevision);
                     return;
                 }
-                if (this.isLiveCategoryWithheld(playlistId, category)) return;
+                if (
+                    !channel ||
+                    this.isLiveCategoryWithheld(playlistId, category)
+                )
+                    return;
                 this.applyLivePlayback(
                     channel,
                     startPlayback,
@@ -1429,9 +1433,11 @@ export class LiveStreamLayoutComponent
         )
             return;
         this.activeLiveProviderCategoryId = refreshed.categoryId;
-        this.activeGuideItem.set(refreshed.item);
-        if (this.usesSelectionForRemote() && refreshed.item !== item)
-            this.channelNavigation.replacePlayingCopy(refreshed.item);
+        if (refreshed.item) {
+            this.activeGuideItem.set(refreshed.item);
+            if (this.usesSelectionForRemote())
+                this.channelNavigation.replacePlayingCopy(refreshed.item);
+        }
         this.enforceActiveLiveCategory();
     }
 

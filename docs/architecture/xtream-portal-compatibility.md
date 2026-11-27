@@ -438,7 +438,8 @@ The selected and playing live channels, including companion streams, are
 rebound by provider identity to their new SQLite rows. Each player keeps its
 session while allowed and checks the refreshed provider category for parental
 locks. After a replacement, a new tune resolves its channel against SQLite
-before playback, including selections from cached queues. A pending Xtream
+before playback, including selections from cached queues. A cached selection
+without a matching catalog row cannot launch a new stream. A pending Xtream
 live companion choice is discarded if its source is refreshed before the
 choice can be installed.
 Retained categories keep their SQLite IDs so playback queues, the guide and
