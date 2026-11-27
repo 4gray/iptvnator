@@ -27,7 +27,7 @@ import androidx.media3.common.Tracks;
 import androidx.media3.common.util.Log;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.okhttp.OkHttpDataSource;
-import androidx.media3.exoplayer.DefaultBufferSettings;
+import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.analytics.PlaybackStats;
@@ -162,7 +162,9 @@ public final class NativePlayerActivity extends Activity {
             // Deeper buffers than the ExoPlayer defaults (min 15 s, max 53 s):
             // on a fast link the extra headroom absorbs CDN jitter and provider
             // stalls without raising latency enough to matter for live TV.
-            .setBufferSettings(new DefaultBufferSettings(10_000, 90_000, 25_000, 25_000))
+            .setLoadControl(new DefaultLoadControl.Builder()
+                .setBufferDurationsMs(10_000, 90_000, 25_000, 25_000)
+                .build())
             .setSeekBackIncrementMs(15_000)
             .setSeekForwardIncrementMs(30_000)
             .setAudioAttributes(AudioAttributes.DEFAULT, true)
