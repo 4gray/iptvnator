@@ -30,7 +30,7 @@ import type { ActivitySyncRuntime } from '../services/activity-sync-runtime';
         TranslateModule,
     ],
     templateUrl: './settings-activity-section.component.html',
-    styleUrl: './settings-activity-section.component.scss',
+    styleUrl: './settings-server-section.component.scss',
 })
 export class SettingsActivitySectionComponent {
     readonly addressKey = activityAddressKey;

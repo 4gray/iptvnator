@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 import { SettingsSyncStatusComponent } from './settings-sync-status.component';
 import { loadFavoritesRuntime } from '../services/favorites-sync.providers';
@@ -26,11 +27,12 @@ import type {
     imports: [
         MatButtonModule,
         MatCheckboxModule,
+        MatIconModule,
         TranslateModule,
         SettingsSyncStatusComponent,
     ],
     templateUrl: './settings-favorites-section.component.html',
-    styleUrl: './settings-favorites-section.component.scss',
+    styleUrl: './settings-server-section.component.scss',
 })
 export class SettingsFavoritesSectionComponent {
     readonly runtime = signal<FavoritesSyncRuntime | null>(null);
