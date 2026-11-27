@@ -168,7 +168,16 @@ test.describe('Electron segmented controls', () => {
             await addCurrentDetailToFavorites(page);
             await goBackFromDetail(page);
 
+            const favoritesLink = page.getByRole('link', {
+                name: 'Global favorites',
+            });
+            const favoritesTooltip = page
+                .locator('.mat-mdc-tooltip-surface')
+                .filter({ hasText: /^Global favorites$/ });
+            await favoritesLink.hover();
+            await expect(favoritesTooltip).toBeVisible();
             await openGlobalFavorites(page);
+            await expect(favoritesTooltip).toBeHidden();
             const header = page
                 .locator('app-unified-collection-page .collection-header')
                 .first();
