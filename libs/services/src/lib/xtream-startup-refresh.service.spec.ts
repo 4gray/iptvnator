@@ -43,7 +43,7 @@ describe('Xtream startup refresh', () => {
             .mockImplementation(
                 async (_source, _catalog, capturePreviousCategories) => {
                     await capturePreviousCategories();
-                    return true;
+                    return 42;
                 }
             );
         TestBed.configureTestingModule({
@@ -90,7 +90,7 @@ describe('Xtream startup refresh', () => {
         expect(refresh.refreshLiveOnStartup).not.toHaveBeenCalled();
         expect(replaced).not.toHaveBeenCalled();
         release();
-        await expect(result).resolves.toBe(true);
+        await expect(result).resolves.toBe(42);
         subscription.unsubscribe();
         expect(replaced).toHaveBeenCalledWith(source._id);
         expect(refresh.refreshLiveOnStartup).toHaveBeenCalledWith(
@@ -157,11 +157,10 @@ describe('Xtream startup refresh', () => {
         refresh.refreshLiveOnStartup.mockImplementationOnce(
             async (_source, _catalog, readRetainedCategoryIds) => {
                 expect(await readRetainedCategoryIds()).toEqual([[4, 11]]);
-                return true;
+                return 42;
             }
         );
         await service.refreshLive(source);
-        service.recordUpdate(source._id, 42);
 
         expect(service.wasLiveCategoryRemoved(source._id, 42, 11)).toBe(false);
         expect(service.wasLiveCategoryRemoved(source._id, 43, 22)).toBe(false);
@@ -226,7 +225,7 @@ describe('Xtream startup refresh', () => {
             { ...categories[0], category_id: ' 00 ' },
         ]);
         fetcher.content.mockResolvedValue([{ ...content[0], category_id: 0 }]);
-        await expect(service.refreshLive(source)).resolves.toBe(true);
+        await expect(service.refreshLive(source)).resolves.toBe(42);
     });
 
     it('keeps the saved lineup when the provider returns no live channels', async () => {
@@ -265,7 +264,7 @@ describe('Xtream startup refresh', () => {
 
     it('accepts a decimal stream ID sent as a string', async () => {
         fetcher.content.mockResolvedValue([{ ...content[0], stream_id: '42' }]);
-        await expect(service.refreshLive(source)).resolves.toBe(true);
+        await expect(service.refreshLive(source)).resolves.toBe(42);
     });
 
     it('keeps the saved lineup when the provider cannot be reached', async () => {

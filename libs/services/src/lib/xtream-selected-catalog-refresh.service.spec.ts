@@ -1,7 +1,9 @@
 import { TestBed } from '@angular/core/testing';
+import { of } from 'rxjs';
 import { DataService } from './data.service';
 import { DatabaseService } from './database-electron.service';
 import { ParentalLockLockStore } from './parental-lock';
+import { PlaylistsService } from './playlists.service';
 import { SourceActivityService } from './source-activity.service';
 import {
     XtreamPendingRestoreService,
@@ -56,12 +58,14 @@ describe('edit-time Xtream catalog refresh', () => {
     let release: jest.Mock;
     let service: XtreamSelectedCatalogRefreshService;
     let commitState: jest.Mock;
+    let completeXtreamStartupRefresh: jest.Mock;
     let assertCurrent: jest.Mock;
     let readCurrent: jest.Mock;
     let lockedXtreamIds: jest.Mock;
     let withXtreamCategoryLocks: jest.Mock;
 
     beforeEach(() => {
+        completeXtreamStartupRefresh = jest.fn(() => of(73));
         data = { sendIpcEvent: jest.fn().mockResolvedValue({ payload: [] }) };
         db = Object.fromEntries(
             [
@@ -147,6 +151,10 @@ describe('edit-time Xtream catalog refresh', () => {
             providers: [
                 { provide: DataService, useValue: data },
                 { provide: DatabaseService, useValue: db },
+                {
+                    provide: PlaylistsService,
+                    useValue: { completeXtreamStartupRefresh },
+                },
                 {
                     provide: XtreamCatalogCommitService,
                     useValue: {
@@ -236,7 +244,7 @@ describe('edit-time Xtream catalog refresh', () => {
                 { type: 'live', categories, content: [] },
                 async () => retained
             )
-        ).resolves.toBe(true);
+        ).resolves.toEqual(expect.any(Number));
 
         expect(db.saveXtreamCategories).toHaveBeenCalledWith(
             'p',
@@ -246,6 +254,36 @@ describe('edit-time Xtream catalog refresh', () => {
             [],
             retained
         );
+    });
+
+    it('clears newly written live rows and keeps recovery when final startup completion is superseded', async () => {
+        const optedIn = { ...playlist, autoRefresh: true, updateDate: 100 };
+        readCurrent.mockResolvedValue(optedIn);
+        completeXtreamStartupRefresh.mockReturnValueOnce(of(false));
+
+        await expect(
+            service.refreshLiveOnStartup(optedIn, {
+                type: 'live',
+                categories: [],
+                content: [],
+            })
+        ).resolves.toBe(false);
+
+        expect(completeXtreamStartupRefresh).toHaveBeenCalledWith(optedIn);
+        expect(commitState).not.toHaveBeenCalledWith(
+            optedIn,
+            'xtream-import-status:p:live',
+            'completed'
+        );
+        expect(db.setXtreamImportStatus).toHaveBeenLastCalledWith(
+            'p',
+            'live',
+            'failed'
+        );
+        expect(db.clearXtreamImportCache).toHaveBeenCalledWith('p', 'live');
+        expect(db.restoreXtreamUserData).not.toHaveBeenCalled();
+        expect(pending['clear']).not.toHaveBeenCalled();
+        expect(release).toHaveBeenCalledTimes(1);
     });
 
     it('immediately refreshes Movies only and restores history including other types', async () => {

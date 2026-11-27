@@ -86,7 +86,7 @@ export function matchesXtreamStartupRefresh(
     );
 }
 
-export function setXtreamStartupRefreshDate(
+export function completeXtreamStartupRefresh(
     db: AppDatabase,
     updateDate: number,
     condition: XtreamStartupRefreshCondition
@@ -105,8 +105,29 @@ export function setXtreamStartupRefreshDate(
             .set({ updateDate, lastUpdated: lastUpdated.toISOString() })
             .where(eq(schema.playlists.id, condition.playlistId))
             .run();
+        writeCatalogState(
+            tx,
+            `xtream-import-status:${condition.playlistId}:live`,
+            'completed',
+            lastUpdated.toISOString()
+        );
         return { success: true };
     });
+}
+
+function writeCatalogState(
+    db: Pick<AppDatabase, 'insert'>,
+    key: string,
+    value: string,
+    updatedAt: string
+): void {
+    db.insert(schema.appState)
+        .values({ key, value, updatedAt })
+        .onConflictDoUpdate({
+            target: schema.appState.key,
+            set: { value, updatedAt },
+        })
+        .run();
 }
 
 /** Compare and commit synchronously: no projection can interleave these steps. */
@@ -128,14 +149,7 @@ export function setConditionalCatalogState(
     return db.transaction((tx): XtreamCatalogStateResult => {
         const result = checkXtreamCatalogConnection(tx, condition);
         if (!result.success) return result;
-        const updatedAt = new Date().toISOString();
-        tx.insert(schema.appState)
-            .values({ key, value, updatedAt })
-            .onConflictDoUpdate({
-                target: schema.appState.key,
-                set: { value, updatedAt },
-            })
-            .run();
+        writeCatalogState(tx, key, value, new Date().toISOString());
         return result;
     });
 }

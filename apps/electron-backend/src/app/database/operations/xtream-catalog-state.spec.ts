@@ -1,6 +1,10 @@
+import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { createDbMock } from './operations.test-helpers';
 import { updatePlaylist } from './playlist.operations';
-import { setXtreamStartupRefreshDate } from './xtream-catalog-state';
+import { completeXtreamStartupRefresh } from './xtream-catalog-state';
 
 const condition = {
     playlistId: 'synthetic-source',
@@ -23,11 +27,9 @@ const current = {
 const updatedAt = '2026-01-01T00:00:00.000Z';
 const timestamp = Date.parse(updatedAt);
 
-it('applies only the date columns in the native conditional update', async () => {
-    const { db, transaction, updateRun, updateSet } = createDbMock([
-        [current],
-        [current],
-    ]);
+it('completes the live catalog and updates only the date columns in the same transaction', async () => {
+    const { db, transaction, updateRun, updateSet, insertValues, insertRun } =
+        createDbMock([[current], [current]]);
     await expect(
         updatePlaylist(
             db,
@@ -42,6 +44,12 @@ it('applies only the date columns in the native conditional update', async () =>
         lastUpdated: updatedAt,
     });
     expect(updateRun).toHaveBeenCalledTimes(1);
+    expect(insertValues).toHaveBeenCalledWith({
+        key: 'xtream-import-status:synthetic-source:live',
+        value: 'completed',
+        updatedAt,
+    });
+    expect(insertRun).toHaveBeenCalledTimes(1);
 });
 
 it('compares the old projected date when a legacy source only has lastUpdated', () => {
@@ -54,7 +62,7 @@ it('compares the old projected date when a legacy source only has lastUpdated', 
     };
     const { db } = createDbMock([[legacy], [legacy]]);
     expect(
-        setXtreamStartupRefreshDate(db, timestamp, {
+        completeXtreamStartupRefresh(db, timestamp, {
             ...condition,
             previousUpdateDate: Date.parse(lastUpdated),
         })
@@ -66,13 +74,17 @@ it.each([
     { ...current, autoRefresh: false },
     { ...current, updateDate: timestamp + 1 },
     { ...current, payload: JSON.stringify({ xtreamContentTypes: ['movie'] }) },
-])('skips the date update when a source setting no longer matches', (row) => {
-    const { db, updateRun } = createDbMock([[row], [row]]);
-    expect(setXtreamStartupRefreshDate(db, timestamp, condition)).toEqual({
-        success: false,
-    });
-    expect(updateRun).not.toHaveBeenCalled();
-});
+])(
+    'does not complete the catalog or update its date when a source setting no longer matches',
+    (row) => {
+        const { db, updateRun, insertRun } = createDbMock([[row], [row]]);
+        expect(completeXtreamStartupRefresh(db, timestamp, condition)).toEqual({
+            success: false,
+        });
+        expect(updateRun).not.toHaveBeenCalled();
+        expect(insertRun).not.toHaveBeenCalled();
+    }
+);
 
 it('declines a condition addressed to a different source', async () => {
     const { db, transaction } = createDbMock();
@@ -89,8 +101,77 @@ it('declines a condition addressed to a different source', async () => {
 
 it('rejects an invalid timestamp before opening a transaction', () => {
     const { db, transaction } = createDbMock();
-    expect(() => setXtreamStartupRefreshDate(db, NaN, condition)).toThrow(
+    expect(() => completeXtreamStartupRefresh(db, NaN, condition)).toThrow(
         'Invalid Xtream refresh timestamp'
     );
     expect(transaction).not.toHaveBeenCalled();
+});
+it('commits the catalog and timestamp together in SQLite', () => {
+    const operation = pathToFileURL(
+        resolve(__dirname, 'xtream-catalog-state.ts')
+    ).href;
+    const connection = pathToFileURL(
+        resolve(process.cwd(), 'libs/shared/database/src/lib/connection.ts')
+    ).href;
+    const script = `
+        const { default: Database } = await import('better-sqlite3');
+        const { drizzle } = await import('drizzle-orm/better-sqlite3');
+        const schema = await import('@iptvnator/shared/database/schema');
+        const { __databaseConnectionTestHooks: hooks } = await import(${JSON.stringify(connection)});
+        const { completeXtreamStartupRefresh } = await import(${JSON.stringify(operation)});
+        const sqlite = new Database(':memory:');
+        for (const statement of [...hooks.createTableStatements, ...hooks.columnMigrationStatements]) {
+            try { sqlite.exec(statement); }
+            catch (error) { if (!String(error).includes('duplicate column name')) throw error; }
+        }
+        const db = drizzle(sqlite, { schema });
+        const source = ${JSON.stringify({ ...current, name: 'Synthetic source' })};
+        const condition = ${JSON.stringify(condition)};
+        const timestamp = ${timestamp};
+        const key = 'xtream-import-status:synthetic-source:live';
+        db.insert(schema.playlists).values({ ...source, password: 'changed-synthetic-password' }).run();
+        db.insert(schema.appState).values({ key, value: 'importing', updatedAt: source.lastUpdated ?? '2025-12-31' }).run();
+        const read = () => ({
+            date: db.select().from(schema.playlists).get().updateDate,
+            status: db.select().from(schema.appState).get().value,
+        });
+        const rejected = !completeXtreamStartupRefresh(db, timestamp, condition).success;
+        const afterSourceChange = read();
+        db.update(schema.playlists).set({ password: source.password }).run();
+        sqlite.exec("CREATE TRIGGER fail_state BEFORE UPDATE ON app_state BEGIN SELECT RAISE(ABORT, 'Synthetic state write failure'); END");
+        let failedWrite = false;
+        try { completeXtreamStartupRefresh(db, timestamp, condition); }
+        catch (error) { failedWrite = String(error).includes('Synthetic state write failure'); }
+        const afterFailedWrite = read();
+        sqlite.exec('DROP TRIGGER fail_state');
+        const committed = completeXtreamStartupRefresh(db, timestamp, condition).success;
+        console.log(JSON.stringify({ rejected, afterSourceChange, failedWrite, afterFailedWrite, committed, afterCommit: read() }));
+        sqlite.close();
+    `;
+    const result = JSON.parse(
+        execFileSync(
+            createRequire(__filename)('electron'),
+            ['--import', 'tsx', '--eval', script],
+            {
+                cwd: process.cwd(),
+                encoding: 'utf8',
+                env: {
+                    ...process.env,
+                    ELECTRON_RUN_AS_NODE: '1',
+                    TSX_TSCONFIG_PATH: resolve(
+                        process.cwd(),
+                        'tsconfig.base.json'
+                    ),
+                },
+            }
+        )
+    );
+    expect(result).toEqual({
+        rejected: true,
+        afterSourceChange: { date: null, status: 'importing' },
+        failedWrite: true,
+        afterFailedWrite: { date: null, status: 'importing' },
+        committed: true,
+        afterCommit: { date: timestamp, status: 'completed' },
+    });
 });

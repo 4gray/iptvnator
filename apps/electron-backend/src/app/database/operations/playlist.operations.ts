@@ -28,7 +28,7 @@ import type {
 } from '@iptvnator/shared/interfaces';
 import {
     setConditionalCatalogState,
-    setXtreamStartupRefreshDate,
+    completeXtreamStartupRefresh,
 } from './xtream-catalog-state';
 import { deleteExplicitCategoryVisibility } from './category-visibility';
 import {
@@ -450,7 +450,7 @@ export async function updatePlaylist(
             typeof updates.updateDate !== 'number'
         )
             return { success: false };
-        return setXtreamStartupRefreshDate(db, updates.updateDate, condition);
+        return completeXtreamStartupRefresh(db, updates.updateDate, condition);
     }
     const { xtreamContentTypes, ...columns } = updates;
     const payload =

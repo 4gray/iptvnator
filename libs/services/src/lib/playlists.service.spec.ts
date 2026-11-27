@@ -2974,7 +2974,7 @@ describe('PlaylistsService', () => {
             );
             await writing;
             const persistentDate = firstValueFrom(
-                service.persistXtreamStartupUpdateDate(original, 73)
+                service.completeXtreamStartupRefresh(original, 73)
             );
             await new Promise((resolve) => setTimeout(resolve, 0));
             const writesBeforeEditFinished = partialUpdate.mock.calls.length;

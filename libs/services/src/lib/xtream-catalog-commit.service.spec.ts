@@ -1,6 +1,6 @@
 import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import {
-    persistXtreamStartupUpdateDate,
+    completeXtreamStartupRefresh,
     XtreamCatalogCommitService,
 } from './xtream-catalog-commit.service';
 
@@ -108,7 +108,7 @@ it.each([true, false])(
     async (success) => {
         update.mockResolvedValue({ success });
         await expect(
-            persistXtreamStartupUpdateDate({ ...playlist, updateDate: 42 }, 73)
+            completeXtreamStartupRefresh({ ...playlist, updateDate: 42 }, 73)
         ).resolves.toBe(success);
         expect(update).toHaveBeenCalledWith(
             playlist._id,

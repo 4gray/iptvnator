@@ -1,7 +1,5 @@
 import { Injector } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { of, throwError } from 'rxjs';
-import { PlaylistsService } from '@iptvnator/services';
 import { NotificationService } from '@iptvnator/services/notifications';
 import { XtreamStartupRefreshService } from '@iptvnator/services/xtream-startup-refresh';
 import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
@@ -23,14 +21,7 @@ it.each([true, false])(
                 {
                     provide: XtreamStartupRefreshService,
                     useValue: {
-                        refreshLive: async () => replaced,
-                        recordUpdate: () => undefined,
-                    },
-                },
-                {
-                    provide: PlaylistsService,
-                    useValue: {
-                        persistXtreamStartupUpdateDate: () => of(true),
+                        refreshLive: async () => (replaced ? 42 : false),
                     },
                 },
                 { provide: Store, useValue: { dispatch: () => undefined } },
@@ -75,20 +66,14 @@ it('continues after an unavailable source and publishes only a saved refresh', a
     const refreshLive = jest
         .fn()
         .mockRejectedValueOnce(new Error('Offline'))
-        .mockResolvedValue(true);
-    const recordUpdate = jest.fn();
+        .mockResolvedValue(42);
     const dispatch = jest.fn();
     const error = jest.fn();
-    const persistXtreamStartupUpdateDate = jest.fn(() => of(true));
     const injector = Injector.create({
         providers: [
             {
                 provide: XtreamStartupRefreshService,
-                useValue: { refreshLive, recordUpdate },
-            },
-            {
-                provide: PlaylistsService,
-                useValue: { persistXtreamStartupUpdateDate },
+                useValue: { refreshLive },
             },
             { provide: Store, useValue: { dispatch } },
             { provide: NotificationService, useValue: { error } },
@@ -97,17 +82,8 @@ it('continues after an unavailable source and publishes only a saved refresh', a
     try {
         await refreshXtreamPlaylistsOnStartup(injector, [source, portal]);
         expect(refreshLive.mock.calls).toEqual([[source], [portal]]);
-        expect(persistXtreamStartupUpdateDate).toHaveBeenCalledTimes(1);
-        expect(persistXtreamStartupUpdateDate).toHaveBeenCalledWith(
-            portal,
-            expect.any(Number)
-        );
-        expect(recordUpdate).toHaveBeenCalledWith(
-            portal._id,
-            expect.any(Number)
-        );
         expect(dispatch).toHaveBeenCalledWith(
-            expect.objectContaining({ playlistId: portal._id })
+            expect.objectContaining({ playlistId: portal._id, updateDate: 42 })
         );
         expect(error).toHaveBeenCalledWith(
             'HOME.PLAYLISTS.XTREAM_STARTUP_REFRESH_FAILED'
@@ -117,87 +93,19 @@ it('continues after an unavailable source and publishes only a saved refresh', a
     }
 });
 
-it.each([
-    ['open source', source, true],
-    ['changed source', { ...source, userAgent: 'Changed client' }, false],
-    ['disabled source', { ...source, autoRefresh: false }, false],
-    [
-        'source without live TV',
-        { ...source, xtreamContentTypes: ['movie'] },
-        false,
-    ],
-    ['newer source', { ...source, updateDate: 42 }, false],
-])(
-    'handles timestamp persistence failure for the %s',
-    async (_label, current, publish) => {
-        const recordUpdate = jest.fn();
-        const dispatch = jest.fn();
-        const error = jest.fn();
-        const injector = Injector.create({
-            providers: [
-                {
-                    provide: XtreamStartupRefreshService,
-                    useValue: {
-                        refreshLive: async () => true,
-                        recordUpdate,
-                    },
-                },
-                {
-                    provide: PlaylistsService,
-                    useValue: {
-                        persistXtreamStartupUpdateDate: () =>
-                            throwError(
-                                () => new Error('Synthetic timestamp failure')
-                            ),
-                    },
-                },
-                {
-                    provide: Store,
-                    useValue: { dispatch, select: () => of([current]) },
-                },
-                { provide: NotificationService, useValue: { error } },
-            ],
-        });
-        try {
-            await refreshXtreamPlaylistsOnStartup(injector, [source]);
-            expect(recordUpdate).toHaveBeenCalledTimes(Number(publish));
-            expect(dispatch).toHaveBeenCalledTimes(Number(publish));
-            if (publish)
-                expect(dispatch).toHaveBeenCalledWith(
-                    expect.objectContaining({
-                        playlistId: source._id,
-                        updateDate: expect.any(Number),
-                    })
-                );
-            expect(error).toHaveBeenCalledTimes(1);
-        } finally {
-            injector.destroy();
-        }
-    }
-);
-
-it('does not publish an update that the database rejected for a changed source', async () => {
-    const recordUpdate = jest.fn();
+it('does not publish an update superseded before catalog completion', async () => {
     const dispatch = jest.fn();
     const injector = Injector.create({
         providers: [
             {
                 provide: XtreamStartupRefreshService,
-                useValue: {
-                    refreshLive: async () => true,
-                    recordUpdate,
-                },
-            },
-            {
-                provide: PlaylistsService,
-                useValue: { persistXtreamStartupUpdateDate: () => of(false) },
+                useValue: { refreshLive: async () => false },
             },
             { provide: Store, useValue: { dispatch } },
         ],
     });
     try {
         await refreshXtreamPlaylistsOnStartup(injector, [source]);
-        expect(recordUpdate).not.toHaveBeenCalled();
         expect(dispatch).not.toHaveBeenCalled();
     } finally {
         injector.destroy();

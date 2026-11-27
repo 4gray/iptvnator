@@ -70,7 +70,7 @@ export function xtreamStartupRefreshCondition(playlist: PlaylistMeta) {
     };
 }
 
-export async function persistXtreamStartupUpdateDate(
+export async function completeXtreamStartupRefresh(
     playlist: PlaylistMeta,
     updateDate: number
 ): Promise<boolean> {

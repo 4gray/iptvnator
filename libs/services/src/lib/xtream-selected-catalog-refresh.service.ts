@@ -1,4 +1,5 @@
 import { inject, Injectable, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import {
     PlaylistMeta,
     XtreamContentType,
@@ -7,6 +8,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { DatabaseService } from './database-electron.service';
 import { ParentalLockLockStore } from './parental-lock';
+import { PlaylistsService } from './playlists.service';
 import { SourceActivityService } from './source-activity.service';
 import {
     markImportUnfinished,
@@ -58,6 +60,7 @@ export class XtreamSelectedCatalogRefreshService {
     private readonly deferred = inject(XtreamDeferredCatalogRestoreService);
     private readonly activity = inject(SourceActivityService);
     private readonly commit = inject(XtreamCatalogCommitService);
+    private readonly playlists = inject(PlaylistsService);
     private readonly progressState =
         signal<XtreamSelectedCatalogProgress | null>(null);
     readonly progress = this.progressState.asReadonly();
@@ -74,7 +77,7 @@ export class XtreamSelectedCatalogRefreshService {
         playlist: PlaylistMeta,
         catalog: FetchedXtreamCatalog,
         readRetainedCategoryIds?: () => Promise<[number, number][]>
-    ): Promise<boolean> {
+    ): Promise<number | false> {
         return this.replace(playlist, ['live'], undefined, {
             catalog,
             readRetainedCategoryIds,
@@ -89,7 +92,7 @@ export class XtreamSelectedCatalogRefreshService {
             catalog: FetchedXtreamCatalog;
             readRetainedCategoryIds?: () => Promise<[number, number][]>;
         }
-    ): Promise<boolean> {
+    ): Promise<number | false> {
         if (!types.length) return false;
         const pendingRestore = this.pending.getOrThrow(playlist._id);
         if (startup && pendingRestore) return false;
@@ -114,6 +117,7 @@ export class XtreamSelectedCatalogRefreshService {
         let metadataAccepted = false;
         let keepPreparedRecovery = false;
         let retainedCategoryIds: [number, number][] | undefined;
+        let updateDate: number | false = false;
         const priorStatuses = new Map<XtreamContentType, string | null>();
         const publish = (
             type: XtreamContentType | null,
@@ -136,9 +140,7 @@ export class XtreamSelectedCatalogRefreshService {
                 retainedCategoryIds = await startup.readRetainedCategoryIds?.();
             }
             // Fetch before deleting any cache. A provider failure leaves the saved catalog intact.
-            const catalogs: FetchedXtreamCatalog[] = startup
-                ? [startup.catalog]
-                : [];
+            const catalogs = startup ? [startup.catalog] : [];
             for (const type of startup ? [] : types) {
                 publish(type, 'loading-categories');
                 const categories = await this.fetcher.categories(
@@ -267,11 +269,18 @@ export class XtreamSelectedCatalogRefreshService {
                 );
                 if (content.length > 0 && count === 0)
                     throw new Error('Saving the refreshed catalog failed.');
-                await this.commit.setState(
-                    playlist,
-                    `xtream-import-status:${playlist._id}:${type}`,
-                    'completed'
-                );
+                if (startup) {
+                    updateDate = await firstValueFrom(
+                        this.playlists.completeXtreamStartupRefresh(playlist)
+                    );
+                    if (updateDate === false) throw STARTUP_REFRESH_SUPERSEDED;
+                } else {
+                    await this.commit.setState(
+                        playlist,
+                        `xtream-import-status:${playlist._id}:${type}`,
+                        'completed'
+                    );
+                }
                 incomplete.delete(type);
             }
             publish(null, 'restoring');
@@ -301,7 +310,7 @@ export class XtreamSelectedCatalogRefreshService {
             );
             if (result === 'consume-failed')
                 throw new Error('Could not finish source restore.');
-            return true;
+            return updateDate;
         } catch (error) {
             let rollbackSucceeded = false;
             if (

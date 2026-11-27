@@ -776,12 +776,18 @@ export class PlaylistsService {
         return this.updatePlaylistMetaInQueue(updatedPlaylist);
     }
 
-    persistXtreamStartupUpdateDate(playlist: PlaylistMeta, updateDate: number) {
+    completeXtreamStartupRefresh(
+        playlist: PlaylistMeta,
+        updateDate = Date.now()
+    ) {
         return this.serializePlaylistWrite(playlist._id, async () => {
-            const { persistXtreamStartupUpdateDate } = await import(
-                './xtream-catalog-commit.service'
+            const { completeXtreamStartupRefresh } =
+                await import('./xtream-catalog-commit.service');
+            const completed = await completeXtreamStartupRefresh(
+                playlist,
+                updateDate
             );
-            return persistXtreamStartupUpdateDate(playlist, updateDate);
+            return completed ? updateDate : false;
         });
     }
 

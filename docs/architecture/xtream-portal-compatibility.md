@@ -402,16 +402,17 @@ activity to finish and rechecks the saved connection, preference and catalog
 selection. The worker checks the connection, preference, live selection and
 previous timestamp again in the transaction that starts invalidation. It drops
 a superseded refresh without touching the saved catalog. Timestamp publication
-uses the playlist write queue and the same worker condition. A successful
-refresh publishes the catalog timestamp so an open
-Xtream view can reread live rows and refresh its search without resetting
-playback. The Electron second-stream picker waits for live replacement before
+and catalog completion share a SQLite transaction through the playlist write
+queue. The worker rechecks the full source condition before committing both.
+A superseded replacement clears its newly written cache and keeps user-state
+recovery for the next catalog load. A successful refresh publishes the
+committed timestamp so an open Xtream view can reread live rows and refresh
+its search without resetting playback. The Electron second-stream picker waits for live replacement before
 reading a source, Favorites or Recently Viewed. An open live picker can show
 the cached channels during the provider fetch and reloads after the replacement
 commits. It keeps the SQLite category ID for history and the provider category
-ID for parental locks. If saving the timestamp fails, the view still reloads for the same
-source in the current session. Open Favorites and Recently
-Viewed reload their rows after the commit. A detail favorite reread waits for
+ID for parental locks. Open Favorites and Recently Viewed reload their rows
+after the commit. A detail favorite reread waits for
 a pending toggle of the same item. SQLite live favorite toggles,
 playback history writes and item removals wait for in-flight source work.
 They hold the source from channel lookup through the write and resolve the

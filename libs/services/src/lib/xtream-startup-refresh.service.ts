@@ -30,10 +30,6 @@ export class XtreamStartupRefreshService {
 
     private readonly removedLiveCategories = new Map<string, Set<number>>();
 
-    recordUpdate(playlistId: string, updateDate: number): void {
-        this.publishedUpdates.set(playlistId, updateDate);
-    }
-
     matchesUpdate(playlistId: string, updateDate: number): boolean {
         return this.publishedUpdates.get(playlistId) === updateDate;
     }
@@ -49,7 +45,7 @@ export class XtreamStartupRefreshService {
         );
     }
 
-    async refreshLive(playlist: PlaylistMeta): Promise<boolean> {
+    async refreshLive(playlist: PlaylistMeta): Promise<number | false> {
         await this.locks.initialize();
         if (!this.locks.locksReadable()) {
             throw new Error('Could not read parental locks for the refresh.');
@@ -110,7 +106,8 @@ export class XtreamStartupRefreshService {
                 return retained;
             }
         );
-        if (refreshed) {
+        if (refreshed !== false) {
+            this.publishedUpdates.set(playlist._id, refreshed);
             this.removedLiveCategories.set(playlist._id, removed);
             this.activity.notifyLiveCatalogReplacement(playlist._id);
         }
