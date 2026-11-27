@@ -34,6 +34,10 @@ describe.each(['browser', 'electron'])(
     'favorite channel folders (%s)',
     (runtime) => {
         const originalElectron = window.electron;
+        const originalLocks = Object.getOwnPropertyDescriptor(
+            navigator,
+            'locks'
+        );
         const legacyOrder = JSON.stringify(['synthetic-2', 'synthetic-1']);
         let documents: Map<string, string>;
         let rejectWrite: boolean;
@@ -81,6 +85,15 @@ describe.each(['browser', 'electron'])(
         }
 
         beforeEach(() => {
+            Object.defineProperty(navigator, 'locks', {
+                configurable: true,
+                value: {
+                    request: (
+                        _key: string,
+                        operation: () => Promise<unknown>
+                    ) => operation(),
+                },
+            });
             documents = new Map([[legacyKey, legacyOrder]]);
             rejectWrite = false;
             saved = [channel, xtream, stalker];
@@ -102,6 +115,11 @@ describe.each(['browser', 'electron'])(
 
         afterEach(() => {
             window.electron = originalElectron;
+            if (originalLocks) {
+                Object.defineProperty(navigator, 'locks', originalLocks);
+            } else {
+                Reflect.deleteProperty(navigator, 'locks');
+            }
         });
 
         it('reopens an old profile unchanged, writes bulk assignments and deletes a folder in one document', async () => {

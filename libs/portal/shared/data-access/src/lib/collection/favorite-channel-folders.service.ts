@@ -10,6 +10,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
     RuntimeCapabilitiesService,
     USER_DATA_STORAGE,
+    withIndexedDbExclusiveAccess,
 } from '@iptvnator/services';
 import {
     FavoriteChannelMembershipEvents,
@@ -201,7 +202,7 @@ export class FavoriteChannelFoldersService {
     }
 
     create(name: string): Promise<string> {
-        return this.enqueue(async () => {
+        return this.mutate(async () => {
             const current = await this.read();
             const id = createRandomId();
             const folder = { id, name: validateName(current.folders, name) };
@@ -214,7 +215,7 @@ export class FavoriteChannelFoldersService {
     }
 
     rename(id: string, name: string): Promise<void> {
-        return this.enqueue(async () => {
+        return this.mutate(async () => {
             const current = await this.read();
             this.requireFolder(current, id);
             const nextName = validateName(current.folders, name, id);
@@ -228,7 +229,7 @@ export class FavoriteChannelFoldersService {
     }
 
     remove(id: string): Promise<void> {
-        return this.enqueue(async () => {
+        return this.mutate(async () => {
             const current = await this.read();
             this.requireFolder(current, id);
             const assignments = { ...current.assignments };
@@ -248,7 +249,7 @@ export class FavoriteChannelFoldersService {
         destination: string | null | { name: string },
         options?: { add?: boolean }
     ): Promise<void> {
-        return this.enqueue(async () => {
+        return this.mutate(async () => {
             const digest = await this.prepareDigest();
             const keys = items.map((item) => channelKey(item, digest));
             if (
@@ -308,7 +309,7 @@ export class FavoriteChannelFoldersService {
     }
 
     unfile(items: readonly FolderChannel[]): Promise<void> {
-        return this.enqueue(async () => {
+        return this.mutate(async () => {
             const current = await this.read();
             if (!current.pendingAdd && !Object.keys(current.assignments).length)
                 return;
@@ -369,12 +370,20 @@ export class FavoriteChannelFoldersService {
             throw new Error('Favorite folder no longer exists');
     }
 
+    private mutate<T>(action: () => Promise<T>): Promise<T> {
+        return this.enqueue(() => {
+            const locks = navigator.locks;
+            if (locks) return locks.request(this.scopedKey, action);
+            if (this.native) return action();
+            return withIndexedDbExclusiveAccess(
+                `iptvnator-favorite-folders:${this.scopedKey}`,
+                action
+            );
+        });
+    }
+
     private enqueue<T>(action: () => Promise<T>): Promise<T> {
-        const operation = this.queue.then(() =>
-            navigator.locks
-                ? navigator.locks.request(this.scopedKey, action)
-                : action()
-        );
+        const operation = this.queue.then(action);
         this.queue = operation.catch(() => undefined);
         return operation;
     }

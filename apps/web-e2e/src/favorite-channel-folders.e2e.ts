@@ -221,6 +221,39 @@ async function createFolder(page: Page, name: string, button: Locator) {
     await expect(folder(page, name)).toBeVisible();
 }
 
+test('@m3u @collections preserves concurrent folder edits without Web Locks', async ({
+    page,
+    context,
+}) => {
+    await context.addInitScript(() => {
+        Object.defineProperty(navigator, 'locks', { value: undefined });
+    });
+    await seedLegacyProfile(page);
+    const peer = await context.newPage();
+    await peer.goto('/workspace/global-favorites');
+
+    const tabs = [page, peer];
+    const names = ['Synthetic first folder', 'Synthetic second folder'];
+    await Promise.all(
+        tabs.map(async (tab, index) => {
+            await tab.locator('[data-test-id="favorite-first-folder"]').click();
+            await dialog(tab)
+                .getByRole('textbox', { name: 'Folder name' })
+                .fill(names[index]);
+        })
+    );
+    await Promise.all(
+        tabs.map((tab) => dialog(tab).locator('form').dispatchEvent('submit'))
+    );
+    for (const tab of tabs) {
+        await expect(dialog(tab)).toHaveCount(0);
+        for (const name of names) await expect(folder(tab, name)).toBeVisible();
+    }
+
+    await peer.reload();
+    for (const name of names) await expect(folder(peer, name)).toBeVisible();
+});
+
 async function chooseDestination(page: Page, name: string) {
     await dialog(page)
         .getByRole('combobox', { name: 'Destination folder' })

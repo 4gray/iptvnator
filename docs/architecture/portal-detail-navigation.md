@@ -545,6 +545,8 @@ SQLite app-state bridge when available. Browser/PWA uses `USER_DATA_STORAGE`.
 The connected profile has its own document, and folder organization is local to
 the device. The existing provider membership stores, favorite ordering, and
 optional favorite synchronization still own their respective data.
+Browser writes serialize across tabs. On HTTP origins without Web Locks, a
+dedicated IndexedDB connection holds exclusive ownership through the write.
 
 The assignment key contains the source kind, playlist ID and channel identity.
 For M3U, it stores a SHA-256 digest of the URL used to identify the favorite.
