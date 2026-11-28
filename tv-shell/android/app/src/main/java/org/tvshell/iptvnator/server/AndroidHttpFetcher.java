@@ -7,6 +7,7 @@ import org.tvshell.iptvnator.backend.HttpFetcher;
 import org.tvshell.iptvnator.backend.ProviderException;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -14,11 +15,46 @@ import java.net.Proxy;
 import java.net.ProxySelector;
 import java.net.Socket;
 import java.net.URI;
+import java.net.URL;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import okhttp3.Call;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 final class AndroidHttpFetcher extends HttpFetcher {
+    private final OkHttpClient playlistClient = new OkHttpClient.Builder()
+        .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build();
+
+    @Override protected ProviderResponse openResponse(URL url, Map<String, String> headers, int timeoutMs,
+                                                      Cancellation cancellation) throws IOException, ProviderException {
+        if (cancellation == null) return super.openResponse(url, headers, timeoutMs, null);
+        Request.Builder request = new Request.Builder().url(url);
+        for (Map.Entry<String, String> header : headers.entrySet())
+            request.header(header.getKey(), header.getValue());
+        Call call = playlistClient.newBuilder()
+            .connectTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+            .readTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+            .build().newCall(request.build());
+        cancellation.attach(call::cancel);
+        Response response = call.execute();
+        ResponseBody body = response.body();
+        return new ProviderResponse() {
+            @Override public int status() { return response.code(); }
+            @Override public String message() { return response.message(); }
+            @Override public String header(String name) { return response.header(name); }
+            @Override public long contentLength() { return body == null ? -1 : body.contentLength(); }
+            @Override public InputStream body() throws IOException {
+                if (body == null) throw new IOException("Provider response body is missing");
+                return body.byteStream();
+            }
+            @Override public void close() { response.close(); }
+        };
+    }
+
     @Override
     public Result testConnection(String url, Map<String, String> headers, int timeoutMs) throws ProviderException {
         URI target = URI.create(url).resolve("/");

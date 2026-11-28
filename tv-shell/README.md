@@ -23,7 +23,8 @@ APK
 The local library gives manual M3U imports and refreshes a 120-second provider
 idle timeout per HTTP hop. Background playlist downloads use 30 seconds.
 When a user cancels URL import, the PWA passes the download ID to the loopback
-server so it can close that provider connection.
+server. Cancellable provider downloads use an OkHttp call that accepts
+cancellation before the connection opens as well as during the download.
 
 ## Hosted library connection
 

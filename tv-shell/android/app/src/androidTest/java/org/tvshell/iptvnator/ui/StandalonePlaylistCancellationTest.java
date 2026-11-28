@@ -58,6 +58,14 @@ public class StandalonePlaylistCancellationTest extends TestCase {
                 assertEquals(204, response.code());
             }
             assertEquals(409, downloading.get(4, TimeUnit.SECONDS).intValue());
+            release.countDown();
+            Request retry = new Request.Builder().url(base + "parse?targetId=" + target
+                + "&requestId=00000000-0000-4000-8000-000000000002").build();
+            try (Response response = client.newCall(retry).execute()) {
+                assertEquals(200, response.code());
+                assertEquals("Synthetic channel", new JSONObject(response.body().string())
+                    .getJSONObject("playlist").getJSONArray("items").getJSONObject(0).getString("name"));
+            }
         } finally {
             release.countDown();
             worker.shutdownNow();

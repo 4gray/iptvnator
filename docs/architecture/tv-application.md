@@ -721,7 +721,8 @@ Failed activation offers Retry Home title or Retry favorite
 for its initiating surface. Retained activity
 whose source is no longer available remains visible with an unavailable-source
 label and a recovery message, without borrowing another source's provider.
-Explicit local source removal still removes that source's viewing data.
+Explicit local source removal still removes that source's viewing data. A queued
+progress save or retry checks that the source still exists before writing.
 Global history is local TV activity, without cross-device synchronization or
 parallel connections to every provider.
 Playback-resolution retries retain the full originating control and scroll,

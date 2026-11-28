@@ -61,7 +61,12 @@ export function useUserData(
         const removeScreensaver = installTvScreensaver(video.current!);
         player.current = new NativePlayer(
             video.current!,
-            (p) => update((d) => recordProgress(d, p)),
+            (p) =>
+                update((d) =>
+                    d.sources.some((source) => source.id === p.item.sourceId)
+                        ? recordProgress(d, p)
+                        : d
+                ),
             (message) => callbacks.current.report(message),
             () => callbacks.current.tick(),
             (message, retry) => callbacks.current.saveFailure(message, retry),
