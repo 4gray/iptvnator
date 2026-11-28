@@ -37,7 +37,7 @@ async function enable(page: Page) {
     await openSettingsSection(page, 'server');
     await page.getByTestId('history-sync-enable').getByRole('checkbox').check();
     await expect(
-        page.getByTestId('history-sync-settings').getByRole('status')
+        page.getByTestId('history-sync-state')
     ).toHaveText('History synchronized', { timeout: 30000 });
 }
 for (const provider of ['xtream', 'stalker'] as const)
@@ -140,8 +140,10 @@ for (const provider of ['xtream', 'stalker'] as const)
                     .click();
                 await page.waitForURL(/\/workspace\/global-recent$/);
                 await contentCardByTitle(page, title).click();
+                // The title was just played, so the detail page offers "Continue"
+                // from the saved position; "Play" only shows without one.
                 await expect(
-                    page.getByRole('button', { name: /^(Play|Resume)\b/ })
+                    page.getByRole('button', { name: /^(Play|Continue)\b/ })
                 ).toBeEnabled();
                 expect((await read()).state.revision).toBe(first.revision);
             }

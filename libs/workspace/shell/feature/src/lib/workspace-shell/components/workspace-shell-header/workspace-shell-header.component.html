@@ -41,12 +41,18 @@
             class="context-drawer-toggle"
             mat-icon-button
             data-test-id="context-drawer-toggle"
+            [attr.data-favorite-folder-drawer-toggle]="
+                isFavoriteFolderDrawer() ? '' : null
+            "
             (click)="onContextDrawerToggleRequested()"
             [matTooltip]="contextDrawerTooltipKey() | translate"
             [attr.aria-label]="contextDrawerToggleAriaKey() | translate"
             [attr.aria-expanded]="isContextDrawerOpen()"
+            aria-haspopup="dialog"
         >
-            <mat-icon>menu_open</mat-icon>
+            <mat-icon>{{
+                isFavoriteFolderDrawer() ? 'folder_open' : 'menu_open'
+            }}</mat-icon>
         </button>
     }
 

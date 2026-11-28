@@ -13,6 +13,7 @@ import {
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
+    WorkspaceFavoriteFoldersPanel,
     WorkspaceHeaderContextService,
     WorkspaceViewCommandService,
 } from '@iptvnator/portal/shared/util';
@@ -763,6 +764,36 @@ describe('WorkspaceShellFacade', () => {
         expect(facade.searchScopeLabel()).toBe(
             'HOME.PLAYLISTS.GLOBAL_FAVORITES'
         );
+    });
+
+    it('shows the folder panel only when global Favorites publishes its live panel', () => {
+        const folders = TestBed.inject(WorkspaceFavoriteFoldersPanel);
+        facade.currentUrl.set('/workspace/global-favorites');
+        expect(facade.showContextPanel()).toBe(false);
+
+        folders.set({
+            entries: [{ id: 'folder-1', name: 'Example folder', count: 0 }],
+            selectedId: 'all',
+            onSelect: jest.fn(),
+            onCreate: jest.fn(),
+            onCollapse: jest.fn(),
+            onRename: jest.fn(),
+            onRemove: jest.fn(),
+        });
+
+        expect(facade.contextPanel()).toBe('favorite-folders');
+        expect(facade.showContextPanel()).toBe(true);
+        expect(facade.hasContextPanelContent()).toBe(true);
+        expect(facade.contextDrawerLabelKeys().aria).toBe(
+            'WORKSPACE.FAVORITE_FOLDERS.OPEN_FOLDERS'
+        );
+
+        facade.currentUrl.set('/workspace/global-recent');
+        expect(facade.showContextPanel()).toBe(false);
+
+        facade.currentUrl.set('/workspace/global-favorites');
+        folders.clear();
+        expect(facade.showContextPanel()).toBe(false);
     });
 
     it('removes the dashboard rail link when dashboard is hidden', () => {

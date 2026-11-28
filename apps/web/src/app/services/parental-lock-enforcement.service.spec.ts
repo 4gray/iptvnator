@@ -7,8 +7,12 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
-import { ParentalLockService } from '@iptvnator/services';
+import {
+    ParentalLockLockStore,
+    ParentalLockService,
+} from '@iptvnator/services';
 import { ParentalLockEnforcementService } from './parental-lock-enforcement.service';
+import { DeferredExternalSessions } from './parental-lock-external-sessions.deferred';
 import { PlaybackKeepAwakeService } from './playback-keep-awake.service';
 
 interface Applier {
@@ -92,6 +96,10 @@ describe('ParentalLockEnforcementService', () => {
         TestBed.configureTestingModule({
             providers: [
                 { provide: ParentalLockService, useValue: parentalLock },
+                {
+                    provide: ParentalLockLockStore,
+                    useValue: { revision: signal(0), lockSet: () => ({}) },
+                },
                 { provide: XtreamStore, useValue: xtreamStore },
                 { provide: XTREAM_DATA_SOURCE, useValue: xtreamDataSource },
                 { provide: StalkerStore, useValue: stalkerStore },
@@ -482,6 +490,10 @@ describe('ParentalLockEnforcementService apply serialization', () => {
                         isM3uGroupLocked: jest.fn(() => false),
                     },
                 },
+                {
+                    provide: ParentalLockLockStore,
+                    useValue: { revision: signal(0), lockSet: () => ({}) },
+                },
                 { provide: XtreamStore, useValue: xtreamStore },
                 {
                     // No rows: the selected category cannot be placed and
@@ -546,17 +558,48 @@ describe('ParentalLockEnforcementService apply serialization', () => {
 });
 
 describe('ParentalLockEnforcementService busy probe', () => {
-    it('counts playing audio (the radio player) as activity', () => {
-        let probe: (() => boolean) | undefined;
+    let probe: (() => boolean) | undefined;
+    let version: ReturnType<typeof signal<number>>;
+    let active: ReturnType<typeof signal<boolean>>;
+    let externalSessions: {
+        isBusy: jest.SpyInstance<boolean, []>;
+        onLockChange: jest.SpyInstance<void, []>;
+    };
+
+    afterEach(() => {
+        externalSessions.isBusy.mockRestore();
+        externalSessions.onLockChange.mockRestore();
+    });
+
+    beforeEach(() => {
+        probe = undefined;
+        version = signal(0);
+        active = signal(false);
+        // The tracker itself loads after the first screen, where a bridge
+        // reports players outside the page; the eager half is what counts.
+        externalSessions = {
+            isBusy: jest
+                .spyOn(DeferredExternalSessions.prototype, 'isBusy')
+                .mockReturnValue(false),
+            onLockChange: jest
+                .spyOn(DeferredExternalSessions.prototype, 'onLockChange')
+                .mockImplementation(),
+        };
         TestBed.resetTestingModule();
         TestBed.configureTestingModule({
             providers: [
                 {
                     provide: ParentalLockService,
                     useValue: {
-                        version: signal(0),
+                        version,
+                        active,
+                        isM3uGroupLocked: () => false,
                         registerBusyProbe: (fn: () => boolean) => (probe = fn),
                     },
+                },
+                {
+                    provide: ParentalLockLockStore,
+                    useValue: { revision: signal(0), lockSet: () => ({}) },
                 },
                 { provide: XtreamStore, useValue: {} },
                 { provide: XTREAM_DATA_SOURCE, useValue: {} },
@@ -574,6 +617,25 @@ describe('ParentalLockEnforcementService busy probe', () => {
         });
         const service = TestBed.inject(ParentalLockEnforcementService);
         TestBed.runInInjectionContext(() => service.start());
+        TestBed.flushEffects();
+    });
+
+    it('counts players outside the page (Embedded MPV, MPV/VLC films)', () => {
+        expect(probe?.()).toBe(false);
+
+        externalSessions.isBusy.mockReturnValue(true);
+        expect(probe?.()).toBe(true);
+    });
+
+    it('hands a relock to the external session closer', () => {
+        active.set(true);
+        version.set(1);
+        TestBed.flushEffects();
+
+        expect(externalSessions.onLockChange).toHaveBeenCalledTimes(1);
+    });
+
+    it('counts playing audio (the radio player) as activity', () => {
         expect(probe?.()).toBe(false);
 
         const audio = document.createElement('audio');

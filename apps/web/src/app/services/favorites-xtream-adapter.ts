@@ -43,17 +43,24 @@ export class FavoritesXtreamAdapter {
         raw: IXtreamDataSource,
         sourceId: string,
         hydrate = false,
-        target?: XtreamRef
+        target?: XtreamRef,
+        strict = false
     ): Promise<XtreamFavoriteItem[]> {
         const assertCurrent = captureFavoriteOwner(this.client, sourceId);
-        if (this.locks.withholdsEverything()) return [];
+        const unavailable = () => {
+            if (strict) throw new Error('Favorite membership is unavailable');
+            return [];
+        };
+        if (this.locks.withholdsEverything()) return unavailable();
         const lockVersion = this.locks.version();
         const matchesTarget = (ref: XtreamRef) =>
             !target ||
             favoriteReferenceKey(ref) === favoriteReferenceKey(target);
-        const local = (await raw.getFavorites(sourceId, hydrate)).filter(
-            (item) => matchesTarget(xtreamFavoriteReference(item))
-        );
+        const local = (
+            strict
+                ? await raw.getFavorites(sourceId, hydrate, true)
+                : await raw.getFavorites(sourceId, hydrate)
+        ).filter((item) => matchesTarget(xtreamFavoriteReference(item)));
         const catalogs = new Map<XtreamRef['kind'], XtreamContentItem[]>();
         const mapped = new Map(
             local.map((item) => [
@@ -205,7 +212,7 @@ export class FavoritesXtreamAdapter {
         assertCurrent();
         return this.locks.withholdsEverything() ||
             this.locks.version() !== lockVersion
-            ? []
+            ? unavailable()
             : [...mapped.values()];
     }
     async reference(
@@ -247,8 +254,16 @@ export class FavoritesXtreamAdapter {
         return xtreamFavoriteReference(catalog[0]);
     }
     async invoke(raw: IXtreamDataSource, method: string, args: unknown[]) {
-        if (method === 'getFavorites')
-            return this.project(raw, String(args[0]), true);
+        if (method === 'getFavorites') {
+            const strict = args[2] === true;
+            return this.project(
+                raw,
+                String(args[0]),
+                !strict,
+                undefined,
+                strict
+            );
+        }
         const [target, sourceId] = args as [XtreamCollectionRef, string];
         const assertCurrent = captureFavoriteOwner(this.client, sourceId);
         const ref = await this.reference(raw, sourceId, target);

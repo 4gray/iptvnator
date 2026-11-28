@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
 import { NotificationService } from '@iptvnator/services/notifications';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -6,6 +6,8 @@ import { PlaylistActions } from '@iptvnator/m3u-state';
 import { DialogService } from '@iptvnator/ui/components/confirm-dialog';
 import {
     DataService,
+    type ExternalSessionLaunch,
+    ParentalLockExternalLaunches,
     type PlaylistDefinitionFetchOptions,
     type PlaylistImportRecovery,
     SettingsStore,
@@ -50,6 +52,7 @@ import {
 
 interface PlayerLaunchPayload {
     readonly launchId?: string;
+    readonly parentalLaunch?: ExternalSessionLaunch;
     readonly headers?: Record<string, string>;
     readonly origin?: string;
     readonly referer?: string;
@@ -73,6 +76,7 @@ export class ElectronService extends DataService {
     private eventListeners: { [key: string]: () => void } = {};
     private messageListeners = new Map<string, EventListener>();
     private readonly sourceActivity = inject(SourceActivityService);
+    private readonly injector = inject(Injector);
     private readonly notifications = inject(NotificationService);
     private readonly dialogService = inject(DialogService);
     private readonly store = inject(Store);
@@ -227,6 +231,11 @@ export class ElectronService extends DataService {
         if (type === 'OPEN_MPV_PLAYER' || type === 'OPEN_VLC_PLAYER') {
             const data = payload as PlayerLaunchPayload;
             const mpv = type === 'OPEN_MPV_PLAYER';
+            const launches = this.injector.get(ParentalLockExternalLaunches);
+            const requestId = launches.register(
+                data.parentalLaunch ??
+                    launches.capture(data.contentInfo?.playlistId)
+            );
             try {
                 return (await window.electron[mpv ? 'openInMpv' : 'openInVlc'](
                     data.url,
@@ -238,7 +247,8 @@ export class ElectronService extends DataService {
                     data.contentInfo,
                     data.startTime,
                     data.headers ?? undefined,
-                    data.launchId
+                    data.launchId,
+                    requestId
                 )) as T;
             } catch (error: unknown) {
                 this.showPlayerLaunchError(mpv ? 'MPV' : 'VLC', error);
@@ -247,6 +257,8 @@ export class ElectronService extends DataService {
                     error
                 );
                 throw error;
+            } finally {
+                launches.finish(requestId);
             }
         }
 

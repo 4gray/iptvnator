@@ -722,45 +722,69 @@ describe('content.operations', () => {
             offset: 100,
         });
 
-        expect(orderBy).toHaveBeenCalledWith(schema.playlists.name);
+        expect(orderBy).toHaveBeenCalledWith(
+            schema.playlists.name,
+            schema.playlists.id
+        );
         expect(limit).toHaveBeenCalledWith(5000);
     });
 
-    it('prefilters M3U payloads by searchable text fields instead of raw payload contains', async () => {
-        const limit = jest.fn().mockResolvedValue([]);
-        const orderedQuery = {
-            limit,
-            then: (resolve: (value: unknown[]) => void) => resolve([]),
-        };
-        const orderBy = jest.fn().mockReturnValue(orderedQuery);
-        const where = jest.fn().mockReturnValue({ orderBy });
-        const from = jest.fn().mockReturnValue({ where });
-        const select = jest.fn().mockReturnValue({ from });
-        const db = {
-            select,
-        } as unknown as AppDatabase;
+    it.each([false, true])(
+        'uses the M3U search prefilter for disabled=%s',
+        async (disabled) => {
+            const env = { ...process.env };
+            delete env['IPTVNATOR_DISABLE_M3U_BROAD_PREFILTER'];
+            if (disabled) {
+                env['IPTVNATOR_DISABLE_M3U_BROAD_PREFILTER'] = '1';
+            }
+            const replacement = jest.replaceProperty(process, 'env', env);
+            try {
+                const limit = jest.fn().mockResolvedValue([]);
+                const orderedQuery = {
+                    limit,
+                    then: (resolve: (value: unknown[]) => void) => resolve([]),
+                };
+                const orderBy = jest.fn().mockReturnValue(orderedQuery);
+                const where = jest.fn().mockReturnValue({ orderBy });
+                const from = jest.fn().mockReturnValue({ where });
+                const select = jest.fn().mockReturnValue({ from });
+                const db = {
+                    select,
+                } as unknown as AppDatabase;
 
-        await globalSearch(db, 'news', ['live'], false, ['m3u'], {
-            limit: 10,
-        });
+                await globalSearch(db, 'news', ['live'], false, ['m3u'], {
+                    limit: 10,
+                });
 
-        const searchPatterns = sqlMock.mock.calls
-            .flatMap(([, ...values]) => values)
-            .filter(
-                (value): value is string =>
-                    typeof value === 'string' &&
-                    value.toLocaleLowerCase().includes('news')
-            );
+                const searchPatterns = sqlMock.mock.calls
+                    .flatMap(([, ...values]) => values)
+                    .filter(
+                        (value): value is string =>
+                            typeof value === 'string' &&
+                            value.toLocaleLowerCase().includes('news')
+                    );
 
-        expect(searchPatterns.length).toBeGreaterThan(0);
-        expect(searchPatterns).not.toContain('%news%');
-        expect(
-            searchPatterns.every(
-                (pattern) =>
-                    pattern.includes('"name"') || pattern.includes('"title"')
-            )
-        ).toBe(true);
-    });
+                expect(searchPatterns.length).toBeGreaterThan(0);
+                if (disabled) {
+                    expect(searchPatterns).not.toContain('%news%');
+                    expect(
+                        searchPatterns.every((pattern) =>
+                            /"name"|"title"/.test(pattern)
+                        )
+                    ).toBe(true);
+                } else {
+                    expect(searchPatterns).toContain('%news%');
+                    expect(
+                        searchPatterns.some((pattern) =>
+                            /"name"|"title"/.test(pattern)
+                        )
+                    ).toBe(false);
+                }
+            } finally {
+                replacement.restore();
+            }
+        }
+    );
 
     it('finds compound-word channels anywhere in M3U channel names (issue #1161)', () => {
         const makeChannel = (id: string, name: string) => ({
@@ -1023,6 +1047,10 @@ describe('content.operations', () => {
     });
 
     it('adds compound contains patterns to the M3U payload prefilter', async () => {
+        const replacement = jest.replaceProperty(process, 'env', {
+            ...process.env,
+            IPTVNATOR_DISABLE_M3U_BROAD_PREFILTER: '1',
+        });
         const limit = jest.fn().mockResolvedValue([]);
         const orderedQuery = {
             limit,
@@ -1036,9 +1064,13 @@ describe('content.operations', () => {
             select,
         } as unknown as AppDatabase;
 
-        await globalSearch(db, 'A&E', ['live'], false, ['m3u'], {
-            limit: 10,
-        });
+        try {
+            await globalSearch(db, 'A&E', ['live'], false, ['m3u'], {
+                limit: 10,
+            });
+        } finally {
+            replacement.restore();
+        }
 
         const searchPatterns = sqlMock.mock.calls
             .flatMap(([, ...values]) => values)
@@ -1057,6 +1089,10 @@ describe('content.operations', () => {
     });
 
     it('keeps accented M3U payload text field variants in SQL prefilters', async () => {
+        const replacement = jest.replaceProperty(process, 'env', {
+            ...process.env,
+            IPTVNATOR_DISABLE_M3U_BROAD_PREFILTER: '1',
+        });
         const limit = jest.fn().mockResolvedValue([]);
         const orderedQuery = {
             limit,
@@ -1070,9 +1106,13 @@ describe('content.operations', () => {
             select,
         } as unknown as AppDatabase;
 
-        await globalSearch(db, 'Café', ['live'], false, ['m3u'], {
-            limit: 10,
-        });
+        try {
+            await globalSearch(db, 'Café', ['live'], false, ['m3u'], {
+                limit: 10,
+            });
+        } finally {
+            replacement.restore();
+        }
 
         const searchPatterns = sqlMock.mock.calls
             .flatMap(([, ...values]) => values)

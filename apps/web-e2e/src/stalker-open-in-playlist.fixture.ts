@@ -4,8 +4,8 @@ import { expect, Page } from '@playwright/test';
  * Favorites → "Open in <portal>" → the same channel selected and playing in
  * the portal's ITV section (the live counterpart of "View in portal").
  *
- * The row context menu is the entry point: it works without selecting the
- * row, unlike the EPG panel's "Open in" chip. The mock portal answers
+ * The row context menu works without selecting the row. The EPG toolbar
+ * offers the same action after selection. The mock portal answers
  * `get_all_channels`, so the layout locates the channel through the full ITV
  * list and lands in its genre.
  *
@@ -72,4 +72,21 @@ export async function verifyStalkerOpenInPlaylist(
     await expect(page.locator('app-web-player-view')).toBeVisible({
         timeout: 20_000,
     });
+
+    await page.goto('/workspace/global-favorites');
+    await favoriteRow.click();
+    const toolbarAction = page.getByRole('button', {
+        name: `Open in ${portalName}`,
+        exact: true,
+    });
+    await expect(toolbarAction).toHaveCSS('height', '32px');
+    await expect(toolbarAction).toHaveCSS('border-top-width', '0px');
+    expect(
+        await toolbarAction
+            .getByText(portalName, { exact: true })
+            .evaluate((label) => label.scrollWidth > label.clientWidth)
+    ).toBe(true);
+    await toolbarAction.press('Enter');
+    await page.waitForURL((url) => url.pathname === itvPath);
+    await expect(activeRow).toContainText(channelName);
 }

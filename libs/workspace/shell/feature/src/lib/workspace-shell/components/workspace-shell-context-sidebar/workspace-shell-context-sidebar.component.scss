@@ -63,6 +63,32 @@
     overflow: visible;
 }
 
+.context-panel--favorite-folders {
+    box-sizing: border-box;
+    // The channel rail and player share the rest of the workspace.
+    max-width: max(190px, 28vw);
+    padding-block-start: 0;
+
+    &.is-resizing {
+        transition: none;
+    }
+
+    // The directive appends the handle outside this component's style scope.
+    // Keep the hit area inside the gutter so overflow does not clip it.
+    ::ng-deep > .resize-handle {
+        right: 0;
+        width: var(--app-space-2);
+
+        @media (max-width: 640px) {
+            display: none;
+        }
+    }
+
+    &.context-panel--collapsed ::ng-deep > .resize-handle {
+        display: none;
+    }
+}
+
 .context-panel--route app-workspace-context-panel {
     display: flex;
     flex: 1;

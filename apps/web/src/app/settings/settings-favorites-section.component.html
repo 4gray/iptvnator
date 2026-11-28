@@ -1,82 +1,113 @@
-<section class="settings-group" data-test-id="favorites-sync-settings">
-    <header class="settings-group__header">
-        <h2>{{ 'FAVORITES_SYNC.TITLE' | translate }}</h2>
-        <p>{{ 'FAVORITES_SYNC.SHARED_HINT' | translate }}</p>
-    </header>
-    <div class="settings-card favorites-fields">
+<section
+    class="settings-section"
+    aria-labelledby="favorites-sync-title"
+    data-test-id="favorites-sync-settings"
+>
+    <div class="settings-section__header">
+        <h3 id="favorites-sync-title">
+            {{ 'FAVORITES_SYNC.TITLE' | translate }}
+        </h3>
+    </div>
+    <p class="settings-section__desc">
+        {{ 'FAVORITES_SYNC.SHARED_HINT' | translate }}
+    </p>
+    <div class="settings-card">
         @if (runtime(); as favorites) {
-            <mat-checkbox
-                [checked]="favorites.enabled()"
-                [disabled]="busy() || favorites.busy()"
-                (change)="toggle($event)"
-                data-test-id="favorites-sync-enabled"
-            >
-                {{ 'FAVORITES_SYNC.ENABLE' | translate }}
-            </mat-checkbox>
-            <p>{{ 'FAVORITES_SYNC.IMPORT_HINT' | translate }}</p>
-            <p>{{ 'FAVORITES_SYNC.LOCAL_HINT' | translate }}</p>
-            <app-settings-sync-status
-                [state]="favorites.state()"
-                [stateKey]="favorites.stateKey()"
-                [lastSync]="favorites.lastSync()"
-                testId="favorites-sync-state"
-            />
-            @if (failed() || favorites.error()) {
-                <p role="alert">{{ 'FAVORITES_SYNC.ERROR' | translate }}</p>
-            }
-            @if (favorites.enabled()) {
-                <div class="favorites-actions">
-                    <button
-                        type="button"
-                        mat-button
-                        (click)="refresh()"
+            <div class="setting-item">
+                <div class="setting-item__meta">
+                    <mat-checkbox
+                        class="sync-toggle"
+                        [checked]="favorites.enabled()"
                         [disabled]="busy() || favorites.busy()"
-                        data-test-id="favorites-sync-refresh"
+                        (change)="toggle($event)"
+                        data-test-id="favorites-sync-enabled"
                     >
-                        {{ 'SOURCE_SYNC.REFRESH' | translate }}
-                    </button>
-                    <button
-                        type="button"
-                        mat-flat-button
-                        (click)="previewImport()"
-                        [disabled]="busy() || favorites.busy()"
-                        data-test-id="favorites-import-preview"
-                    >
-                        {{ 'FAVORITES_SYNC.PREVIEW_IMPORT' | translate }}
-                    </button>
+                        {{ 'FAVORITES_SYNC.ENABLE' | translate }}
+                    </mat-checkbox>
+                    <p>{{ 'FAVORITES_SYNC.IMPORT_HINT' | translate }}</p>
+                    <p>{{ 'FAVORITES_SYNC.LOCAL_HINT' | translate }}</p>
                 </div>
-                @if (favorites.pending()) {
-                    <p>
-                        {{
-                            'FAVORITES_SYNC.PENDING'
-                                | translate: { count: favorites.pending() }
-                        }}
-                    </p>
+            </div>
+            <div class="setting-item">
+                <div class="setting-item__meta">
+                    <app-settings-sync-status
+                        [state]="favorites.state()"
+                        [stateKey]="favorites.stateKey()"
+                        [lastSync]="favorites.lastSync()"
+                        testId="favorites-sync-state"
+                    />
+                    @if (failed() || favorites.error()) {
+                        <p class="server-message--error" role="alert">
+                            {{ 'FAVORITES_SYNC.ERROR' | translate }}
+                        </p>
+                    }
+                    @if (favorites.enabled() && favorites.pending()) {
+                        <p>
+                            {{
+                                'FAVORITES_SYNC.PENDING'
+                                    | translate: { count: favorites.pending() }
+                            }}
+                        </p>
+                    }
+                </div>
+                @if (favorites.enabled()) {
+                    <div class="setting-item__control inline-actions">
+                        <button
+                            type="button"
+                            mat-button
+                            (click)="refresh()"
+                            [disabled]="busy() || favorites.busy()"
+                            data-test-id="favorites-sync-refresh"
+                        >
+                            <mat-icon aria-hidden="true">refresh</mat-icon>
+                            {{ 'SOURCE_SYNC.REFRESH' | translate }}
+                        </button>
+                        <button
+                            type="button"
+                            mat-flat-button
+                            (click)="previewImport()"
+                            [disabled]="busy() || favorites.busy()"
+                            data-test-id="favorites-import-preview"
+                        >
+                            <mat-icon aria-hidden="true">upload</mat-icon>
+                            {{ 'FAVORITES_SYNC.PREVIEW_IMPORT' | translate }}
+                        </button>
+                    </div>
                 }
+            </div>
+            @if (favorites.enabled()) {
                 @if (favorites.parkedCount()) {
-                    <p>
-                        {{
-                            'FAVORITES_SYNC.PARKED'
-                                | translate: { count: favorites.parkedCount() }
-                        }}
-                    </p>
-                    <div class="favorites-actions">
-                        <button
-                            type="button"
-                            mat-button
-                            (click)="parked(true)"
-                            [disabled]="busy()"
-                        >
-                            {{ 'ACTIVITY_SYNC.SEND_PENDING' | translate }}
-                        </button>
-                        <button
-                            type="button"
-                            mat-button
-                            (click)="parked(false)"
-                            [disabled]="busy()"
-                        >
-                            {{ 'ACTIVITY_SYNC.KEEP_PENDING_LOCAL' | translate }}
-                        </button>
+                    <div class="setting-item">
+                        <div class="setting-item__meta">
+                            <p>
+                                {{
+                                    'FAVORITES_SYNC.PARKED'
+                                        | translate
+                                            : { count: favorites.parkedCount() }
+                                }}
+                            </p>
+                        </div>
+                        <div class="setting-item__control inline-actions">
+                            <button
+                                type="button"
+                                mat-button
+                                (click)="parked(true)"
+                                [disabled]="busy()"
+                            >
+                                {{ 'ACTIVITY_SYNC.SEND_PENDING' | translate }}
+                            </button>
+                            <button
+                                type="button"
+                                mat-button
+                                (click)="parked(false)"
+                                [disabled]="busy()"
+                            >
+                                {{
+                                    'ACTIVITY_SYNC.KEEP_PENDING_LOCAL'
+                                        | translate
+                                }}
+                            </button>
+                        </div>
                     </div>
                 }
                 @for (
@@ -84,35 +115,45 @@
                     track addressKey(entry.address)
                 ) {
                     <section
-                        class="favorites-conflict"
+                        class="setting-item favorites-conflict"
                         [attr.aria-label]="conflictTitle(entry)"
                     >
-                        <h3>{{ conflictTitle(entry) }}</h3>
-                        <p>
-                            {{ favorites.sourceTitle(entry.address.sourceId) }}
-                        </p>
-                        <p>
-                            {{ 'FAVORITES_SYNC.LOCAL_MEMBERSHIP' | translate }}:
-                            {{
-                                (entry.record.state.member
-                                    ? 'FAVORITES_SYNC.MEMBER_PRESENT'
-                                    : 'FAVORITES_SYNC.MEMBER_ABSENT'
-                                ) | translate
-                            }}
-                        </p>
-                        <p>
-                            {{
-                                'FAVORITES_SYNC.SERVER_MEMBERSHIP' | translate
-                            }}:
-                            {{
-                                (entry.record.conflict?.member
-                                    ? 'FAVORITES_SYNC.MEMBER_PRESENT'
-                                    : 'FAVORITES_SYNC.MEMBER_ABSENT'
-                                ) | translate
-                            }}
-                        </p>
-                        <p>{{ 'FAVORITES_SYNC.CONFLICT' | translate }}</p>
-                        <div class="favorites-actions">
+                        <div class="setting-item__meta">
+                            <h4>{{ conflictTitle(entry) }}</h4>
+                            <p>
+                                {{
+                                    favorites.sourceTitle(
+                                        entry.address.sourceId
+                                    )
+                                }}
+                            </p>
+                            <p>
+                                {{
+                                    'FAVORITES_SYNC.LOCAL_MEMBERSHIP'
+                                        | translate
+                                }}:
+                                {{
+                                    (entry.record.state.member
+                                        ? 'FAVORITES_SYNC.MEMBER_PRESENT'
+                                        : 'FAVORITES_SYNC.MEMBER_ABSENT'
+                                    ) | translate
+                                }}
+                            </p>
+                            <p>
+                                {{
+                                    'FAVORITES_SYNC.SERVER_MEMBERSHIP'
+                                        | translate
+                                }}:
+                                {{
+                                    (entry.record.conflict?.member
+                                        ? 'FAVORITES_SYNC.MEMBER_PRESENT'
+                                        : 'FAVORITES_SYNC.MEMBER_ABSENT'
+                                    ) | translate
+                                }}
+                            </p>
+                            <p>{{ 'FAVORITES_SYNC.CONFLICT' | translate }}</p>
+                        </div>
+                        <div class="setting-item__control inline-actions">
                             <button
                                 type="button"
                                 mat-button
@@ -135,50 +176,65 @@
                     </section>
                 }
                 @if (preview(); as items) {
-                    <p>
-                        {{
-                            'FAVORITES_SYNC.IMPORT_PREVIEW'
-                                | translate
-                                    : {
-                                          count: count(),
-                                          sources: items.sources.length,
-                                          unresolved: items.unresolved,
-                                      }
-                        }}
-                    </p>
-                    <p>
-                        {{ 'FAVORITES_SYNC.IMPORT_CONFLICT_HINT' | translate }}
-                    </p>
-                    <div class="favorites-actions">
-                        <button
-                            type="button"
-                            mat-button
-                            (click)="preview.set(null)"
-                        >
-                            {{ 'CANCEL' | translate }}
-                        </button>
-                        <button
-                            type="button"
-                            mat-flat-button
-                            (click)="importFavorites()"
-                            [disabled]="busy() || !count()"
-                            data-test-id="favorites-import-confirm"
-                        >
-                            {{ 'SETTINGS.IMPORT_DATA' | translate }}
-                        </button>
+                    <div class="setting-item">
+                        <div class="setting-item__meta">
+                            <p>
+                                {{
+                                    'FAVORITES_SYNC.IMPORT_PREVIEW'
+                                        | translate
+                                            : {
+                                                  count: count(),
+                                                  sources: items.sources.length,
+                                                  unresolved: items.unresolved,
+                                              }
+                                }}
+                            </p>
+                            <p>
+                                {{
+                                    'FAVORITES_SYNC.IMPORT_CONFLICT_HINT'
+                                        | translate
+                                }}
+                            </p>
+                        </div>
+                        <div class="setting-item__control inline-actions">
+                            <button
+                                type="button"
+                                mat-button
+                                (click)="preview.set(null)"
+                            >
+                                {{ 'CANCEL' | translate }}
+                            </button>
+                            <button
+                                type="button"
+                                mat-flat-button
+                                (click)="importFavorites()"
+                                [disabled]="busy() || !count()"
+                                data-test-id="favorites-import-confirm"
+                            >
+                                {{ 'SETTINGS.IMPORT_DATA' | translate }}
+                            </button>
+                        </div>
                     </div>
                 }
                 @if (unresolved()) {
-                    <p role="status">
-                        {{
-                            'FAVORITES_SYNC.UNRESOLVED'
-                                | translate: { count: unresolved() }
-                        }}
-                    </p>
+                    <div class="setting-item__sub setting-item__meta">
+                        <p role="status">
+                            {{
+                                'FAVORITES_SYNC.UNRESOLVED'
+                                    | translate: { count: unresolved() }
+                            }}
+                        </p>
+                    </div>
                 }
             }
         } @else if (failed()) {
-            <p role="alert">{{ 'FAVORITES_SYNC.ERROR' | translate }}</p>
+            <div class="setting-item">
+                <div class="setting-item__meta">
+                    <p class="server-message--error" role="alert">
+                        {{ 'FAVORITES_SYNC.ERROR' | translate }}
+                    </p>
+                </div>
+            </div>
         }
     </div>
 </section>

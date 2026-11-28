@@ -294,8 +294,9 @@ test('@stalker @epg PWA shows provider EPG for ITV channels', async ({
 test('@stalker ITV favorite opens inside its portal from global favorites', async ({
     page,
 }) => {
-    await addStalkerPortal(page);
-    await verifyStalkerOpenInPlaylist(page, 'Mock Stalker Portal');
+    const portalName = 'Mock Stalker Portal for Fictional Channels';
+    await addStalkerPortal(page, { name: portalName });
+    await verifyStalkerOpenInPlaylist(page, portalName);
 });
 
 test('@stalker ITV playback survives a category switch', async ({ page }) => {

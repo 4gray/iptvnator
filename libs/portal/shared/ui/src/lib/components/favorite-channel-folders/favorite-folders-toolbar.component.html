@@ -1,0 +1,115 @@
+@let folders = view();
+@let hasFolders = folders.folders().length > 0;
+@let currentFolder = folders.currentFolder();
+@let selecting = folders.selectionMode();
+
+@if (hasFolders) {
+    <div class="folder-heading">
+        <h2 tabindex="-1" data-test-id="favorite-folder-heading">
+            {{ currentFolder?.name ?? (folders.headingKey() | translate) }}
+        </h2>
+        <span class="folder-count">{{ folders.visibleCount() }}</span>
+        @if (!selecting && (folders.selectableCount() || currentFolder)) {
+            <ng-container [ngTemplateOutlet]="actionsTrigger" />
+        }
+    </div>
+} @else if (!selecting) {
+    <div class="folder-heading first-folder">
+        <button
+            mat-flat-button
+            class="secondary-action"
+            type="button"
+            data-test-id="favorite-first-folder"
+            (click)="folders.create()"
+        >
+            <mat-icon>create_new_folder</mat-icon>
+            {{ 'WORKSPACE.FAVORITE_FOLDERS.NEW_FOLDER' | translate }}
+        </button>
+        @if (folders.selectableCount()) {
+            <ng-container [ngTemplateOutlet]="actionsTrigger" />
+        }
+    </div>
+}
+
+@if (selecting) {
+    <div class="selection-toolbar">
+        <mat-checkbox
+            class="select-all"
+            data-test-id="favorite-select-all"
+            [checked]="
+                folders.selectableCount() > 0 &&
+                folders.selectedCount() === folders.selectableCount()
+            "
+            [indeterminate]="
+                folders.selectedCount() > 0 &&
+                folders.selectedCount() < folders.selectableCount()
+            "
+            [disabled]="folders.selectableCount() === 0"
+            (change)="folders.toggleAll($event.checked)"
+        >
+            {{ 'WORKSPACE.FAVORITE_FOLDERS.SELECT_ALL' | translate }}
+        </mat-checkbox>
+        <div class="selection-actions">
+            <button
+                mat-flat-button
+                class="secondary-action"
+                type="button"
+                [disabled]="!folders.selectedCount()"
+                (click)="folders.moveSelection()"
+            >
+                {{ 'WORKSPACE.FAVORITE_FOLDERS.MOVE_SELECTED' | translate }}
+                @if (folders.selectedCount()) {
+                    <span class="selection-count"
+                        >({{ folders.selectedCount() }})</span
+                    >
+                }
+            </button>
+            <button
+                mat-button
+                class="done-action"
+                type="button"
+                (click)="folders.finishSelection()"
+            >
+                {{ 'WORKSPACE.FAVORITE_FOLDERS.DONE' | translate }}
+            </button>
+        </div>
+    </div>
+}
+
+<ng-template #actionsTrigger>
+    @let actionLabel =
+        (currentFolder
+            ? 'WORKSPACE.FAVORITE_FOLDERS.FOLDER_ACTIONS'
+            : 'WORKSPACE.SHELL.MORE_ACTIONS'
+        ) | translate;
+    <button
+        mat-icon-button
+        class="menu-action"
+        type="button"
+        [matMenuTriggerFor]="folderActions"
+        [matTooltip]="actionLabel"
+        data-test-id="favorite-folder-actions"
+        [attr.aria-label]="actionLabel"
+    >
+        <mat-icon>more_horiz</mat-icon>
+    </button>
+</ng-template>
+
+<mat-menu #folderActions="matMenu">
+    @if (folders.selectableCount()) {
+        <button mat-menu-item type="button" (click)="folders.beginSelection()">
+            <mat-icon>check_box</mat-icon>
+            {{ 'WORKSPACE.FAVORITE_FOLDERS.SELECT' | translate }}
+        </button>
+    }
+    @if (currentFolder) {
+        <button mat-menu-item type="button" (click)="folders.rename()">
+            <mat-icon>edit</mat-icon>
+            {{ 'WORKSPACE.FAVORITE_FOLDERS.RENAME_TITLE' | translate }}
+        </button>
+        <button mat-menu-item type="button" (click)="folders.remove()">
+            <mat-icon>delete</mat-icon>
+            {{ 'WORKSPACE.FAVORITE_FOLDERS.DELETE_TITLE' | translate }}
+        </button>
+    }
+</mat-menu>

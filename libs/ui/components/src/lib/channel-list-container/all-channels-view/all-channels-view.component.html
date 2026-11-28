@@ -90,6 +90,7 @@
                 [logo]="getLogoForChannel(channel)"
                 [showEpg]="shouldShowEpg()"
                 [showDetailsContextMenu]="true"
+                [showContextMenuButton]="folderMenu?.available() ?? false"
                 [isRadio]="channel?.radio === 'true'"
                 [epgProgram]="
                     $safeNavigationMigration(
@@ -107,7 +108,10 @@
                 (contextMenuRequested)="onChannelContextMenu(channel, $event)"
                 [selected]="activeChannelUrl() === channel?.url"
                 [showFavoriteButton]="true"
-                [isFavorite]="favoriteIds().has(channel?.url ?? '')"
+                [isFavorite]="
+                    favoriteIds().has(channel.url) ||
+                    favoriteIds().has(channel.id)
+                "
                 (favoriteToggled)="onFavoriteToggle(channel, $event)"
             />
         </cdk-virtual-scroll-viewport>
@@ -115,6 +119,8 @@
 </div>
 
 <app-channel-context-menu
+    [favoriteFolderAction]="folderMenu?.action(contextMenuChannel()) ?? null"
+    (favoriteFolderRequested)="folderMenu?.open(contextMenuChannel(), $event)"
     [showMapEpg]="supportsEpgMapping"
     [showDetails]="true"
     (mapEpg)="openEpgMapping()"

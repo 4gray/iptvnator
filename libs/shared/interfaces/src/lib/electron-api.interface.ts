@@ -933,7 +933,8 @@ export interface ElectronBridgeApi {
         contentInfo?: PlayerContentInfo,
         startTime?: number,
         headers?: Record<string, string>,
-        launchId?: string
+        launchId?: string,
+        requestId?: string
     ) => Promise<ExternalPlayerSession>;
     openInVlc: (
         url: string,
@@ -945,7 +946,8 @@ export interface ElectronBridgeApi {
         contentInfo?: PlayerContentInfo,
         startTime?: number,
         headers?: Record<string, string>,
-        launchId?: string
+        launchId?: string,
+        requestId?: string
     ) => Promise<ExternalPlayerSession>;
     autoUpdatePlaylists: (
         playlists: Playlist[],
@@ -1401,6 +1403,8 @@ export interface ElectronBridgeApi {
         sessionId: string,
         exact?: boolean
     ) => Promise<ExternalPlayerSession | null>;
+    /** Sessions still open in the main process, e.g. after a page reload. */
+    listExternalPlayerSessions?: () => Promise<ExternalPlayerSession[]>;
     getEmbeddedMpvSupport: () => Promise<EmbeddedMpvSupport>;
     prepareEmbeddedMpv?: () => Promise<EmbeddedMpvSupport>;
     createEmbeddedMpvSession: (

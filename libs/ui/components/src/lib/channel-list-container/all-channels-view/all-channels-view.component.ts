@@ -27,6 +27,7 @@ import {
     epgProviderClockMs,
 } from '@iptvnator/shared/interfaces';
 import { ChannelContextMenuComponent } from '../channel-context-menu/channel-context-menu.component';
+import { M3U_FAVORITE_FOLDER_MENU } from '../channel-context-menu/m3u-favorite-folder-menu';
 import {
     PlaylistChannelSortMode,
     getPlaylistChannelSortModeLabelKey,
@@ -83,6 +84,7 @@ export class AllChannelsViewComponent {
     readonly channelContextMenu = viewChild.required(
         ChannelContextMenuComponent
     );
+    readonly folderMenu = inject(M3U_FAVORITE_FOLDER_MENU, { optional: true });
 
     /** All channels (will be filtered by search) */
     readonly channels = input.required<Channel[]>();

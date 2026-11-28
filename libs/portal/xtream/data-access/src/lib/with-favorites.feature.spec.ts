@@ -1,4 +1,5 @@
 import { TmdbMatchService } from '@iptvnator/services/tmdb-match';
+import { FavoriteChannelMembershipEvents } from '@iptvnator/services/favorites-events';
 import {
     RuntimeCapabilitiesService,
     type TmdbEnrichmentService,
@@ -129,6 +130,31 @@ describe('withFavorites', () => {
         window.dispatchEvent(new Event('iptvnator-favorites-changed'));
         await new Promise((resolve) => setTimeout(resolve, 0));
         expect(dataSource.isFavorite).toHaveBeenCalledTimes(calls);
+    });
+
+    it('publishes the provider live ID only after the removal commits', async () => {
+        dataSource.getContentByXtreamId.mockResolvedValue({ id: 1024 });
+        dataSource.isFavorite.mockResolvedValue(true);
+        dataSource.removeFavorite.mockRejectedValueOnce(
+            new Error('Synthetic save failure')
+        );
+        const removed = jest.fn();
+        const subscription = TestBed.inject(
+            FavoriteChannelMembershipEvents
+        ).changed$.subscribe(removed);
+
+        try {
+            await store.toggleFavorite(42, 'synthetic-source', 'live');
+            expect(removed).not.toHaveBeenCalled();
+            await store.toggleFavorite(42, 'synthetic-source', 'live');
+            expect(removed).toHaveBeenCalledWith({
+                sourceType: 'xtream',
+                playlistId: 'synthetic-source',
+                xtreamId: 42,
+            });
+        } finally {
+            subscription.unsubscribe();
+        }
     });
 
     it.each(['movie', 'series'] as const)(

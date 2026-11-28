@@ -120,6 +120,7 @@ export class WorkspaceShellHeaderComponent {
      */
     readonly showContextDrawerToggle = input(false);
     readonly isContextDrawerOpen = input(false);
+    readonly isFavoriteFolderDrawer = input(false);
     /**
      * Variant-aware labels: the drawer holds categories on portal routes,
      * type filters on sources/collection routes, and section navigation on

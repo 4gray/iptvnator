@@ -4,6 +4,8 @@
     [style.left]="position().x"
     [style.top]="position().y"
     [matMenuTriggerFor]="menu"
+    [matMenuTriggerRestoreFocus]="false"
+    (menuClosed)="restoreMenuFocus()"
 ></div>
 
 <mat-menu #menu="matMenu">
@@ -31,6 +33,24 @@
                 'PORTALS.VIEW_IN_PORTAL_TOOLTIP'
                     | translate: { name: openInPlaylistName() }
             }}</span>
+        </button>
+    }
+    @if (favoriteFolderAction(); as action) {
+        <button
+            mat-menu-item
+            type="button"
+            data-testid="channel-favorite-folder"
+            (click)="requestFavoriteFolder(action)"
+        >
+            <mat-icon>drive_file_move</mat-icon>
+            <span
+                >{{
+                    (action === 'add'
+                        ? 'WORKSPACE.FAVORITE_FOLDERS.ADD_TITLE'
+                        : 'WORKSPACE.FAVORITE_FOLDERS.MOVE_TITLE'
+                    ) | translate
+                }}…</span
+            >
         </button>
     }
     @if (showRemoveFromHistory()) {

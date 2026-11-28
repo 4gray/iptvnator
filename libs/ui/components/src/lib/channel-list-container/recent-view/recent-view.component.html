@@ -25,6 +25,7 @@
                 [progressPercentage]="item.progressPercentage"
                 [selected]="activeChannelUrl() === item.channel.url"
                 [showDetailsContextMenu]="true"
+                [showContextMenuButton]="folderMenu?.available() ?? false"
                 [showAuxActionButton]="true"
                 [auxActionIcon]="'delete'"
                 [auxActionTooltip]="
@@ -63,6 +64,8 @@
 </div>
 
 <app-channel-context-menu
+    [favoriteFolderAction]="folderMenu?.action(contextMenuChannel()) ?? null"
+    (favoriteFolderRequested)="folderMenu?.open(contextMenuChannel(), $event)"
     [showMapEpg]="supportsEpgMapping"
     [showDetails]="true"
     [showRemoveFromHistory]="true"
