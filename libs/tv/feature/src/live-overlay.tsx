@@ -62,7 +62,10 @@ export function useLiveOverlay(tv: TvModel, browse: Browse) {
                 current.tv.fullscreen &&
                 current.tv.playing?.kind === 'live' &&
                 (event.key === 'ArrowLeft' || event.keyCode === 37) &&
-                document.querySelector('.player-controls.dormant')
+                document.querySelector(
+                    '.player-controls[data-controls-idle]'
+                ) &&
+                !document.activeElement?.closest('[role="alert"]')
             ) {
                 event.preventDefault();
                 event.stopImmediatePropagation();

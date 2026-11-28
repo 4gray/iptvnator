@@ -3,8 +3,6 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 export function usePlayerControls(fullscreen: boolean, paused: boolean) {
     const [visible, setVisible] = useState(true);
     const timer = useRef<ReturnType<typeof setTimeout>>();
-    const current = useRef(visible);
-    current.current = visible;
     const reveal = () => {
         setVisible(true);
         clearTimeout(timer.current);
@@ -18,7 +16,10 @@ export function usePlayerControls(fullscreen: boolean, paused: boolean) {
     useEffect(() => {
         if (!fullscreen) return;
         const key = (event: KeyboardEvent) => {
-            if (!current.current && event.key === 'Enter') {
+            if (
+                event.key === 'Enter' &&
+                document.querySelector('.player-controls.dormant')
+            ) {
                 event.preventDefault();
                 event.stopPropagation();
             }

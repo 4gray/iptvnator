@@ -33,22 +33,29 @@ export function NativePlayerView({
 }) {
     const current = tv.playing;
     const element = video.current;
+    const hasProgressWarning = !!tv.progressSaveNotice.message;
     const upNext = useUpNext(
         tv,
         video,
         vod,
-        !!overlay.panel,
+        !!overlay.panel || hasProgressWarning,
         controls.reveal,
         seriesDetails.busy
     );
     useLayoutEffect(() => {
-        if (!element?.ended || !vod.next || !tv.fullscreen) return;
+        if (
+            !element?.ended ||
+            !vod.next ||
+            !tv.fullscreen ||
+            hasProgressWarning
+        )
+            return;
         let owns = true;
         restoreFocus('player-next', '', undefined, () => owns);
         return () => {
             owns = false;
         };
-    }, [element?.ended, vod.next?.id, tv.fullscreen]);
+    }, [element?.ended, vod.next?.id, tv.fullscreen, hasProgressWarning]);
     const sourceName =
         tv.data.sources.find((source) => source.id === current?.sourceId)
             ?.name ?? 'Source unavailable';
@@ -89,7 +96,10 @@ export function NativePlayerView({
             ) : null}
             {tv.fullscreen ? (
                 <div
-                    class={`player-controls ${controls.visible || tv.error || tv.progressSaveNotice.message ? '' : 'dormant'}`}
+                    class={`player-controls ${controls.visible || tv.error || hasProgressWarning ? '' : 'dormant'}`}
+                    data-controls-idle={
+                        !controls.visible && !tv.error ? '' : undefined
+                    }
                     hidden={!!overlay.panel}
                 >
                     <div class="player-top">

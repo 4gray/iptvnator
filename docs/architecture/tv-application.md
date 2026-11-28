@@ -340,6 +340,8 @@ Live fullscreen offers Channels, Programme and TV Guide controls. With controls 
 Left opens the channel drawer directly; pointer users select Channels. The drawer
 starts in the playing category and focuses the playing item. A playing item beyond
 loaded provider pages appears once as a pinned row rather than crawling the catalog.
+An older progress warning leaves this shortcut available once the control timer
+expires. If a warning action has focus, Left navigates within the controls.
 Category browsing and focus never change playback; OK resolves a selected channel.
 The same native video element remains mounted. The fullscreen information and
 single-channel EPG header name their exact source. Go to playlist reveals the
@@ -373,6 +375,7 @@ progress write retains its own retry when the source switch fails as well. A
 later checkpoint or manual watch-state save for the same title clears the
 warning once it supersedes the failure.
 If the warning had focus when it closed, fullscreen returns focus to Play/Pause.
+The Up Next card waits while the progress warning is visible.
 Modal Back closes its overlay first. Existing Left/drawer, media and system keys
 are unchanged; no Channel +/- hardware support or autoplay is added.
 

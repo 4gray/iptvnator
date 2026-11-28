@@ -198,6 +198,42 @@ for (const focusWarning of [true, false]) {
     });
 }
 
+test('TV Left still opens the channel drawer with an older progress warning', async ({
+    page,
+}) => {
+    await page.clock.install();
+    await start(page);
+    await addSource(page, 'm3u', { name: 'Demo North' });
+    await playLive(page);
+    const first = await switchInDrawer(page, 0);
+    await page.evaluate((id) => {
+        const put = IDBObjectStore.prototype.put;
+        const since = Date.now();
+        IDBObjectStore.prototype.put = function (value, key) {
+            if (
+                key === 'user' &&
+                value.data.history[0]?.item.id === id &&
+                value.data.positions[id]?.updated > since
+            ) {
+                throw new DOMException(
+                    'Synthetic save failure',
+                    'QuotaExceededError'
+                );
+            }
+            return put.call(this, value, key);
+        };
+    }, first.id);
+    const retry = page.getByRole('button', { name: 'Retry saving progress' });
+    await page.clock.fastForward(10_000);
+    await expect(retry).toBeVisible();
+    await switchInDrawer(page, 1);
+    await expect(page.locator('[data-focus="player-channels"]')).toBeFocused();
+    await page.clock.runFor(6_000);
+    await expect(retry).toBeVisible();
+    await page.keyboard.press('ArrowLeft');
+    await expect(drawer(page)).toBeVisible();
+});
+
 test('TV Live comfort failed resolution and retry leave confirmed pair and recents untouched', async ({
     page,
 }) => {
@@ -440,7 +476,10 @@ for (const removeSource of [false, true])
     test(`TV failed M3U Previous retains progress recovery (remove source: ${removeSource})`, async ({
         page,
     }) => {
+        await page.clock.install();
         const a = await openForeignPrevious(page, 'm3u');
+        const now = await page.evaluate(() => Date.now());
+        await page.clock.pauseAt(new Date(now + 500));
         let release!: () => void;
         const gate = new Promise<void>((resolve) => (release = resolve));
         let attempts = 0;
@@ -488,8 +527,11 @@ for (const removeSource of [false, true])
             await retryProgress.click();
             await expect(retryProgress).toHaveCount(0);
         }
+        expect(attempts).toBe(1);
         await retry.click();
+        await page.clock.runFor(500);
         await expect.poll(() => attempts).toBe(2);
+        await page.clock.resume();
         await confirmed(page, a.id);
         await expect(page.locator('.player-source-name')).toHaveText(
             'Demo North'
