@@ -181,7 +181,7 @@ export class UnifiedFavoritesDataService {
 
     private writeXtreamFavorite(
         item: UnifiedCollectionItem,
-        write: (current: () => boolean) => Promise<void>
+        write: (current: () => boolean) => Promise<boolean | void>
     ): Promise<boolean> {
         const current = captureHistoryOwner(
             sourceConnection()?.instanceId,
@@ -191,8 +191,8 @@ export class UnifiedFavoritesDataService {
         );
         const run = async () => {
             if (!current()) return false;
-            await write(current);
-            return current();
+            const saved = await write(current);
+            return saved !== false && current();
         };
         return this.isSqliteLive(item)
             ? this.activity.runWhenIdle(item.playlistId, run)
@@ -202,21 +202,17 @@ export class UnifiedFavoritesDataService {
     private async removeXtreamFavorite(
         item: UnifiedCollectionItem,
         current: () => boolean
-    ): Promise<void> {
+    ): Promise<boolean | void> {
         const electron = await this.xtreamFavoritesBridge(item.playlistId);
         if (electron) {
-            const target =
-                item.favoriteId != null
-                    ? { favoriteId: item.favoriteId }
-                    : await this.xtreamFavoriteContentId(item);
-            if (target != null && current()) {
-                const result = await electron.dbRemoveFavorite(
-                    target,
-                    item.playlistId
-                );
-                if (result?.success === false)
-                    throw new Error('Favorite could not be removed');
-            }
+            const target = await this.xtreamFavoriteRemovalTarget(item);
+            if (target == null || !current()) return false;
+            const result = await electron.dbRemoveFavorite(
+                target,
+                item.playlistId
+            );
+            if (result?.success === false)
+                throw new Error('Favorite could not be removed');
             return;
         }
         if (!current() || (item.contentId == null && item.xtreamId == null))
@@ -232,6 +228,25 @@ export class UnifiedFavoritesDataService {
             },
             item.playlistId
         );
+    }
+
+    private async xtreamFavoriteRemovalTarget(item: UnifiedCollectionItem) {
+        if (item.favoriteId != null) return { favoriteId: item.favoriteId };
+        const contentId = await this.xtreamFavoriteContentId(item);
+        if (contentId != null || !this.isSqliteLive(item)) return contentId;
+        // A startup replacement can drop the recent item's Live TV row while
+        // retaining its favorite. Use the same filtered source read as Favorites.
+        const favorites = await this.dbService.getFavorites(item.playlistId);
+        const saved = favorites.find(
+            (row) =>
+                row.type === 'live' &&
+                row.xtream_id === item.xtreamId &&
+                row.catalog_status === 'missing' &&
+                row.catalog_missing_reason !== 'identity_conflict'
+        );
+        return saved?.favorite_id == null
+            ? null
+            : { favoriteId: saved.favorite_id };
     }
 
     private async xtreamFavoriteContentId(item: UnifiedCollectionItem) {

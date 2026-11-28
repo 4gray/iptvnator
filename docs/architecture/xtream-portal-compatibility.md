@@ -423,7 +423,10 @@ playback history writes and item removals wait for in-flight source work.
 They hold the source from channel lookup through the write and resolve the
 current row by provider identity. Collection actions also use the row's SQLite
 category, including removals from the Dashboard. If the channel moves, the
-lookup accepts a single typed match. Live history keeps one row per source and
+lookup accepts a single typed match. If a live row disappears during
+replacement, removing its favorite from Recently Viewed uses the saved
+favorite ID from the same filtered source. The heart stays set when no
+compatible favorite can be found. Live history keeps one row per source and
 provider stream, using the category of its latest confirmed playback. Deleting
 that entry also removes any older category copies. Recovery records the newest
 legacy copy before replacement, prefers its original live category and keeps

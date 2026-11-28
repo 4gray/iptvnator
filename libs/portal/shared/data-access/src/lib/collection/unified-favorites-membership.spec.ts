@@ -6,11 +6,15 @@ import {
     DatabaseService,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    SourceActivityService,
 } from '@iptvnator/services';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
+import type { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
+import { UnifiedCollectionDataService } from './unified-collection-data.service';
+import { UnifiedRecentDataService } from './unified-recent-data.service';
 import { UnifiedFavoritesDataService } from './unified-favorites-data.service';
 
-describe('UnifiedFavoritesDataService membership reads', () => {
+describe('UnifiedFavoritesDataService membership', () => {
     const originalElectron = window.electron;
     const stalkerFavorites = [
         { id: '42', title: 'Synthetic channel', category_id: 'itv' },
@@ -20,7 +24,9 @@ describe('UnifiedFavoritesDataService membership reads', () => {
         getPlaylistById: jest.fn(),
         preparePortalFavoriteActions: async () => undefined,
     };
+    const removeFavorite = jest.fn();
     const databaseService = {
+        getContentByXtreamId: jest.fn(),
         getFavorites: jest.fn(),
         getFavoritesOrThrow: jest.fn(),
     };
@@ -28,7 +34,11 @@ describe('UnifiedFavoritesDataService membership reads', () => {
 
     beforeEach(() => {
         jest.resetAllMocks();
-        window.electron = {} as Window['electron'];
+        removeFavorite.mockResolvedValue({ success: true });
+        databaseService.getContentByXtreamId.mockResolvedValue(null);
+        window.electron = {
+            dbRemoveFavorite: removeFavorite,
+        } as unknown as Window['electron'];
         store.select.mockReturnValue(
             of([
                 {
@@ -41,6 +51,8 @@ describe('UnifiedFavoritesDataService membership reads', () => {
         TestBed.configureTestingModule({
             providers: [
                 UnifiedFavoritesDataService,
+                UnifiedCollectionDataService,
+                { provide: UnifiedRecentDataService, useValue: {} },
                 { provide: Store, useValue: store },
                 { provide: DatabaseService, useValue: databaseService },
                 { provide: PlaylistsService, useValue: playlistsService },
@@ -153,4 +165,58 @@ describe('UnifiedFavoritesDataService membership reads', () => {
         ]);
         expect(databaseService.getFavorites).not.toHaveBeenCalled();
     });
+
+    it.each([true, false])(
+        'removes a missing live favorite from history only with a matching saved identity (%s)',
+        async (matches) => {
+            const item: UnifiedCollectionItem = {
+                uid: 'xtream::synthetic-source::live:42',
+                name: 'Synthetic live channel',
+                sourceType: 'xtream',
+                contentType: 'live',
+                playlistId: 'synthetic-source',
+                playlistName: 'Synthetic source',
+                xtreamId: 42,
+                contentId: 12,
+                categoryId: 7,
+            };
+            const collection = TestBed.inject(UnifiedCollectionDataService);
+            collection.favoriteUidSet.set(new Set([item.uid]));
+            const release = TestBed.inject(SourceActivityService).begin([
+                item.playlistId,
+            ]);
+            databaseService.getFavorites.mockResolvedValue([
+                {
+                    favorite_id: 11,
+                    type: 'movie',
+                    xtream_id: 42,
+                    catalog_status: 'missing',
+                },
+                {
+                    favorite_id: 12,
+                    type: 'live',
+                    xtream_id: 42,
+                    catalog_status: 'missing',
+                    catalog_missing_reason: matches
+                        ? null
+                        : 'identity_conflict',
+                },
+            ]);
+            const pending = collection.toggleFavorite(item);
+            try {
+                expect(databaseService.getFavorites).not.toHaveBeenCalled();
+                expect(collection.favoriteUidSet().has(item.uid)).toBe(true);
+            } finally {
+                release();
+                await pending;
+            }
+            if (matches)
+                expect(removeFavorite).toHaveBeenCalledWith(
+                    { favoriteId: 12 },
+                    item.playlistId
+                );
+            else expect(removeFavorite).not.toHaveBeenCalled();
+            expect(collection.favoriteUidSet().has(item.uid)).toBe(!matches);
+        }
+    );
 });
