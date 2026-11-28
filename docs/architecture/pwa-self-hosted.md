@@ -140,10 +140,18 @@ Cloudflare token renewal can retry the request. The bridge accepts up to
 worker applies its own document limit, which defaults to 64 MiB.
 
 The Android bridge streams hosted API responses in bounded chunks, with an
-inactivity timeout for the transfer. Cloudflare OAuth calls keep a separate
-deadline. While the hosted worker buffers an Xtream response in Cloudflare mode,
-it sends JSON whitespace every ten seconds so the bridge can distinguish a slow
-catalog from a stalled connection. The provider socket retains its own inactivity timeout.
+inactivity timeout of 310 seconds for `/api/parse` and 45 seconds for other API
+requests. The playlist timeout allows the backend to download and parse the file
+before sending response headers. Cloudflare OAuth calls keep a separate
+deadline. In Cloudflare mode, the worker sends JSON whitespace every ten seconds
+while it prepares an Xtream catalog or an opted-in M3U response. The provider
+socket retains its own inactivity timeout. Android skips the leading newlines
+only for `/api/parse` replies marked with `X-IPTVnator-JSON-Heartbeat`, up to
+128 bytes and 15 minutes after the bridge starts reading the reply. Playlist JSON
+keeps its full 64 MiB response budget and uses the same encoding with or without
+a heartbeat. Xtream heartbeats count toward the normal response budget and
+retain the inactivity timeout. Closing the M3U URL import dialog aborts the
+bridge's download.
 
 Android callback, token renewal and playback still require a live Access
 application for end-to-end validation.
@@ -295,6 +303,17 @@ The current self-hosted PWA uses these `apps/web-backend` routes:
 - `GET /parse?targetId=<id>`
 - `GET /xtream?targetId=<id>&username=<u>&password=<p>&action=<action>`
 - `GET /stalker?targetId=<id>&macAddress=<mac>&action=<action>`
+
+Source synchronization adds `background=1` to `/parse` so each provider hop
+uses the 30-second background idle timeout. On-demand downloads use 120 seconds.
+Current browser, Android and TV clients send `keepAlive=1` to accept a streamed
+JSON response through Cloudflare. Registration failures and provider errors that
+arrive before the first heartbeat retain their HTTP status. After a heartbeat,
+the client reads the error status and code from the JSON body. Clients using the
+default request continue to receive the HTTP status with the final JSON.
+The playlist route sets the JSON media type, `nosniff`, and a sandboxed content
+security policy before streaming any bytes. The heartbeat changes only the
+leading whitespace, so it preserves the Android bridge's JSON byte budget.
 
 Server storage adds versioned routes under `/v1`. Source synchronization uses
 the source-specific routes below; the older whole-document/user-state routes
@@ -485,7 +504,9 @@ has its own marker so one tab cannot overwrite another deletion's pending work.
 Bootstrap waits only for local profile readiness, then starts network
 refresh in the background. Slow URL providers cannot hold the app behind its
 splash: cached sources and settings remain accessible. An uninitialized cache
-defers its first inventory read until refresh settles. Before awaiting cleanup
+defers its first inventory read until refresh settles. Electron and the web
+backend use a 30-second provider idle timeout per hop when synchronization
+downloads a missing or pending URL playlist. Before awaiting cleanup
 hooks, an incomplete profile releases the initialization wait so settings/EPG
 reconciliation cannot deadlock parental cleanup. The store's ready flag keeps
 rejecting incomplete inventory after a failed projection, preserving the loading
@@ -1135,6 +1156,12 @@ better-sqlite3 is a native addon, so the Dockerfile builds it in a separate
 `native` stage that is not pinned to `$BUILDPLATFORM`; multi-arch builds
 produce it for each target platform. nginx raises `client_max_body_size` to
 64 MB for `/api/` and gzips JSON responses.
+
+The bundled nginx uses a 300-second read timeout for `/api/parse` and 120
+seconds for other API routes. The playlist route sends its first response bytes
+after the provider download and parsing finish. The backend allows up to 120
+seconds of provider inactivity per HTTP hop, so the proxy needs room for the
+rest of the transfer and parsing.
 
 When hosting behind another domain, set `CLIENT_URL` to the browser origin and
 keep `BACKEND_URL=/api` unless the reverse proxy exposes the backend elsewhere.

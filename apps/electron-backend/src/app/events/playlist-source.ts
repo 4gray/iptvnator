@@ -18,17 +18,18 @@ import { M3U_IMPORT_PERFORMANCE_PHASE } from '@iptvnator/shared/interfaces';
 
 export interface PlaylistFetchOptions {
     userAgent?: string;
+    timeoutMs?: number;
     performanceCapture?: M3uImportPerformanceCapture | null;
     trustedInsecureTlsHosts?: readonly string[];
 }
 
 /**
- * Idle timeout for every playlist download hop. Without it a host that accepts
- * the connection and then goes silent keeps the request pending forever, which
- * stalled the unattended startup auto-update indefinitely (issue #931).
- * Mirrored by the playlist refresh worker.
+ * Per-hop idle timeout for URL imports and manual refreshes. Some Xtream panels
+ * build the M3U on demand and take about a minute to send the first byte.
+ * The playlist refresh worker and web backend use the same timeout.
  */
-export const PLAYLIST_FETCH_TIMEOUT_MS = 30000;
+export const PLAYLIST_FETCH_TIMEOUT_MS = 120_000;
+export const BACKGROUND_PLAYLIST_FETCH_TIMEOUT_MS = 30_000;
 
 function countPlaylistItems(value: unknown): number | undefined {
     try {
@@ -99,7 +100,7 @@ export async function fetchPlaylistFromUrl(
                 }),
                 method: 'GET',
                 ...(userAgent ? { headers: { 'User-Agent': userAgent } } : {}),
-                timeout: PLAYLIST_FETCH_TIMEOUT_MS,
+                timeout: options.timeoutMs ?? PLAYLIST_FETCH_TIMEOUT_MS,
             },
             { allowPrivateNetworks: true }
         );

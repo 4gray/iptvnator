@@ -148,10 +148,33 @@ https://stream.example/news.m3u8`);
                     {
                         headers: undefined,
                         params: undefined,
-                        timeout: 30000,
+                        timeout: 120000,
                         url: 'https://provider.example/list.m3u',
                     },
                 ]);
+            }
+        );
+    });
+
+    it('gives background playlist downloads a 30-second provider timeout', async () => {
+        const httpClient = new StubHttpClient();
+        httpClient.queueResponse('#EXTM3U');
+        await withServer(
+            createWebBackendApp({
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
+            async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'https://provider.test/synthetic.m3u'
+                );
+                const response = await fetch(
+                    `${baseUrl}/parse?targetId=${targetId}&background=1`
+                );
+                expect(response.status).toBe(200);
+                await response.json();
+                expect(httpClient.requests[0]?.timeout).toBe(30_000);
             }
         );
     });

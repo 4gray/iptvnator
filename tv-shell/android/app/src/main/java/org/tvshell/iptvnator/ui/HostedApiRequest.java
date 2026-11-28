@@ -1,6 +1,7 @@
 package org.tvshell.iptvnator.ui;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import okhttp3.Call;
@@ -9,13 +10,18 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import okio.BufferedSource;
+import okio.Timeout;
 import org.json.JSONObject;
 
 /** Only the packaged client's API routes can be mapped onto the selected server. */
 final class HostedApiRequest {
     private HostedApiRequest() {}
+    private static final int MAX_HEARTBEAT_BYTES = 128;
     private static final OkHttpClient API = HostedAccessOAuth.HTTP.newBuilder()
         .callTimeout(0, TimeUnit.SECONDS).readTimeout(45, TimeUnit.SECONDS).build();
+    private static final OkHttpClient PLAYLIST_API = API.newBuilder()
+        .readTimeout(310, TimeUnit.SECONDS).build();
 
     static Call call(String appBase, String instance, String token, String deviceKey, JSONObject input,
                      RequestBody upload) throws Exception {
@@ -39,7 +45,11 @@ final class HostedApiRequest {
         boolean read = "GET".equals(method) || "HEAD".equals(method);
         if (read && upload.contentLength() != 0) throw new IOException("Unexpected hosted request body");
         RequestBody body = read || ("DELETE".equals(method) && upload.contentLength() == 0) ? null : upload;
-        return API.newCall(request.method(method, body).build());
+        return clientForPath(path).newCall(request.method(method, body).build());
+    }
+
+    static OkHttpClient clientForPath(String path) {
+        return "/api/parse".equals(path) ? PLAYLIST_API : API;
     }
 
     static JSONObject responseHeaders(Response response) throws Exception {
@@ -49,6 +59,29 @@ final class HostedApiRequest {
             if (value != null) headers.put(name, value);
         }
         return new JSONObject().put("status", response.code()).put("headers", headers);
+    }
+
+    static InputStream responseBody(Response response) throws IOException {
+        BufferedSource source = response.body().source();
+        if (response.request().url().encodedPath().endsWith("/api/parse")
+                && "1".equals(response.header("X-IPTVnator-JSON-Heartbeat"))) {
+            // Bound the heartbeat independently so the JSON keeps its full response budget.
+            Timeout timeout = source.timeout();
+            boolean hadDeadline = timeout.hasDeadline();
+            long previousDeadline = hadDeadline ? timeout.deadlineNanoTime() : 0;
+            long heartbeatDeadline = System.nanoTime() + TimeUnit.MINUTES.toNanos(15);
+            timeout.deadlineNanoTime(hadDeadline ? Math.min(previousDeadline, heartbeatDeadline) : heartbeatDeadline);
+            try {
+                for (int skipped = 0; source.request(1) && source.getBuffer().getByte(0) == '\n'; skipped++) {
+                    if (skipped == MAX_HEARTBEAT_BYTES) throw new IOException("Hosted heartbeat is too large");
+                    source.skip(1);
+                }
+            } finally {
+                if (hadDeadline) timeout.deadlineNanoTime(previousDeadline);
+                else timeout.clearDeadline();
+            }
+        }
+        return source.inputStream();
     }
 
     private static boolean allowed(String path, String method) {

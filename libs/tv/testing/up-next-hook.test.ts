@@ -33,6 +33,7 @@ for (const seekBack of [false, true]) {
         const tv = {
             fullscreen: true,
             playing: first,
+            progressSaveNotice: { message: undefined },
             data: {
                 seriesAutoplay: true,
                 playerUpNextCard: false,
@@ -114,6 +115,7 @@ for (const action of ['replay', 'series details'] as const) {
             fullscreen: true,
             playing: { id: 'episode-1', kind: 'episode' },
             replayPending: false,
+            progressSaveNotice: { message: undefined },
             data: {
                 seriesAutoplay: true,
                 playerUpNextCard: false,

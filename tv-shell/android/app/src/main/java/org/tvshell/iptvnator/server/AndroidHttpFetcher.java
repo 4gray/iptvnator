@@ -7,6 +7,7 @@ import org.tvshell.iptvnator.backend.HttpFetcher;
 import org.tvshell.iptvnator.backend.ProviderException;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -14,11 +15,74 @@ import java.net.Proxy;
 import java.net.ProxySelector;
 import java.net.Socket;
 import java.net.URI;
+import java.net.URL;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import okhttp3.Call;
+import okhttp3.ConnectionSpec;
+import okhttp3.Headers;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 final class AndroidHttpFetcher extends HttpFetcher {
+    // Match Android's HttpsURLConnection and let the platform choose its enabled TLS settings.
+    private static final ConnectionSpec PLATFORM_TLS = new ConnectionSpec.Builder(ConnectionSpec.MODERN_TLS)
+        .allEnabledCipherSuites().allEnabledTlsVersions().build();
+    private final OkHttpClient playlistClient;
+
+    AndroidHttpFetcher() {
+        this(new OkHttpClient.Builder());
+    }
+
+    AndroidHttpFetcher(OkHttpClient.Builder client) {
+        playlistClient = client.connectionSpecs(Arrays.asList(PLATFORM_TLS, ConnectionSpec.CLEARTEXT))
+            .followRedirects(false).followSslRedirects(false).build();
+    }
+
+    @Override protected ProviderResponse openResponse(URL url, Map<String, String> headers, int timeoutMs,
+                                                      Cancellation cancellation) throws IOException, ProviderException {
+        if (cancellation == null) return super.openResponse(url, headers, timeoutMs, null);
+        Headers.Builder outgoing = new Headers.Builder();
+        for (Map.Entry<String, String> header : headers.entrySet()) {
+            String name = header.getKey();
+            String value = header.getValue();
+            if (name.equalsIgnoreCase("User-Agent")) {
+                // Android's URLConnection accepts UTF-8 values while rejecting control characters.
+                for (int i = 0; i < value.length(); i++) {
+                    char character = value.charAt(i);
+                    if ((character < ' ' && character != '\t') || character == '\u007f')
+                        throw new ProviderException("Invalid User-Agent", "ERR_INVALID_CHAR");
+                }
+                outgoing.removeAll(name).addUnsafeNonAscii(name, value);
+            } else {
+                outgoing.set(name, value);
+            }
+        }
+        Request request = new Request.Builder().url(url).headers(outgoing.build()).build();
+        Call call = playlistClient.newBuilder()
+            .connectTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+            .readTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+            .build().newCall(request);
+        cancellation.attach(call::cancel);
+        Response response = call.execute();
+        ResponseBody body = response.body();
+        return new ProviderResponse() {
+            @Override public int status() { return response.code(); }
+            @Override public String message() { return response.message(); }
+            @Override public String header(String name) { return response.header(name); }
+            @Override public long contentLength() { return body == null ? -1 : body.contentLength(); }
+            @Override public InputStream body() throws IOException {
+                if (body == null) throw new IOException("Provider response body is missing");
+                return body.byteStream();
+            }
+            @Override public void close() { response.close(); }
+        };
+    }
+
     @Override
     public Result testConnection(String url, Map<String, String> headers, int timeoutMs) throws ProviderException {
         URI target = URI.create(url).resolve("/");

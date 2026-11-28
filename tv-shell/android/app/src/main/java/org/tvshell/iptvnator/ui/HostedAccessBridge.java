@@ -111,10 +111,11 @@ final class HostedAccessBridge {
                     return;
                 }
                 send(id, task, reply, result.put("stream", true), false);
-                InputStream body = response.body().byteStream();
+                if (!task.awaitChunk()) return;
+                InputStream body = HostedApiRequest.responseBody(response);
                 byte[] buffer = new byte[CHUNK_BYTES];
                 long total = 0;
-                while (task.awaitChunk()) {
+                do {
                     int size = body.read(buffer);
                     if (size < 0) {
                         send(id, task, reply, new JSONObject().put("done", true), true);
@@ -124,7 +125,7 @@ final class HostedAccessBridge {
                     if (total > MAX_RESPONSE_BYTES) throw new IOException("Hosted response is too large");
                     send(id, task, reply, new JSONObject()
                         .put("chunk", Base64.encodeToString(buffer, 0, size, Base64.NO_WRAP)), false);
-                }
+                } while (task.awaitChunk());
             }
         } catch (HostedAccessOAuth.Denied denied) {
             send(id, task, reply, error("reauth"), true);

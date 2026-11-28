@@ -55,7 +55,7 @@ async function editSaved(
         edit
     );
 }
-async function watchMovie(page: Page) {
+async function playMovie(page: Page) {
     await start(page);
     await addSource(page, 'xtream');
     await nav(page, 'Movies');
@@ -68,12 +68,12 @@ async function watchMovie(page: Page) {
                 .evaluate((v: HTMLVideoElement) => v.currentTime)
         )
         .toBeGreaterThan(0.1);
-    await page.keyboard.press('Escape');
 }
 test('TV VOD comfort completed movie never says Resume after historical schema-1 reload', async ({
     page,
 }) => {
-    await watchMovie(page);
+    await playMovie(page);
+    await page.keyboard.press('Escape');
     await editSaved(page, 'complete');
     await page.reload();
     await nav(page, 'Movies');
@@ -84,6 +84,27 @@ test('TV VOD comfort completed movie never says Resume after historical schema-1
     await expect(page.locator('.watch-status').first()).toContainText(
         'Watched'
     );
+});
+
+test('TV VOD comfort clears a failed checkpoint after marking the movie watched', async ({
+    page,
+}) => {
+    await playMovie(page);
+    await page.evaluate(() => {
+        const put = IDBObjectStore.prototype.put;
+        IDBObjectStore.prototype.put = function () {
+            IDBObjectStore.prototype.put = put;
+            throw new DOMException('Synthetic quota', 'QuotaExceededError');
+        };
+    });
+    await page.keyboard.press('Escape');
+    const retry = page.getByRole('button', { name: 'Retry saving progress' });
+    await expect(retry).toBeVisible();
+    await moreAction(page, 'Mark watched');
+    await expect(page.locator('[data-focus="detail-play"]')).toContainText(
+        'Watch again'
+    );
+    await expect(retry).toHaveCount(0);
 });
 
 async function syntheticSeries(page: Page, nextStill?: string) {
@@ -171,7 +192,8 @@ async function endedUnknown(page: Page) {
 test('TV VOD comfort manual marks commit before display, recover from quota and preserve schema-1 data', async ({
     page,
 }) => {
-    await watchMovie(page);
+    await playMovie(page);
+    await page.keyboard.press('Escape');
     await editSaved(page, 'historical');
     await page.reload();
     await nav(page, 'Movies');
@@ -246,6 +268,114 @@ test('TV VOD comfort manual marks commit before display, recover from quota and 
     );
     expect(retained).toBe(true);
 });
+
+test('TV Up next keeps focus on the progress warning until recovery', async ({
+    page,
+}) => {
+    await start(page);
+    await syntheticSeries(page);
+    await addSource(page, 'xtream');
+    await nav(page, 'Series');
+    await page.locator('.poster-card').first().click();
+    await page.locator('[data-focus="detail-play"]').click();
+    const card = page.locator('[data-focus="player-up-next"]');
+    await expect(card).toBeFocused();
+
+    const video = page.locator('video');
+    await video.evaluate((element: HTMLVideoElement) => {
+        element.loop = true;
+        const put = IDBObjectStore.prototype.put;
+        IDBObjectStore.prototype.put = function () {
+            IDBObjectStore.prototype.put = put;
+            throw new DOMException('Synthetic quota', 'QuotaExceededError');
+        };
+        element.dispatchEvent(new Event('pause'));
+    });
+    const retry = page.getByRole('button', { name: 'Retry saving progress' });
+    await expect(retry).toBeVisible();
+    await expect(card).toHaveCount(0);
+    await expect(retry).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(retry).toHaveCount(0);
+    await expect(card).toBeVisible();
+    await page.evaluate(
+        () =>
+            new Promise<void>((resolve) =>
+                requestAnimationFrame(() =>
+                    requestAnimationFrame(() => resolve())
+                )
+            )
+    );
+    await expect(page.locator('[data-focus="player-toggle"]')).toBeFocused();
+});
+
+for (const warningFocused of [true, false]) {
+    test(`TV checkpoint recovery after an episode ends preserves focus (warning focused: ${warningFocused})`, async ({
+        page,
+    }) => {
+        await start(page);
+        await disableUpNextAndAutoplay(page);
+        await syntheticSeries(page);
+        await addSource(page, 'xtream');
+        await nav(page, 'Series');
+        await page.locator('.poster-card').first().click();
+        await page.locator('[data-focus="detail-play"]').click();
+        const next = page.locator('[data-focus="player-next"]');
+        await expect(next).toBeVisible();
+
+        const video = page.locator('video');
+        await expect
+            .poll(() =>
+                video.evaluate(
+                    (element: HTMLVideoElement) => element.currentTime
+                )
+            )
+            .toBeGreaterThan(0.1);
+        await video.evaluate((element: HTMLVideoElement) => {
+            element.loop = true;
+            const put = IDBObjectStore.prototype.put;
+            element.addEventListener(
+                'recover-checkpoint',
+                () => {
+                    IDBObjectStore.prototype.put = put;
+                    element.dispatchEvent(new Event('pause'));
+                },
+                { once: true }
+            );
+            IDBObjectStore.prototype.put = function () {
+                throw new DOMException('Synthetic quota', 'QuotaExceededError');
+            };
+            element.dispatchEvent(new Event('pause'));
+        });
+        const retry = page.getByRole('button', {
+            name: 'Retry saving progress',
+        });
+        await expect(retry).toBeVisible();
+        const playPause = page.locator('[data-focus="player-toggle"]');
+        await (warningFocused ? retry : playPause).focus();
+        await video.evaluate((element: HTMLVideoElement) => {
+            Object.defineProperty(element, 'ended', {
+                configurable: true,
+                value: true,
+            });
+            element.dispatchEvent(new Event('ended'));
+        });
+        await expect(warningFocused ? retry : next).toBeFocused();
+        const back = page.locator('[data-focus="player-back"]');
+        if (!warningFocused) await back.focus();
+        await video.dispatchEvent('recover-checkpoint');
+        await expect(retry).toHaveCount(0);
+        await page.evaluate(
+            () =>
+                new Promise<void>((resolve) =>
+                    requestAnimationFrame(() =>
+                        requestAnimationFrame(() => resolve())
+                    )
+                )
+        );
+        await expect(warningFocused ? playPause : back).toBeFocused();
+    });
+}
 
 test('TV Up next can be reached again by remote and Back dismisses it first', async ({
     page,

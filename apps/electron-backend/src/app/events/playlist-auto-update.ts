@@ -5,6 +5,7 @@ import type {
 } from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import {
+    BACKGROUND_PLAYLIST_FETCH_TIMEOUT_MS,
     fetchPlaylistFromFile,
     fetchPlaylistFromUrl,
     preserveAutoUpdatedPlaylistFields,
@@ -36,7 +37,11 @@ async function refreshPlaylist(
         playlistObject = await fetchPlaylistFromUrl(
             playlist.url,
             playlist.title,
-            { ...options, userAgent: playlist.userAgent }
+            {
+                ...options,
+                userAgent: playlist.userAgent,
+                timeoutMs: BACKGROUND_PLAYLIST_FETCH_TIMEOUT_MS,
+            }
         );
     } else if (playlist.filePath) {
         console.log(

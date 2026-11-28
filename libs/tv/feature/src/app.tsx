@@ -1,6 +1,7 @@
 import { useSourceActions } from './use-source-actions';
 import { usePlayerPlaylist } from './use-player-playlist';
 import { HomeSourceStatus } from './home-source-status';
+import { ProgressSaveNotice } from './progress-save-notice';
 import { LiveOverlay, useLiveOverlay } from './live-overlay';
 import { useLiveBrowse } from './use-live-browse';
 import { useVodSequence } from './use-vod-sequence';
@@ -216,6 +217,12 @@ export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
                             Edit sources
                         </button>
                     </div>
+                ) : null}
+                {!tv.fullscreen ? (
+                    <ProgressSaveNotice
+                        notice={tv.progressSaveNotice}
+                        focusFallback={`nav:${r.view}`}
+                    />
                 ) : null}
                 {tv.reconnectStatus ? (
                     <p role="status">{tv.reconnectStatus}</p>

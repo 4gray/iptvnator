@@ -9,6 +9,30 @@ const source: Source = {
     url: 'https://provider.invalid/list.m3u',
 };
 
+test('only playlist parsing waits through the backend download budget', async (t) => {
+    const timeout = t.mock.method(globalThis, 'setTimeout');
+    const keepAlive: Array<string | null> = [];
+    t.mock.method(globalThis, 'fetch', async (url: string) => {
+        keepAlive.push(new URL(url).searchParams.get('keepAlive'));
+        return {
+            ok: true,
+            json: async () =>
+                url.endsWith('/provider-targets')
+                    ? { targetId: 'synthetic-target' }
+                    : { playlist: { items: [] } },
+        };
+    });
+    const transport = new ProviderTransport('https://backend.invalid');
+    const signal = new AbortController().signal;
+    await transport.request(source, 'parse', {}, signal);
+    await transport.request(source, 'xtream', {}, signal);
+    assert.deepEqual(
+        timeout.mock.calls.map((call) => call.arguments[1]),
+        [35_000, 310_000, 35_000]
+    );
+    assert.deepEqual(keepAlive, [null, '1', null]);
+});
+
 test('backend restart repairs a missing registered target once without changing source credentials', async (t) => {
     let registrations = 0;
     let restarted = false;

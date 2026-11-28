@@ -25,8 +25,11 @@ export function createUrlPlaylistImport() {
     const errorCode = signal<string | null>(null);
     const recovery = signal<PlaylistImportRecovery | null>(null);
     let generation = 0;
+    let controller: AbortController | undefined;
     const cancel = () => {
         generation++;
+        controller?.abort();
+        controller = undefined;
         pending.set(false);
         recovery.set(null);
     };
@@ -40,6 +43,7 @@ export function createUrlPlaylistImport() {
         if (pending() || destroyRef.destroyed) return;
         const owned = ++generation;
         const current = () => owned === generation && !destroyRef.destroyed;
+        controller = new AbortController();
         pending.set(true);
         errorKey.set(null);
         errorCode.set(null);
@@ -47,7 +51,8 @@ export function createUrlPlaylistImport() {
         try {
             const fetched = await data.fetchPlaylistDefinition(
                 draft.playlistUrl.trim(),
-                draft.userAgent?.trim() || undefined
+                draft.userAgent?.trim() || undefined,
+                { signal: controller.signal }
             );
             if (!current()) return;
             const playlist = applyPlaylistEpgImportPreference(
@@ -85,7 +90,10 @@ export function createUrlPlaylistImport() {
                 });
             }
         } finally {
-            if (current()) pending.set(false);
+            if (current()) {
+                controller = undefined;
+                pending.set(false);
+            }
         }
     }
     const clearError = () => {

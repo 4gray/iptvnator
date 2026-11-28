@@ -144,11 +144,43 @@ public class HttpFetcher {
         boolean initialResponded;
     }
 
+    protected static final class Cancellation {
+        private Runnable abort;
+        private volatile boolean cancelled;
+
+        public synchronized void attach(Runnable abortRequest) throws ProviderException {
+            check();
+            abort = abortRequest;
+        }
+
+        synchronized void detach() {
+            abort = null;
+        }
+
+        void cancel() {
+            Runnable current;
+            synchronized (this) {
+                cancelled = true;
+                current = abort;
+            }
+            if (current != null) current.run();
+        }
+
+        void check() throws ProviderException {
+            if (cancelled) throw new ProviderException(409, "Playlist download cancelled");
+        }
+    }
+
     public Result get(String url, Map<String, String> headers, int timeoutMs) throws ProviderException {
+        return get(url, headers, timeoutMs, null);
+    }
+
+    Result get(String url, Map<String, String> headers, int timeoutMs, Cancellation cancellation) throws ProviderException {
         RequestProgress progress = new RequestProgress();
         try {
-            return fetch(url, headers, timeoutMs, progress);
+            return fetch(url, headers, timeoutMs, progress, cancellation);
         } catch (ProviderException failure) {
+            if (cancellation != null) cancellation.check();
             failure.initialResponded |= progress.initialResponded;
             throw failure;
         }
@@ -158,61 +190,91 @@ public class HttpFetcher {
         return get(url, headers, timeoutMs);
     }
 
-    private Result fetch(String url, Map<String, String> headers, int timeoutMs, RequestProgress progress) throws ProviderException {
+    protected interface ProviderResponse extends AutoCloseable {
+        int status();
+        String message();
+        String header(String name);
+        long contentLength();
+        InputStream body() throws IOException;
+        @Override void close();
+    }
+
+    protected ProviderResponse openResponse(URL url, Map<String, String> headers, int timeoutMs,
+                                            Cancellation cancellation) throws IOException, ProviderException {
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        boolean opened = false;
+        try {
+            connection.setInstanceFollowRedirects(false);
+            connection.setConnectTimeout(timeoutMs);
+            connection.setReadTimeout(timeoutMs);
+            try {
+                connection.setRequestMethod("GET");
+            } catch (java.net.ProtocolException e) {
+                throw new ProviderException("GET not supported", "EPROTO");
+            }
+            for (Map.Entry<String, String> entry : headers.entrySet()) {
+                connection.setRequestProperty(entry.getKey(), entry.getValue());
+            }
+            if (cancellation != null) cancellation.attach(connection::disconnect);
+            int status = connection.getResponseCode();
+            ProviderResponse response = new ProviderResponse() {
+                @Override public int status() { return status; }
+                @Override public String message() {
+                    try { return connection.getResponseMessage(); }
+                    catch (IOException ignored) { return null; }
+                }
+                @Override public String header(String name) { return connection.getHeaderField(name); }
+                @Override public long contentLength() { return connection.getContentLengthLong(); }
+                @Override public InputStream body() throws IOException { return connection.getInputStream(); }
+                @Override public void close() { connection.disconnect(); }
+            };
+            opened = true;
+            return response;
+        } finally {
+            if (!opened) connection.disconnect();
+        }
+    }
+
+    private static Map<String, String> requestHeaders(Map<String, String> headers) {
+        Map<String, String> result = new LinkedHashMap<>();
+        result.put("Accept-Encoding", "gzip, deflate");
+        result.put("Accept", "*/*");
+        if (headers != null) result.putAll(headers);
+        if (result.keySet().stream().noneMatch("User-Agent"::equalsIgnoreCase))
+            result.put("User-Agent", DEFAULT_USER_AGENT);
+        return result;
+    }
+
+    private Result fetch(String url, Map<String, String> headers, int timeoutMs, RequestProgress progress,
+                         Cancellation cancellation) throws ProviderException {
         Set<String> visited = new HashSet<String>();
         String current = url;
         for (int redirects = 0; ; redirects++) {
+            if (cancellation != null) cancellation.check();
             if (!visited.add(current)) throw new ProviderException("Redirect cycle detected", "ERR_REDIRECT_CYCLE");
-            HttpURLConnection connection;
+            URL target;
             try {
-                URL target = new URL(current);
+                target = new URL(current);
                 String protocol = target.getProtocol().toLowerCase();
                 if (!protocol.equals("http") && !protocol.equals("https")) {
                     throw new ProviderException("Only http and https provider URLs are supported", "ERR_INVALID_PROTOCOL");
                 }
-                connection = (HttpURLConnection) target.openConnection();
             } catch (MalformedURLException e) {
                 throw new ProviderException("Invalid URL", "ERR_INVALID_URL");
-            } catch (IOException e) {
-                throw mapNetworkError(e);
             }
-            try {
-                connection.setInstanceFollowRedirects(false);
-                connection.setConnectTimeout(timeoutMs);
-                connection.setReadTimeout(timeoutMs);
-                try {
-                    connection.setRequestMethod("GET");
-                } catch (java.net.ProtocolException e) {
-                    throw new ProviderException("GET not supported", "EPROTO");
-                }
-                connection.setRequestProperty("Accept-Encoding", "gzip, deflate");
-                connection.setRequestProperty("Accept", "*/*");
-                boolean userAgentSet = false;
-                if (headers != null) {
-                    for (Map.Entry<String, String> header : headers.entrySet()) {
-                        connection.setRequestProperty(header.getKey(), header.getValue());
-                        if (header.getKey().equalsIgnoreCase("User-Agent")) userAgentSet = true;
-                    }
-                }
-                if (!userAgentSet) connection.setRequestProperty("User-Agent", DEFAULT_USER_AGENT);
-
-                int status;
-                try {
-                    status = connection.getResponseCode();
-                    if (status >= 100 && status <= 599) progress.initialResponded = true;
-                } catch (IOException e) {
-                    throw mapNetworkError(e);
-                }
+            try (ProviderResponse response = openResponse(target, requestHeaders(headers), timeoutMs, cancellation)) {
+                int status = response.status();
+                if (status >= 100 && status <= 599) progress.initialResponded = true;
+                if (cancellation != null) cancellation.check();
                 if (status == 301 || status == 302 || status == 303 || status == 307 || status == 308) {
-                    String location = connection.getHeaderField("Location");
+                    String location = response.header("Location");
                     if (location == null || location.isEmpty()) {
                         throw new ProviderException("Redirect response did not include a location", "ERR_REDIRECT_LOCATION");
                     }
                     if (redirects >= MAX_REDIRECTS) throw new ProviderException("Too many redirects", "ERR_TOO_MANY_REDIRECTS");
                     try {
-                        URL from = new URL(current);
-                        URL next = new URL(from, location);
-                        headers = headersForRedirect(headers, from, next);
+                        URL next = new URL(target, location);
+                        headers = headersForRedirect(headers, target, next);
                         current = next.toString();
                     } catch (MalformedURLException e) {
                         throw new ProviderException("Redirect location is not a valid URL", "ERR_REDIRECT_LOCATION");
@@ -220,25 +282,15 @@ public class HttpFetcher {
                     continue;
                 }
                 if (status < 200 || status >= 300) {
-                    String reason;
-                    try {
-                        reason = connection.getResponseMessage();
-                    } catch (IOException e) {
-                        reason = null;
-                    }
+                    String reason = response.message();
                     throw new ProviderException(status, reason == null || reason.isEmpty() ? "HTTP " + status : reason);
                 }
-                String contentType = connection.getContentType();
+                String contentType = response.header("Content-Type");
                 // Declared size first: an oversized answer is refused before a byte of it is read.
-                long declared = connection.getContentLengthLong();
+                long declared = response.contentLength();
                 if (declared > MAX_BODY_BYTES) throw tooLarge();
-                InputStream in;
-                try {
-                    in = connection.getInputStream();
-                } catch (IOException e) {
-                    throw mapNetworkError(e);
-                }
-                String encoding = connection.getContentEncoding();
+                InputStream in = response.body();
+                String encoding = response.header("Content-Encoding");
                 encoding = encoding == null ? "" : encoding.toLowerCase(Locale.ROOT);
                 boolean gzip = encoding.contains("gzip");
                 boolean compressed = gzip || encoding.contains("deflate");
@@ -248,11 +300,6 @@ public class HttpFetcher {
                     byte[] body = readAll(in, compressed ? -1 : declared, MAX_BODY_BYTES);
                     if (wire != null) wire.requireComplete();
                     return new Result(status, new String(body, charsetOf(contentType)), contentType);
-                } catch (TooLargeException e) {
-                    throw tooLarge();
-                } catch (IOException e) {
-                    // Receiving headers is not a successful request when the body cannot be read.
-                    throw mapNetworkError(e);
                 } finally {
                     try {
                         in.close();
@@ -260,8 +307,12 @@ public class HttpFetcher {
                         // ignore
                     }
                 }
+            } catch (TooLargeException e) {
+                throw tooLarge();
+            } catch (IOException e) {
+                throw mapNetworkError(e);
             } finally {
-                connection.disconnect();
+                if (cancellation != null) cancellation.detach();
             }
         }
     }

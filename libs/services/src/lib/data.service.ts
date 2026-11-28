@@ -34,6 +34,11 @@ export interface PlaylistImportRecovery {
     run: () => void;
 }
 
+export interface PlaylistDefinitionFetchOptions {
+    readonly background?: boolean;
+    readonly signal?: AbortSignal;
+}
+
 export abstract class DataService {
     /** The caller presents explicit recovery inside its own focus scope. */
     playlistImportRecovery(
@@ -46,11 +51,11 @@ export abstract class DataService {
     }
     /** Fetches a source snapshot without dispatching an import/navigation action. */
     fetchPlaylistDefinition(
-        _url: string,
-        _userAgent?: string
-    ): Promise<import('@iptvnator/shared/interfaces').Playlist> {
-        void _url;
-        void _userAgent;
+        url: string,
+        userAgent?: string,
+        options?: PlaylistDefinitionFetchOptions
+    ): Promise<import('@iptvnator/shared/interfaces').Playlist>;
+    fetchPlaylistDefinition() {
         return Promise.reject(new Error('Playlist fetching is unavailable'));
     }
     get isElectron(): boolean {

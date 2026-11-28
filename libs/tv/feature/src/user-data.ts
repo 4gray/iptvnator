@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { useProgressSaveNotice } from './use-notice';
 import { installTvScreensaver, restoreFocus } from '@iptvnator/tv/ui';
 import {
     NativePlayer,
@@ -19,7 +20,6 @@ export function useUserData(
     video: { current: HTMLVideoElement | null },
     report: (message: string) => void,
     tick: () => void,
-    saveFailure: (message: string, retry: () => Promise<void>) => void,
     favoriteNotice: {
         setError: (message: string, retry?: () => void, label?: string) => void;
         clearError: (label: string) => void;
@@ -33,14 +33,24 @@ export function useUserData(
     const repo = useRef<UserDataRepository>();
     const player = useRef<NativePlayer>();
     const liveChannels = useRef(new ConfirmedLiveChannels());
-    const callbacks = useRef({ report, tick, saveFailure });
-    callbacks.current = { report, tick, saveFailure };
+    const progressSaveNotice = useProgressSaveNotice();
+    const callbacks = useRef({ report, tick, progressSaveNotice });
+    callbacks.current = { report, tick, progressSaveNotice };
     if (!repo.current)
         repo.current = new UserDataRepository(storage.current, setData);
     const update = (change: (d: UserData) => UserData) =>
         repo.current!.update(change);
+    async function updateProgress(
+        itemId: string,
+        change: (d: UserData) => UserData
+    ) {
+        await update(change);
+        callbacks.current.progressSaveNotice.saved(
+            repo.current?.data.positions[itemId]
+        );
+    }
     const saveWatch = (item: Media, action: WatchAction) =>
-        update((d) => setWatchState(d, item, action));
+        updateProgress(item.id, (d) => setWatchState(d, item, action));
     async function retryStorage() {
         if (loading.current || storageReady) return;
         loading.current = true;
@@ -61,10 +71,20 @@ export function useUserData(
         const removeScreensaver = installTvScreensaver(video.current!);
         player.current = new NativePlayer(
             video.current!,
-            (p) => update((d) => recordProgress(d, p)),
+            (p) =>
+                updateProgress(p.item.id, (d) =>
+                    d.sources.some((source) => source.id === p.item.sourceId)
+                        ? recordProgress(d, p)
+                        : d
+                ),
             (message) => callbacks.current.report(message),
             () => callbacks.current.tick(),
-            (message, retry) => callbacks.current.saveFailure(message, retry),
+            (message, retry, progress) =>
+                callbacks.current.progressSaveNotice.report(
+                    message,
+                    retry,
+                    progress
+                ),
             (item) =>
                 liveChannels.current.confirm(item, repo.current!.data.sources)
         );
@@ -121,6 +141,7 @@ export function useUserData(
     }
     return {
         data,
+        progressSaveNotice,
         storageReady,
         storageError,
         retryStorage,

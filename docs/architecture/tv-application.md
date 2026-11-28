@@ -86,6 +86,12 @@ must allow their actual Origin in the backend's `CLIENT_URL` setting. A backend
 is an explicit credential destination; use one you control. No API response,
 credential, portal URL or resolved stream URL is logged by the TV application.
 
+The TV client allows 310 seconds for an M3U `parse` response, including the
+backend download, parsing and response transfer. Target registration and portal
+requests use 35 seconds. The accompanying Docker proxy allows 300 seconds to
+receive the backend's response after a playlist request. The TV transport opts
+into playlist heartbeats when its backend is hosted through Cloudflare.
+
 Xtream retains URL normalization, account status, complete VOD stream-ID and
 extension or explicit HTTP(S) direct-address candidates, Unicode/base64 EPG and
 panel timezone conversion. Direct addresses from loaded details, catalog rows or
@@ -334,6 +340,8 @@ Live fullscreen offers Channels, Programme and TV Guide controls. With controls 
 Left opens the channel drawer directly; pointer users select Channels. The drawer
 starts in the playing category and focuses the playing item. A playing item beyond
 loaded provider pages appears once as a pinned row rather than crawling the catalog.
+An older progress warning leaves this shortcut available once the control timer
+expires. If a warning action has focus, Left navigates within the controls.
 Category browsing and focus never change playback; OK resolves a selected channel.
 The same native video element remains mounted. The fullscreen information and
 single-channel EPG header name their exact source. Go to playlist reveals the
@@ -361,7 +369,16 @@ corresponding candidate. The pair is session-only: history is not treated as a
 current playing channel after launch. Pending Previous can be canceled with Back;
 the visible Back and Go to playlist controls also retire it before leaving fullscreen.
 A failed switch offers Retry previous channel until the viewer leaves fullscreen
-or chooses another action.
+or chooses another action. The source activation uses the result of the current
+connection attempt even when a progress-save error is already visible. A failed
+progress write retains its own retry when the source switch fails as well. A
+later checkpoint or manual watch-state save for the same title clears the
+warning once it supersedes the failure.
+If the warning had focus when it closed, fullscreen returns focus to Play/Pause.
+The Up Next card waits while the progress warning is visible. If a warning hides
+the focused card, focus moves to Retry saving progress. Recovering a save leaves
+the viewer's focus in place when the card or Next episode is available.
+The episode ending still focuses Next episode unless the warning owns focus.
 Modal Back closes its overlay first. Existing Left/drawer, media and system keys
 are unchanged; no Channel +/- hardware support or autoplay is added.
 
@@ -705,13 +722,16 @@ readiness and preserves the initiating Home control and scroll. A newer Home
 selection queues behind any source save that has already started, even after
 its previous intent is cancelled. Playback waits for the latest source write and
 matching provider readiness instead of trusting a briefly stale active source.
-A newer Home action, navigation away, Back/Cancel, changed source configuration or backend,
-and a 40-second deadline retire the pending intent; late connection completion
-cannot launch it. Failed activation offers Retry Home title or Retry favorite
+A newer Home action, navigation away, Back/Cancel, or a changed source configuration
+or backend retires the pending intent. The 40-second deadline applies to source
+saves and portal activation. After an M3U source is selected, activation waits
+for its playlist transport result. A retired connection cannot launch playback.
+Failed activation offers Retry Home title or Retry favorite
 for its initiating surface. Retained activity
 whose source is no longer available remains visible with an unavailable-source
 label and a recovery message, without borrowing another source's provider.
-Explicit local source removal still removes that source's viewing data.
+Explicit local source removal still removes that source's viewing data. A queued
+progress save or retry checks that the source still exists before writing.
 Global history is local TV activity, without cross-device synchronization or
 parallel connections to every provider.
 Playback-resolution retries retain the full originating control and scroll,

@@ -1,3 +1,5 @@
+/** @jest-environment-options {"url":"http://127.0.0.1:43330"} */
+
 import {
     sourceAuthorization,
     verifySourceInstance,
@@ -222,7 +224,11 @@ describe('PwaService', () => {
             ).flush({ targetId: 'target-default' });
             await new Promise((resolve) => setTimeout(resolve));
             const parse = http.expectOne((req) => req.url.endsWith('/parse'));
-            expect(parse.request.params.keys()).toEqual(['targetId']);
+            expect(parse.request.params.keys()).toEqual([
+                'targetId',
+                'keepAlive',
+            ]);
+            expect(parse.request.params.get('keepAlive')).toBe('1');
             expect(parse.request.headers.has('User-Agent')).toBe(false);
             parse.flush({});
         }
@@ -232,6 +238,127 @@ describe('PwaService', () => {
         expect(service.getErrorKeyByStatusCode(413)).toBe(
             'HOME.URL_UPLOAD.ERROR_413'
         );
+    });
+
+    it('flags background playlist downloads in the proxy request', async () => {
+        const pending = service.fetchPlaylistDefinition(
+            'https://provider.test/synthetic.m3u',
+            undefined,
+            { background: true }
+        );
+        http.expectOne((req) => req.url.endsWith('/provider-targets')).flush({
+            targetId: 'synthetic-target',
+        });
+        await new Promise((resolve) => setTimeout(resolve));
+        const parse = http.expectOne((req) => req.url.endsWith('/parse'));
+        expect(parse.request.params.get('background')).toBe('1');
+        parse.flush({});
+        await pending;
+    });
+
+    it('cancels the HTTP download when the playlist import is abandoned', async () => {
+        const url = 'https://provider.test/synthetic.m3u';
+        const controller = new AbortController();
+        Object.defineProperties(controller.signal, {
+            throwIfAborted: { value: undefined },
+            reason: { value: undefined },
+        });
+        const pending = service.fetchPlaylistDefinition(url, undefined, {
+            signal: controller.signal,
+        });
+        const outcome = pending.catch((error: unknown) => error);
+        http.expectOne((req) => req.url.endsWith('/provider-targets')).flush({
+            targetId: 'synthetic-target',
+        });
+        await new Promise((resolve) => setTimeout(resolve));
+        const request = http.expectOne((req) => req.url.endsWith('/parse'));
+        controller.abort();
+        const cancelled = request.cancelled;
+        if (!cancelled) request.flush({});
+        await expect(outcome).resolves.toMatchObject({ name: 'AbortError' });
+        expect(cancelled).toBe(true);
+
+        const retry = service.fetchPlaylistDefinition(url, undefined, {
+            signal: new AbortController().signal,
+        });
+        await new Promise((resolve) => setTimeout(resolve));
+        const playlist = { title: 'Synthetic playlist' };
+        http.expectOne((req) => req.url.endsWith('/parse')).flush(playlist);
+        await expect(retry).resolves.toEqual(playlist);
+    });
+
+    it('does not register a target for an already cancelled playlist import', async () => {
+        const pending = service.fetchPlaylistDefinition(
+            'https://provider.test/synthetic.m3u',
+            undefined,
+            { signal: AbortSignal.abort() }
+        );
+        const outcome = pending.catch((error: unknown) => error);
+        http.expectNone((req) => req.url.endsWith('/provider-targets'));
+        await expect(outcome).resolves.toMatchObject({ name: 'AbortError' });
+    });
+
+    it('forwards an embedded Android cancellation and handles a failed notification', async () => {
+        const originalFetch = window.fetch;
+        const cancel = jest
+            .fn()
+            .mockRejectedValue(new Error('Synthetic notification failure'));
+        Object.assign(window, { TvShell: {}, fetch: cancel });
+        service.corsProxyUrl = '/api';
+        try {
+            const controller = new AbortController();
+            const result = service.fetchPlaylistDefinition(
+                'https://provider.test/synthetic.m3u',
+                undefined,
+                {
+                    signal: controller.signal,
+                }
+            );
+            const rejected = expect(result).rejects.toMatchObject({
+                name: 'AbortError',
+            });
+            http.expectOne('/api/provider-targets').flush({
+                targetId: 'synthetic-target',
+            });
+            await new Promise((resolve) => setTimeout(resolve));
+            const parse = http.expectOne((req) => req.url === '/api/parse');
+            const id = parse.request.params.get('requestId');
+            expect(id).toMatch(/^[a-f0-9-]{36}$/);
+            controller.abort();
+            await rejected;
+            expect(parse.cancelled).toBe(true);
+            expect(cancel).toHaveBeenCalledWith(
+                `/api/parse/cancel?requestId=${id}`,
+                {
+                    method: 'POST',
+                    keepalive: true,
+                }
+            );
+        } finally {
+            Reflect.deleteProperty(window, 'TvShell');
+            window.fetch = originalFetch;
+        }
+    });
+
+    it('rejects a provider failure received after the tunnel starts its JSON response', async () => {
+        const pending = service.fetchPlaylistDefinition(
+            'https://provider.test/synthetic.m3u'
+        );
+        const failure = {
+            status: 413,
+            message: 'Synthetic response exceeds the limit',
+            code: 'PROVIDER_RESPONSE_TOO_LARGE',
+        };
+        const rejected = expect(pending).rejects.toMatchObject({
+            status: 413,
+            error: failure,
+        });
+        http.expectOne((req) => req.url.endsWith('/provider-targets')).flush({
+            targetId: 'synthetic-target',
+        });
+        await new Promise((resolve) => setTimeout(resolve));
+        http.expectOne((req) => req.url.endsWith('/parse')).flush(failure);
+        await rejected;
     });
 
     it('appends the proxy network code to the URL-import failure toast', async () => {

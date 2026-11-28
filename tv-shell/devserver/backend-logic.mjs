@@ -239,7 +239,7 @@ const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
  * network errors. Failures after response headers preserve that evidence for
  * protocol discovery, including when a redirect destination fails to connect.
  */
-export function fetchText(url, allowedOrigins, { headers = {}, timeoutMs = 30000, redirects = 0 } = {}) {
+export function fetchText(url, allowedOrigins, { headers = {}, timeoutMs = 30000, redirects = 0, signal } = {}) {
     return new Promise((resolvePromise, reject) => {
         let initialResponded = false;
         const fail = (error) => {
@@ -264,6 +264,7 @@ export function fetchText(url, allowedOrigins, { headers = {}, timeoutMs = 30000
                 auth: urlToHttpOptions(target).auth,
                 headers: { 'Accept-Encoding': 'gzip, deflate', ...headers },
                 timeout: timeoutMs,
+                signal,
             },
             (res) => {
                 initialResponded = true;
@@ -279,7 +280,7 @@ export function fetchText(url, allowedOrigins, { headers = {}, timeoutMs = 30000
                     const nextHeaders = next.origin === target.origin ? headers : Object.fromEntries(
                         Object.entries(headers).filter(([key]) => !['authorization', 'cookie', 'proxy-authorization', 'sn', 'host'].includes(key.toLowerCase()))
                     );
-                    return fetchText(next.href, allowedOrigins, { headers: nextHeaders, timeoutMs, redirects: redirects + 1 }).then(resolvePromise, fail);
+                    return fetchText(next.href, allowedOrigins, { headers: nextHeaders, timeoutMs, redirects: redirects + 1, signal }).then(resolvePromise, fail);
                 }
                 if (res.statusCode < 200 || res.statusCode >= 300) {
                     res.on('error', fail).resume();

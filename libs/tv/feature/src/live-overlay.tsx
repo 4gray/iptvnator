@@ -4,6 +4,7 @@ import { focusKey, restoreFocus } from '@iptvnator/tv/ui';
 import { LiveChannels } from './live-channels';
 import { GridGuide } from './grid-guide';
 import { ProgrammeGuide } from './programme-guide';
+import { isProgressSaveNoticeFocused } from './progress-save-notice';
 import type { TvModel } from './use-tv';
 import type { useLiveBrowse } from './use-live-browse';
 
@@ -62,7 +63,10 @@ export function useLiveOverlay(tv: TvModel, browse: Browse) {
                 current.tv.fullscreen &&
                 current.tv.playing?.kind === 'live' &&
                 (event.key === 'ArrowLeft' || event.keyCode === 37) &&
-                document.querySelector('.player-controls.dormant')
+                document.querySelector(
+                    '.player-controls[data-controls-idle]'
+                ) &&
+                !isProgressSaveNoticeFocused()
             ) {
                 event.preventDefault();
                 event.stopImmediatePropagation();

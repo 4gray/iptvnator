@@ -18,7 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *   GET  /config.js
  *   POST /provider-targets          { url }  -> { targetId }
  *   POST /connectivity-guard/reset  { url }  -> { reset }
- *   GET  /parse?targetId&userAgent           -> Playlist record (M3U)
+ *   GET  /parse?targetId&userAgent&background -> Playlist record (M3U)
+ *   POST /parse/cancel?requestId              -> Cancel a local M3U download
  *   GET  /xtream?targetId&...                -> { action, payload } | error body
  *   GET  /stalker?targetId&macAddress&token&serialNumber&... -> { action, payload } | error body
  *   GET  /parse-xml                          -> 501 (EPG is not part of the PWA)
@@ -29,7 +30,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class WebBackend {
 
-    public static final int TIMEOUT_PLAYLIST_MS = 30_000;
+    public static final int TIMEOUT_PLAYLIST_MS = 120_000;
+    private static final int TIMEOUT_BACKGROUND_PLAYLIST_MS = 30_000;
     public static final int TIMEOUT_XTREAM_MS = 30_000;
     public static final int TIMEOUT_STALKER_MS = 15_000;
     public static final int TIMEOUT_STALKER_CREATE_LINK_MS = 30_000;
@@ -77,6 +79,7 @@ public class WebBackend {
     private final HttpFetcher fetcher;
     private final String runtimeBackendUrl;
     private final Map<String, String> providerTargets = new ConcurrentHashMap<String, String>();
+    private final PlaylistDownloads playlistDownloads = new PlaylistDownloads();
 
     public WebBackend(HttpFetcher fetcher, String runtimeBackendUrl) {
         this.fetcher = fetcher;
@@ -112,6 +115,12 @@ public class WebBackend {
             return json(200, out);
         }
         if ("GET".equals(method) && path.equals("/parse")) return parse(query);
+        if ("POST".equals(method) && path.equals("/parse/cancel")) {
+            String id = query.get("requestId");
+            if (!PlaylistDownloads.validId(id)) return json(400, error("Invalid playlist request ID", 400));
+            playlistDownloads.cancel(id);
+            return new Response(204, JSON_TYPE, new byte[0]);
+        }
         if ("GET".equals(method) && path.equals("/parse-xml")) {
             return json(501, error("EPG (XMLTV) is not available in the TV shell", 501));
         }
@@ -160,13 +169,27 @@ public class WebBackend {
     private Response parse(Map<String, String> query) {
         Object target = registeredTarget(query);
         if (target instanceof Response) return (Response) target;
-        String url = (String) target;
+        String id = query.get("requestId");
+        if (id == null) return parsePlaylist(query, (String) target, null);
+        if (!PlaylistDownloads.validId(id)) return json(400, error("Invalid playlist request ID", 400));
+        HttpFetcher.Cancellation request = playlistDownloads.start(id);
+        if (request == null) return json(409, error("Playlist download unavailable", 409));
+        try {
+            return parsePlaylist(query, (String) target, request);
+        } finally {
+            playlistDownloads.finish(id, request);
+        }
+    }
+
+    private Response parsePlaylist(Map<String, String> query, String url, HttpFetcher.Cancellation request) {
         String userAgent = query.get("userAgent");
         Map<String, String> headers = new LinkedHashMap<String, String>();
         if (userAgent != null) headers.put("User-Agent", userAgent);
         String text;
         try {
-            text = fetcher.get(url, headers, TIMEOUT_PLAYLIST_MS).body;
+            int timeout = "1".equals(query.get("background")) ? TIMEOUT_BACKGROUND_PLAYLIST_MS : TIMEOUT_PLAYLIST_MS;
+            text = (request == null ? fetcher.get(url, headers, timeout) : fetcher.get(url, headers, timeout, request)).body;
+            if (request != null) request.check();
         } catch (ProviderException e) {
             Map<String, Object> err = Json.object();
             if (e.hasHttpStatus()) {

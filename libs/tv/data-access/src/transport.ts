@@ -19,13 +19,16 @@ export class ProviderTransport {
     private async json(
         url: string,
         signal: AbortSignal,
-        init?: RequestInit
+        {
+            timeoutMs = 35_000,
+            ...init
+        }: RequestInit & { timeoutMs?: number } = {}
     ): Promise<unknown> {
         const controller = new AbortController();
         const cancel = () => controller.abort();
         signal.addEventListener('abort', cancel);
         if (signal.aborted) cancel();
-        const timer = setTimeout(cancel, 35000);
+        const timer = setTimeout(cancel, timeoutMs);
         try {
             const response = await fetch(url, {
                 ...init,
@@ -92,14 +95,17 @@ export class ProviderTransport {
         const targetId = await this.target(endpoint, signal);
         if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
         const query = new URLSearchParams({ targetId });
-        if (route === 'parse' && source.userAgent)
-            query.set('userAgent', source.userAgent);
+        if (route === 'parse') {
+            query.set('keepAlive', '1');
+            if (source.userAgent) query.set('userAgent', source.userAgent);
+        }
         Object.keys(params).forEach((k) => query.set(k, String(params[k])));
         let result: { payload?: unknown };
         try {
             result = (await this.json(
                 `${this.backend.replace(/\/$/, '')}/${route}?${query}`,
-                signal
+                signal,
+                { timeoutMs: route === 'parse' ? 310_000 : undefined }
             )) as { payload?: unknown };
         } catch (error) {
             if (

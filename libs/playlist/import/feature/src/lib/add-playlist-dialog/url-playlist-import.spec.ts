@@ -103,8 +103,11 @@ describe('dialog-owned URL playlist import', () => {
             const phaseHook = jest.fn();
             Reflect.set(globalThis, hookSymbol, phaseHook);
             const pending = state.submit(draft, completed);
+            const options = fetchPlaylistDefinition.mock.calls[0][2];
+            expect(options.signal.aborted).toBe(false);
             if (action === 'cancel') state.cancel();
             else TestBed.resetTestingModule();
+            expect(options.signal.aborted).toBe(true);
             resolve(playlist);
             await pending;
             expect(dispatch).not.toHaveBeenCalled();
@@ -127,7 +130,8 @@ describe('dialog-owned URL playlist import', () => {
         await retry;
         expect(fetchPlaylistDefinition).toHaveBeenLastCalledWith(
             draft.playlistUrl,
-            undefined
+            undefined,
+            { signal: expect.any(AbortSignal) }
         );
         expect(state.errorKey()).toBeNull();
         expect(dispatch).toHaveBeenCalledTimes(1);

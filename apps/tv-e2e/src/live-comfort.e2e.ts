@@ -162,6 +162,78 @@ test('TV Live comfort failed native previous can resolve a fresh link on repeate
     await confirmed(page, a.id);
 });
 
+for (const focusWarning of [true, false]) {
+    test(`TV clears the progress warning when an automatic save recovers (warning focused: ${focusWarning})`, async ({
+        page,
+    }) => {
+        await page.clock.install();
+        await start(page);
+        await addSource(page, 'm3u', { name: 'Demo North' });
+        await playLive(page);
+        await switchInDrawer(page, 0);
+        await page.evaluate(() => {
+            const put = IDBObjectStore.prototype.put;
+            IDBObjectStore.prototype.put = function () {
+                IDBObjectStore.prototype.put = put;
+                throw new DOMException(
+                    'Synthetic save failure',
+                    'QuotaExceededError'
+                );
+            };
+        });
+        const retry = page.getByRole('button', {
+            name: 'Retry saving progress',
+        });
+        const back = page.locator('[data-focus="player-back"]');
+        const playPause = page.locator('[data-focus="player-toggle"]');
+        await page.clock.fastForward(10_000);
+        await expect(retry).toBeVisible();
+        const focused = focusWarning ? retry : back;
+        await focused.focus();
+        await expect(focused).toBeFocused();
+        await page.clock.fastForward(10_000);
+        await expect(retry).toHaveCount(0);
+        await page.clock.runFor(50);
+        await expect(focusWarning ? playPause : back).toBeFocused();
+    });
+}
+
+test('TV Left still opens the channel drawer with an older progress warning', async ({
+    page,
+}) => {
+    await page.clock.install();
+    await start(page);
+    await addSource(page, 'm3u', { name: 'Demo North' });
+    await playLive(page);
+    const first = await switchInDrawer(page, 0);
+    await page.evaluate((id) => {
+        const put = IDBObjectStore.prototype.put;
+        const since = Date.now();
+        IDBObjectStore.prototype.put = function (value, key) {
+            if (
+                key === 'user' &&
+                value.data.history[0]?.item.id === id &&
+                value.data.positions[id]?.updated > since
+            ) {
+                throw new DOMException(
+                    'Synthetic save failure',
+                    'QuotaExceededError'
+                );
+            }
+            return put.call(this, value, key);
+        };
+    }, first.id);
+    const retry = page.getByRole('button', { name: 'Retry saving progress' });
+    await page.clock.fastForward(10_000);
+    await expect(retry).toBeVisible();
+    await switchInDrawer(page, 1);
+    await expect(page.locator('[data-focus="player-channels"]')).toBeFocused();
+    await page.clock.runFor(6_000);
+    await expect(retry).toBeVisible();
+    await page.keyboard.press('ArrowLeft');
+    await expect(drawer(page)).toBeVisible();
+});
+
 test('TV Live comfort failed resolution and retry leave confirmed pair and recents untouched', async ({
     page,
 }) => {
@@ -381,9 +453,12 @@ test('TV Live comfort account edits invalidate Previous without autoplay or dele
     await expect(previous(page)).toHaveCount(0);
 });
 
-async function openForeignPrevious(page: Page) {
+async function openForeignPrevious(
+    page: Page,
+    provider: 'xtream' | 'm3u' = 'xtream'
+) {
     await start(page);
-    await addSource(page, 'xtream', { name: 'Demo North' });
+    await addSource(page, provider, { name: 'Demo North' });
     await playLive(page);
     const a = await switchInDrawer(page, 0);
     await page.keyboard.press('Escape');
@@ -394,8 +469,114 @@ async function openForeignPrevious(page: Page) {
     await row.click();
     await confirmed(page, b);
     await page.getByRole('button', { name: 'Open fullscreen' }).click();
-    return a;
+    return { ...a, outgoingSourceId: JSON.parse(b)[0] as string };
 }
+
+for (const removeSource of [false, true])
+    test(`TV failed M3U Previous retains progress recovery (remove source: ${removeSource})`, async ({
+        page,
+    }) => {
+        await page.clock.install();
+        const a = await openForeignPrevious(page, 'm3u');
+        const now = await page.evaluate(() => Date.now());
+        await page.clock.pauseAt(new Date(now + 500));
+        let release!: () => void;
+        const gate = new Promise<void>((resolve) => (release = resolve));
+        let attempts = 0;
+        await page.route(`${backend}/parse?**`, async (route) => {
+            if (++attempts !== 1) return route.fallback();
+            await gate;
+            return route.fulfill({
+                status: 503,
+                body: 'Synthetic playlist failure',
+            });
+        });
+        await page.evaluate(() => {
+            const put = IDBObjectStore.prototype.put;
+            IDBObjectStore.prototype.put = function () {
+                IDBObjectStore.prototype.put = put;
+                throw new DOMException(
+                    'Synthetic progress save failure',
+                    'QuotaExceededError'
+                );
+            };
+        });
+        const pending = page.getByRole('button', {
+            name: 'Cancel opening title',
+        });
+        try {
+            await previous(page).click();
+            await expect.poll(() => attempts).toBe(1);
+            await expect(pending).toBeVisible();
+            await expect(
+                page.getByRole('button', { name: 'Retry saving progress' })
+            ).toBeVisible();
+        } finally {
+            release();
+        }
+        const retry = page.getByRole('button', {
+            name: 'Retry previous channel',
+        });
+        await expect(retry).toBeVisible();
+        await expect(pending).toHaveCount(0);
+        const retryProgress = page.getByRole('button', {
+            name: 'Retry saving progress',
+        });
+        await expect(retryProgress).toBeVisible();
+        if (!removeSource) {
+            await retryProgress.click();
+            await expect(retryProgress).toHaveCount(0);
+        }
+        expect(attempts).toBe(1);
+        await retry.click();
+        await page.clock.runFor(500);
+        await expect.poll(() => attempts).toBe(2);
+        await page.clock.resume();
+        await confirmed(page, a.id);
+        await expect(page.locator('.player-source-name')).toHaveText(
+            'Demo North'
+        );
+        if (!removeSource) return;
+        await page.keyboard.press('Escape');
+        await nav(page, 'Sources');
+        const outgoing = page
+            .locator('.source-row')
+            .filter({ hasText: 'Demo South' });
+        page.once('dialog', (dialog) => dialog.accept());
+        await outgoing
+            .getByRole('button', { name: 'Remove', exact: true })
+            .click();
+        await expect(outgoing).toHaveCount(0);
+        await retryProgress.click();
+        await expect(retryProgress).toHaveCount(0);
+        expect(
+            await page.evaluate(async (sourceId) => {
+                const database = await new Promise<IDBDatabase>((resolve) => {
+                    const open = indexedDB.open('iptvnator-tv-user-data', 1);
+                    open.onsuccess = () => resolve(open.result);
+                });
+                try {
+                    return await new Promise<boolean>((resolve) => {
+                        const read = database
+                            .transaction('state')
+                            .objectStore('state')
+                            .get('user');
+                        read.onsuccess = () => {
+                            const { history, positions } = read.result.data;
+                            resolve(
+                                [...history, ...Object.values(positions)].some(
+                                    (entry: { item: { sourceId: string } }) =>
+                                        entry.item.sourceId === sourceId
+                                )
+                            );
+                        };
+                    });
+                } finally {
+                    database.close();
+                }
+            }, a.outgoingSourceId)
+        ).toBe(false);
+    });
 
 test('TV Live comfort remote Stop cancels Previous during cross-source connection', async ({
     page,

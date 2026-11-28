@@ -61,7 +61,8 @@ export async function materializeSource(
         try {
             const parsed = await data.fetchPlaylistDefinition(
                 source.url!,
-                source.userAgent
+                source.userAgent,
+                { background: true }
             );
             const materialized = parsed.playlist
                 ? parsed

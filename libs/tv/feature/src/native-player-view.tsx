@@ -8,6 +8,10 @@ import type { useLiveOverlay } from './live-overlay';
 import type { useSeriesDetails } from './use-series-details';
 import { UpNextCard, useUpNext } from './up-next-card';
 import type { usePlayerControls } from './player-controls';
+import {
+    isProgressSaveNoticeFocused,
+    ProgressSaveNotice,
+} from './progress-save-notice';
 
 export function NativePlayerView({
     tv,
@@ -32,6 +36,7 @@ export function NativePlayerView({
 }) {
     const current = tv.playing;
     const element = video.current;
+    const hasProgressWarning = !!tv.progressSaveNotice.message;
     const upNext = useUpNext(
         tv,
         video,
@@ -41,9 +46,20 @@ export function NativePlayerView({
         seriesDetails.busy
     );
     useLayoutEffect(() => {
-        if (!element?.ended || !vod.next || !tv.fullscreen) return;
+        if (
+            !element?.ended ||
+            !vod.next ||
+            !tv.fullscreen ||
+            isProgressSaveNoticeFocused()
+        )
+            return;
         let owns = true;
-        restoreFocus('player-next', '', undefined, () => owns);
+        restoreFocus(
+            'player-next',
+            '',
+            undefined,
+            () => owns && !isProgressSaveNoticeFocused()
+        );
         return () => {
             owns = false;
         };
@@ -81,6 +97,7 @@ export function NativePlayerView({
             <video ref={video} playsInline preload="metadata" />
             {tv.fullscreen && upNext.card ? (
                 <UpNextCard
+                    buttonRef={upNext.buttonRef}
                     card={upNext.card}
                     collapsed={upNext.collapsed}
                     play={upNext.play}
@@ -88,7 +105,10 @@ export function NativePlayerView({
             ) : null}
             {tv.fullscreen ? (
                 <div
-                    class={`player-controls ${controls.visible || tv.error ? '' : 'dormant'}`}
+                    class={`player-controls ${controls.visible || tv.error || hasProgressWarning ? '' : 'dormant'}`}
+                    data-controls-idle={
+                        !controls.visible && !tv.error ? '' : undefined
+                    }
                     hidden={!!overlay.panel}
                 >
                     <div class="player-top">
@@ -177,6 +197,7 @@ export function NativePlayerView({
                             <button
                                 data-focus="player-toggle"
                                 class="primary"
+                                onFocus={controls.reveal}
                                 onClick={togglePlayback}
                             >
                                 {element?.ended && current?.kind !== 'live'
@@ -279,6 +300,10 @@ export function NativePlayerView({
                                 </button>
                             </div>
                         ) : null}
+                        <ProgressSaveNotice
+                            notice={tv.progressSaveNotice}
+                            focusFallback="player-toggle"
+                        />
                     </div>
                 </div>
             ) : null}

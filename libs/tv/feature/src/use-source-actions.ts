@@ -28,6 +28,7 @@ interface SourceRequest {
     intent: 'open' | 'play' | 'previous';
     origin: NavigationOrigin;
     source: string;
+    provider: Source['provider'];
     backend: string;
     activated: boolean;
     generation: number;
@@ -192,6 +193,7 @@ export function useSourceActions(
             intent,
             origin,
             source: connection(source),
+            provider: source.provider,
             backend: JSON.stringify([
                 current.data.backend,
                 current.data.backendToken,
@@ -292,12 +294,7 @@ export function useSourceActions(
         ) {
             cancel();
             perform(job);
-        } else if (
-            job.activated &&
-            !tv.busy &&
-            tv.errorRetryLabel === 'Retry connection'
-        )
-            fail(job);
+        } else if (job.activated && tv.providerFailed) fail(job);
     });
     const waitingDetails =
         series.busy &&
@@ -307,9 +304,14 @@ export function useSourceActions(
     useEffect(() => {
         if (!pending && !waitingDetails) return;
         const job = request.current;
-        const timer = setTimeout(() => {
-            if (job) fail(job);
-        }, 40000);
+        // Once activated, a playlist connection already has a transport deadline.
+        const timer =
+            job &&
+            (!job.activated ||
+                job.provider !== 'm3u' ||
+                !latest.current.tv.data.backend)
+                ? setTimeout(() => fail(job), 40_000)
+                : undefined;
         const back = (event: KeyboardEvent) => {
             if (
                 (latest.current.tv.fullscreen &&

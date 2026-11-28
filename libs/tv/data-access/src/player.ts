@@ -33,7 +33,8 @@ export class NativePlayer {
         private changed: () => void,
         private saveFailure: (
             message: string,
-            retry: () => Promise<void>
+            retry: () => Promise<void>,
+            progress: Progress
         ) => void = failure,
         private onPlaying: (item: Media) => void = () => undefined
     ) {
@@ -167,7 +168,8 @@ export class NativePlayer {
         this.save(progress).catch(() =>
             this.saveFailure(
                 'Viewing progress could not be saved. Free TV storage and retry.',
-                () => this.save(progress)
+                () => this.save(progress),
+                progress
             )
         );
     }

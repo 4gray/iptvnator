@@ -149,9 +149,10 @@ export const resolvePublicHost = async () => ['93.184.216.34'];
 
 export async function registerProviderTarget(
     baseUrl: string,
-    url: string
+    url: string,
+    send: ReturnType<typeof fetchTestServer> = fetch
 ): Promise<string> {
-    const response = await fetch(`${baseUrl}/provider-targets`, {
+    const response = await send(`${baseUrl}/provider-targets`, {
         body: JSON.stringify({ url }),
         headers: {
             'content-type': 'application/json',

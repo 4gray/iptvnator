@@ -10,7 +10,7 @@
  *       GET  /api/config.js
  *       POST /api/provider-targets        { url } -> { targetId }
  *       POST /api/connectivity-guard/reset { url } -> { reset }
- *       GET  /api/parse?targetId=&userAgent=
+ *       GET  /api/parse?targetId=&userAgent=&background=
  *       GET  /api/xtream?targetId=&...params
  *       GET  /api/stalker?targetId=&macAddress=&token=&serialNumber=&...params
  *
@@ -217,8 +217,15 @@ export async function handleApi(req, res, url, allowedOrigins = PROVIDER_ORIGINS
         const target = getTarget(query, res);
         if (!target) return;
         const userAgent = (query.get('userAgent') || '').trim() || undefined;
+        const download = new AbortController();
+        const abortDownload = () => download.abort();
+        res.once('close', abortDownload);
         try {
-            const text = await fetchText(target, allowedOrigins, { headers: userAgent ? { 'User-Agent': userAgent } : {}, timeoutMs: 60000 });
+            const timeoutMs = query.get('background') === '1' ? 30_000 : 120_000;
+            const text = await fetchText(target, allowedOrigins, {
+                headers: userAgent ? { 'User-Agent': userAgent } : {}, timeoutMs, signal: download.signal,
+            });
+            if (download.signal.aborted) return;
             let parsed;
             try {
                 parsed = parser.parse(text);
@@ -227,8 +234,11 @@ export async function handleApi(req, res, url, allowedOrigins = PROVIDER_ORIGINS
             }
             return json(res, 200, createPlaylistObject(parsed, lastUrlSegment(target), target, userAgent));
         } catch (error) {
+            if (download.signal.aborted) return;
             const body = providerError(error);
             return json(res, body.status, body);
+        } finally {
+            res.off('close', abortDownload);
         }
     }
     if (req.method === 'GET' && path === '/xtream') {

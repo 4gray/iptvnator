@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { once } from 'node:events';
 import { createServer } from 'node:http';
 import { test } from 'node:test';
 import { handleApi } from '../devserver/server.mjs';
@@ -11,6 +12,35 @@ async function registerTarget(base, url) {
     assert.equal(response.status, 200);
     return (await response.json()).targetId;
 }
+
+test('cancelling a playlist response closes the redirected provider download', async () => {
+    const provider = createServer((req, res) => {
+        if (req.url === '/redirect') return res.writeHead(302, { Location: '/playlist' }).end();
+        res.write('#EXTM3U\n');
+        provider.emit('downloading', res);
+    });
+    await new Promise((resolve) => provider.listen(0, '127.0.0.1', resolve));
+    const allowed = new URL(`http://127.0.0.1:${provider.address().port}`);
+    const proxy = createServer((req, res) => handleApi(req, res, new URL(req.url, 'http://127.0.0.1'), [allowed]));
+    await new Promise((resolve) => proxy.listen(0, '127.0.0.1', resolve));
+    try {
+        const base = `http://127.0.0.1:${proxy.address().port}/api`;
+        const targetId = await registerTarget(base, new URL('/redirect', allowed).href);
+        const browser = new AbortController();
+        const request = assert.rejects(fetch(`${base}/parse?targetId=${targetId}`, { signal: browser.signal }), { name: 'AbortError' });
+        const [download] = await once(provider, 'downloading', { signal: AbortSignal.timeout(4000) });
+        const closed = once(download, 'close', { signal: AbortSignal.timeout(4000) });
+        browser.abort();
+        await request;
+        await closed;
+        assert.equal(download.writableEnded, false);
+    } finally {
+        await Promise.all([proxy, provider].map((server) => new Promise((resolve) => {
+            server.close(resolve);
+            server.closeAllConnections();
+        })));
+    }
+});
 
 test('provider routes preserve JSON payloads and send Xtream User-Agent as a header', async () => {
     const observed = [];

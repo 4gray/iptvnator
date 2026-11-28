@@ -1,15 +1,25 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable, Injector } from '@angular/core';
 import { NotificationService } from '@iptvnator/services/notifications';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { catchError, firstValueFrom, Observable, throwError } from 'rxjs';
+import {
+    catchError,
+    firstValueFrom,
+    fromEvent,
+    map,
+    Observable,
+    takeUntil,
+    tap,
+    throwError,
+} from 'rxjs';
 import {
     DataService,
     isBackendUrl,
     isGatewayOutage,
     isServerAccessChallenge,
+    type PlaylistDefinitionFetchOptions,
     ServerStorageStatusService,
 } from '@iptvnator/services';
 import {
@@ -90,11 +100,55 @@ export class PwaService extends DataService {
         return AppConfig.version;
     }
 
-    override fetchPlaylistDefinition(
+    override async fetchPlaylistDefinition(
         url: string,
-        userAgent?: string
+        userAgent?: string,
+        options?: PlaylistDefinitionFetchOptions
     ): Promise<Playlist> {
-        return firstValueFrom(this.getPlaylistFromUrl(url, userAgent));
+        const signal = options?.signal;
+        const checkCancellation = () => {
+            if (signal?.aborted)
+                throw (
+                    signal.reason ?? new DOMException('Aborted', 'AbortError')
+                );
+        };
+        checkCancellation();
+        const requestId =
+            signal &&
+            this.corsProxyUrl === '/api' &&
+            window.location.hostname === '127.0.0.1' &&
+            'TvShell' in window &&
+            !('HostedAccessApi' in window)
+                ? crypto.randomUUID?.()
+                : undefined;
+        const request = this.getPlaylistFromUrl(
+            url,
+            userAgent,
+            options,
+            requestId
+        );
+        const cancelled =
+            signal &&
+            fromEvent(signal, 'abort').pipe(
+                tap(() => {
+                    if (requestId) {
+                        void fetch(`/api/parse/cancel?requestId=${requestId}`, {
+                            method: 'POST',
+                            keepalive: true,
+                        }).catch(() => undefined);
+                    }
+                })
+            );
+        try {
+            const playlist = await firstValueFrom(
+                cancelled ? request.pipe(takeUntil(cancelled)) : request
+            );
+            checkCancellation();
+            return playlist;
+        } catch (error) {
+            checkCancellation();
+            throw error;
+        }
     }
 
     /**
@@ -496,17 +550,39 @@ export class PwaService extends DataService {
         }
     }
 
-    getPlaylistFromUrl(url: string, userAgent?: string): Observable<Playlist> {
+    getPlaylistFromUrl(
+        url: string,
+        userAgent?: string,
+        options?: PlaylistDefinitionFetchOptions,
+        requestId?: string
+    ): Observable<Playlist> {
         const normalizedUserAgent = userAgent?.trim();
         return this.providerTargets.request(url, (targetId) =>
-            this.http.get<Playlist>(`${this.corsProxyUrl}/parse`, {
-                params: {
-                    targetId,
-                    ...(normalizedUserAgent
-                        ? { userAgent: normalizedUserAgent }
-                        : {}),
-                },
-            })
+            this.http
+                .get<Playlist>(`${this.corsProxyUrl}/parse`, {
+                    params: {
+                        targetId,
+                        keepAlive: '1',
+                        ...(requestId ? { requestId } : {}),
+                        ...(options?.background ? { background: '1' } : {}),
+                        ...(normalizedUserAgent
+                            ? { userAgent: normalizedUserAgent }
+                            : {}),
+                    },
+                })
+                .pipe(
+                    map((body) => {
+                        // A tunnel heartbeat can send the HTTP status before the provider fails.
+                        const status = this.getErrorDetails(body)?.status;
+                        if (typeof status === 'number') {
+                            throw new HttpErrorResponse({
+                                error: body,
+                                status,
+                            });
+                        }
+                        return body;
+                    })
+                )
         );
     }
 

@@ -38,10 +38,12 @@ Raw provider messages and URLs are never rendered as diagnostic details; editing
 the form or starting another attempt clears the identifier.
 
 Cancel, Escape, backdrop dismissal, navigation during acquisition and destruction
-retire the dialog's operation. The HTTP/IPC transport may still finish, but a
-retired result cannot save a source or navigate. Only an owned success dispatches
-the existing add-by-URL action and closes the dialog. OS/file import admission
-and serial persistence remain on their existing paths.
+retire the dialog's operation and cancel the PWA download, including in the
+embedded Android backend and through the paired Android bridge. A retired result
+cannot save a source or navigate, even if an Electron IPC request finishes later.
+Only an owned success dispatches the
+existing add-by-URL action and closes the dialog. OS/file import admission and
+serial persistence remain on their existing paths.
 An omitted title retains the Electron URL-derived fallback. The owned dispatch
 keeps the `M3U_IMPORT_DISPATCH` performance-phase boundary; cancelled results
 emit neither a dispatch nor a benchmark phase.
@@ -447,13 +449,15 @@ Two paths re-download an M3U playlist from its original source:
   `AUTO_UPDATE_PLAYLISTS` for every playlist with `autoRefresh === true`. The main
   process fulfils it in `playlist-auto-update.ts` on top of `playlist-source.ts`.
 
-Both share one download contract, because this path is unattended and a hostile or
-dead source must never stall startup (issue #931):
+Both paths bound inactivity at each HTTP hop. A host that accepts the connection
+and goes silent could otherwise leave the download pending forever (issue #931).
 
-- Every HTTP hop uses the idle timeout `PLAYLIST_FETCH_TIMEOUT_MS` (30s, exported by
-  `playlist-source.ts`). Without it a host that accepts the connection and then goes
-  silent keeps the request pending forever. Redirects are followed one hop at a time,
-  so each hop is bounded separately.
+- URL imports and manual refreshes use the 120-second `PLAYLIST_FETCH_TIMEOUT_MS`
+  from `playlist-source.ts`. Some Xtream panels generate the M3U on demand and
+  take about a minute to send the first byte.
+- Startup auto-update uses a 30-second idle timeout per hop. Manual refresh and
+  removal are unavailable for the selected sources until the whole batch settles.
+  Source synchronization uses the same timeout when it downloads a URL playlist.
 - Auto-update refreshes at most `AUTO_UPDATE_CONCURRENCY` (3) playlists at a time.
   Sequential refreshes let one slow host delay every remaining playlist; an unbounded
   fan-out would download and parse arbitrarily many large M3U files in the main

@@ -8,6 +8,7 @@ import {
     DataService,
     type ExternalSessionLaunch,
     ParentalLockExternalLaunches,
+    type PlaylistDefinitionFetchOptions,
     type PlaylistImportRecovery,
     SettingsStore,
     SourceActivityService,
@@ -152,11 +153,13 @@ export class ElectronService extends DataService {
 
     override fetchPlaylistDefinition(
         url: string,
-        userAgent?: string
+        userAgent?: string,
+        options?: PlaylistDefinitionFetchOptions
     ): Promise<Playlist> {
         return window.electron.fetchPlaylistByUrl(url, undefined, {
             ...this.settingsStore.getTrustOptions(),
             userAgent,
+            ...(options?.background ? { background: true } : {}),
         });
     }
 

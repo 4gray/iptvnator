@@ -20,6 +20,15 @@ APK
 > outside the project, apply [`TRADEMARK.md`](../TRADEMARK.md) (distinct name
 > and icon).
 
+The local library gives manual M3U imports and refreshes a 120-second provider
+idle timeout per HTTP hop. Background playlist downloads use 30 seconds.
+When a user cancels URL import, the PWA passes the download ID to the loopback
+server. Cancellable provider downloads use an OkHttp call that accepts
+cancellation before the connection opens as well as during the download. HTTPS
+imports use the platform-enabled TLS versions and cipher suites, like refreshes.
+The browser reference server also stops the provider download when the client
+disconnects, including after a redirect.
+
 ## Hosted library connection
 
 Native Settings offers **Local library** and **Connect to hosted library**. Enter
