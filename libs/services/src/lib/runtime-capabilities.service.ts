@@ -275,6 +275,14 @@ export class RuntimeCapabilitiesService {
         ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
+    get supportsXtreamStartupRefresh(): boolean {
+        // Legacy bridges expose these methods but discard startup-only args.
+        return (
+            this.electronBridge?.xtreamStartupRefreshVersion === 1 &&
+            this.supportsXtreamSqliteDataSource
+        );
+    }
+
     get supportsPlaybackPositionStorage(): boolean {
         return playbackPositionStorageMethods.every((methodName) =>
             this.hasElectronMethod(methodName)

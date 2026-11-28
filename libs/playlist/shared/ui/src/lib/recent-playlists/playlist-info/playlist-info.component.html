@@ -214,15 +214,17 @@
                                 playlistDetails.markAsDirty()
                             "
                         />
-                        <mat-checkbox
-                            class="w-full"
-                            formControlName="autoRefresh"
-                        >
-                            {{
-                                'HOME.PLAYLISTS.INFO_DIALOG.XTREAM_REFRESH_LIVE_ON_STARTUP'
-                                    | translate
-                            }}
-                        </mat-checkbox>
+                        @if (supportsXtreamStartupRefresh) {
+                            <mat-checkbox
+                                class="w-full"
+                                formControlName="autoRefresh"
+                            >
+                                {{
+                                    'HOME.PLAYLISTS.INFO_DIALOG.XTREAM_REFRESH_LIVE_ON_STARTUP'
+                                        | translate
+                                }}
+                            </mat-checkbox>
+                        }
                     }
                     @if (playlist.serverUrl) {
                         <mat-form-field class="w-full">

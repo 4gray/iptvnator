@@ -799,6 +799,8 @@ export interface ElectronBridgeApi {
     ) => () => void;
     getAppVersion: () => Promise<string>;
     platform: string;
+    /** Version of the guarded Xtream Live TV startup replacement protocol. */
+    xtreamStartupRefreshVersion?: number;
     getAppUpdateStatus: () => Promise<ElectronBridgeAppUpdateStatus>;
     checkForAppUpdate: () => Promise<ElectronBridgeAppUpdateStatus>;
     downloadAppUpdate: () => Promise<ElectronBridgeAppUpdateStatus>;

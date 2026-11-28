@@ -679,6 +679,22 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsXtreamSqliteDataSource).toBe(true);
     });
 
+    it('requires the guarded startup protocol in addition to Xtream SQLite', () => {
+        const service = new RuntimeCapabilitiesService();
+        testWindow.electron = createXtreamSqliteBridge();
+        expect(service.supportsXtreamSqliteDataSource).toBe(true);
+        expect(service.supportsXtreamStartupRefresh).toBe(false);
+
+        testWindow.electron = {
+            ...testWindow.electron,
+            xtreamStartupRefreshVersion: 1,
+        };
+        expect(service.supportsXtreamStartupRefresh).toBe(true);
+
+        delete testWindow.electron['dbDeleteXtreamContent'];
+        expect(service.supportsXtreamStartupRefresh).toBe(false);
+    });
+
     it('keeps Xtream SQLite and ordinary position storage when atomic restore is unavailable', () => {
         const bridge = createXtreamSqliteBridge();
         testWindow.electron = bridge;

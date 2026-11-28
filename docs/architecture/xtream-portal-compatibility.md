@@ -390,7 +390,10 @@ and explicit refresh use the same durable persistence invariant.
 ### Refresh live channels on startup
 
 The desktop source editor reuses the per-source `autoRefresh` preference for
-Xtream Live TV. On launch, the renderer runs opted-in live refreshes in sequence.
+Xtream Live TV. The option and startup runner require the SQLite preload
+surface and `xtreamStartupRefreshVersion: 1`. This version includes guarded
+invalidation, retained category IDs and atomic completion. On launch, the
+renderer runs opted-in live refreshes in sequence.
 Before each provider request it skips sources that were removed or whose saved
 connection, opt-in, selection or refresh date changed since they were queued.
 The app can read the saved catalog while the provider responds. It keeps the

@@ -315,8 +315,7 @@ export class AppComponent implements OnInit {
                                 m3u
                             );
                         }
-                        if (!this.runtime.supportsXtreamSqliteDataSource)
-                            return;
+                        if (!this.runtime.supportsXtreamStartupRefresh) return;
                         const xtream = optedIn.filter(
                             (playlist) =>
                                 !playlist.portalUrl &&
@@ -339,9 +338,9 @@ export class AppComponent implements OnInit {
                 await import('./services/xtream-startup-refresh');
             await refreshXtreamPlaylistsOnStartup(this.injector, sources);
         } catch {
-            this.injector.get(NotificationService).error(
-                'HOME.PLAYLISTS.XTREAM_STARTUP_REFRESH_FAILED'
-            );
+            this.injector
+                .get(NotificationService)
+                .error('HOME.PLAYLISTS.XTREAM_STARTUP_REFRESH_FAILED');
         }
     }
 }

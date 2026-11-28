@@ -263,11 +263,16 @@ describe('AppComponent', () => {
         expect(component.initSettings).toHaveBeenCalledTimes(1);
     });
 
-    it.each([true, false])(
-        'only starts opted-in live Xtream sources with the SQLite bridge (%s)',
-        async (supportsXtreamSqliteDataSource) => {
+    it.each([
+        { sqlite: true, startup: true },
+        { sqlite: true, startup: false },
+        { sqlite: false, startup: false },
+    ])(
+        'only starts opted-in live Xtream sources on a compatible bridge ($sqlite, $startup)',
+        async ({ sqlite, startup }) => {
             Object.assign(runtimeCapabilities, {
-                supportsXtreamSqliteDataSource,
+                supportsXtreamSqliteDataSource: sqlite,
+                supportsXtreamStartupRefresh: startup,
             });
             const m3u: PlaylistMeta = {
                 _id: 'synthetic-m3u',
@@ -310,16 +315,13 @@ describe('AppComponent', () => {
             component.ngOnInit();
             actions.next(PlaylistActions.loadPlaylistsSuccess({ playlists }));
             actions.next(PlaylistActions.loadPlaylistsSuccess({ playlists }));
-            if (supportsXtreamSqliteDataSource) await started;
+            if (startup) await started;
             else await fixture.whenStable();
 
             expect(send).toHaveBeenCalledTimes(1);
             expect(send).toHaveBeenCalledWith(AUTO_UPDATE_PLAYLISTS, [m3u]);
-            expect(refreshLive).toHaveBeenCalledTimes(
-                Number(supportsXtreamSqliteDataSource)
-            );
-            if (supportsXtreamSqliteDataSource)
-                expect(refreshLive).toHaveBeenCalledWith(xtream);
+            expect(refreshLive).toHaveBeenCalledTimes(Number(startup));
+            if (startup) expect(refreshLive).toHaveBeenCalledWith(xtream);
         }
     );
 
