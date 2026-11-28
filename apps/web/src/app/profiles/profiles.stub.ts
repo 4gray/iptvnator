@@ -5,6 +5,7 @@ import type {
 } from '@iptvnator/services/profiles';
 import {
     DEFAULT_PROFILE_ID,
+    type PersonalScope,
     type ServerProfile,
     type ServerProfileList,
 } from '@iptvnator/shared/interfaces/profiles';
@@ -68,6 +69,7 @@ export function fakeRuntime(
         state,
         activeId,
         capable: signal(true),
+        scope: signal<PersonalScope>('shared'),
         enabled: computed(() => list()?.enabled ?? false),
         active: computed(
             () =>
@@ -75,9 +77,29 @@ export function fakeRuntime(
                 null
         ),
         refresh: jest.fn(async () => undefined),
+        idle: jest.fn(async () => undefined),
         holdDefault: jest.fn(() => undefined),
         recheck: jest.fn(async () => undefined),
         select: jest.fn((_id: string) => true),
+        /** Publishes at `moved`, or once `move` resolves when it never calls it. */
+        switchTo: jest.fn(
+            async (
+                id: string,
+                move: (scope: PersonalScope, moved: () => void) => Promise<void>
+            ) => {
+                const scope = (list()?.profiles.find((p) => p.id === id)
+                    ?.scope ?? 'shared') as PersonalScope;
+                let done = false;
+                const commit = () => {
+                    if (done) return;
+                    done = true;
+                    runtime.select(id);
+                };
+                await move(scope, commit);
+                commit();
+                return true;
+            }
+        ),
         handleProfileError: jest.fn((_code: string, _id?: string) => undefined),
         client: () => client,
     };

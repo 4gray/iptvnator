@@ -170,6 +170,38 @@ async function main() {
         assert.deepEqual(server.apply(address, add), first);
         assert.equal(server.read(address).revision, 2);
         assert.equal((await local.read(address))?.pending.length, 1);
+        // A profile's rows share the tables but never the Default profile's keys.
+        const kids: FavoriteAddress = {
+            ...address,
+            scope: 'profile:11111111-1111-4111-8111-111111111111',
+        };
+        const source = {
+            sourceId: 'source',
+            provider: 'xtream' as const,
+            sourceIncarnation: 'first',
+        };
+        await local.mutate(kids, () => ({
+            base: emptyFavoriteState(),
+            state: { revision: 1, member: true },
+            pending: [],
+        }));
+        const stored = await local.entries('source');
+        assert.deepEqual(stored.map((row) => row.address.scope).sort(), [
+            'profile:11111111-1111-4111-8111-111111111111',
+            'shared',
+        ]);
+        assert.equal((await local.read(address))?.pending.length, 1);
+        assert.equal((await local.read(kids))?.pending.length, 0);
+        assert.equal(
+            server.list('nas', source, undefined, kids.scope).entries.length,
+            0
+        );
+        server.apply(kids, { ...add, operationId: 'kids-add' });
+        assert.equal(
+            server.list('nas', source, undefined, kids.scope).entries.length,
+            1
+        );
+        assert.equal(server.read(address).revision, 2);
         for (const { name, rows } of originals)
             assert.deepEqual(
                 db

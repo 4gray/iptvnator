@@ -3,6 +3,9 @@ import {
     favoriteFailureState,
 } from './favorites-runtime-summary';
 import { createRandomId } from '@iptvnator/shared/interfaces';
+import { activePersonalScope } from '@iptvnator/services/profiles';
+import { profileRawFallback } from './favorites-profile-fallback';
+import { DEFAULT_PERSONAL_SCOPE } from '@iptvnator/shared/interfaces/profiles';
 import { refreshFavoriteViews } from './favorites-view-refresh';
 import { projectFavoriteBackup } from './favorites-backup-projection';
 import { createFavoriteBackupRestorer } from './favorites-backup-restore';
@@ -69,7 +72,8 @@ export class FavoritesSyncRuntime {
     private readonly raw = this.capabilities.supportsXtreamSqliteDataSource
         ? inject(ElectronXtreamDataSource)
         : inject(PwaXtreamDataSource);
-    private client?: FavoritesSyncClient;
+    /** Read by the profile switch to drain the scope it leaves. */
+    client?: FavoritesSyncClient;
     private playlistAdapter?: FavoritesPlaylistAdapter;
     private xtreamAdapter?: FavoritesXtreamAdapter;
     private timer?: ReturnType<typeof setInterval>;
@@ -289,7 +293,9 @@ export class FavoritesSyncRuntime {
             return favoritesEnabled() || client.contexts.has(String(args[0]));
         const sourceId = String(args[method === 'getFavorites' ? 0 : 1]);
         if (!favoritesEnabled() && !client.contexts.has(sourceId))
-            return Reflect.apply(Reflect.get(raw, method), raw, args);
+            return activePersonalScope() === DEFAULT_PERSONAL_SCOPE
+                ? Reflect.apply(Reflect.get(raw, method), raw, args)
+                : profileRawFallback(method);
         try {
             const result = await this.xtreamAdapter!.invoke(raw, method, args);
             await this.summary();

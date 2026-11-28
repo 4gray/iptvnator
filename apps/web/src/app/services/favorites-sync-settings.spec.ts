@@ -39,6 +39,7 @@ function fixture() {
     }));
     const set = jest.fn(async () => undefined);
     const client = {
+        scope: 'shared',
         options: {
             instanceId: 'nas',
             consent: () => 'consent',

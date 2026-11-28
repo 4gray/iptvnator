@@ -1,4 +1,5 @@
 import { signal } from '@angular/core';
+import { ActivitySessionScopes } from './activity-session-scopes';
 import { TestBed } from '@angular/core/testing';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { PwaXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
@@ -125,6 +126,7 @@ function fixture(mode: 'native' | 'browser', watched = false) {
             localOnly
         );
         Object.assign(runtime, {
+            sessionScopes: new ActivitySessionScopes(),
             client,
             adapter,
             raw,

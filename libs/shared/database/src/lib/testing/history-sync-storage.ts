@@ -322,6 +322,27 @@ async function main() {
             }).applied,
             false
         );
+        // A profile's history shares the tables but never the Default profile's key.
+        const kids = {
+            ...scope,
+            personalScope:
+                'profile:11111111-1111-4111-8111-111111111111' as const,
+        };
+        await local.mutate(kids, () => ({
+            ...emptyHistoryRecord(),
+            pending: [
+                {
+                    operation: operation('touch', 'kids-touch'),
+                    consent: 'first',
+                },
+            ],
+        }));
+        assert.deepEqual(await local.read(scope), saved);
+        assert.equal((await local.read(kids))?.pending.length, 1);
+        assert.equal(server.read(kids).items.length, 0);
+        server.apply(kids, operation('touch', 'kids-touch'));
+        assert.equal(server.read(kids).items.length, 1);
+        assert.deepEqual(server.read(scope), before);
         for (const original of originals)
             assert.deepEqual(
                 db

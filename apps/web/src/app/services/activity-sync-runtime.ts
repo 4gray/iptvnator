@@ -19,6 +19,10 @@ import {
     PlaybackPositionRuntimeBridgeService,
 } from '@iptvnator/services';
 import { SourceSyncService } from '@iptvnator/services/source-sync';
+import { activePersonalScope } from '@iptvnator/services/profiles';
+import { DEFAULT_PERSONAL_SCOPE } from '@iptvnator/shared/interfaces/profiles';
+import { ActivitySessionScopes } from './activity-session-scopes';
+import { personalPositionsUnavailable } from './activity-personal-positions';
 import {
     ActivitySyncClient,
     ActivitySupersededError,
@@ -58,7 +62,8 @@ export class ActivitySyncRuntime {
     private readonly raw = this.capabilities.supportsXtreamSqliteDataSource
         ? inject(ElectronXtreamDataSource)
         : inject(PwaXtreamDataSource);
-    private client?: ActivitySyncClient;
+    /** Read by the profile switch to drain the scope it leaves. */
+    client?: ActivitySyncClient;
     private adapter?: ActivityPositionAdapter;
     private timer?: ReturnType<typeof setInterval>;
     private refreshing?: Promise<void>;
@@ -66,6 +71,7 @@ export class ActivitySyncRuntime {
     private changingTo?: boolean;
     private readonly deliveryPaused = signal(false);
     private pauseOwner?: ActivityConsentPause;
+    private readonly sessionScopes = new ActivitySessionScopes();
     readonly enabled = signal(activityEnabled());
     readonly state = signal('disabled');
     readonly stateKey = computed(
@@ -144,6 +150,9 @@ export class ActivitySyncRuntime {
                     refreshSources: () => this.sources.refresh(),
                     client: () => this.ensureClient(),
                     mirror: async () => {
+                        // Only the household's raw store may receive a mirror.
+                        if (activePersonalScope() !== DEFAULT_PERSONAL_SCOPE)
+                            return;
                         for (const sourceId of await this.sourceIds())
                             await this.adapter!.keepLocal(this.raw, sourceId);
                     },
@@ -195,6 +204,7 @@ export class ActivitySyncRuntime {
 
     async begin(position: PlayerContentInfo, startTime = 0): Promise<void> {
         if (!this.enabled() || this.isDisabling()) return;
+        this.sessionScopes.begin(position.activitySessionId);
         try {
             await this.ensureClient().begin(position.playlistId!, {
                 ...position,
@@ -207,7 +217,7 @@ export class ActivitySyncRuntime {
     }
 
     async checkpoint(position: PlaybackPositionData): Promise<void> {
-        if (!activityEnabled()) return;
+        if (!activityEnabled() || this.sessionScopes.foreign(position)) return;
         try {
             this.ensureClient();
             await this.adapter!.invoke(
@@ -231,11 +241,24 @@ export class ActivitySyncRuntime {
         method: string,
         args: unknown[]
     ): Promise<unknown> {
+        // The raw store is the household's: another profile has no progress
+        // without its own activity sync, and must not overwrite the household's.
+        if (
+            !activityEnabled() &&
+            ActivityPositionAdapter.handles(method) &&
+            activePersonalScope() !== DEFAULT_PERSONAL_SCOPE
+        )
+            return personalPositionsUnavailable(method);
         if (!activityEnabled() || !ActivityPositionAdapter.handles(method)) {
             this.adapter?.supersede(method, args);
             return Reflect.get(raw, method).apply(raw, args);
         }
         this.ensureClient();
+        if (
+            method === 'savePlaybackPosition' &&
+            this.sessionScopes.foreign(args[1] as PlaybackPositionData)
+        )
+            throw new ActivitySupersededError('The profile has changed');
         try {
             return await this.adapter!.invoke(
                 raw,
@@ -302,10 +325,13 @@ export class ActivitySyncRuntime {
     }
 
     async previewImport(): Promise<ActivityImportPreview> {
+        // Device positions are the household's; a profile never imports them.
+        if (activePersonalScope() !== DEFAULT_PERSONAL_SCOPE) return [];
         return previewLocalActivity(this.raw, await this.sourceIds());
     }
 
     async importPositions(preview: ActivityImportPreview): Promise<number> {
+        if (activePersonalScope() !== DEFAULT_PERSONAL_SCOPE) return 0;
         const unresolved = await importLocalActivity(
             this.ensureClient(),
             preview
@@ -315,6 +341,11 @@ export class ActivitySyncRuntime {
     }
 
     private ensureClient(): ActivitySyncClient {
+        // A scope change retires the client; its delivery was drained first.
+        if (this.client && this.client.scope !== activePersonalScope()) {
+            void this.client.stopDelivery().catch(() => undefined);
+            this.client = this.adapter = undefined;
+        }
         if (!this.client) {
             const created = createActivityRuntimeClient(
                 this.capabilities,

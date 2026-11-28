@@ -993,7 +993,10 @@ test('keeps standalone pending favorites out of a server profile with the same s
         ).toBe(archive);
         await openWorkspaceSection(page, 'Global favorites');
         await expect(
-            page.getByRole('heading', { name: 'No favorites yet', exact: true })
+            page.getByRole('heading', {
+                name: 'No live TV favorites yet',
+                exact: true,
+            })
         ).toBeVisible();
         expect(
             await page.evaluate(() => window.electron.dbGetAllGlobalFavorites())

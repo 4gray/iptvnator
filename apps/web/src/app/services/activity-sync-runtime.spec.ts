@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import { setActivePersonalScope } from '@iptvnator/services/profiles';
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import {
@@ -91,6 +92,7 @@ function fixture() {
         async (_address: ActivityAddress, _local: boolean) => undefined
     );
     const client = {
+        scope: 'shared',
         contexts: new Map([
             [
                 address.sourceId,
@@ -432,6 +434,50 @@ describe('activity runtime lifecycle and settings orchestration', () => {
         );
         expect(f.runtime.state()).toBe('disabling');
         expect(f.runtime.error()).toBe(true);
+    });
+
+    it('keeps a profile off the household positions while activity sync is off', async () => {
+        const f = fixture();
+        localStorage.removeItem(consentKey);
+        setActivePersonalScope('profile:00000000-0000-4000-8000-000000000001');
+        try {
+            const raw = f.raw as unknown as IXtreamDataSource;
+            await expect(
+                f.runtime.invoke(raw, 'getAllPlaybackPositions', ['s'])
+            ).resolves.toEqual([]);
+            await expect(
+                f.runtime.invoke(raw, 'savePlaybackPosition', ['s', position])
+            ).rejects.toThrow('sync turned on');
+        } finally {
+            setActivePersonalScope('shared');
+        }
+    });
+
+    it('drops a late checkpoint of a session that began in another profile', async () => {
+        const f = fixture();
+        f.activate();
+        const kids = 'profile:11111111-1111-4111-8111-111111111111';
+        const late = { ...position, activitySessionId: 'synthetic-session' };
+        try {
+            setActivePersonalScope(kids);
+            await f.runtime.begin(late as never);
+            setActivePersonalScope('shared');
+            await f.runtime.checkpoint(late);
+            await expect(
+                f.runtime.invoke(f.raw as never, 'savePlaybackPosition', [
+                    address.sourceId,
+                    late,
+                ])
+            ).rejects.toThrow('The profile has changed');
+            expect(f.adapter.invoke).not.toHaveBeenCalledWith(
+                f.raw,
+                'savePlaybackPosition',
+                expect.anything(),
+                expect.anything()
+            );
+        } finally {
+            setActivePersonalScope('shared');
+        }
     });
 
     it('keeps a healthy connection status when an older launch is superseded', async () => {

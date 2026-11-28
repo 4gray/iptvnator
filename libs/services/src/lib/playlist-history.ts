@@ -11,6 +11,11 @@ import type {
     HistoryPlaylistBridge,
 } from '../history-events';
 import { removePortalFavorite } from './playlist-favorites';
+import { DEFAULT_PERSONAL_SCOPE } from '@iptvnator/shared/interfaces/profiles';
+import {
+    activePersonalScope,
+    ProfileStateUnavailableError,
+} from './profiles/active-scope';
 
 function normalizePortalRecentIdentity(value: unknown): string {
     const raw = String(value ?? '').trim();
@@ -81,6 +86,9 @@ export async function mutatePlaylistHistory(
         const synced = await bridge.mutate(playlist, action);
         if (synced) return synced;
     }
+    // The playlist archive is the household's: a profile never writes through it.
+    if (activePersonalScope() !== DEFAULT_PERSONAL_SCOPE)
+        throw new ProfileStateUnavailableError();
     let recentlyViewed: PlaylistRecentlyViewedItem[] | undefined;
     switch (action.kind) {
         case 'touch': {

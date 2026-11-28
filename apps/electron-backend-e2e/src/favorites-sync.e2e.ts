@@ -92,7 +92,9 @@ async function verifyReceiverCategoryLock(page: Page, title: string) {
     await expect(dialog).toBeHidden();
     await page.getByTestId('header-parental-lock').click();
     await openGlobalFavorites(page);
-    await expect(page.locator('app-state-view')).toBeVisible();
+    await expect(
+        page.getByRole('region', { name: 'Channels' }).locator('app-state-view')
+    ).toBeVisible();
     await expect(contentCardByTitle(page, title)).toHaveCount(0);
     await openSettings(page);
     await openSettingsSection(page, 'parental');
@@ -197,7 +199,7 @@ for (const provider of ['xtream', 'stalker'] as const)
             await openGlobalFavorites(desktop.mainWindow);
             await expect(
                 desktop.mainWindow.getByRole('heading', {
-                    name: 'No favorites yet',
+                    name: 'No live TV favorites yet',
                     exact: true,
                 })
             ).toBeVisible();

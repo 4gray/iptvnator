@@ -946,7 +946,12 @@
         "ACCENT_AMBER": "Âmbar",
         "ACCENT_CORAL": "Coral",
         "ACCENT_MAGENTA": "Magenta",
-        "ACCENT_VIOLET": "Violeta"
+        "ACCENT_VIOLET": "Violeta",
+        "ACCENT_RED": "Vermelho",
+        "ACCENT_CYAN": "Ciano",
+        "ACCENT_LIME": "Lima",
+        "ACCENT_SLATE": "Ardósia",
+        "ACCENT_BROWN": "Marrom"
     },
     "AUDIO_PLAYER": {
         "PLAY": "Reproduzir",

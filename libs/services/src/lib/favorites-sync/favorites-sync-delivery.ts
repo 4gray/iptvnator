@@ -4,7 +4,25 @@ import {
     type FavoriteResult,
 } from '@iptvnator/shared/interfaces/favorites-sync';
 import type { FavoritesSyncClient } from './favorites-sync-client';
-import { FavoriteSupersededError } from './favorites-sync-errors';
+import {
+    FavoriteRequestError,
+    FavoriteSupersededError,
+} from './favorites-sync-errors';
+import type { ScopeRefusal } from '../profiles/scope-refusal';
+import type { FavoritePending } from '@iptvnator/shared/interfaces/favorites-sync';
+
+/** A deleted profile's queue is dropped with it; a switched-off scope keeps its queue for later. */
+async function parkRefusedFavorite(
+    client: FavoritesSyncClient,
+    intent: FavoritePending,
+    refusal: ScopeRefusal
+): Promise<void> {
+    if (refusal !== 'profile_missing') return;
+    await client.store.mutate(intent.address, (current) => {
+        if (!current) throw new FavoriteSupersededError();
+        return { ...current, pending: [], state: current.base };
+    });
+}
 export async function refreshFavoriteSources(
     client: FavoritesSyncClient,
     sourceIds: string[]
@@ -53,6 +71,11 @@ export async function deliverFavorites(
                 throw new Error('Invalid favorite receipt');
         } catch (error) {
             if (error instanceof FavoriteSupersededError) throw error;
+            if (error instanceof FavoriteRequestError && error.refusal) {
+                // One scope's refusal never blocks the others.
+                await parkRefusedFavorite(this, intent, error.refusal);
+                continue;
+            }
             failure ??= { error };
             continue; // Durable intent stays queued for reconnect/restart.
         }

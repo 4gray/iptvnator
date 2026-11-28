@@ -13,6 +13,7 @@ import {
 import { getPlaybackMediaExtensionFromUrl } from '@iptvnator/playback/util';
 import { ParentalLockService } from '@iptvnator/services';
 import { sourceProfileName } from '@iptvnator/services/source-sync/connection';
+import { activePersonalScope } from '@iptvnator/services/profiles';
 import {
     createRandomId,
     type ResolvedPortalPlayback,
@@ -336,6 +337,10 @@ export class AndroidTvPlayback {
                             // Only resume metadata crosses this bridge alongside the stream request.
                             checkpoint: contentInfo && {
                                 profile,
+                                // The Default's launches stay byte-identical: no scope is sent.
+                                ...(activePersonalScope() === 'shared'
+                                    ? {}
+                                    : { personalScope: activePersonalScope() }),
                                 playlistId: contentInfo.playlistId,
                                 contentXtreamId: contentInfo.contentXtreamId,
                                 contentType: contentInfo.contentType,

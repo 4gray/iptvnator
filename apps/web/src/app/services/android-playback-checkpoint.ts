@@ -9,6 +9,12 @@ import {
     nativePlaybackResetKey,
 } from '@iptvnator/services/pwa-native-playback-resets';
 import { sourceProfileName } from '@iptvnator/services/source-sync/connection';
+import { activePersonalScope } from '@iptvnator/services/profiles';
+import {
+    DEFAULT_PERSONAL_SCOPE,
+    parsePersonalScope,
+    type PersonalScope,
+} from '@iptvnator/shared/interfaces/profiles';
 import type {
     PlaybackPositionData,
     PlayerContentInfo,
@@ -76,9 +82,18 @@ export function installAndroidPlaybackCheckpoint(
         )
             return;
         const position = readCheckpoint(data);
-        if (!ownsProfile() || (position && position.profile !== profile))
+        // A checkpoint belongs to the profile that launched it, never to whoever is active now.
+        if (
+            !ownsProfile() ||
+            (position &&
+                (position.profile !== profile ||
+                    position.personalScope !== activePersonalScope()))
+        )
             return;
         pending.add(data.id);
+        // The write is queued: a switch before it runs must not move it into another profile.
+        const ownsScope = () =>
+            !position || position.personalScope === activePersonalScope();
         const key =
             position &&
             JSON.stringify([
@@ -89,7 +104,7 @@ export function installAndroidPlaybackCheckpoint(
         if (key) newest.set(key, Math.max(data.savedAt, newest.get(key) ?? 0));
         writes = writes
             .then(async () => {
-                if (!ownsProfile()) return;
+                if (!ownsProfile() || !ownsScope()) return;
                 if (position && key) {
                     // A failing newer checkpoint must still take priority over an older one.
                     if ((newest.get(key) ?? 0) > data.savedAt) return;
@@ -103,7 +118,11 @@ export function installAndroidPlaybackCheckpoint(
                                   record.contentXtreamId,
                                   record.contentType
                               );
-                    if (!ownsProfile() || (newest.get(key) ?? 0) > data.savedAt)
+                    if (
+                        !ownsProfile() ||
+                        !ownsScope() ||
+                        (newest.get(key) ?? 0) > data.savedAt
+                    )
                         return;
                     const previousSavedAt = playbackTimestamp(
                         previous?.updatedAt
@@ -139,6 +158,7 @@ export function installAndroidPlaybackCheckpoint(
 
 function readCheckpoint(data: Checkpoint): {
     profile: string;
+    personalScope: PersonalScope;
     playlistId: string;
     record: PlaybackPositionData;
 } | null {
@@ -158,7 +178,11 @@ function readCheckpoint(data: Checkpoint): {
         return null;
     try {
         const info = JSON.parse(data.content) as
-            | (PlayerContentInfo & { profile?: string; seasonGroup?: number })
+            | (PlayerContentInfo & {
+                  profile?: string;
+                  personalScope?: string;
+                  seasonGroup?: number;
+              })
             | null;
         if (
             !info ||
@@ -181,6 +205,10 @@ function readCheckpoint(data: Checkpoint): {
             }).content;
         return {
             profile: info.profile,
+            // A launch before profiles carries no scope: it is the Default's.
+            personalScope: parsePersonalScope(
+                info.personalScope ?? DEFAULT_PERSONAL_SCOPE
+            ),
             playlistId: info.playlistId,
             record: {
                 playlistId: info.playlistId,

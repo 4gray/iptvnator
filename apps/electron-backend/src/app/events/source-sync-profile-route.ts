@@ -117,7 +117,8 @@ function validateProfileRequest(request: SourceServerRequest): void {
         request.favorite !== undefined ||
         request.activity !== undefined ||
         request.tmdbTransfer !== undefined ||
-        request.cursor !== undefined
+        request.cursor !== undefined ||
+        request.scope !== undefined
     ) {
         invalidRequest();
     }
@@ -216,7 +217,7 @@ function keysOnly(body: ProfileBody, allowed: string[]): void {
 function validateOrder(value: unknown): void {
     if (
         !Array.isArray(value) ||
-        value.length < 1 ||
+        // The server accepts an empty order: Default alone, or no others.
         value.length > PROFILE_LIMIT + 1 ||
         value.some((id) => id !== DEFAULT_PROFILE_ID && !isProfileId(id)) ||
         new Set(value).size !== value.length

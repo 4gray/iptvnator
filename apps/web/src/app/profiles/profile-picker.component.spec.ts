@@ -5,6 +5,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { ParentalLockService } from '@iptvnator/services';
 import { DEFAULT_PROFILE_ID } from '@iptvnator/shared/interfaces/profiles';
+import { ProfileSwitchService } from '../services/profile-switch.service';
 import { ProfilesRuntime } from '../services/profiles-runtime';
 import { ProfilePickerComponent } from './profile-picker.component';
 import {
@@ -27,6 +28,7 @@ async function setup(
     const navigateByUrl = jest.fn(async () => true);
     const dialogOpen = jest.fn();
     const confirmPin = jest.fn(async () => options.parental ?? true);
+    const apply = jest.fn(async (_scope: string) => undefined);
     TestBed.configureTestingModule({
         imports: [TranslateModule.forRoot(), ProfilePickerComponent],
         providers: [
@@ -55,6 +57,7 @@ async function setup(
             },
             { provide: MatDialog, useValue: { open: dialogOpen } },
             { provide: ParentalLockService, useValue: { confirmPin } },
+            { provide: ProfileSwitchService, useValue: { apply } },
         ],
     });
     const fixture = TestBed.createComponent(ProfilePickerComponent);
@@ -95,6 +98,7 @@ async function setup(
         navigateByUrl,
         dialogOpen,
         confirmPin,
+        apply,
     };
 }
 
@@ -196,6 +200,37 @@ describe('ProfilePickerComponent', () => {
         press(tiles()[3], 'Home');
         expect(document.activeElement).toBe(tiles()[0]);
         fixture.nativeElement.remove();
+    });
+
+    it('finishes the switch before it opens the workspace', async () => {
+        const { choose, apply, navigateByUrl, fake } = await setup();
+        let release!: () => void;
+        apply.mockImplementationOnce(
+            () =>
+                new Promise<undefined>(
+                    (resolve) => (release = () => resolve(undefined))
+                )
+        );
+        void choose(ADULT_ID);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        expect(apply).toHaveBeenCalledWith(
+            `profile:${ADULT_ID}`,
+            expect.any(Function)
+        );
+        expect(navigateByUrl).not.toHaveBeenCalled();
+        release();
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        expect(navigateByUrl).toHaveBeenCalled();
+    });
+
+    it('keeps the old profile and shows the error when the switch cannot be made', async () => {
+        const { fake, choose, navigateByUrl, el } = await setup();
+        fake.runtime.switchTo.mockResolvedValueOnce(false);
+        await choose(ADULT_ID);
+        expect(fake.runtime.select).not.toHaveBeenCalled();
+        expect(fake.activeId()).toBe(DEFAULT_PROFILE_ID);
+        expect(navigateByUrl).not.toHaveBeenCalled();
+        expect(el.textContent).toContain('PROFILES.ERRORS.GENERIC');
     });
 
     it('selects a plain profile and goes to the return url', async () => {

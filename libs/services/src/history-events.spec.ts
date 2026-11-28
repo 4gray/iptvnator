@@ -1,3 +1,4 @@
+import { setActivePersonalScope } from './lib/profiles/active-scope';
 import { TestBed } from '@angular/core/testing';
 import { captureHistoryOwner, HISTORY_PLAYLIST_BRIDGE } from './history-events';
 import type { Playlist } from '@iptvnator/shared/interfaces';
@@ -54,4 +55,19 @@ it('withholds delayed confirmation if owner storage becomes unreadable', () => {
             () => 'synthetic-nas'
         )()
     ).toBe(false);
+});
+
+it('fences a delayed confirmation when the household profile changes', () => {
+    const current = captureHistoryOwner(
+        'synthetic-nas',
+        'synthetic-source',
+        () => 'synthetic-nas'
+    );
+    expect(current()).toBe(true);
+    setActivePersonalScope('profile:11111111-1111-4111-8111-111111111111');
+    try {
+        expect(current()).toBe(false);
+    } finally {
+        setActivePersonalScope('shared');
+    }
 });

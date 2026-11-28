@@ -1,4 +1,5 @@
 import { favoriteReferenceKey } from '@iptvnator/shared/interfaces/favorites-sync';
+import { DEFAULT_PERSONAL_SCOPE } from '@iptvnator/shared/interfaces/profiles';
 import type { FavoritesSyncClient } from '@iptvnator/services/favorites-sync';
 import type { Playlist } from '@iptvnator/shared/interfaces';
 import type { IXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
@@ -32,7 +33,8 @@ export async function previewLocalFavorites(
         sources: [],
         unresolved: 0,
     };
-    for (const meta of sources) {
+    // Device favorites are the household's; a profile has nothing to import.
+    for (const meta of client.scope === DEFAULT_PERSONAL_SCOPE ? sources : []) {
         const source = await read(meta._id);
         const context = await client.context(meta._id, generation);
         const local = source.serverUrl
@@ -77,6 +79,7 @@ export async function importFavoritePreview(
     client: FavoritesSyncClient,
     preview: FavoritesImportPreview
 ): Promise<number> {
+    if (client.scope !== DEFAULT_PERSONAL_SCOPE) return 0;
     let unresolved = preview.unresolved;
     for (const source of preview.sources)
         for (const item of source.items) {

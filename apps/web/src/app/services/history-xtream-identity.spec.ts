@@ -30,6 +30,7 @@ describe('received Xtream history with a conflicting archive', () => {
                 viewedAt: 1,
             }).state;
             const client = {
+                personalScope: 'shared',
                 contexts: new Map(),
                 state: async () => state,
                 current: () => undefined,

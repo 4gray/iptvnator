@@ -1909,3 +1909,92 @@ changed or removed and before the profile is deleted, and the picker asks for it
 before it opens a profile that has one. It keeps a person from opening another
 person's profile by accident. It is not security: anyone with the access token can
 read every scope. The copy in Settings says so.
+
+### Client contract (phase 2, PR B1: per-profile state)
+
+PR B1 scopes the client's activity, favorites and history to the active profile.
+The UI is still hidden (`PROFILES_UI_ENABLED` is `false`), so every device stays on
+`'shared'` and behaves as before: the same keys, no extra request, no extra DOM.
+Tests flip the token, or set the scope with `setActivePersonalScope`.
+
+**Active scope.** `activePersonalScope()` and `setActivePersonalScope()`
+(`@iptvnator/services/profiles`, `active-scope.ts`) hold the scope as one module
+value, like `sourceConnection()`, so the sync libraries can read it without
+importing the app. `ProfilesRuntime.scope()` derives it from the active profile and
+is `'shared'` while the UI switch is off. `ProfileSwitchService` is the only caller
+that moves it.
+
+**Transport.** `SourceServerRequest.scope` is sent as `?scope=` (with `cursor`) on
+`favorites-list`, `activity-list` and `history-read`, by both route files (browser
+`source-request-route.ts`, Electron `source-sync-request-route.ts`, which validates
+it with `parsePersonalScope`). A Default-profile request carries no `scope`, so it is
+byte for byte what it was. A response entry or history scope whose scope differs
+from the client's is refused.
+
+**Clients.** Each client (`ActivitySyncClient`, `FavoritesSyncClient`,
+`HistorySyncClient`) is built for one scope and keeps it for life: it addresses
+writes to it, lists only it, and filters `positions()`, `entries()` and the history
+context by it. When the active scope moves, the old client reports itself
+superseded (through `profileActive`, `consent` or `active`) and the runtime builds
+a new one on next use. An old client's late write therefore fails instead of landing
+in the new profile.
+
+**No leaks into the household's stores.** Three stores predate profiles and stay the
+Default profile's: the playlist document's `favorites` and `recentlyViewed`, the raw
+Xtream favorites, recents and playback positions, and the device's legacy
+local-only flags. For another profile:
+
+- reads start from an empty base (no legacy fallback), so the household's data never
+  shows in a profile;
+- writes never fall through to them. `mutateFavoritePlaylist`,
+  `mutatePlaylistHistory`, the favorites `persistLocal`, the unverified-source
+  fallback of the history and favorites Xtream adapters and the Xtream favorites
+  fallback without consent throw `ProfileStateUnavailableError`;
+- activity raw writes, `keepLocal`, the consent `mirror` and the import of device
+  positions, favorites and history run for the Default profile only. A profile's
+  local-only position stays in its scoped ownership record.
+
+**Per-device keys.** `activity-local-only-v1`, `favorites-order` and
+`history-contexts-v1` gain the scope for any profile other than Default. The old key
+is read as the Default's, so nothing is migrated. No SQLite or IndexedDB schema
+changes: the stores already key by scope, and the populated-schema storage tests now
+also write a profile scope beside the Default (fixtures v0.17.1 to v0.22.0).
+
+**Delivery.** A client delivers every scope's queue it finds locally, not only its
+own. A `409 profile_missing` for one scope drops that scope's queue, a
+`409 profiles_disabled` leaves it queued, and both go on with the other scopes
+(activity no longer aborts the pass; favorites no longer retries forever). History
+delivers only the client's own scope, so a switch flushes the old scope first, and a
+deleted profile's history queue is dropped on `profile_missing`.
+
+**Switching.** `ProfileSwitchService.apply(scope)` runs one switch at a time: it waits
+out running refreshes, flushes the old scope (activity `stopDelivery`, favorites,
+history), sets the scope, fires `iptvnator-profile-switched`, re-lists every source in
+each runtime, reloads the shared playlists and projects the open playlist again, then
+fires the history, favorites and activity change events. The Dashboard drops its
+history, favorites and positions on `iptvnator-profile-switched`, ignores a load that
+began before it, and Continue Watching settles afresh. The Xtream store features and
+the collection pages already reload on the change events. Delayed playback
+confirmations carry the scope (`captureHistoryOwner`, the activity runtime's session
+scopes), and an Android checkpoint stores its scope in the session content and is
+accepted only by that scope; a launch from before profiles has none and belongs to
+the Default.
+
+**Household-wide, by design.** These do not follow the profile:
+
+- sources, playlists, credentials, catalogs and the playlist documents themselves;
+- `/v1/user-state` (legacy Xtream favorites, recents, collection snapshots and
+  positions);
+- the unified favorites view's local path when favorites sync has never been turned
+  on (`unified-favorites-data.service.ts`), and the Dashboard's local history read
+  without history sync;
+- backups and restores, which export the household's playlists with the active
+  profile's overlay on top;
+- settings, the parental lock and PIN, themes and every other preference.
+
+**Without sync consent.** A profile's separation needs each domain's sync turned on
+on that device: without consent the data sources read and write the household's raw
+stores, which a profile must not touch. B1 therefore refuses those writes with
+`ProfileStateUnavailableError` and returns empty reads for the Xtream favorites,
+rather than showing the household's. PR B2 adds the one-click offer that turns the
+three syncs on when profiles are turned on.

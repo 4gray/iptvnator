@@ -946,7 +946,12 @@
         "ACCENT_AMBER": "琥珀色",
         "ACCENT_CORAL": "珊瑚色",
         "ACCENT_MAGENTA": "洋紅色",
-        "ACCENT_VIOLET": "紫羅蘭色"
+        "ACCENT_VIOLET": "紫羅蘭色",
+        "ACCENT_RED": "紅色",
+        "ACCENT_CYAN": "青色",
+        "ACCENT_LIME": "萊姆綠",
+        "ACCENT_SLATE": "石板灰",
+        "ACCENT_BROWN": "棕色"
     },
     "AUDIO_PLAYER": {
         "PLAY": "播放",

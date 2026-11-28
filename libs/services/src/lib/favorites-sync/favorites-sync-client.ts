@@ -4,6 +4,8 @@ import {
     keepFavoriteImport,
 } from './favorites-client-state';
 import { createRandomId } from '@iptvnator/shared/interfaces';
+import { scopeRefusalOf } from '../profiles/scope-refusal';
+import { refreshFavorites } from './favorites-sync-refresh';
 import { deliverFavorites } from './favorites-sync-delivery';
 import {
     FavoriteSupersededError,
@@ -14,19 +16,21 @@ import {
     emptyFavoriteState,
     favoriteReferenceKey,
     parseFavoriteAddress,
-    assertFavoriteState,
     parseFavoriteOperation,
     type FavoriteAddress,
     type FavoriteReference,
     type FavoriteSnapshot,
     type FavoriteSourceContext,
     type FavoriteLocalStore,
-    type FavoriteList,
 } from '@iptvnator/shared/interfaces/favorites-sync';
 import type {
     SourceServerRequest,
     SourceServerResponse,
 } from '@iptvnator/shared/interfaces';
+import {
+    DEFAULT_PERSONAL_SCOPE,
+    type PersonalScope,
+} from '@iptvnator/shared/interfaces/profiles';
 
 export interface FavoriteClientOptions {
     instanceId: string;
@@ -37,6 +41,8 @@ export interface FavoriteClientOptions {
     changed(): void;
     contexts?: FavoriteSourceContext[];
     profileActive?(): boolean;
+    /** Whose favorites this client reads and writes; fixed for the client's life. */
+    scope?: PersonalScope;
 }
 /** Membership only: no playback sessions or resume ownership. */
 export class FavoritesSyncClient {
@@ -45,10 +51,12 @@ export class FavoritesSyncClient {
     private readonly contextRequests = new Map<string, number>();
     private readonly acceptedContexts = new Map<string, number>();
     private flushing?: Promise<void>;
+    readonly scope: PersonalScope;
     constructor(
         readonly store: FavoriteLocalStore,
         readonly options: FavoriteClientOptions
     ) {
+        this.scope = options.scope ?? DEFAULT_PERSONAL_SCOPE;
         for (const context of options.contexts ?? [])
             this.contexts.set(context.sourceId, context);
     }
@@ -73,7 +81,10 @@ export class FavoritesSyncClient {
         const response = await this.options.request(request);
         this.current(generation);
         if (response.status !== 200)
-            throw new FavoriteRequestError(response.status);
+            throw new FavoriteRequestError(
+                response.status,
+                scopeRefusalOf(response.status, response.body)
+            );
         return response.body;
     }
     async context(
@@ -136,7 +147,7 @@ export class FavoritesSyncClient {
             throw new Error('Favorite provider mismatch');
         return parseFavoriteAddress({
             instanceId: this.options.instanceId,
-            scope: 'shared',
+            scope: this.scope,
             sourceId: source.sourceId,
             sourceIncarnation: source.sourceIncarnation,
             content,
@@ -249,60 +260,8 @@ export class FavoritesSyncClient {
             this.options.changed();
         }
     }
-    async refresh(sourceId: string, deliver = true): Promise<void> {
-        const generation = this.generation();
-        const source = await this.context(sourceId, generation);
-        let cursor: string | undefined;
-        const seen = new Set<string>();
-        do {
-            const page = (await this.request(
-                { operation: 'favorites-list', id: sourceId, cursor },
-                generation
-            )) as FavoriteList;
-            if (!Array.isArray(page.entries))
-                throw new Error('Invalid favorite list');
-            for (const entry of page.entries) {
-                const address = parseFavoriteAddress(entry.address);
-                assertFavoriteState(entry.state);
-                if (
-                    address.instanceId !== this.options.instanceId ||
-                    address.sourceId !== sourceId ||
-                    address.sourceIncarnation !== source.sourceIncarnation ||
-                    address.content.provider !== source.provider
-                )
-                    throw new Error('Favorite scope mismatch');
-                await this.store.mutate(address, (current) => {
-                    this.current(generation);
-                    if (
-                        this.contexts.get(sourceId)?.sourceIncarnation !==
-                        source.sourceIncarnation
-                    )
-                        throw new FavoriteSupersededError();
-                    if (current && current.base.revision > entry.state.revision)
-                        return current;
-                    if (current?.pending.length)
-                        return {
-                            ...current,
-                            base: entry.state,
-                            ...(current.conflict
-                                ? { conflict: entry.state }
-                                : {}),
-                        };
-                    return {
-                        ...current,
-                        state: entry.state,
-                        base: entry.state,
-                        pending: [],
-                    };
-                });
-            }
-            cursor = page.cursor;
-            if (cursor && (typeof cursor !== 'string' || seen.has(cursor)))
-                throw new Error('Invalid favorite cursor');
-            if (cursor) seen.add(cursor);
-        } while (cursor);
-        if (deliver) await this.flush();
-        this.options.changed();
+    refresh(sourceId: string, deliver = true): Promise<void> {
+        return refreshFavorites(this, sourceId, deliver);
     }
     async entries(sourceId: string) {
         if (this.options.profileActive?.() === false)
@@ -315,7 +274,9 @@ export class FavoritesSyncClient {
         )
             throw new FavoriteSupersededError();
         return rows.filter(
-            (entry) => entry.address.sourceIncarnation === incarnation
+            (entry) =>
+                entry.address.scope === this.scope &&
+                entry.address.sourceIncarnation === incarnation
         );
     }
     flush(): Promise<void> {

@@ -2,6 +2,7 @@ import {
     ChangeDetectionStrategy,
     Component,
     ElementRef,
+    EnvironmentInjector,
     computed,
     effect,
     inject,
@@ -20,6 +21,7 @@ import {
 } from '@iptvnator/shared/interfaces/profiles';
 import { StateViewComponent } from '@iptvnator/ui/state';
 import { ProfilesRuntime } from '../services/profiles-runtime';
+import { loadProfileSwitch } from '../services/profiles-runtime.providers';
 import { ProfileAvatarComponent } from './profile-avatar.component';
 import { markProfilePicked, sanitizeReturnUrl } from './profile-picker-route';
 import { ProfilePinDialogComponent } from './profile-pin-dialog.component';
@@ -56,6 +58,7 @@ const KEY_DIRECTION: Readonly<Record<string, Direction>> = {
 export class ProfilePickerComponent {
     private readonly runtime = inject(ProfilesRuntime);
     private readonly router = inject(Router);
+    private readonly injector = inject(EnvironmentInjector);
     private readonly dialog = inject(MatDialog);
     private readonly parentalLock = inject(ParentalLockService);
     private readonly returnUrl = sanitizeReturnUrl(
@@ -142,7 +145,14 @@ export class ProfilePickerComponent {
             )
                 return;
             if (profile.hasPin && !(await this.askPin(profile))) return;
-            if (!this.runtime.select(profile.id)) {
+            // The workspace opens on the chosen profile's state, never the
+            // old one's, and the shown profile changes only once it has moved.
+            const profileSwitch = await loadProfileSwitch(this.injector);
+            const switched = await this.runtime.switchTo(
+                profile.id,
+                (scope, moved) => profileSwitch.apply(scope, moved)
+            );
+            if (!switched) {
                 this.error.set('PROFILES.ERRORS.GENERIC');
                 return;
             }

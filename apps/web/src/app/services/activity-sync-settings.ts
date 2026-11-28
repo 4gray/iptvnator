@@ -92,6 +92,10 @@ export async function readActivitySummary(
             (count, entry) => count + entry.record.pending.length,
             0
         ),
-        conflicts: entries.filter((entry) => !!entry.record.conflict),
+        // Another profile's conflicts name its titles; only this scope's are shown.
+        conflicts: entries.filter(
+            (entry) =>
+                !!entry.record.conflict && entry.address.scope === client.scope
+        ),
     };
 }

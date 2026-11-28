@@ -7,6 +7,8 @@ import type {
     XtreamPlayedContent,
 } from '@iptvnator/portal/xtream/data-access';
 import type { HistorySyncClient } from '@iptvnator/services/history-sync';
+import { ProfileStateUnavailableError } from '@iptvnator/services/profiles';
+import { DEFAULT_PERSONAL_SCOPE } from '@iptvnator/shared/interfaces/profiles';
 import { favoriteReferenceKey } from '@iptvnator/shared/interfaces/favorites-sync';
 import {
     visibleHistory,
@@ -37,11 +39,15 @@ export class HistoryXtreamAdapter {
         const scope = this.client.contexts.get(id);
         if (this.locks.withholdsEverything()) return [];
         const lockVersion = this.locks.version();
+        // The raw recent items are the household's; a profile starts empty.
+        const household = this.client.personalScope === DEFAULT_PERSONAL_SCOPE;
         let local = (
-            await raw.getRecentItems(
-                id,
-                this.sqlite ? { all: true } : undefined
-            )
+            household
+                ? await raw.getRecentItems(
+                      id,
+                      this.sqlite ? { all: true } : undefined
+                  )
+                : []
         ).map((item) =>
             item.viewed_at
                 ? { ...item, viewed_at: normalizeStalkerDate(item.viewed_at) }
@@ -272,6 +278,9 @@ export class HistoryXtreamAdapter {
             scope = await this.client.scope(id);
         } catch {
             this.client.current();
+            // An unverified source falls back to the household's table, never for a profile.
+            if (this.client.personalScope !== DEFAULT_PERSONAL_SCOPE)
+                throw new ProfileStateUnavailableError();
             return Reflect.get(raw, method).apply(raw, args);
         }
         if (method === 'clearRecentItems')

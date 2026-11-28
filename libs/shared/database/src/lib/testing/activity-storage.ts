@@ -118,7 +118,10 @@ async function main() {
             address,
             consentGeneration: 'consent-1',
             operation: begin,
-            deliveryLease: { owner: 'synthetic-origin', expiresAt: Date.now() + 15_000 },
+            deliveryLease: {
+                owner: 'synthetic-origin',
+                expiresAt: Date.now() + 15_000,
+            },
         };
         await local.mutate(address, (current) =>
             appendActivityIntent(current, emptyActivityState(), pending)
@@ -219,6 +222,37 @@ async function main() {
             (await local.read(address))?.state,
             emptyActivityState()
         );
+        // A profile's rows share the tables but never the Default profile's keys.
+        const kids: ActivityAddress = {
+            ...address,
+            scope: 'profile:11111111-1111-4111-8111-111111111111',
+        };
+        const source = {
+            sourceId: 'source',
+            provider: 'xtream' as const,
+            sourceIncarnation: 'first',
+        };
+        await local.mutate(kids, () => ({
+            state: emptyActivityState(),
+            pending: [],
+        }));
+        assert.deepEqual(
+            (await local.entries('source'))
+                .map((row) => row.address.scope)
+                .sort(),
+            ['profile:11111111-1111-4111-8111-111111111111', 'shared']
+        );
+        assert.deepEqual((await local.read(kids))?.state, emptyActivityState());
+        assert.equal(
+            server.list('nas', source, '', kids.scope).entries.length,
+            0
+        );
+        server.apply(kids, { ...begin, operationId: 'kids-begin' });
+        assert.equal(
+            server.list('nas', source, '', kids.scope).entries.length,
+            1
+        );
+        assert.equal(server.read(address).revision, 4);
         for (const { name, rows } of legacy) {
             assert.deepEqual(
                 database

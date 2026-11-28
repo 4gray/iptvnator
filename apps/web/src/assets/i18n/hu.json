@@ -946,7 +946,12 @@
         "ACCENT_AMBER": "Borostyánsárga",
         "ACCENT_CORAL": "Korall",
         "ACCENT_MAGENTA": "Bíbor",
-        "ACCENT_VIOLET": "Ibolyalila"
+        "ACCENT_VIOLET": "Ibolyalila",
+        "ACCENT_RED": "Piros",
+        "ACCENT_CYAN": "Ciánkék",
+        "ACCENT_LIME": "Limezöld",
+        "ACCENT_SLATE": "Pala",
+        "ACCENT_BROWN": "Barna"
     },
     "AUDIO_PLAYER": {
         "PLAY": "Lejátszás",

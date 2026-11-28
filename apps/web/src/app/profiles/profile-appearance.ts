@@ -1,9 +1,7 @@
-import { THEME_ACCENTS } from '@iptvnator/shared/interfaces';
+import { PROFILE_COLOURS } from '@iptvnator/shared/interfaces/profiles';
 
-/** The colours a profile can pick: the theme accents, as the server wants `#rrggbb`. */
-export const PROFILE_SWATCHES: readonly string[] = THEME_ACCENTS.map(
-    (accent) => accent.hex
-);
+/** The colours a profile can pick, the same ones the server hands out to new profiles. */
+export const PROFILE_SWATCHES = PROFILE_COLOURS;
 
 interface GraphemeSegmenter {
     segment(value: string): Iterable<{ segment: string }>;

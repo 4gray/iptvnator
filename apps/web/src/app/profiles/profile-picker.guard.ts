@@ -5,7 +5,10 @@ import {
     readActiveProfileId,
     readProfilesStart,
 } from '../services/profiles-preferences';
-import { loadProfilesRuntime } from '../services/profiles-runtime.providers';
+import {
+    loadProfileSwitch,
+    loadProfilesRuntime,
+} from '../services/profiles-runtime.providers';
 import { needsPicker } from '../services/profiles-start';
 import { PROFILES_UI_ENABLED_TOKEN } from '../services/profiles-ui-enabled';
 import {
@@ -62,7 +65,7 @@ async function shouldAsk(
         // No verified answer (offline, refused, checking): stay on Default
         // for the session, so a later poll cannot switch the viewer.
         if (runtime.state() !== 'ready') return null;
-        return needsPicker({
+        const ask = needsPicker({
             uiEnabled: true,
             connected: true,
             capable: runtime.capable(),
@@ -71,6 +74,11 @@ async function shouldAsk(
             lastId: readActiveProfileId(instanceId),
             profiles: runtime.list()?.profiles ?? [],
         });
+        // The restored profile's state loads before the first screen; the
+        // picker's own choice is picked up by the switch's effect.
+        const profileSwitch = await loadProfileSwitch(injector);
+        if (!ask) await profileSwitch.apply(runtime.scope());
+        return ask;
     } catch {
         return null;
     }

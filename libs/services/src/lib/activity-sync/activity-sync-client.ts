@@ -18,6 +18,9 @@ import { createRandomId } from '@iptvnator/shared/interfaces';
 import { beginActivity } from './activity-sync-sessions';
 import { saveActivity } from './activity-sync-sessions';
 import { resetActivity } from './activity-sync-sessions';
+import { ActivityRequestError } from './activity-scope-refusal';
+import { scopeRefusalOf } from '../profiles/scope-refusal';
+import { readActivityPositions } from './activity-sync-positions';
 import { resolveActivity } from './activity-sync-resolution';
 import { sendPendingActivity } from './activity-sync-delivery';
 import type {
@@ -41,6 +44,10 @@ import {
     activityPositionMetadata as metadata,
     activityImportResume,
 } from './activity-projection';
+import {
+    DEFAULT_PERSONAL_SCOPE,
+    type PersonalScope,
+} from '@iptvnator/shared/interfaces/profiles';
 
 export interface ActivityClientOptions {
     instanceId: string;
@@ -66,6 +73,8 @@ export interface ActivityClientOptions {
     ): void;
     contexts?: ActivitySourceContext[];
     remember?(contexts: ActivitySourceContext[]): void;
+    /** Whose activity this client reads and writes; fixed for the client's life. */
+    scope?: PersonalScope;
 }
 
 /** All network work is secondary to the durable local mutation. */
@@ -87,6 +96,7 @@ export class ActivitySyncClient {
     private flushing?: Promise<void>;
     private readonly mutations = new ActivityMutationBarrier();
     readonly store: ActivityLocalStore;
+    readonly scope: PersonalScope;
     constructor(
         store: ActivityLocalStore,
         readonly options: ActivityClientOptions
@@ -98,6 +108,7 @@ export class ActivitySyncClient {
             mutate: (address, update) =>
                 this.mutations.track(store.mutate(address, update)),
         };
+        this.scope = options.scope ?? DEFAULT_PERSONAL_SCOPE;
         for (const context of options.contexts ?? [])
             this.contexts.set(context.sourceId, context);
     }
@@ -182,7 +193,7 @@ export class ActivitySyncClient {
             throw new Error('Activity identity unavailable');
         return {
             instanceId: this.options.instanceId,
-            scope: 'shared',
+            scope: this.scope,
             sourceId,
             sourceIncarnation: context.sourceIncarnation,
             content,
@@ -232,10 +243,14 @@ export class ActivitySyncClient {
                     operation: 'activity-list',
                     id: sourceId,
                     cursor,
+                    ...(this.scope === DEFAULT_PERSONAL_SCOPE
+                        ? {}
+                        : { scope: this.scope }),
                 })) as ActivityListResponse;
                 for (const entry of page.entries) {
                     if (
                         entry.address.instanceId !== this.options.instanceId ||
+                        entry.address.scope !== this.scope ||
                         entry.address.sourceId !== sourceId ||
                         entry.address.sourceIncarnation !==
                             context.sourceIncarnation
@@ -342,38 +357,8 @@ export class ActivitySyncClient {
         await this.flush();
     }
 
-    async positions(
-        sourceId: string
-    ): Promise<
-        { position: PlaybackPositionData; reset: boolean; conflict: boolean }[]
-    > {
-        const incarnation = this.contexts.get(sourceId)?.sourceIncarnation;
-        return (await this.store.entries(sourceId))
-            .filter(
-                (entry) =>
-                    !incarnation ||
-                    entry.address.sourceIncarnation === incarnation
-            )
-            .map(({ address, record }) => ({
-                position: {
-                    ...(record.position ??
-                        projectActivity(address, record.state)),
-                    ...metadata(
-                        this.alias(address) ??
-                            record.position ??
-                            projectActivity(address, record.state)
-                    ),
-                    watched: record.position?.watched ?? record.state.watched,
-                },
-                reset:
-                    !record.state.resume &&
-                    !record.state.watched &&
-                    !record.state.owner &&
-                    (!record.pending.length ||
-                        record.pending[record.pending.length - 1]?.operation
-                            .kind === 'reset'),
-                conflict: !!record.conflict,
-            }));
+    positions(sourceId: string): ReturnType<typeof readActivityPositions> {
+        return readActivityPositions(this, sourceId);
     }
 
     async stopDelivery(): Promise<void> {
@@ -412,7 +397,10 @@ export class ActivitySyncClient {
         const response = await this.options.request(request);
         if (generation !== this.options.consent())
             throw new Error('Activity consent changed');
-        if (response.status !== 200) throw new Error('Activity request failed');
+        if (response.status !== 200)
+            throw new ActivityRequestError(
+                scopeRefusalOf(response.status, response.body)
+            );
         return response.body;
     }
 }

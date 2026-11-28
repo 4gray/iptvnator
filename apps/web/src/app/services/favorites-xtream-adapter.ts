@@ -10,6 +10,7 @@ import {
     parseFavoriteSnapshot,
     type FavoriteReference,
 } from '@iptvnator/shared/interfaces/favorites-sync';
+import { DEFAULT_PERSONAL_SCOPE } from '@iptvnator/shared/interfaces/profiles';
 import {
     captureFavoriteOwner,
     type FavoritesSyncClient,
@@ -39,6 +40,18 @@ export class FavoritesXtreamAdapter {
             version(): number;
         }
     ) {}
+    private householdFavorites(
+        raw: IXtreamDataSource,
+        sourceId: string,
+        hydrate: boolean,
+        strict = false
+    ): Promise<XtreamFavoriteItem[]> {
+        if (this.client.scope !== DEFAULT_PERSONAL_SCOPE)
+            return Promise.resolve([]);
+        return strict
+            ? raw.getFavorites(sourceId, hydrate, true)
+            : raw.getFavorites(sourceId, hydrate);
+    }
     async project(
         raw: IXtreamDataSource,
         sourceId: string,
@@ -56,10 +69,9 @@ export class FavoritesXtreamAdapter {
         const matchesTarget = (ref: XtreamRef) =>
             !target ||
             favoriteReferenceKey(ref) === favoriteReferenceKey(target);
+        // The raw favorites table is the household's; a profile starts empty.
         const local = (
-            strict
-                ? await raw.getFavorites(sourceId, hydrate, true)
-                : await raw.getFavorites(sourceId, hydrate)
+            await this.householdFavorites(raw, sourceId, hydrate, strict)
         ).filter((item) => matchesTarget(xtreamFavoriteReference(item)));
         const catalogs = new Map<XtreamRef['kind'], XtreamContentItem[]>();
         const mapped = new Map(
@@ -231,7 +243,9 @@ export class FavoritesXtreamAdapter {
                 xtream_id: target.id,
             });
         const id = typeof target === 'number' ? target : target.id;
-        const candidates = (await raw.getFavorites(sourceId, false)).filter(
+        const candidates = (
+            await this.householdFavorites(raw, sourceId, false)
+        ).filter(
             (item) =>
                 item.id === id &&
                 (typeof target === 'number' || item.type === target.type)

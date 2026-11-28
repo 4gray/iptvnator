@@ -2,6 +2,7 @@ import { clearActivityPositions } from './activity-position-clear';
 import { ActivityPositionWriteFence } from './activity-position-write-fence';
 import type { IXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import { DEFAULT_PERSONAL_SCOPE } from '@iptvnator/shared/interfaces/profiles';
 import {
     ActivitySupersededError,
     type ActivitySyncClient,
@@ -49,6 +50,11 @@ export class ActivityPositionAdapter {
         private readonly localOnly = new ActivityLocalOnlyPositions()
     ) {}
 
+    /** The raw store is the household's; only the Default profile may write or read through it. */
+    private get householdRaw(): boolean {
+        return this.client.scope === DEFAULT_PERSONAL_SCOPE;
+    }
+
     async invoke(
         raw: IXtreamDataSource,
         method: string,
@@ -92,6 +98,7 @@ export class ActivityPositionAdapter {
                         !position.activitySessionId &&
                         position.activityAction !== 'mark-watched'
                     ) {
+                        if (!this.householdRaw) continue;
                         await (this.strict?.save(sourceId, position) ??
                             raw.savePlaybackPosition(sourceId, position));
                         continue;
@@ -250,6 +257,8 @@ export class ActivityPositionAdapter {
         sourceId: string,
         snapshot: LocalActivitySnapshot
     ): Promise<void> {
+        // A profile's local-only position stays in its scoped ownership record.
+        if (!this.householdRaw) return Promise.resolve();
         return this.localWrites.run(sourceId, snapshot.position, async () => {
             let current = snapshot;
             for (;;) {
@@ -301,7 +310,10 @@ export class ActivityPositionAdapter {
         includeSeriesResets = false
     ): Promise<PlaybackPositionData[]> {
         const positions = new Map(
-            local.map((p) => [`${p.contentType}:${p.contentXtreamId}`, p])
+            (this.householdRaw ? local : []).map((p) => [
+                `${p.contentType}:${p.contentXtreamId}`,
+                p,
+            ])
         );
         for (const snapshot of this.localOnly.snapshots(sourceId)) {
             const key = `${snapshot.position.contentType}:${snapshot.position.contentXtreamId}`;
@@ -348,6 +360,7 @@ export class ActivityPositionAdapter {
     }
 
     async keepLocal(raw: IXtreamDataSource, sourceId: string): Promise<void> {
+        if (!this.householdRaw) return;
         do {
             await this.localWrites.wait(sourceId);
             for (const snapshot of this.localOnly.snapshots(sourceId))

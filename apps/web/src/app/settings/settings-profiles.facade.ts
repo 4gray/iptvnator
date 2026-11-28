@@ -95,11 +95,14 @@ export class SettingsProfilesFacade {
                 !(await this.unlock())
             )
                 return 'cancelled';
-            if (!(profile.hasPin && changes.pin !== undefined))
-                return this.outcome(
-                    await this.runtime.client().update(profile.id, changes),
-                    profile.id
-                );
+            if (!(profile.hasPin && changes.pin !== undefined)) {
+                const result = await this.runtime
+                    .client()
+                    .update(profile.id, changes);
+                // Another device set a PIN since this list loaded: ask for it now.
+                if (result.ok || result.error.code !== 'pin_required')
+                    return this.outcome(result, profile.id);
+            }
             const failure: { error: ProfilesError | null } = { error: null };
             const done = await this.askPin(
                 profile,
@@ -185,9 +188,10 @@ export class SettingsProfilesFacade {
         takenColours: ReadonlySet<string>,
         submit: SettingsProfileDialogData['submit']
     ): Promise<void> {
-        const suggestedColour =
-            PROFILE_SWATCHES.find((colour) => !takenColours.has(colour)) ??
-            PROFILE_SWATCHES[0];
+        const suggestedColour = (
+            PROFILE_SWATCHES.find(({ hex }) => !takenColours.has(hex)) ??
+            PROFILE_SWATCHES[0]
+        ).hex;
         const ref = SettingsProfileDialogComponent.open(this.dialog, {
             profile,
             suggestedColour,
@@ -279,11 +283,9 @@ export class SettingsProfilesFacade {
         await this.runtime.refresh();
     }
 
-    /** The runtime does not refresh after a mutation: do it, twice if a poll raced it. */
+    /** The runtime does not refresh after a mutation: wait out any refresh that began before it, then ask afresh. */
     private async settle(): Promise<void> {
-        const before = this.runtime.list()?.revision;
+        await this.runtime.idle();
         await this.runtime.refresh();
-        if (this.runtime.list()?.revision === before)
-            await this.runtime.refresh();
     }
 }

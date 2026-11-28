@@ -946,7 +946,12 @@
         "ACCENT_AMBER": "アンバー",
         "ACCENT_CORAL": "コーラル",
         "ACCENT_MAGENTA": "マゼンタ",
-        "ACCENT_VIOLET": "バイオレット"
+        "ACCENT_VIOLET": "バイオレット",
+        "ACCENT_RED": "レッド",
+        "ACCENT_CYAN": "シアン",
+        "ACCENT_LIME": "ライム",
+        "ACCENT_SLATE": "スレート",
+        "ACCENT_BROWN": "ブラウン"
     },
     "AUDIO_PLAYER": {
         "PLAY": "再生",

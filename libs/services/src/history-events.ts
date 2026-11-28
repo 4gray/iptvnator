@@ -1,4 +1,5 @@
 import { InjectionToken } from '@angular/core';
+import { activePersonalScope } from './lib/profiles/active-scope';
 import type {
     Playlist,
     PlaylistRecentlyViewedItem,
@@ -35,12 +36,14 @@ export function captureHistoryOwner(
     const key = instanceId
         ? `iptvnator-server:${instanceId}:history-source-epoch:${sourceId}`
         : null;
+    const scope = activePersonalScope();
     try {
         const epoch = key ? localStorage.getItem(key) : null;
         return () => {
             try {
                 return (
                     currentInstance() === instanceId &&
+                    activePersonalScope() === scope &&
                     (!key || localStorage.getItem(key) === epoch)
                 );
             } catch {

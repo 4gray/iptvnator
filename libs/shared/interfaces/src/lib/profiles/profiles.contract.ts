@@ -1,3 +1,4 @@
+import { THEME_ACCENTS } from '../theme-accent';
 import type { PersonalScope } from './profile-scope';
 
 /** `/v1/instance` capability of a server that serves `/v1/profiles`. */
@@ -8,6 +9,21 @@ export const DEFAULT_PROFILE_ID = 'default';
 
 export const PROFILE_NAME_MAX_LENGTH = 32;
 export const PROFILE_LIMIT = 12;
+
+/**
+ * The colours a profile can pick, and the ones the server hands out in turn
+ * to new profiles. The theme accents come first, then five more so that
+ * every one of up to `PROFILE_LIMIT` profiles can have its own. The ids name
+ * the translation of each colour (`THEMES.ACCENT_<ID>`).
+ */
+export const PROFILE_COLOURS = [
+    ...THEME_ACCENTS,
+    { id: 'red', hex: '#dc2626' },
+    { id: 'cyan', hex: '#06b6d4' },
+    { id: 'lime', hex: '#84cc16' },
+    { id: 'slate', hex: '#64748b' },
+    { id: 'brown', hex: '#92400e' },
+] as const;
 
 /**
  * A person in the household. The PIN is a light lock: the server checks it

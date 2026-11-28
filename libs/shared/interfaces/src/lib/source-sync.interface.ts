@@ -121,6 +121,8 @@ export interface SourceServerRequest {
         operation: import('./history-sync/history.contract').HistoryOperation;
     };
     cursor?: string;
+    /** Whose personal state a list or read returns; absent is the Default profile. */
+    scope?: import('./profiles/profile-scope').PersonalScope;
     activity?: {
         address: import('./activity-sync/activity-sync.contract').ActivityAddress;
         operation?: import('./activity-sync/activity-sync.contract').ActivityOperation;
