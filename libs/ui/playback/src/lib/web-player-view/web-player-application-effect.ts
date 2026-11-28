@@ -19,6 +19,7 @@ export function bindWebPlayerApplication(options: {
     application: ReturnType<typeof createWebPlayerApplicationState>;
     player: Signal<VideoPlayer>;
     reloadToken: Signal<number>;
+    bufferProfile: Signal<string>;
     channel: WritableSignal<Channel | undefined>;
     vjsOptions: WritableSignal<VideoPlayerOptions | undefined>;
 }): void {
@@ -36,6 +37,7 @@ export function bindWebPlayerApplication(options: {
         const isLive = untracked(application.isLive);
         const selectedPlayer = untracked(options.player);
         const reloadToken = untracked(options.reloadToken);
+        const bufferProfile = untracked(options.bufferProfile);
         channel.set(undefined);
         vjsOptions.set(undefined);
         recovery.clearDiagnostic();
@@ -49,7 +51,8 @@ export function bindWebPlayerApplication(options: {
             (next) => {
                 channel.set(next.channel);
                 vjsOptions.set(next.vjsOptions);
-            }
+            },
+            bufferProfile
         );
     });
 }

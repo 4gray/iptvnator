@@ -1,8 +1,12 @@
 import type Artplayer from 'artplayer';
 import type { Option } from 'artplayer';
-import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
+import Hls, {
+    type ErrorData,
+    type LevelLoadedData,
+    type ManifestParsedData,
+} from 'hls.js';
 import mpegts from 'mpegts.js';
-import type { ChannelDrm } from '@iptvnator/shared/interfaces';
+import type { ChannelDrm, Settings } from '@iptvnator/shared/interfaces';
 import {
     InlinePlaybackPlayer,
     type PlaybackDiagnostic,
@@ -16,6 +20,10 @@ import {
 } from '@iptvnator/playback/util';
 import { isBrowserMediaTypeSupported } from '../web-video-support/browser-media-type-support';
 import { hlsWorkerConfig } from '../web-video-support/hls-worker-config';
+import {
+    mpegTsBufferConfig,
+    adjustLiveSyncForSegmentDuration,
+} from '../web-video-support/iptv-hls-config';
 import type { WebVideoControlsAdapter } from '../player-controls';
 import type { ShakaModuleLoader } from '../shaka-engine/shaka-module.types';
 import { ShakaVideoSession } from '../shaka-engine/shaka-video-session';
@@ -37,6 +45,8 @@ export interface ArtPlayerSourceSessionConfig {
     getDrm?: () => ChannelDrm | undefined;
     /** Test seam for the lazily imported shaka-player module. */
     loadShaka?: ShakaModuleLoader;
+    /** Buffer profile for HLS playback: 'lowLatency' | 'balanced' | 'stable' */
+    hlsBufferProfile?: Settings['hlsBufferProfile'];
 }
 
 /**
@@ -66,6 +76,8 @@ export class ArtPlayerSourceSession {
     private hls: Hls | null = null;
     private hlsManifestListener:
         ((event: unknown, data: ManifestParsedData) => void) | null = null;
+    private hlsLevelLoadedListener:
+        ((event: unknown, data: LevelLoadedData) => void) | null = null;
     private hlsErrorListener:
         ((event: unknown, data: ErrorData) => void) | null = null;
     private mpegTsPlayer: mpegts.Player | null = null;
@@ -144,13 +156,33 @@ export class ArtPlayerSourceSession {
 
         this.prepareForSourceChange();
         if (Hls.isSupported()) {
-            const hls = new Hls(hlsWorkerConfig());
+            const hls = new Hls(hlsWorkerConfig(
+                globalThis.document,
+                globalThis.location?.protocol,
+                globalThis.localStorage,
+                this.config.hlsBufferProfile
+            ));
             this.hls = hls;
             this.hlsManifestListener = (_event, data) => {
                 if (this.destroyed || this.hls !== hls) {
                     return;
                 }
                 this.handleHlsManifestParsed(url, data);
+            };
+            this.hlsLevelLoadedListener = (_event, data) => {
+                if (this.destroyed || this.hls !== hls) {
+                    return;
+                }
+                const duration =
+                    data.details?.averagetargetduration ??
+                    data.details?.targetduration;
+                if (typeof duration === 'number') {
+                    adjustLiveSyncForSegmentDuration(
+                        hls,
+                        this.config.hlsBufferProfile ?? 'balanced',
+                        duration
+                    );
+                }
             };
             this.hlsErrorListener = (_event, data) => {
                 if (this.destroyed || this.hls !== hls) {
@@ -159,6 +191,7 @@ export class ArtPlayerSourceSession {
                 this.handleHlsError(url, data);
             };
             hls.on(Hls.Events.MANIFEST_PARSED, this.hlsManifestListener);
+            hls.on(Hls.Events.LEVEL_LOADED, this.hlsLevelLoadedListener);
             hls.on(Hls.Events.ERROR, this.hlsErrorListener);
             hls.attachMedia(video);
             this.bindControlsSource({ kind: 'hls', hls });
@@ -188,6 +221,7 @@ export class ArtPlayerSourceSession {
             type: 'mpegts',
             isLive: this.config.sharedControls ? this.config.isLive() : true,
             url,
+            ...mpegTsBufferConfig(this.config.hlsBufferProfile ?? 'balanced'),
         });
         this.mpegTsPlayer = engine;
         this.mpegTsErrorListener = (type, details, info) => {
@@ -264,6 +298,7 @@ export class ArtPlayerSourceSession {
         const hls = this.hls;
         if (!hls) {
             this.hlsManifestListener = null;
+            this.hlsLevelLoadedListener = null;
             this.hlsErrorListener = null;
             return;
         }
@@ -271,10 +306,14 @@ export class ArtPlayerSourceSession {
         if (this.hlsManifestListener) {
             hls.off(Hls.Events.MANIFEST_PARSED, this.hlsManifestListener);
         }
+        if (this.hlsLevelLoadedListener) {
+            hls.off(Hls.Events.LEVEL_LOADED, this.hlsLevelLoadedListener);
+        }
         if (this.hlsErrorListener) {
             hls.off(Hls.Events.ERROR, this.hlsErrorListener);
         }
         this.hlsManifestListener = null;
+        this.hlsLevelLoadedListener = null;
         this.hlsErrorListener = null;
         hls.destroy();
         this.hls = null;

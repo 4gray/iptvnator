@@ -42,7 +42,8 @@ export class WebPlayerApplicationHandoffCoordinator {
         selectedPlayer: VideoPlayer,
         token: WebPlayerApplicationToken,
         currentToken: () => WebPlayerApplicationToken,
-        accept: (handoff: WebPlayerApplicationHandoff) => void
+        accept: (handoff: WebPlayerApplicationHandoff) => void,
+        bufferProfile?: string
     ): void {
         const target = toInlinePlaybackPlayer(selectedPlayer);
         if (target === null) {
@@ -61,6 +62,7 @@ export class WebPlayerApplicationHandoffCoordinator {
                 streamUrl: playback.streamUrl,
                 isLive,
                 reloadToken,
+                bufferProfile,
             });
             accept({
                 channel: createWebPlayerChannel(playback),

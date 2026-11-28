@@ -1,4 +1,5 @@
 import Hls from 'hls.js';
+import { IPTV_HLS_CONFIG } from './iptv-hls-config';
 import { hlsWorkerConfig } from './hls-worker-config';
 
 describe('hlsWorkerConfig', () => {
@@ -13,6 +14,7 @@ describe('hlsWorkerConfig', () => {
             )
         ).toEqual({
             workerPath: `http://127.0.0.1:43330/assets/hls.worker.js?v=${Hls.version}`,
+            ...IPTV_HLS_CONFIG.balanced,
         });
         expect(
             hlsWorkerConfig(
@@ -22,6 +24,32 @@ describe('hlsWorkerConfig', () => {
             )
         ).toEqual({
             workerPath: `https://tv.example/app/assets/hls.worker.js?v=${Hls.version}`,
+            ...IPTV_HLS_CONFIG.balanced,
+        });
+    });
+
+    it('applies the requested buffer profile', () => {
+        expect(
+            hlsWorkerConfig(
+                { baseURI: 'http://127.0.0.1:43330/' },
+                'http:',
+                noOptOut,
+                'lowLatency'
+            )
+        ).toEqual({
+            workerPath: `http://127.0.0.1:43330/assets/hls.worker.js?v=${Hls.version}`,
+            ...IPTV_HLS_CONFIG.lowLatency,
+        });
+        expect(
+            hlsWorkerConfig(
+                { baseURI: 'http://127.0.0.1:43330/' },
+                'http:',
+                noOptOut,
+                'stable'
+            )
+        ).toEqual({
+            workerPath: `http://127.0.0.1:43330/assets/hls.worker.js?v=${Hls.version}`,
+            ...IPTV_HLS_CONFIG.stable,
         });
     });
 

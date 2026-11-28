@@ -5,6 +5,7 @@
                 @if (vjsOptions(); as options) {
                     <app-vjs-player
                         [options]="options"
+                        [hlsBufferProfile]="hlsBufferProfile()"
                         [fullscreenTarget]="fullscreenSurface"
                         [mediaTitle]="resolvedMediaTitle()"
                         [upNext]="upNext()"
@@ -46,6 +47,7 @@
                         [interactionEnabled]="playbackInteractionEnabled()"
                         [startTime]="effectiveStartTime()"
                         [seriesNavigation]="seriesNavigation()"
+                        [hlsBufferProfile]="hlsBufferProfile()"
                         (timeUpdate)="handleTimeUpdate($event, application)"
                         (playbackIssue)="handlePlaybackIssue($event, binding)"
                         (playbackStarted)="handlePlaybackStarted(binding)"
@@ -77,6 +79,7 @@
                         [interactionEnabled]="playbackInteractionEnabled()"
                         [startTime]="effectiveStartTime()"
                         [seriesNavigation]="seriesNavigation()"
+                        [hlsBufferProfile]="hlsBufferProfile()"
                         (timeUpdate)="handleTimeUpdate($event, application)"
                         (playbackIssue)="handlePlaybackIssue($event, binding)"
                         (playbackStarted)="handlePlaybackStarted(binding)"

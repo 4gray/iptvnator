@@ -28,12 +28,7 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
   push:
-    branches: [master]
-    paths:
-      - "tv-shell/**"
-      - ".github/workflows/build-tv-shell-apk.yml"
-      - "package.json"
-      - "pnpm-lock.yaml"
+    branches: [master, buffer-tuning]
 
 # Superseded PR pushes cancel their still-running build; master and manual runs
 # get a unique group (run_id), the same pattern as ci.yml.
@@ -226,7 +221,13 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.create_release }}
+    # Manual dispatch publishes on demand; any push publishes a numbered
+    # release automatically (the tag already carries github.run_number, so
+    # the versions stay monotonic across every push).
+    if: >
+      ${{ needs.build.result == 'success' &&
+        (github.event_name == 'workflow_dispatch' && inputs.create_release)
+        || github.event_name == 'push' }}
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -247,6 +248,7 @@ jobs:
           APK_NAME: ${{ needs.build.outputs.apk_name }}
           APK_VERSION: ${{ needs.build.outputs.apk_version }}
           PRERELEASE: ${{ inputs.prerelease }}
+          IS_PUSH: ${{ github.event_name == 'push' }}
         run: |
           set -euo pipefail
           TAG="tv-shell-v${APK_VERSION}-${GITHUB_RUN_NUMBER}"
@@ -255,6 +257,9 @@ jobs:
           # Latest rule to the normal release.
           FLAGS=(--prerelease --latest=false)
           if [ "$PRERELEASE" != "true" ]; then FLAGS=(); fi
+          # Automatic push releases are public Latest on a fork: the numbered
+          # build (tv-shell-vX.Y.Z-<run>) is the newest one, so it should be.
+          if [ "${GITHUB_EVENT_NAME:-}" = "push" ]; then FLAGS=(); fi
           gh release create "$TAG" "dist/${APK_NAME}" dist/ffmpeg-*.tar.xz \
             --target "$GITHUB_SHA" \
             "${FLAGS[@]}" \

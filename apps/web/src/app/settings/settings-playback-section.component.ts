@@ -78,6 +78,14 @@ export class SettingsPlaybackSectionComponent {
      * toggle would control nothing in the PWA.
      */
     readonly supportsVodMultiSource = input(false);
+    readonly hlsBufferProfileOptions: readonly {
+        value: 'lowLatency' | 'balanced' | 'stable';
+        labelKey: string;
+    }[] = [
+        { value: 'lowLatency', labelKey: 'SETTINGS.HLS_PROFILE_LOW_LATENCY' },
+        { value: 'balanced', labelKey: 'SETTINGS.HLS_PROFILE_BALANCED' },
+        { value: 'stable', labelKey: 'SETTINGS.HLS_PROFILE_STABLE' },
+    ];
     readonly selectRecordingFolder = output<void>();
     readonly externalAvailability = signal<{
         mpv: boolean | null;

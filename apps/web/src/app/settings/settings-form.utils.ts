@@ -130,6 +130,15 @@ export function createSettingsForm(
         embeddedMpvFrameCopy: false,
         embeddedMpvExtraOptions: ['', [embeddedMpvExtraOptionsValidator]],
         embeddedMpvAutoReconnect: true,
+        // Native player buffer tuning (ms) — read by Android NativePlayerActivity
+        // and by the web fallback engine via hlsWorkerConfig (if exposed).
+        bufferMinMs: 30_000,
+        bufferMaxMs: 90_000,
+        bufferForPlaybackMs: 30_000,
+        hlsBufferProfile: 'balanced' as
+            | 'lowLatency'
+            | 'balanced'
+            | 'stable',
         portalConnectivityGuard: true,
         coverSize: 'medium' as CoverSize,
         showCoverTitles: true,
@@ -290,6 +299,9 @@ export function createSettingsFromFormValue(
             value.embeddedMpvExtraOptions
         ),
         embeddedMpvAutoReconnect: value.embeddedMpvAutoReconnect ?? true,
+        hlsBufferProfile: (value.hlsBufferProfile ??
+            currentSettings.hlsBufferProfile ??
+            'balanced') as Settings['hlsBufferProfile'],
         portalConnectivityGuard: value.portalConnectivityGuard !== false,
         coverSize: value.coverSize ?? 'medium',
         showCoverTitles: value.showCoverTitles !== false,

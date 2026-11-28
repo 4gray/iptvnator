@@ -437,6 +437,38 @@ public class MainActivity extends ComponentActivity {
         }
     }
 
+    private void checkForUpdate() {
+        // Simple remote update check: the fork's VERSION file holds the
+        // versionCode of the newest APK. If it is greater than the installed
+        // versionCode, offer to install it. Runs off the UI thread; a failed
+        // or absent fetch is ignored so the app always starts.
+        new Thread(() -> {
+            try {
+                java.net.URL u = new java.net.URL("https://raw.githubusercontent.com/jelliel/iptvnator/refs/heads/buffer-tuning/VERSION");
+                java.net.HttpURLConnection c = (java.net.HttpURLConnection) u.openConnection();
+                c.setConnectTimeout(5_000);
+                c.setReadTimeout(5_000);
+                c.connect();
+                if (c.getResponseCode() != 200) return;
+                try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(c.getInputStream()))) {
+                    String line = reader.readLine();
+                    if (line == null) return;
+                    int remoteCode = Integer.parseInt(line.trim());
+                    int localCode = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+                    if (remoteCode > localCode) {
+                        runOnUiThread(() -> new android.app.AlertDialog.Builder(MainActivity.this)
+                            .setTitle("Mise à jour disponible")
+                            .setMessage("Version " + remoteCode + " dispo sur les releases GitHub (jelliel/iptvnator). Installe la nouvelle version pour remplacer celle-ci.")
+                            .setPositiveButton("OK", (d, i) -> {})
+                            .show());
+                    }
+                }
+            } catch (Exception e) {
+                // Silently ignore — a broken update check must not block startup.
+            }
+        }).start();
+    }
+
     private void load() {
         if (webView == null) {
             recreate();
@@ -452,6 +484,7 @@ public class MainActivity extends ComponentActivity {
         handler.removeCallbacks(readyWatchdog);
         handler.removeCallbacks(loadRetry);
         setKeepScreenOn(true); // through the splash; the page then reports its playback state
+        checkForUpdate();
         loadedLayoutWidth = selectedLayoutWidth();
         loadedScreenWidth = screenCssWidth(this);
         boolean tvLayout = loadedLayoutWidth != ShellSite.DEVICE_VIEWPORT;

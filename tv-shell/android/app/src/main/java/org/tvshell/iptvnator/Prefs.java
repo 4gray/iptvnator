@@ -16,6 +16,9 @@ public class Prefs {
     public static final String KEY_SERVER_PORT = "serverPort";
     private static final String KEY_NATIVE_PLAYBACK = "native_playback";
     public static final String KEY_DEBUG = "webDebug";
+    public static final String KEY_BUFFER_MIN_MS = "buffer_min_ms";
+    public static final String KEY_BUFFER_MAX_MS = "buffer_max_ms";
+    public static final String KEY_BUFFER_FOR_PLAYBACK_MS = "buffer_for_playback_ms";
 
     public static final int DEFAULT_LAYOUT_WIDTH = 1280;
 
@@ -80,7 +83,7 @@ public class Prefs {
     }
 
     public boolean nativePlayback() {
-        return prefs.getBoolean(KEY_NATIVE_PLAYBACK, false);
+        return prefs.getBoolean(KEY_NATIVE_PLAYBACK, true);
     }
 
     public void setNativePlayback(boolean enabled) {
@@ -126,5 +129,29 @@ public class Prefs {
 
     public void setWebDebug(boolean value) {
         prefs.edit().putBoolean(KEY_DEBUG, value).apply();
+    }
+
+    public int bufferMinMs() {
+        return prefs.getInt(KEY_BUFFER_MIN_MS, 30_000);
+    }
+
+    public void setBufferMinMs(int minMs) {
+        prefs.edit().putInt(KEY_BUFFER_MIN_MS, minMs).apply();
+    }
+
+    public int bufferMaxMs() {
+        return prefs.getInt(KEY_BUFFER_MAX_MS, 90_000);
+    }
+
+    public void setBufferMaxMs(int maxMs) {
+        prefs.edit().putInt(KEY_BUFFER_MAX_MS, maxMs).apply();
+    }
+
+    public int bufferForPlaybackMs() {
+        return prefs.getInt(KEY_BUFFER_FOR_PLAYBACK_MS, 30_000);
+    }
+
+    public void setBufferForPlaybackMs(int forPlaybackMs) {
+        prefs.edit().putInt(KEY_BUFFER_FOR_PLAYBACK_MS, forPlaybackMs).apply();
     }
 }

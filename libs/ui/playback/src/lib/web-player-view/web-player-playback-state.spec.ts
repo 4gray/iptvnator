@@ -160,16 +160,18 @@ describe('web player playback state', () => {
         ],
         ['https://example.com/archive/movie.mp4', 'video/mp4'],
     ])('selects the existing MIME type for %s', (streamUrl, type) => {
-        expect(
-            createVideoJsOptions({
-                streamUrl,
-                isLive: false,
-                reloadToken: 3,
-            })
-        ).toEqual({
+        const result = createVideoJsOptions({
+            streamUrl,
             isLive: false,
             reloadToken: 3,
-            sources: [{ src: streamUrl, type }],
         });
+        expect(result).toEqual(
+            expect.objectContaining({
+                isLive: false,
+                reloadToken: 3,
+                sources: [{ src: streamUrl, type }],
+            })
+        );
+        expect(result.html5?.vhs).toBeDefined();
     });
 });

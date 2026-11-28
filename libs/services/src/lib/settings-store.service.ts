@@ -108,6 +108,7 @@ export const SettingsStore = signalStore(
                             epgOffsetMinutes: normalizeEpgOffsetMinutes(
                                 storedSettings.epgOffsetMinutes
                             ),
+                            hlsBufferProfile: storedSettings.hlsBufferProfile,
                             ...resolveDefaultOnSettings(storedSettings),
                             dashboardRails: normalizeDashboardRailsSettings(
                                 storedSettings.dashboardRails
