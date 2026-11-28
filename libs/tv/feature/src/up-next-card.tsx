@@ -59,7 +59,7 @@ export function useUpNext(
     const next = vod.next;
     const key = current && next ? upNextDismissKey(current, next) : undefined;
     const autoplay = tv.data.seriesAutoplay !== false;
-    const card = upNextCard({
+    const offeredCard = upNextCard({
         current,
         next,
         durationSeconds: element?.duration ?? NaN,
@@ -71,6 +71,9 @@ export function useUpNext(
         enabled: tv.data.playerUpNextCard !== false,
         nextProgress: next ? tv.data.positions[next.id] : undefined,
     });
+    const progressWarning = useRef(false);
+    progressWarning.current = !!tv.progressSaveNotice.message;
+    const card = progressWarning.current ? undefined : offeredCard;
     const collapsed = !!key && key === collapsedKey;
     const replayPending = tv.replayPending;
     const latest = useRef({
@@ -217,16 +220,22 @@ export function useUpNext(
         if (playingId) tvAutoplayStreak.playbackStarted();
     }, [playingId]);
 
-    // The card takes focus when it appears, so OK plays the next episode.
+    // Only a new offer claims focus. A card returning after a warning cannot.
+    const offered = !!offeredCard;
     const visible = !!card;
     useLayoutEffect(() => {
-        if (!visible) return;
+        if (!offered || progressWarning.current) return;
         let owns = true;
-        restoreFocus(FOCUS_KEY, '', undefined, () => owns);
+        restoreFocus(
+            FOCUS_KEY,
+            '',
+            undefined,
+            () => owns && !progressWarning.current
+        );
         return () => {
             owns = false;
         };
-    }, [visible, key]);
+    }, [offered, key]);
 
     // Shrink to a pill once seen, so the card does not cover the credits.
     useEffect(() => {

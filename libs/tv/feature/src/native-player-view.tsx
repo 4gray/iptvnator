@@ -1,4 +1,4 @@
-import { useLayoutEffect } from 'preact/hooks';
+import { useLayoutEffect, useRef } from 'preact/hooks';
 import { restoreFocus } from '@iptvnator/tv/ui';
 import type { RefObject } from 'preact';
 import type { VodSequence } from './use-vod-sequence';
@@ -34,11 +34,13 @@ export function NativePlayerView({
     const current = tv.playing;
     const element = video.current;
     const hasProgressWarning = !!tv.progressSaveNotice.message;
+    const progressWarning = useRef(hasProgressWarning);
+    progressWarning.current = hasProgressWarning;
     const upNext = useUpNext(
         tv,
         video,
         vod,
-        !!overlay.panel || hasProgressWarning,
+        !!overlay.panel,
         controls.reveal,
         seriesDetails.busy
     );
@@ -47,15 +49,20 @@ export function NativePlayerView({
             !element?.ended ||
             !vod.next ||
             !tv.fullscreen ||
-            hasProgressWarning
+            progressWarning.current
         )
             return;
         let owns = true;
-        restoreFocus('player-next', '', undefined, () => owns);
+        restoreFocus(
+            'player-next',
+            '',
+            undefined,
+            () => owns && !progressWarning.current
+        );
         return () => {
             owns = false;
         };
-    }, [element?.ended, vod.next?.id, tv.fullscreen, hasProgressWarning]);
+    }, [element?.ended, vod.next?.id, tv.fullscreen]);
     const sourceName =
         tv.data.sources.find((source) => source.id === current?.sourceId)
             ?.name ?? 'Source unavailable';
