@@ -555,10 +555,10 @@ test(
         const planOut = path.join(os.tmpdir(), `e2e-plan-${process.pid}.out`);
         try {
             for (const [eventName, inputFlag, expectedCross, expectedCount] of [
-                ['push', '', 'true', 9],
-                ['pull_request', 'true', 'true', 9],
+                ['push', '', 'true', 10],
+                ['pull_request', 'true', 'true', 10],
                 ['pull_request', 'false', 'false', 3],
-                ['workflow_dispatch', 'true', 'true', 9],
+                ['workflow_dispatch', 'true', 'true', 10],
                 ['workflow_dispatch', 'false', 'false', 3],
             ]) {
                 fs.writeFileSync(planOut, '');
@@ -585,9 +585,83 @@ test(
                 assert.equal(lines['cross-platform'], expectedCross);
                 const parsedMatrix = JSON.parse(lines.matrix);
                 assert.equal(parsedMatrix.include.length, expectedCount);
+                if (expectedCross === 'true') {
+                    const macShards = parsedMatrix.include.filter(
+                        ({ os }) => os === 'macos-latest'
+                    );
+                    assert.equal(macShards.length, 3);
+                    assert.ok(
+                        macShards.every(
+                            (entry) => entry['shard-total'] === 3
+                        )
+                    );
+                }
             }
         } finally {
             fs.rmSync(planOut, { force: true });
+        }
+
+        // Least-privilege post-save Jest cache pruning runs only on master pushes.
+        assert.equal(
+            ci.jobs['unit-and-typecheck'].permissions?.actions,
+            undefined,
+            'unit-and-typecheck must not hold actions: write while running PR code'
+        );
+        const pruneJob = ci.jobs['prune-jest-cache'];
+        assert.ok(pruneJob, 'CI prunes stale master jest-transform caches');
+        assert.equal(pruneJob.needs, 'unit-and-typecheck');
+        assert.deepEqual(pruneJob.permissions, { actions: 'write' });
+        assert.equal(pruneJob['continue-on-error'], true);
+        assert.match(pruneJob.if, /github\.event_name == 'push'/);
+        assert.match(pruneJob.if, /github\.ref == 'refs\/heads\/master'/);
+        assert.match(
+            pruneJob.if,
+            /needs\.unit-and-typecheck\.result == 'success'/
+        );
+        assert.ok(
+            !pruneJob.steps.some(({ uses }) => uses?.startsWith('actions/checkout')),
+            'prune-jest-cache needs no repository checkout'
+        );
+        const pruneStep = pruneJob.steps[0];
+        const pruneStub = `
+            gh() {
+                if [ "$1" = "api" ] && [ "$2" = "-X" ] && [ "$3" = "DELETE" ]; then
+                    echo "$4" >> deleted.log
+                    if [ "$4" = "repos/fixture/project/actions/caches/300" ]; then
+                        return 1
+                    fi
+                    return 0
+                fi
+                printf '%s\\n' 500 400 300 200
+            }
+        `;
+        const pruneDir = fs.mkdtempSync(path.join(os.tmpdir(), 'prune-jest-'));
+        try {
+            const pruneRes = spawnSync('bash', ['-c', pruneStub + pruneStep.run], {
+                cwd: pruneDir,
+                encoding: 'utf8',
+                env: {
+                    ...process.env,
+                    GITHUB_REPOSITORY: 'fixture/project',
+                },
+            });
+            assert.equal(pruneRes.status, 0, pruneRes.stderr);
+            assert.deepEqual(
+                fs
+                    .readFileSync(path.join(pruneDir, 'deleted.log'), 'utf8')
+                    .trim()
+                    .split('\n'),
+                [
+                    'repos/fixture/project/actions/caches/300',
+                    'repos/fixture/project/actions/caches/200',
+                ]
+            );
+            assert.match(
+                pruneRes.stdout,
+                /Pruned 1 stale master jest-transform cache\(s\)\./
+            );
+        } finally {
+            fs.rmSync(pruneDir, { recursive: true, force: true });
         }
 
         assert.equal(e2e.jobs['electron-e2e-tests'].needs, 'build-electron-e2e');
@@ -660,15 +734,40 @@ test('PR E2E scope selects Ubuntu-only for renderer changes and cross-platform f
         }
     );
 
+    assert.deepEqual(
+        evaluatePrE2EScope({
+            files: [
+                'apps/electron-backend/src/app/workers/worker-performance-capture.concurrency.spec.ts',
+                'libs/shared/database/src/lib/connection.spec.ts',
+                'libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.spec.ts',
+                'tools/packaging/build-workflow-scope.test.mjs',
+            ],
+        }),
+        {
+            run: false,
+            crossPlatform: false,
+            reason: 'All changed files match E2E path exclusions.',
+        }
+    );
+
     for (const file of [
         'apps/web/src/app/settings/settings.component.ts',
         'libs/portal/xtream/feature/src/lib/live.component.ts',
+        'libs/workspace/shell/feature/src/lib/workspace-shell/services/helpers/workspace-shell-search-labels.ts',
+        'libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell-route-state.service.ts',
+        'libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-context-sidebar/workspace-shell-context-sidebar.component.ts',
         'apps/web-e2e/src/xtream.e2e.ts',
+        'apps/web-e2e/src/service-worker-update.test.mjs',
         'apps/electron-backend-e2e/src/sources.e2e.ts',
+        'apps/electron-backend-e2e/src/performance/zoneless-migration.spec.ts',
         'tools/i18n/check-drift.mjs',
     ]) {
         const result = evaluatePrE2EScope({
-            files: [file, '.changes/my-feature.md'],
+            files: [
+                file,
+                'apps/electron-backend/src/app/api/main.preload.spec.ts',
+                '.changes/my-feature.md',
+            ],
         });
         assert.equal(result.run, true, file);
         assert.equal(result.crossPlatform, false, file);
@@ -683,6 +782,7 @@ test('PR E2E scope selects Ubuntu-only for renderer changes and cross-platform f
 
     for (const file of [
         'apps/electron-backend/src/app/api/main.preload.ts',
+        'apps/electron-backend/src/app/api/main.preload.spec-data.ts',
         'apps/web-backend/src/main.ts',
         'apps/web/src/app/app.component.ts',
         'libs/services/src/lib/runtime-capabilities.service.ts',
@@ -692,6 +792,10 @@ test('PR E2E scope selects Ubuntu-only for renderer changes and cross-platform f
         'libs/ui/components/src/lib/window-controls/window-controls.component.ts',
         'libs/workspace/shell/feature/src/lib/workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service.ts',
         'libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.ts',
+        'libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell.facade.ts',
+        'libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.ts',
+        'libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-rail/workspace-shell-rail.component.ts',
+        'libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-rail-links/workspace-shell-rail-links.component.scss',
         'libs/workspace/shell/feature/src/lib/workspace-shell/traffic-lights-clearance.directive.ts',
         'libs/services/src/lib/player-electron.service.ts',
         'tools/embedded-mpv/stage-runtime.mjs',
@@ -700,6 +804,7 @@ test('PR E2E scope selects Ubuntu-only for renderer changes and cross-platform f
         'pnpm-lock.yaml',
         '.github/workflows/e2e-tests.yaml',
         'apps/electron-backend-e2e/src/hosted-server.e2e.ts',
+        'apps/electron-backend-e2e/src/performance/electron-process-lifecycle.spec.ts',
         'apps/electron-backend-e2e/src/window-controls.e2e.ts',
         'apps/electron-backend-e2e/src/settings.e2e.ts',
         'apps/electron-backend-e2e/src/embedded-mpv-smoke.e2e.ts',
@@ -717,6 +822,13 @@ test('PR E2E scope selects Ubuntu-only for renderer changes and cross-platform f
     });
     assert.equal(contentTrigger.run, true);
     assert.equal(contentTrigger.crossPlatform, true);
+
+    const dragRegionTrigger = evaluatePrE2EScope({
+        files: ['libs/portal/m3u/feature/src/lib/header.component.scss'],
+        readFileContent: () => '.bar { app-region: drag; }',
+    });
+    assert.equal(dragRegionTrigger.run, true);
+    assert.equal(dragRegionTrigger.crossPlatform, true);
 
     assert.equal(
         evaluatePrE2EScope({ files: [], diffFailed: true }).crossPlatform,

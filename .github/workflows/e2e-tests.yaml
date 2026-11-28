@@ -67,7 +67,7 @@ jobs:
                   set -euo pipefail
                   if [ "${EVENT_NAME}" = "push" ] || [ "${INPUT_CROSS_PLATFORM}" = "true" ]; then
                       cross_platform="true"
-                      matrix='{"include":[{"os":"ubuntu-latest","shard":1,"shard-total":3},{"os":"ubuntu-latest","shard":2,"shard-total":3},{"os":"ubuntu-latest","shard":3,"shard-total":3},{"os":"macos-latest","shard":1,"shard-total":2},{"os":"macos-latest","shard":2,"shard-total":2},{"os":"windows-latest","shard":1,"shard-total":4},{"os":"windows-latest","shard":2,"shard-total":4},{"os":"windows-latest","shard":3,"shard-total":4},{"os":"windows-latest","shard":4,"shard-total":4}]}'
+                      matrix='{"include":[{"os":"ubuntu-latest","shard":1,"shard-total":3},{"os":"ubuntu-latest","shard":2,"shard-total":3},{"os":"ubuntu-latest","shard":3,"shard-total":3},{"os":"macos-latest","shard":1,"shard-total":3},{"os":"macos-latest","shard":2,"shard-total":3},{"os":"macos-latest","shard":3,"shard-total":3},{"os":"windows-latest","shard":1,"shard-total":4},{"os":"windows-latest","shard":2,"shard-total":4},{"os":"windows-latest","shard":3,"shard-total":4},{"os":"windows-latest","shard":4,"shard-total":4}]}'
                   else
                       cross_platform="false"
                       matrix='{"include":[{"os":"ubuntu-latest","shard":1,"shard-total":3},{"os":"ubuntu-latest","shard":2,"shard-total":3},{"os":"ubuntu-latest","shard":3,"shard-total":3}]}'
@@ -118,10 +118,9 @@ jobs:
         # runner each, split by spec file). Windows uses four shards: with
         # three, different shards reached the 30-minute job limit on slower
         # runners, including setup, without test failures. Linux uses three.
-        # macOS uses two shards because its runners are the scarcest:
-        # three macOS shards per run queued for 45-57 minutes on master.
-        # A passing macOS shard took 46 minutes before setup/build/artifact time.
-        # Reserve 60 minutes for the complete job, including report upload.
+        # macOS uses three shards now that PR E2E scoping keeps macOS runner
+        # queues short: two shards ran 50-54 minutes against the 60-minute
+        # timeout. Reserve 60 minutes on macOS as headroom for slower runners.
         timeout-minutes: ${{ matrix.os == 'macos-latest' && 60 || 30 }}
         env:
             IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS: '1'

@@ -29,15 +29,17 @@ merge-diff scope detection in one dependency-free runner) in parallel with
 production byte-budget build, performance journeys, and PR E2E depend directly
 on both jobs succeeding without queuing an intermediate fan-in runner.
 PR E2E runs through `ci.yml` using `e2e-tests.yaml` as a reusable workflow.
-`tools/packaging/pr-e2e-scope.mjs` scopes pure renderer/UI/library PRs to
-Ubuntu Electron E2E and sharded Web Chromium E2E, while PRs touching Electron
-main, SQLite/database, `web-backend`, desktop window/shell/shortcut/capability
-adapters (or diffs referencing OS-specific desktop branches),
-native/embedded-mpv, root build/lockfile configs, E2E workflows/fixtures, or
-carrying the `cross-platform-e2e` label run the full Ubuntu/macOS/Windows
-matrix and Windows hosted-server smoke. Master pushes and manual E2E dispatches
-always run the full cross-platform matrix. Caller/callee concurrency groups
-differ so the reusable workflow cannot cancel its caller.
+`tools/packaging/pr-e2e-scope.mjs` skips E2E for docs/website-only and
+unit-test-only PRs (outside `apps/*-e2e/`), scopes pure
+renderer/UI/library PRs to Ubuntu Electron E2E and sharded Web Chromium E2E,
+while PRs touching Electron main, SQLite/database, `web-backend`, desktop
+window/chrome shell, shortcut, or capability adapters (or diffs referencing
+OS-specific desktop branches), native/embedded-mpv, root build/lockfile
+configs, E2E workflows/fixtures, or carrying the `cross-platform-e2e` label run
+the full Ubuntu/macOS/Windows matrix and Windows hosted-server smoke. Master
+pushes and manual E2E dispatches always run the full cross-platform matrix.
+Caller/callee concurrency groups differ so the reusable workflow cannot cancel
+its caller.
 
 Packaging stays independent to protect rolling draft publication from CI
 cancellation. Selected packaging PRs run affected lint and entry-point
@@ -234,9 +236,13 @@ silently exempted.
 Jest's transform cache is kept in `JEST_CACHE_DIRECTORY` and persisted with
 `actions/cache`: pull requests restore it, while only master pushes (starting
 from an empty cache, so it holds exactly the current tree) and maintainer
-dispatches save it. A shared Nx task cache is not used: Nx indexes its local
-cache in a machine-specific database, so a restored cache folder is never hit,
-and sharing it safely needs Nx Cloud or another supported remote cache.
+dispatches save it. After a green master run, a separate `prune-jest-cache` job
+(with `actions: write`, no checkout, never run on pull requests) keeps the two
+newest `jest-transform-*` snapshots on `refs/heads/master` and deletes older
+ones so the repository stays under GitHub's 10 GB cache eviction threshold. A
+shared Nx task cache is not used: Nx indexes its local cache in a
+machine-specific database, so a restored cache folder is never hit, and sharing
+it safely needs Nx Cloud or another supported remote cache.
 `coverage:merge` requires every configured Tier A report before replacing the
 merged output. Strict health validation also requires the merged Istanbul map
 itself to contain usable instrumentation for every runtime-owning Tier A file,
@@ -388,8 +394,8 @@ as a checksum-verified fallback when the direct download fails. Linux also
 checks for `xvfb-run` and missing shared libraries before starting Playwright.
 
 CI runs the Electron suite as Playwright shards (`--shard=<n>/<total>`, split
-by spec file because the suite is sequential): three shards on Ubuntu, four
-on Windows, and two on macOS, whose runners are the scarcest and queued longest.
+by spec file because the suite is sequential): three shards on Ubuntu, three
+on macOS, and four on Windows.
 On pull requests that do not touch desktop/backend/native/build inputs (and do
 not carry the `cross-platform-e2e` label), CI runs only the three Ubuntu shards
 and summarizes Ubuntu; cross-platform PRs, `master` pushes, and default manual
