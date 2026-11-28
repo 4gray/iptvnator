@@ -6,7 +6,11 @@ import {
     OnInit,
     signal,
 } from '@angular/core';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import {
+    MAT_DIALOG_DATA,
+    MatDialogRef,
+    MatDialogState,
+} from '@angular/material/dialog';
 import { NotificationService } from '@iptvnator/services/notifications';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import {
@@ -14,6 +18,7 @@ import {
     editPwaXtreamVisibility,
     ParentalLockService,
     RuntimeCapabilitiesService,
+    SourceActivityService,
     USER_DATA_STORAGE,
     XCategoryFromDb,
 } from '@iptvnator/services';
@@ -54,6 +59,7 @@ export class CategoryManagementDialogComponent implements OnInit {
     private readonly dbService = inject(DatabaseService);
     private readonly dataSource = inject(XTREAM_DATA_SOURCE);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly sourceActivity = inject(SourceActivityService);
     private readonly parentalLock = inject(ParentalLockService);
     private readonly userDataStorage = inject(USER_DATA_STORAGE);
     private initialSelection = new Map<number, boolean>();
@@ -164,23 +170,41 @@ export class CategoryManagementDialogComponent implements OnInit {
         this.isSaving.set(true);
         try {
             const categories = this.categories();
-            try {
-                await this.saveVisibility(categories);
-            } catch (error) {
-                this.logger.error('Error saving category visibility', error);
-                this.notifications.error(
-                    'XTREAM.CATEGORY_MANAGEMENT.SAVE_FAILED'
+            if (this.runtime.supportsXtreamSqliteDataSource) {
+                await this.sourceActivity.runWhenIdle(
+                    this.data.playlistId,
+                    async () => {
+                        if (
+                            this.dialogRef.getState() === MatDialogState.OPEN &&
+                            !this.parentalLock.active()
+                        ) {
+                            await this.saveDraft(categories);
+                        }
+                    }
                 );
-                return;
+            } else {
+                await this.saveDraft(categories);
             }
-            if (!(await this.saveLocks(categories))) {
-                this.notifications.error('PARENTAL_LOCK.SAVE_FAILED');
-                return;
-            }
-            this.dialogRef.close(true);
         } finally {
             this.isSaving.set(false);
         }
+    }
+
+    private async saveDraft(
+        categories: CategoryWithSelection[]
+    ): Promise<void> {
+        try {
+            await this.saveVisibility(categories);
+        } catch (error) {
+            this.logger.error('Error saving category visibility', error);
+            this.notifications.error('XTREAM.CATEGORY_MANAGEMENT.SAVE_FAILED');
+            return;
+        }
+        if (!(await this.saveLocks(categories))) {
+            this.notifications.error('PARENTAL_LOCK.SAVE_FAILED');
+            return;
+        }
+        this.dialogRef.close(true);
     }
 
     private async saveVisibility(

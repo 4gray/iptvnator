@@ -16,7 +16,11 @@ import {
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import { LiveLayoutSidebarStateService } from '@iptvnator/portal/shared/util';
-import { ParentalLockService } from '@iptvnator/services';
+import {
+    ParentalLockService,
+    RuntimeCapabilitiesService,
+    SourceActivityService,
+} from '@iptvnator/services';
 import { WorkspaceContextPanelComponent } from './workspace-context-panel.component';
 import { WorkspaceShellSearchSyncService } from '../workspace-shell/services/workspace-shell-search-sync.service';
 
@@ -1146,40 +1150,69 @@ describe('WorkspaceContextPanelComponent', () => {
         expect(dialog.open).not.toHaveBeenCalled();
     });
 
-    it('opens a viewport-capped Xtream editor and reloads the browser catalog on Save', async () => {
-        fixture.componentRef.setInput('context', {
-            provider: 'xtreams',
-            playlistId: 'xtream-1',
-        });
-        fixture.componentRef.setInput('section', 'vod');
-        fixture.detectChanges();
-        const component = fixture.componentInstance;
-        Object.defineProperty(component, 'canManageXtreamCategories', {
-            configurable: true,
-            value: () => true,
-        });
-        jest.spyOn(
-            TestBed.inject(ParentalLockService),
-            'requestUnlock'
-        ).mockResolvedValue(true);
-        component.loadXtreamCategoryDialog = jest.fn(
-            async () => class DialogStub {}
-        );
-        dialog.open.mockReturnValueOnce({ afterClosed: () => of(true) });
+    it.each([
+        { desktop: false, switched: false },
+        { desktop: true, switched: false },
+        { desktop: true, switched: true },
+    ])(
+        'refreshes the original catalog after saving categories ($desktop, $switched)',
+        async ({ desktop, switched }) => {
+            fixture.componentRef.setInput('context', {
+                provider: 'xtreams',
+                playlistId: 'xtream-1',
+            });
+            fixture.componentRef.setInput('section', 'live');
+            fixture.detectChanges();
+            const component = fixture.componentInstance;
+            Object.defineProperty(component, 'canManageXtreamCategories', {
+                value: () => true,
+            });
+            jest.spyOn(
+                TestBed.inject(RuntimeCapabilitiesService),
+                'supportsXtreamSqliteDataSource',
+                'get'
+            ).mockReturnValue(desktop);
+            jest.spyOn(
+                TestBed.inject(ParentalLockService),
+                'requestUnlock'
+            ).mockResolvedValue(true);
+            component.loadXtreamCategoryDialog = async () =>
+                class DialogStub {};
+            dialog.open.mockReturnValueOnce({ afterClosed: () => of(true) });
+            const activity = TestBed.inject(SourceActivityService);
+            const release = activity.begin(['xtream-1']);
+            try {
+                await component.openManageCategories();
+                expect(xtreamStore.reloadCategories).toHaveBeenCalledTimes(
+                    desktop ? 0 : 1
+                );
+                if (switched) {
+                    fixture.componentRef.setInput('context', {
+                        provider: 'xtreams',
+                        playlistId: 'xtream-2',
+                    });
+                }
+            } finally {
+                release();
+            }
+            await Promise.resolve();
 
-        await component.openManageCategories();
-        expect(xtreamStore.reloadCategories).toHaveBeenCalledTimes(1);
-        expect(xtreamStore.reloadCachedContent).toHaveBeenCalledTimes(1);
+            expect(xtreamStore.reloadCategories).toHaveBeenCalledTimes(
+                switched ? 0 : 1
+            );
+            expect(xtreamStore.reloadCachedContent).toHaveBeenCalledTimes(
+                desktop ? 0 : 1
+            );
 
-        // A 500px panel on a 375px phone would scroll sideways.
-        expect(dialog.open).toHaveBeenCalledWith(
-            expect.any(Function),
-            expect.objectContaining({
-                width: '560px',
-                maxWidth: 'calc(100vw - 32px)',
-            })
-        );
-    });
+            expect(dialog.open).toHaveBeenCalledWith(
+                expect.any(Function),
+                expect.objectContaining({
+                    width: '560px',
+                    maxWidth: 'calc(100vw - 32px)',
+                })
+            );
+        }
+    );
 
     describe('Stalker category editor', () => {
         function enableLock(): void {
