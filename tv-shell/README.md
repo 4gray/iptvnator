@@ -26,6 +26,8 @@ When a user cancels URL import, the PWA passes the download ID to the loopback
 server. Cancellable provider downloads use an OkHttp call that accepts
 cancellation before the connection opens as well as during the download. HTTPS
 imports use the platform-enabled TLS versions and cipher suites, like refreshes.
+The browser reference server also stops the provider download when the client
+disconnects, including after a redirect.
 
 ## Hosted library connection
 

@@ -219,7 +219,10 @@ export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
                     </div>
                 ) : null}
                 {!tv.fullscreen ? (
-                    <ProgressSaveNotice notice={tv.progressSaveNotice} />
+                    <ProgressSaveNotice
+                        notice={tv.progressSaveNotice}
+                        focusFallback={`nav:${r.view}`}
+                    />
                 ) : null}
                 {tv.reconnectStatus ? (
                     <p role="status">{tv.reconnectStatus}</p>

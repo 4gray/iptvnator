@@ -178,6 +178,7 @@ export function NativePlayerView({
                             <button
                                 data-focus="player-toggle"
                                 class="primary"
+                                onFocus={controls.reveal}
                                 onClick={togglePlayback}
                             >
                                 {element?.ended && current?.kind !== 'live'
@@ -280,7 +281,10 @@ export function NativePlayerView({
                                 </button>
                             </div>
                         ) : null}
-                        <ProgressSaveNotice notice={tv.progressSaveNotice} />
+                        <ProgressSaveNotice
+                            notice={tv.progressSaveNotice}
+                            focusFallback="player-toggle"
+                        />
                     </div>
                 </div>
             ) : null}
