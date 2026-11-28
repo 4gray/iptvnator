@@ -66,7 +66,7 @@ describe('AddPlaylistDialogComponent with the real URL form', () => {
                 fixture.nativeElement as HTMLElement
             ).querySelectorAll<HTMLButtonElement>('button[mat-flat-button]')
         ).find((button) =>
-            button.textContent?.includes('HOME.URL_UPLOAD.ADD_PLAYLIST')
+            button.textContent?.includes('WORKSPACE.SHELL.ADD_PLAYLIST')
         );
     const urlInput = () =>
         (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(

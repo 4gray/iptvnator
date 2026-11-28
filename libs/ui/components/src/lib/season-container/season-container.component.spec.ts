@@ -904,7 +904,7 @@ describe('SeasonContainerComponent', () => {
                     'downloading',
                 ],
                 [104, false, 'Resume Paused', 'play_arrow'],
-                [105, false, 'Play Local: Local', 'folder_open'],
+                [105, false, 'Play local: Local', 'folder_open'],
                 [106, true, 'Download Unknown', 'block'],
                 [107, true, 'Download N/A', 'block'],
                 [108, false, 'Download Failed', 'download'],

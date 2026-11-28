@@ -63,7 +63,7 @@ test('account info keeps keyboard scrolling and aligned, readable status in smal
             const dialog = page.getByRole('dialog');
             await expect(dialog.locator('.account-stat').first()).toBeVisible();
             const body = dialog.getByRole('region', {
-                name: 'Account Information',
+                name: 'Account information',
             });
             await expect(body).toBeFocused();
             const status = dialog.locator(

@@ -78,9 +78,7 @@ export async function verifyCanonicalM3uEpgOptOut(
                 await route.continue();
             }
         );
-        await page
-            .getByRole('button', { name: 'Add playlist', exact: true })
-            .click();
+        await page.locator('[data-test-id="header-add-source"]').click();
         const dialog = page.getByRole('dialog');
         await dialog
             .getByRole('radio', { name: 'Raw m3u text', exact: true })
@@ -95,7 +93,7 @@ export async function verifyCanonicalM3uEpgOptOut(
                 `#EXTM3U x-tvg-url="${guide}"\n#EXTINF:-1,Synthetic channel\nhttps://media.example.test/live`
             );
         await dialog
-            .getByRole('button', { name: 'Add playlist', exact: true })
+            .getByRole('button', { name: 'Add source', exact: true })
             .click();
         await expect(dialog).toBeHidden();
         // Closing the import dialog only dispatches parsing. Navigation waits

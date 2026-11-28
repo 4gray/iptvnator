@@ -98,7 +98,7 @@ export function cinematicLiveFrameViolations(
     const failures: string[] = [];
     if (report.continueBottom <= 0 || report.liveTop < report.continueBottom)
         failures.push(
-            'Live channels must follow the visible Continue Watching rail'
+            'Live channels must follow the visible Continue watching rail'
         );
     if (report.cards.length < 4)
         failures.push('At least four different live channels must be visible');

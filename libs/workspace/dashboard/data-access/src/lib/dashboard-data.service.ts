@@ -221,7 +221,7 @@ export class DashboardDataService {
                 ),
                 {
                     stalker: this.translateText(
-                        'WORKSPACE.DASHBOARD.STALKER_PORTAL'
+                        'WORKSPACE.SHELL.STALKER_PORTAL'
                     ),
                     m3u: this.translateText('WORKSPACE.DASHBOARD.M3U'),
                 }
@@ -398,7 +398,7 @@ export class DashboardDataService {
             this.playlists().map((playlist) =>
                 this.stalkerMetadata.project(playlist)
             ),
-            this.translateText('WORKSPACE.DASHBOARD.STALKER_PORTAL')
+            this.translateText('WORKSPACE.SHELL.STALKER_PORTAL')
         );
     });
 

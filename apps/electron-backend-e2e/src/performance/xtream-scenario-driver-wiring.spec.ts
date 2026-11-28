@@ -26,7 +26,7 @@ describe('Xtream scenario driver source wiring', () => {
         const ui = source('xtream-scenario-ui.ts');
 
         for (const selector of [
-            "'Add playlist'",
+            "'Add source'",
             '\'mat-button-toggle[value="xtream"]\'',
             "'#title'",
             "'#serverUrl'",
@@ -35,8 +35,8 @@ describe('Xtream scenario driver source wiring', () => {
             "'app-workspace-sources app-source-row'",
             "'.source-row__refresh'",
             "'.source-row__more'",
-            "'Refresh playlist'",
-            "'Remove playlist'",
+            "'Refresh source'",
+            "'Remove source'",
             "'.source-row__busy'",
             "'mat-spinner'",
             "'.source-row__cancel'",

@@ -31,7 +31,7 @@ test('waits for an in-flight heartbeat and flushes its next deadline once', asyn
     const deliveredDeadlines: number[] = [];
     class FakeButton {
         readonly disabled = false;
-        readonly textContent = 'Add playlist';
+        readonly textContent = 'Add source';
         click(): undefined {
             return undefined;
         }

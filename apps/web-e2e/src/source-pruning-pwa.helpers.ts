@@ -127,7 +127,7 @@ export async function verifyConcurrentSourcePruning(
         release();
         await expect(first.getByTestId('source-sync-status')).toHaveCount(0);
         await expect(
-            first.getByRole('button', { name: 'Add playlist', exact: true })
+            first.locator('[data-test-id="header-add-source"]')
         ).toBeVisible();
         expect(await cachedSource(first, instanceId, id)).toMatchObject({
             favorites: ['sibling-favorite'],

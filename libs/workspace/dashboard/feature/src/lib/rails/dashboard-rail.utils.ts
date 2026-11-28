@@ -61,7 +61,7 @@ export function buildDashboardSourceActions(
     actions.push({
         id: 'remove',
         icon: 'delete',
-        labelKey: 'HOME.PLAYLISTS.REMOVE_DIALOG.TITLE',
+        labelKey: 'HOME.PLAYLISTS.REMOVE',
         destructive: true,
         separatorBefore: true,
     });

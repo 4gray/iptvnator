@@ -97,7 +97,7 @@ for (const type of ['movie', 'series'] as const) {
             });
             if (type === 'series') {
                 const hide = page.getByRole('menuitem', {
-                    name: 'Hide from Continue Watching',
+                    name: 'Hide from Continue watching',
                     exact: true,
                 });
                 await trigger.click();

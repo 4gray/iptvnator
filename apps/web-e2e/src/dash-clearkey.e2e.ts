@@ -124,16 +124,14 @@ async function serveDashFixtures(page: Page): Promise<void> {
 
 async function importDashPlaylist(page: Page): Promise<void> {
     await page.goto('/');
-    await page.getByRole('button', { name: 'Add playlist' }).click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
     await dialog.getByRole('radio', { name: /Raw m3u text/i }).click();
     await dialog.locator('textarea').fill(DASH_PLAYLIST);
     await Promise.all([
         page.waitForURL(/\/workspace\/playlists\/.+\/all$/),
-        dialog
-            .getByRole('button', { name: 'Add playlist', exact: true })
-            .click(),
+        dialog.getByRole('button', { name: 'Add source', exact: true }).click(),
     ]);
     await expect(page.getByText('3 channels')).toBeVisible();
 }
@@ -224,7 +222,7 @@ test('@web @m3u @dash ClearKey reopens from recent and favorites collections', a
         if (route.startsWith('/workspace/global-')) {
             const allPlaylists = page
                 .locator('.scope-toggle')
-                .getByRole('radio', { name: 'All playlists' });
+                .getByRole('radio', { name: 'All sources' });
             await allPlaylists.click();
             // The global routes default to the active playlist's scope; make
             // sure the toggle took before waiting for a row only "All

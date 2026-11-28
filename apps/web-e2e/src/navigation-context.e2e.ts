@@ -92,7 +92,7 @@ test('@web @xtream searched foreign favorites retain their tab and All playlists
     await page
         .getByRole('link', { name: 'Global favorites', exact: true })
         .click();
-    const all = page.getByRole('radio', { name: /All playlists/ });
+    const all = page.getByRole('radio', { name: /All sources/ });
     await expect(all).toBeVisible();
     await all.click();
     const search = page.locator(

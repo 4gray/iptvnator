@@ -127,7 +127,7 @@ test.describe('Electron Series Download Queue', () => {
                     }) as Awaited<ReturnType<typeof dialog.showOpenDialog>>;
             }, downloadsDir);
             await app.mainWindow
-                .getByRole('button', { name: 'Change Folder' })
+                .getByRole('button', { name: 'Change folder' })
                 .click();
             await expect(
                 app.mainWindow.getByTestId('downloads-folder')

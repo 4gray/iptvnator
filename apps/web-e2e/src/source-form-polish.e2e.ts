@@ -4,9 +4,7 @@ test('compact methods preserve private drafts across switches', async ({
     page,
 }, testInfo) => {
     await page.goto('/');
-    await page
-        .getByRole('button', { name: 'Add playlist', exact: true })
-        .click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.getByRole('dialog');
     const method = (name: RegExp) => dialog.getByRole('radio', { name });
     await expect(method(/M3U URL/)).toBeVisible();
@@ -44,7 +42,7 @@ test('compact methods preserve private drafts across switches', async ({
         .getByRole('textbox', { name: /Playlist URL/ })
         .fill('https://fixture.example/list.m3u');
     await dialog
-        .getByRole('textbox', { name: 'Playlist title' })
+        .getByRole('textbox', { name: 'Source title' })
         .fill('Remembered M3U');
     await method(/Xtream credentials/).click();
     await expect(dialog.locator('#title')).toHaveValue('Remembered Xtream');
@@ -73,7 +71,7 @@ test('compact methods preserve private drafts across switches', async ({
         .fill('#EXTM3U\n#EXTINF:-1,Draft\nhttps://fixture.example/live.m3u8');
     await method(/M3U URL/).click();
     await expect(
-        dialog.getByRole('textbox', { name: 'Playlist title' })
+        dialog.getByRole('textbox', { name: 'Source title' })
     ).toHaveValue('Remembered M3U');
     await method(/Raw m3u text/).click();
     await expect(dialog.locator('textarea')).toHaveValue(/Draft/);
@@ -114,9 +112,7 @@ test('compact methods preserve private drafts across switches', async ({
     await expect(method(/M3U file/)).toHaveAttribute('aria-checked', 'true');
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
-    await page
-        .getByRole('button', { name: 'Add playlist', exact: true })
-        .click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     await method(/Xtream credentials/).click();
     await expect(dialog.locator('#username')).toHaveValue('');
 });
@@ -131,9 +127,7 @@ test('compact methods fit longer translations at intermediate and narrow widths'
     await save.click({ noWaitAfter: true });
     await expect(save).toBeHidden();
     await page.goto('/');
-    await page
-        .getByRole('button', { name: 'Playlist hinzufügen', exact: true })
-        .click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByRole('radio')).toHaveCount(6);
     await expect(dialog).toContainText('Xtream-Zugangsdaten');

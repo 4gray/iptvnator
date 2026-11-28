@@ -44,7 +44,7 @@ export function requirePlaylistId(provider: PlaylistProvider): string {
 /* ------------------------------------------------------------------ */
 
 export async function openAddPlaylistDialog(page: Page): Promise<void> {
-    await page.getByRole('button', { name: /add playlist/i }).first().click();
+    await page.getByRole('button', { name: /add source/i }).first().click();
     await page
         .locator('mat-dialog-container')
         .last()

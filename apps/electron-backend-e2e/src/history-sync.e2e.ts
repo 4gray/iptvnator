@@ -54,7 +54,7 @@ test('shares confirmed synthetic M3U history and preserves import, ordering, cle
         await routePlayableStreams(page);
         await page.goto(`${frontend}/workspace/sources`);
         await page
-            .getByRole('button', { name: 'Add playlist', exact: true })
+            .locator('[data-test-id="header-add-source"]')
             .click();
         const dialog = page.locator('mat-dialog-container');
         await dialog.getByRole('radio', { name: /file/i }).click();
@@ -65,7 +65,7 @@ test('shares confirmed synthetic M3U history and preserves import, ordering, cle
                 '#EXTM3U\n#EXTINF:-1,Synthetic first\nhttps://streams.example.test/first.webm\n#EXTINF:-1,Synthetic second\nhttps://streams.example.test/second.webm'
             ),
         });
-        await dialog.getByRole('button', { name: /add playlist/i }).click();
+        await dialog.getByRole('button', { name: /add source/i }).click();
         await expect(dialog).toHaveCount(0);
         const { instanceId } = await (
             await fetch(`${server.apiUrl}/v1/instance`)

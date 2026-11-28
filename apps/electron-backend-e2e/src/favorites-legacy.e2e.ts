@@ -111,7 +111,7 @@ test('@critical @persistence @xtream @electron recovers legacy pending favorites
         await sourceRowByTitle(app.mainWindow, sourceTitle).first().click();
         await expect(
             app.mainWindow.getByRole('heading', {
-                name: 'Portal unavailable',
+                name: 'Source unavailable',
                 exact: true,
             })
         ).toBeVisible();
@@ -123,7 +123,7 @@ test('@critical @persistence @xtream @electron recovers legacy pending favorites
         ).toEqual(catalogRequestsBefore);
 
         await openWorkspaceSection(app.mainWindow, 'Global favorites');
-        await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');
+        await switchUnifiedCollectionScope(app.mainWindow, 'All sources');
         for (const title of [savedTitle, fallbackTitle]) {
             const card = contentCardByTitle(app.mainWindow, title);
             await expect(card).toHaveCount(1);
@@ -186,12 +186,12 @@ test('@critical @persistence @xtream @electron recovers legacy pending favorites
         await sourceRowByTitle(app.mainWindow, sourceTitle).first().click();
         await expect(
             app.mainWindow.getByRole('heading', {
-                name: 'Portal unavailable',
+                name: 'Source unavailable',
                 exact: true,
             })
         ).toBeVisible();
         await openWorkspaceSection(app.mainWindow, 'Global favorites');
-        await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');
+        await switchUnifiedCollectionScope(app.mainWindow, 'All sources');
         await expect(
             contentCardByTitle(app.mainWindow, fallbackTitle)
         ).toContainText('Catalog status unknown');

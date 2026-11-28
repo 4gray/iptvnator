@@ -73,7 +73,7 @@ export async function verifyDelayedSharedM3uRefresh(
         await expect(row).toBeVisible();
         holdOld = true;
         await row
-            .getByRole('button', { name: 'Refresh playlist', exact: true })
+            .getByRole('button', { name: 'Refresh source', exact: true })
             .click();
         await expect.poll(() => waiting).toBe(true);
         const accepted = {

@@ -678,7 +678,7 @@ export async function waitForAppReady(page: Page): Promise<void> {
 }
 
 export async function openAddPlaylistDialog(page: Page): Promise<void> {
-    await page.getByRole('button', { name: 'Add playlist' }).click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     await expect(page.locator('mat-dialog-container').last()).toBeVisible();
 }
 
@@ -721,9 +721,9 @@ export async function importM3uPlaylistFromNativeDialog(
     }, filePath);
     await fileInput.setInputFiles(filePath);
     await expect(
-        dialog.getByRole('button', { name: /add playlist/i })
+        dialog.getByRole('button', { name: /add source/i })
     ).toBeEnabled({ timeout: 10000 });
-    await dialog.getByRole('button', { name: /add playlist/i }).click();
+    await dialog.getByRole('button', { name: /add source/i }).click();
     await dialog.waitFor({ state: 'detached' });
 }
 
@@ -819,7 +819,7 @@ export async function addXtreamPortal(
         }
     }
     const addButton = dialog
-        .getByRole('button', { name: /^(add|add playlist)$/i })
+        .getByRole('button', { name: /^(add|add source)$/i })
         .last();
 
     await expect(addButton).toBeEnabled({ timeout: 10000 });
@@ -971,7 +971,7 @@ export async function addStalkerPortal(
     await setInputValue(dialog.locator('input#portalUrl'), portalUrl);
     await setInputValue(dialog.locator('input#macAddress'), macAddress);
     const addButton = dialog
-        .getByRole('button', { name: /^(add|add playlist)$/i })
+        .getByRole('button', { name: /^(add|add source)$/i })
         .last();
 
     await expect(addButton).toBeEnabled({ timeout: 10000 });
@@ -1107,7 +1107,7 @@ export async function importM3uPlaylistFromUrl(
             userAgent
         );
     }
-    await dialog.getByRole('button', { name: /Add playlist/i }).click();
+    await dialog.getByRole('button', { name: /Add source/i }).click();
     await dialog.waitFor({ state: 'detached' });
 }
 
@@ -1270,12 +1270,12 @@ export async function openWorkspaceSection(
 
 export async function openPlaylistFavorites(page: Page): Promise<void> {
     await openGlobalFavorites(page);
-    await switchUnifiedCollectionScope(page, 'This playlist');
+    await switchUnifiedCollectionScope(page, 'This source');
 }
 
 export async function openPlaylistRecent(page: Page): Promise<void> {
     await openGlobalRecent(page);
-    await switchUnifiedCollectionScope(page, 'This playlist');
+    await switchUnifiedCollectionScope(page, 'This source');
 }
 
 export async function openGlobalFavorites(page: Page): Promise<void> {
@@ -1293,7 +1293,7 @@ export async function openGlobalRecent(page: Page): Promise<void> {
 
 export async function switchUnifiedCollectionScope(
     page: Page,
-    scopeLabel: 'This playlist' | 'All playlists'
+    scopeLabel: 'This source' | 'All sources'
 ): Promise<void> {
     const toggleGroup = page.locator('.scope-toggle');
 
@@ -1533,8 +1533,8 @@ export async function selectSourceTypeFilter(
 export async function selectSourceSort(
     page: Page,
     sortLabel:
-        | 'Date added (Newest first)'
-        | 'Date added (Oldest first)'
+        | 'Date added (newest first)'
+        | 'Date added (oldest first)'
         | 'Last updated'
         | 'Name (A-Z)'
         | 'Name (Z-A)'
@@ -1734,7 +1734,7 @@ export async function deleteSource(page: Page, title: string): Promise<void> {
     await row.locator('.source-row__more').click();
     await page
         .locator('.cdk-overlay-pane [mat-menu-item]')
-        .filter({ hasText: 'Remove playlist' })
+        .filter({ hasText: 'Remove source' })
         .click();
     // Every toast shares `.app-notification`; an earlier one (a backup
     // export's success) can still be leaving, so pick the Undo toast.
@@ -1760,7 +1760,7 @@ export async function refreshSource(
     await row.locator('.source-row__refresh').click();
 
     if (confirm) {
-        await confirmDialog(page, 'Refresh playlist');
+        await confirmDialog(page, 'Refresh source');
     }
 }
 
@@ -1827,7 +1827,7 @@ export async function expectPlaylistUpdatedToast(page: Page): Promise<void> {
         page
             .locator('.mat-mdc-snack-bar-label')
             .filter({
-                hasText: 'Success! The playlist was successfully updated.',
+                hasText: 'Success! The source was successfully updated.',
             })
             .last()
     ).toBeVisible({

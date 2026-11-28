@@ -16,14 +16,14 @@ test('@web @m3u basic playlist import flow', async ({ page }) => {
     expect(await page.title()).toBe('IPTVnator');
 
     // Upload playlist test
-    await page.getByRole('button', { name: 'Add playlist' }).click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
     // v0.22 redesign: tabs were replaced with a flat 5-card radio picker.
     await dialog.getByRole('radio', { name: /M3U file/i }).click();
     await page.setInputFiles('input[type="file"]', fixturePath);
     const addButton = dialog.getByRole('button', {
-        name: 'Add playlist',
+        name: 'Add source',
         exact: true,
     });
     await expect(addButton).toBeEnabled();
@@ -51,7 +51,7 @@ test('@web @auto-detect pasted provider message prefills the Xtream form', async
 }) => {
     await page.goto('/');
 
-    await page.getByRole('button', { name: 'Add playlist' }).click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
     await dialog.getByRole('radio', { name: /Auto-detect/i }).click();
@@ -88,13 +88,13 @@ test('@web @auto-detect pasted provider message prefills the Xtream form', async
     await expect(dialog.getByLabel('Password', { exact: true })).toHaveValue(
         'e2epass'
     );
-    await expect(dialog.getByLabel('Playlist title')).toHaveValue(
+    await expect(dialog.getByLabel('Source title')).toHaveValue(
         'tv.example.com'
     );
 
     // Detection only proposes: the regular Add action stays in charge.
     await expect(
-        dialog.getByRole('button', { name: 'Add playlist', exact: true })
+        dialog.getByRole('button', { name: 'Add source', exact: true })
     ).toBeEnabled();
 });
 
@@ -103,7 +103,7 @@ test('@web @auto-detect keeps the pasted message when switching methods', async 
 }) => {
     await page.goto('/');
 
-    await page.getByRole('button', { name: 'Add playlist' }).click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.locator('mat-dialog-container');
     await dialog.getByRole('radio', { name: /Auto-detect/i }).click();
 

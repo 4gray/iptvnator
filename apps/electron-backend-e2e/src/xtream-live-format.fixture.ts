@@ -33,7 +33,7 @@ export async function configureLiveFormat(
 }
 
 export async function addLiveFormatPortal(page: Page) {
-    await page.getByRole('button', { name: 'Add playlist' }).click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('radio', { name: /Xtream credentials/i }).click();
     await dialog.locator('#title').fill('Synthetic live');
@@ -41,7 +41,7 @@ export async function addLiveFormatPortal(page: Page) {
     await dialog.locator('#username').fill('live-fallback');
     await dialog.locator('#password').fill('live-fallback');
     await dialog
-        .getByRole('button', { name: 'Add playlist', exact: true })
+        .getByRole('button', { name: 'Add source', exact: true })
         .click();
     await page.waitForURL(/xtreams.*vod/);
     await page.getByRole('link', { name: 'Live TV', exact: true }).click();

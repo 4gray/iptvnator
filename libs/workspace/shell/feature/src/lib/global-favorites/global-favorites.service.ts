@@ -288,7 +288,7 @@ export class GlobalFavoritesService {
                         meta.title ||
                         meta.filename ||
                         this.translate.instant(
-                            'WORKSPACE.DASHBOARD.STALKER_PORTAL'
+                            'WORKSPACE.SHELL.STALKER_PORTAL'
                         ),
                     stalkerCmd: fav.cmd,
                     stalkerPortalUrl: playlist.portalUrl ?? playlist.url,

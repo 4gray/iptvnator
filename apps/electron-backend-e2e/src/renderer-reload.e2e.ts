@@ -41,7 +41,7 @@ test.describe('Renderer reload on an in-app route', () => {
             // A fresh data dir has no sources: the page shows its empty state.
             await expect(
                 app.mainWindow.getByRole('heading', {
-                    name: 'Add your first playlist',
+                    name: 'Add your first source',
                 })
             ).toBeVisible();
             // The page is alive, not a leftover paint: navigation still works.

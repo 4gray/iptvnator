@@ -223,7 +223,7 @@ for (const type of ['movie', 'series'] as const) {
                 .click();
             await waitForXtreamWorkspaceReady(page);
             await openGlobalFavorites(page);
-            await switchUnifiedCollectionScope(page, 'All playlists');
+            await switchUnifiedCollectionScope(page, 'All sources');
             await switchUnifiedCollectionContent(
                 page,
                 type === 'movie' ? 'Movies' : 'Series'
@@ -241,7 +241,7 @@ for (const type of ['movie', 'series'] as const) {
             );
             await page.getByTestId('workspace-header-back').click();
             await expect(
-                page.getByRole('radio', { name: /All playlists/ })
+                page.getByRole('radio', { name: /All sources/ })
             ).toHaveAttribute('aria-checked', 'true');
             await expect(card).toContainText(title);
             expect(
@@ -257,7 +257,7 @@ for (const type of ['movie', 'series'] as const) {
             await expect(page).not.toHaveURL(/\?q=/);
             await expect(card).toContainText(title);
             await expect(
-                page.getByRole('radio', { name: /All playlists/ })
+                page.getByRole('radio', { name: /All sources/ })
             ).toHaveAttribute('aria-checked', 'true');
             expect(
                 await page.evaluate(() => history.state.collectionViewState)
@@ -269,7 +269,7 @@ for (const type of ['movie', 'series'] as const) {
             await page.getByTestId('workspace-header-back').click();
             await expect(card).toContainText(title);
             await expect(
-                page.getByRole('radio', { name: /All playlists/ })
+                page.getByRole('radio', { name: /All sources/ })
             ).toHaveAttribute('aria-checked', 'true');
         } finally {
             await closeElectronApp(app);
@@ -303,15 +303,15 @@ for (const mode of ['favorites', 'recent'] as const) {
             if (mode === 'favorites') await openGlobalFavorites(page);
             else await openGlobalRecent(page);
             for (const [label, type, scope, reload] of [
-                ['Live TV', 'live', 'All playlists', reloadFromRenderer],
-                ['Movies', 'movie', 'All playlists', reloadFromMainProcess],
-                ['Series', 'series', 'This playlist', reloadFromRenderer],
+                ['Live TV', 'live', 'All sources', reloadFromRenderer],
+                ['Movies', 'movie', 'All sources', reloadFromMainProcess],
+                ['Series', 'series', 'This source', reloadFromRenderer],
             ] as const) {
                 await switchUnifiedCollectionScope(page, scope);
                 await switchUnifiedCollectionContent(page, label);
                 const expected = {
                     selectedContentType: type,
-                    scope: scope === 'All playlists' ? 'all' : 'playlist',
+                    scope: scope === 'All sources' ? 'all' : 'playlist',
                 };
                 await expect
                     .poll(() =>
@@ -390,7 +390,7 @@ for (const mode of ['favorites', 'recent'] as const) {
                     page.getByRole('heading', { name: 'No favorites to show' })
                 ).toBeVisible();
                 await expect(
-                    page.getByRole('button', {
+                    page.locator('app-state-view').getByRole('button', {
                         name: 'Add source',
                     })
                 ).toBeVisible();

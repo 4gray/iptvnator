@@ -229,7 +229,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 /**
  * Replaces Electron's native folder picker with one that answers `folder`
  * (created here) — the same trick `downloads.e2e.ts` uses. The downloads
- * page's "Change Folder" button then authorizes a folder inside the isolated
+ * page's "Change folder" button then authorizes a folder inside the isolated
  * data dir, so guide shots never write into the real OS Downloads folder.
  */
 export async function installDownloadFolderDialogStub(
@@ -439,7 +439,7 @@ async function addXtreamPortal(
     await dialog.locator('#username').fill(seed.credentials.username);
     await dialog.locator('#password').fill(seed.credentials.password);
     await dialog
-        .getByRole('button', { name: /^(add|add playlist)$/i })
+        .getByRole('button', { name: /^(add|add source)$/i })
         .last()
         .click();
     await dialog.waitFor({ state: 'detached', timeout: 30_000 });
@@ -467,7 +467,7 @@ async function addStalkerPortal(page: Page): Promise<void> {
     await dialog.locator('#macAddress').fill(STALKER_FIXTURE_MAC);
     // Endpoint discovery probes the mock before the row is written.
     await dialog
-        .getByRole('button', { name: /^(add|add playlist)$/i })
+        .getByRole('button', { name: /^(add|add source)$/i })
         .last()
         .click();
     await dialog.waitFor({ state: 'detached', timeout: 60_000 });
@@ -491,7 +491,7 @@ async function addM3uPlaylist(page: Page, m3uPath: string): Promise<void> {
     const fileInput = dialog.locator('input[type="file"][name="playlist"]');
     await fileInput.setInputFiles(m3uPath);
     await dialog
-        .getByRole('button', { name: /add playlist/i })
+        .getByRole('button', { name: /add source/i })
         .last()
         .click({ timeout: 15_000 });
     await dialog.waitFor({ state: 'detached', timeout: 30_000 });

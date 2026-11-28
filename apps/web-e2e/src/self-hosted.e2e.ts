@@ -30,7 +30,7 @@ async function installRuntimeConfig(page: Page): Promise<void> {
 }
 
 async function addXtreamPortal(page: Page): Promise<void> {
-    await page.getByRole('button', { name: 'Add playlist' }).click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
     // v0.22 redesign: tabs were replaced with a flat 5-card radio picker.
@@ -42,14 +42,14 @@ async function addXtreamPortal(page: Page): Promise<void> {
     await dialog.locator('#password').fill('pass1');
 
     await dialog
-        .getByRole('button', { name: 'Add playlist', exact: true })
+        .getByRole('button', { name: 'Add source', exact: true })
         .click();
     await expect(dialog).toBeHidden();
     await page.waitForURL(/xtreams.*vod/);
 }
 
 async function addM3uPlaylist(page: Page): Promise<void> {
-    await page.getByRole('button', { name: 'Add playlist' }).click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
 
@@ -58,19 +58,19 @@ async function addM3uPlaylist(page: Page): Promise<void> {
         `${XTREAM_MOCK_SERVER}/playlist.m3u`
     );
     await setInputValue(
-        dialog.getByRole('textbox', { name: 'Playlist title' }),
+        dialog.getByRole('textbox', { name: 'Source title' }),
         'Self-hosted M3U'
     );
 
     await dialog
-        .getByRole('button', { name: 'Add playlist', exact: true })
+        .getByRole('button', { name: 'Add source', exact: true })
         .click();
     await expect(dialog).toBeHidden();
     await page.waitForURL(/playlists.*all/);
 }
 
 async function addStalkerPortal(page: Page): Promise<void> {
-    await page.getByRole('button', { name: 'Add playlist' }).click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
     // v0.22 redesign: tabs were replaced with a flat 5-card radio picker.
@@ -81,7 +81,7 @@ async function addStalkerPortal(page: Page): Promise<void> {
     await setInputValue(dialog.locator('input#macAddress'), DEFAULT_MAC);
 
     const addButton = dialog.getByRole('button', {
-        name: 'Add playlist',
+        name: 'Add source',
         exact: true,
     });
     await expect(addButton).toBeEnabled({ timeout: 10_000 });
@@ -360,19 +360,19 @@ test('@self-hosted @m3u @epg URL imports retain header guide links through the r
         throw new Error('Missing provider port');
     const origin = `http://127.0.0.1:${address.port}`;
     try {
-        await page.getByRole('button', { name: 'Add playlist' }).click();
+        await page.locator('[data-test-id="header-add-source"]').click();
         const dialog = page.getByRole('dialog');
         await dialog
             .getByRole('textbox', { name: /Playlist URL/ })
             .fill(`${origin}/playlist.m3u`);
         await dialog
-            .getByRole('textbox', { name: 'Playlist title' })
+            .getByRole('textbox', { name: 'Source title' })
             .fill('Synthetic guide source');
         const parsed = page.waitForResponse((response) =>
             response.url().startsWith(`${WEB_BACKEND_URL}/parse?`)
         );
         await dialog
-            .getByRole('button', { name: 'Add playlist', exact: true })
+            .getByRole('button', { name: 'Add source', exact: true })
             .click();
         await expect((await parsed).json()).resolves.toMatchObject({
             detectedEpgUrls: [`${origin}/guide.xml`],
@@ -414,7 +414,7 @@ for (const portal of ['Xtream', 'Stalker', 'M3U'] as const) {
             // Import prefetches the catalog; recover through an uncached detail.
             await page.getByRole('link', { name: 'Series', exact: true }).click();
             await expect(
-                page.getByRole('heading', { name: 'Series Categories', exact: true })
+                page.getByRole('heading', { name: 'Series categories', exact: true })
             ).toBeVisible();
             await page.locator('.category-item').first().click();
             await expect(
@@ -457,7 +457,7 @@ for (const portal of ['Xtream', 'Stalker', 'M3U'] as const) {
             await page.getByRole('link', { name: 'Series', exact: true }).click();
             await expect(page).toHaveURL(/\/series(?:\/|$)/);
             await expect(
-                page.getByRole('heading', { name: 'Series Categories', exact: true })
+                page.getByRole('heading', { name: 'Series categories', exact: true })
             ).toBeVisible();
             await expect(page.locator('.category-item').first()).toBeVisible();
             await page.locator('.category-item').first().click();
@@ -547,14 +547,14 @@ test('@self-hosted M3U User-Agent reaches the provider on import and refresh', a
     const url = `http://127.0.0.1:${address.port}/protected.m3u`;
     try {
         expect((await fetch(url)).status).toBe(403);
-        await page.getByRole('button', { name: 'Add playlist' }).click();
+        await page.locator('[data-test-id="header-add-source"]').click();
         const dialog = page.locator('mat-dialog-container');
         await setInputValue(
             dialog.getByRole('textbox', { name: /Playlist URL/ }),
             url
         );
         await setInputValue(
-            dialog.getByRole('textbox', { name: 'Playlist title' }),
+            dialog.getByRole('textbox', { name: 'Source title' }),
             'Protected M3U'
         );
         await dialog
@@ -565,7 +565,7 @@ test('@self-hosted M3U User-Agent reaches the provider on import and refresh', a
             `  ${userAgent}  `
         );
         await dialog
-            .getByRole('button', { name: 'Add playlist', exact: true })
+            .getByRole('button', { name: 'Add source', exact: true })
             .click();
         await page.waitForURL(/playlists.*all/);
         await expect(page.getByText('1. Initial UA Channel')).toBeVisible();
@@ -605,7 +605,7 @@ test('@self-hosted M3U User-Agent reaches the provider on import and refresh', a
         );
         await expect(
             page.locator('.mat-mdc-snack-bar-label').last()
-        ).toHaveText("Couldn't update the playlist.");
+        ).toHaveText("Couldn't update the source.");
         await page.goto(catalogUrl);
         await expect(refreshedChannel).toBeVisible();
         await expect(page.getByText('1. Aborted UA Channel')).toHaveCount(0);

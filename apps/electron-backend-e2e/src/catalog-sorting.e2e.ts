@@ -144,7 +144,7 @@ test.describe('Electron Catalog Sorting', () => {
 
             await setContentSortMode(
                 app.mainWindow,
-                'Date Added (Oldest First)'
+                'Date added (oldest first)'
             );
             await expectVisibleGridTitles(app.mainWindow, expectedVodDateAsc);
 
@@ -397,8 +397,8 @@ async function setLiveSortMode(
 async function setContentSortMode(
     page: Page,
     label:
-        | 'Date Added (Latest First)'
-        | 'Date Added (Oldest First)'
+        | 'Date added (latest first)'
+        | 'Date added (oldest first)'
         | 'Name A-Z'
         | 'Name Z-A'
 ): Promise<void> {

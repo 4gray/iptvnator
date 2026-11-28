@@ -36,7 +36,7 @@ const KIND_ICONS: Record<ProviderImportKind, string> = {
 
 const KIND_LABEL_KEYS: Record<ProviderImportKind, string> = {
     xtream: 'HOME.ADD_PLAYLIST.METHOD_XTREAM_LABEL',
-    stalker: 'HOME.ADD_PLAYLIST.METHOD_STALKER_LABEL',
+    stalker: 'WORKSPACE.SHELL.STALKER_PORTAL',
     'm3u-url': 'HOME.ADD_PLAYLIST.METHOD_URL_LABEL',
     'm3u-text': 'HOME.ADD_PLAYLIST.METHOD_TEXT_LABEL',
 };

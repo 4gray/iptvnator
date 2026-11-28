@@ -65,7 +65,7 @@ async function openAddPlaylistXtream(page: Page): Promise<void> {
     await dialog.locator('#password').fill(XTREAM_FIXTURE_CREDENTIALS.password);
     // The server URL is plain http://, so the probe never tries HTTPS and
     // only talks to the local mock; the frame can show the successful
-    // "portal is active" verdict the guide explains.
+    // "account is active" verdict the guide explains.
     await dialog
         .getByRole('button', { name: 'Test HTTPS and HTTP', exact: true })
         .click();
@@ -74,14 +74,14 @@ async function openAddPlaylistXtream(page: Page): Promise<void> {
     // publishing a frame that contradicts the guide.
     const status = dialog.getByRole('status');
     await status
-        .filter({ hasText: /portal is active/i })
+        .filter({ hasText: /account is active/i })
         .waitFor({ state: 'visible', timeout: 30_000 })
         .catch(async () => {
             const shown = await status
                 .textContent({ timeout: 1_000 })
                 .catch(() => null);
             throw new Error(
-                `Xtream connection test did not report an active portal within 30s (status: ${shown?.trim() || 'none'})`
+                `Xtream connection test did not report an active account within 30s (status: ${shown?.trim() || 'none'})`
             );
         });
     // The dialog body scrolls. The verdict sits under the server URL,

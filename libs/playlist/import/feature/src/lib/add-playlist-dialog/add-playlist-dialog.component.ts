@@ -176,7 +176,7 @@ export class AddPlaylistDialogComponent {
         {
             value: 'stalker',
             icon: SOURCE_TYPE_ICONS.stalker,
-            labelKey: 'HOME.ADD_PLAYLIST.METHOD_STALKER_LABEL',
+            labelKey: 'WORKSPACE.SHELL.STALKER_PORTAL',
             subKey: 'HOME.ADD_PLAYLIST.METHOD_STALKER_SUB',
         },
         {

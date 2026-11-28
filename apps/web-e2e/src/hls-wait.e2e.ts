@@ -38,16 +38,14 @@ for (const recovery of ['automatic', 'retry', 'legacy-fullscreen']) {
         if (recovery === 'legacy-fullscreen')
             await selectWebPlayer(page, 'Video.js player', false);
         await page.goto('/');
-        await page
-            .getByRole('button', { name: 'Add playlist', exact: true })
-            .click();
+        await page.locator('[data-test-id="header-add-source"]').click();
         const dialog = page.getByRole('dialog');
         await dialog.getByRole('radio', { name: /Raw m3u text/ }).click();
         await dialog
             .locator('textarea')
             .fill(`#EXTM3U\n#EXTINF:-1,Recoverable HLS\n${origin}/live.m3u8`);
         await dialog
-            .getByRole('button', { name: 'Add playlist', exact: true })
+            .getByRole('button', { name: 'Add source', exact: true })
             .click();
         await page.locator('[data-test-id="channel-item"]').first().click();
         if (recovery === 'legacy-fullscreen') {

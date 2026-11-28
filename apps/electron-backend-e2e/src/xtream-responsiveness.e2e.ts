@@ -245,7 +245,7 @@ test.describe('Electron Xtream Responsiveness', () => {
             });
 
             await expect(xtreamBlockedStateTitle(app.mainWindow)).toHaveText(
-                'Portal unavailable',
+                'Source unavailable',
                 { timeout: 20000 }
             );
             await expect(
@@ -294,7 +294,7 @@ test.describe('Electron Xtream Responsiveness', () => {
             await playlistRow.locator('.source-row__more').click();
             await app.mainWindow
                 .locator('.cdk-overlay-pane [mat-menu-item]')
-                .filter({ hasText: 'Remove playlist' })
+                .filter({ hasText: 'Remove source' })
                 .click();
 
             await waitForDbOperationEvent(app.mainWindow, {
@@ -396,7 +396,7 @@ test.describe('Electron Xtream Responsiveness', () => {
             await playlistRow.locator('.source-row__more').click();
             await page
                 .locator('.cdk-overlay-pane [mat-menu-item]')
-                .filter({ hasText: 'Remove playlist' })
+                .filter({ hasText: 'Remove source' })
                 .click();
 
             // Cancel once catalog rows are already gone.

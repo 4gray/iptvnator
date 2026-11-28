@@ -164,7 +164,7 @@ test('@stalker @electron global search mixes Stalker and local results and prese
                 .toContain('delayed:vod');
 
             const grouping = main.getByRole('checkbox', {
-                name: 'Group results by playlist',
+                name: 'Group results by source',
                 exact: true,
             });
             const groups = main.locator('.playlist-group');

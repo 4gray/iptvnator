@@ -21,7 +21,7 @@ export async function prepareXtreamAddTrigger(
     await page.waitForURL(/\/workspace\/sources$/);
     await page.locator('app-workspace-sources').waitFor({ state: 'visible' });
     await page
-        .getByRole('button', { name: 'Add playlist', exact: true })
+        .getByRole('button', { name: 'Add source', exact: true })
         .first()
         .click();
     const dialog = page.locator('mat-dialog-container').last();
@@ -40,7 +40,7 @@ export async function prepareXtreamAddTrigger(
             ? exactAdd
             : dialog
                   .getByRole('button', {
-                      name: /^(add|add playlist)$/i,
+                      name: /^(add|add source)$/i,
                   })
                   .last();
     await assertTriggerReady(add, 'xtream-final-add');
@@ -81,7 +81,7 @@ export async function prepareXtreamSourceActionTrigger(
         const dialog = page.locator('mat-dialog-container').last();
         await dialog.waitFor({ state: 'visible' });
         const confirmation = dialog
-            .getByRole('button', { name: 'Refresh playlist', exact: true })
+            .getByRole('button', { name: 'Refresh source', exact: true })
             .last();
         await assertTriggerReady(confirmation, 'xtream-source-refresh-confirm');
         return confirmation;
@@ -95,7 +95,7 @@ export async function prepareXtreamSourceActionTrigger(
     await more.click();
     const remove = page
         .locator('.cdk-overlay-pane [mat-menu-item]')
-        .filter({ hasText: 'Remove playlist' })
+        .filter({ hasText: 'Remove source' })
         .first();
     await assertTriggerReady(remove, 'xtream-source-delete');
     return remove;

@@ -74,7 +74,7 @@ export async function verifyConcurrentSourceDeletion(
             await row.hover();
             await row.locator('.source-row__more').click();
             await first
-                .getByRole('menuitem', { name: 'Remove playlist', exact: true })
+                .getByRole('menuitem', { name: 'Remove source', exact: true })
                 .click();
             await first.locator('.source-removal-toast__close').click();
         } else {
@@ -118,12 +118,9 @@ export async function verifyConcurrentSourceDeletion(
             await expect(sourceRowByTitle(first, sibling.title)).toBeVisible();
         else
             await expect(
-                first.getByText(
-                    'All playlists and playlist data were removed.',
-                    {
-                        exact: true,
-                    }
-                )
+                first.getByText('All sources and source data were removed.', {
+                    exact: true,
+                })
             ).toBeVisible();
         expect(await cachedSource(first, instanceId, sibling.id)).toEqual(
             expected

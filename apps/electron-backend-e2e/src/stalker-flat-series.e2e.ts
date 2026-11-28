@@ -62,7 +62,7 @@ for (const tmdb of [false, true]) {
                 .getByRole('button', { name: 'Open downloads', exact: true })
                 .click();
             await app.mainWindow
-                .getByRole('button', { name: 'Change Folder', exact: true })
+                .getByRole('button', { name: 'Change folder', exact: true })
                 .click();
             await expect(
                 app.mainWindow.getByTestId('downloads-folder')
@@ -219,7 +219,7 @@ for (const tmdb of [false, true]) {
                     ?.seasonUnknown
             ).toBe(true);
             await openGlobalFavorites(app.mainWindow);
-            await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');
+            await switchUnifiedCollectionScope(app.mainWindow, 'All sources');
             await app.mainWindow
                 .getByRole('button', {
                     name: 'Signal House (1-9 season)',

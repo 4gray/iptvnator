@@ -238,7 +238,7 @@ async function refreshRecentXtreamSourceFromDashboard(
         .click();
     await page
         .getByRole('menuitem', {
-            name: 'Refresh Xtream playlist from remote',
+            name: 'Refresh Xtream account from remote',
             exact: true,
         })
         .click();
@@ -246,14 +246,14 @@ async function refreshRecentXtreamSourceFromDashboard(
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
     await dialog
-        .getByRole('button', { name: 'Refresh playlist', exact: true })
+        .getByRole('button', { name: 'Refresh source', exact: true })
         .click();
 
     const refreshOverlay = page.locator('app-workspace-shell-import-overlay .workspace-loading-overlay');
     await expect(refreshOverlay).toBeVisible({ timeout: 5000 });
     await expect(
         refreshOverlay.getByRole('heading', {
-            name: 'Refreshing playlist',
+            name: 'Refreshing account',
             exact: true,
         })
     ).toBeVisible();

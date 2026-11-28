@@ -490,7 +490,7 @@ describe('AddPlaylistDialogComponent actions', () => {
             const fixture = render(type);
 
             expect(primaryLabel(fixture.nativeElement)).toBe(
-                'HOME.URL_UPLOAD.ADD_PLAYLIST'
+                'WORKSPACE.SHELL.ADD_PLAYLIST'
             );
         }
     );

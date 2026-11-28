@@ -114,7 +114,7 @@ test('@a11y icon-only buttons are named in Sources and the playlist info dialog'
     const row = sourceRowByTitle(page, M3U_TITLE);
     await expect(row).toBeVisible({ timeout: 15_000 });
     await row.hover();
-    for (const name of ['Refresh playlist', 'Edit…', 'Playlist actions']) {
+    for (const name of ['Refresh source', 'Edit…', 'Source actions']) {
         await expect(row.getByRole('button', { name })).toBeAttached();
     }
     await expectNamedButtons(page, 3);

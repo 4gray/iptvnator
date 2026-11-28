@@ -204,7 +204,9 @@
                 (click)="playlistInfoRequested.emit()"
             >
                 <mat-icon>info</mat-icon>
-                <span>{{ 'WORKSPACE.SHELL.PLAYLIST_INFO' | translate }}</span>
+                <span>{{
+                    'HOME.PLAYLISTS.INFO_DIALOG.PLAYLIST_DETAILS' | translate
+                }}</span>
             </button>
             @if (hasAccountInfo()) {
                 <button

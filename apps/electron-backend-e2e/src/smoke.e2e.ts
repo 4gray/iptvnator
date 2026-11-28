@@ -93,7 +93,7 @@ test.describe('Electron App Smoke Test', () => {
 
         try {
             await expect(
-                app.mainWindow.getByRole('button', { name: 'Add playlist' })
+                app.mainWindow.locator('[data-test-id="header-add-source"]')
             ).toBeVisible();
 
             const modifier =

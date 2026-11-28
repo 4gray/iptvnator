@@ -126,9 +126,7 @@ test('retains the offline library after failed updates and protects unsaved sett
     const fixture = await servePwaUpdateFixture();
     try {
         await page.goto(fixture.origin + '/workspace/sources');
-        await page
-            .getByRole('button', { name: 'Add playlist', exact: true })
-            .click();
+        await page.locator('[data-test-id="header-add-source"]').click();
         const dialog = page.getByRole('dialog');
         await dialog
             .getByRole('radio', { name: /M3U file|file upload/i })
@@ -141,7 +139,7 @@ test('retains the offline library after failed updates and protects unsaved sett
             ),
         });
         await dialog
-            .getByRole('button', { name: 'Add playlist', exact: true })
+            .getByRole('button', { name: 'Add source', exact: true })
             .click();
         await expect(dialog).toBeHidden();
         await page.locator('a[href$="/workspace/settings"]').click();

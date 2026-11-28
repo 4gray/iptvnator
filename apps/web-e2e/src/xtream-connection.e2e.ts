@@ -32,7 +32,7 @@ for (const canTryHttp of [true, false]) {
                     : { payload: { user_info: { auth: 1, status: 'Active' } } },
             });
         });
-        await page.getByRole('button', { name: 'Add playlist' }).click();
+        await page.locator('[data-test-id="header-add-source"]').click();
         const dialog = page.getByRole('dialog');
         await dialog
             .getByRole('radio', { name: /Xtream credentials/i })
@@ -75,7 +75,7 @@ for (const canTryHttp of [true, false]) {
                 : ['https://panel.example/base']
         );
         await expect(
-            dialog.getByRole('button', { name: 'Add playlist', exact: true })
+            dialog.getByRole('button', { name: 'Add source', exact: true })
         ).toBeEnabled();
     });
 }

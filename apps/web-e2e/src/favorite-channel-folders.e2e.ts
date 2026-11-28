@@ -395,7 +395,7 @@ test('@m3u @collections starts with a flat list in a new profile', async ({
     await expect(panel(page)).toHaveCount(0);
 
     await page
-        .getByRole('button', { name: 'Add playlist', exact: true })
+        .locator('[data-test-id="header-add-source"]')
         .click();
     await dialog(page)
         .getByRole('radio', { name: /Raw m3u text/i })
@@ -406,7 +406,7 @@ test('@m3u @collections starts with a flat list in a new profile', async ({
             '#EXTM3U\n#EXTINF:-1,Synthetic first channel\nhttps://fixture.invalid/first.webm'
         );
     await dialog(page)
-        .getByRole('button', { name: 'Add playlist', exact: true })
+        .getByRole('button', { name: 'Add source', exact: true })
         .click();
     await page.waitForURL(/\/workspace\/playlists\/.+\/all$/);
 
@@ -818,7 +818,7 @@ test('@m3u @collections adds and moves from a playlist and filters by search and
     await globalFavorites(page).click();
     await folder(page, 'Synthetic folder').click();
     await expect(titles(page)).toHaveText(['Synthetic extra']);
-    await page.getByRole('radio', { name: 'All playlists' }).click();
+    await page.getByRole('radio', { name: 'All sources' }).click();
     await expect(folder(page, 'All channels')).toContainText('5');
     const search = page.getByRole('searchbox');
     await search.fill('Synthetic alpha');
@@ -827,7 +827,7 @@ test('@m3u @collections adds and moves from a playlist and filters by search and
     await expect(titles(page)).toHaveCount(0);
     await search.fill('');
     await expect(titles(page)).toHaveText(['Synthetic extra']);
-    await page.getByRole('radio', { name: 'This playlist' }).click();
+    await page.getByRole('radio', { name: 'This source' }).click();
     await expect(folder(page, 'All channels')).toContainText('3');
 
     await page.getByRole('link', { name: 'All channels', exact: true }).click();

@@ -2,7 +2,7 @@ import { expect, Page } from '@playwright/test';
 
 /**
  * Favorites → "Open in <portal>" → the same channel selected and playing in
- * the portal's ITV section (the live counterpart of "View in portal").
+ * the portal's ITV section (the live counterpart of "View in source").
  *
  * The row context menu works without selecting the row. The EPG toolbar
  * offers the same action after selection. The mock portal answers
@@ -45,7 +45,7 @@ export async function verifyStalkerOpenInPlaylist(
     await page.goto('/workspace/global-favorites');
     const allPlaylists = page
         .locator('.scope-toggle')
-        .getByRole('radio', { name: 'All playlists' });
+        .getByRole('radio', { name: 'All sources' });
     if (await allPlaylists.count()) {
         await allPlaylists.click();
     }

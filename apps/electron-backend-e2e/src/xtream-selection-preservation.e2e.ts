@@ -213,7 +213,7 @@ test('disabled catalogs preserve playable saved items, resume progress, download
         for (const origin of ['favorites', 'history']) {
             if (origin === 'favorites') await openGlobalFavorites(page);
             else await openGlobalRecent(page);
-            await switchUnifiedCollectionScope(page, 'All playlists');
+            await switchUnifiedCollectionScope(page, 'All sources');
             const card = contentCardByTitle(page, saved.title).first();
             await expect(card).toContainText('Disabled');
             await card.click();
@@ -412,7 +412,7 @@ test('disabled Live TV and Series favorites and history remain playable without 
         for (const origin of ['favorites', 'history']) {
             if (origin === 'favorites') await openGlobalFavorites(page);
             else await openGlobalRecent(page);
-            await switchUnifiedCollectionScope(page, 'All playlists');
+            await switchUnifiedCollectionScope(page, 'All sources');
             await switchUnifiedCollectionContent(page, 'Live TV');
             const live = channelItemByTitle(page, saved.live).first();
             await expect(live).toContainText('Disabled');

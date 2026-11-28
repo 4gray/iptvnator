@@ -301,7 +301,7 @@ export class WorkspaceCommandPaletteComponent implements AfterViewInit {
             return 'WORKSPACE.COMMAND_PALETTE.GROUP_VIEW';
         }
         if (group === 'playlist') {
-            return 'WORKSPACE.COMMAND_PALETTE.GROUP_PLAYLIST';
+            return 'PORTALS.THIS_PLAYLIST';
         }
         if (group === 'settings') {
             return 'WORKSPACE.COMMAND_PALETTE.GROUP_SETTINGS';

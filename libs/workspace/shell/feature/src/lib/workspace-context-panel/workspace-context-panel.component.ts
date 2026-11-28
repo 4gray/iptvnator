@@ -472,7 +472,7 @@ export class WorkspaceContextPanelComponent {
             return 'WORKSPACE.CONTEXT.XTREAM_SOURCE';
         }
         if (this.isStalkerCategories()) {
-            return 'WORKSPACE.CONTEXT.STALKER_PORTAL';
+            return 'WORKSPACE.SHELL.STALKER_PORTAL';
         }
         return '';
     });

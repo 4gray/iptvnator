@@ -10,7 +10,7 @@ import {
 /**
  * The three add-source forms share one vocabulary: the same name label, a
  * masked password with a show/hide toggle, a URL error of their own and the
- * single "Add playlist" submit. Credentials are the Xtream mock's fixtures.
+ * single "Add source" submit. Credentials are the Xtream mock's fixtures.
  */
 test.beforeEach(async ({ page }) => {
     await interceptPwaProviderRequests(page);
@@ -18,7 +18,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function openMethod(page: Page, method: RegExp): Promise<Locator> {
-    await page.getByRole('button', { name: 'Add playlist' }).click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
     await dialog.getByRole('radio', { name: method }).click();
@@ -58,7 +58,7 @@ test('@sources @pwa adds an Xtream source through the dialog', async ({
     await expect(dialog.getByText(/absolute file path/i)).toHaveCount(0);
 
     await setInputValue(
-        dialog.getByRole('textbox', { name: 'Playlist title' }),
+        dialog.getByRole('textbox', { name: 'Source title' }),
         'Dialog Xtream Source'
     );
     await setInputValue(serverUrl, XTREAM_MOCK_SERVER);
@@ -69,7 +69,7 @@ test('@sources @pwa adds an Xtream source through the dialog', async ({
     await expect(dialog.locator('#password')).toHaveValue('pass1');
 
     const add = dialog.getByRole('button', {
-        name: 'Add playlist',
+        name: 'Add source',
         exact: true,
     });
     await expect(add).toBeEnabled({ timeout: 10_000 });
@@ -85,7 +85,7 @@ test('@sources @pwa explains an invalid M3U playlist URL', async ({ page }) => {
     });
 
     await expect(
-        dialog.getByRole('textbox', { name: 'Playlist title' })
+        dialog.getByRole('textbox', { name: 'Source title' })
     ).toBeVisible();
     await setInputValue(url, 'playlist.m3u');
     await url.blur();
@@ -94,7 +94,7 @@ test('@sources @pwa explains an invalid M3U playlist URL', async ({ page }) => {
         'Enter a valid http:// or https:// URL.'
     );
     await expect(
-        dialog.getByRole('button', { name: 'Add playlist', exact: true })
+        dialog.getByRole('button', { name: 'Add source', exact: true })
     ).toBeDisabled();
 });
 
@@ -118,7 +118,7 @@ for (const code of ['ETIMEDOUT', 'ENETUNREACH', 'E' + 'X'.repeat(47)]) {
         const url = dialog.getByRole('textbox', { name: /Playlist URL/ });
         await url.fill('https://fixture.example/list.m3u');
         await dialog
-            .getByRole('button', { name: 'Add playlist', exact: true })
+            .getByRole('button', { name: 'Add source', exact: true })
             .click();
         const alert = dialog.getByRole('alert');
         await expect(alert).toContainText(`(${code})`);
@@ -144,7 +144,7 @@ test('@sources @pwa gives the Stalker form the shared labels and a masked passwo
     const dialog = await openMethod(page, /Stalker portal/i);
 
     await expect(
-        dialog.getByRole('textbox', { name: 'Playlist title' })
+        dialog.getByRole('textbox', { name: 'Source title' })
     ).toBeVisible();
     await expect(
         dialog.getByRole('textbox', { name: 'MAC address', exact: true })
@@ -154,7 +154,7 @@ test('@sources @pwa gives the Stalker form the shared labels and a masked passwo
     await setInputValue(dialog.locator('#password'), 'secret');
     await expectPasswordToggle(dialog);
     await expect(
-        dialog.getByRole('button', { name: 'Add playlist', exact: true })
+        dialog.getByRole('button', { name: 'Add source', exact: true })
     ).toBeVisible();
 });
 
@@ -189,14 +189,14 @@ test('@sources @pwa preserves a failed M3U draft and discards cancelled response
     await url.fill('http://');
     await url.blur();
     await expect(
-        dialog.getByRole('button', { name: 'Add playlist', exact: true })
+        dialog.getByRole('button', { name: 'Add source', exact: true })
     ).toBeDisabled();
     await url.fill('https://fixture.example/audit.m3u');
     await dialog
-        .getByRole('textbox', { name: 'Playlist title' })
+        .getByRole('textbox', { name: 'Source title' })
         .fill('Preserved draft');
     const add = dialog.getByRole('button', {
-        name: 'Add playlist',
+        name: 'Add source',
         exact: true,
     });
     await add.click();
@@ -219,7 +219,7 @@ test('@sources @pwa preserves a failed M3U draft and discards cancelled response
     await page.setViewportSize({ width: 1280, height: 900 });
 
     await expect(
-        dialog.getByRole('textbox', { name: 'Playlist title' })
+        dialog.getByRole('textbox', { name: 'Source title' })
     ).toHaveValue('Preserved draft');
     await add.click();
     await expect(dialog.getByRole('status')).toContainText('Fetching playlist');
@@ -257,7 +257,7 @@ test('@sources @pwa Stalker cancel ignores late discovery', async ({
         .fill('https://fixture.example/portal.php');
     await dialog.locator('#macAddress').fill(pwaMocks.macAddress);
     await dialog
-        .getByRole('button', { name: 'Add playlist', exact: true })
+        .getByRole('button', { name: 'Add source', exact: true })
         .click();
     await expect(
         dialog.getByRole('button', { name: 'Validating portal…', exact: true })

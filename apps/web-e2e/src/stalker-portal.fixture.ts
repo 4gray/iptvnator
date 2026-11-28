@@ -139,7 +139,7 @@ export async function addStalkerPortal(
 ): Promise<void> {
     const { name = 'Mock Stalker Portal', mac = DEFAULT_MAC } = options;
 
-    await page.getByRole('button', { name: 'Add playlist' }).click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
     // v0.22 redesign: tabs were replaced with a flat 5-card radio picker.
@@ -150,7 +150,7 @@ export async function addStalkerPortal(
     await setInputValue(dialog.locator('input#macAddress'), mac);
 
     const addButton = dialog.getByRole('button', {
-        name: 'Add playlist',
+        name: 'Add source',
         exact: true,
     });
     await expect(addButton).toBeEnabled({ timeout: 10_000 });
@@ -181,7 +181,7 @@ export async function addFullStalkerPortal(
         password,
     } = options;
 
-    await page.getByRole('button', { name: 'Add playlist' }).click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
     await dialog.getByRole('radio', { name: /Stalker portal/i }).click();
@@ -200,7 +200,7 @@ export async function addFullStalkerPortal(
     }
 
     const addButton = dialog.getByRole('button', {
-        name: 'Add playlist',
+        name: 'Add source',
         exact: true,
     });
     await expect(addButton).toBeEnabled({ timeout: 10_000 });

@@ -66,7 +66,7 @@ export async function verifyDelayedBrowserSourceRefresh(
         await expect(row).toBeVisible();
         stage = 'held';
         await row
-            .getByRole('button', { name: 'Refresh playlist', exact: true })
+            .getByRole('button', { name: 'Refresh source', exact: true })
             .click();
         await expect.poll(() => waiting).toBe(true);
         const accepted = {
@@ -91,7 +91,7 @@ export async function verifyDelayedBrowserSourceRefresh(
             page
                 .locator('.mat-mdc-snack-bar-label')
                 .filter({
-                    hasText: 'Success! The playlist was successfully updated.',
+                    hasText: 'Success! The source was successfully updated.',
                 })
                 .last()
         ).toBeVisible();

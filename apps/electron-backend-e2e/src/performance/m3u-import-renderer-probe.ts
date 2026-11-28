@@ -34,16 +34,16 @@ export async function prepareM3uImportDialog(
     page: Page,
     options: M3uImportDialogOptions
 ): Promise<void> {
-    await page.getByRole('button', { name: 'Add playlist' }).first().click();
+    await page.getByRole('button', { name: 'Add source' }).first().click();
     const dialog = page.locator('mat-dialog-container').last();
     await dialog.waitFor({ state: 'visible' });
     await dialog
         .getByRole('textbox', { name: 'Playlist URL (m3u, m3u8)' })
         .fill(options.playlistUrl);
     await dialog
-        .getByRole('textbox', { name: 'Playlist title' })
+        .getByRole('textbox', { name: 'Source title' })
         .fill(options.playlistTitle);
-    const submit = dialog.getByRole('button', { name: 'Add playlist' }).last();
+    const submit = dialog.getByRole('button', { name: 'Add source' }).last();
     await submit.waitFor({ state: 'visible' });
     if (await submit.isDisabled()) {
         throw new Error('m3u-import-final-add-disabled');
@@ -254,7 +254,7 @@ export async function triggerM3uImport(page: Page): Promise<number> {
             .reverse()
             .find(
                 (candidate) =>
-                    candidate.textContent?.trim() === 'Add playlist' &&
+                    candidate.textContent?.trim() === 'Add source' &&
                     !candidate.disabled
             );
         if (!(button instanceof HTMLButtonElement)) {

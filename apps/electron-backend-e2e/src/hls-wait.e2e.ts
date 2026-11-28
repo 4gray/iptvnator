@@ -41,9 +41,7 @@ test('Video.js HLS waiting is explained and Retry resumes the same channel', asy
     const launched = await launchElectronApp(dataDir);
     const page = launched.mainWindow;
     try {
-        await page
-            .getByRole('button', { name: 'Add playlist', exact: true })
-            .click();
+        await page.locator('[data-test-id="header-add-source"]').click();
         const dialog = page.getByRole('dialog');
         expect(
             (await dialog.locator('.apd-method-grid').boundingBox())!.height
@@ -57,7 +55,7 @@ test('Video.js HLS waiting is explained and Retry resumes the same channel', asy
             .locator('textarea')
             .fill(`#EXTM3U\n#EXTINF:-1,Recoverable HLS\n${origin}/live.m3u8`);
         await dialog
-            .getByRole('button', { name: 'Add playlist', exact: true })
+            .getByRole('button', { name: 'Add source', exact: true })
             .click();
         await page.locator('[data-test-id="channel-item"]').first().click();
         const notice = page.locator('.vjs-hls-wait');

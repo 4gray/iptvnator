@@ -129,16 +129,14 @@ async function importPlaylist(
     count = 2
 ): Promise<void> {
     await page.goto('/');
-    await page.getByRole('button', { name: 'Add playlist' }).click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await dialog.getByRole('radio', { name: /Raw m3u text/i }).click();
     await dialog.getByLabel('Insert m3u(8) playlist as text').fill(content);
     await Promise.all([
         page.waitForURL(/\/workspace\/playlists\/.+\/all$/),
-        dialog
-            .getByRole('button', { name: 'Add playlist', exact: true })
-            .click(),
+        dialog.getByRole('button', { name: 'Add source', exact: true }).click(),
     ]);
     await expect(page.getByText(`${count} channels`)).toBeVisible();
 }

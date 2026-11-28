@@ -58,7 +58,7 @@ async function servePlaybackFixtures(page: Page): Promise<void> {
 }
 
 async function importFatalHlsPlaylist(page: Page): Promise<void> {
-    await page.getByRole('button', { name: 'Add playlist' }).click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await dialog.getByRole('radio', { name: /Raw m3u text/i }).click();
@@ -67,9 +67,7 @@ async function importFatalHlsPlaylist(page: Page): Promise<void> {
         .fill(FATAL_HLS_PLAYLIST);
     await Promise.all([
         page.waitForURL(/\/workspace\/playlists\/.+\/all$/),
-        dialog
-            .getByRole('button', { name: 'Add playlist', exact: true })
-            .click(),
+        dialog.getByRole('button', { name: 'Add source', exact: true }).click(),
     ]);
     await expect(page.getByText('1 channel')).toBeVisible();
 }
