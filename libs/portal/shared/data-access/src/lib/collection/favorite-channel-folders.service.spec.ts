@@ -4,6 +4,8 @@ import {
     USER_DATA_STORAGE,
     type UserDataStorage,
 } from '@iptvnator/services';
+import { setActivePersonalScope } from '@iptvnator/services/profiles';
+import type { PersonalScope } from '@iptvnator/shared/interfaces/profiles';
 import { FavoriteChannelMembershipEvents } from '@iptvnator/services/favorites-events';
 import {
     CONNECTION_KEY,
@@ -535,6 +537,58 @@ describe.each(['browser', 'electron'])(
             } else {
                 expect(openDatabase).not.toHaveBeenCalled();
             }
+        });
+
+        describe('household profiles', () => {
+            const scope: PersonalScope =
+                'profile:11111111-1111-4111-8111-111111111111';
+            const scopedKey = `${folderKey}:${scope}`;
+            afterEach(() => setActivePersonalScope('shared'));
+
+            it('starts a profile with no folders and never writes the household document', async () => {
+                const service = open();
+                await service.load();
+                const household = await service.create('Household folder');
+                await service.move([channel], household);
+                const householdDocument = documents.get(folderKey);
+
+                setActivePersonalScope(scope);
+                window.dispatchEvent(new Event('iptvnator-profile-switched'));
+                await service.load();
+                expect(service.folders()).toEqual([]);
+                expect(service.folderOf(channel)).toBeNull();
+                expect(service.hasAssignments(household)).toBe(false);
+
+                const own = await service.create('Profile folder');
+                await service.move([channel], own);
+                expect(service.folderOf(channel)).toBe(own);
+                expect(documents.get(folderKey)).toBe(householdDocument);
+                expect(documents.has(scopedKey)).toBe(true);
+                expect(requestLock).toHaveBeenLastCalledWith(
+                    scopedKey,
+                    expect.any(Function)
+                );
+
+                setActivePersonalScope('shared');
+                window.dispatchEvent(new Event('iptvnator-profile-switched'));
+                await service.load();
+                expect(service.folders()).toEqual([
+                    { id: household, name: 'Household folder' },
+                ]);
+                expect(service.folderOf(channel)).toBe(household);
+            });
+
+            it('keeps a write begun under one profile out of the next profile', async () => {
+                const service = open();
+                await service.load();
+                const pending = service.create('Late folder');
+                setActivePersonalScope(scope);
+                window.dispatchEvent(new Event('iptvnator-profile-switched'));
+                await pending;
+                await service.load();
+                expect(service.folders()).toEqual([]);
+                expect(documents.has(scopedKey)).toBe(false);
+            });
         });
 
         it('opens independent folder documents and lock scopes for each server profile', async () => {
