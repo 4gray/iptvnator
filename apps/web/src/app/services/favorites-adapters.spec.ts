@@ -180,6 +180,7 @@ describe('favorite provider references and projections', () => {
         const error = new Error('Synthetic storage read failure');
         const getFavorites = jest.fn().mockRejectedValue(error);
         const client = {
+            scope: 'shared',
             contexts: new Map(),
             options: { consent: () => 'consent' },
         } as unknown as FavoritesSyncClient;
@@ -195,6 +196,30 @@ describe('favorite provider references and projections', () => {
             adapter.invoke(raw, 'getFavorites', ['source', false, true])
         ).rejects.toBe(error);
         expect(getFavorites).toHaveBeenCalledWith('source', false, true);
+    });
+
+    it('never reads the household favorites for a profile, strict or not', async () => {
+        const getFavorites = jest.fn().mockResolvedValue([{ xtream_id: 1 }]);
+        const client = {
+            scope: 'profile:11111111-1111-4111-8111-111111111111',
+            contexts: new Map(),
+            options: { consent: () => 'consent' },
+            entries: async () => [],
+        } as unknown as FavoritesSyncClient;
+        const raw = { getFavorites } as unknown as IXtreamDataSource;
+        const adapter = new FavoritesXtreamAdapter(
+            client,
+            () => true,
+            true,
+            unlocked
+        );
+        await expect(
+            adapter.invoke(raw, 'getFavorites', ['source', false, true])
+        ).resolves.toEqual([]);
+        await expect(
+            adapter.invoke(raw, 'getFavorites', ['source', false])
+        ).resolves.toEqual([]);
+        expect(getFavorites).not.toHaveBeenCalled();
     });
 
     it('preserves requested identity when a sparse Xtream favorite has no catalog row', async () => {
