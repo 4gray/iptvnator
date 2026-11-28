@@ -7,22 +7,26 @@ import type { Page } from '@playwright/test';
  */
 export async function navigateWithinWorkspace(
     page: Page,
-    path: string
+    path: string,
+    query = ''
 ): Promise<void> {
-    const targetPathname = await page.evaluate((target) => {
-        const targetUrl = new URL(window.location.href);
-        const workspaceIndex = targetUrl.pathname.lastIndexOf('/workspace');
-        const rendererPath =
-            workspaceIndex >= 0
-                ? targetUrl.pathname.slice(0, workspaceIndex)
-                : targetUrl.pathname.replace(/\/$/, '');
+    const targetPathname = await page.evaluate(
+        ({ path, query }) => {
+            const targetUrl = new URL(window.location.href);
+            const workspaceIndex = targetUrl.pathname.lastIndexOf('/workspace');
+            const rendererPath =
+                workspaceIndex >= 0
+                    ? targetUrl.pathname.slice(0, workspaceIndex)
+                    : targetUrl.pathname.replace(/\/$/, '');
 
-        targetUrl.pathname = `${rendererPath}${target}`;
-        targetUrl.search = '';
-        targetUrl.hash = '';
-        window.history.pushState(null, '', targetUrl);
-        window.dispatchEvent(new PopStateEvent('popstate'));
-        return targetUrl.pathname;
-    }, path);
+            targetUrl.pathname = `${rendererPath}${path}`;
+            targetUrl.search = query;
+            targetUrl.hash = '';
+            window.history.pushState(null, '', targetUrl);
+            window.dispatchEvent(new PopStateEvent('popstate'));
+            return targetUrl.pathname;
+        },
+        { path, query }
+    );
     await page.waitForURL((url) => url.pathname === targetPathname);
 }

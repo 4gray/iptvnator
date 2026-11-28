@@ -71,7 +71,11 @@ ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0
 - The workspace context panel lazy-loads `CategoryManagementDialogComponent`
   from `@iptvnator/portal/xtream/feature`, opens it with playlist ID, content
   type, and item counts, then calls `xtreamStore.reloadCategories()` after a
-  successful dialog save.
+  successful dialog save. On desktop, both the save and the sidebar reload
+  wait for source activity and hold the source while they run. A startup
+  replacement can then restore retained SQLite category IDs before a sidebar
+  cache miss can fetch categories. A delayed reload checks the current source
+  and lock version before reading.
 
 ### Store
 

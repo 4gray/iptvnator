@@ -18,6 +18,40 @@ export class SecondStreamCollectionService {
     private readonly xtream = inject(XTREAM_DATA_SOURCE);
     private readonly runtime = inject(RuntimeCapabilitiesService);
 
+    async rebindLiveCategory(
+        item: UnifiedCollectionItem
+    ): Promise<UnifiedCollectionItem> {
+        const { xtreamId, xtreamCategoryRowId, playlistId } = item;
+        if (!this.runtime.supportsXtreamSqliteDataSource) return item;
+        if (!xtreamId || !xtreamCategoryRowId)
+            return { ...item, categoryId: undefined };
+        const [row, categories] = await Promise.all([
+            this.xtream
+                .getContentByXtreamId(
+                    xtreamId,
+                    playlistId,
+                    'live',
+                    undefined,
+                    xtreamCategoryRowId,
+                    undefined,
+                    true
+                )
+                .catch(() => null),
+            this.xtream.getAllCategories(playlistId, 'live').catch(() => []),
+        ]);
+        const categoryRowId = Number(row?.category_id);
+        const category = categories.find((entry) => entry.id === categoryRowId);
+        return {
+            ...item,
+            categoryId: category?.xtream_id,
+            // Keep the preferred key so later requests still reject ambiguous moves.
+            xtreamCategoryRowId:
+                Number.isSafeInteger(categoryRowId) && categoryRowId > 0
+                    ? categoryRowId
+                    : xtreamCategoryRowId,
+        };
+    }
+
     async load(
         scope: string,
         type: CollectionContentType,
@@ -84,7 +118,12 @@ export class SecondStreamCollectionService {
                 .get(item.playlistId)
                 ?.get(String(item.categoryId));
             if (!category?.hidden)
-                normalized.push({ ...item, categoryId: category?.xtream_id });
+                normalized.push({
+                    ...item,
+                    categoryId: category?.xtream_id,
+                    xtreamCategoryRowId:
+                        type === 'live' ? category?.id : undefined,
+                });
         }
         return normalized;
     }

@@ -1,14 +1,16 @@
-import { captureHistoryOwner } from '@iptvnator/services/history-events';
+import {
+    captureHistoryOwner,
+    XtreamHistoryOrder,
+} from '@iptvnator/services/history-events';
 import { sourceConnection } from '@iptvnator/services/source-sync/connection';
-import { normalizeContentMetadataPatch } from '@iptvnator/shared/interfaces';
 import { inject, Injector, signal } from '@angular/core';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
-    type IXtreamDataSource,
     type XtreamPlayedContent,
     type XtreamDetailMetadataSource,
     xtreamDetailContentMetadata,
+    loadXtreamRecentOperations,
     XTREAM_DATA_SOURCE,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
@@ -43,6 +45,7 @@ export function injectXtreamRecentHistory(): (
     const gate = inject(PlaybackHistoryGate);
     const store = inject(XtreamStore);
     const injector = inject(Injector);
+    const historyOrder = inject(XtreamHistoryOrder);
 
     return (streamUrl, request, sessionKey, launchId) => {
         const playlist = signal(store.currentPlaylist()).asReadonly();
@@ -61,78 +64,43 @@ export function injectXtreamRecentHistory(): (
             },
             () => {
                 const playlistId = playlist()?.id;
+                const viewedAt = new Date().toISOString();
                 if (store.currentPlaylist()?.id === playlistId) {
-                    store.addRecentItem({ ...captured, playlist });
+                    store.addRecentItem({ ...captured, playlist, viewedAt });
                 } else if (playlistId) {
-                    void saveWithoutListRefresh(
-                        injector.get(XTREAM_DATA_SOURCE),
-                        // The data source factory picks SQLite by this contract,
-                        // not by a generic Electron bridge.
-                        !injector.get(RuntimeCapabilitiesService)
-                            .supportsXtreamSqliteDataSource,
+                    const current = captureHistoryOwner(
+                        sourceConnection()?.instanceId,
                         playlistId,
-                        captured
+                        () => sourceConnection()?.instanceId,
+                        'history'
                     );
+                    const dataSource = injector.get(XTREAM_DATA_SOURCE);
+                    const sqlite = injector.get(
+                        RuntimeCapabilitiesService
+                    ).supportsXtreamSqliteDataSource;
+                    const write = async () => {
+                        const { saveXtreamRecent } =
+                            await loadXtreamRecentOperations();
+                        await saveXtreamRecent(
+                            dataSource,
+                            sqlite,
+                            { ...captured, playlistId, viewedAt },
+                            current
+                        );
+                    };
+                    void (sqlite
+                        ? historyOrder.run(
+                              playlistId,
+                              write,
+                              captured.contentType === 'live'
+                                  ? playlistId
+                                  : undefined
+                          )
+                        : write());
                 }
             }
         );
     };
-}
-
-/**
- * The save half of `withRecentItems.addRecentItem` (same content lookup;
- * the API-only data source keys cold content by its Xtream id), without
- * reloading the store's recent list. Kept here rather than shared with the store: the
- * store and its library barrel ship in the initial bundle, this path is
- * only reached from lazy detail pages.
- */
-async function saveWithoutListRefresh(
-    dataSource: IXtreamDataSource,
-    keysByXtreamId: boolean,
-    playlistId: string,
-    {
-        xtreamId,
-        contentType,
-        backdropUrl,
-        playedContent,
-    }: XtreamRecentItemRequest
-): Promise<void> {
-    const id = Number(xtreamId);
-    if (!Number.isFinite(id) || id <= 0) {
-        return;
-    }
-    const identity = playedContent
-        ? normalizeContentMetadataPatch({
-              tmdbId: playedContent.tmdbId ?? undefined,
-              releaseYear: playedContent.releaseYear ?? undefined,
-          })
-        : null;
-    const current = captureHistoryOwner(
-        sourceConnection()?.instanceId,
-        playlistId,
-        () => sourceConnection()?.instanceId
-    );
-    const content = await dataSource.getContentByXtreamId(
-        id,
-        playlistId,
-        contentType,
-        ...(!keysByXtreamId && identity ? [identity] : [])
-    );
-    const contentId =
-        content?.id ??
-        (keysByXtreamId ||
-        (await dataSource.supportsPortableHistory?.(playlistId))
-            ? id
-            : null);
-    if (!current()) return;
-    if (contentId != null) {
-        await dataSource.addRecentItem(
-            { id: contentId, type: contentType, providerId: id },
-            playlistId,
-            backdropUrl,
-            ...(playedContent ? ([playedContent] as const) : [])
-        );
-    }
 }
 
 /** Capture displayed detail metadata before playback confirmation or navigation. */

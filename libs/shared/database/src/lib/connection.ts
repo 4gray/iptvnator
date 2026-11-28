@@ -37,6 +37,7 @@ import {
     summarizeSqlStatementForTrace,
 } from '@iptvnator/shared/logging';
 import * as schema from './schema';
+import { RECENTLY_VIEWED_CHRONOLOGY } from './recent-history-order';
 import { getIptvnatorDatabasePath } from './path-utils';
 import { notifyDatabaseConnectionOpened } from './connection-observer';
 
@@ -158,6 +159,7 @@ const CREATE_TABLE_STATEMENTS = [
       xtream_id INTEGER NOT NULL,
       hidden INTEGER DEFAULT 0,
       locked INTEGER DEFAULT 0,
+      provider_order INTEGER,
       UNIQUE(playlist_id, type, xtream_id),
       FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
   )`,
@@ -215,6 +217,8 @@ const CREATE_TABLE_STATEMENTS = [
     `CREATE INDEX IF NOT EXISTS recently_viewed_playlist_idx ON recently_viewed(playlist_id)`,
     `CREATE INDEX IF NOT EXISTS recently_viewed_viewed_at_idx ON recently_viewed(viewed_at)`,
     `CREATE INDEX IF NOT EXISTS recently_viewed_playlist_viewed_idx ON recently_viewed(playlist_id, viewed_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS recently_viewed_chronology_idx ON recently_viewed(${RECENTLY_VIEWED_CHRONOLOGY})`,
+    `CREATE INDEX IF NOT EXISTS recently_viewed_playlist_chronology_idx ON recently_viewed(playlist_id, ${RECENTLY_VIEWED_CHRONOLOGY})`,
     // EPG tables
     `CREATE TABLE IF NOT EXISTS epg_channels (
       id TEXT PRIMARY KEY,
@@ -340,6 +344,7 @@ const COLUMN_MIGRATION_STATEMENTS = [
     `ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0`,
     // Parental lock: per-category lock index (issue #285)
     `ALTER TABLE categories ADD COLUMN locked INTEGER DEFAULT 0`,
+    `ALTER TABLE categories ADD COLUMN provider_order INTEGER`,
     // v1.1.0 -> v1.2.0: Add playlist metadata/payload columns for M3U + unified playlist persistence
     `ALTER TABLE playlists ADD COLUMN portal_url TEXT`,
     `ALTER TABLE playlists ADD COLUMN count INTEGER`,

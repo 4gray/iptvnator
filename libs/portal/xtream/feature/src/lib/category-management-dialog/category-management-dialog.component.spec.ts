@@ -8,13 +8,18 @@ import {
     CategoryEditorComponent,
     CategoryEditorRow,
 } from '@iptvnator/portal/shared/ui';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import {
+    MAT_DIALOG_DATA,
+    MatDialogRef,
+    MatDialogState,
+} from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import {
     DatabaseService,
     ParentalLockService,
     RuntimeCapabilitiesService,
+    SourceActivityService,
     XtreamPendingRestoreService,
     XCategoryFromDb,
 } from '@iptvnator/services';
@@ -52,7 +57,10 @@ describe('CategoryManagementDialogComponent', () => {
     const dataSource = {
         getAllCategories: jest.fn(),
     };
-    const dialogRef = { close: jest.fn() };
+    const dialogRef = {
+        close: jest.fn(),
+        getState: jest.fn(),
+    };
     const snackBar = { open: jest.fn().mockResolvedValue(null) };
     const parentalLock = {
         enabled: signal(false),
@@ -109,6 +117,7 @@ describe('CategoryManagementDialogComponent', () => {
 
     beforeEach(async () => {
         jest.clearAllMocks();
+        dialogRef.getState.mockReturnValue(MatDialogState.OPEN);
         dataSource.getAllCategories.mockResolvedValue(categories);
         localStorage.removeItem('xtream-category-visibility:mock-playlist');
         db.updateCategoryVisibility.mockResolvedValue(true);
@@ -245,6 +254,42 @@ describe('CategoryManagementDialogComponent', () => {
             [[13], false, true],
         ]);
         expect(dialogRef.close).toHaveBeenCalledWith(true);
+    });
+
+    it('keeps a desktop visibility edit queued while Live TV is being replaced', async () => {
+        const release = TestBed.inject(SourceActivityService).begin([
+            data.playlistId,
+        ]);
+        editor.searchTerm.set('FR');
+        editor.deselectAll();
+        const saving = component.save();
+        try {
+            expect(db.updateCategoryVisibility).not.toHaveBeenCalled();
+            expect(component.isSaving()).toBe(true);
+            expect(dialogRef.close).not.toHaveBeenCalled();
+        } finally {
+            release();
+            await saving;
+        }
+
+        expect(db.updateCategoryVisibility.mock.calls).toEqual([
+            [[11, 12, 14], true, true],
+            [[13], false, true],
+        ]);
+        expect(dialogRef.close).toHaveBeenCalledWith(true);
+    });
+
+    it('discards a queued desktop save when the editor closes before replacement finishes', async () => {
+        const release = TestBed.inject(SourceActivityService).begin([
+            data.playlistId,
+        ]);
+        const saving = component.save();
+        dialogRef.getState.mockReturnValue(MatDialogState.CLOSING);
+        release();
+        await saving;
+
+        expect(db.updateCategoryVisibility).not.toHaveBeenCalled();
+        expect(dialogRef.close).not.toHaveBeenCalled();
     });
 
     it.each([false, true])(

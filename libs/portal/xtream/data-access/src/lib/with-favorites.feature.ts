@@ -1,8 +1,12 @@
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { captureHistoryOwner } from '@iptvnator/services/history-events';
+import { sourceConnection } from '@iptvnator/services/source-sync/connection';
+import {
+    RuntimeCapabilitiesService,
+    SourceActivityService,
+} from '@iptvnator/services';
 import { NotificationService } from '@iptvnator/services/notifications';
 import { FavoriteChannelMembershipEvents } from '@iptvnator/services/favorites-events';
 import { DestroyRef, inject } from '@angular/core';
-import { TranslateService } from '@ngx-translate/core';
 import {
     type ContentMetadataPatch,
     normalizeContentMetadataPatch,
@@ -41,10 +45,14 @@ export const withFavorites = function () {
                 // The store exists from startup; NotificationService loads the
                 // snack-bar chunk on the first toast, not at startup.
                 notifications = inject(NotificationService),
-                translate = inject(TranslateService),
                 favoriteMembership = inject(FavoriteChannelMembershipEvents)
             ) => {
+                const activity = inject(SourceActivityService);
                 const sqlite = () => runtime.supportsXtreamSqliteDataSource;
+                const pendingWrites = new Map<
+                    string,
+                    Promise<boolean | undefined>
+                >();
                 let request = 0;
                 let activeTarget = '';
                 const publish = (owner: number, isFavorite: boolean) => {
@@ -120,75 +128,102 @@ export const withFavorites = function () {
                             return false;
                         }
 
-                        const target = await resolveTarget(
-                            normalizedXtreamId,
+                        const current = captureHistoryOwner(
+                            sourceConnection()?.instanceId,
                             playlistId,
-                            contentType,
-                            identity
+                            () => sourceConnection()?.instanceId,
+                            'favorites'
                         );
-
-                        if (!target) {
-                            // A typed identity filter can reject all existing copies.
-                            // Preserve the conflict feedback without mutating a contrary row.
-                            const candidate =
-                                identity && sqlite()
-                                    ? await dataSource.getContentByXtreamId(
-                                          normalizedXtreamId,
-                                          playlistId,
-                                          contentType
-                                      )
-                                    : null;
-                            if (candidate && activeTarget === targetKey) {
-                                notifications.error(
-                                    'PORTALS.FAVORITE_IDENTITY_CONFLICT'
-                                );
-                            }
-                            logger.error(
-                                'Content not found for xtream ID',
-                                normalizedXtreamId
+                        const write = async () => {
+                            if (!current()) return;
+                            const target = await resolveTarget(
+                                normalizedXtreamId,
+                                playlistId,
+                                contentType,
+                                identity
                             );
-                            return false;
-                        }
 
-                        const currentStatus = await dataSource.isFavorite(
-                            target,
-                            playlistId
-                        );
-                        let nextStatus = !currentStatus;
+                            if (!current()) return;
+                            if (!target) {
+                                // A typed identity filter can reject all existing copies.
+                                // Preserve the conflict feedback without mutating a contrary row.
+                                const candidate =
+                                    identity && sqlite()
+                                        ? await dataSource.getContentByXtreamId(
+                                              normalizedXtreamId,
+                                              playlistId,
+                                              contentType
+                                          )
+                                        : null;
+                                if (!current()) return;
+                                if (candidate && activeTarget === targetKey) {
+                                    notifications.error(
+                                        'PORTALS.FAVORITE_IDENTITY_CONFLICT'
+                                    );
+                                }
+                                logger.error(
+                                    'Content not found for xtream ID',
+                                    normalizedXtreamId
+                                );
+                                return false;
+                            }
+
+                            const currentStatus = await dataSource.isFavorite(
+                                target,
+                                playlistId
+                            );
+                            if (!current()) return;
+                            let nextStatus = !currentStatus;
+                            try {
+                                if (currentStatus)
+                                    await dataSource.removeFavorite(
+                                        target,
+                                        playlistId
+                                    );
+                                else
+                                    await dataSource.addFavorite(
+                                        target,
+                                        playlistId,
+                                        backdropUrl
+                                    );
+                                if (contentType === 'live' && current())
+                                    favoriteMembership.notify({
+                                        sourceType: 'xtream',
+                                        playlistId,
+                                        xtreamId: normalizedXtreamId,
+                                    });
+                            } catch (error) {
+                                nextStatus = currentStatus;
+                                if (activeTarget === targetKey) {
+                                    const key =
+                                        error instanceof Error &&
+                                        error.message ===
+                                            XTREAM_FAVORITE_IDENTITY_CONFLICT
+                                            ? 'PORTALS.FAVORITE_IDENTITY_CONFLICT'
+                                            : 'PORTALS.FAVORITE_SAVE_FAILED';
+                                    notifications.error(key);
+                                }
+                            }
+                            if (!current()) return;
+                            if (activeTarget === targetKey)
+                                publish(owner, nextStatus);
+                            return nextStatus;
+                        };
+                        const run = () =>
+                            sqlite() && contentType === 'live'
+                                ? activity.runWhenIdle(playlistId, write)
+                                : write();
+                        const previous = pendingWrites.get(targetKey);
+                        const mutation = previous
+                            ? previous.catch(() => undefined).then(run)
+                            : run();
+                        pendingWrites.set(targetKey, mutation);
                         try {
-                            if (currentStatus) {
-                                await dataSource.removeFavorite(
-                                    target,
-                                    playlistId
-                                );
-                            } else {
-                                await dataSource.addFavorite(
-                                    target,
-                                    playlistId,
-                                    backdropUrl
-                                );
-                            }
-                            if (contentType === 'live')
-                                favoriteMembership.notify({
-                                    sourceType: 'xtream',
-                                    playlistId,
-                                    xtreamId: normalizedXtreamId,
-                                });
-                        } catch (error) {
-                            nextStatus = currentStatus;
-                            if (activeTarget === targetKey) {
-                                const key =
-                                    error instanceof Error &&
-                                    error.message ===
-                                        XTREAM_FAVORITE_IDENTITY_CONFLICT
-                                        ? 'PORTALS.FAVORITE_IDENTITY_CONFLICT'
-                                        : 'PORTALS.FAVORITE_SAVE_FAILED';
-                                notifications.error(key);
-                            }
+                            return await mutation;
+                        } finally {
+                            if (pendingWrites.get(targetKey) === mutation)
+                                pendingWrites.delete(targetKey);
                         }
-                        if (activeTarget === targetKey)
-                            publish(owner, nextStatus);
-                        return nextStatus;
                     },
 
                     async checkFavoriteStatus(
@@ -222,6 +257,9 @@ export const withFavorites = function () {
                             return;
                         }
 
+                        const mutation = pendingWrites.get(targetKey);
+                        if (mutation) await mutation.catch(() => undefined);
+                        if (owner !== request) return;
                         const target = await resolveTarget(
                             normalizedXtreamId,
                             playlistId,

@@ -31,13 +31,15 @@ handleWorkerRequest(
         }>,
         type: 'live' | 'movies' | 'series',
         hiddenCategoryXtreamIds?: number[],
-        lockedCategoryXtreamIds?: number[]
+        lockedCategoryXtreamIds?: number[],
+        retainedCategoryIds?: [number, number][]
     ) => ({
         playlistId,
         categories,
         type,
         hiddenCategoryXtreamIds,
         lockedCategoryXtreamIds,
+        ...(retainedCategoryIds && { retainedCategoryIds }),
     })
 );
 

@@ -1,4 +1,5 @@
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql, type Placeholder } from 'drizzle-orm';
+import { RECENTLY_VIEWED_CHRONOLOGY } from '@iptvnator/shared/database';
 import * as schema from '@iptvnator/shared/database/schema';
 import type { AppDatabase } from '../database.types';
 import { persistContentMetadataIfMissing } from './content-metadata.operations';
@@ -7,6 +8,33 @@ import {
     recordRecoveredHistory,
     removeRecoveredHistory,
 } from './xtream-history-recovery';
+
+const viewedAtChronology = () => sql.raw(RECENTLY_VIEWED_CHRONOLOGY);
+
+function historyScope(
+    contentId: number | Placeholder,
+    playlistId: string | Placeholder
+) {
+    // Live history has one provider identity per source, even when the
+    // provider lists that channel in several local category rows.
+    const copies = sql`(
+        SELECT ${contentId}
+        UNION ALL
+        SELECT copy.id
+        FROM content AS target
+        JOIN categories AS target_category ON target_category.id = target.category_id
+        JOIN content AS copy ON copy.xtream_id = target.xtream_id AND copy.type = 'live'
+        JOIN categories AS copy_category ON copy_category.id = copy.category_id
+        WHERE target.id = ${contentId} AND target.type = 'live'
+            AND target_category.playlist_id = ${playlistId}
+            AND copy_category.playlist_id = target_category.playlist_id
+            AND copy.id <> target.id
+    )`;
+    return and(
+        eq(schema.recentlyViewed.playlistId, playlistId),
+        inArray(schema.recentlyViewed.contentId, copies)
+    );
+}
 
 export async function getRecentlyViewed(db: AppDatabase) {
     return db
@@ -42,7 +70,7 @@ export async function getRecentlyViewed(db: AppDatabase) {
             schema.playlists,
             eq(schema.categories.playlistId, schema.playlists.id)
         )
-        .orderBy(desc(schema.recentlyViewed.viewedAt))
+        .orderBy(desc(viewedAtChronology()))
         .limit(100);
 }
 
@@ -85,7 +113,7 @@ export async function getRecentItems(
             eq(schema.recentlyViewed.contentId, schema.content.id)
         )
         .where(eq(schema.recentlyViewed.playlistId, playlistId))
-        .orderBy(desc(schema.recentlyViewed.viewedAt));
+        .orderBy(desc(viewedAtChronology()));
     // Recovery must retain every entry; the ordinary browsing read stays capped.
     return all ? query : query.limit(100);
 }
@@ -94,40 +122,62 @@ export async function addRecentItem(
     db: AppDatabase,
     contentId: number,
     playlistId: string,
-    options?: { backdropUrl?: string }
+    options?: { backdropUrl?: string; viewedAt?: string }
 ): Promise<{ success: boolean }> {
+    const confirmation =
+        typeof options?.viewedAt === 'string'
+            ? new Date(options.viewedAt)
+            : null;
+    const viewedAt =
+        confirmation && Number.isFinite(confirmation.getTime())
+            ? confirmation.toISOString()
+            : undefined;
     db.transaction((tx) => {
+        const scope = historyScope(contentId, playlistId);
         const existing = tx
-            .select()
+            .select({
+                id: schema.recentlyViewed.id,
+                contentId: schema.recentlyViewed.contentId,
+                newer: viewedAt
+                    ? sql<number>`(${viewedAtChronology()}) > julianday(${viewedAt})`
+                    : sql<number>`0`,
+            })
             .from(schema.recentlyViewed)
-            .where(
-                and(
-                    eq(schema.recentlyViewed.contentId, contentId),
-                    eq(schema.recentlyViewed.playlistId, playlistId)
-                )
-            )
-            .limit(1)
+            .where(scope)
+            .orderBy(desc(viewedAtChronology()))
             .all();
-
-        if (existing.length > 0) {
-            tx.update(schema.recentlyViewed)
-                .set({ viewedAt: sql`CURRENT_TIMESTAMP` })
+        const current = existing[0];
+        if (existing.length > 1)
+            tx.delete(schema.recentlyViewed)
                 .where(
                     and(
-                        eq(schema.recentlyViewed.contentId, contentId),
-                        eq(schema.recentlyViewed.playlistId, playlistId)
+                        scope,
+                        sql`${schema.recentlyViewed.id} <> ${current.id}`
                     )
                 )
                 .run();
-        } else {
+        if (!current) {
             tx.insert(schema.recentlyViewed)
                 .values({
                     contentId,
                     playlistId,
+                    ...(viewedAt ? { viewedAt } : {}),
                 })
                 .run();
+        } else if (!current.newer) {
+            tx.update(schema.recentlyViewed)
+                .set({
+                    ...(current.contentId === contentId ? {} : { contentId }),
+                    viewedAt: viewedAt ?? sql`CURRENT_TIMESTAMP`,
+                })
+                .where(eq(schema.recentlyViewed.id, current.id))
+                .run();
         }
-        recordRecoveredHistory(tx, playlistId, contentId);
+        recordRecoveredHistory(
+            tx,
+            playlistId,
+            current?.newer ? current.contentId : contentId
+        );
     });
 
     await persistContentMetadataIfMissing(db, contentId, {
@@ -170,12 +220,7 @@ export async function removeRecentItem(
     db.transaction((tx) => {
         removeRecoveredHistory(tx, [{ contentId, playlistId }]);
         tx.delete(schema.recentlyViewed)
-            .where(
-                and(
-                    eq(schema.recentlyViewed.contentId, contentId),
-                    eq(schema.recentlyViewed.playlistId, playlistId)
-                )
-            )
+            .where(historyScope(contentId, playlistId))
             .run();
     });
 
@@ -193,15 +238,9 @@ export async function removeRecentItemsBatch(
     const stmt = db
         .delete(schema.recentlyViewed)
         .where(
-            and(
-                eq(
-                    schema.recentlyViewed.contentId,
-                    sql.placeholder('contentId')
-                ),
-                eq(
-                    schema.recentlyViewed.playlistId,
-                    sql.placeholder('playlistId')
-                )
+            historyScope(
+                sql.placeholder('contentId'),
+                sql.placeholder('playlistId')
             )
         )
         .prepare();

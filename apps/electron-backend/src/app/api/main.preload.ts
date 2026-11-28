@@ -10,6 +10,7 @@ import type {
     XtreamFavoriteRemovalRef,
     XtreamBackupFavoriteItem,
     XtreamCatalogStateCondition,
+    XtreamStartupRefreshCondition,
 } from '@iptvnator/shared/interfaces';
 import type { SourceProbeContext } from '@iptvnator/shared/interfaces';
 import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron';
@@ -470,6 +471,7 @@ const electronApi: ElectronBridgeApi = {
     },
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
     platform: process.platform,
+    xtreamStartupRefreshVersion: 1,
     getAppUpdateStatus: () => ipcRenderer.invoke(APP_UPDATE_GET_STATUS),
     checkForAppUpdate: () => ipcRenderer.invoke(APP_UPDATE_CHECK),
     downloadAppUpdate: () => ipcRenderer.invoke(APP_UPDATE_DOWNLOAD),
@@ -904,20 +906,31 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('DB_GET_APP_PLAYLIST_FAVORITE_CHANNELS', playlistId),
     dbUpdatePlaylist: (
         playlistId: string,
-        updates: Partial<Playlist> | ElectronBridgePlaylistInput
-    ) => ipcRenderer.invoke('DB_UPDATE_PLAYLIST', playlistId, updates),
+        updates: Partial<Playlist> | ElectronBridgePlaylistInput,
+        condition?: XtreamStartupRefreshCondition
+    ) =>
+        ipcRenderer.invoke(
+            'DB_UPDATE_PLAYLIST',
+            playlistId,
+            updates,
+            ...(condition === undefined ? [] : [condition])
+        ),
     dbDeletePlaylist: (playlistId: string, operationId?: string) =>
         ipcRenderer.invoke('DB_DELETE_PLAYLIST', playlistId, operationId),
     dbDeleteXtreamContent: (
         playlistId: string,
         operationId?: string,
-        contentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[]
+        contentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[],
+        startupCondition?: XtreamStartupRefreshCondition
     ) =>
         ipcRenderer.invoke(
             'DB_DELETE_XTREAM_CONTENT',
             playlistId,
             operationId,
-            ...(contentTypes === undefined ? [] : [contentTypes])
+            ...(contentTypes === undefined && startupCondition === undefined
+                ? []
+                : [contentTypes]),
+            ...(startupCondition === undefined ? [] : [startupCondition])
         ),
     dbRestoreXtreamFavorites: (
         playlistId: string,
@@ -952,7 +965,8 @@ const electronApi: ElectronBridgeApi = {
         categories: XtreamCategory[],
         type: string,
         hiddenCategoryXtreamIds?: number[],
-        lockedCategoryXtreamIds?: number[]
+        lockedCategoryXtreamIds?: number[],
+        retainedCategoryIds?: [number, number][]
     ) =>
         ipcRenderer.invoke(
             'DB_SAVE_CATEGORIES',
@@ -960,7 +974,8 @@ const electronApi: ElectronBridgeApi = {
             categories,
             type,
             hiddenCategoryXtreamIds,
-            lockedCategoryXtreamIds
+            lockedCategoryXtreamIds,
+            ...(retainedCategoryIds ? [retainedCategoryIds] as const : [])
         ),
     dbGetAllCategories: (playlistId: string, type: string) =>
         ipcRenderer.invoke('DB_GET_ALL_CATEGORIES', playlistId, type),
@@ -1097,13 +1112,15 @@ const electronApi: ElectronBridgeApi = {
     dbAddRecentItem: (
         contentId: number,
         playlistId: string,
-        backdropUrl?: string
+        backdropUrl?: string,
+        viewedAt?: string
     ) =>
         ipcRenderer.invoke(
             'DB_ADD_RECENT_ITEM',
             contentId,
             playlistId,
-            backdropUrl
+            backdropUrl,
+            ...(viewedAt === undefined ? [] : [viewedAt])
         ),
     dbClearPlaylistRecentItems: (playlistId: string) =>
         ipcRenderer.invoke('DB_CLEAR_PLAYLIST_RECENT_ITEMS', playlistId),
@@ -1118,20 +1135,23 @@ const electronApi: ElectronBridgeApi = {
         contentType?: 'live' | 'movie' | 'series',
         identity?: ContentMetadataPatch,
         categoryId?: number,
-        excludeLocked?: boolean
+        excludeLocked?: boolean,
+        fallbackToUniqueCategory?: boolean
     ) =>
         ipcRenderer.invoke(
             'DB_GET_CONTENT_BY_XTREAM_ID',
             xtreamId,
             playlistId,
             contentType,
-            ...(excludeLocked
-                ? [identity, categoryId, true]
-                : categoryId !== undefined
-                  ? [identity, categoryId]
-                  : identity
-                    ? [identity]
-                    : [])
+            ...(fallbackToUniqueCategory
+                ? [identity, categoryId, excludeLocked, true]
+                : excludeLocked
+                  ? [identity, categoryId, true]
+                  : categoryId !== undefined
+                    ? [identity, categoryId]
+                    : identity
+                      ? [identity]
+                      : [])
         ),
     dbSetContentMetadataIfMissing: (
         contentId: number,

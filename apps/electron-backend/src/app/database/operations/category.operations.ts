@@ -45,20 +45,27 @@ function normalizeXtreamCategories(
     categories: XtreamCategoryInput[],
     type: 'live' | 'movies' | 'series',
     hiddenCategoryXtreamIds?: number[],
-    lockedCategoryXtreamIds?: number[]
+    lockedCategoryXtreamIds?: number[],
+    retainedCategoryIds?: [number, number][]
 ): XtreamCategoryValue[] {
     const hiddenSet = new Set(hiddenCategoryXtreamIds || []);
     const lockedSet = new Set(lockedCategoryXtreamIds || []);
+    const retained = retainedCategoryIds && new Map(retainedCategoryIds);
 
-    return categories.flatMap((category) => {
+    return categories.flatMap((category, providerOrder) => {
         const xtreamId = normalizeXtreamCategoryId(category.category_id);
 
         if (xtreamId === null) {
             return [];
         }
 
+        const id = retained?.get(xtreamId);
+        // Reuse the row ID only once if the provider sends a duplicate category.
+        retained?.delete(xtreamId);
         return [
             {
+                id,
+                providerOrder: retained ? providerOrder : undefined,
                 playlistId,
                 name: category.category_name,
                 type,
@@ -120,10 +127,8 @@ export async function getCategories(
     type: 'live' | 'movies' | 'series',
     capturePhase?: DatabaseOperationPerformancePhaseCapture
 ) {
-    // Xtream categories are inserted once in provider order and existing
-    // xtream IDs are preserved, so row id order represents server order.
-    // If partial category re-inserts are added later, persist a provider
-    // sort index instead of relying on the insertion id.
+    // Startup refresh retains category IDs and stores the new provider order.
+    // Older rows and first imports are already numbered in provider order.
     const query = db
         .select(categoryWireShape)
         .from(schema.categories)
@@ -135,7 +140,10 @@ export async function getCategories(
                 unlockedCategoryCondition()
             )
         )
-        .orderBy(schema.categories.id);
+        .orderBy(
+            sql`coalesce(${schema.categories.providerOrder}, ${schema.categories.id})`,
+            schema.categories.id
+        );
 
     return capturePhase
         ? capturePhase.captureAsync(
@@ -153,7 +161,8 @@ export async function saveCategories(
     type: 'live' | 'movies' | 'series',
     hiddenCategoryXtreamIds?: number[],
     lockedCategoryXtreamIds?: number[],
-    capturePhase?: DatabaseOperationPerformancePhaseCapture
+    capturePhase?: DatabaseOperationPerformancePhaseCapture,
+    retainedCategoryIds?: [number, number][]
 ): Promise<{ success: boolean }> {
     if (!categories || categories.length === 0) {
         return { success: true };
@@ -182,7 +191,8 @@ export async function saveCategories(
                       categories,
                       type,
                       hiddenCategoryXtreamIds,
-                      lockedCategoryXtreamIds
+                      lockedCategoryXtreamIds,
+                      retainedCategoryIds
                   ),
               (result) => ({ itemCount: result.length })
           )
@@ -191,7 +201,8 @@ export async function saveCategories(
               categories,
               type,
               hiddenCategoryXtreamIds,
-              lockedCategoryXtreamIds
+              lockedCategoryXtreamIds,
+              retainedCategoryIds
           );
 
     if (values.length === 0) {

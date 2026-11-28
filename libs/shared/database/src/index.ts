@@ -9,3 +9,4 @@ export * from './lib/connection';
 export * from './lib/path-utils';
 export * from './lib/connection-observer';
 export * from './lib/app-playlist';
+export { RECENTLY_VIEWED_CHRONOLOGY } from './lib/recent-history-order';

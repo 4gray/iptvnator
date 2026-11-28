@@ -75,8 +75,10 @@ is the source of truth for all three portal types. Xtream additionally keeps
 re-stamps one playlist/type from a provider-id list (idempotent, so the store
 can be replayed after a refresh or a backup restore), and `DB_SAVE_CATEGORIES`
 takes `lockedCategoryXtreamIds` so a refresh recreates the rows already
-stamped. Locks are keyed by provider ids, never by SQLite row ids, because a
-refresh deletes and re-inserts the rows.
+stamped. Xtream startup inserts categories in the lock store's write queue,
+so concurrent edits and inserts apply in order. Locks are keyed by provider
+ids, never by SQLite row ids, because a refresh deletes and re-inserts the
+rows.
 
 ## Enforcement — two layers, both default-closed
 
@@ -204,8 +206,9 @@ so a cancelled or refused PIN leaves it showing the real state.
 
 - **Xtream (Electron):** the store reads categories and streams through the
   worker, so they arrive filtered. On `version` changes
-  `ParentalLockEnforcementService` (`apps/web/src/app/services/`) calls
-  `XtreamStore.reloadCategories()` + `reloadCachedContent()` and, if the
+  `ParentalLockEnforcementService` (`apps/web/src/app/services/`) lazily loads
+  the Xtream catalog reload when a portal is present in the store. The reload
+  calls `XtreamStore.reloadCategories()` + `reloadCachedContent()` and, if the
   selected category vanished, clears the selection and navigates to the
   section root. The selected ITEM is judged separately, on its own
   `category_id` against the reloaded category list: a detail opened from

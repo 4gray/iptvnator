@@ -20,6 +20,7 @@ import type {
     XtreamBackupHiddenCategory,
     XtreamBackupRecentlyViewedItem,
     XtreamCategory,
+    XtreamStartupRefreshCondition,
 } from '@iptvnator/shared/interfaces';
 
 export interface XCategoryFromDb {
@@ -76,6 +77,7 @@ type XtreamDatabasePlaylistUpdate = {
     userAgent?: string;
     serverUrl?: string;
     lastUpdated?: string;
+    autoRefresh?: boolean;
     xtreamContentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[];
 };
 
@@ -294,9 +296,11 @@ export class DatabaseService {
         playlistId: string,
         options?: DbOperationOptions & {
             contentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[];
+            startupCondition?: XtreamStartupRefreshCondition;
         }
     ): Promise<{
         success: boolean;
+        skipped?: true;
         favorites: XtreamBackupFavoriteItem[];
         recentlyViewed: XtreamBackupRecentlyViewedItem[];
         hiddenCategories: XtreamBackupHiddenCategory[];
@@ -308,7 +312,10 @@ export class DatabaseService {
                 window.electron.dbDeleteXtreamContent(
                     playlistId,
                     operationId,
-                    options?.contentTypes
+                    options?.contentTypes,
+                    ...(options?.startupCondition === undefined
+                        ? []
+                        : ([options.startupCondition] as const))
                 ),
             options
         );
@@ -413,6 +420,7 @@ export class DatabaseService {
         userAgent?: string;
         serverUrl?: string;
         updateDate?: number;
+        autoRefresh?: boolean;
         xtreamContentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[];
     }): Promise<boolean> {
         try {
@@ -431,6 +439,8 @@ export class DatabaseService {
                 if (playlist[key]) updates[key] = playlist[key];
             if (playlist.userAgent !== undefined)
                 updates.userAgent = playlist.userAgent;
+            if (playlist.autoRefresh !== undefined)
+                updates.autoRefresh = playlist.autoRefresh;
             if (playlist.xtreamContentTypes !== undefined)
                 updates.xtreamContentTypes = playlist.xtreamContentTypes;
             if (playlist.updateDate !== undefined)
@@ -503,14 +513,16 @@ export class DatabaseService {
         categories: XtreamCategory[],
         type: 'live' | 'movies' | 'series',
         hiddenCategoryXtreamIds?: number[],
-        lockedCategoryXtreamIds?: number[]
+        lockedCategoryXtreamIds?: number[],
+        retainedCategoryIds?: [number, number][]
     ): Promise<void> {
         await window.electron.dbSaveCategories(
             playlistId,
             categories,
             type,
             hiddenCategoryXtreamIds,
-            lockedCategoryXtreamIds
+            lockedCategoryXtreamIds,
+            ...(retainedCategoryIds ? [retainedCategoryIds] as const : [])
         );
     }
 
@@ -1013,7 +1025,8 @@ export class DatabaseService {
     async addRecentItem(
         contentId: number,
         playlistId: string,
-        backdropUrl?: string
+        backdropUrl?: string,
+        viewedAt?: string
     ): Promise<boolean> {
         if (typeof window.electron?.dbAddRecentItem !== 'function') {
             return false;
@@ -1023,7 +1036,8 @@ export class DatabaseService {
             await window.electron.dbAddRecentItem(
                 contentId,
                 playlistId,
-                backdropUrl
+                backdropUrl,
+                ...(viewedAt === undefined ? [] : [viewedAt])
             );
             return true;
         } catch (error) {
@@ -1128,7 +1142,8 @@ export class DatabaseService {
         contentType?: 'live' | 'movie' | 'series',
         identity?: ContentMetadataPatch,
         categoryId?: number,
-        excludeLocked?: boolean
+        excludeLocked?: boolean,
+        fallbackToUniqueCategory?: boolean
     ): Promise<XtreamContent | null> {
         if (typeof window.electron?.dbGetContentByXtreamId !== 'function') {
             return null;
@@ -1154,6 +1169,7 @@ export class DatabaseService {
             if (selector) args[3] = selector;
             if (categoryId !== undefined) args[4] = categoryId;
             if (excludeLocked) args[5] = true;
+            if (fallbackToUniqueCategory) args[6] = true;
             return await window.electron.dbGetContentByXtreamId(...args);
         } catch (error) {
             console.error('Error getting content by xtream ID:', error);

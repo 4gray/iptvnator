@@ -11,11 +11,13 @@ import {
     viewChild,
     viewChildren,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
+import { SourceActivityService } from '@iptvnator/services';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
     ChannelListItemComponent,
@@ -63,6 +65,7 @@ import type { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 })
 export class SecondStreamPickerComponent {
     private readonly catalog = inject(SecondStreamCatalogService);
+    private readonly activity = inject(SourceActivityService);
     private readonly dialog =
         inject<
             MatDialogRef<SecondStreamPickerComponent, SecondStreamSelection>
@@ -161,6 +164,19 @@ export class SecondStreamPickerComponent {
         this.dialog.beforeClosed().subscribe(cancelRequests);
         inject(DestroyRef).onDestroy(cancelRequests);
         void this.loadSources();
+        this.activity.liveCatalogReplacements$
+            .pipe(takeUntilDestroyed())
+            .subscribe((sourceId) => {
+                const source = this.source();
+                if (
+                    !this.closed &&
+                    this.vod.type() === null &&
+                    (!source ||
+                        source === this.historySource ||
+                        source === sourceId)
+                )
+                    void this.reload();
+            });
         effect(() => {
             this.catalog.version();
             untracked(() => {
@@ -340,9 +356,15 @@ export class SecondStreamPickerComponent {
     }
 
     async choose(row: SecondStreamChannel): Promise<void> {
-        await this.resolve(row.item.uid, this.openSlot(row.item), async () => ({
-            item: row.item,
+        const { item } = row;
+        const catalogRevision =
+            item.sourceType === 'xtream' && item.contentType === 'live'
+                ? this.activity.liveCatalogRevision(item.playlistId)
+                : undefined;
+        await this.resolve(item.uid, this.openSlot(item), async () => ({
+            item,
             playback: await this.catalog.resolve(row),
+            ...(catalogRevision === undefined ? {} : { catalogRevision }),
         }));
     }
 

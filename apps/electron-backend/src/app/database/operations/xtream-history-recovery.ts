@@ -1,4 +1,5 @@
-import { and, eq, inArray, like } from 'drizzle-orm';
+import { and, eq, inArray, like, sql } from 'drizzle-orm';
+import { RECENTLY_VIEWED_CHRONOLOGY } from '@iptvnator/shared/database';
 import * as schema from '@iptvnator/shared/database/schema';
 import {
     parseXtreamHistoryRecovery,
@@ -13,6 +14,11 @@ type HistoryDatabase = Pick<
     AppDatabase,
     'select' | 'insert' | 'delete' | 'update'
 >;
+type RecoveredHistoryRow = XtreamHistoryRecovery['recentlyViewed'][number];
+const liveCategoryXtreamId = sql<
+    number | null
+>`case when ${schema.content.type} = 'live' then ${schema.categories.xtreamId} end`;
+
 const identity = (
     row: Pick<XtreamBackupRecentlyViewedItem, 'contentType' | 'xtreamId'>
 ) => `${row.contentType}:${row.xtreamId}`;
@@ -49,24 +55,32 @@ function writeHistoryRecovery(
 function liveHistory(
     db: HistoryDatabase,
     playlistId: string
-): XtreamBackupRecentlyViewedItem[] {
-    return db
+): RecoveredHistoryRow[] {
+    const rows = db
         .select({
             contentType: schema.content.type,
             xtreamId: schema.content.xtreamId,
             viewedAt: schema.recentlyViewed.viewedAt,
+            liveCategoryXtreamId,
         })
         .from(schema.recentlyViewed)
         .innerJoin(
             schema.content,
             eq(schema.recentlyViewed.contentId, schema.content.id)
         )
+        .innerJoin(
+            schema.categories,
+            eq(schema.content.categoryId, schema.categories.id)
+        )
         .where(eq(schema.recentlyViewed.playlistId, playlistId))
-        .all()
-        .map((row) => ({
-            ...row,
-            viewedAt: row.viewedAt ?? new Date().toISOString(),
-        })) as XtreamBackupRecentlyViewedItem[];
+        // The journal keeps the last row for a provider identity.
+        .orderBy(sql.raw(RECENTLY_VIEWED_CHRONOLOGY), schema.recentlyViewed.id)
+        .all();
+    return rows.map((row) => ({
+        ...row,
+        viewedAt: row.viewedAt ?? new Date().toISOString(),
+        liveCategoryXtreamId: row.liveCategoryXtreamId ?? undefined,
+    })) as RecoveredHistoryRow[];
 }
 
 /** Captures live history and merges owned archives without undoing removals. */
@@ -115,11 +129,16 @@ export function recordRecoveredHistory(
             contentType: schema.content.type,
             xtreamId: schema.content.xtreamId,
             viewedAt: schema.recentlyViewed.viewedAt,
+            liveCategoryXtreamId,
         })
         .from(schema.recentlyViewed)
         .innerJoin(
             schema.content,
             eq(schema.recentlyViewed.contentId, schema.content.id)
+        )
+        .innerJoin(
+            schema.categories,
+            eq(schema.content.categoryId, schema.categories.id)
         )
         .where(
             and(
@@ -127,12 +146,15 @@ export function recordRecoveredHistory(
                 eq(schema.content.id, contentId)
             )
         )
-        .get() as XtreamBackupRecentlyViewedItem | undefined;
+        .get() as RecoveredHistoryRow | undefined;
     if (!row) return;
     journal.recentlyViewed = journal.recentlyViewed.filter(
         (item) => identity(item) !== identity(row)
     );
-    journal.recentlyViewed.push(row);
+    journal.recentlyViewed.push({
+        ...row,
+        liveCategoryXtreamId: row.liveCategoryXtreamId ?? undefined,
+    });
     journal.resolved = [
         ...new Map(
             [
@@ -262,12 +284,15 @@ export function replayRecoveredHistory(
             ...new Set(journal.recentlyViewed.map((row) => row.xtreamId)),
         ];
         const content = new Map<string, number>();
+        const liveCategoryContent = new Map<string, number>();
+        const duplicates = new Set<string>();
         for (let offset = 0; offset < ids.length; offset += 1000) {
             const rows = tx
                 .select({
                     id: schema.content.id,
                     contentType: schema.content.type,
                     xtreamId: schema.content.xtreamId,
+                    liveCategoryXtreamId,
                 })
                 .from(schema.content)
                 .innerJoin(
@@ -284,12 +309,29 @@ export function replayRecoveredHistory(
                     )
                 )
                 .all();
-            for (const row of rows)
-                content.set(`${row.contentType}:${row.xtreamId}`, row.id);
+            for (const row of rows) {
+                const key = `${row.contentType}:${row.xtreamId}`;
+                if (row.liveCategoryXtreamId != null) {
+                    if (content.has(key)) duplicates.add(key);
+                    liveCategoryContent.set(
+                        `${key}:${row.liveCategoryXtreamId}`,
+                        row.id
+                    );
+                }
+                content.set(key, row.id);
+            }
         }
+        const resolve = (row: RecoveredHistoryRow): number | undefined => {
+            const key = identity(row);
+            if (row.liveCategoryXtreamId === undefined) return content.get(key);
+            return (
+                liveCategoryContent.get(`${key}:${row.liveCategoryXtreamId}`) ??
+                (duplicates.has(key) ? undefined : content.get(key))
+            );
+        };
         const rows = journal.recentlyViewed
             .map((row) => ({
-                contentId: content.get(identity(row)),
+                contentId: resolve(row),
                 playlistId,
                 viewedAt: row.viewedAt,
             }))
@@ -314,7 +356,7 @@ export function replayRecoveredHistory(
         // must consume only copies now owned by native history. Keep this proof
         // in the same transaction so remove/rewatch cannot erase it mid-read.
         journal.resolved = journal.recentlyViewed
-            .filter((row) => content.has(identity(row)))
+            .filter((row) => resolve(row) !== undefined)
             .map(({ contentType, xtreamId }) => ({ contentType, xtreamId }));
         writeHistoryRecovery(tx, playlistId, journal);
         return rows.length;

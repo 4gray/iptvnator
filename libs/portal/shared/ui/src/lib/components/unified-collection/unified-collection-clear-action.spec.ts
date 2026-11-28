@@ -26,6 +26,7 @@ describe('createClearCollectionAction', () => {
         removeRecentItemsBatch: jest.fn(),
     };
     const dropCurrentType = jest.fn();
+    const reload = jest.fn().mockResolvedValue(undefined);
 
     function createAction(
         mode: CollectionMode,
@@ -48,7 +49,7 @@ describe('createClearCollectionAction', () => {
                 isPlaylistScope: () => true,
                 data: data as unknown as UnifiedCollectionDataService,
                 dropCurrentType,
-                reload: jest.fn().mockResolvedValue(undefined),
+                reload,
             })
         );
     }
@@ -83,6 +84,20 @@ describe('createClearCollectionAction', () => {
         expect(data.removeRecentItemsBatch).toHaveBeenCalledWith([recentItem]);
         expect(data.clearFavorites).not.toHaveBeenCalled();
     });
+
+    it.each(['favorites', 'recent'] as const)(
+        'reloads the %s collection when a deferred clear is canceled',
+        async (mode) => {
+            const clear =
+                mode === 'favorites'
+                    ? data.clearFavorites
+                    : data.removeRecentItemsBatch;
+            clear.mockResolvedValueOnce(false);
+            createAction(mode).run();
+            await lastDialog().onConfirm();
+            expect(reload).toHaveBeenCalledTimes(1);
+        }
+    );
 
     it('asks nothing when the tab on screen has no rows', () => {
         createAction('recent', []).run();

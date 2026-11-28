@@ -1,9 +1,7 @@
+import { collectionConsentKey } from '@iptvnator/services/history-events';
 import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 export function favoritesConsentKey(): string | null {
-    const instance = sourceConnection()?.instanceId;
-    return instance
-        ? `iptvnator-server:${instance}:favorites-consent-v1`
-        : null;
+    return collectionConsentKey(sourceConnection()?.instanceId, 'favorites');
 }
 function preference(): { enabled?: boolean } | null {
     try {

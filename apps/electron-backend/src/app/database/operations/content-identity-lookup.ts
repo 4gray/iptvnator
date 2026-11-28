@@ -16,7 +16,8 @@ export async function getContentByXtreamId(
     contentType?: 'live' | 'movie' | 'series',
     identity?: ContentMetadataPatch,
     categoryId?: number,
-    excludeLocked?: boolean
+    excludeLocked?: boolean,
+    fallbackToUniqueCategory?: boolean
 ) {
     const conditions = [
         eq(schema.content.xtreamId, xtreamId),
@@ -24,10 +25,11 @@ export async function getContentByXtreamId(
         ...(excludeLocked ? [unlockedCategoryCondition()] : []),
     ];
     if (contentType) conditions.push(eq(schema.content.type, contentType));
-    if (categoryId !== undefined) {
-        if (!Number.isSafeInteger(categoryId) || categoryId <= 0) return null;
-        conditions.push(eq(schema.content.categoryId, categoryId));
-    }
+    if (
+        categoryId !== undefined &&
+        (!Number.isSafeInteger(categoryId) || categoryId <= 0)
+    )
+        return null;
     const patch = identity ? normalizeContentMetadataPatch(identity) : null;
     if (patch?.tmdbId != null)
         conditions.push(
@@ -37,18 +39,31 @@ export async function getContentByXtreamId(
         conditions.push(
             sql`(${schema.content.releaseYear} IS NULL OR ${schema.content.releaseYear} = ${patch.releaseYear})`
         );
-    const query = db
-        .select({
-            ...selectContentFields(),
-            tmdb_id: schema.content.tmdbId,
-            release_year: schema.content.releaseYear,
-        })
-        .from(schema.content)
-        .innerJoin(
-            schema.categories,
-            eq(schema.content.categoryId, schema.categories.id)
-        )
-        .where(and(...conditions));
+    const select = () =>
+        db
+            .select({
+                ...selectContentFields(),
+                tmdb_id: schema.content.tmdbId,
+                release_year: schema.content.releaseYear,
+            })
+            .from(schema.content)
+            .innerJoin(
+                schema.categories,
+                eq(schema.content.categoryId, schema.categories.id)
+            );
+    const categoryConditions =
+        categoryId === undefined
+            ? conditions
+            : [...conditions, eq(schema.content.categoryId, categoryId)];
+    const query = select().where(and(...categoryConditions));
+    if (categoryId !== undefined && fallbackToUniqueCategory) {
+        const preferred = (await query.limit(1))[0];
+        if (preferred) return preferred;
+        const other = await select()
+            .where(and(...conditions))
+            .limit(2);
+        return other.length === 1 ? other[0] : null;
+    }
     if (patch?.tmdbId != null || patch?.releaseYear != null) {
         const confirmed = and(
             patch.tmdbId != null

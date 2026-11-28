@@ -1,3 +1,4 @@
+import { Location } from '@angular/common';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { NavigationEnd, NavigationStart, Router } from '@angular/router';
@@ -10,6 +11,7 @@ import {
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import { SourceActivityService } from '@iptvnator/services';
+import { XtreamStartupRefreshService } from '@iptvnator/services/xtream-startup-refresh';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { XtreamWorkspaceRouteSession } from './xtream-workspace-route-session.service';
 
@@ -92,6 +94,15 @@ describe('XtreamWorkspaceRouteSession', () => {
     const contentInitBlockReason = signal<XtreamContentInitBlockReason | null>(
         null
     );
+    const liveCategories = signal([{ id: 11, xtream_id: 7 }]);
+    const matchesUpdate = jest.fn();
+    const wasLiveCategoryRemoved = jest.fn();
+    const liveStreams = signal([
+        { id: 101, xtream_id: 42, category_id: 11, type: 'live' },
+    ]);
+    const selectedItem = signal<ReturnType<typeof liveStreams>[number] | null>(
+        null
+    );
     let hasUsableOfflineCache = false;
 
     const playlistContext = {
@@ -140,8 +151,24 @@ describe('XtreamWorkspaceRouteSession', () => {
             }
         ),
         isContentInitialized,
+        selectedCategoryId,
         contentLoadStateByType,
         contentInitBlockReason,
+        liveCategories,
+        liveStreams,
+        selectedContentType,
+        selectedItem,
+        setSelectedItem: jest.fn((item: ReturnType<typeof selectedItem>) =>
+            selectedItem.set(item)
+        ),
+        reloadLiveCatalog: jest.fn(async () => {
+            liveCategories.set([{ id: 11, xtream_id: 7 }]);
+            liveStreams.set([
+                { id: 202, xtream_id: 42, category_id: 11, type: 'live' },
+            ]);
+            return true;
+        }),
+        refreshSearchResults: jest.fn().mockResolvedValue(undefined),
         initializeContent: jest.fn().mockImplementation(async () => {
             isContentInitialized.set(true);
             contentLoadStateByType.set({
@@ -199,10 +226,22 @@ describe('XtreamWorkspaceRouteSession', () => {
     const router = {
         url: `/workspace/xtreams/${PLAYLIST_ID}/vod`,
         events: routerEvents.asObservable(),
+        currentNavigation: jest.fn(),
+        navigateByUrl: jest.fn(),
     };
+    const location = { getState: jest.fn() };
 
     beforeEach(async () => {
         router.url = `/workspace/xtreams/${PLAYLIST_ID}/vod`;
+        router.currentNavigation.mockReset().mockReturnValue(null);
+        router.navigateByUrl
+            .mockReset()
+            .mockImplementation(async (url: string) => {
+                router.url = url;
+                routerEvents.next(new NavigationEnd(2, url, url));
+                return true;
+            });
+        location.getState.mockReset().mockReturnValue({});
         routeProvider.set('xtreams');
         routePlaylistId.set(PLAYLIST_ID);
         activePlaylist.set(ACTIVE_PLAYLIST);
@@ -218,6 +257,16 @@ describe('XtreamWorkspaceRouteSession', () => {
             series: 'idle',
         });
         contentInitBlockReason.set(null);
+        liveCategories.set([{ id: 11, xtream_id: 7 }]);
+        matchesUpdate.mockReset().mockReturnValue(false);
+        wasLiveCategoryRemoved.mockReset().mockReturnValue(false);
+        liveStreams.set([
+            { id: 101, xtream_id: 42, category_id: 11, type: 'live' },
+        ]);
+        selectedItem.set(null);
+        xtreamStore.setSelectedItem.mockClear();
+        xtreamStore.reloadLiveCatalog.mockClear();
+        xtreamStore.refreshSearchResults.mockClear();
         hasUsableOfflineCache = false;
 
         playlistContext.syncFromUrl.mockImplementation((url: string) => ({
@@ -252,6 +301,10 @@ describe('XtreamWorkspaceRouteSession', () => {
             providers: [
                 XtreamWorkspaceRouteSession,
                 {
+                    provide: XtreamStartupRefreshService,
+                    useValue: { matchesUpdate, wasLiveCategoryRemoved },
+                },
+                {
                     provide: PlaylistContextFacade,
                     useValue: playlistContext,
                 },
@@ -259,6 +312,7 @@ describe('XtreamWorkspaceRouteSession', () => {
                     provide: Router,
                     useValue: router,
                 },
+                { provide: Location, useValue: location },
                 {
                     provide: XtreamStore,
                     useValue: xtreamStore,
@@ -283,6 +337,131 @@ describe('XtreamWorkspaceRouteSession', () => {
         expect(xtreamStore.setSelectedContentType).toHaveBeenCalledWith('vod');
         expect(xtreamStore.prepareContentLoading).toHaveBeenCalledWith('vod');
         expect(xtreamStore.initializeContent).toHaveBeenCalled();
+    });
+
+    it.each([11, null])(
+        'keeps the retained category URL and redirects a removed category (selection %s)',
+        async (newId) => {
+            const live = `/workspace/xtreams/${PLAYLIST_ID}/live`;
+            const suffix = '?q=News%20Live&filter=a&filter=b#channels';
+            const historyState = { openXtreamLiveItemId: 42 };
+            location.getState.mockReturnValue(historyState);
+            router.url = `${live}/11${suffix}`;
+            playlistId.set(PLAYLIST_ID);
+            currentPlaylist.set(XTREAM_PLAYLIST);
+            xtreamStore.checkPortalStatus.mockResolvedValue('active');
+            isContentInitialized.set(true);
+            contentLoadStateByType.set({
+                live: 'ready',
+                vod: 'idle',
+                series: 'idle',
+            });
+            TestBed.inject(XtreamWorkspaceRouteSession);
+            await flushEffects();
+            expect(selectedCategoryId()).toBe(11);
+            expect(contentLoadStateByType().live).toBe('ready');
+
+            if (newId === null) {
+                xtreamStore.reloadLiveCatalog.mockImplementationOnce(
+                    async () => {
+                        liveCategories.set([]);
+                        liveStreams.set([]);
+                        return true;
+                    }
+                );
+            }
+            selectedItem.set(liveStreams()[0]);
+            matchesUpdate.mockReturnValue(true);
+            wasLiveCategoryRemoved.mockImplementation(
+                (_playlistId: string, _updateDate: number, id: number) =>
+                    id === 11 && newId === null
+            );
+            activePlaylist.set({ ...ACTIVE_PLAYLIST, updateDate: 42 });
+            TestBed.flushEffects();
+            await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+            expect(matchesUpdate).toHaveBeenCalledWith(PLAYLIST_ID, 42);
+            expect(xtreamStore.resetStore).not.toHaveBeenCalled();
+            expect(contentLoadStateByType().live).toBe('ready');
+            expect(xtreamStore.reloadLiveCatalog).toHaveBeenCalledWith(
+                PLAYLIST_ID
+            );
+            expect(xtreamStore.refreshSearchResults).toHaveBeenCalled();
+            expect(currentPlaylist()?.updateDate).toBe(42);
+            expect(selectedCategoryId()).toBe(newId);
+            if (newId !== null) {
+                expect(selectedItem()).toEqual({
+                    id: 202,
+                    xtream_id: 42,
+                    category_id: 11,
+                    type: 'live',
+                });
+            }
+            const replacedUrl = `${live}${newId === null ? '' : `/${newId}`}${suffix}`;
+            expect(router.navigateByUrl).toHaveBeenCalledTimes(
+                newId === null ? 1 : 0
+            );
+            if (newId === null) {
+                expect(router.navigateByUrl).toHaveBeenCalledWith(replacedUrl, {
+                    replaceUrl: true,
+                    state: historyState,
+                });
+            }
+
+            const away = `/workspace/xtreams/${PLAYLIST_ID}/vod`;
+            router.url = away;
+            routerEvents.next(new NavigationEnd(3, away, away));
+            await flushEffects();
+            const oldHistoryUrl = `${live}/11${suffix}`;
+            router.url = oldHistoryUrl;
+            routerEvents.next(
+                new NavigationEnd(4, oldHistoryUrl, oldHistoryUrl)
+            );
+            await new Promise<void>((resolve) => setTimeout(resolve, 0));
+            expect(router.url).toBe(replacedUrl);
+            expect(selectedCategoryId()).toBe(newId);
+            expect(xtreamStore.reloadLiveCatalog).toHaveBeenCalledTimes(1);
+        }
+    );
+
+    it('redirects a removed category on return when refresh completes during navigation', async () => {
+        const live = `/workspace/xtreams/${PLAYLIST_ID}/live`;
+        const oldUrl = `${live}/11?q=Sample`;
+        const away = `/workspace/xtreams/${PLAYLIST_ID}/vod`;
+        router.url = oldUrl;
+        playlistId.set(PLAYLIST_ID);
+        currentPlaylist.set(XTREAM_PLAYLIST);
+        isContentInitialized.set(true);
+        contentLoadStateByType.set({
+            live: 'ready',
+            vod: 'ready',
+            series: 'idle',
+        });
+        TestBed.inject(XtreamWorkspaceRouteSession);
+        await flushEffects();
+
+        router.currentNavigation.mockReturnValue({ id: 3 });
+        matchesUpdate.mockReturnValue(true);
+        wasLiveCategoryRemoved.mockImplementation(
+            (_playlistId: string, _updateDate: number, id: number) => id === 11
+        );
+        activePlaylist.set({ ...ACTIVE_PLAYLIST, updateDate: 42 });
+        TestBed.flushEffects();
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        expect(router.navigateByUrl).not.toHaveBeenCalled();
+        expect(currentPlaylist()?.updateDate).toBe(42);
+
+        router.currentNavigation.mockReturnValue(null);
+        router.url = away;
+        routerEvents.next(new NavigationEnd(3, away, away));
+        await flushEffects();
+        router.url = oldUrl;
+        routerEvents.next(new NavigationEnd(4, oldUrl, oldUrl));
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+        expect(router.url).toBe(`${live}?q=Sample`);
+        expect(selectedCategoryId()).toBeNull();
+        expect(xtreamStore.reloadLiveCatalog).toHaveBeenCalledTimes(1);
     });
 
     it('holds the routed source busy until the import it awaits settles', async () => {

@@ -11,14 +11,16 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { ParentalLockService } from '@iptvnator/services';
+import {
+    ParentalLockService,
+    SourceActivityService,
+} from '@iptvnator/services';
 import type {
     EpgProgram,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import {
     captureXtreamLiveOwner,
-    hasXtreamOpenedMedia,
     isXtreamLiveCategoryWithheld,
     sameXtreamLiveOwner,
     XtreamExternalLiveSessions,
@@ -31,6 +33,8 @@ import {
 
 import {
     guideLaunchFromSource,
+    hasXtreamOpenedMedia,
+    openXtreamAfterHandoff,
     withConfirmedChannelCopy,
     type ConfirmedLaunch,
     type GuideLaunch,
@@ -44,6 +48,7 @@ export class XtreamGuideExternalPlayback {
         optional: true,
     });
     private readonly lock = inject(ParentalLockService);
+    private readonly sourceActivity = inject(SourceActivityService);
     private readonly sessions = inject(XtreamExternalLiveSessions);
     private readonly store = inject(XtreamStore);
     private readonly destroyRef = inject(DestroyRef);
@@ -87,9 +92,9 @@ export class XtreamGuideExternalPlayback {
             if (!hasXtreamOpenedMedia(session)) return null;
             const source = this.sessions.state(session.id)?.source;
             if (!source) return null;
-            if (prior?.session.id === session.id && prior.lockSource === source)
-                return { ...prior, session };
             const launch = guideLaunchFromSource(source);
+            if (prior?.session.id === session.id && prior.lockSource === source)
+                return launch ? { ...prior, ...launch, session } : null;
             return launch ? { ...launch, session } : null;
         },
     });
@@ -283,8 +288,16 @@ export class XtreamGuideExternalPlayback {
         const isCurrent = () =>
             this.pending() === launch && !this.destroyRef.destroyed;
         const canDispatch = () => launch?.canDispatch?.() !== false;
+        const catalogRevision = source
+            ? this.sourceActivity.liveCatalogRevision(source.playlistId)
+            : 0;
         const canOpen = () =>
-            isCurrent() && this.isAllowed(source) && canDispatch();
+            isCurrent() &&
+            this.isAllowed(source) &&
+            canDispatch() &&
+            (!source ||
+                catalogRevision ===
+                    this.sourceActivity.liveCatalogRevision(source.playlistId));
         const prior = replaceWith && this.confirmed()?.session;
         const close =
             source &&
@@ -316,20 +329,7 @@ export class XtreamGuideExternalPlayback {
                 lifecycle?.launchId
             );
         };
-        const opening = close
-            ? close.then(() => (canOpen() ? open() : undefined))
-            : open();
-        void Promise.resolve(opening).then(
-            (session) => {
-                lifecycle?.finish(session);
-                if (!session || ['error', 'closed'].includes(session.status))
-                    recover(!session || lifecycle?.ended() === 'failed');
-            },
-            () => {
-                lifecycle?.finish();
-                recover(true);
-            }
-        );
+        openXtreamAfterHandoff(close, canOpen, open, lifecycle, recover);
     }
 
     replacePendingCopy(

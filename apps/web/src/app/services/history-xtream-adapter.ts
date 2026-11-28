@@ -298,12 +298,16 @@ export class HistoryXtreamAdapter {
             catalog_missing_reason: content?.catalog_missing_reason,
         });
         this.client.current(scope);
+        const touch = method === 'addRecentItem';
+        const viewedAt =
+            touch && typeof args[4] === 'string' ? Date.parse(args[4]) : NaN;
         return this.client.command(
             id,
             {
-                kind: method === 'addRecentItem' ? 'touch' : 'remove',
+                kind: touch ? 'touch' : 'remove',
                 reference,
                 snapshot,
+                ...(viewedAt >= 0 ? { viewedAt } : {}),
             },
             this.client.options.consent() !== generation
         );

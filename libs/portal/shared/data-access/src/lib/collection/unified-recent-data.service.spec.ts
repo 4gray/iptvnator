@@ -5,8 +5,13 @@ import {
     DatabaseService,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    SourceActivityService,
 } from '@iptvnator/services';
 import { HISTORY_PLAYLIST_BRIDGE } from '@iptvnator/services/history-events';
+import {
+    CONNECTION_KEY,
+    prepareSourceConnection,
+} from '@iptvnator/services/source-sync/connection';
 import {
     Channel,
     M3uRecentlyViewedItem,
@@ -45,6 +50,7 @@ describe('UnifiedRecentDataService', () => {
         getContentByXtreamId: jest.Mock;
         getRecentItems: jest.Mock;
         removeRecentItem: jest.Mock;
+        supportsPortableHistory: jest.Mock;
     };
 
     const playlistMeta = {
@@ -182,6 +188,7 @@ describe('UnifiedRecentDataService', () => {
             getContentByXtreamId: jest.fn().mockResolvedValue(null),
             getRecentItems: jest.fn().mockResolvedValue([]),
             removeRecentItem: jest.fn().mockResolvedValue(undefined),
+            supportsPortableHistory: jest.fn().mockResolvedValue(false),
         };
 
         TestBed.configureTestingModule({
@@ -317,6 +324,37 @@ describe('UnifiedRecentDataService', () => {
             })
         );
         expect(recorded.viewedAt).toBeTruthy();
+    });
+
+    it('records a duplicated companion channel using its SQLite category', async () => {
+        jest.spyOn(
+            TestBed.inject(RuntimeCapabilitiesService),
+            'supportsXtreamSqliteDataSource',
+            'get'
+        ).mockReturnValue(true);
+        dbService.getContentByXtreamId.mockImplementation(
+            async (_id, _playlistId, _type, _identity, categoryId) =>
+                categoryId === 50 ? { id: 123 } : null
+        );
+
+        await service.recordPlayback({
+            uid: 'xtream::synthetic-source::live:7',
+            name: 'Synthetic channel',
+            contentType: 'live',
+            sourceType: 'xtream',
+            playlistId: 'synthetic-source',
+            playlistName: 'Synthetic source',
+            xtreamId: 7,
+            categoryId: 900,
+            xtreamCategoryRowId: 50,
+        });
+
+        expect(dbService.addRecentItem).toHaveBeenCalledWith(
+            123,
+            'synthetic-source',
+            undefined,
+            expect.any(String)
+        );
     });
 
     it('records Xtream playback with a type-aware fallback lookup', async () => {
@@ -595,6 +633,191 @@ describe('UnifiedRecentDataService', () => {
         );
     });
 
+    it.each(['playlist', 'all'] as const)(
+        'orders a %s clear between live playback writes during catalog replacement',
+        async (scope) => {
+            jest.spyOn(
+                TestBed.inject(RuntimeCapabilitiesService),
+                'supportsXtreamSqliteDataSource',
+                'get'
+            ).mockReturnValue(true);
+            const activity = TestBed.inject(SourceActivityService);
+            const playlistId = 'synthetic-source';
+            const release = activity.begin([playlistId]);
+            const calls: string[] = [];
+            const item: UnifiedCollectionItem = {
+                uid: 'xtream::synthetic-source::live:42',
+                name: 'Synthetic live item',
+                contentType: 'live',
+                sourceType: 'xtream',
+                playlistId,
+                playlistName: 'Synthetic source',
+                xtreamId: 42,
+            };
+            dbService.getContentByXtreamId.mockImplementation(async (id) => ({
+                id,
+            }));
+            dbService.addRecentItem.mockImplementation(async (id) => {
+                calls.push(`play ${id}`);
+                return true;
+            });
+            const clear = async () => {
+                calls.push('clear');
+                return true;
+            };
+            dbService.clearPlaylistRecentItems.mockImplementation(clear);
+            dbService.clearGlobalRecentlyViewed.mockImplementation(clear);
+
+            const before = service.recordPlayback(item);
+            const cleared = service.clearRecentItems(scope, playlistId);
+            const after = service.recordPlayback({
+                ...item,
+                playlistId: scope === 'all' ? 'synthetic-other' : playlistId,
+                xtreamId: 43,
+            });
+            await Promise.resolve();
+            const callsWhileReplacing = [...calls];
+            release();
+            await Promise.all([before, cleared, after]);
+
+            expect(callsWhileReplacing).toEqual([]);
+            expect(calls).toEqual(['play 42', 'clear', 'play 43']);
+            if (scope === 'playlist')
+                expect(dbService.clearPlaylistRecentItems).toHaveBeenCalledWith(
+                    playlistId
+                );
+            else expect(dbService.clearGlobalRecentlyViewed).toHaveBeenCalled();
+        }
+    );
+
+    it.each(['playlist', 'all'] as const)(
+        'makes a standalone %s clear wait for the catalog recovery journal',
+        async (scope) => {
+            jest.spyOn(
+                TestBed.inject(RuntimeCapabilitiesService),
+                'supportsXtreamSqliteDataSource',
+                'get'
+            ).mockReturnValue(true);
+            const playlistId = 'synthetic-replacing';
+            const activity = TestBed.inject(SourceActivityService);
+            store.select.mockReturnValue(
+                of([
+                    {
+                        _id: playlistId,
+                        title: 'Synthetic source',
+                        serverUrl: 'https://provider.example.test',
+                    },
+                ])
+            );
+            const release = activity.begin([playlistId]);
+            const clear =
+                scope === 'all'
+                    ? dbService.clearGlobalRecentlyViewed
+                    : dbService.clearPlaylistRecentItems;
+            const pending = service.clearRecentItems(scope, playlistId);
+            try {
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                expect(clear).not.toHaveBeenCalled();
+            } finally {
+                release();
+                await pending;
+            }
+            expect(clear).toHaveBeenCalledTimes(1);
+        }
+    );
+
+    it('cancels queued native watches and clears when history consent changes', async () => {
+        jest.spyOn(
+            TestBed.inject(RuntimeCapabilitiesService),
+            'supportsXtreamSqliteDataSource',
+            'get'
+        ).mockReturnValue(true);
+        const saved = localStorage.getItem(CONNECTION_KEY);
+        const consentKey =
+            'iptvnator-server:synthetic-instance:history-consent-v1';
+        const previousConsent = localStorage.getItem(consentKey);
+        const epochKey =
+            'iptvnator-server:synthetic-instance:history-source-epoch:synthetic-source';
+        const previousEpoch = localStorage.getItem(epochKey);
+        localStorage.setItem(
+            CONNECTION_KEY,
+            JSON.stringify({
+                apiUrl: 'https://synthetic.invalid/api',
+                instanceId: 'synthetic-instance',
+            })
+        );
+        await prepareSourceConnection();
+        const release = TestBed.inject(SourceActivityService).begin([
+            'synthetic-source',
+        ]);
+        try {
+            localStorage.setItem(consentKey, '{"enabled":false}');
+            const item: UnifiedCollectionItem = {
+                uid: 'xtream::synthetic-source::live:42',
+                name: 'Synthetic channel',
+                contentType: 'live',
+                sourceType: 'xtream',
+                playlistId: 'synthetic-source',
+                playlistName: 'Synthetic source',
+                xtreamId: 42,
+            };
+            const watch = service.recordPlayback(item);
+            const clear = service.clearRecentItems('all');
+            const remove = service.removeRecentItem(item);
+            const batch = service.removeRecentItemsBatch([item]);
+            localStorage.setItem(consentKey, '{"enabled":true}');
+            release();
+            const [, , removed, removedBatch] = await Promise.all([
+                watch,
+                clear,
+                remove,
+                batch,
+            ]);
+
+            expect(removed).toBe(false);
+            expect(removedBatch).toBe(false);
+            expect(dbService.removeRecentItem).not.toHaveBeenCalled();
+            expect(dbService.removeRecentItemsBatch).not.toHaveBeenCalled();
+            expect(dbService.getContentByXtreamId).not.toHaveBeenCalled();
+            expect(dbService.clearGlobalRecentlyViewed).not.toHaveBeenCalled();
+            expect(xtreamDataSource.clearRecentItems).not.toHaveBeenCalled();
+
+            const finishSecondReplacement = TestBed.inject(
+                SourceActivityService
+            ).begin([item.playlistId]);
+            try {
+                dbService.getContentByXtreamId.mockResolvedValue({ id: 502 });
+                dbService.removeRecentItemsBatch.mockResolvedValue(true);
+                const partial = service.removeRecentItemsBatch([
+                    item,
+                    {
+                        ...item,
+                        uid: 'xtream::synthetic-other::live:43',
+                        playlistId: 'synthetic-other',
+                        xtreamId: 43,
+                    },
+                ]);
+                localStorage.setItem(epochKey, 'replaced');
+                finishSecondReplacement();
+                await expect(partial).resolves.toBe(false);
+                expect(dbService.removeRecentItemsBatch).toHaveBeenCalledWith([
+                    { contentId: 502, playlistId: 'synthetic-other' },
+                ]);
+            } finally {
+                finishSecondReplacement();
+            }
+        } finally {
+            release();
+            if (saved == null) localStorage.removeItem(CONNECTION_KEY);
+            else localStorage.setItem(CONNECTION_KEY, saved);
+            if (previousConsent == null) localStorage.removeItem(consentKey);
+            else localStorage.setItem(consentKey, previousConsent);
+            if (previousEpoch == null) localStorage.removeItem(epochKey);
+            else localStorage.setItem(epochKey, previousEpoch);
+            await prepareSourceConnection();
+        }
+    });
+
     it('clears Xtream recent localStorage during global PWA clear', async () => {
         Object.defineProperty(window, 'electron', {
             value: undefined,
@@ -809,6 +1032,142 @@ describe('UnifiedRecentDataService', () => {
             playlistsService.removeFromPlaylistRecentlyViewedBatch
         ).toHaveBeenCalledWith('stalker-1', ['42', '43']);
     });
+
+    it.each([
+        { kind: 'single', refreshed: false, rowId: 501 },
+        { kind: 'batch', refreshed: false, rowId: 501 },
+        { kind: 'single', refreshed: true, rowId: 502 },
+        { kind: 'batch', refreshed: true, rowId: 502 },
+    ])(
+        'removes the selected category on a $kind live history removal (refreshed: $refreshed)',
+        async ({ kind, refreshed, rowId }) => {
+            jest.spyOn(
+                TestBed.inject(RuntimeCapabilitiesService),
+                'supportsXtreamSqliteDataSource',
+                'get'
+            ).mockReturnValue(true);
+            const activity = TestBed.inject(SourceActivityService);
+            const playlistId = 'synthetic-source';
+            const selectedCategory = 19;
+            const finishReplacement = refreshed
+                ? activity.begin([playlistId])
+                : undefined;
+            const item: UnifiedCollectionItem = {
+                uid: 'xtream::synthetic-source::live:42',
+                name: 'Synthetic live item',
+                contentType: 'live',
+                sourceType: 'xtream',
+                playlistId,
+                playlistName: 'Synthetic source',
+                contentId: 501,
+                categoryId: selectedCategory,
+                xtreamId: 42,
+            };
+            dbService.getContentByXtreamId.mockImplementation(
+                async (_id, _source, _type, _identity, categoryId) =>
+                    categoryId === selectedCategory
+                        ? { id: rowId }
+                        : { id: 200 }
+            );
+
+            dbService.removeRecentItem.mockResolvedValueOnce(refreshed);
+            dbService.removeRecentItemsBatch.mockResolvedValueOnce(refreshed);
+            const change = jest.fn();
+            window.addEventListener('iptvnator-history-changed', change, {
+                once: true,
+            });
+
+            const result =
+                kind === 'single'
+                    ? service.removeRecentItem(item)
+                    : service.removeRecentItemsBatch([item]);
+            try {
+                if (refreshed) {
+                    await Promise.resolve();
+                    expect(
+                        dbService.getContentByXtreamId
+                    ).not.toHaveBeenCalled();
+                    expect(dbService.removeRecentItem).not.toHaveBeenCalled();
+                    expect(
+                        dbService.removeRecentItemsBatch
+                    ).not.toHaveBeenCalled();
+                }
+            } finally {
+                finishReplacement?.();
+            }
+
+            await result;
+            expect(dbService.getContentByXtreamId).toHaveBeenCalledWith(
+                42,
+                playlistId,
+                'live',
+                undefined,
+                selectedCategory,
+                undefined,
+                true
+            );
+            if (kind === 'single')
+                expect(dbService.removeRecentItem).toHaveBeenCalledWith(
+                    rowId,
+                    playlistId
+                );
+            else
+                expect(dbService.removeRecentItemsBatch).toHaveBeenCalledWith([
+                    { contentId: rowId, playlistId },
+                ]);
+            window.removeEventListener('iptvnator-history-changed', change);
+            expect(change).toHaveBeenCalledTimes(Number(refreshed));
+            expect(activity.isBusy(playlistId)).toBe(false);
+        }
+    );
+
+    it.each([true, false])(
+        'only removes missing catalog rows by provider ID when history is portable (%s)',
+        async (portable) => {
+            const synced = jest
+                .spyOn(TestBed.inject(HISTORY_PLAYLIST_BRIDGE), 'active')
+                .mockReturnValue(true);
+            const sqlite = jest
+                .spyOn(
+                    TestBed.inject(RuntimeCapabilitiesService),
+                    'supportsXtreamSqliteDataSource',
+                    'get'
+                )
+                .mockReturnValue(true);
+            const item: UnifiedCollectionItem = {
+                uid: 'xtream::synthetic-source::live:42',
+                name: 'Synthetic live item',
+                contentType: 'live',
+                sourceType: 'xtream',
+                playlistId: 'synthetic-source',
+                playlistName: 'Synthetic source',
+                categoryId: 8,
+                contentId: 501,
+                xtreamId: 42,
+            };
+            xtreamDataSource.supportsPortableHistory.mockResolvedValue(
+                portable
+            );
+            try {
+                await service.removeRecentItemsBatch([
+                    item,
+                    { ...item, xtreamId: 43 },
+                ]);
+                expect(dbService.removeRecentItemsBatch).not.toHaveBeenCalled();
+                expect(xtreamDataSource.removeRecentItem.mock.calls).toEqual(
+                    portable
+                        ? [42, 43].map((id) => [
+                              { id, type: 'live', providerId: id },
+                              item.playlistId,
+                          ])
+                        : []
+                );
+            } finally {
+                synced.mockRestore();
+                sqlite.mockRestore();
+            }
+        }
+    );
 
     it('routes Xtream items through dbService and m3u items through the batch helper', async () => {
         const items: UnifiedCollectionItem[] = [

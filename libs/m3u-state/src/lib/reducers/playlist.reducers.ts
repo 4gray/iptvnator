@@ -187,6 +187,19 @@ export const playlistReducers = [
         }
     ),
     on(
+        PlaylistActions.xtreamStartupRefreshCommitted,
+        (state, action): PlaylistState => ({
+            ...state,
+            playlists: playlistsAdapter.updateOne(
+                {
+                    id: action.playlistId,
+                    changes: { updateDate: action.updateDate },
+                },
+                state.playlists
+            ),
+        })
+    ),
+    on(
         PlaylistActions.stalkerCategoryVisibilitySaved,
         (state, action): PlaylistState => ({
             ...state,

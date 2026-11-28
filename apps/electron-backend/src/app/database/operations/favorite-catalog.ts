@@ -156,7 +156,10 @@ export function favoriteMatchesContentId(
 }
 
 /** Full confirmation outranks conflicting duplicates; absence/partial evidence retains the latch. */
-export function reconcileFavoriteIdentity(db: AppDatabase, scope?: SQL) {
+export function reconcileFavoriteIdentity(
+    db: Pick<AppDatabase, 'update'>,
+    scope?: SQL
+) {
     const candidate = (
         evidence: SQL
     ) => sql`EXISTS (SELECT 1 FROM content candidate

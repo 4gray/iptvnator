@@ -1,3 +1,9 @@
+import { captureHistoryOwner } from '@iptvnator/services/history-events';
+import { sourceConnection } from '@iptvnator/services/source-sync/connection';
+import {
+    favoriteReferenceKey,
+    stalkerFavoriteReference,
+} from '@iptvnator/shared/interfaces/favorites-sync';
 import { FAVORITES_PLAYLIST_BRIDGE } from '@iptvnator/services/favorites-events';
 import type { ElectronBridgeFavoriteReorderUpdate } from '@iptvnator/shared/interfaces';
 import { inject, Injectable } from '@angular/core';
@@ -11,6 +17,7 @@ import {
     DatabaseService,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    SourceActivityService,
     USER_DATA_STORAGE,
 } from '@iptvnator/services';
 import {
@@ -63,6 +70,7 @@ export class UnifiedFavoritesDataService {
     private readonly playlistsService = inject(PlaylistsService);
     private readonly translate = inject(TranslateService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly activity = inject(SourceActivityService);
     private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
     private readonly userDataStorage = inject(USER_DATA_STORAGE);
 
@@ -85,18 +93,20 @@ export class UnifiedFavoritesDataService {
         return this.getPlaylistFavorites(playlistId, sourceType, true);
     }
 
-    async addFavorite(item: UnifiedCollectionItem): Promise<void> {
+    async addFavorite(item: UnifiedCollectionItem): Promise<boolean> {
         switch (item.sourceType) {
             case 'm3u':
                 await this.addM3uFavorite(item);
                 break;
             case 'xtream':
-                await this.addXtreamFavorite(item);
-                break;
+                return this.writeXtreamFavorite(item, (current) =>
+                    this.addXtreamFavorite(item, current)
+                );
             case 'stalker':
                 await this.addStalkerFavorite(item);
                 break;
         }
+        return true;
     }
 
     /** A reused provider ID alone cannot determine a recent row's favorite status. */
@@ -120,7 +130,7 @@ export class UnifiedFavoritesDataService {
         );
     }
 
-    async removeFavorite(item: UnifiedCollectionItem): Promise<void> {
+    async removeFavorite(item: UnifiedCollectionItem): Promise<boolean> {
         switch (item.sourceType) {
             case 'm3u': {
                 await this.transformM3uFavorites(item.playlistId, (current) =>
@@ -132,40 +142,10 @@ export class UnifiedFavoritesDataService {
                 );
                 break;
             }
-            case 'xtream': {
-                const electron = await this.xtreamFavoritesBridge(
-                    item.playlistId
+            case 'xtream':
+                return this.writeXtreamFavorite(item, (current) =>
+                    this.removeXtreamFavorite(item, current)
                 );
-                if (electron) {
-                    const target =
-                        item.favoriteId != null
-                            ? { favoriteId: item.favoriteId }
-                            : item.contentId;
-                    if (target != null) {
-                        const result = await electron.dbRemoveFavorite(
-                            target,
-                            item.playlistId
-                        );
-                        if (result?.success === false) {
-                            throw new Error('Favorite could not be removed');
-                        }
-                    }
-                    return;
-                }
-                if (item.contentId == null && item.xtreamId == null) return;
-                await this.xtreamDataSource.removeFavorite(
-                    {
-                        id: item.contentId ?? item.xtreamId!,
-                        providerId: item.xtreamId,
-                        type: item.contentType,
-                        ...(item.xtreamIdentity
-                            ? { identity: item.xtreamIdentity }
-                            : {}),
-                    },
-                    item.playlistId
-                );
-                break;
-            }
             case 'stalker': {
                 const sourceItemId = item.stalkerId ?? item.uid.split('::')[2];
                 await firstValueFrom(
@@ -178,6 +158,7 @@ export class UnifiedFavoritesDataService {
                 break;
             }
         }
+        return true;
     }
 
     private async addM3uFavorite(item: UnifiedCollectionItem): Promise<void> {
@@ -191,20 +172,102 @@ export class UnifiedFavoritesDataService {
         );
     }
 
-    private async addXtreamFavorite(
-        item: UnifiedCollectionItem
-    ): Promise<void> {
-        const contentId =
-            item.contentId ??
-            (item.xtreamId != null
-                ? await this.resolveXtreamContentId(item)
-                : null);
+    private isSqliteLive(item: UnifiedCollectionItem): boolean {
+        return (
+            item.contentType === 'live' &&
+            this.runtime.supportsXtreamSqliteDataSource
+        );
+    }
 
+    private writeXtreamFavorite(
+        item: UnifiedCollectionItem,
+        write: (current: () => boolean) => Promise<boolean | void>
+    ): Promise<boolean> {
+        const current = captureHistoryOwner(
+            sourceConnection()?.instanceId,
+            item.playlistId,
+            () => sourceConnection()?.instanceId,
+            'favorites'
+        );
+        const run = async () => {
+            if (!current()) return false;
+            const saved = await write(current);
+            return saved !== false && current();
+        };
+        return this.isSqliteLive(item)
+            ? this.activity.runWhenIdle(item.playlistId, run)
+            : run();
+    }
+
+    private async removeXtreamFavorite(
+        item: UnifiedCollectionItem,
+        current: () => boolean
+    ): Promise<boolean | void> {
+        const electron = await this.xtreamFavoritesBridge(item.playlistId);
+        if (electron) {
+            const target = await this.xtreamFavoriteRemovalTarget(item);
+            if (target == null || !current()) return false;
+            const result = await electron.dbRemoveFavorite(
+                target,
+                item.playlistId
+            );
+            if (result?.success === false)
+                throw new Error('Favorite could not be removed');
+            return;
+        }
+        if (!current() || (item.contentId == null && item.xtreamId == null))
+            return;
+        await this.xtreamDataSource.removeFavorite(
+            {
+                id: item.contentId ?? item.xtreamId!,
+                providerId: item.xtreamId,
+                type: item.contentType,
+                ...(item.xtreamIdentity
+                    ? { identity: item.xtreamIdentity }
+                    : {}),
+            },
+            item.playlistId
+        );
+    }
+
+    private async xtreamFavoriteRemovalTarget(item: UnifiedCollectionItem) {
+        if (item.favoriteId != null) return { favoriteId: item.favoriteId };
+        const contentId = await this.xtreamFavoriteContentId(item);
+        if (contentId != null || !this.isSqliteLive(item)) return contentId;
+        // A startup replacement can drop the recent item's Live TV row while
+        // retaining its favorite. Use the same filtered source read as Favorites.
+        const favorites = await this.dbService.getFavorites(item.playlistId);
+        const saved = favorites.find(
+            (row) =>
+                row.type === 'live' &&
+                row.xtream_id === item.xtreamId &&
+                row.catalog_status === 'missing' &&
+                row.catalog_missing_reason !== 'identity_conflict'
+        );
+        return saved?.favorite_id == null
+            ? null
+            : { favoriteId: saved.favorite_id };
+    }
+
+    private async xtreamFavoriteContentId(item: UnifiedCollectionItem) {
+        // Collection rows can still contain their pre-refresh SQLite ID.
+        if (this.isSqliteLive(item) && item.xtreamId != null)
+            return this.resolveXtreamContentId(item);
+        return item.contentId ?? this.resolveXtreamContentId(item);
+    }
+
+    private async addXtreamFavorite(
+        item: UnifiedCollectionItem,
+        current: () => boolean
+    ): Promise<void> {
+        const contentId = await this.xtreamFavoriteContentId(item);
+        if (!current()) return;
         if (contentId == null) {
             throw new Error('Favorite could not be saved');
         }
 
         const electron = await this.xtreamFavoritesBridge(item.playlistId);
+        if (!current()) return;
         if (!electron) {
             await this.xtreamDataSource.addFavorite(
                 {
@@ -280,18 +343,19 @@ export class UnifiedFavoritesDataService {
             this.store.dispatch(
                 PlaylistActions.updatePlaylistMeta({
                     persist: false,
-                    playlist: { _id: item.playlistId, favorites: updated.favorites } as PlaylistMeta,
+                    playlist: {
+                        _id: item.playlistId,
+                        favorites: updated.favorites,
+                    } as PlaylistMeta,
                 })
             );
         }
     }
 
-    async clearFavorites(items: UnifiedCollectionItem[]): Promise<void> {
-        if (items.length === 0) {
-            return;
-        }
+    async clearFavorites(items: UnifiedCollectionItem[]): Promise<boolean> {
+        if (items.length === 0) return true;
 
-        await Promise.all([
+        const [, clearedXtream] = await Promise.all([
             this.clearM3uFavorites(
                 items.filter((item) => item.sourceType === 'm3u')
             ),
@@ -302,6 +366,7 @@ export class UnifiedFavoritesDataService {
                 items.filter((item) => item.sourceType === 'stalker')
             ),
         ]);
+        return clearedXtream;
     }
 
     async reorder(
@@ -446,8 +511,11 @@ export class UnifiedFavoritesDataService {
 
     private async clearXtreamFavorites(
         items: UnifiedCollectionItem[]
-    ): Promise<void> {
-        await Promise.all(items.map((item) => this.removeFavorite(item)));
+    ): Promise<boolean> {
+        const results = await Promise.all(
+            items.map((item) => this.removeFavorite(item))
+        );
+        return results.every((removed) => removed);
     }
 
     private async clearStalkerFavorites(
@@ -663,25 +731,37 @@ export class UnifiedFavoritesDataService {
             return null;
         }
 
-        if (!(await this.xtreamFavoritesBridge(item.playlistId))) {
-            const content = await this.xtreamDataSource.getContentByXtreamId(
-                item.xtreamId,
-                item.playlistId,
-                item.contentType
-            );
-            return content?.id ?? item.xtreamId;
-        }
-
-        const content = await this.dbService.getContentByXtreamId(
+        const args: Parameters<DatabaseService['getContentByXtreamId']> = [
             item.xtreamId,
             item.playlistId,
             item.contentType,
-            ...(item.xtreamIdentity?.tmdbId != null ||
-            item.xtreamIdentity?.releaseYear != null
-                ? [item.xtreamIdentity]
-                : [])
-        );
+        ];
+        const categoryRowId = item.xtreamCategoryRowId ?? item.categoryId;
+        if (this.isSqliteLive(item) && typeof categoryRowId === 'number') {
+            args[4] = categoryRowId;
+            args[6] = true;
+        }
+        if (!(await this.xtreamFavoritesBridge(item.playlistId))) {
+            const content = await this.xtreamDataSource.getContentByXtreamId(
+                ...args
+            );
+            if (content) return content.id;
+            if (
+                args[6] &&
+                !(await this.xtreamDataSource.supportsPortableFavorites?.(
+                    item.playlistId
+                ))
+            )
+                return null;
+            return item.xtreamId;
+        }
 
+        if (
+            item.xtreamIdentity?.tmdbId != null ||
+            item.xtreamIdentity?.releaseYear != null
+        )
+            args[3] = item.xtreamIdentity;
+        const content = await this.dbService.getContentByXtreamId(...args);
         return content?.id ?? null;
     }
 

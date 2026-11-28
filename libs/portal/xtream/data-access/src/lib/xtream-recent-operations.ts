@@ -8,47 +8,68 @@ import type {
     XtreamPlayedContent,
 } from './data-sources/xtream-data-source.interface';
 
+interface RecentPlayback {
+    playlistId: string;
+    xtreamId: number | string;
+    contentType: 'live' | 'movie' | 'series';
+    backdropUrl?: string;
+    playedContent?: XtreamPlayedContent;
+    viewedAt?: string;
+}
+
 /** History writes run after playback confirmation, outside the startup bundle. */
-export async function recordXtreamRecent(
+export async function saveXtreamRecent(
     dataSource: IXtreamDataSource,
     sqlite: boolean,
-    item: {
-        playlistId: string;
-        xtreamId: number | string;
-        contentType: 'live' | 'movie' | 'series';
-        backdropUrl?: string;
-        playedContent?: XtreamPlayedContent;
-    },
+    item: RecentPlayback,
     current: () => boolean
-) {
+): Promise<boolean> {
     const { playlistId, contentType, backdropUrl, playedContent } = item;
     const xtreamId = Number(item.xtreamId);
-    if (!Number.isFinite(xtreamId) || xtreamId <= 0) return;
+    if (!current() || !Number.isFinite(xtreamId) || xtreamId <= 0) return false;
     const identity = playedContent
         ? normalizeContentMetadataPatch({
               tmdbId: playedContent.tmdbId ?? undefined,
               releaseYear: playedContent.releaseYear ?? undefined,
           })
         : null;
-    const content = await dataSource.getContentByXtreamId(
+    const lookup: Parameters<IXtreamDataSource['getContentByXtreamId']> = [
         xtreamId,
         playlistId,
         contentType,
-        ...(sqlite && identity ? [identity] : [])
-    );
+    ];
+    if (sqlite && identity) lookup[3] = identity;
+    const categoryId = playedContent?.categoryId;
+    if (sqlite && contentType === 'live' && typeof categoryId === 'number') {
+        lookup[4] = categoryId;
+        lookup[6] = true;
+    }
+    const content = await dataSource.getContentByXtreamId(...lookup);
     const contentId =
         content?.id ??
         (!sqlite || (await dataSource.supportsPortableHistory?.(playlistId))
             ? xtreamId
             : null);
-    if (!current() || contentId == null) return;
-    await dataSource.addRecentItem(
+    if (!current() || contentId == null) return false;
+    const args: Parameters<IXtreamDataSource['addRecentItem']> = [
         { id: contentId, type: contentType, providerId: xtreamId },
         playlistId,
         backdropUrl,
-        ...(playedContent ? ([playedContent] as const) : [])
-    );
-    const rows = await loadXtreamRecent(dataSource, playlistId);
+    ];
+    if (playedContent) args[3] = playedContent;
+    if (sqlite && item.viewedAt) args[4] = item.viewedAt;
+    await dataSource.addRecentItem(...args);
+    return true;
+}
+
+export async function recordXtreamRecent(
+    dataSource: IXtreamDataSource,
+    sqlite: boolean,
+    item: RecentPlayback,
+    current: () => boolean
+) {
+    if (!(await saveXtreamRecent(dataSource, sqlite, item, current))) return;
+    const rows = await loadXtreamRecent(dataSource, item.playlistId);
     return current() ? rows : undefined;
 }
 

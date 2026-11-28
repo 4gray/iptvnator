@@ -8,6 +8,7 @@
  */
 
 import { sql } from 'drizzle-orm';
+import { RECENTLY_VIEWED_CHRONOLOGY } from './recent-history-order';
 import {
     index,
     integer,
@@ -82,6 +83,7 @@ export const categories = sqliteTable(
         // DB_SET_CATEGORY_LOCKS. While the lock is active every content read
         // in the worker filters on it — see parental-lock-state.ts.
         locked: integer('locked', { mode: 'boolean' }).default(false),
+        providerOrder: integer('provider_order'),
     },
     (table) => ({
         playlistIdx: index('idx_categories_playlist').on(table.playlistId),
@@ -163,6 +165,12 @@ export const recentlyViewed = sqliteTable(
             table.playlistId,
             sql`${table.viewedAt} DESC`
         ),
+        chronologyIdx: index('recently_viewed_chronology_idx').on(
+            sql.raw(RECENTLY_VIEWED_CHRONOLOGY)
+        ),
+        playlistChronologyIdx: index(
+            'recently_viewed_playlist_chronology_idx'
+        ).on(table.playlistId, sql.raw(RECENTLY_VIEWED_CHRONOLOGY)),
     })
 );
 

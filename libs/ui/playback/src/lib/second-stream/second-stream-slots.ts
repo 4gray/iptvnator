@@ -6,12 +6,14 @@ import {
     signal,
     untracked,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
     SecondStreamCatalogService,
     UnifiedRecentDataService,
     type SecondStreamSelection,
 } from '@iptvnator/portal/shared/data-access';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
+import { SourceActivityService } from '@iptvnator/services';
 import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
 import type { CompanionSlot } from './second-stream-open-stream';
 import { SecondStreamSlotProgress } from './second-stream-slot-progress';
@@ -58,6 +60,12 @@ export class SecondStreamSlots {
                     void this.retire(slots);
                 });
         });
+        inject(SourceActivityService)
+            .liveCatalogReplacements$.pipe(takeUntilDestroyed())
+            .subscribe((sourceId) => {
+                for (const [slot, entry] of this.entries())
+                    void this.rebindLiveCategory(slot, entry, sourceId);
+            });
     }
 
     at(slot: CompanionSlot): SecondStreamSlotProgress | undefined {
@@ -89,14 +97,37 @@ export class SecondStreamSlots {
                     void this.positions
                         ?.savePlaybackPosition(playlistId, position)
                         .catch(() => undefined),
-                () =>
+                (item) =>
                     void this.injector
                         .get(UnifiedRecentDataService)
-                        .recordPlayback(selection.item)
+                        .recordPlayback(item)
                         .catch(() => undefined)
             )
         );
         this.entries.set(next);
+    }
+
+    private async rebindLiveCategory(
+        slot: CompanionSlot,
+        entry: SecondStreamSlotProgress,
+        sourceId: string
+    ): Promise<void> {
+        const item = entry.selection.item;
+        if (
+            item.playlistId !== sourceId ||
+            item.sourceType !== 'xtream' ||
+            item.contentType !== 'live'
+        )
+            return;
+
+        const updated = await this.catalog.rebindLiveCategory(item);
+        if (
+            !this.destroyed &&
+            this.at(slot) === entry &&
+            entry.selection.item === item &&
+            !this.isClosing(slot)
+        )
+            entry.rebindItem(updated);
     }
 
     retire(slots: readonly CompanionSlot[]): Promise<void> {

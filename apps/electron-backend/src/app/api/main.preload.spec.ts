@@ -189,6 +189,10 @@ describe('main preload DB IPC contract', () => {
         expect(new Set(workerChannels)).toEqual(new Set(DB_WORKER_OPERATIONS));
     });
 
+    it('advertises the guarded Xtream startup refresh protocol', () => {
+        expect(getExposedApi().xtreamStartupRefreshVersion).toBe(1);
+    });
+
     it.each(dbPreloadCases)(
         '$method invokes $channel with the expected arguments',
         async ({ method, args, channel, forwardedArgs }) => {

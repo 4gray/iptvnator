@@ -5,6 +5,7 @@ import {
     SecondStreamCatalogService,
     type SecondStreamSelection,
 } from '@iptvnator/portal/shared/data-access';
+import { SourceActivityService } from '@iptvnator/services';
 import { dialogSize } from '@iptvnator/ui/dialog/dialog-size';
 import { firstValueFrom } from 'rxjs';
 import type {
@@ -25,6 +26,7 @@ export class SecondStreamPickerRequest {
     private readonly dialog = inject(MatDialog);
     private readonly route = inject(ActivatedRoute, { optional: true });
     private readonly catalog = inject(SecondStreamCatalogService);
+    private readonly activity = inject(SourceActivityService);
     private ref?: MatDialogRef<
         SecondStreamPickerComponent,
         SecondStreamSelection
@@ -85,9 +87,13 @@ export class SecondStreamPickerRequest {
             });
             this.ref = undefined;
             if (!selection) return null;
+            const { item, catalogRevision } = selection;
             const allowed = () =>
                 requestCurrent() &&
-                this.catalog.isAllowed(selection.item) &&
+                (catalogRevision === undefined ||
+                    catalogRevision ===
+                        this.activity.liveCatalogRevision(item.playlistId)) &&
+                this.catalog.isAllowed(item) &&
                 data.findDuplicateSlot(selection.playback) === undefined;
             return allowed() && (await accept(selection, allowed))
                 ? data.slot

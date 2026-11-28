@@ -1,7 +1,12 @@
+import {
+    CONNECTION_KEY,
+    prepareSourceConnection,
+} from '@iptvnator/services/source-sync/connection';
 import { TmdbMatchService } from '@iptvnator/services/tmdb-match';
 import { FavoriteChannelMembershipEvents } from '@iptvnator/services/favorites-events';
 import {
     RuntimeCapabilitiesService,
+    SourceActivityService,
     type TmdbEnrichmentService,
 } from '@iptvnator/services';
 import {
@@ -395,6 +400,38 @@ describe('withFavorites', () => {
         expect(store.isFavorite()).toBe(false);
     });
 
+    it('refreshes the same favorite status after an in-flight detail write', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        dataSource.getContentByXtreamId.mockResolvedValue({ id: 42 });
+        let persisted = false;
+        let finish!: () => void;
+        let started!: () => void;
+        const writing = new Promise<void>((resolve) => {
+            started = resolve;
+        });
+        dataSource.isFavorite.mockImplementation(async () => persisted);
+        dataSource.addFavorite.mockImplementation(async () => {
+            started();
+            await new Promise<void>((resolve) => {
+                finish = resolve;
+            });
+            persisted = true;
+        });
+
+        const toggle = store.toggleFavorite(42, 'synthetic-source', 'movie');
+        await writing;
+        window.dispatchEvent(new Event('iptvnator-favorites-changed'));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const readsDuringWrite = dataSource.isFavorite.mock.calls.length;
+        finish();
+        await expect(toggle).resolves.toBe(true);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(readsDuringWrite).toBe(1);
+        expect(dataSource.isFavorite).toHaveBeenCalledTimes(2);
+        expect(store.isFavorite()).toBe(true);
+    });
+
     it.each([
         [
             'XTREAM_FAVORITE_IDENTITY_CONFLICT',
@@ -596,6 +633,75 @@ describe('withFavorites', () => {
 
         expect(dataSource.getContentByXtreamId).not.toHaveBeenCalled();
         expect(dataSource.addFavorite).not.toHaveBeenCalled();
+    });
+
+    it('saves a live favorite against the new row after catalog replacement', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        const activity = TestBed.inject(SourceActivityService);
+        const finishReplacement = activity.begin(['synthetic-source']);
+        dataSource.getContentByXtreamId.mockResolvedValue(null);
+        dataSource.addFavorite.mockImplementation(async () => {
+            expect(activity.isBusy('synthetic-source')).toBe(true);
+        });
+
+        const toggle = store.toggleFavorite(42, 'synthetic-source', 'live');
+        try {
+            await Promise.resolve();
+            expect(dataSource.getContentByXtreamId).not.toHaveBeenCalled();
+            dataSource.getContentByXtreamId.mockResolvedValue({ id: 502 });
+        } finally {
+            finishReplacement();
+        }
+
+        await expect(toggle).resolves.toBe(true);
+        expect(dataSource.addFavorite).toHaveBeenCalledWith(
+            { id: 502, type: 'live', providerId: 42 },
+            'synthetic-source',
+            undefined
+        );
+        expect(activity.isBusy('synthetic-source')).toBe(false);
+    });
+
+    it('cancels a queued local favorite when sharing is enabled before the write', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        const prior = localStorage.getItem(CONNECTION_KEY);
+        const consentKey =
+            'iptvnator-server:synthetic-instance:favorites-consent-v1';
+        const priorConsent = localStorage.getItem(consentKey);
+        const setConsent = (enabled: boolean) =>
+            localStorage.setItem(consentKey, JSON.stringify({ enabled }));
+        localStorage.setItem(
+            CONNECTION_KEY,
+            JSON.stringify({
+                apiUrl: 'https://synthetic.invalid/api',
+                instanceId: 'synthetic-instance',
+            })
+        );
+        await prepareSourceConnection();
+        const release = TestBed.inject(SourceActivityService).begin([
+            'synthetic-source',
+        ]);
+        try {
+            setConsent(false);
+            dataSource.getContentByXtreamId.mockResolvedValue({ id: 502 });
+            dataSource.isFavorite.mockResolvedValue(true);
+            await store.checkFavoriteStatus(42, 'synthetic-source', 'live');
+            const toggle = store.toggleFavorite(42, 'synthetic-source', 'live');
+            setConsent(true);
+            release();
+
+            await expect(toggle).resolves.toBeUndefined();
+            expect(store.isFavorite()).toBe(true);
+            expect(dataSource.removeFavorite).not.toHaveBeenCalled();
+            expect(dataSource.addFavorite).not.toHaveBeenCalled();
+        } finally {
+            release();
+            if (prior == null) localStorage.removeItem(CONNECTION_KEY);
+            else localStorage.setItem(CONNECTION_KEY, prior);
+            if (priorConsent == null) localStorage.removeItem(consentKey);
+            else localStorage.setItem(consentKey, priorConsent);
+            await prepareSourceConnection();
+        }
     });
 
     it('does not toggle Electron favorites when the cached content is missing', async () => {

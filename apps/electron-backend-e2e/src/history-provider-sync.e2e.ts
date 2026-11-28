@@ -36,9 +36,10 @@ async function enable(page: Page) {
     await openSettings(page);
     await openSettingsSection(page, 'server');
     await page.getByTestId('history-sync-enable').getByRole('checkbox').check();
-    await expect(
-        page.getByTestId('history-sync-state')
-    ).toHaveText('History synchronized', { timeout: 30000 });
+    await expect(page.getByTestId('history-sync-state')).toHaveText(
+        'History synchronized',
+        { timeout: 30000 }
+    );
 }
 for (const provider of ['xtream', 'stalker'] as const)
     test(`syncs confirmed synthetic ${provider} viewing and rewatch order across PWA and Electron @history @web @electron @persistence`, async ({
@@ -143,7 +144,7 @@ for (const provider of ['xtream', 'stalker'] as const)
                 // The title was just played, so the detail page offers "Continue"
                 // from the saved position; "Play" only shows without one.
                 await expect(
-                    page.getByRole('button', { name: /^(Play|Continue)\b/ })
+                    page.locator('[data-testid="vod-primary-action"]')
                 ).toBeEnabled();
                 expect((await read()).state.revision).toBe(first.revision);
             }

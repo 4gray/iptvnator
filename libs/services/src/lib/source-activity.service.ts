@@ -1,10 +1,32 @@
 import { Injectable, signal } from '@angular/core';
+import { Subject } from 'rxjs';
 
 /** Shared renderer work that source cleanup must not interrupt. */
 @Injectable({ providedIn: 'root' })
 export class SourceActivityService {
     private readonly counts = signal<ReadonlyMap<string, number>>(new Map());
     private readonly waiters = new Set<() => void>();
+    private readonly liveCatalogRevisions = new Map<string, number>();
+    private readonly liveCatalogReplacements = new Subject<string>();
+    readonly liveCatalogReplacements$ =
+        this.liveCatalogReplacements.asObservable();
+
+    liveCatalogRevision(sourceId: string): number {
+        return this.liveCatalogRevisions.get(sourceId) ?? 0;
+    }
+
+    /** Retire tune decisions made before catalog mutation. */
+    invalidateLiveCatalogReads(sourceId: string): void {
+        this.liveCatalogRevisions.set(
+            sourceId,
+            this.liveCatalogRevision(sourceId) + 1
+        );
+    }
+
+    notifyLiveCatalogReplacement(sourceId: string): void {
+        this.invalidateLiveCatalogReads(sourceId);
+        this.liveCatalogReplacements.next(sourceId);
+    }
 
     /** Subscribe to completed activity holds; callers can recheck availability. */
     onRelease(check: () => void): () => void {
@@ -25,6 +47,30 @@ export class SourceActivityService {
             this.adjust(unique, -1);
             this.waiters.forEach((check) => check());
         };
+    }
+
+    /** Wait for source work, then keep cleanup from starting during the operation. */
+    async runWhenIdle<T>(
+        sourceIds: string | readonly string[],
+        operation: () => Promise<T>
+    ): Promise<T> {
+        const ids = typeof sourceIds === 'string' ? [sourceIds] : sourceIds;
+        const busy = () => ids.some((id) => this.isBusy(id));
+        while (busy()) {
+            await new Promise<void>((resolve) => {
+                const unsubscribe = this.onRelease(() => {
+                    if (busy()) return;
+                    unsubscribe();
+                    resolve();
+                });
+            });
+        }
+        const release = this.begin(ids);
+        try {
+            return await operation();
+        } finally {
+            release();
+        }
     }
 
     private adjust(ids: readonly string[], delta: number): void {

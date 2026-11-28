@@ -6,6 +6,7 @@ import {
     ParentalLockService,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    SourceActivityService,
 } from '@iptvnator/services';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import {
@@ -17,6 +18,7 @@ import { UnifiedFavoritesDataService } from './collection/unified-favorites-data
 import { UnifiedRecentDataService } from './collection/unified-recent-data.service';
 import { StreamResolverService } from './collection/stream-resolver.service';
 import { SecondStreamCatalogService } from './second-stream-catalog.service';
+import { SECOND_STREAM_HISTORY } from './second-stream-collection.service';
 
 describe('SecondStreamCatalogService', () => {
     let service: SecondStreamCatalogService;
@@ -44,10 +46,12 @@ describe('SecondStreamCatalogService', () => {
         getPlaylist: jest.Mock;
         getCategories: jest.Mock;
         getContent: jest.Mock;
+        getContentByXtreamId: jest.Mock;
         getAllCategories: jest.Mock;
     };
     let resolve: jest.Mock;
     let favorites: jest.Mock;
+    let recent: jest.Mock;
     let sendIpcEvent: jest.Mock;
     beforeEach(() => {
         playlists = {
@@ -101,11 +105,13 @@ describe('SecondStreamCatalogService', () => {
                     title: 'Synthetic hidden',
                 },
             ]),
+            getContentByXtreamId: jest.fn(),
         };
         resolve = jest
             .fn()
             .mockResolvedValue({ streamUrl: channel.url, isLive: true });
         favorites = jest.fn().mockResolvedValue([]);
+        recent = jest.fn().mockResolvedValue([]);
         sendIpcEvent = jest.fn().mockResolvedValue({
             js: [{ id: 'genre-2', title: 'News' }],
         });
@@ -115,7 +121,7 @@ describe('SecondStreamCatalogService', () => {
                 {
                     provide: UnifiedRecentDataService,
                     useValue: {
-                        getRecentItems: jest.fn().mockResolvedValue([]),
+                        getRecentItems: recent,
                     },
                 },
                 { provide: PlaylistsService, useValue: playlists },
@@ -224,6 +230,36 @@ describe('SecondStreamCatalogService', () => {
             expect.objectContaining({ channelId: 'c', m3uChannel: channel })
         );
     });
+    it.each([false, true])(
+        'defers a companion Xtream catalog during replacement (cancelled: %s)',
+        async (cancelled) => {
+            playlists.getPlaylistById.mockReturnValue(
+                of({ ...playlist, serverUrl: 'https://portal.example.test' })
+            );
+            const release = TestBed.inject(SourceActivityService).begin([
+                playlist._id,
+            ]);
+            const controller = new AbortController();
+            const result = service.load(playlist._id, controller.signal);
+            await Promise.resolve();
+            const readWhileReplacing = xtream.getPlaylist.mock.calls.length;
+            if (cancelled) controller.abort();
+            release();
+
+            if (cancelled) {
+                await expect(result).rejects.toMatchObject({
+                    name: 'AbortError',
+                });
+                expect(xtream.getCategories).not.toHaveBeenCalled();
+            } else {
+                expect((await result).groups).toEqual([
+                    { id: '50', name: 'News', providerId: 900 },
+                ]);
+            }
+            expect(readWhileReplacing).toBe(0);
+        }
+    );
+
     it('keeps Xtream database category ids separate from provider stream and category ids', async () => {
         playlists.getPlaylistById.mockReturnValue(
             of({ ...playlist, serverUrl: 'https://portal.example.test' })
@@ -238,11 +274,81 @@ describe('SecondStreamCatalogService', () => {
             item: {
                 xtreamId: 7,
                 categoryId: 900,
+                xtreamCategoryRowId: 50,
                 uid: 'xtream::synthetic-source::live:7',
             },
         });
         expect(data.groups).toHaveLength(1);
     });
+
+    it.each([50, '50', null])(
+        'reclassifies a playing Xtream channel using its saved SQLite category (row category: %s)',
+        async (categoryId) => {
+            const item = {
+                uid: 'synthetic-live',
+                name: 'Synthetic channel',
+                sourceType: 'xtream' as const,
+                contentType: 'live' as const,
+                playlistId: playlist._id,
+                playlistName: playlist.title,
+                categoryId: 899,
+                xtreamCategoryRowId: 49,
+                xtreamId: 7,
+            };
+            xtream.getContentByXtreamId.mockResolvedValue(
+                categoryId === null ? null : { category_id: categoryId }
+            );
+            const refreshed = await service.rebindLiveCategory(item);
+            expect(xtream.getContentByXtreamId).toHaveBeenCalledWith(
+                item.xtreamId,
+                item.playlistId,
+                'live',
+                undefined,
+                item.xtreamCategoryRowId,
+                undefined,
+                true
+            );
+            expect(refreshed.categoryId).toBe(
+                categoryId === null ? undefined : 900
+            );
+            expect(refreshed.xtreamCategoryRowId).toBe(
+                categoryId === null ? item.xtreamCategoryRowId : 50
+            );
+        }
+    );
+
+    it.each(['', SECOND_STREAM_HISTORY])(
+        'waits for SQLite replacement before reading the live collection for scope "%s"',
+        async (scope) => {
+            playlists.getAllPlaylists.mockReturnValue(
+                of([{ ...playlist, serverUrl: 'https://portal.example.test' }])
+            );
+            const release = TestBed.inject(SourceActivityService).begin([
+                playlist._id,
+            ]);
+            const loadCollection = scope ? recent : favorites;
+            const data = service.load(scope, new AbortController().signal);
+            await Promise.resolve();
+            const readsWhileReplacing = loadCollection.mock.calls.length;
+            loadCollection.mockResolvedValue([
+                {
+                    uid: 'synthetic-live',
+                    name: 'Synthetic refreshed channel',
+                    playlistId: playlist._id,
+                    sourceType: 'xtream',
+                    contentType: 'live',
+                    categoryId: 50,
+                    xtreamId: 7,
+                },
+            ]);
+            release();
+
+            expect((await data).channels.map(({ item }) => item.uid)).toEqual([
+                'synthetic-live',
+            ]);
+            expect(readsWhileReplacing).toBe(0);
+        }
+    );
     it('withholds locked groups and rechecks before handing a row to playback', async () => {
         const data = await service.load(
             playlist._id,
@@ -322,6 +428,7 @@ describe('SecondStreamCatalogService', () => {
         const data = await service.load('', new AbortController().signal);
         expect(data.channels).toHaveLength(1);
         expect(data.channels[0].item.categoryId).toBe(900);
+        expect(data.channels[0].item.xtreamCategoryRowId).toBe(50);
         await service.resolve(data.channels[0]);
         expect(resolve).toHaveBeenCalled();
     });

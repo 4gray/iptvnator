@@ -1,4 +1,11 @@
-import { DestroyRef, inject, Injectable, Injector, Signal, signal } from '@angular/core';
+import {
+    DestroyRef,
+    inject,
+    Injectable,
+    Injector,
+    Signal,
+    signal,
+} from '@angular/core';
 import {
     buildCollectionUid,
     CollectionContentType,
@@ -180,14 +187,16 @@ export class UnifiedCollectionDataService {
         item: UnifiedCollectionItem
     ): Promise<void> {
         if (mode === 'favorites') {
-            await this.favoritesData.removeFavorite(item);
+            if ((await this.favoritesData.removeFavorite(item)) === false)
+                return;
             this.favoriteUidSet.update((favoriteUids) => {
                 const nextFavoriteUids = new Set(favoriteUids);
                 nextFavoriteUids.delete(item.uid);
                 return nextFavoriteUids;
             });
         } else {
-            await this.recentData.removeRecentItem(item);
+            if ((await this.recentData.removeRecentItem(item)) === false)
+                return;
         }
         this.allItems.update((items) =>
             items.filter((i) => i.uid !== item.uid)
@@ -196,17 +205,18 @@ export class UnifiedCollectionDataService {
     }
 
     async toggleFavorite(item: UnifiedCollectionItem): Promise<void> {
-        const nextFavoriteUids = new Set(this.favoriteUidSet());
+        const wasFavorite = this.favoriteUidSet().has(item.uid);
+        const saved = wasFavorite
+            ? await this.favoritesData.removeFavorite(item)
+            : await this.favoritesData.addFavorite(item);
+        if (saved === false) return;
 
-        if (nextFavoriteUids.has(item.uid)) {
-            await this.favoritesData.removeFavorite(item);
-            nextFavoriteUids.delete(item.uid);
-        } else {
-            await this.favoritesData.addFavorite(item);
-            nextFavoriteUids.add(item.uid);
-        }
-
-        this.favoriteUidSet.set(nextFavoriteUids);
+        this.favoriteUidSet.update((favoriteUids) => {
+            const nextFavoriteUids = new Set(favoriteUids);
+            if (wasFavorite) nextFavoriteUids.delete(item.uid);
+            else nextFavoriteUids.add(item.uid);
+            return nextFavoriteUids;
+        });
         await this.releaseAssignments([item]);
     }
 
@@ -226,22 +236,27 @@ export class UnifiedCollectionDataService {
         );
     }
 
-    async clearFavorites(items: UnifiedCollectionItem[]): Promise<void> {
-        await this.favoritesData.clearFavorites(items);
-        await this.releaseAssignments(items);
+    async clearFavorites(items: UnifiedCollectionItem[]): Promise<boolean> {
+        const cleared = await this.favoritesData.clearFavorites(items);
+        if (cleared !== false) await this.releaseAssignments(items);
+        return cleared;
     }
 
-    private async releaseAssignments(items: UnifiedCollectionItem[]): Promise<void> {
+    private async releaseAssignments(
+        items: UnifiedCollectionItem[]
+    ): Promise<void> {
         if (!items.some((item) => item.contentType === 'live')) return;
         try {
-            await this.injector.get(FavoriteChannelFoldersService).unfile(items);
+            await this.injector
+                .get(FavoriteChannelFoldersService)
+                .unfile(items);
         } catch {
             // The provider has already confirmed the membership change.
         }
     }
 
-    removeRecentItemsBatch(items: UnifiedCollectionItem[]): void {
-        void this.recentData.removeRecentItemsBatch(items);
+    removeRecentItemsBatch(items: UnifiedCollectionItem[]): Promise<boolean> {
+        return this.recentData.removeRecentItemsBatch(items);
     }
 
     /** Move a just-played item back to the head of the recent list. */

@@ -3,6 +3,7 @@ import {
     Component,
     effect,
     inject,
+    Injector,
     OnInit,
     signal,
     ChangeDetectionStrategy,
@@ -35,12 +36,16 @@ import {
 import {
     AUTO_UPDATE_PLAYLISTS,
     Language,
+    type PlaylistMeta,
     Settings,
     STORE_KEY,
     Theme,
     createDevLogger,
+    isXtreamAccountPlaylist,
+    normalizeXtreamContentTypes,
     normalizeAppLanguage,
 } from '@iptvnator/shared/interfaces';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { AppDateLocaleService } from './app-date-locales';
 import { SettingsService } from './services/settings.service';
 import { ParentalLockEnforcementService } from './services/parental-lock-enforcement.service';
@@ -107,6 +112,7 @@ export class AppComponent implements OnInit {
     );
     private playlistOpenRequests = inject(PlaylistOpenRequestService);
     private runtime = inject(RuntimeCapabilitiesService);
+    private readonly injector = inject(Injector);
     private readonly workspaceShellActions = inject(WORKSPACE_SHELL_ACTIONS);
     private readonly contextDrawer = inject(WorkspaceShellContextDrawerService);
 
@@ -167,11 +173,11 @@ export class AppComponent implements OnInit {
     }
 
     ngOnInit() {
+        this.triggerAutoUpdatePlaylists();
         this.store.dispatch(PlaylistActions.loadPlaylists());
         this.translate.setDefaultLang(this.DEFAULT_LANG);
 
         this.initSettings();
-        this.triggerAutoUpdatePlaylists();
     }
 
     /**
@@ -187,7 +193,9 @@ export class AppComponent implements OnInit {
                     // Settings are stored in IndexedDB and loaded by the settings store
                     // Only specific Electron settings (MPV/VLC paths) are sent when changed in settings component
 
-                    const resolvedLang = normalizeAppLanguage(settings.language);
+                    const resolvedLang = normalizeAppLanguage(
+                        settings.language
+                    );
                     // The switch re-renders every date with the new locale;
                     // its data is a lazy chunk that must be registered first.
                     void this.dateLocales.use(resolvedLang);
@@ -281,7 +289,6 @@ export class AppComponent implements OnInit {
      * Triggers auto-update for playlists that have autoRefresh enabled
      */
     private triggerAutoUpdatePlaylists(): void {
-        // Wait for playlists to be loaded successfully
         this.actions$
             .pipe(
                 ofType(PlaylistActions.loadPlaylistsSuccess),
@@ -296,22 +303,44 @@ export class AppComponent implements OnInit {
                         filter((playlists) => playlists.length > 0)
                     )
                     .subscribe((playlists) => {
-                        // Filter playlists with autoRefresh enabled
-                        const playlistsToUpdate = playlists.filter(
+                        const optedIn = playlists.filter(
                             (playlist) => playlist.autoRefresh === true
                         );
-
-                        // Trigger auto-update if there are playlists to update
-                        if (playlistsToUpdate.length > 0) {
-                            debugAppComponent(
-                                `Auto-updating ${playlistsToUpdate.length} playlist(s) on startup`
-                            );
+                        const m3u = optedIn.filter(
+                            (playlist) => !playlist.serverUrl
+                        );
+                        if (m3u.length) {
                             this.dataService.sendIpcEvent(
                                 AUTO_UPDATE_PLAYLISTS,
-                                playlistsToUpdate
+                                m3u
                             );
                         }
+                        if (!this.runtime.supportsXtreamStartupRefresh) return;
+                        const xtream = optedIn.filter(
+                            (playlist) =>
+                                !playlist.portalUrl &&
+                                isXtreamAccountPlaylist(playlist) &&
+                                normalizeXtreamContentTypes(
+                                    playlist.xtreamContentTypes
+                                ).includes('live')
+                        );
+                        if (xtream.length)
+                            void this.refreshXtreamOnStartup(xtream);
                     });
             });
+    }
+
+    private async refreshXtreamOnStartup(
+        sources: PlaylistMeta[]
+    ): Promise<void> {
+        try {
+            const { refreshXtreamPlaylistsOnStartup } =
+                await import('./services/xtream-startup-refresh');
+            await refreshXtreamPlaylistsOnStartup(this.injector, sources);
+        } catch {
+            this.injector
+                .get(NotificationService)
+                .error('HOME.PLAYLISTS.XTREAM_STARTUP_REFRESH_FAILED');
+        }
     }
 }

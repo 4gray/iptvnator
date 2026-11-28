@@ -115,6 +115,10 @@ export class PlaylistInfoComponent {
         return this.runtime.supportsXtreamSqliteDataSource;
     }
 
+    get supportsXtreamStartupRefresh(): boolean {
+        return this.runtime.supportsXtreamStartupRefresh;
+    }
+
     get isDesktop(): boolean {
         return this.runtime.supportsDesktopFileSave;
     }

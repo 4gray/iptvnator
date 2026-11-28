@@ -60,6 +60,7 @@ export function setupLiveStreamLayoutNativeFixture() {
     };
     const databaseService = {
         getAllXtreamCategories: jest.fn(async () => [] as unknown[]),
+        getContentByXtreamId: jest.fn(async () => null as unknown),
     };
     const runtime = {
         supportsXtreamSqliteDataSource: false,

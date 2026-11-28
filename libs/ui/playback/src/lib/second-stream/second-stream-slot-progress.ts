@@ -12,7 +12,7 @@ import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 import { WebPlayerActivity } from '../web-player-view/web-player-activity';
 
 export class SecondStreamSlotProgress {
-    readonly selection: SecondStreamSelection;
+    private readonly selected;
     private readonly activity: WebPlayerActivity;
     private readonly writer;
     private readonly history;
@@ -21,10 +21,10 @@ export class SecondStreamSlotProgress {
         selection: SecondStreamSelection,
         private readonly events: PlaybackActivityEvents | null,
         save: (playlistId: string, position: PlaybackPositionData) => void,
-        recordHistory: () => void
+        recordHistory: (item: SecondStreamSelection['item']) => void
     ) {
         const { playback } = selection;
-        this.selection =
+        this.selected = signal(
             playback.contentInfo && !playback.isLive
                 ? {
                       ...selection,
@@ -36,14 +36,25 @@ export class SecondStreamSlotProgress {
                           },
                       },
                   }
-                : selection;
+                : selection
+        );
         this.activity = new WebPlayerActivity(events);
         this.activity.begin(this.selection.playback);
         this.writer = createInlinePlaybackPositionWriter({
             playback: signal(this.selection.playback),
             save,
         });
-        this.history = new PlaybackProgressConfirmation(recordHistory);
+        this.history = new PlaybackProgressConfirmation(() =>
+            recordHistory(this.selection.item)
+        );
+    }
+
+    get selection(): SecondStreamSelection {
+        return this.selected();
+    }
+
+    rebindItem(item: SecondStreamSelection['item']): void {
+        this.selected.update((selection) => ({ ...selection, item }));
     }
 
     record(session: EmbeddedMpvSession, event: PlayerTimeUpdate): void {

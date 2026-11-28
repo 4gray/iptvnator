@@ -377,7 +377,8 @@ export interface IXtreamDataSource {
         contentId: XtreamCollectionRef,
         playlistId: string,
         backdropUrl?: string,
-        playedContent?: XtreamPlayedContent
+        playedContent?: XtreamPlayedContent,
+        viewedAt?: string
     ): Promise<void>;
 
     /**
@@ -407,7 +408,9 @@ export interface IXtreamDataSource {
         identity?: ContentMetadataPatch,
         /** SQLite-only local category restriction when verifying route context. */
         categoryId?: number,
-        excludeLocked?: boolean
+        excludeLocked?: boolean,
+        /** If the preferred SQLite category is gone, accept only one typed match. */
+        fallbackToUniqueCategory?: boolean
     ): Promise<XtreamContentItem | null>;
 
     /**

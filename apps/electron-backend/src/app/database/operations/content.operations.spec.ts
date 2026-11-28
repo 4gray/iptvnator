@@ -171,6 +171,32 @@ describe('content.operations', () => {
         expect(where.mock.calls[0][0].conditions).toHaveLength(2);
     });
 
+    it.each([
+        [[{ id: 41 }], [], 41],
+        [[], [{ id: 42 }], 42],
+        [[], [{ id: 42 }, { id: 43 }], null],
+    ])(
+        'only falls back to a unique category match',
+        async (scoped, fallback, expected) => {
+            const { db, limit } = createDbMock();
+            limit.mockResolvedValueOnce(scoped).mockResolvedValueOnce(fallback);
+            const result = await getContentByXtreamId(
+                db,
+                7,
+                'synthetic-source',
+                'live',
+                undefined,
+                91,
+                undefined,
+                true
+            );
+            expect(result?.id ?? null).toBe(expected);
+            expect(limit.mock.calls).toEqual(
+                scoped.length ? [[1]] : [[1], [2]]
+            );
+        }
+    );
+
     it('uses a synchronous better-sqlite transaction callback when saving content', async () => {
         const existingContentWhere = jest
             .fn()
@@ -898,10 +924,7 @@ describe('content.operations', () => {
             .mockResolvedValueOnce([makeRow(1, 'A&E')])
             // FTS arm: compound substring matches, overlapping with the
             // prefix arm to prove candidates are deduplicated.
-            .mockResolvedValueOnce([
-                makeRow(2, 'US: A&E'),
-                makeRow(1, 'A&E'),
-            ]);
+            .mockResolvedValueOnce([makeRow(2, 'US: A&E'), makeRow(1, 'A&E')]);
         const select = jest.fn();
         const db = {
             all,
@@ -1019,7 +1042,9 @@ describe('content.operations', () => {
         const all = jest
             .fn()
             .mockResolvedValueOnce([globRow])
-            .mockRejectedValueOnce(new Error('no such table: content_title_fts'));
+            .mockRejectedValueOnce(
+                new Error('no such table: content_title_fts')
+            );
         const limit = jest.fn().mockResolvedValue([globRow, scanRow]);
         const orderBy = jest.fn().mockReturnValue({ limit });
         const where = jest.fn().mockReturnValue({ orderBy });

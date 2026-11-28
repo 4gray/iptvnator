@@ -19,6 +19,13 @@ type PreloadInvokeCase = {
 };
 
 const playlistId = 'playlist-1';
+const startupCondition = {
+    playlistId,
+    serverUrl: 'https://provider.example.test',
+    username: 'synthetic',
+    password: 'synthetic',
+    previousUpdateDate: 100,
+};
 export const operationId = 'operation-1';
 const epgUrls = ['https://example.com/guide.xml'];
 const trustOptions = {
@@ -161,6 +168,32 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: [playlistId, playlistUpdates],
     },
     {
+        method: 'dbUpdatePlaylist',
+        args: [
+            playlistId,
+            { updateDate: 42 },
+            {
+                playlistId,
+                serverUrl: 'https://portal.example.test',
+                username: 'synthetic-user',
+                password: 'synthetic-password',
+                previousUpdateDate: null,
+            },
+        ],
+        channel: 'DB_UPDATE_PLAYLIST',
+        forwardedArgs: [
+            playlistId,
+            { updateDate: 42 },
+            {
+                playlistId,
+                serverUrl: 'https://portal.example.test',
+                username: 'synthetic-user',
+                password: 'synthetic-password',
+                previousUpdateDate: null,
+            },
+        ],
+    },
+    {
         method: 'dbSetPlaylistServerTimezone',
         args: [
             playlistId,
@@ -185,6 +218,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         args: [playlistId, operationId],
         channel: 'DB_DELETE_XTREAM_CONTENT',
         forwardedArgs: [playlistId, operationId],
+    },
+    {
+        method: 'dbDeleteXtreamContent',
+        args: [playlistId, operationId, ['live'], startupCondition],
+        channel: 'DB_DELETE_XTREAM_CONTENT',
+        forwardedArgs: [playlistId, operationId, ['live'], startupCondition],
     },
     {
         method: 'dbRestoreXtreamFavorites',
@@ -212,7 +251,7 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
     },
     {
         method: 'dbSaveCategories',
-        args: [playlistId, categories, 'live', categoryIds, categoryIds],
+        args: [playlistId, categories, 'live', categoryIds, categoryIds, [[17, 42]]],
         channel: 'DB_SAVE_CATEGORIES',
         forwardedArgs: [
             playlistId,
@@ -220,6 +259,7 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
             'live',
             categoryIds,
             categoryIds,
+            [[17, 42]],
         ],
     },
     {
@@ -355,6 +395,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: [13, playlistId, 'https://image.example/recent.jpg'],
     },
     {
+        method: 'dbAddRecentItem',
+        args: [13, playlistId, undefined, '2026-01-01T00:00:00.123Z'],
+        channel: 'DB_ADD_RECENT_ITEM',
+        forwardedArgs: [13, playlistId, undefined, '2026-01-01T00:00:00.123Z'],
+    },
+    {
         method: 'dbClearPlaylistRecentItems',
         args: [playlistId],
         channel: 'DB_CLEAR_PLAYLIST_RECENT_ITEMS',
@@ -389,6 +435,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         args: [42, playlistId, 'movie', undefined, undefined, true],
         channel: 'DB_GET_CONTENT_BY_XTREAM_ID',
         forwardedArgs: [42, playlistId, 'movie', undefined, undefined, true],
+    },
+    {
+        method: 'dbGetContentByXtreamId',
+        args: [42, playlistId, 'live', undefined, 8, undefined, true],
+        channel: 'DB_GET_CONTENT_BY_XTREAM_ID',
+        forwardedArgs: [42, playlistId, 'live', undefined, 8, undefined, true],
     },
     {
         method: 'dbSetContentMetadataIfMissing',

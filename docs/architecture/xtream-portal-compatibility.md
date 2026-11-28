@@ -382,10 +382,86 @@ atomic restore is unsupported; exports with no pending favorites remain availabl
 
 Records already deleted by an older build cannot be recovered without a
 surviving pending state or backup. Opening an Xtream section may initialize
-content when its cache is not ready; startup imports and explicit refresh use
-the same durable persistence invariant. This does not add a refresh scheduler.
+content when its cache is not ready. Startup imports, automatic live refresh
+and explicit refresh use the same durable persistence invariant.
 
 ## Desktop catalog selection
+
+### Refresh live channels on startup
+
+The desktop source editor reuses the per-source `autoRefresh` preference for
+Xtream Live TV. The option and startup runner require the SQLite preload
+surface and `xtreamStartupRefreshVersion: 1`. This version includes guarded
+invalidation, retained category IDs and atomic completion. On launch, the
+renderer runs opted-in live refreshes in sequence.
+Before each provider request it skips sources that were removed or whose saved
+connection, opt-in, selection or refresh date changed since they were queued.
+The app can read the saved catalog while the provider responds. It keeps the
+cache if the reply contains no live streams, has invalid stream or category
+IDs, or has a stream referencing a category absent from the response. Category
+IDs and references must be safe integers or whole decimal strings.
+Before replacing live rows, the selected-catalog service waits for source
+activity to finish and rechecks the saved connection, preference and catalog
+selection. The worker checks the connection, preference, live selection and
+previous timestamp again in the transaction that starts invalidation. It drops
+a superseded refresh without touching the saved catalog. Timestamp publication
+and catalog completion share a SQLite transaction through the playlist write
+queue. The worker rechecks the full source condition before committing both.
+A superseded replacement clears its newly written cache and keeps user-state
+recovery for the next catalog load. A successful refresh publishes the
+committed timestamp so an open Xtream view can reread live rows and refresh
+its search without resetting playback. A late history recovery error still
+publishes a retained catalog commit and shows the refresh error. The Electron
+second-stream picker waits for live replacement before
+reading a source, Favorites or Recently Viewed. An open live picker can show
+the cached channels during the provider fetch and reloads after the replacement
+commits. It keeps the SQLite category ID for history and the provider category
+ID for parental locks. Open Favorites and Recently Viewed reload their rows
+after the commit. A detail favorite reread waits for
+a pending toggle of the same item. SQLite live favorite toggles,
+playback history writes and item removals wait for in-flight source work.
+They hold the source from channel lookup through the write and resolve the
+current row by provider identity. Collection actions also use the row's SQLite
+category, including removals from the Dashboard. If the channel moves, the
+lookup accepts a single typed match. If a live row disappears during
+replacement, removing its favorite from Recently Viewed uses the saved
+favorite ID from the same filtered source. The heart stays set when no
+compatible favorite can be found. Live history keeps one row per source and
+provider stream, using the category of its latest confirmed playback. Deleting
+that entry also removes any older category copies. Recovery records the newest
+legacy copy before replacement, prefers its original live category and keeps
+ambiguous moves pending. Source and global history clears wait for the affected
+Xtream catalog replacements to finish recovery. Clears and individual removals
+run after already-confirmed writes and before subsequent writes in scope. This
+includes hiding a series from Continue Watching. A delayed favorite or history action is canceled if its source
+profile or sync consent changes before the write. Canceled item actions
+preserve the displayed row or favorite mark. A partially completed clear
+reloads the collection from storage. Lock-triggered
+Xtream catalog reads wait for source replacement to release its hold. An open
+history view reloads using the current consent when the same source's history
+changes. SQLite history and the portable history outbox and local archive keep
+the confirmation time when a source delays the write. Acknowledged shared history uses the
+[server clock](./pwa-self-hosted.md#recently-viewed-synchronization). Delayed writes update
+the visible list only when it still belongs to their source.
+The selected and playing live channels, including companion streams, are
+rebound by provider identity to their new SQLite rows. Each player keeps its
+session while allowed and checks the refreshed provider category for parental
+locks. A live or archive tune requested during replacement waits for the
+source to become idle. It resolves its channel against SQLite before playback,
+including selections from cached queues after replacement. Invalidation
+retires an archive request whose URL is still resolving and a native launch
+still waiting to close a previous session.
+A cached selection without a matching catalog row cannot launch a new stream.
+A pending Xtream live companion choice is discarded if its source is
+refreshed before the choice can be installed.
+Retained categories keep their SQLite IDs so playback queues, the guide and
+category history links still point to the same categories. During the launch
+session, a removed category falls back to Live TV. The app replaces that
+history entry after navigation settles and preserves its query parameters.
+Movies and series use their existing catalog
+lifecycle.
+
+### Catalog preferences
 
 Desktop source metadata optionally carries `xtreamContentTypes` using `live`,
 `movie`, and `series`. Missing means all types (legacy behavior); `[]` means

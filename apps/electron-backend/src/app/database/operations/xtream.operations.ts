@@ -1,5 +1,6 @@
 import { reconcileFavoriteIdentity } from './favorite-catalog';
 import { restoreXtreamFavorites } from './favorite-restore';
+import { matchesXtreamStartupRefresh } from './xtream-catalog-state';
 import {
     readHistoryRecovery,
     replayRecoveredHistory,
@@ -11,6 +12,7 @@ import {
     XTREAM_DATABASE_PERFORMANCE_PHASE,
     normalizeXtreamContentTypes,
     type XtreamContentType,
+    type XtreamStartupRefreshCondition,
     type XtreamBackupFavoriteItem,
     type XtreamBackupHiddenCategory,
     type XtreamBackupRecentlyViewedItem,
@@ -174,26 +176,58 @@ export async function deleteXtreamContent(
     playlistId: string,
     control?: OperationControl,
     capturePhase?: DatabaseOperationPerformancePhaseCapture,
-    types?: XtreamContentType[]
+    types?: XtreamContentType[],
+    startupCondition?: XtreamStartupRefreshCondition
 ): Promise<{
     success: boolean;
+    skipped?: true;
     favorites: XtreamBackupFavoriteItem[];
     recentlyViewed: XtreamBackupRecentlyViewedItem[];
     hiddenCategories: XtreamBackupHiddenCategory[];
 }> {
     await checkpointOperation(control);
-    reconcileFavoriteIdentity(db, eq(schema.favorites.playlistId, playlistId));
-    await db
-        .update(schema.appState)
-        .set({ value: 'idle' })
-        .where(
-            inArray(
-                schema.appState.key,
-                normalizeXtreamContentTypes(types).map(
-                    (type) => `xtream-import-status:${playlistId}:${type}`
+    const beginInvalidation = (target: Pick<AppDatabase, 'update'>) => {
+        reconcileFavoriteIdentity(
+            target,
+            eq(schema.favorites.playlistId, playlistId)
+        );
+        target
+            .update(schema.appState)
+            .set({ value: 'idle' })
+            .where(
+                inArray(
+                    schema.appState.key,
+                    normalizeXtreamContentTypes(types).map(
+                        (type) => `xtream-import-status:${playlistId}:${type}`
+                    )
                 )
             )
-        );
+            .run();
+    };
+    if (startupCondition === undefined) {
+        beginInvalidation(db);
+    } else {
+        if (
+            startupCondition?.playlistId !== playlistId ||
+            types?.length !== 1 ||
+            types[0] !== 'live'
+        )
+            throw new Error('Invalid Xtream startup invalidation.');
+        const started = db.transaction((tx) => {
+            if (!matchesXtreamStartupRefresh(tx, startupCondition))
+                return false;
+            beginInvalidation(tx);
+            return true;
+        });
+        if (!started)
+            return {
+                success: false,
+                skipped: true,
+                favorites: [],
+                recentlyViewed: [],
+                hiddenCategories: [],
+            };
+    }
     const collection = capturePhase
         ? await capturePhase.captureAsync(
               XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_XTREAM_DELETE_COLLECT_USER_DATA,

@@ -1,7 +1,9 @@
 import { TestBed } from '@angular/core/testing';
+import { of } from 'rxjs';
 import { DataService } from './data.service';
 import { DatabaseService } from './database-electron.service';
-import { ParentalLockService } from './parental-lock';
+import { ParentalLockLockStore } from './parental-lock';
+import { PlaylistsService } from './playlists.service';
 import { SourceActivityService } from './source-activity.service';
 import {
     XtreamPendingRestoreService,
@@ -56,10 +58,14 @@ describe('edit-time Xtream catalog refresh', () => {
     let release: jest.Mock;
     let service: XtreamSelectedCatalogRefreshService;
     let commitState: jest.Mock;
+    let completeXtreamStartupRefresh: jest.Mock;
     let assertCurrent: jest.Mock;
     let readCurrent: jest.Mock;
+    let lockedXtreamIds: jest.Mock;
+    let withXtreamCategoryLocks: jest.Mock;
 
     beforeEach(() => {
+        completeXtreamStartupRefresh = jest.fn(() => of(73));
         data = { sendIpcEvent: jest.fn().mockResolvedValue({ payload: [] }) };
         db = Object.fromEntries(
             [
@@ -124,6 +130,11 @@ describe('edit-time Xtream catalog refresh', () => {
         release = jest.fn();
         assertCurrent = jest.fn().mockResolvedValue(undefined);
         readCurrent = jest.fn().mockResolvedValue(playlist);
+        lockedXtreamIds = jest.fn().mockReturnValue([]);
+        withXtreamCategoryLocks = jest.fn(
+            async (_id, _type, save: (lockedIds: number[]) => Promise<void>) =>
+                save([])
+        );
         commitState = jest.fn(async (_playlist, key, value) => {
             const saved =
                 value === 'completed'
@@ -141,6 +152,10 @@ describe('edit-time Xtream catalog refresh', () => {
                 { provide: DataService, useValue: data },
                 { provide: DatabaseService, useValue: db },
                 {
+                    provide: PlaylistsService,
+                    useValue: { completeXtreamStartupRefresh },
+                },
+                {
                     provide: XtreamCatalogCommitService,
                     useValue: {
                         setState: commitState,
@@ -149,17 +164,140 @@ describe('edit-time Xtream catalog refresh', () => {
                     },
                 },
                 {
-                    provide: ParentalLockService,
-                    useValue: { lockedXtreamIds: () => [] },
+                    provide: ParentalLockLockStore,
+                    useValue: {
+                        lockedXtreamIds,
+                        withXtreamCategoryLocks,
+                    },
                 },
                 {
                     provide: SourceActivityService,
-                    useValue: { isBusy: () => false, begin: () => release },
+                    useValue: {
+                        isBusy: () => false,
+                        begin: () => release,
+                        invalidateLiveCatalogReads: jest.fn(),
+                    },
                 },
                 { provide: XtreamPendingRestoreService, useValue: pending },
             ],
         });
         service = TestBed.inject(XtreamSelectedCatalogRefreshService);
+    });
+
+    it('skips replacing startup rows if the option was turned off during the fetch', async () => {
+        const optedIn = { ...playlist, autoRefresh: true };
+        readCurrent.mockResolvedValue({ ...optedIn, autoRefresh: false });
+
+        await expect(
+            service.refreshLiveOnStartup(optedIn, {
+                type: 'live',
+                categories: [],
+                content: [],
+            })
+        ).resolves.toBe(false);
+        expect(db.deleteXtreamPlaylistContent).not.toHaveBeenCalled();
+        expect(
+            TestBed.inject(SourceActivityService).invalidateLiveCatalogReads
+        ).not.toHaveBeenCalled();
+        expect(release).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops prepared recovery if a newer edit supersedes the startup invalidation', async () => {
+        const optedIn = { ...playlist, autoRefresh: true, updateDate: 100 };
+        readCurrent.mockResolvedValue(optedIn);
+        db.deleteXtreamPlaylistContent.mockResolvedValue({
+            success: false,
+            skipped: true,
+        });
+
+        await expect(
+            service.refreshLiveOnStartup(optedIn, {
+                type: 'live',
+                categories: [],
+                content: [],
+            })
+        ).resolves.toBe(false);
+
+        expect(db.deleteXtreamPlaylistContent).toHaveBeenCalledWith('p', {
+            contentTypes: ['live'],
+            startupCondition: {
+                playlistId: 'p',
+                serverUrl: playlist.serverUrl,
+                username: playlist.username,
+                password: playlist.password,
+                previousUpdateDate: 100,
+            },
+        });
+        const fence = jest.mocked(
+            TestBed.inject(SourceActivityService).invalidateLiveCatalogReads
+        );
+        expect(fence).toHaveBeenCalledWith('p');
+        expect(fence.mock.invocationCallOrder[0]).toBeLessThan(
+            db.deleteXtreamPlaylistContent.mock.invocationCallOrder[0]
+        );
+        expect(pending['clear']).toHaveBeenCalledWith('p', expect.any(Object));
+        expect(db.setAppState).toHaveBeenLastCalledWith(
+            'xtream-history-recovery:p',
+            ''
+        );
+        expect(db.saveXtreamCategories).not.toHaveBeenCalled();
+        expect(db.clearXtreamImportCache).not.toHaveBeenCalled();
+    });
+
+    it('stamps startup categories with the lock list committed after an overlapping edit', async () => {
+        lockedXtreamIds.mockReturnValue([7]);
+        const optedIn = { ...playlist, autoRefresh: true };
+        readCurrent.mockResolvedValue(optedIn);
+        const categories = [
+            { category_id: '7', category_name: 'Synthetic', parent_id: 0 },
+        ];
+        const retained: [number, number][] = [[7, 17]];
+        await expect(
+            service.refreshLiveOnStartup(
+                optedIn,
+                { type: 'live', categories, content: [] },
+                async () => retained
+            )
+        ).resolves.toEqual({ updateDate: 73 });
+
+        expect(db.saveXtreamCategories).toHaveBeenCalledWith(
+            'p',
+            categories,
+            'live',
+            [],
+            [],
+            retained
+        );
+    });
+
+    it('clears newly written live rows and keeps recovery when final startup completion is superseded', async () => {
+        const optedIn = { ...playlist, autoRefresh: true, updateDate: 100 };
+        readCurrent.mockResolvedValue(optedIn);
+        completeXtreamStartupRefresh.mockReturnValueOnce(of(false));
+
+        await expect(
+            service.refreshLiveOnStartup(optedIn, {
+                type: 'live',
+                categories: [],
+                content: [],
+            })
+        ).resolves.toBe(false);
+
+        expect(completeXtreamStartupRefresh).toHaveBeenCalledWith(optedIn);
+        expect(commitState).not.toHaveBeenCalledWith(
+            optedIn,
+            'xtream-import-status:p:live',
+            'completed'
+        );
+        expect(db.setXtreamImportStatus).toHaveBeenLastCalledWith(
+            'p',
+            'live',
+            'failed'
+        );
+        expect(db.clearXtreamImportCache).toHaveBeenCalledWith('p', 'live');
+        expect(db.restoreXtreamUserData).not.toHaveBeenCalled();
+        expect(pending['clear']).not.toHaveBeenCalled();
+        expect(release).toHaveBeenCalledTimes(1);
     });
 
     it('immediately refreshes Movies only and restores history including other types', async () => {
@@ -766,6 +904,43 @@ describe('edit-time Xtream catalog refresh', () => {
             'failed'
         );
         expect(pending['applyAndConsume']).not.toHaveBeenCalled();
+    });
+
+    it('returns the retained startup commit if recovery fails', async () => {
+        const optedIn = { ...playlist, autoRefresh: true };
+        readCurrent.mockResolvedValue(optedIn);
+        pending['applyAndConsume'].mockRejectedValue(
+            new Error('Synthetic recovery error')
+        );
+
+        await expect(
+            service.refreshLiveOnStartup(optedIn, {
+                type: 'live',
+                categories: [],
+                content: [],
+            })
+        ).resolves.toEqual({ updateDate: 73, recoveryFailed: true });
+        expect(db.clearXtreamImportCache).not.toHaveBeenCalled();
+        expect(pending['clear']).not.toHaveBeenCalled();
+        expect(release).toHaveBeenCalled();
+    });
+
+    it('discards a committed replacement when recovery detects a changed connection', async () => {
+        const optedIn = { ...playlist, autoRefresh: true };
+        readCurrent.mockResolvedValue(optedIn);
+        pending['applyAndConsume'].mockRejectedValue(
+            new XtreamCatalogConnectionChangedError()
+        );
+
+        await expect(
+            service.refreshLiveOnStartup(optedIn, {
+                type: 'live',
+                categories: [],
+                content: [],
+            })
+        ).rejects.toBeInstanceOf(XtreamCatalogConnectionChangedError);
+        expect(db.clearXtreamImportCache).toHaveBeenCalledWith('p', 'live');
+        expect(pending['clear']).not.toHaveBeenCalled();
     });
 
     it('keeps healthy completed catalogs if only replay fails', async () => {

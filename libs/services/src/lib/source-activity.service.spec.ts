@@ -23,6 +23,27 @@ describe('SourceActivityService coordination', () => {
         expect(remaining).toEqual([true, false]);
     });
 
+    it('waits for both sources and releases them after a failed write', async () => {
+        const activity = TestBed.inject(SourceActivityService);
+        const first = activity.begin(['first']);
+        const second = activity.begin(['second']);
+        const write = jest.fn(async () => {
+            expect(activity.isBusy('first')).toBe(true);
+            expect(activity.isBusy('second')).toBe(true);
+            throw new Error('Synthetic write failure');
+        });
+        const result = activity.runWhenIdle(['first', 'second'], write);
+        first();
+        await Promise.resolve();
+        expect(write).not.toHaveBeenCalled();
+
+        second();
+        await expect(result).rejects.toThrow('Synthetic write failure');
+        expect(write).toHaveBeenCalledTimes(1);
+        expect(activity.isBusy('first')).toBe(false);
+        expect(activity.isBusy('second')).toBe(false);
+    });
+
     it('does not mark an unrelated source busy and unsubscribes before release', () => {
         const activity = TestBed.inject(SourceActivityService);
         const finish = activity.begin(['busy']);

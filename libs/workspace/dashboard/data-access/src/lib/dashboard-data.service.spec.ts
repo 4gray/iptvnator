@@ -1,3 +1,4 @@
+import { XtreamHistoryOrder } from '@iptvnator/services/history-events';
 import { announceActivityChange } from '@iptvnator/services/activity-changes';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -8,7 +9,12 @@ import {
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
 import { EMPTY, of, Subject } from 'rxjs';
-import { DatabaseService, PlaylistsService } from '@iptvnator/services';
+import {
+    DatabaseService,
+    PlaylistsService,
+    RuntimeCapabilitiesService,
+    SourceActivityService,
+} from '@iptvnator/services';
 import {
     PlaybackPositionData,
     Playlist,
@@ -117,6 +123,7 @@ describe('DashboardDataService', () => {
     const dbServiceMock = {
         getGlobalRecentlyAdded: jest.fn().mockResolvedValue([]),
         getGlobalRecentlyViewed: jest.fn().mockResolvedValue([]),
+        getContentByXtreamId: jest.fn().mockResolvedValue(null),
         getAllGlobalFavorites: jest.fn().mockResolvedValue([]),
         removeFromFavorites: jest.fn().mockResolvedValue(undefined),
         removeRecentItem: jest.fn().mockResolvedValue(undefined),
@@ -3016,6 +3023,91 @@ describe('DashboardDataService', () => {
         expect(
             playlistsServiceMock.removeFromM3uRecentlyViewed
         ).toHaveBeenCalledWith('m3u-1', 'https://example.com/stream-1.m3u8');
+    });
+
+    it('waits for a replaced live catalog before removing Dashboard history', async () => {
+        const sqlite = jest
+            .spyOn(
+                TestBed.inject(RuntimeCapabilitiesService),
+                'supportsXtreamSqliteDataSource',
+                'get'
+            )
+            .mockReturnValue(true);
+        const playlistId = 'synthetic-source';
+        const release = TestBed.inject(SourceActivityService).begin([
+            playlistId,
+        ]);
+        dbServiceMock.getContentByXtreamId.mockResolvedValueOnce({ id: 502 });
+        const item = {
+            id: 501,
+            title: 'Synthetic live channel',
+            viewed_at: '2026-01-01T00:00:00.000Z',
+            category_id: 8,
+            xtream_id: 42,
+            type: 'live',
+            playlist_id: playlistId,
+            source: 'xtream',
+        } satisfies GlobalRecentItem;
+
+        try {
+            const removal = service.removeGlobalRecentItem(item);
+            await Promise.resolve();
+            expect(dbServiceMock.removeRecentItem).not.toHaveBeenCalled();
+            release();
+            await removal;
+            expect(dbServiceMock.getContentByXtreamId).toHaveBeenCalledWith(
+                42,
+                playlistId,
+                'live',
+                undefined,
+                8,
+                undefined,
+                true
+            );
+            expect(dbServiceMock.removeRecentItem).toHaveBeenCalledWith(
+                502,
+                playlistId
+            );
+        } finally {
+            release();
+            sqlite.mockRestore();
+        }
+    });
+
+    it('removes a Dashboard SQLite series after its pending history write', async () => {
+        jest.spyOn(
+            TestBed.inject(RuntimeCapabilitiesService),
+            'supportsXtreamSqliteDataSource',
+            'get'
+        ).mockReturnValue(true);
+        let finishWrite: () => void = () => undefined;
+        const pending = new Promise<void>((resolve) => {
+            finishWrite = resolve;
+        });
+        const playback = TestBed.inject(XtreamHistoryOrder).run(
+            'synthetic-source',
+            () => pending
+        );
+        const removal = service.removeGlobalRecentItem({
+            id: 501,
+            title: 'Synthetic series',
+            viewed_at: '2026-01-01T00:00:00.000Z',
+            category_id: 8,
+            xtream_id: 42,
+            type: 'series',
+            playlist_id: 'synthetic-source',
+            source: 'xtream',
+        });
+        const removedWhilePending =
+            dbServiceMock.removeRecentItem.mock.calls.length;
+        finishWrite();
+        await Promise.all([playback, removal]);
+
+        expect(removedWhilePending).toBe(0);
+        expect(dbServiceMock.removeRecentItem).toHaveBeenCalledWith(
+            501,
+            'synthetic-source'
+        );
     });
 
     it('removes PWA Xtream recently viewed through the active data source', async () => {

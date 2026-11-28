@@ -22,7 +22,10 @@ it('persists empty selections, filters catalog reads, and refreshes without dele
             try { sqlite.exec(statement); } catch (error) { if (!String(error).includes('duplicate column name')) throw error; }
         }
         const db = drizzle(sqlite, { schema });
-        await upsertAppPlaylist(db, { _id: 'p', title: 'Test', serverUrl: 'https://example.invalid', xtreamContentTypes: ['live'] });
+        const source = { _id: 'p', title: 'Synthetic source', serverUrl: 'https://example.invalid', username: 'synthetic', password: 'synthetic', autoRefresh: true, updateDate: 100, xtreamContentTypes: ['live'] };
+        const condition = { playlistId: 'p', serverUrl: source.serverUrl, username: source.username, password: source.password, previousUpdateDate: 100 };
+        await upsertAppPlaylist(db, source);
+        sqlite.exec("INSERT INTO app_state (key, value) VALUES ('xtream-import-status:p:live', 'completed')");
         db.insert(schema.categories).values([
             { id: 1, playlistId: 'p', xtreamId: 1, name: 'Live', type: 'live' },
             { id: 2, playlistId: 'p', xtreamId: 2, name: 'Movies', type: 'movies' },
@@ -37,7 +40,18 @@ it('persists empty selections, filters catalog reads, and refreshes without dele
         db.insert(schema.favorites).values({ contentId: 2, playlistId: 'p', xtreamId: 20, title: 'Test Movie', type: 'movie' }).run();
         const hidden = await getContent(db, 'p', 'movie');
         const search = await searchContent(db, 'p', 'Test', ['live', 'movie']);
-        const saved = await deleteXtreamContent(db, 'p', undefined, undefined, ['live']);
+        const skips = [];
+        for (const edit of [{ autoRefresh: false }, { xtreamContentTypes: [] }, { updateDate: 1000 }, { serverUrl: 'https://other.example.invalid' }]) {
+            await upsertAppPlaylist(db, { ...source, ...edit });
+            const skipped = await deleteXtreamContent(db, 'p', undefined, undefined, ['live'], condition);
+            skips.push({
+                skipped: skipped.skipped,
+                count: sqlite.prepare('SELECT count(*) AS n FROM content').get().n,
+                status: sqlite.prepare("SELECT value FROM app_state WHERE key = 'xtream-import-status:p:live'").get().value
+            });
+        }
+        await upsertAppPlaylist(db, source);
+        const saved = await deleteXtreamContent(db, 'p', undefined, undefined, ['live'], condition);
         const retainedContent = sqlite.prepare('SELECT id FROM content').all();
         const retainedRecent = sqlite.prepare('SELECT content_id FROM recently_viewed').all();
         const retainedFavorite = sqlite.prepare('SELECT content_id FROM favorites').all();
@@ -45,7 +59,7 @@ it('persists empty selections, filters catalog reads, and refreshes without dele
         const row = await getPlaylist(db, 'p');
         const metas = await getAppPlaylistMetas(db);
         const noOp = await deleteXtreamContent(db, 'p', undefined, undefined, []);
-        console.log(JSON.stringify({ hidden, search: search.map(row => row.type), savedRecent: saved.recentlyViewed.map(row => row.contentType).sort(), retainedContent, retainedRecent, retainedFavorite, selection: row.xtreamContentTypes, metaSelection: metas[0].xtreamContentTypes, noOpRecent: noOp.recentlyViewed.length, remaining: sqlite.prepare('SELECT count(*) AS n FROM content').get().n }));
+        console.log(JSON.stringify({ skips, hidden, search: search.map(row => row.type), savedRecent: saved.recentlyViewed.map(row => row.contentType).sort(), retainedContent, retainedRecent, retainedFavorite, selection: row.xtreamContentTypes, metaSelection: metas[0].xtreamContentTypes, noOpRecent: noOp.recentlyViewed.length, remaining: sqlite.prepare('SELECT count(*) AS n FROM content').get().n }));
         sqlite.close();
     `;
     const result = JSON.parse(
@@ -67,6 +81,7 @@ it('persists empty selections, filters catalog reads, and refreshes without dele
         )
     );
     expect(result).toEqual({
+        skips: Array(4).fill({ skipped: true, count: 2, status: 'completed' }),
         hidden: [],
         search: ['live'],
         savedRecent: ['live', 'movie'],

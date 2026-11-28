@@ -279,6 +279,7 @@ describe('SerialDetailsComponent', () => {
             xtreamId: '103',
             contentType: 'series',
             playlist: expect.any(Function),
+            viewedAt: expect.any(String),
             playedContent: {
                 title: 'Series One',
                 categoryId: '3',

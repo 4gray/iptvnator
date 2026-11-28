@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import {
+    SECOND_STREAM_HISTORY,
     SecondStreamCatalogService,
     SecondStreamChannel,
     type SecondStreamEpisode,
@@ -14,6 +15,7 @@ import {
     EpgPreferencesService,
     EpgSourceSettingsService,
     SettingsStore,
+    SourceActivityService,
 } from '@iptvnator/services';
 import { NEVER, Subject } from 'rxjs';
 import { SecondStreamPickerComponent } from './second-stream-picker.component';
@@ -167,6 +169,60 @@ describe('SecondStreamPickerComponent', () => {
         expect(signal.aborted).toBe(true);
         expect(component.data().channels).toEqual([row]);
     });
+
+    it.each(['p', '', SECOND_STREAM_HISTORY])(
+        'reloads an open live picker after startup replacement for scope "%s"',
+        async (scope) => {
+            const refreshed = {
+                ...row,
+                item: { ...row.item, name: 'Synthetic refreshed channel' },
+            };
+            component.source.set(scope);
+            component.search.set('synthetic');
+            await component.reload();
+            expect(component.data().channels).toEqual([row]);
+            load.mockResolvedValue({ groups: [], channels: [refreshed] });
+
+            TestBed.inject(SourceActivityService).notifyLiveCatalogReplacement(
+                'p'
+            );
+            await Promise.resolve();
+
+            expect(component.data().channels).toEqual([refreshed]);
+            expect(component.search()).toBe('synthetic');
+        }
+    );
+
+    it('ignores a live replacement for unrelated, VOD, and closing pickers', () => {
+        const activity = TestBed.inject(SourceActivityService);
+        component.source.set('other');
+        activity.notifyLiveCatalogReplacement('p');
+        component.source.set('p');
+        component.vod.type.set('movie');
+        activity.notifyLiveCatalogReplacement('p');
+        component.vod.type.set(null);
+        beforeClosed.next();
+        activity.notifyLiveCatalogReplacement('p');
+        expect(load).not.toHaveBeenCalled();
+        expect(vodService.browse).not.toHaveBeenCalled();
+    });
+    it('passes the selected Xtream source revision through the dialog result', async () => {
+        const activity = TestBed.inject(SourceActivityService);
+        const item = { ...row.item, sourceType: 'xtream' as const };
+        const playback = { streamUrl: 'https://media.example.test/live' };
+        resolve.mockResolvedValue(playback);
+        activity.notifyLiveCatalogReplacement(item.playlistId);
+        activity.notifyLiveCatalogReplacement('other-source');
+
+        await component.choose({ ...row, item });
+
+        expect(close).toHaveBeenCalledWith({
+            item,
+            playback,
+            catalogRevision: 1,
+        });
+    });
+
     it('does not open a channel whose resolution finishes after source changes', async () => {
         let finish!: (value: unknown) => void;
         resolve.mockImplementation(() => new Promise((r) => (finish = r)));

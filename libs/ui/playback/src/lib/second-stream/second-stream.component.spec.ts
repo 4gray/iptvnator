@@ -9,6 +9,7 @@ import {
 } from '@iptvnator/portal/shared/data-access';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
 import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
+import { SourceActivityService } from '@iptvnator/services';
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import { TranslateModule } from '@ngx-translate/core';
 import { firstValueFrom, NEVER, Subject } from 'rxjs';
@@ -90,6 +91,8 @@ describe('SecondStreamComponent', () => {
         checkpoint: jest.fn().mockResolvedValue(undefined),
     };
     const blocked = signal<readonly string[]>([]);
+    const lockedCategory = signal<number | null>(null);
+    const rebindLiveCategory = jest.fn();
     const originalElectron = Object.getOwnPropertyDescriptor(
         window,
         'electron'
@@ -149,6 +152,8 @@ describe('SecondStreamComponent', () => {
         savePlaybackPosition.mockReset().mockResolvedValue(undefined);
         recordPlayback.mockReset().mockResolvedValue(undefined);
         blocked.set([]);
+        lockedCategory.set(null);
+        rebindLiveCategory.mockReset();
         activity.active.mockReturnValue(false);
         activity.begin.mockClear();
         activity.checkpoint.mockClear();
@@ -180,8 +185,11 @@ describe('SecondStreamComponent', () => {
                 {
                     provide: SecondStreamCatalogService,
                     useValue: {
+                        rebindLiveCategory,
                         isAllowed: (item: SecondStreamSelection['item']) =>
-                            !blocked().includes(item.playlistId),
+                            !blocked().includes(item.playlistId) &&
+                            (lockedCategory() === null ||
+                                item.categoryId !== lockedCategory()),
                     },
                 },
             ],
@@ -638,6 +646,49 @@ describe('SecondStreamComponent', () => {
         expect(await result).toBeNull();
     });
 
+    it('rejects a cached Xtream companion choice when the catalog commits during dialog close', async () => {
+        const available = distinctSelection(2);
+        const stale = {
+            ...available,
+            item: { ...available.item, sourceType: 'xtream' as const },
+            catalogRevision: 0,
+        };
+        const { result } = await dialogFor(2);
+        TestBed.inject(SourceActivityService).notifyLiveCatalogReplacement(
+            stale.item.playlistId
+        );
+        afterClosed.next(stale);
+        expect(await result).toBeNull();
+        expect(component.selectionAt(2)).toBeNull();
+
+        await choose(2, { ...stale, catalogRevision: 1 });
+    });
+
+    it('drops an Xtream replacement choice when the catalog commits during audio handoff', async () => {
+        await choose(2);
+        expect(await component.swap()).toBe(true);
+        const retained = component.selectionAt(2);
+        const muted = deferredAck();
+        volume.mockClear().mockReturnValueOnce(muted.promise);
+        const available = distinctSelection(3);
+        const stale = {
+            ...available,
+            item: { ...available.item, sourceType: 'xtream' as const },
+            catalogRevision: 0,
+        };
+        const { result } = await dialogFor(2, true);
+        afterClosed.next(stale);
+        await Promise.resolve();
+        expect(volume.mock.calls).toEqual([['session-2', 0]]);
+        TestBed.inject(SourceActivityService).notifyLiveCatalogReplacement(
+            stale.item.playlistId
+        );
+        muted.confirm();
+
+        expect(await result).toBeNull();
+        expect(component.selectionAt(2)).toBe(retained);
+    });
+
     it('returns sound and the large window to the primary before replacing a swapped companion', async () => {
         await choose(2);
         expect(await component.swap()).toBe(true);
@@ -682,6 +733,55 @@ describe('SecondStreamComponent', () => {
         expect(component.active()).toBe(true);
         expect(third.controller.sessionId()).toBe('session-3');
     });
+
+    it.each([true, false])(
+        'rechecks an accepted companion against its refreshed category (locked: %s)',
+        async (locked) => {
+            const fixtureChoice = distinctSelection(2);
+            const item: SecondStreamSelection['item'] = {
+                ...fixtureChoice.item,
+                sourceType: 'xtream',
+                xtreamId: 42,
+                categoryId: 50,
+                xtreamCategoryRowId: 5,
+            };
+            const moved = { ...item, categoryId: 60, xtreamCategoryRowId: 6 };
+            const companion = await choose(2, {
+                item,
+                playback: { ...fixtureChoice.playback, isLive: true },
+            });
+            const originalPlayback = component.selectionAt(2)?.playback;
+            const { result } = await dialogFor(2, true);
+            if (locked) lockedCategory.set(60);
+            rebindLiveCategory.mockResolvedValue(moved);
+
+            TestBed.inject(SourceActivityService).notifyLiveCatalogReplacement(
+                item.playlistId
+            );
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            TestBed.tick();
+
+            expect(rebindLiveCategory).toHaveBeenCalledWith(item);
+            if (locked) {
+                expect(await result).toBeNull();
+                expect(dialogClose).toHaveBeenCalledTimes(1);
+                expect(component.openStreams().map(({ slot }) => slot)).toEqual(
+                    [1]
+                );
+                await component.close(2);
+                expect(component.selectionAt(2)).toBeNull();
+                return;
+            }
+            expect(component.selectionAt(2)?.item).toEqual(moved);
+            expect(component.selectionAt(2)?.playback).toBe(originalPlayback);
+            expect(companion.controller.sessionId()).toBe('session-2');
+            expect(dialogClose).not.toHaveBeenCalled();
+            const replacement = distinctSelection(3);
+            afterClosed.next(replacement);
+            expect(await result).toBe(2);
+            expect(component.selectionAt(2)).toBe(replacement);
+        }
+    );
 
     it('waits for an exact mute acknowledgement before restoring primary sound on relock', async () => {
         await choose(2);

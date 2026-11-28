@@ -5,6 +5,7 @@ import {
     lockedStalkerCategoryIds,
     lockedXtreamCategoryIds,
     normalizeParentalLockPlaylistLocks,
+    PARENTAL_LOCK_XTREAM_CATEGORY_TYPES,
     ParentalLockPlaylistLocks,
     ParentalLockStalkerCategoryType,
     ParentalLockStore,
@@ -15,6 +16,8 @@ import { RuntimeCapabilitiesService } from '../runtime-capabilities.service';
 import { ParentalLockStaleIndex } from './parental-lock-stale-index';
 import { ParentalLockStorageService } from './parental-lock-storage';
 import {
+    applyLockListEdit,
+    type LockListEdit,
     lockRemovalGate,
     stampXtreamIndex,
     withM3uLocks,
@@ -22,26 +25,6 @@ import {
     withStalkerLocks,
     withXtreamLocks,
 } from './parental-lock-store.util';
-
-/**
- * A full replacement list, or an edit of the CURRENT list. The edit form is
- * evaluated inside the write queue, so single-row toggles issued back to
- * back each see the previous toggle's result instead of one shared snapshot.
- */
-export type LockListEdit<T> = readonly T[] | ((current: readonly T[]) => T[]);
-
-function applyLockListEdit<T>(
-    edit: LockListEdit<T>,
-    current: readonly T[]
-): T[] {
-    return typeof edit === 'function' ? edit(current) : [...edit];
-}
-
-const XTREAM_CATEGORY_TYPES: readonly ParentalLockXtreamCategoryType[] = [
-    'live',
-    'movies',
-    'series',
-];
 
 /**
  * The lock store: WHICH categories are locked, per playlist, persisted
@@ -314,7 +297,7 @@ export class ParentalLockLockStore {
                 playlistId,
                 this.locksFor(playlistId),
                 locks,
-                XTREAM_CATEGORY_TYPES
+                PARENTAL_LOCK_XTREAM_CATEGORY_TYPES
             );
         });
     }
@@ -523,13 +506,26 @@ export class ParentalLockLockStore {
         this.publish();
     }
 
+    /** Keep a category insert and lock edits in the same write order. */
+    withXtreamCategoryLocks(
+        playlistId: string,
+        categoryType: ParentalLockXtreamCategoryType,
+        save: (lockedIds: number[]) => Promise<void>
+    ): Promise<void> {
+        return this.enqueue(async () => {
+            if (!(await this.ensureReadable()))
+                throw new Error('Could not read parental locks for refresh.');
+            return save(this.lockedXtreamIds(playlistId, categoryType));
+        });
+    }
+
     /**
      * Re-stamps the Electron `categories.locked` index for a playlist from
      * the store, e.g. after a refresh recreated the rows.
      */
     async stampXtreamLocks(
         playlistId: string,
-        categoryTypes: readonly ParentalLockXtreamCategoryType[] = XTREAM_CATEGORY_TYPES,
+        categoryTypes: readonly ParentalLockXtreamCategoryType[] = PARENTAL_LOCK_XTREAM_CATEGORY_TYPES,
         locks: ParentalLockPlaylistLocks = this.locksFor(playlistId)
     ): Promise<boolean> {
         return (
@@ -553,9 +549,7 @@ export class ParentalLockLockStore {
         // edit. Here only the STORE must be known: the index of the
         // playlist being written is deliberately stale while it is
         // re-stamped, and a rollback must still be able to write.
-        if (this.unreadable()) {
-            return false;
-        }
+        if (this.unreadable()) return false;
         const next = withPlaylistLocksInStore(this.locks(), playlistId, locks);
         if (!(await this.storage.writeLocks(next))) {
             return false;

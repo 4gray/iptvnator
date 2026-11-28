@@ -8,10 +8,7 @@ import {
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { ChannelActions, selectActive } from '@iptvnator/m3u-state';
-import {
-    XTREAM_DATA_SOURCE,
-    XtreamStore,
-} from '@iptvnator/portal/xtream/data-access';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
     ParentalLockLockStore,
     ParentalLockService,
@@ -40,7 +37,6 @@ export class ParentalLockEnforcementService {
     private readonly parentalLock = inject(ParentalLockService);
     private readonly lockStore = inject(ParentalLockLockStore);
     private readonly xtreamStore = inject(XtreamStore);
-    private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
     private readonly injector = inject(EnvironmentInjector);
     private readonly router = inject(Router);
     private readonly store = inject(Store);
@@ -174,94 +170,15 @@ export class ParentalLockEnforcementService {
 
     private async applyXtream(version: number): Promise<void> {
         const playlistId = this.xtreamStore.playlistId?.();
-        if (!playlistId) {
-            return;
-        }
-        // A playlist switch retires the apply as a newer lock version
-        // does: the store now holds another portal, whose own load reads
-        // under the current lock state.
-        const shouldPublish = (): boolean =>
-            this.parentalLock.version() === version &&
-            this.xtreamStore.playlistId?.() === playlistId;
-        await this.xtreamStore.reloadCategories(shouldPublish);
-        await this.xtreamStore.reloadCachedContent(shouldPublish);
-        if (!shouldPublish()) {
-            return;
-        }
-        // Stored in-portal search results are a separate array the search
-        // page renders directly; re-run the search so it reads filtered.
-        await this.xtreamStore.refreshSearchResults?.();
-        if (!shouldPublish() || !this.parentalLock.active()) {
-            return;
-        }
-        await this.stepOffWithheldXtreamSelection(playlistId, shouldPublish);
-    }
-
-    /**
-     * Post-reload check of the selected Xtream category and item, judged by
-     * the LOCK STORE through the unfiltered category rows (hidden and locked
-     * ones included): the reloaded list also omits categories the user
-     * merely hid, which are not parental-locked. The item is judged on its
-     * own category — opened from "All", recently added or search it has no
-     * selected category to vanish with. Rows that cannot be read fail
-     * closed.
-     */
-    private async stepOffWithheldXtreamSelection(
-        playlistId: string,
-        shouldPublish: () => boolean
-    ): Promise<void> {
-        const match = XTREAM_ROUTE.exec(this.router.url);
-        const categoryType = toParentalLockXtreamCategoryType(match?.[2]);
-        if (!categoryType) {
-            return;
-        }
-        const rows = await this.xtreamDataSource
-            .getAllCategories(playlistId, categoryType)
-            .catch(() => null);
-        if (!shouldPublish()) {
-            return;
-        }
-        const isWithheld = (categoryId: unknown): boolean => {
-            const id = Number(categoryId);
-            if (
-                categoryId === null ||
-                categoryId === undefined ||
-                !Number.isFinite(id)
-            ) {
-                return false;
-            }
-            const row = rows?.find((candidate) => candidate.id === id);
-            return (
-                !row ||
-                this.parentalLock.isXtreamCategoryLocked(
-                    playlistId,
-                    categoryType,
-                    row.xtream_id
-                )
-            );
-        };
-        const selectedItem = this.xtreamStore.selectedItem?.() as {
-            category_id?: string | number;
-        } | null;
-        const itemWithheld = isWithheld(selectedItem?.category_id);
-        const categoryWithheld = isWithheld(
-            this.xtreamStore.selectedCategoryId()
+        if (!playlistId) return;
+        const { reloadXtreamCatalogAfterLock } =
+            await import('./parental-lock-xtream-reload');
+        await reloadXtreamCatalogAfterLock(
+            this.injector,
+            playlistId,
+            version,
+            (url) => XTREAM_ROUTE.exec(url)
         );
-        if (!itemWithheld && !categoryWithheld) {
-            return;
-        }
-        this.xtreamStore.setSelectedItem(null);
-        if (categoryWithheld) {
-            this.xtreamStore.setSelectedCategory(null);
-        }
-        if (match && match[1] === playlistId) {
-            void this.router.navigate([
-                '/workspace',
-                'xtreams',
-                match[1],
-                match[2],
-            ]);
-        }
     }
 
     /**

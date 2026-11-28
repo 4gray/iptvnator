@@ -34,6 +34,7 @@ import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
     ParentalLockService,
     RuntimeCapabilitiesService,
+    SourceActivityService,
     injectTranslationTick,
 } from '@iptvnator/services';
 import {
@@ -104,6 +105,7 @@ interface WorkspaceCategoryLike {
 export class WorkspaceContextPanelComponent {
     private readonly router = inject(Router);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly sourceActivity = inject(SourceActivityService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly stalkerStore = inject(StalkerStore);
     private readonly searchSync = inject(WorkspaceShellSearchSyncService);
@@ -683,13 +685,26 @@ export class WorkspaceContextPanelComponent {
                 if (!result || !samePlaylist()) return;
                 const lockVersion = this.parentalLock.version();
                 const shouldPublish = () =>
+                    !this.destroyRef.destroyed &&
                     samePlaylist() &&
                     this.parentalLock.version() === lockVersion;
+                if (this.runtime.supportsXtreamSqliteDataSource) {
+                    // A cache miss during replacement could refill the live
+                    // categories before the worker restores their SQLite IDs.
+                    await this.sourceActivity.runWhenIdle(
+                        context.playlistId,
+                        async () => {
+                            if (shouldPublish()) {
+                                await this.xtreamStore.reloadCategories(
+                                    shouldPublish
+                                );
+                            }
+                        }
+                    );
+                    return;
+                }
                 await this.xtreamStore.reloadCategories(shouldPublish);
-                if (
-                    !this.runtime.supportsXtreamSqliteDataSource &&
-                    shouldPublish()
-                ) {
+                if (shouldPublish()) {
                     await this.xtreamStore.reloadCachedContent(shouldPublish);
                 }
             });

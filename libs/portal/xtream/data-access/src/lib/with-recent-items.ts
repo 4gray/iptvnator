@@ -1,9 +1,13 @@
-import { captureHistoryOwner } from '@iptvnator/services/history-events';
+import {
+    captureHistoryOwner,
+    XtreamHistoryOrder,
+} from '@iptvnator/services/history-events';
 import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import { DestroyRef, inject, Signal } from '@angular/core';
 import {
     patchState,
     signalStoreFeature,
+    type,
     withMethods,
     withState,
 } from '@ngrx/signals';
@@ -25,15 +29,17 @@ export interface RecentlyViewedItem extends PortalRecentItem {
 }
 
 const recentOperations = () => import('./xtream-recent-operations');
-const captureRecentOwner = (playlistId: string) =>
+const captureRecentOwner = (playlistId: string, consent?: 'history') =>
     captureHistoryOwner(
         sourceConnection()?.instanceId,
         playlistId,
-        () => sourceConnection()?.instanceId
+        () => sourceConnection()?.instanceId,
+        consent
     );
 
 export const withRecentItems = function () {
     return signalStoreFeature(
+        { state: type<{ playlistId: string | null }>() },
         withState<{ recentItems: RecentlyViewedItem[] }>({
             recentItems: [],
         }),
@@ -49,16 +55,26 @@ export const withRecentItems = function () {
             const loadRecentItems = rxMethod<{ id: string }>(
                 pipe(
                     switchMap(async (playlist) => {
-                        const current = captureRecentOwner(playlist.id);
+                        // Keep listening across consent changes for the same source.
+                        const sourceCurrent = captureRecentOwner(playlist.id);
+                        const current = captureRecentOwner(
+                            playlist.id,
+                            'history'
+                        );
                         refresh = () => {
-                            if (current()) loadRecentItems(playlist);
+                            if (
+                                sourceCurrent() &&
+                                store.playlistId() === playlist.id
+                            )
+                                loadRecentItems(playlist);
                         };
                         const { loadXtreamRecent } = await recentOperations();
                         const items = await loadXtreamRecent(
                             dataSource,
                             playlist.id
                         );
-                        if (!current()) return null;
+                        if (!current() || store.playlistId() !== playlist.id)
+                            return null;
                         return items;
                     }),
                     tap((items) => {
@@ -77,7 +93,8 @@ export const withRecentItems = function () {
             (
                 store,
                 dataSource = inject(XTREAM_DATA_SOURCE),
-                runtime = inject(RuntimeCapabilitiesService)
+                runtime = inject(RuntimeCapabilitiesService),
+                historyOrder = inject(XtreamHistoryOrder)
             ) => ({
                 addRecentItem: rxMethod<{
                     xtreamId: number | string;
@@ -85,22 +102,38 @@ export const withRecentItems = function () {
                     playlist: Signal<{ id: string } | null | undefined>;
                     backdropUrl?: string;
                     playedContent?: XtreamPlayedContent;
+                    viewedAt?: string;
                 }>(
                     pipe(
                         switchMap(async ({ playlist, ...item }) => {
                             const playlistId = playlist()?.id;
                             if (!playlistId) return;
-                            const current = captureRecentOwner(playlistId);
-                            const { recordXtreamRecent } =
-                                await recentOperations();
-                            if (!current()) return;
-                            const items = await recordXtreamRecent(
-                                dataSource,
-                                runtime.supportsXtreamSqliteDataSource,
-                                { ...item, playlistId },
-                                current
+                            const current = captureRecentOwner(
+                                playlistId,
+                                'history'
                             );
-                            if (items)
+                            const sqlite =
+                                runtime.supportsXtreamSqliteDataSource;
+                            const write = async () => {
+                                const { recordXtreamRecent } =
+                                    await recentOperations();
+                                return recordXtreamRecent(
+                                    dataSource,
+                                    sqlite,
+                                    { ...item, playlistId },
+                                    current
+                                );
+                            };
+                            const items = sqlite
+                                ? await historyOrder.run(
+                                      playlistId,
+                                      write,
+                                      item.contentType === 'live'
+                                          ? playlistId
+                                          : undefined
+                                  )
+                                : await write();
+                            if (items && store.playlistId() === playlistId)
                                 patchState(store, {
                                     recentItems: items,
                                 });
@@ -120,7 +153,7 @@ export const withRecentItems = function () {
                 }): Promise<void> {
                     const playlistId = playlist()?.id;
                     if (!playlistId) return;
-                    const current = captureRecentOwner(playlistId);
+                    const current = captureRecentOwner(playlistId, 'history');
                     const { backfillXtreamRecentMetadata } =
                         await recentOperations();
                     if (!current()) return;
@@ -139,8 +172,26 @@ export const withRecentItems = function () {
                 clearRecentItems: rxMethod<{ id: string }>(
                     pipe(
                         switchMap(async (playlist) => {
-                            await dataSource.clearRecentItems(playlist.id);
-                            patchState(store, { recentItems: [] });
+                            const current = captureRecentOwner(
+                                playlist.id,
+                                'history'
+                            );
+                            const clear = async () => {
+                                if (!current()) return;
+                                await dataSource.clearRecentItems(playlist.id);
+                                if (
+                                    current() &&
+                                    store.playlistId() === playlist.id
+                                )
+                                    patchState(store, { recentItems: [] });
+                            };
+                            if (runtime.supportsXtreamSqliteDataSource)
+                                await historyOrder.run(
+                                    playlist.id,
+                                    clear,
+                                    playlist.id
+                                );
+                            else await clear();
                         })
                     )
                 ),
@@ -157,7 +208,8 @@ export const withRecentItems = function () {
                                 dataSource,
                                 item
                             );
-                            patchState(store, { recentItems: items });
+                            if (store.playlistId() === item.playlistId)
+                                patchState(store, { recentItems: items });
                         })
                     )
                 ),

@@ -20,9 +20,11 @@ import type {
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import type { XtreamLiveChannelItem } from './xtream-live-channel-navigation.service';
+import { observeExternalLiveCatalog } from './xtream-refreshed-live-playback';
 import {
     cancelXtreamLaunch,
     createXtreamLaunchCompletion,
+    hasXtreamOpenedMedia,
     isNewerXtreamSession,
     needsCancelledXtreamTeardown,
     waitForXtreamLaunches,
@@ -57,16 +59,6 @@ export function isXtreamLiveCategoryWithheld(
         ? lock.active()
         : categoryId !== null &&
               lock.isXtreamCategoryLocked(playlistId, 'live', categoryId);
-}
-
-export function hasXtreamOpenedMedia(
-    session: ExternalPlayerSession | null | undefined
-): session is ExternalPlayerSession & { status: 'opened' | 'playing' } {
-    return (
-        (session?.status === 'opened' || session?.status === 'playing') &&
-        !session.playbackIdle &&
-        session.mediaLoaded !== false
-    );
 }
 
 type Active = {
@@ -110,6 +102,14 @@ export class XtreamExternalLiveSessions {
             unsubscribe?.();
             this.sessions.forEach((entry) => clearTimeout(entry.retry));
         });
+        observeExternalLiveCatalog(
+            this.sessions,
+            this.pending,
+            (session, source) => {
+                this.update(session, source);
+                this.revision.update((value) => value + 1);
+            }
+        );
         effect(() => {
             this.lock.version();
             untracked(() =>

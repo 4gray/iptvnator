@@ -58,8 +58,9 @@ function createDbMock(existingCount = 0) {
 }
 
 describe('category.operations', () => {
-    it('reads visible categories in insertion order to preserve server sorting', async () => {
-        const orderBy = jest.fn().mockResolvedValue([]);
+    it('orders visible categories by provider position with an insertion order fallback', async () => {
+        const orderBy = jest.fn<Promise<unknown[]>, [SQL, typeof schema.categories.id]>()
+            .mockResolvedValue([]);
         const where = jest.fn().mockReturnValue({ orderBy });
         const from = jest.fn().mockReturnValue({ where });
         const select = jest.fn().mockReturnValue({ from });
@@ -69,7 +70,11 @@ describe('category.operations', () => {
 
         await getCategories(db, 'playlist-1', 'live');
 
-        expect(orderBy).toHaveBeenCalledWith(schema.categories.id);
+        const [providerOrder, fallback] = orderBy.mock.calls[0];
+        expect(renderSql(providerOrder)).toBe(
+            'coalesce("categories"."provider_order", "categories"."id")'
+        );
+        expect(fallback).toBe(schema.categories.id);
         expect(select).toHaveBeenCalledWith(categoryWireShape);
     });
 

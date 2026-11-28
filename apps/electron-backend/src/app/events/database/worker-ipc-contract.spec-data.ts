@@ -8,6 +8,13 @@ type WorkerIpcContractCase = {
 };
 
 export const playlistId = 'playlist-1';
+const startupCondition = {
+    playlistId,
+    serverUrl: 'https://provider.example.test',
+    username: 'synthetic',
+    password: 'synthetic',
+    previousUpdateDate: 100,
+};
 export const operationId = 'operation-1';
 const playlist = { id: playlistId, name: 'Playlist', type: 'xtream' };
 const playlists = [playlist];
@@ -132,6 +139,31 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         payload: { playlistId, updates: playlistUpdates },
     },
     {
+        operation: 'DB_UPDATE_PLAYLIST',
+        args: [
+            playlistId,
+            { updateDate: 42 },
+            {
+                playlistId,
+                serverUrl: 'https://portal.example.test',
+                username: 'synthetic-user',
+                password: 'synthetic-password',
+                previousUpdateDate: null,
+            },
+        ],
+        payload: {
+            playlistId,
+            updates: { updateDate: 42 },
+            condition: {
+                playlistId,
+                serverUrl: 'https://portal.example.test',
+                username: 'synthetic-user',
+                password: 'synthetic-password',
+                previousUpdateDate: null,
+            },
+        },
+    },
+    {
         operation: 'DB_SET_PLAYLIST_SERVER_TIMEZONE',
         args: [
             playlistId,
@@ -212,13 +244,14 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
     },
     {
         operation: 'DB_SAVE_CATEGORIES',
-        args: [playlistId, categories, 'live', categoryIds, categoryIds],
+        args: [playlistId, categories, 'live', categoryIds, categoryIds, [[17, 42]]],
         payload: {
             playlistId,
             categories,
             type: 'live',
             hiddenCategoryXtreamIds: categoryIds,
             lockedCategoryXtreamIds: categoryIds,
+            retainedCategoryIds: [[17, 42]],
         },
     },
     {
@@ -303,6 +336,17 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         },
     },
     {
+        operation: 'DB_GET_CONTENT_BY_XTREAM_ID',
+        args: [42, playlistId, 'live', undefined, 8, undefined, true],
+        payload: {
+            xtreamId: 42,
+            playlistId,
+            contentType: 'live',
+            categoryId: 8,
+            fallbackToUniqueCategory: true,
+        },
+    },
+    {
         operation: 'DB_SET_CONTENT_METADATA_IF_MISSING',
         // Same object on both sides: the patch must cross the boundary
         // unreshaped, or the worker reads fields the caller never sent.
@@ -344,6 +388,17 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         operation: 'DB_DELETE_XTREAM_CONTENT',
         args: [playlistId, operationId],
         payload: { playlistId, operationId },
+        forwardsEvents: true,
+    },
+    {
+        operation: 'DB_DELETE_XTREAM_CONTENT',
+        args: [playlistId, operationId, ['live'], startupCondition],
+        payload: {
+            playlistId,
+            operationId,
+            contentTypes: ['live'],
+            startupCondition,
+        },
         forwardsEvents: true,
     },
     {
@@ -428,6 +483,16 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
             contentId: 13,
             playlistId,
             backdropUrl: 'https://image.example/recent.jpg',
+        },
+    },
+    {
+        operation: 'DB_ADD_RECENT_ITEM',
+        args: [13, playlistId, undefined, '2026-01-01T00:00:00.123Z'],
+        payload: {
+            contentId: 13,
+            playlistId,
+            backdropUrl: undefined,
+            viewedAt: '2026-01-01T00:00:00.123Z',
         },
     },
     {

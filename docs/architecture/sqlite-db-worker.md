@@ -315,11 +315,18 @@ The internal `xtream-history-recovery:` keys in `app_state` register Xtream cach
 recovery through `DB_SET_APP_STATE`. Registration atomically captures live history
 and newly available archived entries. Native history mutations update that journal
 in their own transactions, including removal tombstones and explicit clears.
+`DB_ADD_RECENT_ITEM` accepts an optional confirmation timestamp so a delayed
+write preserves playback order. An older confirmation cannot replace a newer
+timestamp for the same row. Global and per-playlist indexes order ISO and
+legacy SQLite timestamps chronologically without rewriting existing rows.
 `DB_RESTORE_XTREAM_USER_DATA` replays the current journal in one transaction so a
 watch or removal cannot be overwritten between replay chunks. This transaction
-contains saved history only; catalog writes keep the row budgets below. The
-renderer acknowledges the journal after deferred state completes, and source
-deletion removes its journal. Explicit backup import resets it before replay.
+contains saved history only; catalog writes keep the row budgets below. For live
+entries the journal remembers the provider category so replay can prefer the
+original copy of a channel listed in multiple categories. If that copy is gone,
+a single match can take its place. The renderer acknowledges the journal after
+deferred state completes, and source deletion removes its journal. Explicit
+backup import resets it before replay.
 
 ### Catalog write batching
 
@@ -358,6 +365,13 @@ the main-process and EPG-worker connections give up after their 5 s
 - Category imports use at most 1,000 rows per `INSERT` to stay below SQLite's
   bound-parameter limit. All statements remain in one transaction, preserving
   provider order and rolling back earlier batches if a later batch fails.
+  Startup live refresh checks the source connection, opt-in, catalog selection
+  and previous refresh date in the transaction that resets its import marker.
+  If any condition changed, invalidation returns before collecting or deleting
+  rows. Startup refresh reuses the prior row ID of each retained provider
+  category from that source. New categories use the SQLite sequence. Startup
+  refresh persists the current provider position so sorting by server order
+  continues to match the response. Older rows use the insertion order.
 - A cold content save persists its type's `importing` marker before committing
   any content rows. Failure to persist the marker prevents all content writes;
   only the import owner records completion after the save succeeds.

@@ -1,7 +1,10 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { signalStore } from '@ngrx/signals';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { patchState, signalStore, withState } from '@ngrx/signals';
+import {
+    RuntimeCapabilitiesService,
+    SourceActivityService,
+} from '@iptvnator/services';
 import {
     CONNECTION_KEY,
     prepareSourceConnection,
@@ -9,7 +12,11 @@ import {
 import { XTREAM_DATA_SOURCE } from './data-sources/xtream-data-source.interface';
 import { withRecentItems } from './with-recent-items';
 
-const TestRecentItemsStore = signalStore(withRecentItems());
+const TestRecentItemsStore = signalStore(
+    { protectedState: false },
+    withState<{ playlistId: string | null }>({ playlistId: 'playlist-1' }),
+    withRecentItems()
+);
 
 describe('withRecentItems', () => {
     const originalElectron = window.electron;
@@ -74,8 +81,169 @@ describe('withRecentItems', () => {
         });
     });
 
+    it('records confirmed live playback after its catalog rows are reinserted', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        await store.prepareRecentActions();
+        const activity = TestBed.inject(SourceActivityService);
+        const finishReplacement = activity.begin(['synthetic-source']);
+        dataSource.getContentByXtreamId.mockResolvedValue(null);
+        dataSource.getRecentItems.mockResolvedValue([]);
+
+        const viewedAt = '2026-01-01T00:00:00.123Z';
+        store.addRecentItem({
+            viewedAt,
+            xtreamId: 42,
+            contentType: 'live',
+            playlist: signal({ id: 'synthetic-source' }),
+        });
+        try {
+            await new Promise<void>((resolve) => setTimeout(resolve, 0));
+            expect(dataSource.getContentByXtreamId).not.toHaveBeenCalled();
+            dataSource.getContentByXtreamId.mockResolvedValue({ id: 502 });
+        } finally {
+            finishReplacement();
+        }
+
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        expect(dataSource.addRecentItem).toHaveBeenCalledWith(
+            { id: 502, type: 'live', providerId: 42 },
+            'synthetic-source',
+            undefined,
+            undefined,
+            viewedAt
+        );
+        expect(activity.isBusy('synthetic-source')).toBe(false);
+    });
+
+    it('holds a standalone source clear until replacement has recovered its history', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        const activity = TestBed.inject(SourceActivityService);
+        const release = activity.begin(['playlist-1']);
+        const cleared = new Promise<void>((resolve) => {
+            dataSource.clearRecentItems.mockImplementation(async () =>
+                resolve()
+            );
+        });
+        store.clearRecentItems({ id: 'playlist-1' });
+        try {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            expect(dataSource.clearRecentItems).not.toHaveBeenCalled();
+        } finally {
+            release();
+            await cleared;
+        }
+        expect(dataSource.clearRecentItems).toHaveBeenCalledWith('playlist-1');
+    });
+
+    it('finishes deferred playback before clearing the same SQLite source', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        const activity = TestBed.inject(SourceActivityService);
+        const release = activity.begin(['playlist-1']);
+        dataSource.getContentByXtreamId.mockResolvedValue({ id: 502 });
+        const cleared = new Promise<void>((resolve) => {
+            dataSource.clearRecentItems.mockImplementation(async () => {
+                resolve();
+            });
+        });
+
+        store.addRecentItem({
+            xtreamId: 42,
+            contentType: 'live',
+            playlist: signal({ id: 'playlist-1' }),
+        });
+        store.clearRecentItems({ id: 'playlist-1' });
+        await Promise.resolve();
+        const clearedWhileHeld = dataSource.clearRecentItems.mock.calls.length;
+        release();
+        await cleared;
+
+        expect(clearedWhileHeld).toBe(0);
+        expect(dataSource.addRecentItem).toHaveBeenCalledTimes(1);
+        expect(
+            dataSource.addRecentItem.mock.invocationCallOrder[0]
+        ).toBeLessThan(dataSource.clearRecentItems.mock.invocationCallOrder[0]);
+    });
+
+    it('saves the old source confirmation without replacing the new source history', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        const oldSource = 'synthetic-source-a';
+        const newSource = 'synthetic-source-b';
+        patchState(store, { playlistId: oldSource });
+        await store.prepareRecentActions();
+        const activity = TestBed.inject(SourceActivityService);
+        const finishReplacement = activity.begin([oldSource]);
+        const playedContent = { title: 'Synthetic live item', categoryId: 19 };
+        dataSource.getContentByXtreamId.mockImplementation(
+            async (_id, _playlist, _type, _identity, categoryId) => ({
+                id: categoryId === playedContent.categoryId ? 502 : 200,
+            })
+        );
+        dataSource.getRecentItems.mockImplementation(
+            async (playlistId: string) =>
+                playlistId === oldSource
+                    ? [
+                          {
+                              id: 502,
+                              xtream_id: 42,
+                              type: 'live',
+                              title: 'Synthetic live item',
+                          },
+                      ]
+                    : [
+                          {
+                              id: 701,
+                              xtream_id: 99,
+                              type: 'series',
+                              title: 'Synthetic series',
+                          },
+                      ]
+        );
+
+        store.addRecentItem({
+            xtreamId: 42,
+            contentType: 'live',
+            playlist: signal({ id: oldSource }),
+            playedContent,
+        });
+        try {
+            patchState(store, { playlistId: newSource });
+            store.loadRecentItems({ id: newSource });
+            await new Promise<void>((resolve) => setTimeout(resolve, 0));
+            expect(store.recentItems()).toEqual([
+                expect.objectContaining({
+                    playlist_id: newSource,
+                    xtream_id: 99,
+                }),
+            ]);
+            expect(dataSource.addRecentItem).not.toHaveBeenCalled();
+        } finally {
+            finishReplacement();
+        }
+
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        expect(dataSource.addRecentItem).toHaveBeenCalledWith(
+            { id: 502, type: 'live', providerId: 42 },
+            oldSource,
+            undefined,
+            playedContent
+        );
+        expect(dataSource.getContentByXtreamId).toHaveBeenCalledWith(
+            42,
+            oldSource,
+            'live',
+            undefined,
+            19,
+            undefined,
+            true
+        );
+        expect(store.recentItems()).toEqual([
+            expect.objectContaining({ playlist_id: newSource, xtream_id: 99 }),
+        ]);
+    });
+
     it('refreshes the loaded source after history changes and detaches on destroy', async () => {
         dataSource.getRecentItems.mockResolvedValue([]);
+        patchState(store, { playlistId: 'synthetic-source' });
         store.loadRecentItems({ id: 'synthetic-source' });
         await new Promise((resolve) => setTimeout(resolve, 0));
         expect(store.recentItems()).toEqual([]);
@@ -130,6 +298,7 @@ describe('withRecentItems', () => {
                     complete = resolve;
                 });
             });
+            patchState(store, { playlistId: 'synthetic-source' });
             store.loadRecentItems({ id: 'synthetic-source' });
             await started;
             localStorage.setItem(key, 'replacement');
@@ -169,6 +338,65 @@ describe('withRecentItems', () => {
         }
     });
 
+    it('refreshes again after consent changes and discards reads from the previous consent', async () => {
+        const connection = localStorage.getItem(CONNECTION_KEY);
+        const key = 'iptvnator-server:synthetic-instance:history-consent-v1';
+        const priorConsent = localStorage.getItem(key);
+        const source = 'synthetic-source';
+        const row = {
+            id: 42,
+            xtream_id: 42,
+            type: 'series',
+            title: 'Synthetic shared series',
+        };
+        try {
+            localStorage.setItem(
+                CONNECTION_KEY,
+                JSON.stringify({
+                    apiUrl: 'https://history.example.test/api',
+                    instanceId: 'synthetic-instance',
+                })
+            );
+            await prepareSourceConnection();
+            localStorage.removeItem(key);
+            let complete!: (items: unknown[]) => void;
+            dataSource.getRecentItems.mockReturnValueOnce(
+                new Promise((resolve) => {
+                    complete = resolve;
+                })
+            );
+            patchState(store, { playlistId: source });
+            store.loadRecentItems({ id: source });
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            expect(dataSource.getRecentItems).toHaveBeenCalledWith(source);
+
+            localStorage.setItem(
+                key,
+                JSON.stringify({
+                    enabled: true,
+                    generation: 'synthetic-generation',
+                    deviceId: 'synthetic-device',
+                })
+            );
+            complete([{ ...row, xtream_id: 77 }]);
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            expect(store.recentItems()).toEqual([]);
+
+            dataSource.getRecentItems.mockResolvedValue([row]);
+            window.dispatchEvent(new Event('iptvnator-history-changed'));
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            expect(store.recentItems()).toEqual([
+                expect.objectContaining({ xtream_id: 42, type: 'series' }),
+            ]);
+        } finally {
+            if (connection == null) localStorage.removeItem(CONNECTION_KEY);
+            else localStorage.setItem(CONNECTION_KEY, connection);
+            if (priorConsent == null) localStorage.removeItem(key);
+            else localStorage.setItem(key, priorConsent);
+            await prepareSourceConnection();
+        }
+    });
+
     it('keeps a missing native row ID separate from the display key', async () => {
         dataSource.getRecentItems.mockResolvedValue([
             {
@@ -181,6 +409,7 @@ describe('withRecentItems', () => {
                 viewed_at: '2026-11-06T12:00:00Z',
             },
         ]);
+        patchState(store, { playlistId: 'synthetic-source' });
         store.loadRecentItems({ id: 'synthetic-source' });
         await new Promise((resolve) => setTimeout(resolve, 0));
         expect(store.recentItems()[0]).toMatchObject({

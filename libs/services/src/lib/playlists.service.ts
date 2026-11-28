@@ -35,6 +35,7 @@ import {
     M3uFavoriteChannel,
     M3uRecentlyViewedItem,
     Playlist,
+    type PlaylistMeta,
     PlaylistMetaUpdate,
     PlaylistRecentlyViewedItem,
     PlaylistRecentIdentity,
@@ -775,9 +776,25 @@ export class PlaylistsService {
         return this.updatePlaylistMetaInQueue(updatedPlaylist);
     }
 
+    completeXtreamStartupRefresh(
+        playlist: PlaylistMeta,
+        updateDate = Date.now()
+    ) {
+        return this.serializePlaylistWrite(playlist._id, async () => {
+            const { completeXtreamStartupRefresh } =
+                await import('./xtream-catalog-commit.service');
+            const completed = await completeXtreamStartupRefresh(
+                playlist,
+                updateDate
+            );
+            return completed ? updateDate : false;
+        });
+    }
+
     /** Applies a meta update only while the storage-current row still matches. */
     updatePlaylistMetaIfCurrent(
-        updatedPlaylist: PlaylistMetaUpdate,
+        updatedPlaylist: Pick<PlaylistMetaUpdate, '_id'> &
+            Partial<PlaylistMetaUpdate>,
         isCurrent: (playlist: Playlist) => boolean
     ) {
         return this.updatePlaylistMetaInQueue(updatedPlaylist, isCurrent);
@@ -787,11 +804,13 @@ export class PlaylistsService {
         updatedPlaylist: PlaylistMetaUpdate
     ): Observable<Playlist>;
     private updatePlaylistMetaInQueue(
-        updatedPlaylist: PlaylistMetaUpdate,
+        updatedPlaylist: Pick<PlaylistMetaUpdate, '_id'> &
+            Partial<PlaylistMetaUpdate>,
         isCurrent: (playlist: Playlist) => boolean
     ): Observable<Playlist | null>;
     private updatePlaylistMetaInQueue(
-        updatedPlaylist: PlaylistMetaUpdate,
+        updatedPlaylist: Pick<PlaylistMetaUpdate, '_id'> &
+            Partial<PlaylistMetaUpdate>,
         isCurrent?: (playlist: Playlist) => boolean
     ): Observable<Playlist | null> {
         return this.serializePlaylistWrite(updatedPlaylist._id, async () => {
@@ -820,7 +839,7 @@ export class PlaylistsService {
 
     private mergePlaylistMeta(
         playlist: Playlist,
-        updatedPlaylist: PlaylistMetaUpdate
+        updatedPlaylist: Partial<PlaylistMetaUpdate>
     ): Playlist {
         const epgSourceState = resolvePlaylistEpgSourceState({
             autoImportEpg: playlist.autoImportEpg,

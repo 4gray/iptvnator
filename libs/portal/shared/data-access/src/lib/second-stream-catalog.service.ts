@@ -4,6 +4,8 @@ import {
     DataService,
     ParentalLockService,
     PlaylistsService,
+    RuntimeCapabilitiesService,
+    SourceActivityService,
 } from '@iptvnator/services';
 import {
     Channel,
@@ -44,6 +46,7 @@ export interface SecondStreamChannel {
 export interface SecondStreamSelection {
     item: UnifiedCollectionItem;
     playback: ResolvedPortalPlayback;
+    catalogRevision?: number;
 }
 export interface SecondStreamCatalog {
     groups: SecondStreamSource[];
@@ -57,6 +60,8 @@ export class SecondStreamCatalogService {
     private readonly collection = inject(SecondStreamCollectionService);
     private readonly resolver = inject(StreamResolverService);
     private readonly xtream = inject(XTREAM_DATA_SOURCE);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly activity = inject(SourceActivityService);
     private readonly itv = inject(StalkerItvCacheService);
     private readonly locks = inject(ParentalLockService);
     private readonly stalkerDeps = {
@@ -85,10 +90,21 @@ export class SecondStreamCatalogService {
         if (this.locks.withholdsEverything())
             return { groups: [], channels: [] };
         if (!sourceId || sourceId === SECOND_STREAM_HISTORY) {
-            const items = await this.collection.load(sourceId, 'live', signal);
             const metas = await firstValueFrom(
                 this.playlists.getAllPlaylists()
             );
+            const loadCollection = () => {
+                signal.throwIfAborted();
+                return this.collection.load(sourceId, 'live', signal);
+            };
+            const sqliteSources = this.runtime.supportsXtreamSqliteDataSource
+                ? metas
+                      .filter((p) => p.serverUrl && !p.macAddress)
+                      .map((p) => p._id)
+                : [];
+            const items = await (sqliteSources.length
+                ? this.activity.runWhenIdle(sqliteSources, loadCollection)
+                : loadCollection());
             const playlists = new Map(metas.map((p) => [p._id, p]));
             const channels = items
                 .filter((item) => this.isAllowed(item))
@@ -116,7 +132,12 @@ export class SecondStreamCatalogService {
         );
         if (!playlist || signal.aborted) throw new Error('Source unavailable');
         if (playlist.macAddress) return this.stalker(playlist, signal);
-        if (playlist.serverUrl) return this.xtreamCatalog(playlist, signal);
+        if (playlist.serverUrl) {
+            const loadCatalog = () => this.xtreamCatalog(playlist, signal);
+            return this.runtime.supportsXtreamSqliteDataSource
+                ? this.activity.runWhenIdle(playlist._id, loadCatalog)
+                : loadCatalog();
+        }
         const rows =
             (playlist as unknown as { playlist?: { items?: Channel[] } })
                 .playlist?.items ?? [];
@@ -189,6 +210,10 @@ export class SecondStreamCatalogService {
         return playback;
     }
 
+    rebindLiveCategory(item: UnifiedCollectionItem) {
+        return this.collection.rebindLiveCategory(item);
+    }
+
     isAllowed(item: UnifiedCollectionItem): boolean {
         this.version();
         if (this.locks.withholdsEverything() || isCatalogUnavailable(item))
@@ -239,6 +264,7 @@ export class SecondStreamCatalogService {
         playlist: Playlist,
         signal: AbortSignal
     ): Promise<SecondStreamCatalog> {
+        signal.throwIfAborted();
         const source = await this.xtream.getPlaylist(playlist._id);
         if (!source) throw new Error('Source unavailable');
         const categories = await this.xtream.getCategories(
@@ -301,6 +327,11 @@ export class SecondStreamCatalogService {
                             : 'stream_id' in c
                               ? c.stream_id
                               : undefined,
+                    xtreamCategoryRowId:
+                        this.runtime.supportsXtreamSqliteDataSource &&
+                        'xtream_id' in c
+                            ? Number(c.category_id)
+                            : undefined,
                     categoryId: allowed.get(String(c.category_id))!.providerId,
                 },
             }));

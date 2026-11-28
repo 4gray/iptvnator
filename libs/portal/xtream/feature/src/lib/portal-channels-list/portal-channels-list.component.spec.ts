@@ -1364,14 +1364,18 @@ describe('PortalChannelsListComponent', () => {
         marks.changes$.subscribe((change) => published.push(change));
 
         // A toggle here is announced to every instance.
-        fixture.componentInstance.toggleFavorite(new MouseEvent('click'), {
-            title: 'Cartoon Network',
-            xtream_id: 253,
-        });
+        const item = { title: 'Synthetic live channel', xtream_id: 253 };
+        fixture.componentInstance.toggleFavorite(new MouseEvent('click'), item);
         await Promise.resolve();
         expect(published).toEqual([
             { playlistId: 'playlist-1', key: 'live:253', isFavorite: true },
         ]);
+
+        storeSignals.toggleFavorite.mockResolvedValueOnce(undefined);
+        fixture.componentInstance.toggleFavorite(new MouseEvent('click'), item);
+        await Promise.resolve();
+        expect(fixture.componentInstance.favorites.get('live:253')).toBe(true);
+        expect(published).toHaveLength(1);
 
         // A toggle announced by another instance lands here …
         marks.notify({

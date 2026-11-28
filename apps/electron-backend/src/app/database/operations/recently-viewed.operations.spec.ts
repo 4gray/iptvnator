@@ -19,6 +19,7 @@ jest.mock('./content-metadata.operations', () => ({
 
 import * as schema from '@iptvnator/shared/database/schema';
 import { persistContentMetadataIfMissing } from './content-metadata.operations';
+import { recordRecoveredHistory } from './xtream-history-recovery';
 import {
     addRecentItem,
     clearPlaylistRecentItems,
@@ -46,7 +47,7 @@ describe('recently-viewed.operations', () => {
             await expect(getRecentlyViewed(db)).resolves.toEqual(rows);
 
             expect(mockDrizzle.desc).toHaveBeenCalledWith(
-                schema.recentlyViewed.viewedAt
+                expect.objectContaining({ kind: 'sql' })
             );
             expect(queries[0].orderBy).toHaveBeenCalledWith(
                 expect.objectContaining({ kind: 'desc' })
@@ -76,7 +77,7 @@ describe('recently-viewed.operations', () => {
                 'playlist-1'
             );
             expect(mockDrizzle.desc).toHaveBeenCalledWith(
-                schema.recentlyViewed.viewedAt
+                expect.objectContaining({ kind: 'sql' })
             );
             expect(queries[0].limit).toHaveBeenCalledWith(100);
             expect(select).toHaveBeenCalledWith(
@@ -139,9 +140,9 @@ describe('recently-viewed.operations', () => {
                 viewedAt: expect.objectContaining({ kind: 'sql' }),
             });
             expect(mockDrizzle.sql).toHaveBeenCalledWith(['CURRENT_TIMESTAMP']);
-            expect(mockDrizzle.eq).toHaveBeenCalledWith(
+            expect(mockDrizzle.inArray).toHaveBeenCalledWith(
                 schema.recentlyViewed.contentId,
-                42
+                expect.objectContaining({ kind: 'sql' })
             );
             expect(mockDrizzle.eq).toHaveBeenCalledWith(
                 schema.recentlyViewed.playlistId,
@@ -151,6 +152,26 @@ describe('recently-viewed.operations', () => {
                 db,
                 42,
                 { backdropUrl: undefined }
+            );
+        });
+
+        it('keeps the newer live category copy while removing legacy duplicates', async () => {
+            const { db, deleteRun, insert, update } = createDbMock([
+                [
+                    { id: 9, contentId: 21, newer: 1 },
+                    { id: 10, contentId: 42, newer: 0 },
+                ],
+            ]);
+            await addRecentItem(db, 42, 'playlist-1', {
+                viewedAt: '2026-01-01T00:00:00.000Z',
+            });
+            expect(deleteRun).toHaveBeenCalledTimes(1);
+            expect(insert).not.toHaveBeenCalled();
+            expect(update).not.toHaveBeenCalled();
+            expect(recordRecoveredHistory).toHaveBeenLastCalledWith(
+                db,
+                'playlist-1',
+                21
             );
         });
     });
@@ -220,9 +241,9 @@ describe('recently-viewed.operations', () => {
 
             expect(deleteFn).toHaveBeenCalledWith(schema.recentlyViewed);
             expect(deleteWhere.mock.calls[0][0].conditions).toHaveLength(2);
-            expect(mockDrizzle.eq).toHaveBeenCalledWith(
+            expect(mockDrizzle.inArray).toHaveBeenCalledWith(
                 schema.recentlyViewed.contentId,
-                42
+                expect.objectContaining({ kind: 'sql' })
             );
             expect(mockDrizzle.eq).toHaveBeenCalledWith(
                 schema.recentlyViewed.playlistId,

@@ -1,8 +1,18 @@
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { firstValueFrom, from, of, throwError } from 'rxjs';
-import { DatabaseService, PlaylistsService } from '@iptvnator/services';
+import { firstValueFrom, from, of } from 'rxjs';
+import {
+    DatabaseService,
+    PlaylistsService,
+    RuntimeCapabilitiesService,
+    SourceActivityService,
+} from '@iptvnator/services';
+import { collectionConsentKey } from '@iptvnator/services/history-events';
+import {
+    CONNECTION_KEY,
+    prepareSourceConnection,
+} from '@iptvnator/services/source-sync/connection';
 import {
     Channel,
     Playlist,
@@ -245,95 +255,6 @@ describe('UnifiedFavoritesDataService', () => {
         });
 
         service = TestBed.inject(UnifiedFavoritesDataService);
-    });
-
-    it.each(['m3u', 'stalker'] as const)(
-        'distinguishes a failed %s membership read from an empty list',
-        async (sourceType) => {
-            const sourceId = sourceType + '-1';
-            const error = new Error('Synthetic playlist read failure');
-            playlistsService.getPlaylistById.mockReturnValue(
-                throwError(() => error)
-            );
-            await expect(
-                service.getFavorites('playlist', sourceId, sourceType)
-            ).resolves.toEqual([]);
-            await expect(
-                service.getPlaylistFavoritesForMembership(sourceId, sourceType)
-            ).rejects.toBe(error);
-        }
-    );
-
-    it.each(['m3u', 'stalker'] as const)(
-        'rejects a %s membership read after its source is removed',
-        async (sourceType) => {
-            const sourceId = sourceType + '-1';
-            const read = () =>
-                service.getPlaylistFavoritesForMembership(sourceId, sourceType);
-            playlistsService.getPlaylistById.mockReturnValue(of(undefined));
-            await expect(read()).rejects.toThrow(
-                'Favorite source is unavailable'
-            );
-            expect(playlistsService.getPlaylistById).toHaveBeenCalledWith(
-                sourceId
-            );
-
-            playlistsService.getPlaylistById.mockClear();
-            store.select.mockReturnValue(of([]));
-            await expect(
-                service.getFavorites('playlist', sourceId, sourceType)
-            ).resolves.toEqual([]);
-            await expect(read()).rejects.toThrow(
-                'Favorite source is unavailable'
-            );
-            expect(playlistsService.getPlaylistById).not.toHaveBeenCalled();
-        }
-    );
-
-    it('reads actual Stalker membership even when playlist metadata has no favorites', async () => {
-        const source = { _id: 'synthetic-portal', favorites: stalkerFavorites };
-        store.select.mockReturnValue(of([{ ...source, favorites: [] }]));
-        playlistsService.getPlaylistById.mockReturnValue(of(source));
-        await expect(
-            service.getFavorites('playlist', source._id, 'stalker')
-        ).resolves.toEqual([]);
-        await expect(
-            service.getPlaylistFavoritesForMembership(source._id, 'stalker')
-        ).resolves.toHaveLength(stalkerFavorites.length);
-    });
-
-    it('propagates a native Xtream membership read failure and retries from SQLite', async () => {
-        const source = { _id: 'synthetic-portal', title: 'Synthetic source' };
-        store.select.mockReturnValue(of([source]));
-        const error = new Error('Synthetic native favorites read failure');
-        databaseService.getFavoritesOrThrow.mockRejectedValueOnce(error);
-        await expect(
-            service.getPlaylistFavoritesForMembership(source._id, 'xtream')
-        ).rejects.toBe(error);
-
-        databaseService.getFavoritesOrThrow.mockResolvedValueOnce([
-            {
-                id: 20,
-                favorite_id: 3,
-                playlist_id: source._id,
-                xtream_id: 13,
-                title: 'Synthetic channel',
-                type: 'live',
-            },
-        ]);
-        await expect(
-            service.getPlaylistFavoritesForMembership(source._id, 'xtream')
-        ).resolves.toEqual([
-            expect.objectContaining({
-                favoriteId: 3,
-                contentId: 20,
-                playlistId: source._id,
-                playlistName: source.title,
-                xtreamId: 13,
-                contentType: 'live',
-            }),
-        ]);
-        expect(databaseService.getFavorites).not.toHaveBeenCalled();
     });
 
     it('keeps an unavailable Xtream favorite readable and removable without a catalog row', async () => {
@@ -813,6 +734,101 @@ describe('UnifiedFavoritesDataService', () => {
             'live.png'
         );
     });
+
+    it('adds a refreshed live favorite from the selected SQLite category', async () => {
+        jest.spyOn(
+            TestBed.inject(RuntimeCapabilitiesService),
+            'supportsXtreamSqliteDataSource',
+            'get'
+        ).mockReturnValue(true);
+        databaseService.getContentByXtreamId.mockImplementation(
+            async (
+                _id,
+                _source,
+                _type,
+                _identity,
+                categoryId,
+                _locked,
+                allowFallback
+            ) => (categoryId === 19 && allowFallback ? { id: 502 } : null)
+        );
+
+        await service.addFavorite({
+            uid: 'xtream::synthetic-source::live:42',
+            name: 'Synthetic live item',
+            contentType: 'live',
+            sourceType: 'xtream',
+            playlistId: 'synthetic-source',
+            playlistName: 'Synthetic source',
+            contentId: 501,
+            categoryId: 19,
+            xtreamId: 42,
+        });
+
+        expect(electronApi.dbAddFavorite).toHaveBeenCalledWith(
+            502,
+            'synthetic-source',
+            undefined
+        );
+    });
+
+    it.each(['add', 'remove', 'clear'] as const)(
+        'keeps collection membership unchanged when a deferred action loses consent (action: %s)',
+        async (action) => {
+            const favorite = action !== 'add';
+            const item: UnifiedCollectionItem = {
+                uid: 'xtream::synthetic-source::live:42',
+                name: 'Synthetic live channel',
+                sourceType: 'xtream',
+                contentType: 'live',
+                playlistId: 'synthetic-source',
+                playlistName: 'Synthetic source',
+                xtreamId: 42,
+                contentId: 12,
+            };
+            const connection = {
+                apiUrl: 'https://server.example.test/api',
+                instanceId: 'synthetic-instance',
+            };
+            const consent = collectionConsentKey(
+                connection.instanceId,
+                'favorites'
+            )!;
+            localStorage.setItem(CONNECTION_KEY, JSON.stringify(connection));
+            await prepareSourceConnection();
+            localStorage.setItem(consent, 'initial');
+            const collection = TestBed.inject(UnifiedCollectionDataService);
+            const activity = TestBed.inject(SourceActivityService);
+            const release = activity.begin([item.playlistId]);
+            try {
+                collection.allItems.set([item]);
+                collection.favoriteUidSet.set(
+                    new Set(favorite ? [item.uid] : [])
+                );
+                const pending =
+                    action === 'clear'
+                        ? collection.clearFavorites([item])
+                        : favorite
+                          ? collection.removeItem('favorites', item)
+                          : collection.toggleFavorite(item);
+                localStorage.setItem(consent, 'changed');
+                release();
+                const completed = await pending;
+                if (action === 'clear') expect(completed).toBe(false);
+                expect(collection.favoriteUidSet().has(item.uid)).toBe(
+                    favorite
+                );
+                expect(collection.allItems()).toEqual([item]);
+                expect(electronApi.dbAddFavorite).not.toHaveBeenCalled();
+                expect(electronApi.dbRemoveFavorite).not.toHaveBeenCalled();
+            } finally {
+                release();
+                localStorage.removeItem(consent);
+                localStorage.removeItem(CONNECTION_KEY);
+                await prepareSourceConnection();
+            }
+        }
+    );
 
     it('keeps a recent item heart empty when SQLite rejects its saved identity', async () => {
         const item: UnifiedCollectionItem = {

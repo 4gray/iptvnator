@@ -13,7 +13,10 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { copyTextToClipboard } from '@iptvnator/services/clipboard-copy';
-import { captureHistoryOwner } from '@iptvnator/services/history-events';
+import {
+    captureHistoryOwner,
+    XtreamHistoryOrder,
+} from '@iptvnator/services/history-events';
 import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import {
     VideoPlayer,
@@ -69,6 +72,7 @@ export class SerialDetailsMenuService {
         optional: true,
     });
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly historyOrder = inject(XtreamHistoryOrder);
     private readonly settingsStore = inject(SettingsStore);
     private readonly router = inject(Router);
     private readonly notifications = inject(NotificationService);
@@ -319,29 +323,32 @@ export class SerialDetailsMenuService {
     private async hideFromContinueWatching(): Promise<void> {
         const playlistId = this.xtreamStore.currentPlaylist()?.id;
         const seriesId = this.seriesId();
-        if (!playlistId || !seriesId || !this.dataSource) {
+        const dataSource = this.dataSource;
+        if (!playlistId || !seriesId || !dataSource) {
             return;
         }
         const current = captureHistoryOwner(
             sourceConnection()?.instanceId,
             playlistId,
-            () => sourceConnection()?.instanceId
+            () => sourceConnection()?.instanceId,
+            'history'
         );
-        try {
-            const content = await this.dataSource.getContentByXtreamId(
+        const remove = async () => {
+            if (!current()) return;
+            const content = await dataSource.getContentByXtreamId(
                 seriesId,
                 playlistId,
                 'series'
             );
             const contentId =
                 content?.id ??
-                ((await this.dataSource.supportsPortableHistory?.(playlistId))
+                ((await dataSource.supportsPortableHistory?.(playlistId))
                     ? seriesId
                     : null);
             if (!contentId || !current()) {
                 return;
             }
-            await this.dataSource.removeRecentItem(
+            await dataSource.removeRecentItem(
                 { id: contentId, type: 'series', providerId: seriesId },
                 playlistId
             );
@@ -352,6 +359,13 @@ export class SerialDetailsMenuService {
             this.notifications.success(
                 'PORTALS.DETAIL.HIDDEN_FROM_CONTINUE_WATCHING'
             );
+        };
+        try {
+            if (this.runtime.supportsXtreamSqliteDataSource) {
+                await this.historyOrder.run(playlistId, remove);
+            } else {
+                await remove();
+            }
         } catch (error) {
             this.logger.warn('Hiding the series from history failed', error);
         }

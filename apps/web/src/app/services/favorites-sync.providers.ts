@@ -1,3 +1,5 @@
+import { captureHistoryOwner } from '@iptvnator/services/history-events';
+import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import { EnvironmentInjector, inject } from '@angular/core';
 import { favoritesProfileUsed } from './favorites-consent';
 import type { FavoritesPlaylistBridge } from '@iptvnator/services/favorites-events';
@@ -29,5 +31,20 @@ export async function invokeFavorites(
     method: string,
     args: unknown[]
 ) {
-    return (await loadFavoritesRuntime(injector)).invoke(raw, method, args);
+    const source =
+        method === 'addFavorite' || method === 'removeFavorite'
+            ? args[1]
+            : undefined;
+    const current =
+        typeof source === 'string'
+            ? captureHistoryOwner(
+                  sourceConnection()?.instanceId,
+                  source,
+                  () => sourceConnection()?.instanceId,
+                  'favorites'
+              )
+            : () => true;
+    const runtime = await loadFavoritesRuntime(injector);
+    if (!current()) throw new Error('Favorites action ownership changed.');
+    return runtime.invoke(raw, method, args);
 }

@@ -24,8 +24,12 @@ import type { AppDatabase } from '../database.types';
 import type {
     XtreamCatalogStateCondition,
     XtreamCatalogStateResult,
+    XtreamStartupRefreshCondition,
 } from '@iptvnator/shared/interfaces';
-import { setConditionalCatalogState } from './xtream-catalog-state';
+import {
+    setConditionalCatalogState,
+    completeXtreamStartupRefresh,
+} from './xtream-catalog-state';
 import { deleteExplicitCategoryVisibility } from './category-visibility';
 import {
     checkpointOperation,
@@ -434,9 +438,20 @@ export async function updatePlaylist(
         userAgent?: string;
         serverUrl?: string;
         lastUpdated?: string;
+        autoRefresh?: boolean;
         xtreamContentTypes?: XtreamContentType[];
-    }
+        updateDate?: number;
+    },
+    condition?: XtreamStartupRefreshCondition
 ): Promise<{ success: boolean }> {
+    if (condition !== undefined) {
+        if (
+            condition?.playlistId !== playlistId ||
+            typeof updates.updateDate !== 'number'
+        )
+            return { success: false };
+        return completeXtreamStartupRefresh(db, updates.updateDate, condition);
+    }
     const { xtreamContentTypes, ...columns } = updates;
     const payload =
         columns.serverUrl === undefined

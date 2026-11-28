@@ -73,6 +73,13 @@ async function detail(page: Page, provider: 'xtream' | 'stalker') {
     ).toBeVisible();
     return title;
 }
+async function selectSavedMovies(page: Page) {
+    await expect(page.locator('.content-toggle')).toBeVisible({
+        timeout: 30000,
+    });
+    await switchUnifiedCollectionContent(page, 'Movies');
+}
+
 async function verifyReceiverCategoryLock(page: Page, title: string) {
     await openSettings(page);
     await openSettingsSection(page, 'parental');
@@ -92,7 +99,12 @@ async function verifyReceiverCategoryLock(page: Page, title: string) {
     await expect(dialog).toBeHidden();
     await page.getByTestId('header-parental-lock').click();
     await openGlobalFavorites(page);
-    await expect(page.locator('app-state-view')).toBeVisible();
+    await expect(
+        page.getByRole('heading', { name: 'No live TV favorites yet' })
+    ).toBeVisible();
+    await expect(
+        page.locator('.content-toggle').getByText('Movies', { exact: true })
+    ).toHaveCount(0);
     await expect(contentCardByTitle(page, title)).toHaveCount(0);
     await openSettings(page);
     await openSettingsSection(page, 'parental');
@@ -101,6 +113,7 @@ async function verifyReceiverCategoryLock(page: Page, title: string) {
     await page.getByTestId('parental-lock-pin-submit').click();
     await expect(toggle).toHaveAttribute('aria-checked', 'false');
     await openGlobalFavorites(page);
+    await selectSavedMovies(page);
     await expect(contentCardByTitle(page, title)).toBeVisible();
 }
 for (const provider of ['xtream', 'stalker'] as const)
@@ -197,7 +210,7 @@ for (const provider of ['xtream', 'stalker'] as const)
             await openGlobalFavorites(desktop.mainWindow);
             await expect(
                 desktop.mainWindow.getByRole('heading', {
-                    name: 'No favorites yet',
+                    name: 'No live TV favorites yet',
                     exact: true,
                 })
             ).toBeVisible();
@@ -213,6 +226,7 @@ for (const provider of ['xtream', 'stalker'] as const)
                             .length
                 )
                 .toBe(1);
+            await selectSavedMovies(desktop.mainWindow);
             await expect(
                 desktop.mainWindow.getByText(title!, { exact: true }).first()
             ).toBeVisible({ timeout: 30000 });
@@ -232,6 +246,7 @@ for (const provider of ['xtream', 'stalker'] as const)
                     await routePlayableStreams(receiver);
                     await settings(receiver, true);
                     await openGlobalFavorites(receiver);
+                    await selectSavedMovies(receiver);
                     await expect(
                         contentCardByTitle(receiver, title!)
                     ).toBeVisible();
@@ -256,6 +271,7 @@ for (const provider of ['xtream', 'stalker'] as const)
                     await routePlayableStreams(client);
                     await detail(client, provider);
                     await openGlobalFavorites(client);
+                    await selectSavedMovies(client);
                     // Keep the original media element through a full poll,
                     // including a loop of the short deterministic fixture.
                     await startAndConfirmPlayback(

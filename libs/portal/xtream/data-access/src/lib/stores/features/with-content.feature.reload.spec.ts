@@ -84,6 +84,31 @@ describe('withContent parental-lock reloads', () => {
 
     afterEach(() => localStorage.clear());
 
+    it('reloads only the active source live catalog and discards reads after a source switch', async () => {
+        expect(await store.reloadLiveCatalog('another-source')).toBe(false);
+        expect(dataSource.getCachedContent).not.toHaveBeenCalled();
+        const sourceId = store.playlistId();
+        const categories = [{ category_id: 'synthetic-category' }];
+        dataSource.getCachedCategories.mockResolvedValue(categories);
+        dataSource.getCachedContent.mockResolvedValue([{ xtream_id: 42 }]);
+
+        expect(await store.reloadLiveCatalog(sourceId)).toBe(true);
+        expect(dataSource.getCachedContent).toHaveBeenCalledWith(
+            sourceId,
+            'live'
+        );
+        expect(store.liveStreams()).toEqual([{ xtream_id: 42 }]);
+        expect(store.liveCategories()).toEqual(categories);
+
+        const pending = createDeferred<unknown[]>();
+        dataSource.getCachedContent.mockReturnValueOnce(pending.promise);
+        const reload = store.reloadLiveCatalog(sourceId);
+        store.switchPlaylist('another-source');
+        pending.resolve([{ xtream_id: 99 }]);
+        expect(await reload).toBe(false);
+        expect(store.liveStreams()).toEqual([{ xtream_id: 42 }]);
+    });
+
     it('withholds every catalog list at once and drops reads whose guard says no', async () => {
         dataSource.getCategories.mockResolvedValue([{ category_id: 'x' }]);
         dataSource.getContent.mockResolvedValue([{ xtream_id: 1 }]);

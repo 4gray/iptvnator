@@ -6,6 +6,7 @@ import type {
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import type {
+    XtreamExternalLiveSessions,
     XtreamLiveOwner,
     XtreamLiveSource,
 } from './xtream-external-live-sessions.service';
@@ -15,6 +16,16 @@ import {
 } from './xtream-live-channel-navigation.service';
 
 export type GuideLaunchOutcome = false | 'ended' | 'failed' | 'retryable';
+
+export function hasXtreamOpenedMedia(
+    session: ExternalPlayerSession | null | undefined
+): session is ExternalPlayerSession & { status: 'opened' | 'playing' } {
+    return (
+        (session?.status === 'opened' || session?.status === 'playing') &&
+        !session.playbackIdle &&
+        session.mediaLoaded !== false
+    );
+}
 
 export function createXtreamLaunchCompletion() {
     let dispatched = false;
@@ -109,6 +120,29 @@ export interface GuideLaunch {
     retry?: boolean;
     remote?: boolean;
     onConfirmed?: () => void;
+}
+
+export function openXtreamAfterHandoff(
+    close: Promise<void> | undefined,
+    canOpen: () => boolean,
+    open: () => Promise<ExternalPlayerSession | void>,
+    lifecycle: ReturnType<XtreamExternalLiveSessions['begin']> | undefined,
+    recover: (failed: boolean) => void
+): void {
+    const opening = close
+        ? close.then(() => (canOpen() ? open() : undefined))
+        : open();
+    void Promise.resolve(opening).then(
+        (session) => {
+            lifecycle?.finish(session);
+            if (!session || ['error', 'closed'].includes(session.status))
+                recover(!session || lifecycle?.ended() === 'failed');
+        },
+        () => {
+            lifecycle?.finish();
+            recover(true);
+        }
+    );
 }
 
 export type ConfirmedLaunch = GuideLaunch & { session: ExternalPlayerSession };

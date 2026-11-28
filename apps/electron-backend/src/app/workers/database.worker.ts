@@ -98,6 +98,7 @@ import { setPlaylistServerTimezone } from '../database/operations/playlist-serve
 import { checkXtreamCatalogConnection } from '../database/operations/xtream-catalog-state';
 import type {
     XtreamCatalogStateCondition,
+    XtreamStartupRefreshCondition,
     XtreamContentType,
 } from '@iptvnator/shared/interfaces';
 import {
@@ -489,6 +490,7 @@ async function executeRequest(
                 type: 'live' | 'movies' | 'series';
                 hiddenCategoryXtreamIds?: number[];
                 lockedCategoryXtreamIds?: number[];
+                retainedCategoryIds?: [number, number][];
             };
             const capturePhase =
                 createWorkerPerformancePhaseAdapter(performanceCapture);
@@ -499,7 +501,8 @@ async function executeRequest(
                 payload.type,
                 payload.hiddenCategoryXtreamIds,
                 payload.lockedCategoryXtreamIds,
-                capturePhase
+                capturePhase,
+                payload.retainedCategoryIds
             );
         }
 
@@ -646,6 +649,7 @@ async function executeRequest(
                 identity?: ContentMetadataPatch;
                 categoryId?: number;
                 excludeLocked?: boolean;
+                fallbackToUniqueCategory?: boolean;
             };
             return getContentByXtreamId(
                 db,
@@ -654,7 +658,8 @@ async function executeRequest(
                 payload.contentType,
                 payload.identity,
                 payload.categoryId,
-                payload.excludeLocked === true
+                payload.excludeLocked === true,
+                payload.fallbackToUniqueCategory === true
             );
         }
 
@@ -838,9 +843,17 @@ async function executeRequest(
                     password?: string;
                     serverUrl?: string;
                     lastUpdated?: string;
+                    autoRefresh?: boolean;
+                    updateDate?: number;
                 };
+                condition?: XtreamStartupRefreshCondition;
             };
-            return updatePlaylist(db, payload.playlistId, payload.updates);
+            return updatePlaylist(
+                db,
+                payload.playlistId,
+                payload.updates,
+                payload.condition
+            );
         }
 
         case 'DB_DELETE_PLAYLIST': {
@@ -1032,6 +1045,7 @@ async function executeRequest(
                 playlistId: string;
                 operationId?: string;
                 contentTypes?: XtreamContentType[];
+                startupCondition?: XtreamStartupRefreshCondition;
             };
             const capturePhase =
                 createWorkerPerformancePhaseAdapter(performanceCapture);
@@ -1054,7 +1068,8 @@ async function executeRequest(
                         payload.playlistId,
                         controller.control,
                         capturePhase,
-                        payload.contentTypes
+                        payload.contentTypes,
+                        payload.startupCondition
                     );
 
                     controller.emitCompleted({
@@ -1194,9 +1209,11 @@ async function executeRequest(
                 contentId: number;
                 playlistId: string;
                 backdropUrl?: string;
+                viewedAt?: string;
             };
             return addRecentItem(db, payload.contentId, payload.playlistId, {
                 backdropUrl: payload.backdropUrl,
+                viewedAt: payload.viewedAt,
             });
         }
 

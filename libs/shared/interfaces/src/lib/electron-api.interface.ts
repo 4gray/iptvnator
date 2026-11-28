@@ -7,6 +7,7 @@ import type { XtreamConnectionFailure } from './xtream-connection-test';
 import type {
     XtreamCatalogStateCondition,
     XtreamCatalogStateResult,
+    XtreamStartupRefreshCondition,
 } from './xtream-content-selection';
 import type { ZoomLevelAction } from './zoom-level.util';
 import type {
@@ -798,6 +799,8 @@ export interface ElectronBridgeApi {
     ) => () => void;
     getAppVersion: () => Promise<string>;
     platform: string;
+    /** Version of the guarded Xtream Live TV startup replacement protocol. */
+    xtreamStartupRefreshVersion?: number;
     getAppUpdateStatus: () => Promise<ElectronBridgeAppUpdateStatus>;
     checkForAppUpdate: () => Promise<ElectronBridgeAppUpdateStatus>;
     downloadAppUpdate: () => Promise<ElectronBridgeAppUpdateStatus>;
@@ -1112,7 +1115,8 @@ export interface ElectronBridgeApi {
     ) => Promise<M3uFavoriteChannel[]>;
     dbUpdatePlaylist: (
         playlistId: string,
-        updates: Partial<Playlist> | ElectronBridgePlaylistInput
+        updates: Partial<Playlist> | ElectronBridgePlaylistInput,
+        condition?: XtreamStartupRefreshCondition
     ) => Promise<ElectronBridgeResult>;
     dbDeletePlaylist: (
         playlistId: string,
@@ -1121,9 +1125,11 @@ export interface ElectronBridgeApi {
     dbDeleteXtreamContent: (
         playlistId: string,
         operationId?: string,
-        contentTypes?: import('./xtream-content-selection').XtreamContentType[]
+        contentTypes?: import('./xtream-content-selection').XtreamContentType[],
+        startupCondition?: XtreamStartupRefreshCondition
     ) => Promise<{
         success: boolean;
+        skipped?: true;
         favorites: XtreamBackupFavoriteItem[];
         recentlyViewed: XtreamBackupRecentlyViewedItem[];
         hiddenCategories: XtreamBackupHiddenCategory[];
@@ -1156,7 +1162,8 @@ export interface ElectronBridgeApi {
         categories: XtreamCategory[],
         type: string,
         hiddenCategoryXtreamIds?: number[],
-        lockedCategoryXtreamIds?: number[]
+        lockedCategoryXtreamIds?: number[],
+        retainedCategoryIds?: [number, number][]
     ) => Promise<ElectronBridgeResult>;
     dbGetAllCategories: (
         playlistId: string,
@@ -1242,7 +1249,8 @@ export interface ElectronBridgeApi {
     dbAddRecentItem: (
         contentId: number,
         playlistId: string,
-        backdropUrl?: string
+        backdropUrl?: string,
+        viewedAt?: string
     ) => Promise<ElectronBridgeResult>;
     dbClearPlaylistRecentItems: (
         playlistId: string
@@ -1260,7 +1268,8 @@ export interface ElectronBridgeApi {
         contentType?: ElectronBridgePortalContentType,
         identity?: ContentMetadataPatch,
         categoryId?: number,
-        excludeLocked?: boolean
+        excludeLocked?: boolean,
+        fallbackToUniqueCategory?: boolean
     ) => Promise<ElectronBridgeXtreamContent | null>;
     dbSetContentMetadataIfMissing: (
         contentId: number,

@@ -1007,6 +1007,7 @@ describe('PlaylistsService', () => {
     });
 
     it('aborts a guarded metadata update in one readwrite transaction when the row no longer matches', async () => {
+        localStorage.setItem(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG, '1');
         const replacementPlaylist = {
             _id: 'stalker-replaced',
             title: 'Restored Portal',
@@ -1052,6 +1053,7 @@ describe('PlaylistsService', () => {
     });
 
     it('merges and commits a matching guarded browser update through its cursor', async () => {
+        localStorage.setItem(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG, '1');
         const currentPlaylist = {
             _id: 'stalker-guarded-write',
             title: 'Original Portal',
@@ -1094,6 +1096,7 @@ describe('PlaylistsService', () => {
     });
 
     it('commits a browser conditional transform through the same readwrite cursor', async () => {
+        localStorage.setItem(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG, '1');
         const currentPlaylist = {
             _id: 'stalker-cursor-write',
             title: 'Original Portal',
@@ -2929,6 +2932,58 @@ describe('PlaylistsService', () => {
 
             expect(store.current.title).toBe('Edited Title');
             expect(store.current.portalUrl).toBe('http://x/portal.php');
+        });
+
+        it('keeps the Xtream refresh date when an overlapping document edit saves its snapshot', async () => {
+            const original = {
+                ...createBasePlaylist('synthetic-source'),
+                updateDate: 42,
+            };
+            const { store, electron } = createStatefulElectronStore(original);
+            const partialUpdate = jest.fn(
+                async (_id: string, { updateDate }: { updateDate: number }) => {
+                    store.current = { ...store.current, updateDate };
+                    return { success: true };
+                }
+            );
+            testWindow.electron = {
+                ...electron,
+                dbUpdatePlaylist: partialUpdate,
+            };
+            const service = createService();
+            let started!: () => void;
+            let finish!: () => void;
+            const writing = new Promise<void>((resolve) => {
+                started = resolve;
+            });
+            electron.dbUpsertAppPlaylist.mockImplementationOnce(
+                async (snapshot) => {
+                    started();
+                    await new Promise<void>((resolve) => {
+                        finish = resolve;
+                    });
+                    store.current = snapshot;
+                    return { success: true };
+                }
+            );
+            const edit = firstValueFrom(
+                service.updatePlaylistMeta({
+                    ...original,
+                    title: 'Synthetic edited title',
+                })
+            );
+            await writing;
+            const persistentDate = firstValueFrom(
+                service.completeXtreamStartupRefresh(original, 73)
+            );
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            const writesBeforeEditFinished = partialUpdate.mock.calls.length;
+            finish();
+            await Promise.all([edit, persistentDate]);
+
+            expect(writesBeforeEditFinished).toBe(0);
+            expect(store.current.title).toBe('Synthetic edited title');
+            expect(store.current.updateDate).toBe(73);
         });
 
         it('applies overlapping favorites transforms atomically', async () => {

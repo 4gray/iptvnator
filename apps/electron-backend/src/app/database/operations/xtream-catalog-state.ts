@@ -1,11 +1,13 @@
 import { eq } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import {
+    normalizeXtreamContentTypes,
     normalizeXtreamServerUrl,
     xtreamHistoryRecoveryKey,
     XTREAM_CONTENT_TYPES,
     type XtreamCatalogStateCondition,
     type XtreamCatalogStateResult,
+    type XtreamStartupRefreshCondition,
 } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 
@@ -59,6 +61,75 @@ export function checkXtreamCatalogConnection(
         : { success: false, conditionChecked: true, connectionChanged: true };
 }
 
+/** Check the source as stored in SQLite at the start of a guarded write. */
+export function matchesXtreamStartupRefresh(
+    db: Pick<AppDatabase, 'select'>,
+    condition: XtreamStartupRefreshCondition
+): boolean {
+    if (!checkXtreamCatalogConnection(db, condition).success) return false;
+    const row = db
+        .select()
+        .from(schema.playlists)
+        .where(eq(schema.playlists.id, condition.playlistId))
+        .get();
+    if (!row) return false;
+    const payload = row.payload ? JSON.parse(row.payload) : {};
+    const previous =
+        row.updateDate ??
+        (row.lastUpdated ? Date.parse(row.lastUpdated) : null);
+    return (
+        Boolean(row.autoRefresh ?? payload.autoRefresh) &&
+        normalizeXtreamContentTypes(payload.xtreamContentTypes).includes(
+            'live'
+        ) &&
+        previous === condition.previousUpdateDate
+    );
+}
+
+export function completeXtreamStartupRefresh(
+    db: AppDatabase,
+    updateDate: number,
+    condition: XtreamStartupRefreshCondition
+): { success: boolean } {
+    const lastUpdated = new Date(updateDate);
+    if (
+        !Number.isSafeInteger(updateDate) ||
+        !Number.isFinite(lastUpdated.getTime())
+    )
+        throw new Error('Invalid Xtream refresh timestamp.');
+
+    return db.transaction((tx) => {
+        if (!matchesXtreamStartupRefresh(tx, condition))
+            return { success: false };
+        tx.update(schema.playlists)
+            .set({ updateDate, lastUpdated: lastUpdated.toISOString() })
+            .where(eq(schema.playlists.id, condition.playlistId))
+            .run();
+        writeCatalogState(
+            tx,
+            `xtream-import-status:${condition.playlistId}:live`,
+            'completed',
+            lastUpdated.toISOString()
+        );
+        return { success: true };
+    });
+}
+
+function writeCatalogState(
+    db: Pick<AppDatabase, 'insert'>,
+    key: string,
+    value: string,
+    updatedAt: string
+): void {
+    db.insert(schema.appState)
+        .values({ key, value, updatedAt })
+        .onConflictDoUpdate({
+            target: schema.appState.key,
+            set: { value, updatedAt },
+        })
+        .run();
+}
+
 /** Compare and commit synchronously: no projection can interleave these steps. */
 export function setConditionalCatalogState(
     db: AppDatabase,
@@ -78,14 +149,7 @@ export function setConditionalCatalogState(
     return db.transaction((tx): XtreamCatalogStateResult => {
         const result = checkXtreamCatalogConnection(tx, condition);
         if (!result.success) return result;
-        const updatedAt = new Date().toISOString();
-        tx.insert(schema.appState)
-            .values({ key, value, updatedAt })
-            .onConflictDoUpdate({
-                target: schema.appState.key,
-                set: { value, updatedAt },
-            })
-            .run();
+        writeCatalogState(tx, key, value, new Date().toISOString());
         return result;
     });
 }
