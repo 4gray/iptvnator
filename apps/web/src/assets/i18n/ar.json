@@ -1055,7 +1055,9 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
-        "ACTION_TRY_BUILT_IN_PLAYER": "جرّب المشغّل المدمج",
+        "ANDROID_PLAYER_MENU": "خيارات التشغيل",
+        "ACTION_OPEN_BUILT_IN_PLAYER": "فتح في المشغّل المدمج",
+        "ACTION_RECONNECT": "إعادة الاتصال",
         "ACTION_RETURN_TO_WEB_PLAYER": "العودة إلى مشغّل الويب",
         "HLS_WAIT": "ما زلنا ننتظر بيانات البث. يمكنك الانتظار أو إعادة المحاولة.",
         "STAGE_LOADER": "تحميل البث",

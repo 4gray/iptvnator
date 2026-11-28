@@ -5,12 +5,15 @@
 :host {
     --diagnostic-utility-text: #c0c8d4;
     --diagnostic-utility-hover: #e7ecf3;
-    --app-focus-ring: var(--diagnostic-utility-hover);
 
     position: absolute;
     inset: 0;
     z-index: 5;
     container: playback-diagnostic / size;
+}
+
+.web-player-diagnostic:not(.web-player-diagnostic--android) {
+    --app-focus-ring: var(--diagnostic-utility-hover);
 }
 
 .web-player-diagnostic {
@@ -619,5 +622,145 @@
 
     .web-player-diagnostic__player-label {
         font-size: var(--app-text-md);
+    }
+}
+
+.web-player-diagnostic--android {
+    --diagnostic-utility-text: var(--app-eyebrow-color);
+    --diagnostic-utility-hover: var(--app-on-surface);
+
+    padding: 16px;
+    padding: clamp(12px, 4cqi, 36px);
+    background: rgb(0 0 0 / 96%);
+}
+
+.web-player-diagnostic--android .web-player-diagnostic__content {
+    box-sizing: border-box;
+    width: min(100%, 36rem);
+    margin: auto;
+    padding: 20px;
+    padding: clamp(14px, 4cqi, 28px);
+    border-radius: 14px;
+    background: var(--app-widget-bg);
+    color: var(--app-on-surface);
+}
+
+.web-player-diagnostic__android-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.web-player-diagnostic__android-header mat-icon {
+    flex: 0 0 24px;
+    color: var(--mat-sys-error);
+}
+
+.web-player-diagnostic__android-header h2 {
+    min-width: 0;
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+}
+
+.web-player-diagnostic__recommendations--android {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.web-player-diagnostic__android-action {
+    min-height: 48px;
+}
+
+.web-player-diagnostic__android-action .web-player-diagnostic__player-label {
+    font-size: 1rem;
+    line-height: 1.25;
+    text-wrap: wrap;
+}
+
+.web-player-diagnostic__android-action:not(.web-player-diagnostic__player-card--primary) {
+    border-color: var(--app-separator);
+    background: transparent;
+    color: var(--app-on-surface);
+}
+
+.web-player-diagnostic__android-action:not(.web-player-diagnostic__player-card--primary):hover {
+    background: var(--app-card-hover-bg);
+}
+
+.web-player-diagnostic__android-action--wide {
+    grid-column: 1 / -1;
+}
+
+.web-player-diagnostic__android-action.web-player-diagnostic__player-card--primary {
+    min-height: 54px;
+}
+
+.web-player-diagnostic--android .web-player-diagnostic__utilities {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 16px;
+    padding-block-start: 6px;
+    border-block-start: 1px solid var(--app-separator);
+}
+
+.web-player-diagnostic--android .web-player-diagnostic__copy-status {
+    order: 1;
+    flex-basis: 100%;
+}
+
+.web-player-diagnostic--android .web-player-diagnostic__copy-status:empty {
+    position: absolute;
+}
+
+.web-player-diagnostic--android .web-player-diagnostic__utility-button,
+.web-player-diagnostic--android .web-player-diagnostic__details summary {
+    min-height: 44px;
+    overflow-wrap: anywhere;
+}
+
+.web-player-diagnostic--android .web-player-diagnostic__utility-button mat-icon,
+.web-player-diagnostic--android .web-player-diagnostic__details summary mat-icon {
+    flex: 0 0 16px;
+}
+
+.web-player-diagnostic--android .web-player-diagnostic__details[open] {
+    flex-basis: 100%;
+}
+
+.web-player-diagnostic--android .web-player-diagnostic__details[open] summary mat-icon {
+    transform: rotate(180deg);
+}
+
+.web-player-diagnostic--android .web-player-diagnostic__details dl {
+    max-height: none;
+    overflow: visible;
+    border-color: var(--app-separator);
+    background: var(--app-card-hover-bg);
+    color: var(--app-on-surface);
+}
+
+.web-player-diagnostic--android .web-player-diagnostic__detail-row dt {
+    color: var(--app-eyebrow-color);
+}
+
+.web-player-diagnostic--android .web-player-diagnostic__player-card:focus-visible,
+.web-player-diagnostic--android .web-player-diagnostic__utility-button:focus-visible,
+.web-player-diagnostic--android .web-player-diagnostic__details summary:focus-visible {
+    outline-color: var(--app-focus-ring);
+}
+
+@container playback-diagnostic (max-width: 35rem) {
+    .web-player-diagnostic__android-header h2 {
+        font-size: var(--app-text-xl);
+    }
+
+    .web-player-diagnostic__recommendations--android {
+        grid-template-columns: minmax(0, 1fr);
+        margin-top: 14px;
     }
 }

@@ -1055,7 +1055,9 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
-        "ACTION_TRY_BUILT_IN_PLAYER": "Ingebouwde speler proberen",
+        "ANDROID_PLAYER_MENU": "Afspeelopties",
+        "ACTION_OPEN_BUILT_IN_PLAYER": "Openen in ingebouwde speler",
+        "ACTION_RECONNECT": "Opnieuw verbinden",
         "ACTION_RETURN_TO_WEB_PLAYER": "Terug naar de webspeler",
         "HLS_WAIT": "Er wordt nog op streamgegevens gewacht. Je kunt blijven wachten of het opnieuw proberen.",
         "STAGE_LOADER": "Stream laden",

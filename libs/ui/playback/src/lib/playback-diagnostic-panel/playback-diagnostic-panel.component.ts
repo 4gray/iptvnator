@@ -54,6 +54,16 @@ import {
 /** How many recovery options the error screen shows before it stops helping. */
 const ERROR_SCREEN_ALTERNATIVES = 5;
 
+const ANDROID_ACTIONS = {
+    builtIn: 'PLAYBACK_DIAGNOSTICS.ACTION_OPEN_BUILT_IN_PLAYER',
+    external: 'PORTALS.DETAIL.OPEN_IN_EXTERNAL_PLAYER',
+    reconnect: 'PLAYBACK_DIAGNOSTICS.ACTION_RECONNECT',
+    retry: 'PLAYBACK_DIAGNOSTICS.ACTION_RETRY',
+    return: 'PLAYBACK_DIAGNOSTICS.ACTION_RETURN_TO_WEB_PLAYER',
+} as const;
+
+type AndroidRecoveryAction = keyof typeof ANDROID_ACTIONS;
+
 @Component({
     selector: 'app-playback-diagnostic-panel',
     templateUrl: './playback-diagnostic-panel.component.html',
@@ -80,6 +90,66 @@ export class PlaybackDiagnosticPanelComponent {
     readonly externalStates = input.required<ExternalRecoveryStates>();
     readonly pending = input(false);
 
+    readonly androidRecovery = input<{
+        builtIn: boolean;
+        external: boolean;
+        bothFailed: boolean;
+        opening: boolean;
+        returning: boolean;
+    } | null>(null);
+    readonly androidBuiltInRequested = output<void>();
+    readonly androidExternalRequested = output<void>();
+
+    readonly androidActions = computed<readonly AndroidRecoveryAction[]>(() => {
+        const recovery = this.androidRecovery();
+        if (!recovery) return [];
+        const { code } = this.diagnostic();
+        const formatFailure =
+            code === 'unsupported-codec' ||
+            code === 'unsupported-container' ||
+            code === 'media-decode-error';
+        const retry = recovery.returning
+            ? 'return'
+            : code === 'network-error'
+              ? 'reconnect'
+              : 'retry';
+        if (recovery.opening) return [retry];
+        const external =
+            recovery.external &&
+            (formatFailure ||
+                code === 'browser-access-error' ||
+                code === 'unknown-playback-error' ||
+                recovery.bothFailed);
+        if (external && recovery.bothFailed) return ['external', retry];
+        if (recovery.builtIn && formatFailure) {
+            return external
+                ? ['builtIn', 'external', retry]
+                : ['builtIn', retry];
+        }
+        if (external && formatFailure) return ['external', retry];
+        if (recovery.builtIn) {
+            return external
+                ? [retry, 'builtIn', 'external']
+                : [retry, 'builtIn'];
+        }
+        return external ? [retry, 'external'] : [retry];
+    });
+
+    readonly androidActionLabels = ANDROID_ACTIONS;
+    readonly androidActionIcons: Record<AndroidRecoveryAction, string> = {
+        builtIn: 'play_arrow',
+        external: 'open_in_new',
+        reconnect: 'refresh',
+        retry: 'refresh',
+        return: 'web',
+    };
+
+    activateAndroid(action: AndroidRecoveryAction): void {
+        if (action === 'builtIn') this.androidBuiltInRequested.emit();
+        else if (action === 'external') this.androidExternalRequested.emit();
+        else this.retryRequested.emit();
+    }
+
     readonly retryRequested = output<void>();
     readonly playerRequested = output<PlaybackRecommendationTarget>();
     readonly alternativeSourceRequested = output<string>();
@@ -87,6 +157,19 @@ export class PlaybackDiagnosticPanelComponent {
 
     private readonly host: HTMLElement = inject(ElementRef).nativeElement;
     constructor() {
+        let previousPrimary: HTMLElement | null = null;
+        afterRenderEffect(() => {
+            const primary = this.androidActions()[0];
+            if (!primary) return;
+            const active = this.document.activeElement;
+            const button = this.host.querySelector<HTMLButtonElement>(
+                '[data-tv-recovery-primary]'
+            );
+            if (!this.host.contains(active) || active === previousPrimary) {
+                button?.focus();
+            }
+            previousPrimary = button;
+        });
         afterRenderEffect(() => {
             this.host.dispatchEvent(
                 new CustomEvent('iptvnator:playback-issue', {

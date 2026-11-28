@@ -1030,20 +1030,34 @@ public class MainActivity extends ComponentActivity {
             + lastRequest + "}))");
     }
 
+    void checkExternalPlayback(String id, String url) {
+        if (!pageReady) return;
+        boolean available = canShareStream(url) && ExternalPlayer.canChoose(this, url);
+        js("window.dispatchEvent(new CustomEvent('iptvnator:android-external-playback',{detail:{id:"
+            + JSONObject.quote(id) + ",available:" + available + "}}))");
+    }
+
+    void chooseExternalPlayback(String url, String title) {
+        if (pageReady && resumed && canShareStream(url)) ExternalPlayer.choose(this, url, title);
+    }
+
     void openExternal(String url, String title) {
-        if (url == null || url.trim().isEmpty()) {
+        if (url == null || !canShareStream(url.trim())) {
             toast(getString(R.string.no_stream_to_open));
             return;
         }
-        String candidate = url.trim();
+        ExternalPlayer.open(this, url.trim(), title, prefs.externalPlayerPackage());
+    }
+
+    private boolean canShareStream(String candidate) {
+        if (candidate.isEmpty()) return false;
+        String libraryOrigin = effectiveLibraryOrigin();
+        if (libraryOrigin.isEmpty()) return true;
         Uri media = Uri.parse(candidate);
         String scheme = media.getScheme();
-        if (!effectiveLibraryOrigin().isEmpty() && ((!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))
-            || media.getHost() == null || HostedOrigin.sameOrigin(nasLibrary != null ? nasLibrary.serverOrigin : effectiveLibraryOrigin(), candidate))) {
-            toast(getString(R.string.no_stream_to_open));
-            return;
-        }
-        ExternalPlayer.open(this, candidate, title, prefs.externalPlayerPackage());
+        return ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))
+            && media.getHost() != null
+            && !HostedOrigin.sameOrigin(nasLibrary != null ? nasLibrary.serverOrigin : libraryOrigin, candidate);
     }
 
     /**
@@ -1334,7 +1348,7 @@ public class MainActivity extends ComponentActivity {
         updateNativePlaybackAvailability();
         deliverNativePlaybackResult();
         deliverNativePlaybackCheckpoint();
-        if (loadedLayoutWidth != ShellSite.DEVICE_VIEWPORT && errorPanel.getVisibility() != View.VISIBLE) {
+        if (loadedLayoutWidth != ShellSite.DEVICE_VIEWPORT && errorPanel.getVisibility() != View.VISIBLE && !webView.hasFocus()) {
             webView.requestFocus(View.FOCUS_DOWN);
         }
         // Give a foreground startup a fresh ready budget.

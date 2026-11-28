@@ -1055,7 +1055,9 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
-        "ACTION_TRY_BUILT_IN_PLAYER": "Experimentar o leitor integrado",
+        "ANDROID_PLAYER_MENU": "Opções de reprodução",
+        "ACTION_OPEN_BUILT_IN_PLAYER": "Abrir no leitor integrado",
+        "ACTION_RECONNECT": "Voltar a ligar",
         "ACTION_RETURN_TO_WEB_PLAYER": "Voltar ao leitor web",
         "HLS_WAIT": "Ainda à espera dos dados da transmissão. Pode continuar à espera ou tentar novamente.",
         "STAGE_LOADER": "Carregamento da transmissão",

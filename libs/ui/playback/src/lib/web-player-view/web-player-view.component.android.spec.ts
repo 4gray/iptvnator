@@ -4,6 +4,9 @@ import {
     DeferBlockBehavior,
 } from '@angular/core/testing';
 import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { MatMenuModule } from '@angular/material/menu';
+import { OverlayContainer } from '@angular/cdk/overlay';
+import { PlaybackDiagnosticPanelComponent } from '../playback-diagnostic-panel/playback-diagnostic-panel.component';
 import { MatButtonModule } from '@angular/material/button';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { firstValueFrom, of } from 'rxjs';
@@ -16,8 +19,12 @@ import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
 import {
+    classifyNativePlaybackIssue,
+    classifyVhsPlaybackIssue,
+    createPlaybackSourceMetadata,
     PlaybackDiagnosticCode,
     PlaybackDiagnosticSource,
+    type PlaybackDiagnostic,
 } from '@iptvnator/playback/util';
 import {
     StubArtPlayerComponent,
@@ -33,7 +40,7 @@ jest.unstable_mockModule('@yangkghjh/videojs-aspect-ratio-panel', () => ({}));
 jest.unstable_mockModule('videojs-contrib-quality-levels', () => ({}));
 jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
 
-describe('returning from the Android live player', () => {
+describe('Android TV playback handoff and recovery', () => {
     let fixture: ComponentFixture<WebPlayerView>;
     let postMessage: jest.Mock;
     let beginActivity: jest.Mock<Promise<void>>;
@@ -76,6 +83,8 @@ describe('returning from the Android live player', () => {
                 set: {
                     imports: [
                         MatButtonModule,
+                        MatMenuModule,
+                        PlaybackDiagnosticPanelComponent,
                         TranslatePipe,
                         StubArtPlayerComponent,
                         StubEmbeddedMpvPlayerComponent,
@@ -106,46 +115,286 @@ describe('returning from the Android live player', () => {
     it('updates the native player action when the app language changes', async () => {
         const translate = TestBed.inject(TranslateService);
         const open = () =>
-            fixture.nativeElement.querySelector('[data-tv-native-playback]')
-                .textContent;
+            TestBed.inject(OverlayContainer)
+                .getContainerElement()
+                .querySelector('[data-tv-native-playback]')?.textContent;
         translate.setTranslation('en', {
             PLAYBACK_DIAGNOSTICS: {
-                ACTION_TRY_BUILT_IN_PLAYER: 'Try built-in player',
+                ACTION_OPEN_BUILT_IN_PLAYER: 'Open in built-in player',
             },
         });
         translate.setTranslation('fr', {
             PLAYBACK_DIAGNOSTICS: {
-                ACTION_TRY_BUILT_IN_PLAYER: 'Essayer le lecteur intégré',
+                ACTION_OPEN_BUILT_IN_PLAYER: 'Ouvrir dans le lecteur intégré',
             },
         });
         await firstValueFrom(translate.use('en'));
         fixture.detectChanges();
-        expect(open()).toContain('Try built-in player');
+        fixture.nativeElement.querySelector('[data-tv-player-menu]').click();
+        fixture.detectChanges();
+        expect(open()).toContain('Open in built-in player');
         await firstValueFrom(translate.use('fr'));
         fixture.detectChanges();
-        expect(open()).toContain('Essayer le lecteur intégré');
+        expect(open()).toContain('Ouvrir dans le lecteur intégré');
     });
 
-    it('keeps the playback attempt when Media3 is enabled from settings', () => {
-        function setEnabled(enabled: boolean): void {
-            Object.assign(window, { iptvnatorAndroidPlaybackEnabled: enabled });
+    const action = (key: string) =>
+        (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+            `[data-tv-recovery-action="${key}"]`
+        );
+    const primary = () =>
+        (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+            '[data-tv-recovery-primary]'
+        );
+    function report(code: PlaybackDiagnosticCode): void {
+        reportIssue({
+            code,
+            source: PlaybackDiagnosticSource.Hls,
+            sourceUrl: fixture.componentInstance.resolvedPlayback().streamUrl,
+            player: 'videojs',
+            container: 'hls',
+            audioCodecs: [],
+            videoCodecs: [],
+        });
+    }
+    function reportIssue(issue: PlaybackDiagnostic): void {
+        const component = fixture.componentInstance;
+        const binding = component.activeBinding();
+        if (!binding) throw new Error('Expected an active web player');
+        component.handlePlaybackIssue(issue, binding);
+        fixture.detectChanges();
+    }
+    function replyToExternalCheck(available: boolean, id?: string): void {
+        const request = postMessage.mock.calls
+            .map(([message]) => JSON.parse(message))
+            .reverse()
+            .find(([command]) => command === 'checkExternalPlayback');
+        window.dispatchEvent(
+            new CustomEvent('iptvnator:android-external-playback', {
+                detail: { id: id ?? request?.[1], available },
+            })
+        );
+        fixture.detectChanges();
+    }
+
+    it('checks the external player from a plain HTTP host', () => {
+        const descriptor = Object.getOwnPropertyDescriptor(crypto, 'randomUUID');
+        Object.defineProperty(crypto, 'randomUUID', {
+            configurable: true,
+            value: undefined,
+        });
+        try {
+            report(PlaybackDiagnosticCode.UnsupportedCodec);
+            expect(JSON.parse(postMessage.mock.lastCall?.[0] as string)).toEqual([
+                'checkExternalPlayback',
+                expect.stringMatching(/^[a-f0-9-]{36}$/),
+                playback.streamUrl,
+            ]);
+            replyToExternalCheck(true);
+            expect(action('external')).not.toBeNull();
+        } finally {
+            if (descriptor) Object.defineProperty(crypto, 'randomUUID', descriptor);
+            else Reflect.deleteProperty(crypto, 'randomUUID');
+        }
+    });
+
+    it('shows one panel with Media3 focused and a directly available chooser', () => {
+        expect(postMessage).not.toHaveBeenCalled();
+        report(PlaybackDiagnosticCode.UnsupportedCodec);
+        replyToExternalCheck(true);
+        expect(primary()).toBe(action('builtIn'));
+        expect(document.activeElement).toBe(primary());
+        expect(
+            fixture.nativeElement.querySelector('[data-tv-player-menu]')
+        ).toBeNull();
+        expect(fixture.nativeElement.querySelector('details')?.open).toBe(
+            false
+        );
+
+        action('external')?.click();
+        expect(JSON.parse(postMessage.mock.lastCall?.[0] as string)).toEqual([
+            'chooseExternalPlayback',
+            playback.streamUrl,
+            playback.title,
+        ]);
+
+        action('builtIn')?.click();
+        fixture.detectChanges();
+        const [, id] = JSON.parse(postMessage.mock.lastCall?.[0] as string);
+        window.dispatchEvent(
+            new CustomEvent('iptvnator:android-playback-result', {
+                detail: {
+                    id,
+                    result: { failed: true, positionMs: 0, durationMs: 0 },
+                },
+            })
+        );
+        fixture.detectChanges();
+        expect(primary()).toBe(action('external'));
+        expect(document.activeElement).toBe(primary());
+        expect(action('builtIn')).toBeNull();
+    });
+
+    it('keeps web recovery after Media3 plays part of a VOD item', () => {
+        fixture.componentRef.setInput('playback', {
+            ...playback,
+            isLive: false,
+        });
+        fixture.detectChanges();
+        report(PlaybackDiagnosticCode.UnsupportedCodec);
+        replyToExternalCheck(true);
+        action('builtIn')?.click();
+        fixture.detectChanges();
+        const [, id] = JSON.parse(postMessage.mock.lastCall?.[0] as string);
+
+        window.dispatchEvent(
+            new CustomEvent('iptvnator:android-playback-result', {
+                detail: {
+                    id,
+                    result: {
+                        started: true,
+                        playedMs: 2000,
+                        positionMs: 6000,
+                        durationMs: 20000,
+                    },
+                },
+            })
+        );
+        fixture.detectChanges();
+
+        expect(action('external')).toBeTruthy();
+        expect(action('return')).toBeTruthy();
+        expect(fixture.componentInstance.effectiveStartTime()).toBe(6);
+    });
+
+    it('keeps the manual menu trigger focused during the Media3 handoff', () => {
+        const host = fixture.nativeElement as HTMLElement;
+        const trigger = host.querySelector<HTMLButtonElement>(
+            '[data-tv-player-menu]'
+        )!;
+        const menu = TestBed.inject(OverlayContainer).getContainerElement();
+        trigger.focus();
+        trigger.click();
+        fixture.detectChanges();
+        menu.querySelector<HTMLButtonElement>(
+            '[data-tv-native-playback]'
+        )!.click();
+        fixture.detectChanges();
+        const [, id] = JSON.parse(postMessage.mock.lastCall?.[0] as string);
+        expect(host.querySelector('[data-tv-player-menu]')).toBe(trigger);
+        expect(trigger.getAttribute('aria-disabled')).toBe('true');
+
+        window.dispatchEvent(
+            new CustomEvent('iptvnator:android-playback-result', {
+                detail: { id, result: { positionMs: 0, durationMs: 0 } },
+            })
+        );
+        fixture.detectChanges();
+
+        expect(trigger.getAttribute('aria-disabled')).toBeNull();
+        expect(document.activeElement).toBe(trigger);
+    });
+
+    it('prioritizes reconnect on a network failure', () => {
+        report(PlaybackDiagnosticCode.NetworkError);
+        replyToExternalCheck(true);
+        expect(primary()).toBe(action('reconnect'));
+        expect(action('external')).toBeNull();
+        expect(action('builtIn')).toBeTruthy();
+    });
+
+    it.each([
+        ['native', classifyNativePlaybackIssue],
+        ['VHS', classifyVhsPlaybackIssue],
+    ] as const)(
+        'offers the external chooser for an unknown HLS failure from %s',
+        (_source, classify) => {
+            Object.assign(window, { iptvnatorAndroidPlaybackEnabled: false });
             window.dispatchEvent(
                 new Event('iptvnator:android-playback-availability')
             );
-            fixture.detectChanges();
-        }
-        const host = fixture.nativeElement as HTMLElement;
-        setEnabled(false);
-        const attempt = host.getAttribute('data-tv-playback-attempt');
-        expect(attempt).toBeTruthy();
-        expect(host.querySelector('[data-tv-native-playback]')).toBeNull();
+            const issue = classify(
+                { code: 4 },
+                createPlaybackSourceMetadata({
+                    url: playback.streamUrl,
+                    player: 'videojs',
+                })
+            );
+            expect(issue.code).toBe(PlaybackDiagnosticCode.UnknownPlaybackError);
+            reportIssue(issue);
+            expect(action('external')).toBeNull();
+            replyToExternalCheck(true);
 
-        setEnabled(true);
-        expect(
-            host
-                .querySelector('[data-tv-native-playback]')
-                ?.getAttribute('data-tv-native-playback')
-        ).toBe(attempt);
+            expect(primary()).toBe(action('retry'));
+            expect(action('builtIn')).toBeNull();
+            expect(action('external')).not.toBeNull();
+            action('external')!.click();
+            expect(JSON.parse(postMessage.mock.lastCall?.[0] as string)).toEqual([
+                'chooseExternalPlayback',
+                playback.streamUrl,
+                playback.title,
+            ]);
+        }
+    );
+
+    it('ignores a stale external availability reply for a format error', () => {
+        report(PlaybackDiagnosticCode.UnsupportedCodec);
+        replyToExternalCheck(true, 'synthetic-stale-id');
+        expect(action('external')).toBeNull();
+        replyToExternalCheck(true);
+        expect(action('external')).toBeTruthy();
+    });
+
+    it.each([
+        ['an oversized title', playback.streamUrl, 256],
+        [
+            'a URL near the bridge limit',
+            `${playback.streamUrl}?token=${'a'.repeat(65_400)}`,
+            0,
+        ],
+    ] as const)(
+        'opens the chooser with %s',
+        (_case, streamUrl, titleLength) => {
+            const title = 'Synthetic title '.repeat(5000);
+            fixture.componentRef.setInput('streamUrl', streamUrl);
+            fixture.componentRef.setInput('playback', {
+                ...playback,
+                streamUrl,
+                title,
+            });
+            fixture.detectChanges();
+            report(PlaybackDiagnosticCode.UnsupportedCodec);
+            replyToExternalCheck(true);
+
+            action('external')?.click();
+            expect(JSON.parse(postMessage.mock.lastCall?.[0] as string)).toEqual([
+                'chooseExternalPlayback',
+                streamUrl,
+                title.slice(0, titleLength),
+            ]);
+        }
+    );
+
+    it('can switch web engines when Media3 and the external chooser are unavailable', () => {
+        Object.assign(window, { iptvnatorAndroidPlaybackEnabled: false });
+        window.dispatchEvent(
+            new Event('iptvnator:android-playback-availability')
+        );
+        report(PlaybackDiagnosticCode.MediaDecodeError);
+        replyToExternalCheck(false);
+        expect(primary()).toBe(action('retry'));
+        expect(action('builtIn')).toBeNull();
+        expect(action('external')).toBeNull();
+        const host: HTMLElement = fixture.nativeElement;
+        const engine = host.querySelector<HTMLButtonElement>(
+            '[data-test-id="playback-recommendation-html5"]'
+        );
+        expect(engine).not.toBeNull();
+        engine!.click();
+        fixture.detectChanges();
+        expect(fixture.componentInstance.selectedPlayer()).toBe(
+            VideoPlayer.Html5Player
+        );
     });
 
     it.each(['ready', 'cancelled', 'destroyed', 'failed'] as const)(
@@ -172,11 +421,20 @@ describe('returning from the Android live player', () => {
             fixture.detectChanges();
             expect(beginActivity).toHaveBeenCalledTimes(1);
 
-            fixture.nativeElement
-                .querySelector('[data-tv-native-playback]')
-                .click();
+            const component = fixture.componentInstance;
+            component.androidPlayback.open(
+                component.resolvedPlayback(),
+                component.resolvedIsLive(),
+                component.effectiveStartTime(),
+                component.showCaptions(),
+                component.fullscreenSurface
+            );
             fixture.detectChanges();
-            expect(postMessage).not.toHaveBeenCalled();
+            expect(
+                postMessage.mock.calls.some(
+                    ([message]) => JSON.parse(message)[0] === 'playNative'
+                )
+            ).toBe(false);
 
             const native = fixture.componentInstance.androidPlayback;
             if (outcome === 'cancelled') {
@@ -230,6 +488,7 @@ describe('returning from the Android live player', () => {
                 binding
             );
 
+            fixture.detectChanges();
             fixture.nativeElement
                 .querySelector('[data-tv-native-playback]')
                 .click();

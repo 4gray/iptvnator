@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
+import android.os.Build;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -66,6 +67,41 @@ public final class ExternalPlayer {
             out.add(new Candidate(pkg, label == null ? pkg : label.toString()));
         }
         return out;
+    }
+
+    private static Intent recoveryIntent(String url, String title) {
+        Uri uri = Uri.parse(url);
+        if (!("http".equals(uri.getScheme()) || "https".equals(uri.getScheme()))
+            || uri.getHost() == null || uri.getHost().isEmpty() || uri.getUserInfo() != null) return null;
+        return viewIntent(url, title);
+    }
+
+    private static boolean hasHandler(Context context, Intent intent) {
+        if (intent == null) return false;
+        return context.getPackageManager().queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            .stream().anyMatch(info -> info.activityInfo != null && info.activityInfo.exported
+                && !context.getPackageName().equals(info.activityInfo.packageName));
+    }
+
+    static boolean canChoose(Context context, String url) {
+        return hasHandler(context, recoveryIntent(url, null));
+    }
+
+    static void choose(Context context, String url, String title) {
+        Intent intent = recoveryIntent(url, title);
+        try {
+            if (hasHandler(context, intent)) {
+                Intent chooser = Intent.createChooser(intent, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    chooser.putExtra(Intent.EXTRA_AUTO_LAUNCH_SINGLE_CHOICE, false);
+                }
+                context.startActivity(chooser);
+                return;
+            }
+        } catch (RuntimeException ignored) {
+            Log.w(ShellApp.TAG, "external player chooser launch failed");
+        }
+        Toast.makeText(context, R.string.no_external_player, Toast.LENGTH_LONG).show();
     }
 
     /** @return true when a player was launched. */

@@ -72,25 +72,19 @@ export class AndroidTvPlayback {
         readonly live: boolean;
         readonly volume: number;
         readonly audibleVolume: number;
-        readonly reportFailure: () => void;
+        readonly fromRecovery: boolean;
+        readonly unavailable?: boolean;
         readonly failed?: boolean;
     } | null>(null);
 
     private readonly enabled = signal(
         this.window?.iptvnatorAndroidPlaybackEnabled === true
     );
-    private readonly continuedAttempt = signal<{
-        token: symbol;
-        attempt: string;
-    } | null>(null);
-    readonly attempt = computed(() => {
-        if (!this.window?.TvShell?.postMessage) return null;
-        const token = this.currentToken();
-        const continued = this.continuedAttempt();
-        return continued?.token === token
-            ? continued.attempt
-            : createRandomId();
-    });
+    readonly isShell = typeof this.window?.TvShell?.postMessage === 'function';
+    readonly failed = computed(() => this.ownedSession()?.failed === true);
+    readonly unavailable = computed(
+        () => this.ownedSession()?.unavailable === true
+    );
     readonly suspended = computed(() => this.ownedSession() !== null);
     readonly pending = computed(() => this.ownedSession()?.pending ?? false);
     readonly webVolume: WritableSignal<number>;
@@ -141,7 +135,7 @@ export class AndroidTvPlayback {
             const { id } = session;
             const data = event.detail.result as PlaybackResult | null;
             if (!data) {
-                this.resumeWeb();
+                this.handleUnavailable();
                 return;
             }
             this.session.set({
@@ -149,7 +143,6 @@ export class AndroidTvPlayback {
                 pending: false,
                 failed: data.failed,
             });
-            if (data.failed) session.reportFailure();
             if (
                 Number.isSafeInteger(data.positionMs) &&
                 Number.isSafeInteger(data.durationMs) &&
@@ -160,7 +153,10 @@ export class AndroidTvPlayback {
                     ? Math.max(0, data.playedMs) / 1000
                     : 0;
                 if (played > 0 || data.started === true)
-                    this.onStarted(played, !session.live);
+                    this.onStarted(
+                        played,
+                        !session.fromRecovery && !session.live && !data.failed
+                    );
                 if (this.ownedSession()?.id !== id) return;
                 if (data.durationMs > 0 || data.positionMs > 0) {
                     const currentTime = data.positionMs / 1000;
@@ -248,7 +244,8 @@ export class AndroidTvPlayback {
         live: boolean,
         startTime: number,
         captions: boolean,
-        surface: HTMLElement
+        surface: HTMLElement,
+        fromRecovery = false
     ): void {
         const window = this.window;
         const bridge = window?.TvShell;
@@ -266,7 +263,6 @@ export class AndroidTvPlayback {
             0.5;
         const id = createRandomId();
         const profile = sourceProfileName();
-        const attempt = this.attempt();
         this.session.set({
             id,
             owner: this.currentOwner(),
@@ -276,17 +272,7 @@ export class AndroidTvPlayback {
             live,
             volume,
             audibleVolume,
-            reportFailure: () =>
-                surface.dispatchEvent(
-                    new CustomEvent('iptvnator:android-playback-failed', {
-                        bubbles: true,
-                        detail: {
-                            attempt,
-                            url: playback.streamUrl,
-                            title: playback.title,
-                        },
-                    })
-                ),
+            fromRecovery,
         });
         const extension = getPlaybackMediaExtensionFromUrl(playback.streamUrl);
         const contentInfo = live ? undefined : playback.contentInfo;
@@ -351,13 +337,14 @@ export class AndroidTvPlayback {
                         },
                     ]);
                     if (message.length > 64 * 1024) {
-                        this.resumeWeb();
+                        this.handleUnavailable();
                         return;
                     }
                     window.iptvnatorAndroidCheckpointRequestId = id;
                     bridge.postMessage(message);
                 } catch {
-                    if (this.ownedSession()?.id === id) this.resumeWeb();
+                    if (this.ownedSession()?.id === id)
+                        this.handleUnavailable();
                 }
             },
             { injector: this.injector }
@@ -366,10 +353,15 @@ export class AndroidTvPlayback {
 
     returnToWeb(): void {
         const session = this.ownedSession();
-        const attempt = session?.failed ? this.attempt() : null;
         this.resumeWeb(session?.pending ? session.id : undefined);
-        if (attempt) {
-            this.continuedAttempt.set({ token: this.currentToken(), attempt });
+    }
+
+    private handleUnavailable(): void {
+        const session = this.ownedSession();
+        if (session?.fromRecovery) {
+            this.session.set({ ...session, pending: false, unavailable: true });
+        } else {
+            this.resumeWeb();
         }
     }
 

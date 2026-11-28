@@ -130,19 +130,15 @@ function setup() {
     };
 }
 
-it('creates the playback attempt and posts the native launch on a plain HTTP host', () => {
-    const { clear, open, playback } = setup();
+it('posts the native launch on a plain HTTP host', () => {
+    const { clear, open } = setup();
     const descriptor = Object.getOwnPropertyDescriptor(crypto, 'randomUUID');
     Object.defineProperty(crypto, 'randomUUID', {
         configurable: true,
         value: undefined,
     });
     try {
-        const attempt = playback.attempt();
-        const request = open();
-        expect(attempt).toBeTruthy();
-        expect(request).toBeTruthy();
-        expect(request).not.toBe(attempt);
+        expect(open()).toMatch(/^[a-f0-9-]{36}$/);
     } finally {
         if (descriptor) Object.defineProperty(crypto, 'randomUUID', descriptor);
         else Reflect.deleteProperty(crypto, 'randomUUID');
@@ -150,31 +146,13 @@ it('creates the playback attempt and posts the native launch on a plain HTTP hos
     }
 });
 
-it('keeps an attempt across Android settings refreshes and retires it for a new application', () => {
-    const { clear, playback, token, tvWindow } = setup();
-    try {
-        const attempt = playback.attempt();
-        expect(attempt).toBeTruthy();
-        tvWindow.dispatchEvent(
-            new Event('iptvnator:android-playback-availability')
-        );
-        expect(playback.attempt()).toBe(attempt);
-        token.set(Symbol());
-        expect(playback.attempt()).not.toBe(attempt);
-    } finally {
-        clear();
-    }
-});
-
-it('keeps a failed attempt only for an explicit return to the same web player', () => {
+it('keeps a Media3 failure scoped to the application that opened it', () => {
     const { clear, playback, open, reply, token } = setup();
     try {
-        const attempt = playback.attempt();
         reply(open(), false, 0, 9000, true);
-        playback.returnToWeb();
-        expect(playback.attempt()).toBe(attempt);
+        expect(playback.failed()).toBe(true);
         token.set(Symbol());
-        expect(playback.attempt()).not.toBe(attempt);
+        expect(playback.failed()).toBe(false);
     } finally {
         clear();
     }
@@ -424,7 +402,6 @@ it('restores the web engine if Android rejects playback or is disabled', () => {
         window.dispatchEvent(
             new Event('iptvnator:android-playback-availability')
         );
-        expect(playback.attempt()).toBeTruthy();
         expect(playback.suspended()).toBe(false);
         expect(reload).toHaveBeenCalledTimes(2);
     } finally {

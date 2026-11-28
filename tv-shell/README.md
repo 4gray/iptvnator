@@ -12,7 +12,7 @@ APK
 │                              ├── /              IPTVnator PWA (assets/www, the Angular bundle)
 │                              ├── /tvshell/tv.js the remote-control layer injected into index.html
 │                              └── /api/*         embedded backend: M3U parsing, Xtream and Stalker proxies
-└── Back / Menu / media keys → tv.js ; streams the WebView cannot play → VLC (intent)
+└── Back / Menu / media keys → tv.js ; playback recovery → Media3 or Android app chooser
 ```
 
 > Experimental shell maintained in this repository (`tv-shell/`): it embeds the
@@ -139,10 +139,9 @@ all engines load before Angular starts. Remove the key to restore deferred loadi
 Remove this rollback by release 0.27 (within two releases of 0.25).
 
 Returning from a deep catalog position synchronizes the TV grid before restoring
-card focus. Shared playback diagnostics publish `iptvnator:playback-issue` with only a code;
-the shell uses unsupported-codec/container and decode errors to offer an external
-player even when the engine does not raise a native media error. Network errors
-remain excluded and duplicate diagnostics share the existing per-load prompt limit.
+card focus. Playback recovery keeps the actions and technical details in the
+video area. The diagnostics report uses allowlisted fields so stream URLs and
+credentials stay out of reports.
 
 Parser fixtures use synthetic catalog metadata and reserved provider endpoints
 before the reference parser generates expected output. Run
@@ -192,14 +191,16 @@ from the configured `--www` directory, with symbolic links confined to that dire
   Provider JSON accepts a leading UTF-8 BOM; response-body timeouts, decoding
   failures and truncated plain responses with a declared length are transport
   errors even after HTTP 200 headers arrive.
-- **Playback** with the PWA's own players (HLS `.m3u8`, MP4, DASH ClearKey) in
-  the WebView. Streams a browser cannot play (raw `.ts`, AC3 audio...) trigger
-  a **"This stream cannot be played here"** prompt offering to open them in
-  another player (VLC, Kodi, MX Player...). When Media3 is available, you can
-  try it first. If it fails too, the shell offers the external player after
-  Back, provided the external-player prompt is enabled. Enabling Media3 in
-  settings preserves a web error for the same playback attempt. The app's
-  "Copy stream URL" button also offers an external player on a TV.
+- **Playback** uses the PWA players in the WebView. For a format or decoding
+  failure, the recovery panel prioritizes Media3 when enabled and offers the
+  Android app chooser if an installed player can handle the stream. A network
+  failure prioritizes reconnecting. After a Media3 failure and Back, an
+  available external player becomes the first action. On the regular player,
+  open **Playback options** to switch to Media3 manually.
+  The app's **Copy stream URL** action continues to honor the preferred player.
+  The manifest declares the HTTP and HTTPS video intent signatures so Android
+  can make matching installed players visible to the availability check.
+  [Android package visibility](https://developer.android.com/training/package-visibility/declaring)
 - On phones and tablets, open **Settings → Connectivity**, enter the server
   address, and tap **Connect**. The app connects to a stock Docker server
   and prompts for its access token when required. To switch from one desktop
@@ -384,7 +385,7 @@ includes the matching FFmpeg source archive with its artifacts.
 | D-pad | move between elements (landing on a text field does not open the keyboard); on the picture: ◀ ▶ seek, ▲ ▼ leave the picture / reach the controls; in a text field the arrows move the caret until it cannot move further; in the source switcher's search: ▲ ▼ highlight a source without leaving the field |
 | OK | activate; on the picture: fullscreen; on a text field: keyboard. A held OK is one activation |
 | Back | close dialog/menu → leave fullscreen → previous page → (twice) exit the app; **hold**: IPTVnator settings (remotes without a Menu key) |
-| Menu | context menu of the focused item; on the picture: open the stream in VLC; **long press**: IPTVnator settings. The HDMI-CEC context-menu key and Y on a game controller do the same |
+| Menu | context menu of the focused item; on the picture: playback options when Media3 is available, otherwise open the stream in an external player; **long press**: IPTVnator settings. The HDMI-CEC context-menu key and Y on a game controller do the same |
 | ▶⏸ ⏪ ⏩ | play/pause, −15 s, +30 s |
 
 A physical keyboard can edit a D-pad-focused text field directly. Left and
@@ -485,6 +486,9 @@ ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-protocol-discovery.mjs emu
 # native background playback: keep the mock provider running for the synthetic clip
 ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-background-media.mjs emulator-5554
 # native playback and web handoff in the packaged debug APK (requires ffmpeg)
+# Optionally set TVSHELL_TEST_PREFERRED_PLAYER to an installed video handler's package
+# to check that the recovery action opens the chooser with a preferred player set.
+# On a phone emulator, also set TVSHELL_TEST_PREFERRED_PLAYER_LABEL to the handler's label.
 ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-native-playback.mjs emulator-5554
 # the real Java backend on the JDK, without Android (same classes as the APK)
 cd tv-shell/android && ./gradlew :backend:check
@@ -601,17 +605,13 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
 
 ### Playback
 
-- **Silent / black stream, "This stream cannot be played here"**: codec or
-  container the WebView does not handle (raw `.ts`, AC3...). Accept the VLC
-  prompt (install VLC from the Appstore), or Menu on the picture / "Copy stream
-  URL". For Xtream, choose the `m3u8` output format in the playlist settings.
-  Each new attempt on a channel asks again.
-- **The VLC prompt no longer appears**: IPTVnator settings → *External player* →
-  tick "Offer an external player" and pick the player. With the HTML5 or
-  ArtPlayer engine, a dropped connection (native media error 1 or 2) does not
-  offer it: VLC would fail the same way. The default video.js engine still
-  offers it, because it reports a manifest the page may not read (no CORS) as
-  that same network error, and VLC plays those.
+- If the picture is black or there is no sound, open **Playback options**
+  and choose **Open in built-in player**. Enable Media3 in Android app
+  settings to make this action available. For Xtream, you can also choose
+  the `m3u8` output format in the playlist settings.
+- Use the recovery actions in the video area when playback fails. For a
+  connection error, try reconnecting. After a format error, Android offers
+  **Open in external player** when it finds an installed player for the stream.
 - **"Error, something went wrong (ERR_RESPONSE_TOO_LARGE)"** when adding a
   source: the playlist or portal answer is larger than the device can hold; use
   a smaller export (one country, no VOD) or an Xtream portal.

@@ -530,63 +530,20 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
         await wait(150);
         out.engineInsertedError = recent().filter((call) => call.startsWith('onPlaybackError '));
         const stage = document.createElement('app-web-player-view');
-        const tryNative = document.createElement('button');
-        const attempt = (id) => {
-            stage.setAttribute('data-tv-playback-attempt', id);
-            tryNative.setAttribute('data-tv-native-playback', id);
-        };
-        attempt('synthetic-first');
-        stage.appendChild(tryNative);
-        stage.appendChild(diagnostic);
+        stage.setAttribute('data-tv-inline-recovery', '');
+        const panel = stage.appendChild(document.createElement('app-playback-diagnostic-panel'));
+        panel.appendChild(diagnostic);
         document.body.appendChild(stage);
         engineVideo.dispatchEvent(new Event('loadstart'));
-        const offerCount = () => window.__calls.filter((call) => call.startsWith('onPlaybackError ')).length;
-        const fallbackStart = offerCount();
+        const beforeInline = recent().filter((call) => call.startsWith('onPlaybackError ')).length;
         issue('unsupported-codec');
-        const failed = (attempt) => stage.dispatchEvent(new CustomEvent('iptvnator:android-playback-failed', {
-            bubbles: true, detail: { attempt, url: provider + '/movie/synthetic stream.mp4' },
-        }));
-        attempt('synthetic-next');
-        failed('synthetic-first');
-        out.staleAndroidFailure = offerCount() - fallbackStart;
-        engineVideo.dispatchEvent(new Event('loadstart'));
-        const currentStreamUrl = window.__tvShell.currentStreamUrl;
-        window.__tvShell.currentStreamUrl = () => null;
-        issue('unsupported-codec');
-        out.waitedForNative = offerCount() - fallbackStart;
-        failed('synthetic-next');
-        out.bothEnginesFailed = offerCount() - fallbackStart;
-        attempt('synthetic-native-first');
-        failed('synthetic-native-first');
-        out.waitedForWeb = offerCount() - fallbackStart;
-        issue('unsupported-codec');
-        issue('unsupported-codec');
-        out.nativeFirst = offerCount() - fallbackStart;
-        attempt('synthetic-enabled-later');
-        tryNative.remove();
-        issue('unsupported-codec');
-        stage.appendChild(tryNative);
-        failed('synthetic-enabled-later');
-        out.enabledAfterWebFailure = offerCount() - fallbackStart;
-        out.accessFailures = [];
-        for (const code of ['network-error', 'browser-access-error']) {
-            const id = 'synthetic-' + code;
-            attempt(id);
-            const before = offerCount();
-            issue(code);
-            const alone = offerCount() - before;
-            failed(id);
-            out.accessFailures.push({ alone, both: offerCount() - before });
-        }
-        window.__tvShell.currentStreamUrl = currentStreamUrl;
-        attempt('synthetic-disable-media3');
-        engineVideo.dispatchEvent(new Event('loadstart'));
-        issue('unsupported-codec');
-        const beforeDisable = offerCount();
-        window.iptvnatorAndroidPlaybackEnabled = false;
-        window.dispatchEvent(new Event('iptvnator:android-playback-availability'));
-        window.dispatchEvent(new Event('iptvnator:android-playback-availability'));
-        out.disabledMedia3Fallback = offerCount() - beforeDisable;
+        out.inlineOffers = recent().filter((call) => call.startsWith('onPlaybackError ')).length - beforeInline;
+        const details = diagnostic.appendChild(document.createElement('details'));
+        const summary = details.appendChild(document.createElement('summary'));
+        summary.textContent = 'Technical details';
+        details.open = true;
+        summary.focus();
+        out.inlineBack = window.__tvShell.back() && !details.open && document.activeElement === summary;
         stage.remove();
         diagnostic.remove();
         engineVideo.removeAttribute('src');
@@ -650,16 +607,8 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
         'an engine codec failure offers the external player without a native media error');
     check(r.engineDuplicateError.length === 1, 'the same engine failure offers the external player once');
     check(r.engineInsertedError.length === 2, 'a new load attempt can offer one prompt even when its codec diagnostic is unchanged');
-    check(r.staleAndroidFailure === 0 && r.waitedForNative === 0 && r.bothEnginesFailed === 1,
-        'external fallback uses the current Media3 failure URL when the web engine has no URL');
-    check(r.waitedForWeb === 1 && r.nativeFirst === 2,
-        'external fallback prompts once when the web failure arrives after Media3');
-    check(r.enabledAfterWebFailure === 3,
-        'external fallback remembers the current web error when Media3 is enabled later');
-    check(r.accessFailures.every(({ alone, both }) => alone === 0 && both === 1),
-        'web network and browser access errors offer an external player after Media3 also fails');
-    check(r.disabledMedia3Fallback === 1,
-        'turning off Media3 offers the external player once for the current format failure');
+    check(r.inlineOffers === 0, 'an inline recovery panel suppresses the separate Android prompt');
+    check(r.inlineBack, 'Back collapses technical details and restores focus to the summary');
     check(!r.removedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'a removed player cannot offer recovery for its replacement');
     check(!r.retriedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'a fresh attempt of the same source discards the previous delayed error');
     check(!r.changedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'changing source before loadstart also discards the old error');
