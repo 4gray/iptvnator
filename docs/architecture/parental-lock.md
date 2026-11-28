@@ -206,8 +206,9 @@ so a cancelled or refused PIN leaves it showing the real state.
 
 - **Xtream (Electron):** the store reads categories and streams through the
   worker, so they arrive filtered. On `version` changes
-  `ParentalLockEnforcementService` (`apps/web/src/app/services/`) calls
-  `XtreamStore.reloadCategories()` + `reloadCachedContent()` and, if the
+  `ParentalLockEnforcementService` (`apps/web/src/app/services/`) lazily loads
+  the Xtream catalog reload when a portal is present in the store. The reload
+  calls `XtreamStore.reloadCategories()` + `reloadCachedContent()` and, if the
   selected category vanished, clears the selection and navigates to the
   section root. The selected ITEM is judged separately, on its own
   `category_id` against the reloaded category list: a detail opened from

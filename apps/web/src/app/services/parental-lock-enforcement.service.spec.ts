@@ -127,18 +127,24 @@ describe('ParentalLockEnforcementService', () => {
             activeChannel.set({ group: { title: 'Adult' } });
             parentalLock.isM3uGroupLocked.mockReturnValue(true);
             let releaseReload: () => void = () => undefined;
-            xtreamStore.reloadCategories.mockImplementationOnce(
-                () => new Promise<void>((resolve) => (releaseReload = resolve))
-            );
+            const reloadStarted = new Promise<void>((started) => {
+                xtreamStore.reloadCategories.mockImplementationOnce(
+                    () =>
+                        new Promise<void>((resolve) => {
+                            releaseReload = resolve;
+                            started();
+                        })
+                );
+            });
 
             const applying = service.apply();
-            await Promise.resolve();
 
             expect(parentalLock.isM3uGroupLocked).toHaveBeenCalledWith(
                 'm3u-1',
                 'Adult'
             );
             expect(dispatch).toHaveBeenCalledTimes(1);
+            await reloadStarted;
             expect(xtreamStore.reloadCategories).toHaveBeenCalledTimes(1);
 
             releaseReload();
@@ -490,12 +496,21 @@ describe('ParentalLockEnforcementService apply serialization', () => {
     it('runs applies one at a time and abandons a result superseded by a newer version', async () => {
         const version = signal(0);
         let releaseReload: () => void = () => undefined;
+        let notifyReload: () => void = () => undefined;
+        const nextReload = () =>
+            new Promise<void>((resolve) => {
+                notifyReload = resolve;
+            });
         const xtreamStore = {
             playlistId: signal('xtream-1'),
             selectedCategoryId: signal<number | null>(99),
             selectedItem: signal(null),
             reloadCategories: jest.fn(
-                () => new Promise<void>((resolve) => (releaseReload = resolve))
+                () =>
+                    new Promise<void>((resolve) => {
+                        releaseReload = resolve;
+                        notifyReload();
+                    })
             ),
             reloadCachedContent: jest.fn(async () => undefined),
             refreshSearchResults: jest.fn(async () => undefined),
@@ -558,9 +573,10 @@ describe('ParentalLockEnforcementService apply serialization', () => {
         TestBed.flushEffects();
 
         // Unlock: the reload is held open...
+        const firstReload = nextReload();
         version.set(1);
         TestBed.flushEffects();
-        await Promise.resolve();
+        await firstReload;
         expect(xtreamStore.reloadCategories).toHaveBeenCalledTimes(1);
 
         // ...and "Lock now" arrives meanwhile: no second reload starts yet,
@@ -574,8 +590,9 @@ describe('ParentalLockEnforcementService apply serialization', () => {
         expect(xtreamStore.reloadCategories).toHaveBeenCalledTimes(1);
 
         // The superseded apply must not act on its (unlocked) rows.
+        const secondReload = nextReload();
         releaseReload();
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        await secondReload;
         expect(xtreamStore.reloadCategories).toHaveBeenCalledTimes(2);
         expect(xtreamStore.setSelectedCategory).not.toHaveBeenCalled();
 
