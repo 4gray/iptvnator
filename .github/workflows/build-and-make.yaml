@@ -1836,6 +1836,30 @@ jobs:
             # so drop every existing asset first — the action re-uploads the
             # full current set right after. Only drafts are pruned; published
             # releases are never touched.
+            # Fork mode only: the Android APK ships in the separate
+            # build-tv-shell-apk workflow. Its release (tv-shell-v* tag) is
+            # already numbered and public; pull its newest assets in so a
+            # single "IPTVnator Windows vX (build N)" release also carries
+            # the APK. Best effort — if no APK release exists yet, the
+            # Windows release still publishes on its own.
+            - name: Attach the newest Android APK release assets (fork)
+              if: github.repository != '4gray/iptvnator'
+              shell: bash
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  set -euo pipefail
+                  apk_dir="artifacts/apk-artifacts"
+                  mkdir -p "${apk_dir}"
+                  latest="$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --paginate \
+                      | jq -r '[.[] | select(.tag_name | startswith("tv-shell-v"))] | sort_by(.published_at) | last // empty | .tag_name')"
+                  if [ -z "${latest}" ]; then
+                      echo "No published tv-shell-v* release yet; the APK is not attached."
+                      exit 0
+                  fi
+                  gh release download "${latest}" --dir "${apk_dir}" --clobber
+                  echo "Attached assets of APK release ${latest}."
+
             - name: Prune stale draft assets
               if: env.NIGHTLY != 'true' && (github.event_name != 'pull_request' || steps.pr-state.outputs.current == 'true')
               env:
@@ -1897,6 +1921,7 @@ jobs:
                       artifacts/windows-artifacts/*.zip
                       artifacts/windows-artifacts/latest.yml
                       artifacts/windows-artifacts/*.blockmap
+                      artifacts/apk-artifacts/*
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
