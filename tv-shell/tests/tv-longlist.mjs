@@ -27,7 +27,7 @@ await page.getByRole('button', { name: /Add M3U/i }).click();
 await page.waitForTimeout(600);
 const dialog = page.locator('mat-dialog-container');
 await dialog.locator('input').nth(0).fill('http://127.0.0.1:43331/sample.m3u');
-await dialog.getByRole('button', { name: /Add playlist/i }).click();
+await dialog.getByRole('button', { name: /Add source/i }).click();
 await page.waitForTimeout(2500);
 
 const focused = () => page.evaluate(() => window.__tvShell.state().active);

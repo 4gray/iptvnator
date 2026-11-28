@@ -209,13 +209,13 @@ try {
         origin + '/synthetic-unplayable.mp4',
     ].join('\n');
     await page.goto(new URL('/', page.url()).href);
-    await page.getByRole('button', { name: 'Add playlist' }).click();
+    await page.locator('[data-test-id="header-add-source"]').click();
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('radio', { name: /Raw m3u text/i }).click();
     await dialog.getByLabel('Insert m3u(8) playlist as text').fill(playlist);
     await Promise.all([
         page.waitForURL(/\/workspace\/playlists\/.+\/all$/),
-        dialog.getByRole('button', { name: 'Add playlist', exact: true }).click(),
+        dialog.getByRole('button', { name: 'Add source', exact: true }).click(),
     ]);
     const entry = (name) => page.locator('[data-test-id="channel-item"]').filter({ hasText: name });
     await expect(entry('Synthetic Feature')).toBeVisible({ timeout: 60000 });
