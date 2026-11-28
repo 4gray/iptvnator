@@ -99,7 +99,7 @@ function coveredChromeButtons(page: Page): Promise<string[]> {
     });
 }
 
-test.describe('Custom window controls', () => {
+test.describe('Custom window controls', { tag: '@window' }, () => {
     test.skip(
         process.platform === 'darwin',
         'macOS uses native traffic lights instead of custom controls'
@@ -415,7 +415,7 @@ async function expectHeaderClearOfLights(
         .toBeGreaterThanOrEqual(lights.y + lightsHeight);
 }
 
-test.describe('macOS traffic lights', () => {
+test.describe('macOS traffic lights', { tag: '@window' }, () => {
     test.skip(
         process.platform !== 'darwin',
         'Only macOS draws the native traffic lights over the rail'

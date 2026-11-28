@@ -152,7 +152,7 @@ test.describe('Electron Settings', () => {
         }
     });
 
-    test('@settings @persistence @electron refuses a second instance so it cannot break settings storage', async ({
+    test('@settings @persistence @electron @window refuses a second instance so it cannot break settings storage', async ({
         dataDir,
     }) => {
         const runningApp = await launchElectronApp(dataDir);
@@ -180,7 +180,7 @@ test.describe('Electron Settings', () => {
         await closeElectronApp(relaunch);
     });
 
-    test('@settings @electron re-opens a window when a second launch arrives with none open', async ({
+    test('@settings @electron @window re-opens a window when a second launch arrives with none open', async ({
         dataDir,
     }) => {
         // Only macOS keeps the process alive after its last window closes;
@@ -488,7 +488,7 @@ test.describe('Electron Settings', () => {
         }
     });
 
-    test('@settings @electron intercepts window close while settings edits are unsaved', async ({
+    test('@settings @electron @window intercepts window close while settings edits are unsaved', async ({
         dataDir,
     }) => {
         const app = await launchElectronApp(dataDir);
@@ -551,7 +551,7 @@ test.describe('Electron Settings', () => {
         }
     });
 
-    test('@settings @electron shares one unsaved-settings decision between navigation and window close', async ({
+    test('@settings @electron @window shares one unsaved-settings decision between navigation and window close', async ({
         dataDir,
     }) => {
         const app = await launchElectronApp(dataDir);
@@ -948,7 +948,7 @@ test.describe('Electron Settings', () => {
         }
     });
 
-    test('@settings @persistence @electron launches fullscreen once the startup window mode is saved and toggles it with F11', async ({
+    test('@settings @persistence @electron @window launches fullscreen once the startup window mode is saved and toggles it with F11', async ({
         dataDir,
     }) => {
         let app = await launchElectronApp(dataDir);
@@ -997,7 +997,7 @@ test.describe('Electron Settings', () => {
         }
     });
 
-    test('@settings @electron --fullscreen forces one fullscreen launch without persisting it', async ({
+    test('@settings @electron @window --fullscreen forces one fullscreen launch without persisting it', async ({
         dataDir,
     }) => {
         let app = await launchElectronApp(dataDir, {
@@ -1025,7 +1025,7 @@ test.describe('Electron Settings', () => {
         }
     });
 
-    test('@settings @persistence @electron launches maximized when the startup window mode says so', async ({
+    test('@settings @persistence @electron @window launches maximized when the startup window mode says so', async ({
         dataDir,
     }) => {
         test.skip(

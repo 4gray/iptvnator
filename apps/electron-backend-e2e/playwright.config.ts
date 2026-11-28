@@ -1,6 +1,10 @@
 import { defineConfig } from '@playwright/test';
 import { workspaceRoot } from '@nx/devkit';
 
+if (process.platform === 'darwin' && !process.env['CI']) {
+    process.env['IPTVNATOR_E2E_HIDE_WINDOW'] = '1';
+}
+
 /**
  * Playwright configuration for Electron e2e tests.
  * See https://playwright.dev/docs/test-configuration.

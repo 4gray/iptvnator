@@ -10,6 +10,7 @@ import {
     expect,
     launchElectronApp,
     closeElectronApp,
+    buildElectronE2ELaunchArgs,
     buildElectronLaunchEnvironment,
     electronMainPath,
     workspaceRoot,
@@ -86,13 +87,11 @@ ipcMain.handle=(channel,handler)=>handle(channel,async(...args)=>{
 require(${JSON.stringify(electronMainPath)});`
     );
     const app = await electron.launch({
-        args: [
-            ...(process.platform === 'linux' && process.env['CI']
-                ? ['--no-sandbox', '--disable-gpu']
-                : []),
-            wrapper,
-            ...(retry ? ['--recover-legacy-playlists'] : []),
-        ],
+        args: buildElectronE2ELaunchArgs(
+            [],
+            retry ? ['--recover-legacy-playlists'] : [],
+            wrapper
+        ),
         env: buildElectronLaunchEnvironment(dataDir),
     });
     captureElectronProcess(app);

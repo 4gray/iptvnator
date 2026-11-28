@@ -34,7 +34,7 @@ for (const engine of [
     'videojs',
     'artplayer',
 ] as const) {
-    test(`@playback @theme @electron ${engine} keeps controls readable across live theme and fullscreen changes`, async ({
+    test(`@playback @theme @electron @window ${engine} keeps controls readable across live theme and fullscreen changes`, async ({
         dataDir,
     }) => {
         const embedded = engine === 'native' || engine === 'frame-copy';

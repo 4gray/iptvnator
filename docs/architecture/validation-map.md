@@ -328,6 +328,14 @@ changing source exclusions or coverage ratchets to correct a reporting problem.
 | Desktop-hosted server | `pnpm nx run electron-backend-e2e:hosted-server` |
 | VOD multi-source      | `pnpm nx run electron-backend-e2e:e2e-ci--src/vod-multi-source.e2e.ts` |
 
+On local macOS runs, the regular Electron Playwright suite keeps the native
+window hidden by default. Playwright still drives the Electron renderer and
+captures page screenshots. Tag specs that exercise native window behavior
+with `@window` and embedded MPV playback with `@embedded-mpv` to run them with
+the window visible. Use `pnpm nx run electron-backend-e2e:e2e -- --headed`
+to show the window for a debugging run. CI and the dedicated performance and
+packaged suites use their existing window behavior.
+
 The Windows hosted server job runs the dedicated Electron target. It checks
 that the server's instance ID matches the one in its dedicated SQLite database
 after restarting the desktop with an active source profile.

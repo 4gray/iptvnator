@@ -30,7 +30,7 @@ import {
     type LocalMediaServer,
 } from './embedded-mpv-frame-copy-packaged-fixtures';
 
-test('@playback @electron two frame-copy views keep sessions through swap, pause and close', async ({
+test('@playback @electron @embedded-mpv two frame-copy views keep sessions through swap, pause and close', async ({
     dataDir,
 }, testInfo) => {
     test.setTimeout(120000);

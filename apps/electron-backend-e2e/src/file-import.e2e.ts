@@ -77,7 +77,7 @@ test.describe('Electron Native Playlist Import', () => {
         }
     });
 
-    test('@m3u @electron opens a playlist handed over by a second launch', async ({
+    test('@m3u @electron @window opens a playlist handed over by a second launch', async ({
         dataDir,
     }) => {
         // The second process never gets a window: the single-instance guard

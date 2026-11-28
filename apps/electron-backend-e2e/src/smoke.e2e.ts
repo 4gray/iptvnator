@@ -37,10 +37,23 @@ test.describe('Electron App Smoke Test', () => {
         }
     });
 
-    test('@critical @electron app should start and display the dashboard', async ({ dataDir }) => {
+    test('@critical @electron app should start and display the dashboard', async ({
+        dataDir,
+    }, testInfo) => {
         const app = await launchElectronApp(dataDir);
 
         try {
+            const expectsVisibleWindow =
+                process.platform !== 'darwin' ||
+                Boolean(process.env['CI']) ||
+                testInfo.project.use.headless === false;
+            await expect
+                .poll(() =>
+                    app.electronApp.evaluate(({ BrowserWindow }) =>
+                        BrowserWindow.getAllWindows()[0]?.isVisible()
+                    )
+                )
+                .toBe(expectsVisibleWindow);
             await expect
                 .poll(async () => app.mainWindow.title())
                 .toContain('IPTVnator');
@@ -58,7 +71,7 @@ test.describe('Electron App Smoke Test', () => {
         }
     });
 
-    test('@critical @electron app should expose the expected main window properties', async ({
+    test('@critical @electron @window app should expose the expected main window properties', async ({
         dataDir,
     }) => {
         const app = await launchElectronApp(dataDir);

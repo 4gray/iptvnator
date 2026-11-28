@@ -85,7 +85,7 @@ async function installUpdateFixture(
     );
 }
 
-test('keeps an unseen native close guarded until install IPC arrives @electron @settings', async ({
+test('keeps an unseen native close guarded until install IPC arrives @electron @settings @window', async ({
     dataDir,
 }) => {
     const app = await launchElectronApp(dataDir);
@@ -147,7 +147,7 @@ test('keeps an update error visible and retries from the notification @electron 
 });
 
 for (const entry of ['panel', 'about'] as const) {
-    test(`confirms unsaved settings before an update from ${entry} @electron @settings @persistence`, async ({
+    test(`confirms unsaved settings before an update from ${entry} @electron @settings @persistence @window`, async ({
         dataDir,
     }, info) => {
         let app = await launchElectronApp(dataDir);

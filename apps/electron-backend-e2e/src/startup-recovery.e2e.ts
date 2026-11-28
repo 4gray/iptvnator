@@ -38,7 +38,7 @@ async function setSourceReadFailure(app: ElectronApplication, failed: boolean) {
     }, failed);
 }
 
-test('recovers settings and updates from a failed source read @electron @settings @persistence', async ({
+test('recovers settings and updates from a failed source read @electron @settings @persistence @window', async ({
     dataDir,
 }) => {
     const desktop = await launchElectronApp(dataDir);
