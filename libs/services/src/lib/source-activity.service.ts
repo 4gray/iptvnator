@@ -15,11 +15,16 @@ export class SourceActivityService {
         return this.liveCatalogRevisions.get(sourceId) ?? 0;
     }
 
-    notifyLiveCatalogReplacement(sourceId: string): void {
+    /** Retire tune decisions made before catalog mutation. */
+    invalidateLiveCatalogReads(sourceId: string): void {
         this.liveCatalogRevisions.set(
             sourceId,
             this.liveCatalogRevision(sourceId) + 1
         );
+    }
+
+    notifyLiveCatalogReplacement(sourceId: string): void {
+        this.invalidateLiveCatalogReads(sourceId);
         this.liveCatalogReplacements.next(sourceId);
     }
 

@@ -172,7 +172,11 @@ describe('edit-time Xtream catalog refresh', () => {
                 },
                 {
                     provide: SourceActivityService,
-                    useValue: { isBusy: () => false, begin: () => release },
+                    useValue: {
+                        isBusy: () => false,
+                        begin: () => release,
+                        invalidateLiveCatalogReads: jest.fn(),
+                    },
                 },
                 { provide: XtreamPendingRestoreService, useValue: pending },
             ],
@@ -192,6 +196,9 @@ describe('edit-time Xtream catalog refresh', () => {
             })
         ).resolves.toBe(false);
         expect(db.deleteXtreamPlaylistContent).not.toHaveBeenCalled();
+        expect(
+            TestBed.inject(SourceActivityService).invalidateLiveCatalogReads
+        ).not.toHaveBeenCalled();
         expect(release).toHaveBeenCalledTimes(1);
     });
 
@@ -221,6 +228,13 @@ describe('edit-time Xtream catalog refresh', () => {
                 previousUpdateDate: 100,
             },
         });
+        const fence = jest.mocked(
+            TestBed.inject(SourceActivityService).invalidateLiveCatalogReads
+        );
+        expect(fence).toHaveBeenCalledWith('p');
+        expect(fence.mock.invocationCallOrder[0]).toBeLessThan(
+            db.deleteXtreamPlaylistContent.mock.invocationCallOrder[0]
+        );
         expect(pending['clear']).toHaveBeenCalledWith('p', expect.any(Object));
         expect(db.setAppState).toHaveBeenLastCalledWith(
             'xtream-history-recovery:p',

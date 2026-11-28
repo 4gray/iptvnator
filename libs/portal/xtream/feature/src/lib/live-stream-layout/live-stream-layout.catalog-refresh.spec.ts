@@ -190,6 +190,45 @@ describe('Xtream live playback through a startup refresh', () => {
         expect(component.activePlayback()).toBeNull();
     });
 
+    it.each(['live', 'timeshift'] as const)(
+        'waits for a live replacement before resolving a locked %s tune',
+        async (type) => {
+            xtreamStore.selectedItem.set(original);
+            epgItems.set([epgItem('Synthetic archived program', 0, 1)]);
+            parentalLock.isXtreamCategoryLocked.mockImplementation(
+                (_source, _type, category) => category === 600
+            );
+            parentalLock.active.set(true);
+            const activity = TestBed.inject(SourceActivityService);
+            const release = activity.begin([playlist.id]);
+            const pending = component.onProgramActivated({
+                type,
+                program: component.controlledEpgPrograms()[0],
+            });
+            const resolveArchive =
+                TestBed.inject(XtreamUrlService).resolveCatchupUrl;
+
+            try {
+                expect(component.activePlayback()).toBeNull();
+                expect(resolveArchive).not.toHaveBeenCalled();
+                expect(
+                    databaseService.getContentByXtreamId
+                ).not.toHaveBeenCalled();
+                activity.notifyLiveCatalogReplacement(playlist.id);
+            } finally {
+                release();
+                await pending;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 0));
+
+            expect(databaseService.getContentByXtreamId).toHaveBeenCalledTimes(
+                1
+            );
+            expect(component.activePlayback()).toBeNull();
+            expect(resolveArchive).not.toHaveBeenCalled();
+        }
+    );
+
     it('withholds a cached tune moved to a locked category even before any channel is playing', async () => {
         parentalLock.isXtreamCategoryLocked.mockImplementation(
             (_source, _type, category) => category === 600
@@ -266,13 +305,40 @@ describe('Xtream live playback through a startup refresh', () => {
             program: component.controlledEpgPrograms()[0],
         });
         expect(resolveUrl).toHaveBeenCalled();
-        TestBed.inject(SourceActivityService).notifyLiveCatalogReplacement(
-            playlist.id
-        );
+        const activity = TestBed.inject(SourceActivityService);
+        const release = activity.begin([playlist.id]);
+        activity.invalidateLiveCatalogReads(playlist.id);
         finish('https://media.example.test/archived-program.ts');
-        await opening;
+        try {
+            await opening;
+            expect(component.activePlayback()).toBeNull();
+        } finally {
+            release();
+        }
+    });
 
-        expect(component.activePlayback()).toBeNull();
+    it('drops a native tune still waiting to close the previous session when invalidation starts', async () => {
+        portalPlayer.isEmbeddedPlayer.set(false);
+        let finishClose!: () => void;
+        const closed = new Promise<void>((resolve) => {
+            finishClose = resolve;
+        });
+        const sessions = TestBed.inject(XtreamExternalLiveSessions);
+        jest.spyOn(sessions, 'closeBeforeTune').mockReturnValueOnce(closed);
+        component.playLive(original, true);
+        expect(sessions.closeBeforeTune).toHaveBeenCalled();
+        expect(xtreamStore.openPlayer).not.toHaveBeenCalled();
+
+        const activity = TestBed.inject(SourceActivityService);
+        const release = activity.begin([playlist.id]);
+        try {
+            activity.invalidateLiveCatalogReads(playlist.id);
+            finishClose();
+            await fixture.whenStable();
+            expect(xtreamStore.openPlayer).not.toHaveBeenCalled();
+        } finally {
+            release();
+        }
     });
 
     it.each([true, false])(

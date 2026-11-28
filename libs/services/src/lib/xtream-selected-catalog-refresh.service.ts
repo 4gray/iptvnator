@@ -73,7 +73,7 @@ export class XtreamSelectedCatalogRefreshService {
         types: XtreamContentType[],
         beforeReplace?: () => Promise<PlaylistMeta | void>
     ): Promise<void> {
-        await this.replace(playlist, types, beforeReplace);
+        if (types.length) await this.replace(playlist, types, beforeReplace);
     }
 
     refreshLiveOnStartup(
@@ -96,7 +96,6 @@ export class XtreamSelectedCatalogRefreshService {
             readRetainedCategoryIds?: () => Promise<[number, number][]>;
         }
     ): Promise<XtreamStartupRefreshResult> {
-        if (!types.length) return false;
         const pendingRestore = this.pending.getOrThrow(playlist._id);
         if (startup && pendingRestore) return false;
         if (
@@ -198,6 +197,7 @@ export class XtreamSelectedCatalogRefreshService {
             }
             replacementStarted = true;
             if (markersStaged) types.forEach((type) => incomplete.add(type));
+            if (startup) this.activity.invalidateLiveCatalogReads(playlist._id);
             const invalidated = await this.db.deleteXtreamPlaylistContent(
                 playlist._id,
                 {
