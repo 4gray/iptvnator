@@ -130,6 +130,11 @@ export function createSettingsForm(
         embeddedMpvFrameCopy: false,
         embeddedMpvExtraOptions: ['', [embeddedMpvExtraOptionsValidator]],
         embeddedMpvAutoReconnect: true,
+        // Native player buffer tuning (ms) — read by Android NativePlayerActivity
+        // and by the web fallback engine via hlsWorkerConfig (if exposed).
+        bufferMinMs: 30_000,
+        bufferMaxMs: 90_000,
+        bufferForPlaybackMs: 30_000,
         portalConnectivityGuard: true,
         coverSize: 'medium' as CoverSize,
         showCoverTitles: true,

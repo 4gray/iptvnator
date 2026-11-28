@@ -791,6 +791,61 @@
                 </div>
             </div>
         </div>
+
+            <section class="settings-section">
+                <div class="settings-section__header">
+                    <h3>{{ 'SETTINGS.CARD_NATIVE_BUFFER' | translate }}</h3>
+                </div>
+                <div class="settings-card">
+                    <div class="setting-item" data-setting-id="buffer-min-ms">
+                        <div class="setting-item__meta">
+                            <h4 id="buffer-min-ms-label">
+                                {{ 'SETTINGS.BUFFER_MIN_MS_LABEL' | translate }}
+                            </h4>
+                            <p>{{ 'SETTINGS.BUFFER_MIN_MS_DESCRIPTION' | translate }}</p>
+                        </div>
+                        <div class="setting-item__control">
+                            <mat-form-field class="settings-text-field" appearance="outline" subscriptSizing="dynamic">
+                                <mat-label for="bufferMinMs">{{ 'SETTINGS.BUFFER_MIN_MS' | translate }}</mat-label>
+                                <input matInput type="number" id="bufferMinMs" formControlName="bufferMinMs" min="5000" max="300000" step="5000" />
+                                <mat-hint>ms (5-300 s)</mat-hint>
+                            </mat-form-field>
+                        </div>
+                    </div>
+
+                    <div class="setting-item" data-setting-id="buffer-max-ms">
+                        <div class="setting-item__meta">
+                            <h4 id="buffer-max-ms-label">
+                                {{ 'SETTINGS.BUFFER_MAX_MS_LABEL' | translate }}
+                            </h4>
+                            <p>{{ 'SETTINGS.BUFFER_MAX_MS_DESCRIPTION' | translate }}</p>
+                        </div>
+                        <div class="setting-item__control">
+                            <mat-form-field class="settings-text-field" appearance="outline" subscriptSizing="dynamic">
+                                <mat-label for="bufferMaxMs">{{ 'SETTINGS.BUFFER_MAX_MS' | translate }}</mat-label>
+                                <input matInput type="number" id="bufferMaxMs" formControlName="bufferMaxMs" min="10000" max="600000" step="5000" />
+                                <mat-hint>ms (10-600 s)</mat-hint>
+                            </mat-form-field>
+                        </div>
+                    </div>
+
+                    <div class="setting-item" data-setting-id="buffer-for-playback-ms">
+                        <div class="setting-item__meta">
+                            <h4 id="buffer-for-playback-ms-label">
+                                {{ 'SETTINGS.BUFFER_FOR_PLAYBACK_MS_LABEL' | translate }}
+                            </h4>
+                            <p>{{ 'SETTINGS.BUFFER_FOR_PLAYBACK_MS_DESCRIPTION' | translate }}</p>
+                        </div>
+                        <div class="setting-item__control">
+                            <mat-form-field class="settings-text-field" appearance="outline" subscriptSizing="dynamic">
+                                <mat-label for="bufferForPlaybackMs">{{ 'SETTINGS.BUFFER_FOR_PLAYBACK_MS' | translate }}</mat-label>
+                                <input matInput type="number" id="bufferForPlaybackMs" formControlName="bufferForPlaybackMs" min="5000" max="300000" step="5000" />
+                                <mat-hint>ms (5-300 s)</mat-hint>
+                            </mat-form-field>
+                        </div>
+                    </div>
+                </div>
+            </section>
     </section>
 
     @if (isDesktop()) {
