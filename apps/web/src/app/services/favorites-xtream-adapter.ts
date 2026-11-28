@@ -44,7 +44,7 @@ export class FavoritesXtreamAdapter {
         raw: IXtreamDataSource,
         sourceId: string,
         hydrate: boolean,
-        strict: boolean
+        strict = false
     ): Promise<XtreamFavoriteItem[]> {
         if (this.client.scope !== DEFAULT_PERSONAL_SCOPE)
             return Promise.resolve([]);
