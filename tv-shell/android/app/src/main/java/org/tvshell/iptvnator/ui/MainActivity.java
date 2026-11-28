@@ -437,6 +437,38 @@ public class MainActivity extends ComponentActivity {
         }
     }
 
+    private void checkForUpdate() {
+        // Simple remote update check: the fork's VERSION file holds the
+        // versionCode of the newest APK. If it is greater than the installed
+        // versionCode, offer to install it. Runs off the UI thread; a failed
+        // or absent fetch is ignored so the app always starts.
+        new Thread(() -> {
+            try {
+                java.net.URL u = new java.net.URL("https://raw.githubusercontent.com/jelliel/iptvnator/refs/heads/buffer-tuning/VERSION");
+                java.net.HttpURLConnection c = (java.net.HttpURLConnection) u.openConnection();
+                c.setConnectTimeout(5_000);
+                c.setReadTimeout(5_000);
+                c.connect();
+                if (c.getResponseCode() != 200) return;
+                try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(c.getInputStream()))) {
+                    String line = reader.readLine();
+                    if (line == null) return;
+                    int remoteCode = Integer.parseInt(line.trim());
+                    int localCode = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+                    if (remoteCode > localCode) {
+                        runOnUiThread(() -> new android.app.AlertDialog.Builder(MainActivity.this)
+                            .setTitle("Mise à jour disponible")
+                            .setMessage("Version " + remoteCode + " dispo sur les releases GitHub (jelliel/iptvnator). Installe la nouvelle version pour remplacer celle-ci.")
+                            .setPositiveButton("OK", (d, i) -> {})
+                            .show());
+                    }
+                }
+            } catch (Exception e) {
+                // Silently ignore — a broken update check must not block startup.
+            }
+        }).start();
+    }
+
     private void load() {
         if (webView == null) {
             recreate();
@@ -451,50 +483,9 @@ public class MainActivity extends ComponentActivity {
         lastConsoleError = null;
         handler.removeCallbacks(readyWatchdog);
         handler.removeCallbacks(loadRetry);
-        private String versionName() {
-        try {
-            return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
-        } catch (RuntimeException | android.content.pm.PackageManager.NameNotFoundException e) {
-            return "0";
-        }
-    }
-
-    private void checkForUpdate() {
-        // Simple remote version check: fetch JSON from a public URL,
-        // compare versionName, and if newer, show a notification with update link.
-        // This is a placeholder — the actual URL and logic depend on where
-        // you host the release manifest. For safety, only fetch over HTTPS
-        // and never transmit user-identifying data.
-        new Thread(() -> {
-            try {
-                java.net.URL u = new java.net.URL("https://raw.githubusercontent.com/jelliel/iptvnator/refs/heads/master/VERSION");
-                java.net.HttpURLConnection c = (java.net.HttpURLConnection) u.openConnection();
-                c.setConnectTimeout(5_000);
-                c.setReadTimeout(5_000);
-                c.connect();
-                int r = c.getResponseCode();
-                if (r == 200) {
-                    java.io.InputStream in = c.getInputStream();
-                    java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(in));
-                    String version = reader.readLine(); // e.g. "0.1.0-3a21194"
-                    String local = versionName();
-                    // Simple string compare — works for semver-like strings
-                    if (version.compareTo(local) > 0) {
-                        // Show update via the same mechanism the app uses for diagnostics
-                        runOnUiThread(() -> {
-                            android.app.AlertDialog d = new android.app.AlertDialog.Builder(MainActivity.this)
-                                .setTitle("Mise à jour disponible")
-                                .setMessage("Version " + version + " dispo. Télécharge depuis le Downloader.")
-                                .setPositiveButton("OK", (d1, i) -> {})
-                                .create();
-                            d.show();
-                        });
-                    }
-                }
-            } catch (Exception e) {
-                // Silently ignore — no update check is better than a broken one
-            }
-        }).start();
+        setKeepScreenOn(true); // through the splash; the page then reports its playback state
+        checkForUpdate();
+        loadedLayoutWidth = selectedLayoutWidth();
         loadedScreenWidth = screenCssWidth(this);
         boolean tvLayout = loadedLayoutWidth != ShellSite.DEVICE_VIEWPORT;
         webView.getSettings().setUseWideViewPort(tvLayout);
