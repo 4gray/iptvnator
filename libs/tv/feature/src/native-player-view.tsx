@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'preact/hooks';
+import { useLayoutEffect } from 'preact/hooks';
 import { restoreFocus } from '@iptvnator/tv/ui';
 import type { RefObject } from 'preact';
 import type { VodSequence } from './use-vod-sequence';
@@ -8,7 +8,10 @@ import type { useLiveOverlay } from './live-overlay';
 import type { useSeriesDetails } from './use-series-details';
 import { UpNextCard, useUpNext } from './up-next-card';
 import type { usePlayerControls } from './player-controls';
-import { ProgressSaveNotice } from './progress-save-notice';
+import {
+    isProgressSaveNoticeFocused,
+    ProgressSaveNotice,
+} from './progress-save-notice';
 
 export function NativePlayerView({
     tv,
@@ -34,8 +37,6 @@ export function NativePlayerView({
     const current = tv.playing;
     const element = video.current;
     const hasProgressWarning = !!tv.progressSaveNotice.message;
-    const progressWarning = useRef(hasProgressWarning);
-    progressWarning.current = hasProgressWarning;
     const upNext = useUpNext(
         tv,
         video,
@@ -49,7 +50,7 @@ export function NativePlayerView({
             !element?.ended ||
             !vod.next ||
             !tv.fullscreen ||
-            progressWarning.current
+            isProgressSaveNoticeFocused()
         )
             return;
         let owns = true;
@@ -57,7 +58,7 @@ export function NativePlayerView({
             'player-next',
             '',
             undefined,
-            () => owns && !progressWarning.current
+            () => owns && !isProgressSaveNoticeFocused()
         );
         return () => {
             owns = false;

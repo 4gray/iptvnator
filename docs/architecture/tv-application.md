@@ -377,6 +377,7 @@ warning once it supersedes the failure.
 If the warning had focus when it closed, fullscreen returns focus to Play/Pause.
 The Up Next card waits while the progress warning is visible. Recovering a save
 leaves the viewer's focus in place when the card or Next episode is available.
+The episode ending still focuses Next episode unless the warning owns focus.
 Modal Back closes its overlay first. Existing Left/drawer, media and system keys
 are unchanged; no Channel +/- hardware support or autoplay is added.
 
