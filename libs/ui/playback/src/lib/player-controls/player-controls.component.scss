@@ -369,8 +369,12 @@
     position: relative;
 }
 
-:host :is(.player-controls__tune--active),
-:host :is(.player-controls__tune--active:hover) {
+:host :is(.player-controls__tune--active, .player-controls__screen-fit--active),
+:host
+    :is(
+        .player-controls__tune--active:hover,
+        .player-controls__screen-fit--active:hover
+    ) {
     color: #ffffff;
     background: var(--pc-accent-blue-strong);
     --mat-icon-button-icon-color: #ffffff;
