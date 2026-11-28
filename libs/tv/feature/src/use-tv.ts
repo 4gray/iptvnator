@@ -1,9 +1,5 @@
 import { createSourceSwitcher } from './source-selection';
-import {
-    useNotice,
-    connectionNotice,
-    useProgressSaveNotice,
-} from './use-notice';
+import { useNotice, connectionNotice } from './use-notice';
 import { useReconnect } from './use-reconnect';
 import { useLibrary } from './use-library';
 import { useBackend } from './use-backend';
@@ -26,7 +22,6 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     const [route, setRoute] = useState(firstRoute);
     const { error, errorRetry, errorRetryLabel, setError, clearError } =
         useNotice();
-    const progressSaveNotice = useProgressSaveNotice();
     const [connectionFailed, setConnectionFailed] = useState(false);
     const reportConnection = connectionNotice(
         { setError, clearError },
@@ -50,7 +45,6 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         video,
         (message) => setError(message, retryPlayback, 'Retry playback'),
         () => tick((t) => t + 1),
-        progressSaveNotice.report,
         { setError, clearError }
     );
     const { data, storageReady, repo, player, update } = user;
@@ -362,7 +356,6 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         error,
         errorRetry,
         errorRetryLabel,
-        progressSaveNotice,
         reconnectStatus: recovery.reconnectStatus,
         setError,
         clearError,

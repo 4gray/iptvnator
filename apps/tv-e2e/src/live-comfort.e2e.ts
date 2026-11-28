@@ -162,6 +162,31 @@ test('TV Live comfort failed native previous can resolve a fresh link on repeate
     await confirmed(page, a.id);
 });
 
+test('TV clears the progress warning when an automatic save recovers', async ({
+    page,
+}) => {
+    await page.clock.install();
+    await start(page);
+    await addSource(page, 'm3u', { name: 'Demo North' });
+    await playLive(page);
+    await switchInDrawer(page, 0);
+    await page.evaluate(() => {
+        const put = IDBObjectStore.prototype.put;
+        IDBObjectStore.prototype.put = function () {
+            IDBObjectStore.prototype.put = put;
+            throw new DOMException(
+                'Synthetic save failure',
+                'QuotaExceededError'
+            );
+        };
+    });
+    const retry = page.getByRole('button', { name: 'Retry saving progress' });
+    await page.clock.fastForward(10_000);
+    await expect(retry).toBeVisible();
+    await page.clock.fastForward(10_000);
+    await expect(retry).toHaveCount(0);
+});
+
 test('TV Live comfort failed resolution and retry leave confirmed pair and recents untouched', async ({
     page,
 }) => {

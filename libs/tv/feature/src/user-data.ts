@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { useProgressSaveNotice } from './use-notice';
 import { installTvScreensaver, restoreFocus } from '@iptvnator/tv/ui';
 import {
     NativePlayer,
@@ -19,7 +20,6 @@ export function useUserData(
     video: { current: HTMLVideoElement | null },
     report: (message: string) => void,
     tick: () => void,
-    saveFailure: (message: string, retry: () => Promise<void>) => void,
     favoriteNotice: {
         setError: (message: string, retry?: () => void, label?: string) => void;
         clearError: (label: string) => void;
@@ -33,8 +33,9 @@ export function useUserData(
     const repo = useRef<UserDataRepository>();
     const player = useRef<NativePlayer>();
     const liveChannels = useRef(new ConfirmedLiveChannels());
-    const callbacks = useRef({ report, tick, saveFailure });
-    callbacks.current = { report, tick, saveFailure };
+    const progressSaveNotice = useProgressSaveNotice();
+    const callbacks = useRef({ report, tick, progressSaveNotice });
+    callbacks.current = { report, tick, progressSaveNotice };
     if (!repo.current)
         repo.current = new UserDataRepository(storage.current, setData);
     const update = (change: (d: UserData) => UserData) =>
@@ -66,10 +67,19 @@ export function useUserData(
                     d.sources.some((source) => source.id === p.item.sourceId)
                         ? recordProgress(d, p)
                         : d
+                ).then(() =>
+                    callbacks.current.progressSaveNotice.saved(
+                        repo.current?.data.positions[p.item.id]
+                    )
                 ),
             (message) => callbacks.current.report(message),
             () => callbacks.current.tick(),
-            (message, retry) => callbacks.current.saveFailure(message, retry),
+            (message, retry, progress) =>
+                callbacks.current.progressSaveNotice.report(
+                    message,
+                    retry,
+                    progress
+                ),
             (item) =>
                 liveChannels.current.confirm(item, repo.current!.data.sources)
         );
@@ -126,6 +136,7 @@ export function useUserData(
     }
     return {
         data,
+        progressSaveNotice,
         storageReady,
         storageError,
         retryStorage,

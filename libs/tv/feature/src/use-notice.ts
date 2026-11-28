@@ -1,4 +1,5 @@
 import { useState } from 'preact/hooks';
+import type { Progress } from '@iptvnator/tv/util';
 
 /** A notice owns its recovery action; a storage failure must never reconnect a portal. */
 export function useNotice() {
@@ -49,11 +50,30 @@ export function useProgressSaveNotice() {
     const [notice, setNotice] = useState<{
         message: string;
         save: () => Promise<void>;
+        progress: Progress;
     }>();
     return {
         message: notice?.message,
-        report: (message: string, save: () => Promise<void>) =>
-            setNotice({ message, save }),
+        report: (
+            message: string,
+            save: () => Promise<void>,
+            progress: Progress
+        ) => setNotice({ message, save, progress }),
+        saved: (progress: Progress | undefined) => {
+            if (!progress) return;
+            setNotice((current) => {
+                const failed = current?.progress;
+                if (!failed || failed.item.id !== progress.item.id)
+                    return current;
+                const savedRevision = progress.revision ?? 0;
+                const failedRevision = failed.revision ?? 0;
+                return savedRevision > failedRevision ||
+                    (savedRevision === failedRevision &&
+                        progress.updated >= failed.updated)
+                    ? undefined
+                    : current;
+            });
+        },
         dismiss: () => setNotice(undefined),
         retry: () => {
             if (!notice) return;
