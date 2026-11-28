@@ -756,7 +756,7 @@
 
 @container playback-diagnostic (max-width: 35rem) {
     .web-player-diagnostic__android-header h2 {
-        font-size: 1.125rem;
+        font-size: var(--app-text-xl);
     }
 
     .web-player-diagnostic__recommendations--android {
