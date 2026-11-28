@@ -124,6 +124,17 @@ test('preserves a Request payload in WebViews without the Request.body getter', 
     assert.equal(response.status, 204);
 });
 
+test('cancels a hosted playlist request before response headers', async () => {
+    const controller = new AbortController();
+    const requests = [];
+    const fetchHosted = connect(request => requests.push(request));
+    const response = fetchHosted(origin + '/api/parse', { signal: controller.signal });
+    controller.abort();
+    await assert.rejects(response, { name: 'AbortError' });
+    assert.equal(requests[0].path, '/api/parse');
+    assert.deepEqual(requests[1], { id: requests[0].id, cancel: true });
+});
+
 test('cancels a hosted request after response headers', async () => {
     const controller = new AbortController();
     let cancelled;

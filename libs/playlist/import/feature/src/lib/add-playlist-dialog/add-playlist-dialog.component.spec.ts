@@ -119,7 +119,8 @@ describe('AddPlaylistDialogComponent', () => {
 
         expect(dataService.fetchPlaylistDefinition).toHaveBeenCalledWith(
             'https://example.com/list.m3u',
-            'IPTVnator-Test/1.0'
+            'IPTVnator-Test/1.0',
+            { signal: expect.any(AbortSignal) }
         );
         expect(store.dispatch).toHaveBeenCalledWith(
             PlaylistActions.handleAddingPlaylistByUrl({
@@ -152,7 +153,8 @@ describe('AddPlaylistDialogComponent', () => {
 
         expect(dataService.fetchPlaylistDefinition).toHaveBeenCalledWith(
             'https://example.com/list.m3u',
-            undefined
+            undefined,
+            { signal: expect.any(AbortSignal) }
         );
         expect(store.dispatch).toHaveBeenCalledWith(
             PlaylistActions.handleAddingPlaylistByUrl({

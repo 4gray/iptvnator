@@ -254,6 +254,44 @@ describe('PwaService', () => {
         await pending;
     });
 
+    it('cancels the HTTP download when the playlist import is abandoned', async () => {
+        const url = 'https://provider.test/synthetic.m3u';
+        const controller = new AbortController();
+        const pending = service.fetchPlaylistDefinition(url, undefined, {
+            signal: controller.signal,
+        });
+        const outcome = pending.catch((error: unknown) => error);
+        http.expectOne((req) => req.url.endsWith('/provider-targets')).flush({
+            targetId: 'synthetic-target',
+        });
+        await new Promise((resolve) => setTimeout(resolve));
+        const request = http.expectOne((req) => req.url.endsWith('/parse'));
+        controller.abort();
+        const cancelled = request.cancelled;
+        if (!cancelled) request.flush({});
+        await expect(outcome).resolves.toMatchObject({ name: 'AbortError' });
+        expect(cancelled).toBe(true);
+
+        const retry = service.fetchPlaylistDefinition(url, undefined, {
+            signal: new AbortController().signal,
+        });
+        await new Promise((resolve) => setTimeout(resolve));
+        const playlist = { title: 'Synthetic playlist' };
+        http.expectOne((req) => req.url.endsWith('/parse')).flush(playlist);
+        await expect(retry).resolves.toEqual(playlist);
+    });
+
+    it('does not register a target for an already cancelled playlist import', async () => {
+        const pending = service.fetchPlaylistDefinition(
+            'https://provider.test/synthetic.m3u',
+            undefined,
+            { signal: AbortSignal.abort() }
+        );
+        const outcome = pending.catch((error: unknown) => error);
+        http.expectNone((req) => req.url.endsWith('/provider-targets'));
+        await expect(outcome).resolves.toMatchObject({ name: 'AbortError' });
+    });
+
     it('rejects a provider failure received after the tunnel starts its JSON response', async () => {
         const pending = service.fetchPlaylistDefinition(
             'https://provider.test/synthetic.m3u'

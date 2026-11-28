@@ -11,11 +11,13 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okio.BufferedSource;
+import okio.Timeout;
 import org.json.JSONObject;
 
 /** Only the packaged client's API routes can be mapped onto the selected server. */
 final class HostedApiRequest {
     private HostedApiRequest() {}
+    private static final int MAX_HEARTBEAT_BYTES = 128;
     private static final OkHttpClient API = HostedAccessOAuth.HTTP.newBuilder()
         .callTimeout(0, TimeUnit.SECONDS).readTimeout(45, TimeUnit.SECONDS).build();
     private static final OkHttpClient PLAYLIST_API = API.newBuilder()
@@ -62,8 +64,21 @@ final class HostedApiRequest {
     static InputStream responseBody(Response response) throws IOException {
         BufferedSource source = response.body().source();
         if ("1".equals(response.header("X-IPTVnator-JSON-Heartbeat"))) {
-            // Only JSON bytes count toward the bridge's response limit.
-            while (source.request(1) && source.getBuffer().getByte(0) == '\n') source.skip(1);
+            // Bound the heartbeat independently so the JSON keeps its full response budget.
+            Timeout timeout = source.timeout();
+            boolean hadDeadline = timeout.hasDeadline();
+            long previousDeadline = hadDeadline ? timeout.deadlineNanoTime() : 0;
+            long heartbeatDeadline = System.nanoTime() + TimeUnit.MINUTES.toNanos(15);
+            timeout.deadlineNanoTime(hadDeadline ? Math.min(previousDeadline, heartbeatDeadline) : heartbeatDeadline);
+            try {
+                for (int skipped = 0; source.request(1) && source.getBuffer().getByte(0) == '\n'; skipped++) {
+                    if (skipped == MAX_HEARTBEAT_BYTES) throw new IOException("Hosted heartbeat is too large");
+                    source.skip(1);
+                }
+            } finally {
+                if (hadDeadline) timeout.deadlineNanoTime(previousDeadline);
+                else timeout.clearDeadline();
+            }
         }
         return source.inputStream();
     }

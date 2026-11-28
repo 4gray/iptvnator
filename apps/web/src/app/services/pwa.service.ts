@@ -4,7 +4,15 @@ import { NotificationService } from '@iptvnator/services/notifications';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { catchError, firstValueFrom, map, Observable, throwError } from 'rxjs';
+import {
+    catchError,
+    firstValueFrom,
+    fromEvent,
+    map,
+    Observable,
+    takeUntil,
+    throwError,
+} from 'rxjs';
 import {
     DataService,
     isBackendUrl,
@@ -91,12 +99,26 @@ export class PwaService extends DataService {
         return AppConfig.version;
     }
 
-    override fetchPlaylistDefinition(
+    override async fetchPlaylistDefinition(
         url: string,
         userAgent?: string,
         options?: PlaylistDefinitionFetchOptions
     ): Promise<Playlist> {
-        return firstValueFrom(this.getPlaylistFromUrl(url, userAgent, options));
+        const signal = options?.signal;
+        signal?.throwIfAborted();
+        const request = this.getPlaylistFromUrl(url, userAgent, options);
+        try {
+            const playlist = await firstValueFrom(
+                signal
+                    ? request.pipe(takeUntil(fromEvent(signal, 'abort')))
+                    : request
+            );
+            signal?.throwIfAborted();
+            return playlist;
+        } catch (error) {
+            signal?.throwIfAborted();
+            throw error;
+        }
     }
 
     /**

@@ -54,6 +54,27 @@ public class HostedAccessSourceRouteTest extends TestCase {
         }
     }
 
+    public void testHeartbeatHasItsOwnByteLimit() throws Exception {
+        String json = "{\"source\":\"Synthetic playlist\"}";
+        String prefix = String.join("", java.util.Collections.nCopies(128, "\n"));
+        for (boolean tooLarge : new boolean[]{false, true}) {
+            try (Response response = new Response.Builder()
+                    .request(new Request.Builder().url(ORIGIN + "/api/parse").build())
+                    .protocol(Protocol.HTTP_1_1).code(200).message("OK")
+                    .header("X-IPTVnator-JSON-Heartbeat", "1")
+                    .body(ResponseBody.create(prefix + (tooLarge ? "\n" : "") + json, null))
+                    .build()) {
+                try {
+                    assertEquals(json, Okio.buffer(Okio.source(HostedApiRequest.responseBody(response))).readUtf8());
+                    assertFalse("An oversized heartbeat must be rejected", tooLarge);
+                } catch (IOException error) {
+                    assertTrue(tooLarge);
+                    assertEquals("Hosted heartbeat is too large", error.getMessage());
+                }
+            }
+        }
+    }
+
     public void testSourceOperationsKeepEncodedIdOnThePairedHost() throws Exception {
         for (String method : new String[]{"GET", "PUT", "PATCH", "DELETE"})
             assertResource("sources/" + ID, method);

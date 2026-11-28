@@ -36,6 +36,7 @@ export interface PlaylistImportRecovery {
 
 export interface PlaylistDefinitionFetchOptions {
     readonly background?: boolean;
+    readonly signal?: AbortSignal;
 }
 
 export abstract class DataService {

@@ -38,10 +38,11 @@ Raw provider messages and URLs are never rendered as diagnostic details; editing
 the form or starting another attempt clears the identifier.
 
 Cancel, Escape, backdrop dismissal, navigation during acquisition and destruction
-retire the dialog's operation. The HTTP/IPC transport may still finish, but a
-retired result cannot save a source or navigate. Only an owned success dispatches
-the existing add-by-URL action and closes the dialog. OS/file import admission
-and serial persistence remain on their existing paths.
+retire the dialog's operation and cancel the PWA download, including through the
+paired Android bridge. A retired result cannot save a source or navigate, even
+if an Electron IPC request finishes later. Only an owned success dispatches the
+existing add-by-URL action and closes the dialog. OS/file import admission and
+serial persistence remain on their existing paths.
 An omitted title retains the Electron URL-derived fallback. The owned dispatch
 keeps the `M3U_IMPORT_DISPATCH` performance-phase boundary; cancelled results
 emit neither a dispatch nor a benchmark phase.
