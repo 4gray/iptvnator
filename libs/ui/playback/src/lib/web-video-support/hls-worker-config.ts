@@ -1,4 +1,8 @@
 import Hls, { type HlsConfig } from 'hls.js';
+import {
+    IPTV_HLS_CONFIG,
+    type HlsBufferProfile,
+} from './iptv-hls-config';
 
 /** Opt-out: localStorage['iptvnator.hlsInlineTransmux'] = '1' keeps the
  *  transmuxer on the UI thread. Added in October 2026; remove it two releases
@@ -18,7 +22,8 @@ const INLINE_TRANSMUX_KEY = 'iptvnator.hlsInlineTransmux';
 export function hlsWorkerConfig(
     doc: Pick<Document, 'baseURI'> | undefined = globalThis.document,
     protocol: string | undefined = globalThis.location?.protocol,
-    storage: Pick<Storage, 'getItem'> | undefined = safeLocalStorage()
+    storage: Pick<Storage, 'getItem'> | undefined = safeLocalStorage(),
+    bufferProfile: HlsBufferProfile = 'balanced'
 ): Partial<HlsConfig> {
     if (!doc || !protocol || !/^https?:$/.test(protocol)) {
         return {};
@@ -28,14 +33,11 @@ export function hlsWorkerConfig(
     }
     const url = new URL('assets/hls.worker.js', doc.baseURI);
     url.searchParams.set('v', Hls.version);
-    // Deeper buffer than the hls.js defaults (30 s target / 60 s max): absorbs
-    // CDN jitter and provider stalls on a fast link. Back-buffer stays bounded
-    // so 1 GB devices do not churn memory seeking backwards in live streams.
+    // Merge worker config with selected buffer profile
+    const profileConfig = IPTV_HLS_CONFIG[bufferProfile];
     return {
         workerPath: url.href,
-        maxBufferLength: 60,
-        maxMaxBufferLength: 120,
-        backBufferLength: 60,
+        ...profileConfig,
     };
 }
 

@@ -62,6 +62,7 @@ export const DEFAULT_SETTINGS = {
     embeddedMpvFrameCopy: false,
     embeddedMpvExtraOptions: '',
     embeddedMpvAutoReconnect: true,
+    hlsBufferProfile: 'balanced',
     portalConnectivityGuard: true,
     coverSize: 'medium',
     showCoverTitles: true,

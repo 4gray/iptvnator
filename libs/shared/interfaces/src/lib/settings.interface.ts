@@ -273,7 +273,15 @@ export interface Settings {
      * Captured per session, so a change applies to the next session.
      */
     embeddedMpvAutoReconnect?: boolean;
-    /** Desktop Xtream/Stalker request cooldown. Default on; applies on Save. */
+    /**
+     * HLS buffer profile: 'lowLatency' | 'balanced' | 'stable'
+     * Controls maxBufferLength, maxMaxBufferLength, and backBufferLength.
+     * Default 'balanced'.
+     */
+    hlsBufferProfile?: 'lowLatency' | 'balanced' | 'stable';
+    /**
+     * Desktop Xtream/Stalker request cooldown. Default on; applies on Save.
+     */
     portalConnectivityGuard?: boolean;
     /** Cover/poster sizing preset applied across grids and rails */
     coverSize?: CoverSize;

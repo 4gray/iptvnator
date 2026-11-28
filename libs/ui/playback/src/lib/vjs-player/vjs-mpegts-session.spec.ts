@@ -54,11 +54,13 @@ describe('VjsMpegTsSession', () => {
 
         session.start('https://example.test/archive/movie.ts', video);
 
-        expect(createPlayerMock).toHaveBeenCalledWith({
-            type: 'mpegts',
-            isLive: false,
-            url: 'https://example.test/archive/movie.ts',
-        });
+        expect(createPlayerMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: 'mpegts',
+                isLive: false,
+                url: 'https://example.test/archive/movie.ts',
+            })
+        );
         expect(mpegTsPlayer.attachMediaElement).toHaveBeenCalledWith(video);
         expect(mpegTsPlayer.load).toHaveBeenCalledTimes(1);
         expect(mpegTsPlayer.play).toHaveBeenCalledTimes(1);

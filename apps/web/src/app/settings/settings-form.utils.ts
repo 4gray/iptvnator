@@ -135,6 +135,10 @@ export function createSettingsForm(
         bufferMinMs: 30_000,
         bufferMaxMs: 90_000,
         bufferForPlaybackMs: 30_000,
+        hlsBufferProfile: 'balanced' as
+            | 'lowLatency'
+            | 'balanced'
+            | 'stable',
         portalConnectivityGuard: true,
         coverSize: 'medium' as CoverSize,
         showCoverTitles: true,
@@ -295,6 +299,9 @@ export function createSettingsFromFormValue(
             value.embeddedMpvExtraOptions
         ),
         embeddedMpvAutoReconnect: value.embeddedMpvAutoReconnect ?? true,
+        hlsBufferProfile: (value.hlsBufferProfile ??
+            currentSettings.hlsBufferProfile ??
+            'balanced') as Settings['hlsBufferProfile'],
         portalConnectivityGuard: value.portalConnectivityGuard !== false,
         coverSize: value.coverSize ?? 'medium',
         showCoverTitles: value.showCoverTitles !== false,

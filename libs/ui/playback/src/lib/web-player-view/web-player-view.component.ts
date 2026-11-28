@@ -269,6 +269,10 @@ export class WebPlayerViewComponent implements OnDestroy {
     });
     readonly resolvedPlayback = this.applicationState.playback;
     readonly resolvedIsLive = this.applicationState.isLive;
+    /** HLS buffer profile forwarded to the hls.js engines. */
+    readonly hlsBufferProfile = computed(
+        () => this.settingsStore.hlsBufferProfile?.() ?? 'balanced'
+    );
     readonly androidPlayback = new AndroidTvPlayback(
         this.playbackSessionKey,
         this.applicationState.token,
@@ -388,6 +392,7 @@ export class WebPlayerViewComponent implements OnDestroy {
             application: this.applicationState,
             player: this.selectedPlayer,
             reloadToken: this.reloadToken,
+            bufferProfile: this.hlsBufferProfile,
             channel: this.channel,
             vjsOptions: this.vjsOptions,
         });

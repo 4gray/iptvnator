@@ -18,6 +18,7 @@ import {
 import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
 import mpegts from 'mpegts.js';
 import { hlsWorkerConfig } from '../web-video-support/hls-worker-config';
+import { adjustLiveSyncForSegmentDuration } from '../web-video-support/iptv-hls-config';
 import { type Channel, createDevLogger } from '@iptvnator/shared/interfaces';
 import { releaseVideoPictureInPicture } from '../player-controls/web-video-picture-in-picture-lifecycle';
 import {
@@ -92,6 +93,10 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     );
     /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the shell. */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
+    /** HLS buffer profile passed down to the hls.js engine. */
+    readonly hlsBufferProfile = input<'lowLatency' | 'balanced' | 'stable'>(
+        'balanced'
+    );
     @Output() timeUpdate = new EventEmitter<PlayerTimeUpdate>();
     @Output() playbackIssue = new EventEmitter<PlaybackDiagnostic | null>();
     @Output() playbackEnded = new EventEmitter<void>();
@@ -277,7 +282,12 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 // containers never reach hls.js: fed an .mkv it raised a
                 // manifest error over media the browser plays by itself.
                 debugHtmlPlayer('Starting HLS playback');
-                const hls = new Hls(hlsWorkerConfig());
+                const hls = new Hls(hlsWorkerConfig(
+                    globalThis.document,
+                    globalThis.location?.protocol,
+                    globalThis.localStorage,
+                    this.hlsBufferProfile()
+                ));
                 this.hls = hls;
                 hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
                     if (this.hls !== hls) return;
@@ -355,6 +365,13 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         url: string,
         data: ManifestParsedData
     ): void {
+        if (this.hls && typeof data.details?.avgDuration === 'number') {
+            adjustLiveSyncForSegmentDuration(
+                this.hls,
+                this.hlsBufferProfile(),
+                data.details.avgDuration
+            );
+        }
         emitUnsupportedHlsManifestCodecs(url, data, (issue) =>
             this.playbackIssue.emit(issue)
         );

@@ -797,6 +797,27 @@
                     <h3>{{ 'SETTINGS.CARD_NATIVE_BUFFER' | translate }}</h3>
                 </div>
                 <div class="settings-card">
+                    <div class="setting-item" data-setting-id="hls-buffer-profile">
+                        <div class="setting-item__meta">
+                            <h4 id="hls-buffer-profile-label">
+                                {{ 'SETTINGS.HLS_BUFFER_PROFILE_LABEL' | translate }}
+                            </h4>
+                            <p>{{ 'SETTINGS.HLS_BUFFER_PROFILE_DESCRIPTION' | translate }}</p>
+                        </div>
+                        <div class="setting-item__control">
+                            <mat-form-field class="settings-text-field" appearance="outline" subscriptSizing="dynamic">
+                                <mat-label for="hlsBufferProfile">{{ 'SETTINGS.HLS_BUFFER_PROFILE' | translate }}</mat-label>
+                                <mat-select id="hlsBufferProfile" formControlName="hlsBufferProfile" aria-labelledby="hls-buffer-profile-label" data-test-id="select-hls-buffer-profile">
+                                    @for (profile of hlsBufferProfileOptions; track profile.value) {
+                                        <mat-option [value]="profile.value" [attr.data-test-id]="profile.value">
+                                            {{ profile.labelKey | translate }}
+                                        </mat-option>
+                                    }
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+                    </div>
+
                     <div class="setting-item" data-setting-id="buffer-min-ms">
                         <div class="setting-item__meta">
                             <h4 id="buffer-min-ms-label">

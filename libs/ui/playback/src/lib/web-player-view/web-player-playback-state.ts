@@ -4,6 +4,10 @@ import type {
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import type { PlayerMediaTitle } from '../player-controls';
+import {
+    IPTV_HLS_CONFIG,
+    resolveHlsBufferProfile,
+} from '../web-video-support/iptv-hls-config';
 
 export function resolveWebPlayerPlayback(options: {
     readonly playback: ResolvedPortalPlayback | null;
@@ -80,6 +84,7 @@ export function createVideoJsOptions(options: {
     readonly streamUrl: string;
     readonly isLive: boolean;
     readonly reloadToken: number;
+    readonly bufferProfile?: string;
 }): {
     readonly isLive: boolean;
     readonly reloadToken: number;
@@ -87,6 +92,9 @@ export function createVideoJsOptions(options: {
         readonly src: string;
         readonly type: string;
     }[];
+    readonly html5?: {
+        readonly vhs?: Readonly<Record<string, unknown>>;
+    };
 } {
     const extension = getPlaybackMediaExtensionFromUrl(options.streamUrl);
     const type =
@@ -102,6 +110,13 @@ export function createVideoJsOptions(options: {
         isLive: options.isLive,
         reloadToken: options.reloadToken,
         sources: [{ src: options.streamUrl, type }],
+        // Video.js hands `html5.vhs` to the hls.js instance VHS creates, so
+        // the HLS buffer profile applies to this engine too. VHS is not
+        // bundled on non-HTTP origins (Electron's file://), so the key is
+        // harmless there.
+        html5: {
+            vhs: IPTV_HLS_CONFIG[resolveHlsBufferProfile(options.bufferProfile)],
+        },
     };
 }
 

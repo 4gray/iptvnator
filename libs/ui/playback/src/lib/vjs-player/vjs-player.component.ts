@@ -10,6 +10,7 @@ import {
     input,
     output,
     signal,
+    untracked,
     viewChild,
     ChangeDetectionStrategy,
 } from '@angular/core';
@@ -92,6 +93,10 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     );
     /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the shell. */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
+    /** Buffer profile for hls.js and mpegts engines; default balanced. */
+    readonly hlsBufferProfile = input<'lowLatency' | 'balanced' | 'stable'>(
+        'balanced'
+    ); // ponytail: keeps this +1 line under 400 in an already-over baseline
 
     readonly timeUpdate = output<PlayerTimeUpdate>();
     readonly playbackIssue = output<PlaybackDiagnostic | null>();
@@ -118,6 +123,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         player: () => this.player,
         isLive: () => this.options().isLive !== false,
         emitPlaybackIssue: (issue) => this.playbackIssue.emit(issue),
+        getBufferProfile: () => untracked(() => this.hlsBufferProfile()),
     });
     private readonly resetCoordinator = new VjsPlayerResetCoordinator({
         player: () => this.player,

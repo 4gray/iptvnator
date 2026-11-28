@@ -8,6 +8,10 @@ import {
     createPlaybackSourceMetadata,
     getPlaybackMediaExtensionFromUrl,
 } from '@iptvnator/playback/util';
+import {
+    mpegTsBufferConfig,
+    type HlsBufferProfile,
+} from '../web-video-support/iptv-hls-config';
 
 interface VjsDurationPlayer {
     duration(value?: number): unknown;
@@ -17,6 +21,8 @@ export interface VjsMpegTsSessionConfig {
     player: () => VjsDurationPlayer;
     isLive: () => boolean;
     emitPlaybackIssue: (issue: PlaybackDiagnostic) => void;
+    /** Buffer profile, mirrored from the HLS setting for `.ts` streams. */
+    getBufferProfile?: () => HlsBufferProfile | undefined;
 }
 
 const VOD_DURATION_EVENTS = [
@@ -50,6 +56,7 @@ export class VjsMpegTsSession {
             type: 'mpegts',
             isLive,
             url,
+            ...mpegTsBufferConfig(this.config.getBufferProfile?.() ?? 'balanced'),
         });
         this.engine = engine;
         this.video = video;

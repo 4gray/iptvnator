@@ -2,7 +2,7 @@ import type Artplayer from 'artplayer';
 import type { Option } from 'artplayer';
 import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
 import mpegts from 'mpegts.js';
-import type { ChannelDrm } from '@iptvnator/shared/interfaces';
+import type { ChannelDrm, Settings } from '@iptvnator/shared/interfaces';
 import {
     InlinePlaybackPlayer,
     type PlaybackDiagnostic,
@@ -16,6 +16,10 @@ import {
 } from '@iptvnator/playback/util';
 import { isBrowserMediaTypeSupported } from '../web-video-support/browser-media-type-support';
 import { hlsWorkerConfig } from '../web-video-support/hls-worker-config';
+import {
+    mpegTsBufferConfig,
+    adjustLiveSyncForSegmentDuration,
+} from '../web-video-support/iptv-hls-config';
 import type { WebVideoControlsAdapter } from '../player-controls';
 import type { ShakaModuleLoader } from '../shaka-engine/shaka-module.types';
 import { ShakaVideoSession } from '../shaka-engine/shaka-video-session';
@@ -37,6 +41,8 @@ export interface ArtPlayerSourceSessionConfig {
     getDrm?: () => ChannelDrm | undefined;
     /** Test seam for the lazily imported shaka-player module. */
     loadShaka?: ShakaModuleLoader;
+    /** Buffer profile for HLS playback: 'lowLatency' | 'balanced' | 'stable' */
+    hlsBufferProfile?: Settings['hlsBufferProfile'];
 }
 
 /**
@@ -144,7 +150,12 @@ export class ArtPlayerSourceSession {
 
         this.prepareForSourceChange();
         if (Hls.isSupported()) {
-            const hls = new Hls(hlsWorkerConfig());
+            const hls = new Hls(hlsWorkerConfig(
+                globalThis.document,
+                globalThis.location?.protocol,
+                globalThis.localStorage,
+                this.config.hlsBufferProfile
+            ));
             this.hls = hls;
             this.hlsManifestListener = (_event, data) => {
                 if (this.destroyed || this.hls !== hls) {
@@ -188,6 +199,7 @@ export class ArtPlayerSourceSession {
             type: 'mpegts',
             isLive: this.config.sharedControls ? this.config.isLive() : true,
             url,
+            ...mpegTsBufferConfig(this.config.hlsBufferProfile ?? 'balanced'),
         });
         this.mpegTsPlayer = engine;
         this.mpegTsErrorListener = (type, details, info) => {
@@ -302,6 +314,13 @@ export class ArtPlayerSourceSession {
         url: string,
         data: ManifestParsedData
     ): void {
+        if (this.hls && typeof data.details?.avgDuration === 'number') {
+            adjustLiveSyncForSegmentDuration(
+                this.hls,
+                this.config.hlsBufferProfile ?? 'balanced',
+                data.details.avgDuration
+            );
+        }
         const metadata = this.createSourceMetadata(
             url,
             'application/x-mpegURL',

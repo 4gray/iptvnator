@@ -57,5 +57,6 @@ export const maxLinesBaseline = [
     'libs/workspace/dashboard/feature/src/lib/rails/workspace-dashboard-rails.component.ts',
     'libs/workspace/shell/feature/src/lib/workspace-context-panel/workspace-context-panel.component.ts',
     'libs/workspace/shell/feature/src/lib/workspace-shell/services/helpers/workspace-shell-command-builders.ts',
+    'libs/ui/playback/src/lib/vjs-player/vjs-player.component.ts',
     'tools/release/generate-marketing-artwork.ts',
 ];

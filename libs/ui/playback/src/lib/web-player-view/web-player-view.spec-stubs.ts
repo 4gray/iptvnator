@@ -46,6 +46,7 @@ export class StubVjsPlayerComponent {
     readonly interactionEnabled = input(true);
     readonly startTime = input(0);
     readonly seriesNavigation = input<unknown>(null);
+    readonly hlsBufferProfile = input<string>('balanced');
     readonly timeUpdate = output<PlayerTimeUpdate>();
     readonly playbackIssue = output<PlaybackDiagnostic | null>();
     readonly playbackStarted = output<void>();
@@ -70,6 +71,7 @@ export class StubHtmlVideoPlayerComponent {
     readonly interactionEnabled = input(true);
     readonly startTime = input(0);
     readonly seriesNavigation = input<unknown>(null);
+    readonly hlsBufferProfile = input<string>('balanced');
     readonly timeUpdate = output<PlayerTimeUpdate>();
     readonly playbackIssue = output<PlaybackDiagnostic | null>();
     readonly playbackStarted = output<void>();
@@ -94,6 +96,7 @@ export class StubArtPlayerComponent {
     readonly interactionEnabled = input(true);
     readonly startTime = input(0);
     readonly seriesNavigation = input<unknown>(null);
+    readonly hlsBufferProfile = input<string>('balanced');
     readonly timeUpdate = output<PlayerTimeUpdate>();
     readonly playbackIssue = output<PlaybackDiagnostic | null>();
     readonly playbackStarted = output<void>();

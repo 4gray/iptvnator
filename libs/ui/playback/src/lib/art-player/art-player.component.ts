@@ -70,6 +70,10 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     );
     /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the shell. */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
+    /** HLS buffer profile passed down to the hls.js engine. */
+    readonly hlsBufferProfile = input<'lowLatency' | 'balanced' | 'stable'>(
+        'balanced'
+    );
 
     readonly timeUpdate = output<PlayerTimeUpdate>();
     readonly playbackIssue = output<PlaybackDiagnostic | null>();
@@ -163,6 +167,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             showCaptions: () => this.showCaptions(),
             emitPlaybackIssue: (issue) => this.playbackIssue.emit(issue),
             getDrm: () => this.channel().drm,
+            hlsBufferProfile: this.hlsBufferProfile(),
         });
         this.sourceSession = sourceSession;
 
