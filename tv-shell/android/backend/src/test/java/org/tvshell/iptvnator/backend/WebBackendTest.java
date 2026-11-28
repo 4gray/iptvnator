@@ -39,6 +39,16 @@ public class WebBackendTest {
         return q;
     }
 
+    public void testCancelledPlaylistDoesNotStartWhenCancellationArrivesFirst() {
+        FakeFetcher fetcher = new FakeFetcher();
+        WebBackend backend = new WebBackend(fetcher, "/api");
+        String id = "00000000-0000-4000-8000-000000000001";
+        String target = register(backend, "https://provider.test/playlist.m3u");
+        assertEquals("cancel accepted", 204, backend.handle("POST", "/parse/cancel", query("requestId", id), null).status);
+        assertEquals("cancelled request rejected", 409, backend.handle("GET", "/parse", query("requestId", id, "targetId", target), null).status);
+        assertTrue("provider never fetched", fetcher.urls.isEmpty());
+    }
+
     @SuppressWarnings("unchecked")
     static Map<String, Object> body(WebBackend.Response r) {
         return (Map<String, Object>) Json.parse(r.bodyText());

@@ -1,3 +1,5 @@
+/** @jest-environment-options {"url":"http://127.0.0.1:43330"} */
+
 import {
     sourceAuthorization,
     verifySourceInstance,
@@ -257,6 +259,10 @@ describe('PwaService', () => {
     it('cancels the HTTP download when the playlist import is abandoned', async () => {
         const url = 'https://provider.test/synthetic.m3u';
         const controller = new AbortController();
+        Object.defineProperties(controller.signal, {
+            throwIfAborted: { value: undefined },
+            reason: { value: undefined },
+        });
         const pending = service.fetchPlaylistDefinition(url, undefined, {
             signal: controller.signal,
         });
@@ -290,6 +296,48 @@ describe('PwaService', () => {
         const outcome = pending.catch((error: unknown) => error);
         http.expectNone((req) => req.url.endsWith('/provider-targets'));
         await expect(outcome).resolves.toMatchObject({ name: 'AbortError' });
+    });
+
+    it('forwards an embedded Android cancellation and handles a failed notification', async () => {
+        const originalFetch = window.fetch;
+        const cancel = jest
+            .fn()
+            .mockRejectedValue(new Error('Synthetic notification failure'));
+        Object.assign(window, { TvShell: {}, fetch: cancel });
+        service.corsProxyUrl = '/api';
+        try {
+            const controller = new AbortController();
+            const result = service.fetchPlaylistDefinition(
+                'https://provider.test/synthetic.m3u',
+                undefined,
+                {
+                    signal: controller.signal,
+                }
+            );
+            const rejected = expect(result).rejects.toMatchObject({
+                name: 'AbortError',
+            });
+            http.expectOne('/api/provider-targets').flush({
+                targetId: 'synthetic-target',
+            });
+            await new Promise((resolve) => setTimeout(resolve));
+            const parse = http.expectOne((req) => req.url === '/api/parse');
+            const id = parse.request.params.get('requestId');
+            expect(id).toMatch(/^[a-f0-9-]{36}$/);
+            controller.abort();
+            await rejected;
+            expect(parse.cancelled).toBe(true);
+            expect(cancel).toHaveBeenCalledWith(
+                `/api/parse/cancel?requestId=${id}`,
+                {
+                    method: 'POST',
+                    keepalive: true,
+                }
+            );
+        } finally {
+            Reflect.deleteProperty(window, 'TvShell');
+            window.fetch = originalFetch;
+        }
     });
 
     it('rejects a provider failure received after the tunnel starts its JSON response', async () => {

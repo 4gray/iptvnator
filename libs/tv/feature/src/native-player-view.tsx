@@ -8,6 +8,7 @@ import type { useLiveOverlay } from './live-overlay';
 import type { useSeriesDetails } from './use-series-details';
 import { UpNextCard, useUpNext } from './up-next-card';
 import type { usePlayerControls } from './player-controls';
+import { ProgressSaveNotice } from './progress-save-notice';
 
 export function NativePlayerView({
     tv,
@@ -88,7 +89,7 @@ export function NativePlayerView({
             ) : null}
             {tv.fullscreen ? (
                 <div
-                    class={`player-controls ${controls.visible || tv.error ? '' : 'dormant'}`}
+                    class={`player-controls ${controls.visible || tv.error || tv.progressSaveNotice.message ? '' : 'dormant'}`}
                     hidden={!!overlay.panel}
                 >
                     <div class="player-top">
@@ -279,6 +280,7 @@ export function NativePlayerView({
                                 </button>
                             </div>
                         ) : null}
+                        <ProgressSaveNotice notice={tv.progressSaveNotice} />
                     </div>
                 </div>
             ) : null}

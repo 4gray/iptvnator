@@ -43,3 +43,27 @@ export function connectionNotice(
         else notice.clearError('Retry connection');
     };
 }
+
+/** Keep the failed write available when playback has its own recovery action. */
+export function useProgressSaveNotice() {
+    const [notice, setNotice] = useState<{
+        message: string;
+        save: () => Promise<void>;
+    }>();
+    return {
+        message: notice?.message,
+        report: (message: string, save: () => Promise<void>) =>
+            setNotice({ message, save }),
+        dismiss: () => setNotice(undefined),
+        retry: () => {
+            if (!notice) return;
+            void notice.save().then(
+                () =>
+                    setNotice((current) =>
+                        current === notice ? undefined : current
+                    ),
+                () => undefined
+            );
+        },
+    };
+}

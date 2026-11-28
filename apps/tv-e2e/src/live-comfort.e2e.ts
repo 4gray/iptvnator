@@ -439,6 +439,12 @@ test('TV failed M3U Previous settles even when saving outgoing progress also fai
     const retry = page.getByRole('button', { name: 'Retry previous channel' });
     await expect(retry).toBeVisible();
     await expect(pending).toHaveCount(0);
+    const retryProgress = page.getByRole('button', {
+        name: 'Retry saving progress',
+    });
+    await expect(retryProgress).toBeVisible();
+    await retryProgress.click();
+    await expect(retryProgress).toHaveCount(0);
     await retry.click();
     await expect.poll(() => attempts).toBe(2);
     await confirmed(page, a.id);

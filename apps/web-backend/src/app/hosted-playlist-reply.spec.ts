@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { PassThrough } from 'node:stream';
+import express from 'express';
 import { streamTestServer } from './http-server.spec-helpers';
 import {
     createWebBackendApp,
@@ -161,6 +162,53 @@ describe('hosted playlist responses', () => {
             await started;
             abort.abort();
             await Promise.all([rejected, cancelled]);
+        });
+    });
+
+    it('skips the provider when a playlist client disconnects before authorization completes', async () => {
+        let release!: () => void;
+        let started!: () => void;
+        let closed!: () => void;
+        const authorization = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const waiting = new Promise<void>((resolve) => {
+            started = resolve;
+        });
+        const disconnect = new Promise<void>((resolve) => {
+            closed = resolve;
+        });
+        const httpClient = new StubHttpClient();
+        httpClient.queueResponse('#EXTM3U');
+        const app = express();
+        app.use('/parse', (_req, res, next) => {
+            res.once('close', closed);
+            started();
+            void authorization.then(() => next());
+        });
+        app.use(
+            createWebBackendApp({
+                httpClient,
+                resolveHostname: resolvePublicHost,
+                hostedMode: 'cloudflare',
+            })
+        );
+        await withServer(app, async (backend, send) => {
+            const id = await registerProviderTarget(backend, playlistUrl, send);
+            const abort = new AbortController();
+            const response = send(
+                `${backend}/parse?targetId=${id}&keepAlive=1`,
+                { signal: abort.signal }
+            );
+            const rejected = expect(response).rejects.toMatchObject({
+                name: 'AbortError',
+            });
+            await waiting;
+            abort.abort();
+            await Promise.all([rejected, disconnect]);
+            release();
+            await new Promise<void>((resolve) => setImmediate(resolve));
+            expect(httpClient.requests).toHaveLength(0);
         });
     });
 });

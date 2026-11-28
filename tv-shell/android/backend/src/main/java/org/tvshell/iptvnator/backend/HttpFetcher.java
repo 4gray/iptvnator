@@ -144,11 +144,43 @@ public class HttpFetcher {
         boolean initialResponded;
     }
 
+    static final class Cancellation {
+        private HttpURLConnection connection;
+        private volatile boolean cancelled;
+
+        synchronized void attach(HttpURLConnection value) throws ProviderException {
+            check();
+            connection = value;
+        }
+
+        synchronized void detach() {
+            connection = null;
+        }
+
+        void cancel() {
+            HttpURLConnection current;
+            synchronized (this) {
+                cancelled = true;
+                current = connection;
+            }
+            if (current != null) current.disconnect();
+        }
+
+        void check() throws ProviderException {
+            if (cancelled) throw new ProviderException(409, "Playlist download cancelled");
+        }
+    }
+
     public Result get(String url, Map<String, String> headers, int timeoutMs) throws ProviderException {
+        return get(url, headers, timeoutMs, null);
+    }
+
+    Result get(String url, Map<String, String> headers, int timeoutMs, Cancellation cancellation) throws ProviderException {
         RequestProgress progress = new RequestProgress();
         try {
-            return fetch(url, headers, timeoutMs, progress);
+            return fetch(url, headers, timeoutMs, progress, cancellation);
         } catch (ProviderException failure) {
+            if (cancellation != null) cancellation.check();
             failure.initialResponded |= progress.initialResponded;
             throw failure;
         }
@@ -158,10 +190,12 @@ public class HttpFetcher {
         return get(url, headers, timeoutMs);
     }
 
-    private Result fetch(String url, Map<String, String> headers, int timeoutMs, RequestProgress progress) throws ProviderException {
+    private Result fetch(String url, Map<String, String> headers, int timeoutMs, RequestProgress progress,
+                         Cancellation cancellation) throws ProviderException {
         Set<String> visited = new HashSet<String>();
         String current = url;
         for (int redirects = 0; ; redirects++) {
+            if (cancellation != null) cancellation.check();
             if (!visited.add(current)) throw new ProviderException("Redirect cycle detected", "ERR_REDIRECT_CYCLE");
             HttpURLConnection connection;
             try {
@@ -195,6 +229,7 @@ public class HttpFetcher {
                     }
                 }
                 if (!userAgentSet) connection.setRequestProperty("User-Agent", DEFAULT_USER_AGENT);
+                if (cancellation != null) cancellation.attach(connection);
 
                 int status;
                 try {
@@ -203,6 +238,7 @@ public class HttpFetcher {
                 } catch (IOException e) {
                     throw mapNetworkError(e);
                 }
+                if (cancellation != null) cancellation.check();
                 if (status == 301 || status == 302 || status == 303 || status == 307 || status == 308) {
                     String location = connection.getHeaderField("Location");
                     if (location == null || location.isEmpty()) {
@@ -261,6 +297,7 @@ public class HttpFetcher {
                     }
                 }
             } finally {
+                if (cancellation != null) cancellation.detach();
                 connection.disconnect();
             }
         }

@@ -11,6 +11,7 @@ import {
     map,
     Observable,
     takeUntil,
+    tap,
     throwError,
 } from 'rxjs';
 import {
@@ -105,18 +106,47 @@ export class PwaService extends DataService {
         options?: PlaylistDefinitionFetchOptions
     ): Promise<Playlist> {
         const signal = options?.signal;
-        signal?.throwIfAborted();
-        const request = this.getPlaylistFromUrl(url, userAgent, options);
+        const checkCancellation = () => {
+            if (signal?.aborted)
+                throw (
+                    signal.reason ?? new DOMException('Aborted', 'AbortError')
+                );
+        };
+        checkCancellation();
+        const requestId =
+            signal &&
+            this.corsProxyUrl === '/api' &&
+            window.location.hostname === '127.0.0.1' &&
+            'TvShell' in window &&
+            !('HostedAccessApi' in window)
+                ? crypto.randomUUID?.()
+                : undefined;
+        const request = this.getPlaylistFromUrl(
+            url,
+            userAgent,
+            options,
+            requestId
+        );
+        const cancelled =
+            signal &&
+            fromEvent(signal, 'abort').pipe(
+                tap(() => {
+                    if (requestId) {
+                        void fetch(`/api/parse/cancel?requestId=${requestId}`, {
+                            method: 'POST',
+                            keepalive: true,
+                        }).catch(() => undefined);
+                    }
+                })
+            );
         try {
             const playlist = await firstValueFrom(
-                signal
-                    ? request.pipe(takeUntil(fromEvent(signal, 'abort')))
-                    : request
+                cancelled ? request.pipe(takeUntil(cancelled)) : request
             );
-            signal?.throwIfAborted();
+            checkCancellation();
             return playlist;
         } catch (error) {
-            signal?.throwIfAborted();
+            checkCancellation();
             throw error;
         }
     }
@@ -523,7 +553,8 @@ export class PwaService extends DataService {
     getPlaylistFromUrl(
         url: string,
         userAgent?: string,
-        options?: PlaylistDefinitionFetchOptions
+        options?: PlaylistDefinitionFetchOptions,
+        requestId?: string
     ): Observable<Playlist> {
         const normalizedUserAgent = userAgent?.trim();
         return this.providerTargets.request(url, (targetId) =>
@@ -532,6 +563,7 @@ export class PwaService extends DataService {
                     params: {
                         targetId,
                         keepAlive: '1',
+                        ...(requestId ? { requestId } : {}),
                         ...(options?.background ? { background: '1' } : {}),
                         ...(normalizedUserAgent
                             ? { userAgent: normalizedUserAgent }

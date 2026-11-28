@@ -231,6 +231,8 @@ export function createWebBackendApp(
     );
 
     app.get('/parse', corsMiddleware, async (req, res) => {
+        // Access verification may have awaited fresh signing keys after the client left.
+        if (res.destroyed) return;
         const url = getRegisteredProviderUrl(req, res, providerTargets);
         if (!url) {
             return;
