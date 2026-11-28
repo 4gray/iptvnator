@@ -110,7 +110,7 @@
     justify-items: center;
     gap: 12px;
     color: var(--embedded-mpv-text);
-    font-size: 0.85rem;
+    font-size: var(--app-text-md);
     pointer-events: none;
     z-index: 1;
 }
@@ -134,7 +134,7 @@
 }
 
 .embedded-mpv-player__stalled > mat-icon {
-    color: var(--app-live-color);
+    color: var(--app-status-live);
     font-size: 36px;
     width: 36px;
     height: 36px;
@@ -174,7 +174,7 @@
     color: var(--embedded-mpv-text);
     background: color-mix(in srgb, #000 65%, transparent);
     border-radius: 999px;
-    font-size: 0.95rem;
+    font-size: var(--app-text-lg);
     font-variant-numeric: tabular-nums;
     pointer-events: none;
     z-index: 2;
@@ -217,7 +217,7 @@
     border: 1px solid var(--embedded-mpv-border);
     border-radius: 12px;
     backdrop-filter: blur(14px);
-    font-size: 0.85rem;
+    font-size: var(--app-text-md);
     line-height: 1.4;
     pointer-events: none;
     z-index: 1;
@@ -272,7 +272,7 @@
     align-items: center;
     gap: 12px;
     color: var(--embedded-mpv-text-muted);
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     font-variant-numeric: tabular-nums;
 }
 
@@ -282,7 +282,7 @@
     gap: 6px;
     min-width: 0;
     color: var(--embedded-mpv-text-muted);
-    font-size: 0.72rem;
+    font-size: var(--app-text-xs);
     font-variant-numeric: tabular-nums;
 }
 
@@ -302,12 +302,12 @@
 }
 
 .embedded-mpv-player__recording-status--active {
-    color: var(--app-live-color);
+    color: var(--app-status-live);
     font-weight: 700;
 }
 
 .embedded-mpv-player__recording-status--active mat-icon {
-    color: var(--app-live-color);
+    color: var(--app-status-live);
 }
 
 .embedded-mpv-player__live-badge {
@@ -317,8 +317,8 @@
     padding: 2px 8px;
     border-radius: 4px;
     color: var(--app-widget-bg);
-    background: var(--app-live-color);
-    font-size: 0.66rem;
+    background: var(--app-status-live);
+    font-size: var(--app-text-2xs);
     font-weight: 700;
     letter-spacing: 0.08em;
 }
@@ -365,7 +365,7 @@
 }
 
 .embedded-mpv-player__record-button--active {
-    color: var(--app-live-color);
+    color: var(--app-status-live);
 }
 
 .embedded-mpv-player__slider {
@@ -483,7 +483,7 @@
 
 .embedded-mpv-player__volume-value {
     color: var(--embedded-mpv-text-muted);
-    font-size: 0.74rem;
+    font-size: var(--app-text-xs);
     font-variant-numeric: tabular-nums;
     min-width: 34px;
     text-align: end;

@@ -35,9 +35,12 @@ export const EXTERNAL_PLAYER_ERROR_KEYS: Readonly<
     'timed-out': 'EXTERNAL_PLAYER.ERRORS.TIMED_OUT',
 };
 
-/** For output no code describes; takes `{{player}}` and the raw `{{error}}`. */
+/**
+ * For output no code describes; takes `{{player}}` only. The player's own
+ * output goes to the log, never into the toast.
+ */
 export const EXTERNAL_PLAYER_UNKNOWN_ERROR_KEY =
-    'EXTERNAL_PLAYER.ERRORS.UNKNOWN';
+    'EXTERNAL_PLAYER.ERRORS.REPORTED';
 
 /** For a rejected launch that carries no code; takes `{{player}}`. */
 export const EXTERNAL_PLAYER_LAUNCH_FAILED_KEY =
@@ -86,6 +89,8 @@ export interface ExternalPlayerSession {
     id: string;
     /** Correlates native lifecycle events with the requesting renderer launch. */
     launchId?: string;
+    /** Correlates this session with its renderer's parental-lock context. */
+    requestId?: string;
     player: ExternalPlayerName;
     status: ExternalPlayerSessionStatus;
     title: string;

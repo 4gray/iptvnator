@@ -37,56 +37,11 @@ import {
     HOSTED_SERVER_LOCAL_URL,
 } from '../services/hosted-server-session';
 import { HOSTED_SERVER_INSTANCE_ID, store } from '../services/store.service';
-
-function route(request: SourceServerRequest): { path: string; method: string } {
-    const id = encodeURIComponent(request.id ?? '');
-    switch (request.operation) {
-        case 'tmdb-transfer':
-            return { path: '/v1/tmdb-transfer', method: 'POST' };
-        case 'instance':
-            return { path: '/v1/instance', method: 'GET' };
-        case 'list':
-            return { path: '/v1/sources', method: 'GET' };
-        case 'get':
-            return { path: `/v1/sources/${id}`, method: 'GET' };
-        case 'create':
-            return { path: `/v1/sources/${id}`, method: 'PUT' };
-        case 'update':
-            return { path: `/v1/sources/${id}`, method: 'PATCH' };
-        case 'delete':
-            return { path: `/v1/sources/${id}`, method: 'DELETE' };
-        case 'clear':
-            return { path: '/v1/sources', method: 'DELETE' };
-        case 'history-read':
-            return { path: `/v1/history/sources/${id}`, method: 'GET' };
-        case 'history-apply':
-            return { path: '/v1/history/operations', method: 'POST' };
-        case 'favorites-context':
-            return { path: `/v1/favorites/sources/${id}`, method: 'GET' };
-        case 'favorites-list':
-            return {
-                path: `/v1/favorites/sources/${id}/items${request.cursor ? '?cursor=' + encodeURIComponent(request.cursor) : ''}`,
-                method: 'GET',
-            };
-        case 'favorites-read':
-            return { path: '/v1/favorites/read', method: 'POST' };
-        case 'favorites-apply':
-            return { path: '/v1/favorites/operations', method: 'POST' };
-        case 'activity-context':
-            return { path: `/v1/activity/sources/${id}`, method: 'GET' };
-        case 'activity-list':
-            return {
-                path: `/v1/activity/sources/${id}/items${request.cursor ? '?cursor=' + encodeURIComponent(request.cursor) : ''}`,
-                method: 'GET',
-            };
-        case 'activity-read':
-            return { path: '/v1/activity/read', method: 'POST' };
-        case 'activity-apply':
-            return { path: '/v1/activity/operations', method: 'POST' };
-        default:
-            throw new Error('Invalid source operation');
-    }
-}
+import {
+    parseRetryAfter,
+    profileRequestTarget,
+} from './source-sync-profile-route';
+import { sourceRequestRoute as route } from './source-sync-request-route';
 
 export async function sourceServerRequest(
     apiUrl: string,
@@ -95,15 +50,25 @@ export async function sourceServerRequest(
     instanceId?: string,
     useHosted = false
 ): Promise<SourceServerResponse> {
-    const target = route(request);
+    const profileTarget = profileRequestTarget(request);
+    const target = profileTarget ?? route(request);
     if (request.source) validateSource(request.source);
-    const body =
-        request.operation === 'tmdb-transfer'
-            ? request.tmdbTransfer?.request
-            : (request.history ??
-              request.favorite ??
-              request.activity ??
-              request.source);
+    const body = profileTarget
+        ? profileTarget.body
+        : request.operation === 'tmdb-transfer'
+          ? request.tmdbTransfer?.request
+          : (request.history ??
+            request.favorite ??
+            request.activity ??
+            request.source);
+    const revisionHeaders =
+        profileTarget?.headers ??
+        (request.revision
+            ? {
+                  [request.operation === 'list' ? 'If-None-Match' : 'If-Match']:
+                      request.revision,
+              }
+            : {});
     if (apiUrl === HOSTED_SERVER_LOCAL_URL + '/api') {
         const hostedInstance = store.get(HOSTED_SERVER_INSTANCE_ID);
         if (useHosted || (instanceId && instanceId === hostedInstance)) {
@@ -112,25 +77,25 @@ export async function sourceServerRequest(
             );
             if (!worker) throw new Error('SOURCE_SYNC.OFFLINE');
             try {
-                return await worker({
-                    ...target,
-                    headers: {
-                        ...(instanceId
-                            ? { 'X-IPTVnator-Instance-Id': instanceId }
-                            : {}),
-                        ...(request.operation === 'create'
-                            ? { 'If-None-Match': '*' }
-                            : {}),
-                        ...(request.revision
-                            ? {
-                                  [request.operation === 'list'
-                                      ? 'If-None-Match'
-                                      : 'If-Match']: request.revision,
-                              }
-                            : {}),
-                    },
-                    body,
-                });
+                const { retryAfter: workerRetryAfter, ...response } =
+                    await worker({
+                        ...target,
+                        headers: {
+                            ...(instanceId
+                                ? { 'X-IPTVnator-Instance-Id': instanceId }
+                                : {}),
+                            ...(request.operation === 'create'
+                                ? { 'If-None-Match': '*' }
+                                : {}),
+                            ...revisionHeaders,
+                        },
+                        body,
+                    });
+                const retryAfter = parseRetryAfter(workerRetryAfter);
+                return {
+                    ...response,
+                    ...(retryAfter !== undefined ? { retryAfter } : {}),
+                };
             } catch {
                 throw new Error('SOURCE_SYNC.OFFLINE');
             }
@@ -168,13 +133,7 @@ export async function sourceServerRequest(
                     ...(request.operation === 'create'
                         ? { 'If-None-Match': '*' }
                         : {}),
-                    ...(request.revision
-                        ? {
-                              [request.operation === 'list'
-                                  ? 'If-None-Match'
-                                  : 'If-Match']: request.revision,
-                          }
-                        : {}),
+                    ...revisionHeaders,
                 },
                 data: body,
             },
@@ -185,9 +144,11 @@ export async function sourceServerRequest(
             },
             0
         );
+        const retryAfter = parseRetryAfter(response.headers['retry-after']);
         return {
             status: response.status,
             etag: response.headers['etag'],
+            ...(retryAfter !== undefined ? { retryAfter } : {}),
             body: response.data,
         };
     } catch {
@@ -229,6 +190,7 @@ export function registerSourceSyncEvents(
     ipcMain.handle(
         SOURCE_SYNC_REQUEST,
         async (_event, request: SourceServerRequest) => {
+            profileRequestTarget(request);
             const config = readSourceServerConfig();
             if (!config) throw new Error('SOURCE_SYNC.OFFLINE');
             if (request.operation === 'tmdb-transfer') {

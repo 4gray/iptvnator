@@ -14,9 +14,13 @@ export const favoritesReducers = [
         const playlistFavorites = (playlist.favorites ?? []).filter(
             (favorite): favorite is string => typeof favorite === 'string'
         );
-        const favorites = playlistFavorites.includes(channel.url)
-            ? playlistFavorites.filter((url) => url !== channel.url)
-            : [...playlistFavorites, channel.url];
+        const otherFavorites = playlistFavorites.filter(
+            (favorite) => favorite !== channel.url && favorite !== channel.id
+        );
+        const favorites =
+            otherFavorites.length < playlistFavorites.length
+                ? otherFavorites
+                : [...playlistFavorites, channel.url];
 
         return {
             ...state,

@@ -59,6 +59,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import {
     findCurrentEpgItem,
+    XTREAM_DATA_SOURCE,
     XtreamUrlService,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
@@ -210,6 +211,9 @@ export class LiveStreamLayoutComponent
     private readonly parentalLock = inject(ParentalLockService);
     private readonly databaseService = inject(DatabaseService);
     private readonly liveAutoOpenState = inject(LiveStreamAutoOpenStateService);
+    private readonly dataSource = inject(XTREAM_DATA_SOURCE, {
+        optional: true,
+    });
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
     readonly categoryItemCounts = this.xtreamStore.getCategoryItemCounts;
@@ -790,67 +794,77 @@ export class LiveStreamLayoutComponent
             )
             .subscribe(() => this.liveAutoOpenState.captureFromHistoryState());
 
-        effect(() => {
+        effect((onCleanup) => {
             const pendingId = this.pendingAutoOpenLiveItemId();
-            if (!pendingId) {
-                return;
-            }
-
-            // Guard: only process once the live content view is active; otherwise
-            // the effect may fire while selectedContentType is still 'vod' and
-            // incorrectly conclude the channel isn't found.
-            if (this.xtreamStore.selectedContentType() !== 'live') {
-                return;
-            }
-
-            // The shared store may still serve the PREVIOUS playlist here:
-            // NavigationEnd fires before the route session resets it. Stream
-            // ids are provider-local, so a colliding id in that catalog would
-            // otherwise play the wrong channel and consume the handoff. Wait
-            // until the store is the requested playlist's — the effect
-            // re-runs when the playlist, catalog or init flag changes.
-            const pendingPlaylistId =
-                this.liveAutoOpenState.pendingPlaylistId();
             if (
-                pendingPlaylistId &&
-                this.xtreamStore.currentPlaylist()?.id !== pendingPlaylistId
+                !pendingId ||
+                this.xtreamStore.selectedContentType() !== 'live'
             ) {
                 return;
             }
 
-            // Search across all live streams, not just the category-filtered view,
-            // so a channel from a different category can still be auto-opened.
-            const allChannels = this.getAllLiveStreams();
-            if (!Array.isArray(allChannels) || allChannels.length === 0) {
+            // Provider-local IDs can collide while the shared store switches playlists.
+            const pendingPlaylistId =
+                this.liveAutoOpenState.pendingPlaylistId();
+            const playlistId = this.xtreamStore.currentPlaylist()?.id;
+            if (
+                !playlistId ||
+                (pendingPlaylistId && playlistId !== pendingPlaylistId)
+            ) {
                 return;
             }
 
-            const item = allChannels.find(
+            const allChannels = this.getAllLiveStreams();
+            const item = allChannels?.find(
                 (channel) => Number(channel?.xtream_id) === pendingId
             );
-            if (!item) {
-                // "Not in the catalog" is a verdict only once this
-                // playlist's catalog has finished loading.
-                if (this.xtreamStore.isContentInitialized()) {
-                    this.liveAutoOpenState.clearPendingItem();
-                }
+            if (item) {
+                this.completeAutoOpen(item);
                 return;
             }
+            if (!this.xtreamStore.isContentInitialized()) return;
 
-            this.playLive(
-                item,
-                undefined,
-                this.channelNavigation.channelsForAutoOpen(item)
-            );
-            // Ensure selectedItem is set so EPG loading and remote-control
-            // status reflect the channel (constructStreamUrl also does this
-            // internally, but an explicit call makes the intent clear and
-            // keeps the auto-open path testable in isolation).
-            this.xtreamStore.setSelectedItem(
-                item as unknown as Record<string, unknown>
-            );
-            this.liveAutoOpenState.clearPendingItem();
-            this.liveAutoOpenState.clearHistoryState();
+            // A PWA search can explicitly include hidden categories. Resolve
+            // those targets through the raw cache with parental locks applied.
+            if (
+                this.runtime.supportsXtreamSqliteDataSource ||
+                !this.dataSource
+            ) {
+                if (allChannels?.length)
+                    this.liveAutoOpenState.clearPendingItem();
+                return;
+            }
+            if (!this.xtreamStore.selectedTypeContentReady()) return;
+
+            const lockVersion = this.parentalLock.version();
+            let current = true;
+            onCleanup(() => {
+                current = false;
+            });
+            void this.dataSource
+                .getContentByXtreamId(
+                    pendingId,
+                    playlistId,
+                    'live',
+                    undefined,
+                    undefined,
+                    true
+                )
+                .catch(() => null)
+                .then((hiddenItem) => {
+                    if (
+                        !current ||
+                        this.parentalLock.version() !== lockVersion ||
+                        this.pendingAutoOpenLiveItemId() !== pendingId ||
+                        this.liveAutoOpenState.pendingPlaylistId() !==
+                            pendingPlaylistId ||
+                        this.xtreamStore.currentPlaylist()?.id !== playlistId ||
+                        this.xtreamStore.selectedContentType() !== 'live'
+                    )
+                        return;
+                    if (hiddenItem) this.completeAutoOpen(hiddenItem);
+                    else this.liveAutoOpenState.clearPendingItem();
+                });
         });
 
         effect(() => {
@@ -1322,6 +1336,19 @@ export class LiveStreamLayoutComponent
         );
         request.trackLaunch(launch);
         void launch;
+    }
+
+    private completeAutoOpen(item: XtreamLiveChannelItem): void {
+        this.playLive(
+            item,
+            undefined,
+            this.channelNavigation.channelsForAutoOpen(item)
+        );
+        this.xtreamStore.setSelectedItem(
+            item as unknown as Record<string, unknown>
+        );
+        this.liveAutoOpenState.clearPendingItem();
+        this.liveAutoOpenState.clearHistoryState();
     }
 
     private getAllLiveStreams(): XtreamLiveChannelItem[] {

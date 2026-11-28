@@ -16,6 +16,17 @@ type WakeLockNavigator = Navigator & {
 /** Events on a tracked video that mean it is no longer playing. */
 const RELEASE_EVENTS = ['pause', 'ended', 'emptied', 'error'] as const;
 
+/** Events on a tracked video that mean it may have stopped advancing. */
+const STALL_EVENTS = ['waiting', 'stalled'] as const;
+
+/**
+ * A tracked video that has not advanced this long after `waiting` or
+ * `stalled` is released: a stream that dies after starting (starved MSE,
+ * a dropped live source) never fires `pause` or `ended`. Its next `playing`
+ * tracks it again.
+ */
+export const PLAYBACK_STALL_RELEASE_MS = 60_000;
+
 /**
  * Keeps the display awake while any built-in web player (HTML5/hls.js,
  * Video.js, ArtPlayer) is playing video (issue #1095).
@@ -50,6 +61,10 @@ export class PlaybackKeepAwakeService {
     private started = false;
     private readonly playingVideos = new Set<HTMLVideoElement>();
     private readonly releaseCleanups = new Map<HTMLVideoElement, () => void>();
+    private readonly stallChecks = new Map<
+        HTMLVideoElement,
+        { handle: ReturnType<typeof setTimeout>; time: number }
+    >();
 
     private lastSentToBridge: boolean | null = null;
     private wakeLock: WakeLockSentinelLike | null = null;
@@ -127,15 +142,56 @@ export class PlaybackKeepAwakeService {
         }
         this.playingVideos.add(video);
         const onRelease = () => this.untrackVideo(video);
+        const onStall = () => this.scheduleStallCheck(video);
+        const onResume = () => this.clearStallCheck(video);
         for (const type of RELEASE_EVENTS) {
             video.addEventListener(type, onRelease);
         }
+        for (const type of STALL_EVENTS) {
+            video.addEventListener(type, onStall);
+        }
+        video.addEventListener('playing', onResume);
         this.releaseCleanups.set(video, () => {
+            video.removeEventListener('playing', onResume);
             for (const type of RELEASE_EVENTS) {
                 video.removeEventListener(type, onRelease);
             }
+            for (const type of STALL_EVENTS) {
+                video.removeEventListener(type, onStall);
+            }
         });
         this.sync();
+    }
+
+    /**
+     * Judged by progress, not by the event: `stalled` also fires while the
+     * buffer still plays. A pending check restarts only when the video moved
+     * since it was taken (a recovery followed by a new stall), so repeated
+     * stall events on a frozen video cannot postpone the release. A video
+     * that moved is checked again until `playing` reports it resumed: it may
+     * advance a little and freeze without another event.
+     */
+    private scheduleStallCheck(video: HTMLVideoElement): void {
+        const pending = this.stallChecks.get(video);
+        if (pending && pending.time === video.currentTime) {
+            return;
+        }
+        clearTimeout(pending?.handle);
+        const time = video.currentTime;
+        const handle = setTimeout(() => {
+            this.stallChecks.delete(video);
+            if (video.currentTime === time) {
+                this.untrackVideo(video);
+            } else {
+                this.scheduleStallCheck(video);
+            }
+        }, PLAYBACK_STALL_RELEASE_MS);
+        this.stallChecks.set(video, { handle, time });
+    }
+
+    private clearStallCheck(video: HTMLVideoElement): void {
+        clearTimeout(this.stallChecks.get(video)?.handle);
+        this.stallChecks.delete(video);
     }
 
     private untrackVideo(video: HTMLVideoElement): void {
@@ -145,6 +201,7 @@ export class PlaybackKeepAwakeService {
         const cleanup = this.releaseCleanups.get(video);
         this.releaseCleanups.delete(video);
         cleanup?.();
+        this.clearStallCheck(video);
         this.sync();
     }
 

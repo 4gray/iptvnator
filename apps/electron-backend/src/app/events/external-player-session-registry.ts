@@ -9,6 +9,7 @@ import {
 interface CreateExternalPlayerSessionOptions {
     player: ExternalPlayerName;
     launchId?: string;
+    requestId?: string;
     title: string;
     thumbnail?: string | null;
     streamUrl: string;
@@ -70,6 +71,10 @@ export class ExternalPlayerSessionRegistry {
             options.launchId.length <= 128
                 ? { launchId: options.launchId }
                 : {}),
+            ...(typeof options.requestId === 'string' &&
+            options.requestId.length <= 128
+                ? { requestId: options.requestId }
+                : {}),
             player: options.player,
             status: 'launching',
             title: options.title,
@@ -94,6 +99,13 @@ export class ExternalPlayerSessionRegistry {
 
     getSession(id: string): ExternalPlayerSession | null {
         return this.sessions.get(id)?.snapshot ?? null;
+    }
+
+    /** Every session whose player may still be running. */
+    listOpenSessions(): ExternalPlayerSession[] {
+        return [...this.sessions.values()]
+            .map(({ snapshot }) => snapshot)
+            .filter(isRestorableSession);
     }
 
     isNewerLaunch(id: string | null, session: ExternalPlayerSession): boolean {

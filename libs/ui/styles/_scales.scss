@@ -1,0 +1,168 @@
+// Web scales: type, spacing, radius, elevation and z layers.
+//
+// `custom-properties` emits every `--app-*` scale token once, on `html`, from
+// the global stylesheet (`apps/web/src/styles.scss`). Components read the
+// custom properties; the role mixins below only emit `var()` reads, so
+// including one adds no token bytes. The values are theme-independent,
+// except the status hues: `status-light` and `status-dark` are included by
+// the theme palettes (`apps/web/src/_theme-palettes.scss`) and by surfaces
+// that are always dark whatever the theme, such as the player overlays.
+//
+// The TV app keeps its own scale in `apps/tv/src/tokens.css`; nothing here is
+// shared with it. `pnpm run styles:scales:validate` keeps the number of
+// literal sizes, radii, shadows and z-index values outside these files from
+// growing.
+
+// Each token is written out, not generated from a map, so the theme
+// reference check (`styles:theme-references`) sees its declaration.
+@mixin custom-properties {
+    // ── Type ──
+    // rem, so the text follows the user's root font size. 11px is the floor.
+    --app-text-2xs: 0.6875rem; // 11px
+    --app-text-xs: 0.75rem; // 12px
+    --app-text-sm: 0.8125rem; // 13px
+    --app-text-md: 0.875rem; // 14px
+    --app-text-lg: 0.9375rem; // 15px
+    --app-text-xl: 1.125rem; // 18px
+    --app-text-2xl: 1.375rem; // 22px
+    --app-text-display-sm: 1.75rem; // 28px
+    --app-text-display-md: 2.25rem; // 36px
+    --app-text-display-lg: 3rem; // 48px
+
+    // ── Spacing ──
+    // A 4px base (`1` = 4px) plus the 2, 6 and 10px half steps dense rows use.
+    --app-space-0-5: 2px;
+    --app-space-1: 4px;
+    --app-space-1-5: 6px;
+    --app-space-2: 8px;
+    --app-space-2-5: 10px;
+    --app-space-3: 12px;
+    --app-space-4: 16px;
+    --app-space-5: 20px;
+    --app-space-6: 24px;
+    --app-space-8: 32px;
+    --app-space-10: 40px;
+    --app-space-12: 48px;
+
+    // ── Radius ──
+    --app-radius-2xs: 2px;
+    --app-radius-xs: 4px;
+    --app-radius-sm: 6px;
+    --app-radius-md: 8px;
+    --app-radius-lg: 10px;
+    --app-radius-xl: 12px;
+    --app-radius-2xl: 14px;
+    --app-radius-3xl: 16px;
+    --app-radius-4xl: 20px;
+    --app-radius-full: 999px;
+
+    // ── Elevation ──
+    // Drop shadows, lowest first. Rings and inset hairlines are borders, not
+    // elevation. The theme-tuned `--app-widget-shadow` and
+    // `--app-popover-shadow` stay with the palettes.
+    // 1: thumbs and small marks over media; 2: a card's hover lift;
+    // 3: menus and hover popovers; 4: select and floating panels;
+    // 5: sheets and overlays above the page.
+    --app-elev-1: 0 1px 4px rgba(0, 0, 0, 0.55);
+    --app-elev-2: 0 6px 16px rgba(0, 0, 0, 0.12);
+    --app-elev-3: 0 12px 32px rgba(0, 0, 0, 0.45);
+    --app-elev-4: 0 18px 40px rgba(0, 0, 0, 0.35);
+    --app-elev-5: 0 20px 60px rgba(0, 0, 0, 0.45);
+
+    // ── Z layers ──
+    // Page-level layers only; stacking inside a component keeps small local
+    // values. The CDK overlay container (dialogs, menus, selects, tooltips)
+    // sits at 1000, so `overlay` ties with it and loses on DOM order; only
+    // the popover, the drop target and the window controls sit above it.
+    // floating: panels and toasts docked to a corner; drawer: phone
+    // drawers; overlay: blocking in-page overlays; popover: fixed hover
+    // popovers; drop-target: the whole-window file drop; window-controls:
+    // the frameless window's buttons, always clickable.
+    --app-z-floating: 900;
+    --app-z-drawer: 950;
+    --app-z-overlay: 1000;
+    --app-z-popover: 1200;
+    --app-z-drop-target: 9999;
+    --app-z-window-controls: 10000;
+
+    --app-font-mono:
+        'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+// ─── Status ─────────────────────────────────────────────────────────────────
+// Text-grade hues (at least 4.5:1 on the mode's surfaces and on a 10-16%
+// tint of themselves): done/watched, warning, failure, information, on-air
+// and subscription expiry. Every preset inherits the pair of its mode, High
+// Contrast included (its black surfaces only raise the contrast). Tints are
+// `color-mix(in srgb, var(--app-status-…) <n>%, transparent)` at the caller.
+
+@mixin status-light {
+    --app-status-success: #15803d;
+    --app-status-warning: #8a5300;
+    --app-status-danger: #b3261e;
+    --app-status-info: #1a56b8;
+    --app-status-live: #d12c2c;
+    --app-status-expiry: #8a5300;
+}
+
+@mixin status-dark {
+    --app-status-success: #4ade80;
+    --app-status-warning: #fbbf24;
+    --app-status-danger: #ff8d9b;
+    --app-status-info: #8ab8ff;
+    --app-status-live: #ff8f8f;
+    --app-status-expiry: #fbbf24;
+}
+
+// ─── Type roles ─────────────────────────────────────────────────────────────
+// Size and weight per role. Line height is left to the caller unless given,
+// so adopting a role does not move a row's height.
+
+@mixin role($size, $weight, $line-height: null) {
+    font-size: $size;
+    font-weight: $weight;
+    @if $line-height {
+        line-height: $line-height;
+    }
+}
+
+/// Badges, counters, timestamps, eyebrows.
+@mixin caption($line-height: null) {
+    @include role(var(--app-text-2xs), 500, $line-height);
+}
+
+/// Control labels, chips, secondary metadata.
+@mixin label($line-height: null) {
+    @include role(var(--app-text-xs), 500, $line-height);
+}
+
+/// Running text in dense panels.
+@mixin body($line-height: null) {
+    @include role(var(--app-text-sm), 400, $line-height);
+}
+
+/// Row and card titles.
+@mixin title($line-height: null) {
+    @include role(var(--app-text-md), 600, $line-height);
+}
+
+/// Panel and section headings.
+@mixin section-title($line-height: null) {
+    @include role(var(--app-text-lg), 600, $line-height);
+}
+
+/// Page and dialog headings.
+@mixin heading($line-height: null) {
+    @include role(var(--app-text-xl), 600, $line-height);
+}
+
+/// Detail hero titles.
+@mixin display($line-height: null) {
+    @include role(var(--app-text-display-md), 700, $line-height);
+}
+
+/// URLs, keys and identifiers. JetBrains Mono ships 400 and 500 only.
+@mixin mono($weight: 400) {
+    font-family: var(--app-font-mono);
+    font-weight: $weight;
+}

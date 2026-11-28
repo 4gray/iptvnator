@@ -219,6 +219,7 @@ export class GlobalCollectionDetailHostComponent implements OnDestroy {
         } @else {
             <app-unified-collection-page
                 [mode]="mode()"
+                [enableFavoriteFolders]="mode() === 'favorites'"
                 [playlistId]="activePlaylistId() ?? undefined"
                 [portalType]="activePortalType() ?? undefined"
                 [defaultScope]="effectiveDefaultScope()"

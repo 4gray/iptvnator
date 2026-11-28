@@ -60,6 +60,7 @@ export class ParentalLockLockStore {
 
     private readonly locks = signal<ParentalLockStore>({});
     private readonly revisionState = signal(0);
+    private readonly publishedLocks = signal<ParentalLockStore>({});
     private readonly loadedState = signal(false);
     private loading: Promise<void> | null = null;
     /**
@@ -104,6 +105,13 @@ export class ParentalLockLockStore {
             !this.pendingRewrite() &&
             this.staleIndex.isEmpty()
     );
+    /**
+     * Every playlist's locks as last published with `revision`; key them
+     * with `parentalLockSetKey`. An edit still being applied (the in-memory
+     * copy changes before the index is stamped) keeps its previous locks
+     * here, so a launch it races is judged against what filtered the lists.
+     */
+    readonly lockSet = this.publishedLocks.asReadonly();
     /** Bumps whenever the lock set changes; consumers re-query. */
     readonly revision = this.revisionState.asReadonly();
     readonly isEmpty = computed(() => Object.keys(this.locks()).length === 0);
@@ -124,16 +132,14 @@ export class ParentalLockLockStore {
                     this.unreadable.set(true);
                 } else {
                     this.locks.set(locks);
-                    for (const playlistId of Object.keys(locks)) {
-                        this.staleIndex.mark(playlistId);
-                    }
+                    this.staleIndex.mark(...Object.keys(locks));
                     // Awaited: catalog reads issued before the index agrees
                     // with the store would serve rows stamped unlocked, and
                     // nothing would reload them afterwards.
                     await this.reconcileXtreamIndex();
                 }
                 this.loadedState.set(true);
-                this.revisionState.update((value) => value + 1);
+                this.publish();
             })();
         }
         return this.loading;
@@ -158,10 +164,8 @@ export class ParentalLockLockStore {
             // The index may carry stamps from a write that failed before
             // the read did; re-derive it from the recovered store as load()
             // does.
-            for (const playlistId of Object.keys(locks)) {
-                this.staleIndex.mark(playlistId);
-            }
-            this.revisionState.update((value) => value + 1);
+            this.staleIndex.mark(...Object.keys(locks));
+            this.publish();
         }
         await this.reconcileXtreamIndex();
         return this.readable();
@@ -176,8 +180,13 @@ export class ParentalLockLockStore {
         if (
             await this.staleIndex.reconcile((id) => this.stampXtreamLocks(id))
         ) {
-            this.revisionState.update((value) => value + 1);
+            this.publish();
         }
+    }
+
+    private publish(): void {
+        this.publishedLocks.set(this.locks());
+        this.revisionState.update((value) => value + 1);
     }
 
     setRemovalGate(gate: () => boolean): void {
@@ -206,6 +215,20 @@ export class ParentalLockLockStore {
 
     lockedGroupTitles(playlistId: string): string[] {
         return this.locks()[playlistId]?.m3u ?? [];
+    }
+
+    /** Whether the source (any source when `null`) has a locked category. */
+    hasLocks(playlistId: string | null): boolean {
+        const store = this.locks();
+        if (playlistId === null) {
+            return Object.values(store).some(
+                (locks) => !isParentalLockPlaylistLocksEmpty(locks)
+            );
+        }
+        return (
+            Object.prototype.hasOwnProperty.call(store, playlistId) &&
+            !isParentalLockPlaylistLocksEmpty(store[playlistId])
+        );
     }
 
     /**
@@ -326,7 +349,7 @@ export class ParentalLockLockStore {
             this.locks.set({});
             this.unreadable.set(false);
             this.staleIndex.clear();
-            this.revisionState.update((value) => value + 1);
+            this.publish();
             return this.rewritePersistedStore();
         });
     }
@@ -351,7 +374,7 @@ export class ParentalLockLockStore {
         }
         if (written === this.pendingRewrite()) {
             this.pendingRewrite.set(!written);
-            this.revisionState.update((value) => value + 1);
+            this.publish();
         }
         return written;
     }
@@ -400,7 +423,7 @@ export class ParentalLockLockStore {
                 }))
             ) {
                 this.staleIndex.unmark(playlistId);
-                this.revisionState.update((value) => value + 1);
+                this.publish();
                 return true;
             }
             // The clear (partly) reached the index but the store still holds
@@ -425,7 +448,7 @@ export class ParentalLockLockStore {
         this.markStaleWhileStamping(playlistId);
         if (await this.stampXtreamLocks(playlistId, categoryTypes)) {
             this.staleIndex.unmark(playlistId);
-            this.revisionState.update((value) => value + 1);
+            this.publish();
             return true;
         }
         await this.rollBack(playlistId, previous, categoryTypes);
@@ -470,7 +493,7 @@ export class ParentalLockLockStore {
         } else {
             this.staleIndex.unmark(playlistId);
         }
-        this.revisionState.update((value) => value + 1);
+        this.publish();
     }
 
     /**
@@ -497,7 +520,7 @@ export class ParentalLockLockStore {
         } else {
             this.staleIndex.unmark(playlistId);
         }
-        this.revisionState.update((value) => value + 1);
+        this.publish();
     }
 
     /**
@@ -539,7 +562,7 @@ export class ParentalLockLockStore {
         }
         this.locks.set(next);
         if (options.publish !== false) {
-            this.revisionState.update((value) => value + 1);
+            this.publish();
         }
         return true;
     }

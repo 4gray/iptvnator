@@ -1,6 +1,5 @@
 @use '@angular/material' as mat;
 @use '../../styles/channel-list-layout' as layout;
-@use '../../../../../styles/app-controls' as controls;
 
 :host {
     display: flex;
@@ -53,12 +52,9 @@
     }
 }
 
-// The kit's 28px square ghost icon buttons, as in the categories header
-// beside the list.
 .all-channels-sort-button,
 .all-channels-sidebar-toggle {
-    flex: 0 0 auto;
-    @include controls.ghost-icon-button(28px, 18px);
+    @include layout.list-header-action;
 }
 
 .all-channels-divider {

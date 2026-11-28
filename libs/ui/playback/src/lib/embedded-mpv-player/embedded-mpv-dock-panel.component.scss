@@ -34,7 +34,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     color: var(--embedded-mpv-text-muted);
-    font-size: 0.7rem;
+    font-size: var(--app-text-2xs);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -75,7 +75,7 @@
     border-radius: 999px;
     cursor: pointer;
     font: inherit;
-    font-size: 0.82rem;
+    font-size: var(--app-text-sm);
     white-space: nowrap;
 }
 

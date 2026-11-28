@@ -1,6 +1,7 @@
 import { toObservable } from '@angular/core/rxjs-interop';
 import { firstValueFrom, filter } from 'rxjs';
 import { signal } from '@angular/core';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import {
@@ -8,7 +9,6 @@ import {
     CategoryEditorRow,
 } from '@iptvnator/portal/shared/ui';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateModule } from '@ngx-translate/core';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import {
@@ -23,6 +23,11 @@ import {
     CategoryManagementDialogComponent,
     CategoryManagementDialogData,
 } from './category-management-dialog.component';
+
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
 
 // Local database IDs deliberately differ from provider IDs.
 const categories: XCategoryFromDb[] = [
@@ -48,7 +53,7 @@ describe('CategoryManagementDialogComponent', () => {
         getAllCategories: jest.fn(),
     };
     const dialogRef = { close: jest.fn() };
-    const snackBar = { open: jest.fn() };
+    const snackBar = { open: jest.fn().mockResolvedValue(null) };
     const parentalLock = {
         enabled: signal(false),
         active: signal(false),
@@ -62,7 +67,7 @@ describe('CategoryManagementDialogComponent', () => {
         itemCounts: new Map(),
     };
 
-    /** `supportsVisibility` false is the PWA: no SQLite hide/show. */
+    /** The browser path stores choices by provider ID. */
     async function createDialog(supportsVisibility: boolean): Promise<void> {
         await TestBed.configureTestingModule({
             imports: [
@@ -81,7 +86,7 @@ describe('CategoryManagementDialogComponent', () => {
                 { provide: MatDialogRef, useValue: dialogRef },
                 { provide: MAT_DIALOG_DATA, useValue: data },
                 { provide: ParentalLockService, useValue: parentalLock },
-                { provide: MatSnackBar, useValue: snackBar },
+                { provide: LazySnackBar, useValue: snackBar },
             ],
         }).compileComponents();
         fixture = TestBed.createComponent(CategoryManagementDialogComponent);
@@ -105,6 +110,7 @@ describe('CategoryManagementDialogComponent', () => {
     beforeEach(async () => {
         jest.clearAllMocks();
         dataSource.getAllCategories.mockResolvedValue(categories);
+        localStorage.removeItem('xtream-category-visibility:mock-playlist');
         db.updateCategoryVisibility.mockResolvedValue(true);
         parentalLock.enabled.set(false);
         parentalLock.active.set(false);
@@ -363,7 +369,7 @@ describe('CategoryManagementDialogComponent', () => {
         expect(snackBar.open).toHaveBeenCalledWith(
             'PARENTAL_LOCK.SAVE_FAILED',
             'CLOSE',
-            { duration: 3000 }
+            ERROR_TOAST
         );
         expect(dialogRef.close).not.toHaveBeenCalled();
         expect(component.isSaving()).toBe(false);
@@ -380,7 +386,7 @@ describe('CategoryManagementDialogComponent', () => {
         expect(snackBar.open).toHaveBeenCalledWith(
             'XTREAM.CATEGORY_MANAGEMENT.SAVE_FAILED',
             'CLOSE',
-            { duration: 3000 }
+            ERROR_TOAST
         );
         expect(dialogRef.close).not.toHaveBeenCalled();
     });
@@ -397,52 +403,57 @@ describe('CategoryManagementDialogComponent', () => {
         );
     });
 
-    describe('in the PWA, where hide/show is unavailable', () => {
+    describe('in the PWA', () => {
         beforeEach(async () => {
             TestBed.resetTestingModule();
             parentalLock.enabled.set(true);
             await createDialog(false);
         });
 
-        function text(): string {
-            fixture.detectChanges();
-            return fixture.nativeElement.textContent;
-        }
-
-        it('shows only the lock controls, not the selection count or bulk actions', () => {
-            expect(component.showLocks()).toBe(true);
-            expect(
-                fixture.nativeElement.querySelector('.bulk-actions')
-            ).toBeNull();
-            expect(text()).not.toContain('XTREAM.CATEGORY_MANAGEMENT.SELECTED');
-            expect(
-                fixture.nativeElement.querySelector('mat-checkbox')
-            ).toBeNull();
-            expect(
-                fixture.nativeElement.querySelector(
-                    '[data-test-id="category-locked-count"]'
-                ).textContent
-            ).toContain('PARENTAL_LOCK.LOCKED_COUNT');
-            expect(
-                fixture.nativeElement.querySelectorAll('.lock-toggle')
-            ).toHaveLength(categories.length);
-        });
-
-        it('shows no header at all while the lock feature is off', async () => {
+        it('offers visibility controls when parental locking is off', async () => {
             TestBed.resetTestingModule();
             parentalLock.enabled.set(false);
             await createDialog(false);
-
             expect(
-                fixture.nativeElement.querySelector('.header-actions')
-            ).toBeNull();
+                fixture.nativeElement.querySelectorAll('mat-checkbox')
+            ).toHaveLength(categories.length);
+            expect(
+                fixture.nativeElement.querySelectorAll('.lock-toggle')
+            ).toHaveLength(0);
         });
 
-        it('saves the lock draft and never writes visibility', async () => {
+        it('saves edited provider IDs without replacing missing categories or another section', async () => {
+            const key = 'xtream-category-visibility:mock-playlist';
+            const unlisted = {
+                categoryType: 'live',
+                xtreamId: 77,
+                hidden: true,
+            };
+            const otherSection = {
+                categoryType: 'movies',
+                xtreamId: 101,
+                hidden: true,
+            };
+            localStorage.setItem(
+                key,
+                JSON.stringify({
+                    version: 1,
+                    categories: [unlisted, otherSection],
+                })
+            );
+            editor.toggleCategory(component.categories()[0]);
             editor.toggleLock(component.categories()[1]);
 
             await component.save();
 
+            expect(JSON.parse(localStorage.getItem(key)!)).toEqual({
+                version: 1,
+                categories: [
+                    unlisted,
+                    otherSection,
+                    { categoryType: 'live', xtreamId: 101, hidden: true },
+                ],
+            });
             expect(db.updateCategoryVisibility).not.toHaveBeenCalled();
             expect(parentalLock.setXtreamLocks).toHaveBeenCalledWith(
                 'mock-playlist',
@@ -450,6 +461,20 @@ describe('CategoryManagementDialogComponent', () => {
                 [102]
             );
             expect(dialogRef.close).toHaveBeenCalledWith(true);
+        });
+
+        it('keeps the draft open when the stored visibility cannot be read', async () => {
+            const key = 'xtream-category-visibility:mock-playlist';
+            localStorage.setItem(key, '{');
+            editor.toggleCategory(component.categories()[0]);
+            await component.save();
+            expect(localStorage.getItem(key)).toBe('{');
+            expect(snackBar.open).toHaveBeenCalledWith(
+                'XTREAM.CATEGORY_MANAGEMENT.SAVE_FAILED',
+                'CLOSE',
+                ERROR_TOAST
+            );
+            expect(dialogRef.close).not.toHaveBeenCalled();
         });
 
         it('reports a failed lock write with the translated lock message', async () => {
@@ -462,7 +487,7 @@ describe('CategoryManagementDialogComponent', () => {
             expect(snackBar.open).toHaveBeenCalledWith(
                 'PARENTAL_LOCK.SAVE_FAILED',
                 'CLOSE',
-                { duration: 3000 }
+                ERROR_TOAST
             );
             expect(dialogRef.close).not.toHaveBeenCalled();
         });

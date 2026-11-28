@@ -2,6 +2,7 @@
 @use '../../../libs/ui/components/src/lib/resizable/resizable.scss';
 @use '../../../libs/ui/styles/focus-ring';
 @use '../../../libs/ui/styles/app-controls' as controls;
+@use '../../../libs/ui/styles/scales';
 @use './settings-theme';
 @use './cover-size';
 
@@ -80,7 +81,7 @@
     display: inline-flex;
     align-items: center;
     flex-shrink: 0;
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     font-weight: 500;
     line-height: 1;
     color: var(--app-muted-color, #8891a4);
@@ -119,6 +120,8 @@ html:has(> body.dark-theme) {
 
 body,
 html {
+    // Type, spacing, radius, elevation and z scales (`_scales.scss`).
+    @include scales.custom-properties;
     margin: 0;
     padding: 0;
     height: 100%;
@@ -281,15 +284,16 @@ body.dark-theme {
 
 // UI-kit toast for every snack-bar: the floating panel's surface, hairline
 // and shadow on a 10px panel, 13px text, the action in the accent colour
-// without a ripple. Toasts sit at Material's bottom centre; a caller adds a
-// panel class for spacing (the settings save bar), never another look.
+// without a ripple. Toasts open only through `NotificationService`
+// (`@iptvnator/services/notifications`), which sets the bottom-centre
+// position and one `app-notification--<variant>` class below.
 .mat-mdc-snack-bar-container {
     @include mat.snack-bar-overrides(
         (
             container-color: var(--app-widget-bg),
-            container-shape: 10px,
+            container-shape: var(--app-radius-lg),
             supporting-text-color: var(--app-heading-color),
-            supporting-text-size: 13px,
+            supporting-text-size: var(--app-text-sm),
             supporting-text-line-height: 20px,
             supporting-text-weight: 500,
             button-color: var(--app-selection-color),
@@ -309,6 +313,15 @@ body.dark-theme {
             )
         );
     }
+
+    // Material lays out only its own text toast's host as a row
+    // (`.mat-mdc-simple-snack-bar`). A component opened through
+    // `NotificationService.fromComponent` gets the same row, so its label
+    // and actions sit side by side instead of stacking.
+    :has(> .mat-mdc-snack-bar-label):not(.mat-mdc-simple-snack-bar) {
+        display: flex;
+        align-items: center;
+    }
 }
 
 // Command palette dialog — the palette-shell renders its own background, border,
@@ -323,8 +336,14 @@ body.dark-theme {
     overflow: visible;
 }
 
-.mat-mdc-snack-bar-container.settings-snackbar {
-    margin-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+// Success: the neutral toast with its hairline in the success colour.
+.mat-mdc-snack-bar-container.app-notification--success
+    .mat-mdc-snackbar-surface {
+    border-color: color-mix(
+        in srgb,
+        var(--app-status-success) 55%,
+        var(--app-line-strong)
+    );
 }
 
 // Reserve room for active bottom controls, including wrapped save buttons on
@@ -338,20 +357,38 @@ body:has(.unsaved-bar, .mat-mdc-snack-bar-container)
     }
 }
 
-body:has(.settings-snackbar) app-pwa-update-notification {
+body:has(.app-notification--above-save-bar) app-pwa-update-notification {
     --pwa-update-bottom-clearance: 160px;
 }
 
-// Failures (settings could not be saved/loaded) must not read as the usual
-// neutral confirmation toast.
-.mat-mdc-snack-bar-container.settings-snackbar--error {
+// Errors must not read as the usual neutral confirmation: a danger-tinted
+// opaque surface, the danger hairline, and the action in the danger text
+// colour (measured against the tinted surface in all three themes).
+.mat-mdc-snack-bar-container.app-notification--error {
     @include mat.snack-bar-overrides(
         (
-            container-color: var(--mat-sys-error-container),
-            supporting-text-color: var(--mat-sys-on-error-container),
-            button-color: var(--mat-sys-on-error-container),
+            container-color: color-mix(
+                    in srgb,
+                    var(--app-danger-text) 12%,
+                    var(--app-widget-bg)
+                ),
+            supporting-text-color: var(--app-heading-color),
+            button-color: var(--app-danger-text),
         )
     );
+
+    .mat-mdc-snackbar-surface {
+        border-color: color-mix(
+            in srgb,
+            var(--app-danger-text) 55%,
+            var(--app-line-strong)
+        );
+    }
+}
+
+// Settings pages keep a save bar at the bottom; the toast clears it.
+.mat-mdc-snack-bar-container.app-notification--above-save-bar {
+    margin-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
 }
 
 // WCAG-friendly visually-hidden helper — content stays in the

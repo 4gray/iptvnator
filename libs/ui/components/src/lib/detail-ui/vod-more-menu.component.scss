@@ -64,7 +64,7 @@
     &__group {
         padding: 8px 10px 4px;
         color: var(--app-eyebrow-color, #6b7384);
-        font-size: 10.5px;
+        font-size: var(--app-text-2xs);
         font-weight: 600;
         letter-spacing: 1px;
         text-transform: uppercase;
@@ -88,7 +88,7 @@
         background: none;
         color: inherit;
         font-family: inherit;
-        font-size: 13px;
+        font-size: var(--app-text-sm);
         line-height: 1.3;
         text-align: left;
         cursor: pointer;
@@ -125,7 +125,7 @@
         max-width: 160px;
         overflow: hidden;
         color: var(--app-eyebrow-color, #6b7384);
-        font-size: 12px;
+        font-size: var(--app-text-xs);
         text-overflow: ellipsis;
         white-space: nowrap;
     }

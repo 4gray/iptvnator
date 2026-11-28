@@ -1,4 +1,5 @@
 import { TmdbMatchService } from '@iptvnator/services/tmdb-match';
+import { FavoriteChannelMembershipEvents } from '@iptvnator/services/favorites-events';
 import {
     RuntimeCapabilitiesService,
     type TmdbEnrichmentService,
@@ -18,6 +19,11 @@ import { TestBed } from '@angular/core/testing';
 import { patchState, signalStore } from '@ngrx/signals';
 import { XTREAM_DATA_SOURCE } from './data-sources/xtream-data-source.interface';
 import { withFavorites } from './with-favorites.feature';
+
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
 
 jest.mock('@iptvnator/portal/shared/util', () => ({
     createLogger: () => ({
@@ -124,6 +130,31 @@ describe('withFavorites', () => {
         window.dispatchEvent(new Event('iptvnator-favorites-changed'));
         await new Promise((resolve) => setTimeout(resolve, 0));
         expect(dataSource.isFavorite).toHaveBeenCalledTimes(calls);
+    });
+
+    it('publishes the provider live ID only after the removal commits', async () => {
+        dataSource.getContentByXtreamId.mockResolvedValue({ id: 1024 });
+        dataSource.isFavorite.mockResolvedValue(true);
+        dataSource.removeFavorite.mockRejectedValueOnce(
+            new Error('Synthetic save failure')
+        );
+        const removed = jest.fn();
+        const subscription = TestBed.inject(
+            FavoriteChannelMembershipEvents
+        ).changed$.subscribe(removed);
+
+        try {
+            await store.toggleFavorite(42, 'synthetic-source', 'live');
+            expect(removed).not.toHaveBeenCalled();
+            await store.toggleFavorite(42, 'synthetic-source', 'live');
+            expect(removed).toHaveBeenCalledWith({
+                sourceType: 'xtream',
+                playlistId: 'synthetic-source',
+                xtreamId: 42,
+            });
+        } finally {
+            subscription.unsubscribe();
+        }
     });
 
     it.each(['movie', 'series'] as const)(
@@ -267,8 +298,8 @@ describe('withFavorites', () => {
         });
         expect(snackBar.open).toHaveBeenCalledWith(
             'PORTALS.FAVORITE_IDENTITY_CONFLICT',
-            undefined,
-            { duration: 6000 }
+            'CLOSE',
+            ERROR_TOAST
         );
         expect(dataSource.addFavorite).not.toHaveBeenCalled();
         expect(dataSource.removeFavorite).not.toHaveBeenCalled();
@@ -379,9 +410,11 @@ describe('withFavorites', () => {
                 store.toggleFavorite(7, 'playlist-1', 'movie')
             ).resolves.toBe(false);
             expect(store.isFavorite()).toBe(false);
-            expect(snackBar.open).toHaveBeenCalledWith(key, undefined, {
-                duration: 6000,
-            });
+            expect(snackBar.open).toHaveBeenCalledWith(
+                key,
+                'CLOSE',
+                ERROR_TOAST
+            );
         }
     );
 

@@ -168,7 +168,16 @@ test.describe('Electron segmented controls', () => {
             await addCurrentDetailToFavorites(page);
             await goBackFromDetail(page);
 
+            const favoritesLink = page.getByRole('link', {
+                name: 'Global favorites',
+            });
+            const favoritesTooltip = page
+                .locator('.mat-mdc-tooltip-surface')
+                .filter({ hasText: /^Global favorites$/ });
+            await favoritesLink.hover();
+            await expect(favoritesTooltip).toBeVisible();
             await openGlobalFavorites(page);
+            await expect(favoritesTooltip).toBeHidden();
             const header = page
                 .locator('app-unified-collection-page .collection-header')
                 .first();
@@ -191,8 +200,10 @@ test.describe('Electron segmented controls', () => {
             }
             const unchosen =
                 '.mat-button-toggle:not(.mat-button-toggle-checked)';
+            const unchosenContent = contentToggle.locator(unchosen);
+            await expect(unchosenContent).toHaveCount(2);
             await expectUnchosenLegible(page, [
-                contentToggle.locator(unchosen),
+                ...(await unchosenContent.all()),
                 scopeToggle.locator(unchosen),
             ]);
             // A Material group wraps its toggles the same way.

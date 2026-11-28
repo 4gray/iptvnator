@@ -10,10 +10,14 @@ import { By } from '@angular/platform-browser';
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
-import { LiveLayoutSidebarStateService } from '@iptvnator/portal/shared/util';
+import {
+    LiveLayoutSidebarStateService,
+    WorkspaceFavoriteFoldersPanel,
+} from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { WorkspaceShellContextSidebarComponent } from './workspace-shell-context-sidebar.component';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
+import { WorkspaceFavoriteFoldersPanelComponent } from '../../../workspace-context-panel/workspace-favorite-folders-panel.component';
 
 @Directive({
     selector: '[appResizable]',
@@ -108,6 +112,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
                         MockResizableDirective,
                         MockWorkspaceContextPanelComponent,
                         MockWorkspaceCollectionContextPanelComponent,
+                        WorkspaceFavoriteFoldersPanelComponent,
                         MockWorkspaceSettingsContextPanelComponent,
                         MockWorkspaceSourcesFiltersPanelComponent,
                         TranslatePipe,
@@ -175,6 +180,118 @@ describe('WorkspaceShellContextSidebarComponent', () => {
                 'app-workspace-collection-context-panel'
             )
         ).not.toBeNull();
+    });
+
+    it('renders folder counts and valid drag targets and closes the drawer on selection', () => {
+        const onSelect = jest.fn();
+        const onCreate = jest.fn();
+        TestBed.inject(WorkspaceFavoriteFoldersPanel).set({
+            entries: [
+                { id: 'all', name: 'All channels', count: 3 },
+                { id: 'unfiled', name: 'Without folder', count: 3 },
+                { id: 'folder-1', name: 'Example folder', count: 0 },
+            ],
+            selectedId: 'all',
+            dragOriginId: 'unfiled',
+            dragTargetId: 'folder-1',
+            onSelect,
+            onCreate,
+            onCollapse: jest.fn(),
+            onRename: jest.fn(),
+            onRemove: jest.fn(),
+        });
+        fixture.componentRef.setInput('variant', 'favorite-folders');
+        fixture.detectChanges();
+
+        const article = fixture.nativeElement as HTMLElement;
+        const selected = article.querySelector('[aria-pressed="true"]');
+        const origin = article.querySelector(
+            '[data-favorite-folder-target="unfiled"]'
+        );
+        const target = article.querySelector<HTMLButtonElement>(
+            '[data-favorite-folder-target="folder-1"]'
+        );
+
+        expect(selected?.textContent).toContain('All channels');
+        expect(selected?.hasAttribute('data-favorite-folder-target')).toBe(
+            false
+        );
+        expect(origin?.classList.contains('folder-row--drop-ready')).toBe(
+            false
+        );
+        expect(target?.textContent).toContain('0');
+        expect(target?.classList.contains('folder-row--drag-over')).toBe(true);
+
+        target?.click();
+        expect(onSelect).toHaveBeenCalledWith('folder-1');
+        expect(
+            TestBed.inject(WorkspaceShellContextDrawerService).close
+        ).toHaveBeenCalled();
+
+        article
+            .querySelector<HTMLButtonElement>('[data-favorite-folder-create]')
+            ?.click();
+        expect(onCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it('opens the keyboard folder menu only for a named folder and targets its actions by id', async () => {
+        const onRename = jest.fn();
+        const onRemove = jest.fn();
+        const panel = TestBed.inject(WorkspaceFavoriteFoldersPanel);
+        panel.set({
+            entries: [
+                { id: 'all', name: 'All channels', count: 1 },
+                { id: 'unfiled', name: 'Without folder', count: 0 },
+                { id: 'weather', name: 'Weather', count: 1 },
+            ],
+            selectedId: 'all',
+            onSelect: jest.fn(),
+            onCreate: jest.fn(),
+            onCollapse: jest.fn(),
+            onRename,
+            onRemove,
+        });
+        fixture.componentRef.setInput('variant', 'favorite-folders');
+        fixture.detectChanges();
+
+        const article = fixture.nativeElement as HTMLElement;
+        const named = article.querySelector<HTMLButtonElement>(
+            '[data-favorite-folder-row="weather"]'
+        )!;
+        const unfiled = article.querySelector<HTMLButtonElement>(
+            '[data-favorite-folder-row="unfiled"]'
+        )!;
+        function openMenu(row: HTMLButtonElement) {
+            return row.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key: 'F10',
+                    shiftKey: true,
+                    bubbles: true,
+                    cancelable: true,
+                })
+            );
+        }
+        openMenu(unfiled);
+        expect(document.querySelector('[role="menu"]')).toBeNull();
+        expect(openMenu(named)).toBe(false);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const menuItems = Array.from(
+            document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
+        );
+        expect(menuItems).toHaveLength(2);
+        const rename = menuItems.find((item) =>
+            item.textContent?.includes('RENAME_TITLE')
+        );
+        expect(rename).toBeDefined();
+        rename?.click();
+        expect(onRename).toHaveBeenCalledWith('weather');
+        expect(onRemove).not.toHaveBeenCalled();
+
+        panel.clear();
+        fixture.detectChanges();
+        expect(article.querySelector('[data-favorite-folder-row]')).toBeNull();
     });
 
     describe('live sidebar collapse', () => {
@@ -297,7 +414,9 @@ describe('WorkspaceShellContextSidebarComponent', () => {
             // rail itself takes focus.
             expect(panel.focusTarget).toHaveBeenCalledTimes(1);
             expect(document.activeElement).toBe(
-                fixture.nativeElement.querySelector('aside.context-panel--route')
+                fixture.nativeElement.querySelector(
+                    'aside.context-panel--route'
+                )
             );
 
             const control = document.createElement('button');

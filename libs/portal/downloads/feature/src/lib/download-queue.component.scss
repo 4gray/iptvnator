@@ -21,7 +21,7 @@
         margin: 0 0 10px;
         padding: 0 2px;
         color: var(--app-heading-color, var(--mat-sys-on-surface));
-        font-size: 1.125rem;
+        font-size: var(--app-text-xl);
         font-weight: 600;
         letter-spacing: -0.012em;
         line-height: 1.2;
@@ -155,7 +155,7 @@
         background: transparent;
         color: var(--app-heading-color);
         font: inherit;
-        font-size: 0.875rem;
+        font-size: var(--app-text-md);
         font-weight: 600;
         text-align: start;
         text-overflow: ellipsis;
@@ -182,7 +182,7 @@
         min-width: 0;
         color: var(--app-body-color);
         font: inherit;
-        font-size: 0.78rem;
+        font-size: var(--app-text-xs);
     }
 
     &__status {

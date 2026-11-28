@@ -152,7 +152,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.96rem;
+    font-size: var(--app-text-lg);
     font-weight: 600;
     letter-spacing: -0.01em;
     line-height: 1.2;
@@ -184,7 +184,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.82rem;
+    font-size: var(--app-text-sm);
     line-height: 1.2;
     opacity: 0.84;
 }
@@ -211,7 +211,7 @@
 }
 
 .epg-time {
-    font-size: 0.75rem;
+    font-size: var(--app-text-xs);
     line-height: 1;
     opacity: 0.72;
     font-variant-numeric: tabular-nums;
@@ -258,7 +258,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.78rem;
+    font-size: var(--app-text-xs);
     line-height: 1.2;
     // A muted colour, not opacity: dimming the row text dropped it under
     // 4.5:1 on the light list.
@@ -277,6 +277,15 @@
     .channel-list-item.compact & {
         flex-direction: row;
         gap: 2px;
+    }
+
+    .channel-list-item:not(.compact) &.action-buttons--with-menu {
+        display: grid;
+        grid-template-columns: repeat(2, auto);
+
+        .context-menu-button {
+            grid-area: 1 / 2;
+        }
     }
 
     // The kit's 28px square ghost icon buttons, in the row's own colour so
@@ -318,6 +327,36 @@
     .action-buttons button,
     .action-buttons mat-icon {
         color: inherit;
+    }
+}
+
+:host(.stack-actions) .channel-list-item {
+    padding-block: 4px;
+
+    &.compact {
+        height: 66px;
+    }
+
+    .action-buttons--with-menu {
+        display: grid;
+        grid-template-columns: auto auto;
+        gap: 0;
+
+        .favorite-button {
+            grid-area: 1 / 2;
+        }
+
+        .context-menu-button {
+            grid-area: 2 / 2;
+        }
+
+        .program-info-button {
+            grid-area: 1 / 1 / span 2;
+
+            &.slot-empty {
+                display: none;
+            }
+        }
     }
 }
 
@@ -386,7 +425,7 @@
     }
 
     .channel-list-item.compact .channel-logo-shell,
-    .channel-list-item.compact .action-buttons {
+    .channel-list-item.compact .action-buttons:not(.action-buttons--with-menu) {
         display: none;
     }
 

@@ -107,6 +107,21 @@ describe('DatabaseService browser guards', () => {
         ).rejects.toThrow('XTREAM_FAVORITE_IDENTITY_CONFLICT');
     });
 
+    it('reports a failed favorite removal from the Electron bridge', async () => {
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            value: {
+                dbRemoveFavorite: jest
+                    .fn()
+                    .mockResolvedValue({ success: false }),
+            },
+        });
+
+        await expect(
+            service.removeFromFavorites(42, 'playlist-1')
+        ).resolves.toBe(false);
+    });
+
     it('recovers legacy favorites on collection reads without a portal status or catalog request', async () => {
         const pending = {
             favorites: [{ contentType: 'movie', xtreamId: 7 }],

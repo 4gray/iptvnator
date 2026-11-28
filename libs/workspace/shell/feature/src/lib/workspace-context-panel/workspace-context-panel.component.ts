@@ -33,6 +33,7 @@ import {
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
     ParentalLockService,
+    RuntimeCapabilitiesService,
     injectTranslationTick,
 } from '@iptvnator/services';
 import {
@@ -102,6 +103,7 @@ interface WorkspaceCategoryLike {
 })
 export class WorkspaceContextPanelComponent {
     private readonly router = inject(Router);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly stalkerStore = inject(StalkerStore);
     private readonly searchSync = inject(WorkspaceShellSearchSyncService);
@@ -644,9 +646,11 @@ export class WorkspaceContextPanelComponent {
         // one on screen.
         const context = this.context();
         const section = this.section();
-        const unchanged = (): boolean =>
+        const samePlaylist = (): boolean =>
             this.context().playlistId === context.playlistId &&
-            this.context().provider === context.provider &&
+            this.context().provider === context.provider;
+        const unchanged = (): boolean =>
+            samePlaylist() &&
             this.section() === section &&
             this.canManageXtreamCategories();
         const contentType =
@@ -675,9 +679,18 @@ export class WorkspaceContextPanelComponent {
         dialogRef
             .afterClosed()
             .pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe((result) => {
-                if (result) {
-                    this.xtreamStore.reloadCategories();
+            .subscribe(async (result) => {
+                if (!result || !samePlaylist()) return;
+                const lockVersion = this.parentalLock.version();
+                const shouldPublish = () =>
+                    samePlaylist() &&
+                    this.parentalLock.version() === lockVersion;
+                await this.xtreamStore.reloadCategories(shouldPublish);
+                if (
+                    !this.runtime.supportsXtreamSqliteDataSource &&
+                    shouldPublish()
+                ) {
+                    await this.xtreamStore.reloadCachedContent(shouldPublish);
                 }
             });
     }

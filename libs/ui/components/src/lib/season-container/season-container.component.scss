@@ -28,7 +28,7 @@
     max-width: 72ch;
     margin: 4px 0 24px;
     padding-left: 52px;
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     line-height: 1.55;
     color: var(--text-secondary);
 }

@@ -15,6 +15,7 @@ import {
     focusIfFocusLost,
     LiveLayoutSidebarStateService,
     PortalRailSection,
+    WorkspaceFavoriteFoldersPanel,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
@@ -24,6 +25,7 @@ import {
 } from '@iptvnator/workspace/shell/util';
 import { WorkspaceCollectionContextPanelComponent } from '../../../workspace-context-panel/workspace-collection-context-panel.component';
 import { WorkspaceContextPanelComponent } from '../../../workspace-context-panel/workspace-context-panel.component';
+import { WorkspaceFavoriteFoldersPanelComponent } from '../../../workspace-context-panel/workspace-favorite-folders-panel.component';
 import { WorkspaceSettingsContextPanelComponent } from '../../../workspace-context-panel/workspace-settings-context-panel.component';
 import { WorkspaceSourcesFiltersPanelComponent } from '../../../workspace-sources-filters-panel/workspace-sources-filters-panel.component';
 
@@ -41,6 +43,7 @@ const LIVE_SECTIONS: ReadonlySet<PortalRailSection> = new Set([
         TranslatePipe,
         WorkspaceCollectionContextPanelComponent,
         WorkspaceContextPanelComponent,
+        WorkspaceFavoriteFoldersPanelComponent,
         WorkspaceSettingsContextPanelComponent,
         WorkspaceSourcesFiltersPanelComponent,
     ],
@@ -56,9 +59,13 @@ export class WorkspaceShellContextSidebarComponent {
     // Root-provided; optional keeps standalone unit tests light. Only relevant
     // when the sidebar renders as the phone drawer — the close button that
     // calls this is CSS-hidden above the phone breakpoint.
-    private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
-        optional: true,
-    });
+    private readonly contextDrawer = inject(
+        WorkspaceShellContextDrawerService,
+        {
+            optional: true,
+        }
+    );
+    readonly favoriteFolders = inject(WorkspaceFavoriteFoldersPanel).state;
 
     readonly variant = input.required<WorkspaceShellContextPanel>();
     readonly context = input<WorkspacePortalContext | null>(null);
@@ -86,11 +93,12 @@ export class WorkspaceShellContextSidebarComponent {
     // collapse level already (`categories-hidden`). The live layouts render
     // the way back (channels header or all-items header) in every state
     // except a blocked Xtream portal, which keeps the rail visible.
-    readonly isContextPanelCollapsed = computed(
-        () =>
-            this.isLiveCategoryRoute() &&
-            !this.isLiveContentBlocked() &&
-            this.liveSidebarStateService.areCategoriesHiddenFor('portal')()
+    readonly isContextPanelCollapsed = computed(() =>
+        this.variant() === 'favorite-folders'
+            ? this.liveSidebarStateService.isCollapsedFor('favorite-folders')()
+            : this.isLiveCategoryRoute() &&
+              !this.isLiveContentBlocked() &&
+              this.liveSidebarStateService.areCategoriesHiddenFor('portal')()
     );
     /**
      * A folded rail is only 0px wide; its search, sort and category buttons
@@ -99,8 +107,7 @@ export class WorkspaceShellContextSidebarComponent {
      * whose stylesheet ignores the folded state.
      */
     readonly isContextPanelInert = computed(
-        () =>
-            this.isContextPanelCollapsed() && !this.contextDrawer?.isOpen()
+        () => this.isContextPanelCollapsed() && !this.contextDrawer?.isOpen()
     );
 
     // By template ref, not class token, so a spec's stand-in panel is found
@@ -130,7 +137,7 @@ export class WorkspaceShellContextSidebarComponent {
             const collapsed = this.isContextPanelCollapsed();
             const unfolded = wasCollapsed === true && !collapsed;
             wasCollapsed = collapsed;
-            if (unfolded) {
+            if (unfolded && this.variant() === 'category') {
                 queueMicrotask(() =>
                     focusIfFocusLost(
                         this.contextPanel()?.focusTarget() ??

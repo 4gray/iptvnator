@@ -29,6 +29,11 @@ import type {
 } from '@iptvnator/shared/interfaces/favorites-sync';
 import { sourceProfileStorageKey } from './source-profile-storage';
 
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
+
 jest.mock('./source-api', () => ({ requestSourceServer: jest.fn() }));
 jest.mock('./source-connection', () => ({
     ...jest.requireActual('./source-connection'),
@@ -73,7 +78,7 @@ describe('source synchronization lifecycle', () => {
         revision = '"inventory-1"';
         cleanup = jest.fn();
         finish = jest.fn();
-        notify = jest.fn();
+        notify = jest.fn().mockResolvedValue(null);
         fetchPlaylistDefinition = jest.fn();
         persistReceipt = jest.fn(async (_key: string, value: string) => {
             receipt = value;
@@ -740,9 +745,11 @@ describe('source synchronization lifecycle', () => {
             })
         ).rejects.toThrow('SOURCE_SYNC.CONFLICT');
         expect(service.state()).toBe('conflict');
-        expect(notify).toHaveBeenCalledWith('SOURCE_SYNC.CONFLICT', 'CLOSE', {
-            duration: 7000,
-        });
+        expect(notify).toHaveBeenCalledWith(
+            'SOURCE_SYNC.CONFLICT',
+            'CLOSE',
+            ERROR_TOAST
+        );
         expect(rows.get('a')?.title).toBe('NAS source');
     });
     it('publishes accepted metadata even when its saved revision makes the next inventory projection unnecessary', async () => {

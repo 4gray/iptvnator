@@ -1,3 +1,5 @@
+import type { PersonalScope } from '../profiles/profile-scope';
+
 /** Portable collection membership, scoped to one verified shared source. */
 export type FavoriteReference =
     | { provider: 'm3u'; version: 1; urlHash: string }
@@ -21,7 +23,8 @@ export interface FavoriteSnapshot {
 }
 export interface FavoriteAddress {
     instanceId: string;
-    scope: 'shared';
+    /** Whose favorites: `'shared'` (the Default profile) or `profile:<id>`. */
+    scope: PersonalScope;
     sourceId: string;
     sourceIncarnation: string;
     content: FavoriteReference;

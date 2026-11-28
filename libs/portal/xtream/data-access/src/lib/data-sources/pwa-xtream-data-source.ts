@@ -12,6 +12,7 @@ import {
     XtreamSerieItem,
     XtreamVodStream,
 } from '@iptvnator/shared/interfaces';
+import { xtreamCategoryVisibilityKey } from '@iptvnator/shared/interfaces/xtream-category-visibility';
 import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import {
     CategoryType,
@@ -22,6 +23,7 @@ import {
 import {
     ParentalLockService,
     PlaylistsService,
+    readPwaXtreamVisibility,
     USER_DATA_STORAGE,
 } from '@iptvnator/services';
 import { firstValueFrom } from 'rxjs';
@@ -169,6 +171,9 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         this.collectionStorage.clearFavoritesForPlaylist(playlistId);
         this.collectionStorage.clearRecentItemsForPlaylist(playlistId);
         clearPlaylistPlaybackPositions(this.userDataStorage, playlistId);
+        this.userDataStorage.removeItem(
+            xtreamCategoryVisibilityKey(playlistId)
+        );
 
         // Clear cache
         this.clearCacheForPlaylist(playlistId);
@@ -335,11 +340,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         // Check in-memory cache first
         const cachedCategories = this.categoryCache.get(cacheKey);
         if (cachedCategories) {
-            return this.withoutLockedCategories(
-                playlistId,
-                type,
-                cachedCategories
-            );
+            return this.visibleCatalogRows(playlistId, type, cachedCategories);
         }
 
         // Fetch from API
@@ -354,7 +355,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         // Cache in memory
         this.categoryCache.set(cacheKey, categories);
 
-        return this.withoutLockedCategories(playlistId, type, categories);
+        return this.visibleCatalogRows(playlistId, type, categories);
     }
 
     /**
@@ -372,51 +373,52 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         if (this.parentalLock.withholdsEverything?.()) {
             return ALL_CATEGORIES_WITHHELD;
         }
-        const dbType =
-            type === 'vod' || type === 'movie'
-                ? 'movies'
-                : type === 'series'
-                  ? 'series'
-                  : 'live';
         return new Set(
             this.parentalLock
-                .lockedXtreamIds(playlistId, dbType)
+                .lockedXtreamIds(playlistId, dbCategoryType(type))
                 .map((id) => String(id))
         );
     }
 
-    private withoutLockedCategories(
+    private hiddenCategoryIds(
         playlistId: string,
-        type: CategoryType,
-        categories: XtreamCategory[]
-    ): XtreamCategory[] {
-        const withheld = this.withheldCategoryIds(playlistId, type);
-        return withheld.size === 0
-            ? categories
-            : categories.filter(
-                  (category) =>
-                      !withheld.has(canonicalCategoryId(category.category_id))
-              );
+        type: DbCategoryType
+    ): Set<string> {
+        try {
+            const hidden =
+                readPwaXtreamVisibility(this.userDataStorage, playlistId) ?? [];
+            return new Set(
+                hidden
+                    .filter((row) => row.categoryType === type)
+                    .map((row) => String(row.xtreamId))
+            );
+        } catch {
+            // Browsing is still available with storage blocked. The editor
+            // refuses to overwrite an unreadable preference on Save.
+            return new Set();
+        }
     }
 
-    private withoutLockedContent<T extends { category_id?: string | number }>(
+    private visibleCatalogRows<T extends { category_id?: string | number }>(
         playlistId: string,
-        type: StreamType,
-        items: T[]
+        type: CategoryType | StreamType,
+        items: T[],
+        excludeHidden = true
     ): T[] {
-        const withheld = this.withheldCategoryIds(playlistId, type);
-        return withheld.size === 0
-            ? items
-            : items.filter(
-                  (item) => !withheld.has(canonicalCategoryId(item.category_id))
-              );
+        const locked = this.withheldCategoryIds(playlistId, type);
+        const hidden = excludeHidden
+            ? this.hiddenCategoryIds(playlistId, dbCategoryType(type))
+            : undefined;
+        if (locked.size === 0 && !hidden?.size) return items;
+        return items.filter((item) => {
+            const id = canonicalCategoryId(item.category_id);
+            return !locked.has(id) && !hidden?.has(id);
+        });
     }
 
     /**
-     * The raw category list in the SQLite wire shape, locked ones included:
-     * the lock editor's candidates. Hidden/shown is not tracked in the PWA,
-     * so every row reports `hidden: false`. Reads the session cache and
-     * falls back to the API with the stored credentials on a cold session.
+     * Editor candidates include hidden and locked categories. Generic
+     * catalog reads apply visibility to the raw session cache.
      */
     async getAllCategories(
         playlistId: string,
@@ -444,10 +446,14 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         const locked = new Set(
             this.parentalLock.lockedXtreamIds(playlistId, type)
         );
+        const hidden = this.hiddenCategoryIds(playlistId, type);
         const rows: XtreamCategoryFromDb[] = [];
         for (const category of categories) {
             const xtreamId = Number(category.category_id);
-            if (!Number.isFinite(xtreamId)) {
+            if (
+                !canonicalCategoryId(category.category_id) ||
+                !Number.isFinite(xtreamId)
+            ) {
                 continue;
             }
             rows.push({
@@ -456,7 +462,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                 playlist_id: playlistId,
                 type,
                 xtream_id: xtreamId,
-                hidden: false,
+                hidden: hidden.has(String(xtreamId)),
                 locked: locked.has(xtreamId),
             });
         }
@@ -502,11 +508,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         // Check in-memory cache first
         const cachedContent = this.contentCache.get(cacheKey);
         if (cachedContent) {
-            return this.withoutLockedContent(
-                playlistId,
-                type,
-                cachedContent
-            ) as XtreamLiveStream[] | XtreamVodStream[] | XtreamSerieItem[];
+            return this.visibleCatalogRows(playlistId, type, cachedContent) as
+                XtreamLiveStream[] | XtreamVodStream[] | XtreamSerieItem[];
         }
 
         // Fetch from API
@@ -541,7 +544,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         // Cache in memory
         this.contentCache.set(cacheKey, content);
 
-        return this.withoutLockedContent(playlistId, type, content);
+        return this.visibleCatalogRows(playlistId, type, content);
     }
 
     async getCachedContent(
@@ -576,7 +579,6 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         types: string[],
         excludeHidden?: boolean
     ): Promise<XtreamContentItem[]> {
-        void excludeHidden;
         const results: XtreamCachedContentItem[] = [];
         const searchLower = foldSearchText(searchTerm);
 
@@ -584,10 +586,11 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             const cacheKey = `${playlistId}-${type}-content`;
             // Same lock boundary as the catalog read: a search must not
             // surface rows the category list withholds.
-            const content = this.withoutLockedContent(
+            const content = this.visibleCatalogRows(
                 playlistId,
                 type as StreamType,
-                this.contentCache.get(cacheKey) || []
+                this.contentCache.get(cacheKey) || [],
+                excludeHidden
             );
 
             const filtered = content.filter((item) => {
@@ -608,16 +611,21 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
     async getFavorites(
         playlistId: string,
-        hydrate = true
+        hydrate = true,
+        strict = false
     ): Promise<XtreamContentItem[]> {
-        await this.userDataRead();
+        const ready = await this.userDataRead();
+        if (strict && !ready) {
+            throw new Error('Favorite membership is unavailable');
+        }
         if (hydrate)
             await this.getCollectionItemsWithHydration(
                 playlistId,
-                this.collectionStorage.getFavoritesFromStorage()[playlistId] ||
-                    []
+                this.collectionStorage.getFavoritesFromStorage(strict)[
+                    playlistId
+                ] || []
             );
-        return this.collectionStorage.getLocalFavorites(playlistId);
+        return this.collectionStorage.getLocalFavorites(playlistId, strict);
     }
 
     async addFavorite(
@@ -1071,8 +1079,12 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                               ? item.type
                               : 'movie');
                       return (
-                          this.withoutLockedContent(playlistId, kind, [item])
-                              .length > 0
+                          this.visibleCatalogRows(
+                              playlistId,
+                              kind,
+                              [item],
+                              false
+                          ).length > 0
                       );
                   }
                 : undefined
@@ -1172,6 +1184,10 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         });
         contentKeysToDelete.forEach((key) => this.contentCache.delete(key));
     }
+}
+
+function dbCategoryType(type: CategoryType | StreamType): DbCategoryType {
+    return type === 'vod' || type === 'movie' ? 'movies' : type;
 }
 
 /**

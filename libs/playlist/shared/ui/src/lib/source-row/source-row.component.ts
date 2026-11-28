@@ -18,7 +18,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { normalizeDateLocale } from '@iptvnator/pipes';
@@ -73,7 +73,7 @@ export class SourceRowComponent {
     private readonly translate = inject(TranslateService);
     private readonly languageTick = injectTranslationTick();
     private readonly clipboard = inject(Clipboard);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly notifications = inject(NotificationService);
     private readonly menuTrigger = viewChild(MatMenuTrigger);
 
     readonly playlist = input.required<PlaylistMeta>();
@@ -202,11 +202,7 @@ export class SourceRowComponent {
     copyUrlToClipboard(): void {
         const url = this.copyUrl();
         if (url && this.clipboard.copy(url)) {
-            this.snackBar.open(
-                this.translate.instant('HOME.PLAYLISTS.INFO_DIALOG.URL_COPIED'),
-                undefined,
-                { duration: 2000 }
-            );
+            this.notifications.success('HOME.PLAYLISTS.INFO_DIALOG.URL_COPIED');
         }
     }
 

@@ -11,7 +11,7 @@
     flex: 0 0 auto;
     color: var(--pc-text);
     font-family: var(--pc-font-mono);
-    font-size: 14px;
+    font-size: var(--app-text-md);
     font-weight: 500;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
@@ -139,7 +139,7 @@
     color: var(--pc-text);
     background: var(--pc-glass-bg-dense);
     border-radius: 6px;
-    font-size: 11.5px;
+    font-size: var(--app-text-xs);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
@@ -169,7 +169,7 @@
     gap: 6px;
     min-width: 0;
     color: var(--pc-text-dim);
-    font-size: 0.72rem;
+    font-size: var(--app-text-xs);
     font-variant-numeric: tabular-nums;
 }
 
@@ -205,7 +205,7 @@
     border-radius: 4px;
     color: #ffffff;
     background: var(--pc-live);
-    font-size: 0.66rem;
+    font-size: var(--app-text-2xs);
     font-weight: 700;
     letter-spacing: 0.08em;
 }
@@ -265,7 +265,7 @@
     }
 
     .player-controls__time {
-        font-size: 13px;
+        font-size: var(--app-text-sm);
     }
 
     .player-controls__timeline-track {

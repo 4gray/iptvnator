@@ -226,7 +226,7 @@ for (const engine of [
                         );
                         const liveColor = await record.evaluate((element) =>
                             getComputedStyle(element)
-                                .getPropertyValue('--app-live-color')
+                                .getPropertyValue('--app-status-live')
                                 .trim()
                         );
                         await expect(record.locator('mat-icon')).toHaveCSS(

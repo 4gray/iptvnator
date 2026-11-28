@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import {
     selectAllPlaylistsMeta,
     selectIsEpgAvailable,
@@ -15,8 +15,13 @@ import { SettingsSnackbarService } from './settings-snackbar.service';
 import {
     BACKUP_EXPORT_RESULT,
     createElectronStub,
-    MatSnackBarStub,
+    LazySnackBarStub,
 } from './test-stubs/settings-test-harness.stub';
+
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
 
 describe('SettingsBackupFacade', () => {
     let facade: SettingsBackupFacade;
@@ -31,7 +36,7 @@ describe('SettingsBackupFacade', () => {
             providers: [
                 SettingsBackupFacade,
                 SettingsSnackbarService,
-                { provide: MatSnackBar, useClass: MatSnackBarStub },
+                { provide: LazySnackBar, useClass: LazySnackBarStub },
                 MockProvider(PlaylistBackupService, {
                     exportBackup: jest
                         .fn()
@@ -71,7 +76,7 @@ describe('SettingsBackupFacade', () => {
             expect(facade.supportsExport).toBe(false);
             const notice = jest.spyOn(
                 TestBed.inject(SettingsSnackbarService),
-                'open'
+                'success'
             );
             await facade.exportData(noWait);
             expect(playlistBackupService.exportBackup).not.toHaveBeenCalled();
@@ -148,7 +153,7 @@ describe('SettingsBackupFacade', () => {
         expect(facade.isBusy()).toBe(false);
         expect(window.electron.writeFile).not.toHaveBeenCalled();
         expect(
-            (TestBed.inject(MatSnackBar) as unknown as MatSnackBarStub).open
+            (TestBed.inject(LazySnackBar) as unknown as LazySnackBarStub).open
         ).not.toHaveBeenCalled();
         create.mockRestore();
     });
@@ -204,8 +209,8 @@ describe('SettingsBackupFacade', () => {
         );
         jest.spyOn(console, 'error').mockImplementation();
         const snackBar = TestBed.inject(
-            MatSnackBar
-        ) as unknown as MatSnackBarStub;
+            LazySnackBar
+        ) as unknown as LazySnackBarStub;
 
         await facade.exportData(noWait);
 
@@ -213,10 +218,7 @@ describe('SettingsBackupFacade', () => {
         expect(snackBar.open).toHaveBeenCalledWith(
             'SETTINGS.BACKUP_EXPORT_FAILED',
             'CLOSE',
-            expect.objectContaining({
-                duration: 10000,
-                panelClass: ['settings-snackbar', 'settings-snackbar--error'],
-            })
+            ERROR_TOAST
         );
     });
 
@@ -388,8 +390,8 @@ describe('SettingsBackupFacade', () => {
             )?.[1] as (event: Event) => Promise<void>;
             await change({ target: input } as unknown as Event);
             const snack = TestBed.inject(
-                MatSnackBar
-            ) as unknown as MatSnackBarStub;
+                LazySnackBar
+            ) as unknown as LazySnackBarStub;
             expect(JSON.stringify(snack.open.mock.calls)).not.toContain(
                 'private-fixture-value'
             );

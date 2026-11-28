@@ -24,9 +24,11 @@ export class ParentalLockStaleIndex {
     }
 
     /** Stale and retryable (a failed stamp or rollback). */
-    mark(playlistId: string): void {
-        this.inFlight.delete(playlistId);
-        this.playlists.add(playlistId);
+    mark(...playlistIds: string[]): void {
+        for (const playlistId of playlistIds) {
+            this.inFlight.delete(playlistId);
+            this.playlists.add(playlistId);
+        }
         this.count.set(this.playlists.size);
     }
 

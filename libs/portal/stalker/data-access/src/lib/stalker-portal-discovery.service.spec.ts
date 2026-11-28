@@ -665,4 +665,207 @@ describe('StalkerPortalDiscoveryService', () => {
             jest.useRealTimers();
         }
     });
+
+    describe('portal page reached through redirects', () => {
+        // The host redirects every path to its root, and the root redirects
+        // to the HTML portal page on another node. The transport reports that
+        // page as a marker carrying the address the redirects ended on.
+        const PAGE = {
+            resolve: {
+                stalkerPortalPage:
+                    'http://node.example.invalid/stalker_portal/c/',
+            },
+        };
+
+        it('probes the API beside the portal page and resolves it', async () => {
+            mockProbes({
+                'http://entry.example.invalid/portal.php': PAGE,
+                'http://entry.example.invalid/server/load.php': PAGE,
+                'http://entry.example.invalid/stalker_portal/server/load.php':
+                    PAGE,
+                'http://node.example.invalid/stalker_portal/server/load.php': {
+                    resolve: { stalkerAuthFailure: 'Authorization failed.' },
+                },
+            });
+            authenticate.mockResolvedValue({ token: 'TOKEN-PAGE' });
+
+            const outcome = await service.discover(
+                'http://entry.example.invalid/c/',
+                MAC
+            );
+
+            expect(outcome).toMatchObject({
+                status: 'resolved',
+                portalUrl:
+                    'http://node.example.invalid/stalker_portal/server/load.php',
+                isFullStalkerPortal: true,
+                token: 'TOKEN-PAGE',
+            });
+            // The entered address keeps priority; the derived endpoint is
+            // probed only after every original candidate.
+            expect(
+                probeCalls().map(
+                    ([, payload]) => (payload as { url: string }).url
+                )
+            ).toEqual([
+                'http://entry.example.invalid/portal.php',
+                'http://entry.example.invalid/server/load.php',
+                'http://entry.example.invalid/stalker_portal/server/load.php',
+                'http://node.example.invalid/stalker_portal/server/load.php',
+            ]);
+            expect(authenticate).toHaveBeenCalledWith(
+                'http://node.example.invalid/stalker_portal/server/load.php',
+                MAC,
+                {},
+                expect.anything()
+            );
+        });
+
+        it('keeps the entered candidates first when one of them answers', async () => {
+            mockProbes({
+                'http://entry.example.invalid/portal.php': PAGE,
+                'http://entry.example.invalid/server/load.php': {
+                    resolve: { js: [{ id: '1', title: 'News' }] },
+                },
+            });
+
+            const outcome = await service.discover(
+                'http://entry.example.invalid',
+                MAC
+            );
+
+            expect(outcome).toEqual({
+                status: 'resolved',
+                portalUrl: 'http://entry.example.invalid/server/load.php',
+                isFullStalkerPortal: false,
+            });
+            expect(probeCalls()).toHaveLength(2);
+        });
+
+        it('tries the learned endpoint after an entered candidate fails to connect', async () => {
+            mockProbes({
+                'http://entry.example.invalid/portal.php': PAGE,
+                'http://entry.example.invalid/server/load.php': {
+                    reject: new Error('connect ECONNREFUSED'),
+                },
+                'http://entry.example.invalid/stalker_portal/server/load.php':
+                    PAGE,
+                'http://node.example.invalid/stalker_portal/server/load.php': {
+                    resolve: { js: [] },
+                },
+            });
+
+            expect(
+                await service.discover('http://entry.example.invalid/c', MAC)
+            ).toEqual({
+                status: 'resolved',
+                portalUrl:
+                    'http://node.example.invalid/stalker_portal/server/load.php',
+                isFullStalkerPortal: false,
+            });
+            expect(probeCalls()).toHaveLength(4);
+        });
+
+        it.each([
+            [
+                'a different host when login credentials are configured',
+                'https://node.example.invalid',
+                { username: 'test-user', password: 'test-password' },
+            ],
+            [
+                'an HTTPS-to-HTTP downgrade',
+                'http://entry.example.invalid',
+                undefined,
+            ],
+        ])(
+            'does not probe %s',
+            async (_scenario, landingOrigin, credentials) => {
+                const page = {
+                    resolve: {
+                        stalkerPortalPage: `${landingOrigin}/stalker_portal/c/`,
+                    },
+                };
+                mockProbes({
+                    'https://entry.example.invalid/portal.php': page,
+                    'https://entry.example.invalid/server/load.php': page,
+                    'https://entry.example.invalid/stalker_portal/server/load.php':
+                        page,
+                    [`${landingOrigin}/stalker_portal/server/load.php`]: {
+                        resolve: {
+                            stalkerAuthFailure: 'Authorization failed.',
+                        },
+                    },
+                });
+                authenticate.mockResolvedValue({ token: 'TOKEN-PAGE' });
+
+                expect(
+                    await service.discover(
+                        'https://entry.example.invalid/c',
+                        MAC,
+                        {},
+                        { credentials }
+                    )
+                ).toEqual({ status: 'unreachable' });
+                expect(probeCalls()).toHaveLength(3);
+                expect(authenticate).not.toHaveBeenCalled();
+            }
+        );
+
+        it('derives candidates from one portal page only', async () => {
+            // Every derived candidate lands on yet another portal page; that
+            // must not start another round of derivation.
+            const OTHER_PAGE = {
+                resolve: {
+                    stalkerPortalPage: 'http://other.example.invalid/c/',
+                },
+            };
+            mockProbes({
+                'http://entry.example.invalid/server/load.php': PAGE,
+                'http://entry.example.invalid/portal.php': PAGE,
+                'http://entry.example.invalid/stalker_portal/server/load.php':
+                    PAGE,
+                'http://node.example.invalid/stalker_portal/server/load.php':
+                    OTHER_PAGE,
+                'http://node.example.invalid/stalker_portal/portal.php':
+                    OTHER_PAGE,
+            });
+
+            const outcome = await service.discover(
+                'http://entry.example.invalid/server/load.php',
+                MAC
+            );
+
+            expect(outcome).toEqual({ status: 'unreachable' });
+            expect(
+                probeCalls().map(
+                    ([, payload]) => (payload as { url: string }).url
+                )
+            ).toEqual([
+                'http://entry.example.invalid/server/load.php',
+                'http://entry.example.invalid/portal.php',
+                'http://entry.example.invalid/stalker_portal/server/load.php',
+                'http://node.example.invalid/stalker_portal/server/load.php',
+                'http://node.example.invalid/stalker_portal/portal.php',
+            ]);
+            expect(authenticate).not.toHaveBeenCalled();
+        });
+
+        it('treats plain HTML without a portal page address as before', async () => {
+            const HTML = { resolve: '<html><body>Welcome</body></html>' };
+            mockProbes({
+                'http://entry.example.invalid/portal.php': HTML,
+                'http://entry.example.invalid/server/load.php': HTML,
+                'http://entry.example.invalid/stalker_portal/server/load.php':
+                    HTML,
+            });
+
+            const outcome = await service.discover(
+                'http://entry.example.invalid/c',
+                MAC
+            );
+
+            expect(outcome).toEqual({ status: 'unreachable' });
+            expect(probeCalls()).toHaveLength(3);
+        });
+    });
 });

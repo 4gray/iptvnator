@@ -16,6 +16,7 @@ import {
     saveSettings,
     test,
 } from './electron-test-fixtures';
+import { chooseSecondStreamSource } from './second-stream-source-picker';
 import {
     getEmbeddedMpvSupport,
     getLatestSession,
@@ -252,9 +253,7 @@ test('@playback @electron four frame-copy views retain their sessions through gr
         };
         const choose = async (slot: number, name = title(slot)) => {
             const dialog = picker(slot);
-            await dialog
-                .getByLabel('Playlist', { exact: true })
-                .selectOption({ label: 'synthetic-grid' });
+            await chooseSecondStreamSource(dialog, 'synthetic-grid');
             await dialog
                 .getByTestId('channel-item')
                 .filter({

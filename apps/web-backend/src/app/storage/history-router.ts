@@ -8,6 +8,7 @@ import { SqliteHistoryServerStore } from '@iptvnator/shared/database/history-syn
 import { ServerFavoriteService } from './favorites-service';
 import type { ServerStorage } from './server-storage';
 import { StorageRequestError } from './storage-route-errors';
+import { requireProfileScope, scopeQuery } from './profile-scope-guard';
 export function createHistoryRouter(storage: ServerStorage): Router {
     const router = Router();
     const sources = new ServerFavoriteService(storage);
@@ -18,6 +19,7 @@ export function createHistoryRouter(storage: ServerStorage): Router {
     const states = new SqliteHistoryServerStore(
         storage.database.sqlite,
         (address) => {
+            requireProfileScope(storage, address.personalScope);
             const current = scope(address.sourceId);
             if (
                 current.instanceId !== address.instanceId ||
@@ -42,7 +44,11 @@ export function createHistoryRouter(storage: ServerStorage): Router {
         next();
     });
     router.get('/history/sources/:id', (req, res) => {
-        const address = scope(req.params.id);
+        const personalScope = scopeQuery(storage, req);
+        const address: HistoryScope = {
+            ...scope(req.params.id),
+            ...(personalScope === 'shared' ? {} : { personalScope }),
+        };
         res.json({ scope: address, state: states.read(address) });
     });
     router.use('/history', express.json({ limit: 64 * 1024 }));

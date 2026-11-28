@@ -17,12 +17,13 @@ export interface StalkerPlaylistConnectionResolved {
 
 export interface StalkerPlaylistConnectionAuthRejected {
     status: typeof STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.AUTH_REJECTED;
-    message: string;
+    /** Translation key; the portal's own text is never shown. */
+    messageKey: string;
 }
 
 export interface StalkerPlaylistConnectionUnreachable {
     status: typeof STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.UNREACHABLE;
-    message: string;
+    messageKey: string;
 }
 
 interface StalkerPlaylistConnectionResultMap {

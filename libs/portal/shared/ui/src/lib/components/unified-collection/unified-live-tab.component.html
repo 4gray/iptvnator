@@ -1,6 +1,7 @@
 <div
     class="sidebar"
     [class.sidebar-collapsed]="isSidebarCollapsed()"
+    [attr.inert]="isSidebarCollapsed() ? '' : null"
     [class.sidebar--reloading]="reloading()"
     appResizable
     [minWidth]="250"
@@ -8,8 +9,10 @@
     [defaultWidth]="360"
     storageKey="unified-live-tab-sidebar-width"
 >
+    <ng-content select="[unifiedLiveHeader]" />
     <app-global-favorites-list
         [channels]="channelsForList()"
+        [folderView]="folderView()"
         [mode]="mode()"
         [showEpg]="epgVisibility.any"
         [favoriteUids]="favoriteUids()"

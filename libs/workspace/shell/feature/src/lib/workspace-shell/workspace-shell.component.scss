@@ -181,11 +181,11 @@ app-workspace-shell-context-sidebar {
         background: var(--app-expiry-warn-surface);
         border-bottom: 1px solid var(--app-separator);
         color: var(--app-heading-color);
-        font-size: 0.88rem;
+        font-size: var(--app-text-md);
 
         mat-icon {
             flex-shrink: 0;
-            color: var(--app-expiry-warn-text);
+            color: var(--app-status-expiry);
         }
 
         .server-banner__text {
@@ -247,7 +247,7 @@ app-workspace-shell-context-sidebar {
         inset: 0;
         // Paired with the drawer's 951: above the settings action bar (100)
         // and the root EPG/update panels (900/901), below CDK overlays.
-        z-index: 950;
+        z-index: var(--app-z-drawer);
         background: rgba(0, 0, 0, 0.4);
     }
 

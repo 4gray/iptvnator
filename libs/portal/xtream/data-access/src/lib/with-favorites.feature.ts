@@ -1,5 +1,6 @@
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
-import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
+import { NotificationService } from '@iptvnator/services/notifications';
+import { FavoriteChannelMembershipEvents } from '@iptvnator/services/favorites-events';
 import { DestroyRef, inject } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import {
@@ -37,10 +38,11 @@ export const withFavorites = function () {
                 store,
                 dataSource = inject(XTREAM_DATA_SOURCE),
                 runtime = inject(RuntimeCapabilitiesService),
-                // The store exists from startup: a static MatSnackBar import
-                // would put Material's snack-bar and button on the initial path.
-                snackBar = inject(LazySnackBar),
-                translate = inject(TranslateService)
+                // The store exists from startup; NotificationService loads the
+                // snack-bar chunk on the first toast, not at startup.
+                notifications = inject(NotificationService),
+                translate = inject(TranslateService),
+                favoriteMembership = inject(FavoriteChannelMembershipEvents)
             ) => {
                 const sqlite = () => runtime.supportsXtreamSqliteDataSource;
                 let request = 0;
@@ -137,12 +139,8 @@ export const withFavorites = function () {
                                       )
                                     : null;
                             if (candidate && activeTarget === targetKey) {
-                                void snackBar.open(
-                                    translate.instant(
-                                        'PORTALS.FAVORITE_IDENTITY_CONFLICT'
-                                    ),
-                                    undefined,
-                                    { duration: 6000 }
+                                notifications.error(
+                                    'PORTALS.FAVORITE_IDENTITY_CONFLICT'
                                 );
                             }
                             logger.error(
@@ -158,17 +156,24 @@ export const withFavorites = function () {
                         );
                         let nextStatus = !currentStatus;
                         try {
-                            if (currentStatus)
+                            if (currentStatus) {
                                 await dataSource.removeFavorite(
                                     target,
                                     playlistId
                                 );
-                            else
+                            } else {
                                 await dataSource.addFavorite(
                                     target,
                                     playlistId,
                                     backdropUrl
                                 );
+                            }
+                            if (contentType === 'live')
+                                favoriteMembership.notify({
+                                    sourceType: 'xtream',
+                                    playlistId,
+                                    xtreamId: normalizedXtreamId,
+                                });
                         } catch (error) {
                             nextStatus = currentStatus;
                             if (activeTarget === targetKey) {
@@ -178,11 +183,7 @@ export const withFavorites = function () {
                                         XTREAM_FAVORITE_IDENTITY_CONFLICT
                                         ? 'PORTALS.FAVORITE_IDENTITY_CONFLICT'
                                         : 'PORTALS.FAVORITE_SAVE_FAILED';
-                                void snackBar.open(
-                                    translate.instant(key),
-                                    undefined,
-                                    { duration: 6000 }
-                                );
+                                notifications.error(key);
                             }
                         }
                         if (activeTarget === targetKey)

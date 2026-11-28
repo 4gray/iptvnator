@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
+import { NotificationService } from '@iptvnator/services/notifications';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -32,6 +33,11 @@ import {
 } from '@iptvnator/shared/logging';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PlaylistRefreshActionService } from './playlist-refresh-action.service';
+
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
 
 const performanceHookSymbol = Symbol.for(RENDERER_PERFORMANCE_PHASE_HOOK_KEY);
 
@@ -173,7 +179,7 @@ describe('PlaylistRefreshActionService', () => {
             navigate: jest.fn().mockResolvedValue(true),
         };
         snackBar = {
-            open: jest.fn(() => ({
+            open: jest.fn(async () => ({
                 onAction: () => of(undefined),
             })),
         };
@@ -226,7 +232,7 @@ describe('PlaylistRefreshActionService', () => {
                     },
                 },
                 {
-                    provide: MatSnackBar,
+                    provide: LazySnackBar,
                     useValue: snackBar,
                 },
                 {
@@ -414,7 +420,7 @@ describe('PlaylistRefreshActionService', () => {
             expect(snackBar.open).toHaveBeenCalledWith(
                 'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_NOT_FOUND',
                 'CLOSE',
-                { duration: 5000 }
+                ERROR_TOAST
             );
         });
 
@@ -449,7 +455,7 @@ describe('PlaylistRefreshActionService', () => {
             expect(snackBar.open).toHaveBeenCalledWith(
                 'HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR',
                 'CLOSE',
-                { duration: 5000 }
+                ERROR_TOAST
             );
             expect(service.isSourceBusy('m3u-source')).toBe(false);
         });
@@ -565,14 +571,21 @@ describe('PlaylistRefreshActionService', () => {
             )
         );
 
+        const error = jest.spyOn(TestBed.inject(NotificationService), 'error');
+
         service.refresh(playlist);
         await Promise.resolve();
         await Promise.resolve();
 
-        expect(snackBar.open).toHaveBeenCalledWith(
+        expect(error).toHaveBeenCalledWith(
             'HOME.URL_UPLOAD.ERROR_INVALID_TLS',
-            'HOME.URL_UPLOAD.TRUST_TLS_HOST',
-            { duration: 10000 }
+            undefined,
+            {
+                action: {
+                    labelKey: 'HOME.URL_UPLOAD.TRUST_TLS_HOST',
+                    run: expect.any(Function),
+                },
+            }
         );
         expect(store.dispatch).toHaveBeenCalledWith(
             ChannelActions.setChannelsLoading({ loading: true })
@@ -937,7 +950,7 @@ describe('PlaylistRefreshActionService', () => {
         expect(snackBar.open).toHaveBeenCalledWith(
             'HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR',
             'CLOSE',
-            { duration: 5000 }
+            ERROR_TOAST
         );
     });
 

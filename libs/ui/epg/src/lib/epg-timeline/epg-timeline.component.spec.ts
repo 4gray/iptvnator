@@ -466,6 +466,156 @@ describe('EpgTimelineComponent across midnight', () => {
         jest.useRealTimers();
     });
 
+    it('synchronizes the cached clock before focusing a new channel after midnight', () => {
+        jest.useFakeTimers({
+            now: new Date(2026, 5, 28, 23, 59, 50).getTime(),
+        });
+        TestBed.configureTestingModule({
+            imports: [EpgTimelineComponent],
+            providers: [
+                { provide: MatDialog, useValue: { open: jest.fn() } },
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
+                        onDefaultLangChange: new Subject(),
+                        get: (key: string) => of(key),
+                    },
+                },
+            ],
+        });
+        const fixture = TestBed.createComponent(EpgTimelineComponent);
+        fixture.componentRef.setInput('programs', [
+            programAt(-20, 60, 'Channel before midnight'),
+        ]);
+        fixture.detectChanges();
+        const timeline = fixture.componentInstance;
+        const staleClock = timeline.nowMs();
+
+        // setSystemTime changes the wall clock without running the 30-second
+        // timer: selecting another channel must not use yesterday's cache.
+        jest.setSystemTime(new Date(2026, 5, 29, 0, 0, 5).getTime());
+        expect(timeline.nowMs()).toBe(staleClock);
+        fixture.componentRef.setInput('programs', [
+            programAt(-20, 60, 'Another live channel'),
+        ]);
+        fixture.detectChanges();
+
+        expect(timeline.nowMs()).toBe(Date.now());
+        expect(timeline.viewDayKey()).toBe('2026-06-29');
+        expect(timeline.isViewToday()).toBe(true);
+    });
+    it('recovers the live ribbon on a new-day channel even when no scroller exists', () => {
+        jest.useFakeTimers({
+            now: new Date(2026, 5, 28, 23, 59, 50).getTime(),
+        });
+        TestBed.configureTestingModule({
+            imports: [EpgTimelineComponent],
+            providers: [
+                { provide: MatDialog, useValue: { open: jest.fn() } },
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
+                        onDefaultLangChange: new Subject(),
+                        get: (key: string) => of(key),
+                    },
+                },
+            ],
+        });
+        const fixture = TestBed.createComponent(EpgTimelineComponent);
+        fixture.componentRef.setInput('programs', [
+            programAt(-20, 60, 'Previous-day channel'),
+        ]);
+        fixture.detectChanges();
+        const timeline = fixture.componentInstance;
+        expect(timeline.viewDayKey()).toBe('2026-06-28');
+        expect(timeline.renderState()).toBe('ribbon');
+
+        jest.setSystemTime(new Date(2026, 5, 29, 0, 0, 5).getTime());
+        expect(timeline.nowMs()).not.toBe(Date.now());
+        fixture.componentRef.setInput('programs', [
+            programAt(0, 60, 'New-day channel'),
+        ]);
+        fixture.detectChanges();
+        fixture.detectChanges();
+
+        expect(timeline.nowMs()).toBe(Date.now());
+        expect(timeline.viewDayKey()).toBe('2026-06-29');
+        expect(timeline.renderState()).toBe('ribbon');
+        expect(
+            fixture.nativeElement.querySelector('.epg-timeline__ribbon')
+        ).not.toBeNull();
+    });
+
+    it('uses a fresh clock for the explicit Now button just after midnight', () => {
+        jest.useFakeTimers({
+            now: new Date(2026, 5, 28, 23, 59, 50).getTime(),
+        });
+        TestBed.configureTestingModule({
+            imports: [EpgTimelineComponent],
+            providers: [
+                { provide: MatDialog, useValue: { open: jest.fn() } },
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
+                        onDefaultLangChange: new Subject(),
+                        get: (key: string) => of(key),
+                    },
+                },
+            ],
+        });
+        const fixture = TestBed.createComponent(EpgTimelineComponent);
+        fixture.componentRef.setInput('programs', [
+            programAt(-20, 60, 'Live across midnight'),
+        ]);
+        fixture.detectChanges();
+        const timeline = fixture.componentInstance;
+        const ribbon = fixture.nativeElement.querySelector(
+            '.epg-timeline__ribbon'
+        ) as HTMLElement;
+        expect(ribbon).not.toBeNull();
+        Object.defineProperty(ribbon, 'clientWidth', { value: 500 });
+        const scrollTo = jest.fn();
+        Object.defineProperty(ribbon, 'scrollTo', { value: scrollTo });
+        jest.advanceTimersByTime(40);
+        scrollTo.mockClear();
+        ribbon.scrollLeft = 900;
+
+        jest.setSystemTime(new Date(2026, 5, 29, 0, 0, 5).getTime());
+        expect(timeline.nowMs()).not.toBe(Date.now());
+        timeline.jumpToNow();
+
+        expect(timeline.nowMs()).toBe(Date.now());
+        expect(timeline.viewDayKey()).toBe('2026-06-29');
+        const live = timeline.blocks().find((block) => block.when === 'now');
+        expect(live).toBeDefined();
+        const midpoint =
+            ((live as TimelineBlock).startMs +
+                (live as TimelineBlock).stopMs) /
+            2;
+        const expectedLeft = Math.max(
+            0,
+            ((midpoint - timeline.axis().startMs) / TIMELINE_MINUTE_MS) *
+                timeline.scale() -
+                ribbon.clientWidth / 2
+        );
+        jest.advanceTimersByTime(40);
+        expect(scrollTo).toHaveBeenCalledWith({
+            left: expectedLeft,
+            behavior: 'smooth',
+        });
+    });
     it('moves and recentres the ribbon when the clock crosses midnight', () => {
         jest.useFakeTimers({
             now: new Date(2026, 5, 28, 23, 59, 45).getTime(),

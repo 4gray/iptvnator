@@ -328,7 +328,7 @@ describe('source server settings', () => {
             component.urlControl.setValue('https://library.example/api');
             const advanced: HTMLInputElement =
                 fixture.nativeElement.querySelector(
-                    '.android-connection-options input[type="url"]'
+                    '.server-disclosure input[type="url"]'
                 );
             advanced.value = 'https://approval.example';
             advanced.dispatchEvent(new Event('input'));

@@ -23,20 +23,33 @@ using its result as evidence. Docker validation can use
 
 ## Fast validation before expensive PR checks
 
-CI runs workflow lint, the PR release-note gate, affected lint and entry-point
-typechecks first. `Fast validation` requires those checks to pass (the note
-gate is intentionally skipped on master/manual runs). Unit validation, the
-production byte-budget build and performance journeys depend on that gate.
-PR E2E runs through `ci.yml` after fast validation and the byte-budget check,
-using `e2e-tests.yaml` as a reusable workflow. The full matrix is unchanged;
-master pushes and manual E2E dispatches still run directly. Caller/callee
-concurrency groups differ so the reusable workflow cannot cancel its caller.
+CI runs `Fast gates` (the PR release-note gate, workflow lint, and journey/E2E
+merge-diff scope detection in one dependency-free runner) in parallel with
+`Lint` (affected lint and entry-point typechecks). Unit validation, the
+production byte-budget build, performance journeys, and PR E2E depend directly
+on both jobs succeeding without queuing an intermediate fan-in runner.
+PR E2E runs through `ci.yml` using `e2e-tests.yaml` as a reusable workflow.
+`tools/packaging/pr-e2e-scope.mjs` skips E2E for docs/website-only and
+unit-test-only PRs (outside `apps/*-e2e/`), scopes pure
+renderer/UI/library PRs to Ubuntu Electron E2E and sharded Web Chromium E2E,
+while PRs touching Electron main, SQLite/database, `web-backend`, desktop
+window/chrome shell, shortcut, or capability adapters (or diffs referencing
+OS-specific desktop branches), native/embedded-mpv, root build/lockfile
+configs, E2E workflows/fixtures, or carrying the `cross-platform-e2e` label run
+the full Ubuntu/macOS/Windows matrix and Windows hosted-server smoke. Master
+pushes and manual E2E dispatches always run the full cross-platform matrix.
+Caller/callee concurrency groups differ so the reusable workflow cannot cancel
+its caller.
 
 Packaging stays independent to protect rolling draft publication from CI
 cancellation. Selected packaging PRs run affected lint and entry-point
 typechecks before their matrix; selection and manual packaging are documented
-in [Release pipeline](release-pipeline.md#rolling-test-drafts). CodeQL and Docker
-retain their independent triggers.
+in [Release pipeline](release-pipeline.md#rolling-test-drafts). CodeQL retains
+its independent trigger (skipping docs/i18n-only paths), and Docker PR builds
+trigger on Docker, `web-backend` (including its `libs/shared/**`,
+`libs/tv/util/**`, and `apps/tv-setup/**` inputs), dependency, and build-script
+changes while `master` and tag pushes always build and publish multi-arch
+images.
 
 ## Unit And Type Checks
 
@@ -223,9 +236,13 @@ silently exempted.
 Jest's transform cache is kept in `JEST_CACHE_DIRECTORY` and persisted with
 `actions/cache`: pull requests restore it, while only master pushes (starting
 from an empty cache, so it holds exactly the current tree) and maintainer
-dispatches save it. A shared Nx task cache is not used: Nx indexes its local
-cache in a machine-specific database, so a restored cache folder is never hit,
-and sharing it safely needs Nx Cloud or another supported remote cache.
+dispatches save it. After a green master run, a separate `prune-jest-cache` job
+(with `actions: write`, no checkout, never run on pull requests) keeps the two
+newest `jest-transform-*` snapshots on `refs/heads/master` and deletes older
+ones so the repository stays under GitHub's 10 GB cache eviction threshold. A
+shared Nx task cache is not used: Nx indexes its local cache in a
+machine-specific database, so a restored cache folder is never hit, and sharing
+it safely needs Nx Cloud or another supported remote cache.
 `coverage:merge` requires every configured Tier A report before replacing the
 merged output. Strict health validation also requires the merged Istanbul map
 itself to contain usable instrumentation for every runtime-owning Tier A file,
@@ -315,9 +332,11 @@ The Windows hosted server job runs the dedicated Electron target. It checks
 that the server's instance ID matches the one in its dedicated SQLite database
 after restarting the desktop with an active source profile.
 
-The Web E2E CI job runs Chromium with `--workers=2`; retry and timeout
-settings remain defined by the Playwright configuration. This override applies
-only to the Web E2E workflow step.
+The Web E2E CI job runs Chromium across three Ubuntu shards (`--workers=2`,
+`--shard=<n>/3`), with `web-e2e:pwa-updates` running once on shard 1 and
+uploaded as a separate artifact so `Web E2E summary` merges only the three
+sharded `results.json` reports; retry and timeout settings remain defined by
+the Playwright configuration.
 
 On pull requests, the CI Lint job summarizes which E2E suites project-level
 Nx affected selects for the PR merge diff. Use the preview to check that the
@@ -363,8 +382,11 @@ pnpm run coverage:e2e:summary
 ```
 
 The `electron-backend-e2e:e2e` target owns its `electron-backend:build-e2e`
-dependency, including renderer and remote-control assets. CI calls that target
-without a separate production build before each shard.
+dependency, including renderer and remote-control assets. In CI, a single
+`Build Electron E2E bundle` job builds those platform-independent assets once
+and uploads them as an artifact (`electron-e2e-build`) so every Electron E2E
+shard downloads `dist/` and runs Playwright directly without rebuilding ten
+Nx targets per shard.
 Each Electron E2E runner, including the Windows hosted-server smoke job,
 prepares the pinned Electron binary before building or launching the app.
 The helper verifies the binary version and uses the GitHub release asset API
@@ -372,8 +394,12 @@ as a checksum-verified fallback when the direct download fails. Linux also
 checks for `xvfb-run` and missing shared libraries before starting Playwright.
 
 CI runs the Electron suite as Playwright shards (`--shard=<n>/<total>`, split
-by spec file because the suite is sequential): three shards on Ubuntu, four
-on Windows, and two on macOS, whose runners are the scarcest and queued longest.
+by spec file because the suite is sequential): three shards on Ubuntu, three
+on macOS, and four on Windows.
+On pull requests that do not touch desktop/backend/native/build inputs (and do
+not carry the `cross-platform-e2e` label), CI runs only the three Ubuntu shards
+and summarizes Ubuntu; cross-platform PRs, `master` pushes, and default manual
+dispatches run and summarize all three operating systems.
 Windows uses the additional shard to keep slower runners within the existing
 30-minute job limit, including setup; each shard still uses one worker and
 the same tests, assertions, and retry policy. Each

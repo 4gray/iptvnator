@@ -1,4 +1,8 @@
-import { DragDropModule } from '@angular/cdk/drag-drop';
+import {
+    CdkDragMove,
+    CdkDragRelease,
+    DragDropModule,
+} from '@angular/cdk/drag-drop';
 import { DatePipe, NgStyle } from '@angular/common';
 import {
     ChangeDetectionStrategy,
@@ -11,6 +15,7 @@ import {
     signal,
 } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
+import { MatCheckbox } from '@angular/material/checkbox';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -29,6 +34,7 @@ import { favoriteIcon } from '../../app-icons/app-icons';
         DatePipe,
         DragDropModule,
         MatIcon,
+        MatCheckbox,
         MatIconButton,
         MatTooltip,
         NgStyle,
@@ -42,6 +48,12 @@ export class ChannelListItemComponent {
     readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
 
     readonly isDraggable = input(false);
+    readonly selectionChecked = input<boolean | null>(null);
+    readonly selectionChanged = output<void>();
+    readonly dragStarted = output<void>();
+    readonly dragMoved = output<CdkDragMove>();
+    readonly dragReleased = output<CdkDragRelease>();
+    readonly dragEnded = output<void>();
     readonly logo = input<string | null | undefined>('');
     readonly name = input('');
     readonly disabled = input(false);
@@ -57,6 +69,7 @@ export class ChannelListItemComponent {
     readonly showAuxActionButton = input(false);
     readonly showProgramInfoButton = input(true);
     readonly showDetailsContextMenu = input(false);
+    readonly showContextMenuButton = input(false);
     readonly isFavorite = input(false);
     readonly favoriteToggleIcon = computed(() =>
         favoriteIcon(this.isFavorite())
@@ -150,7 +163,7 @@ export class ChannelListItemComponent {
     }
 
     onContextMenu(event: MouseEvent): void {
-        if (!this.showDetailsContextMenu()) {
+        if (!this.showDetailsContextMenu() && !this.showContextMenuButton()) {
             return;
         }
 

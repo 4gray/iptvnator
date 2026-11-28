@@ -20,7 +20,7 @@
         ),
         rgba(8, 10, 16, 0.68);
     backdrop-filter: blur(14px);
-    z-index: 1000;
+    z-index: var(--app-z-overlay);
 }
 
 .workspace-loading-overlay__card {
@@ -91,7 +91,7 @@
     border: 1px solid var(--app-separator);
     background: var(--app-hover-overlay);
     color: var(--sync-secondary);
-    font-size: 0.72rem;
+    font-size: var(--app-text-xs);
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;

@@ -102,7 +102,7 @@
     overflow: hidden;
 
     b {
-        font-size: 13px;
+        font-size: var(--app-text-sm);
         font-weight: 600;
         display: block;
         white-space: nowrap;
@@ -112,7 +112,7 @@
 
     .epg-timeline__source {
         display: block;
-        font-size: 11px;
+        font-size: var(--app-text-2xs);
         color: $text-tertiary;
         white-space: nowrap;
         overflow: hidden;
@@ -124,7 +124,7 @@
         display: flex;
         align-items: center;
         gap: 4px;
-        font-size: 11.5px;
+        font-size: var(--app-text-xs);
         color: $text-secondary;
         white-space: nowrap;
         overflow: hidden;
@@ -156,7 +156,7 @@
     border: 1px solid rgba(255, 91, 110, 0.32);
     color: $live-text;
     font: inherit;
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     font-weight: 600;
     cursor: pointer;
     flex: 0 0 auto;
@@ -224,14 +224,14 @@
     gap: 5px;
     min-width: 96px;
     padding: 0 6px;
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     font-weight: 500;
     line-height: 1;
     white-space: nowrap;
     color: var(--app-heading-color);
 
     small {
-        font-size: 11px;
+        font-size: var(--app-text-2xs);
         font-weight: 400;
         color: $text-tertiary;
     }
@@ -242,7 +242,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     font-weight: 600;
     white-space: nowrap;
     /* gives way (with an ellipsis) only after the programme title */
@@ -277,7 +277,7 @@
 }
 
 .epg-timeline__summary-title {
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     font-weight: 600;
     color: $text-primary;
     white-space: nowrap;
@@ -308,7 +308,7 @@
 }
 
 .epg-timeline__summary-meta {
-    font-size: 11px;
+    font-size: var(--app-text-2xs);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
     color: $text-tertiary;

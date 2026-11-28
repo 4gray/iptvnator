@@ -1,0 +1,64 @@
+<form (ngSubmit)="submit()" novalidate>
+    <app-dialog-shell
+        icon="lock"
+        [heading]="data.titleKey | translate: data.titleParams"
+        [subtitle]="data.descriptionKey | translate: data.titleParams"
+        [showClose]="!busy()"
+    >
+        <div class="profile-pin-dialog__content">
+            <mat-form-field
+                appearance="outline"
+                subscriptSizing="dynamic"
+                class="profile-pin-dialog__field"
+            >
+                <mat-label>{{
+                    'PROFILES.PIN_DIALOG.PIN_LABEL' | translate
+                }}</mat-label>
+                <input
+                    #pinInput
+                    matInput
+                    type="password"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    name="pin"
+                    data-test-id="profile-pin-input"
+                    [attr.maxlength]="maxLength"
+                    [disabled]="busy() || locked()"
+                    [ngModel]="pin()"
+                    (ngModelChange)="onPinInput($event)"
+                />
+                <mat-hint>{{
+                    'PROFILES.PIN_DIALOG.PIN_HINT'
+                        | translate: { min: minLength, max: maxLength }
+                }}</mat-hint>
+            </mat-form-field>
+            @if (message(); as text) {
+                <p
+                    class="profile-pin-dialog__error"
+                    role="alert"
+                    data-test-id="profile-pin-error"
+                >
+                    {{ text.key | translate: text.params }}
+                </p>
+            }
+        </div>
+        <div appDialogFooter>
+            <button
+                mat-button
+                type="button"
+                (click)="cancel()"
+                [disabled]="busy()"
+            >
+                {{ 'CANCEL' | translate }}
+            </button>
+            <button
+                mat-flat-button
+                type="submit"
+                data-test-id="profile-pin-submit"
+                [disabled]="busy() || locked()"
+            >
+                {{ data.submitKey | translate }}
+            </button>
+        </div>
+    </app-dialog-shell>
+</form>

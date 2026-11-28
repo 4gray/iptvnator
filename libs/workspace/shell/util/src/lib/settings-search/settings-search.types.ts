@@ -20,7 +20,9 @@ export type SettingsSearchRequirement =
     | 'embedded-mpv'
     | 'embedded-mpv-frame-copy'
     /** The PWA runs against self-hosted server storage. */
-    | 'server-storage';
+    | 'server-storage'
+    /** Household profiles: the UI switch is on, a server is connected and it supports them. */
+    | 'profiles';
 
 export type SettingsSearchCapabilities = Readonly<
     Record<SettingsSearchRequirement, boolean>

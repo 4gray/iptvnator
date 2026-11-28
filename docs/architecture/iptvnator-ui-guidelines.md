@@ -143,7 +143,7 @@ in `apps/web/src/m3-theme.scss`):
 - `--app-widget-border` / `--app-rail-border` — hairlines
 - `--app-on-surface` — primary text
 - `--app-eyebrow-color` — secondary/muted text
-- `--app-success-color` — done/watched status (episode watched toggle)
+- `--app-status-*` — status hues (see Scales)
 - `--app-list-selected-bg` / `--app-list-selected-fg` /
   `--app-list-selected-outline` — the chosen row of a side list and the
   active source's row on Sources and in the switcher (see Selection Pattern)
@@ -207,16 +207,17 @@ in the overlay chunk. Everything else is lazy by these rules:
   and the workspace shell actions do; `openConfirmDialog` returns a promise
   that settles once the dialog is open. A component in a lazy chunk injects
   `MatDialog` directly.
-- **Toasts from services created with the app.** A root service or the app
-  shell opens its snack-bars through `LazySnackBar`
-  (`@iptvnator/services/lazy-snack-bar`), whose `open` takes
-  `MatSnackBar.open`'s arguments and returns a promise of the ref, or of
-  `null` after a failed chunk load, which it logs without the message (a
-  toast can carry a playlist URL). `snack-bar.mjs` statically imports
-  Material's button, the icon button chunk, ripple and the CDK a11y module,
-  so one eager `MatSnackBar` injection put about 110 KB on the initial
-  path. A component in a lazy chunk injects `MatSnackBar` directly; the
-  initial-bytes ratchet fails on a new eager importer.
+- **Toasts.** Every toast goes through `NotificationService`
+  (`@iptvnator/services/notifications`), which any root service or lazy
+  component may inject. It resolves the snack-bar through `LazySnackBar`
+  (`@iptvnator/services/lazy-snack-bar`) on the first toast:
+  `snack-bar.mjs` statically imports Material's button, the icon button
+  chunk, ripple and the CDK a11y module, so one eager `MatSnackBar`
+  injection put about 110 KB on the initial path. A failed chunk load is
+  logged without the message. `pnpm run ui:notifications:validate` (CI)
+  reports a `MatSnackBar` or `LazySnackBar` import, or a snack-bar `open`,
+  outside the service; the initial-bytes ratchet fails on a new eager
+  importer.
 - **Panels the shell mounts on every launch.** The EPG progress panel and the
   update notification are an eager host with `@defer (when visible)` around
   the view that imports Material; the startup status draws its spinner as
@@ -445,6 +446,9 @@ The detail shell owns vertical scrolling and follows the app's overscroll
 policy so dragging past the content cannot expose a gap beneath the workspace
 header in standalone apps.
 
+Cast and crew cards share a fixed width. Names and roles wrap in full, with
+breaks inside words only when a word is too wide for the card.
+
 The pieces are shared and provider-neutral (`libs/ui/components/src/lib/detail-ui/`):
 `app-meta-chip` (pill; `rating` and `status` variants; facets as projected
 `.meta-chip__facet` buttons), `app-detail-action-button` (the light primary
@@ -515,6 +519,10 @@ legacy aliases map onto it) but have different limits. `ResizableDirective`
 renders the stored width clamped to the host's own limits and never writes
 that clamped value back: only a drag that changes the width persists, so a
 narrow sidebar such as Settings cannot shrink the width a wider one saved.
+
+In Global Favorites Live TV, the folder and channel rails have separate
+width preferences. A narrower viewport caps the rendered widths without
+changing the saved values.
 
 A drag starts from the host's computed CSS `width`, the box that `style.width`
 sizes, not from `offsetWidth`. Hosts may be `content-box` (the workspace
@@ -841,10 +849,12 @@ remain local when the meaning is explicit.
        its category title into a dropdown that opens the same rail as a
        popover, so switching categories stays one click away.
     3. `collapsed` — player + EPG only ("theater").
-- There is deliberately no "channels hidden, categories visible" state: a
-  category click has to bring the channels back anyway. Surfaces without a
-  categories rail (M3U, the unified-collection live tab) treat level 2 like
-  level 1. The live ROOT (no selected category: Xtream `/live` "All Items",
+- In portals, a category click brings the channels back. M3U and the
+  unified-collection's channel rail treat level 2 like level 1. Global
+  Favorites saves the folder rail under its own sidebar state key so the
+  user can fold it independently of the channel rail. It uses the same
+  header chevrons and focus handoff. The live ROOT (no selected category:
+  Xtream `/live` "All Items",
   Stalker's all-items grid or its select-a-category placeholder) folds at level
   2 like any category, so the rail's hide chevron is offered there too. With no
   channels header to host the way back, each root view renders its own
@@ -1090,7 +1100,7 @@ colour per context, and never a literal of its own:
   gets `PLAYER_PROGRESS_COLOR` (`player-palette.ts`), which a spec pins to the
   Sass value.
 - Live programme progress next to a LIVE marker (the dashboard's live rail and
-  live hero slides) keeps `--app-live-color`; EPG programme progress keeps the
+  live hero slides) keeps `--app-status-live`; EPG programme progress keeps the
   fill described below.
 
 Specs hold the rule in each owning project: `m3-theme.spec.ts` (web: the token
@@ -1350,10 +1360,15 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   and rows stack under 600px of pane width. Keep `data-setting-id` on every row: settings search and the
   command palette reveal rows by it, and the registry spec checks the index
   against the templates.
+- No page adds its own `<h1>` or page header. Form-heavy pages
+  (Connectivity) use the same rows: fields stack full width in a
+  `.setting-item--full-control` row with a `.setting-item__control--stack`
+  column, button rows use `.inline-actions`, and status lines sit in a
+  `.setting-item__sub` under the row they report on.
 - Controls: `.settings-select` is a 220px outlined select without a floating
   label (the row title names it; pass `aria-labelledby`); boolean settings
-  are `mat-slide-toggle` switches; segmented choices use `.theme-switcher`
-  as a pill; `.settings-chip` marks rows that apply after a restart or are
+  are `mat-slide-toggle` switches; segmented choices use `.theme-switcher`,
+  the kit's segmented track built from `segmented-track` and `segment`; `.settings-chip` marks rows that apply after a restart or are
   experimental; `.settings-callout` (`--info`, `--warn`) sits under the row
   it explains inside `.setting-item__sub` and only while that choice is made.
 - Destructive actions keep the confirm dialog from the Dialogs section; the
@@ -1572,18 +1587,31 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   action (`accent-button(sm)`), a secondary beside it (`secondary-button(sm)`
   on a `mat-flat-button`), never an outlined button. The update card's
   release notes and download/install buttons are the reference.
-- **Toasts.** Every `mat-snack-bar` takes the same look from one global rule
-  in `styles.scss`: the widget surface with the hairline and shadow on a
-  10px panel, 13px text in the heading colour, the action as accent text
-  without a ripple. Toasts sit at Material's default bottom centre; a caller
-  may add a panel class for spacing (`settings-snackbar` clears the save
-  bar) or the error tint (`settings-snackbar--error`), never a position of
-  its own. A failure the import panel already reports (a source's error row
+- **Toasts.** `NotificationService` has three variants, each a
+  translation key with optional values: `success` (2.5 s), `info` (5 s)
+  and `error` (5 s with Close; with an action such as Retry or Trust host it
+  stays until dismissed, and a lazily loaded component toast puts a Close
+  button beside the action, since a text snack-bar has room for one). A caller may pick another preset (`short`,
+  `default`, `sticky`) but never a position: every toast sits at the bottom
+  centre, and Settings lifts it above the save bar (`aboveSaveBar`). Errors
+  are assertive (`role="alert"`), the rest polite (`role="status"`).
+  Material skips the enter and exit animations under reduced motion
+  (`material-motion.e2e.ts`). The look comes from one global rule in
+  `styles.scss`: the widget surface with the hairline and shadow on a 10px
+  panel, 13px text in the heading colour, the action as accent text without
+  a ripple; `app-notification--success` tints the hairline with
+  `--app-status-success`, `app-notification--error` takes a danger-tinted
+  surface and hairline with the action in `--app-danger-text`. An error
+  never shows a provider's or an exception's text: the key names the
+  failure, values carry only names, counts and dates, and the `code` option
+  appends a bounded machine code such as `(ETIMEDOUT)`. A toast whose body
+  is a component (the source removal's Undo) opens through
+  `fromComponent`. No toast reports a non-event (the EPG being up to
+  date). A failure the import panel already reports (a source's error row
   with Retry) gets no toast; `EpgService` toasts only when the bridge call
   itself fails, a programme lookup errors, or the runtime imports without
   reporting progress (`supportsProgress` false: no row can carry the
-  failure), always with the translated generic message, never the
-  backend's text.
+  failure), always with the translated generic message.
 
 ## Forms
 
@@ -1610,9 +1638,21 @@ current value where there is one; when the visible label is only the value,
 the accessible name adds what it picks ("Channels shown: Favorites"). An
 active picker (refinements applied) takes the selected-row tint. A panel
 header's icon actions use `ghost-icon-button`, as the category panel's
-search and sort do. In a row of filter chips (the VOD sources popover) the
+search and sort do; the channel lists' headers (All channels, the groups
+rail and its channel header) take it through `list-header-action` in
+`_channel-list-layout.scss`, at the categories header's 28px, and the
+favorites and recent page header at 32px beside its segmented toggles. In a row of filter chips (the VOD sources popover) the
 picker is a chip with the same chevron, so the row keeps one height; the
 language filter there opens a radio menu instead of a native `<select>`.
+
+`pnpm run ui:kit-controls:validate` (CI) holds these roles in every runtime
+template: no raised, tonal or fab button, an outlined one only with
+`app-destructive-button` (both spellings: `mat-stroked-button` and
+`matButton="outlined"`, `mat-fab` and `matFab`), no `color` on a Material element (the mixins set
+the look, not an M3 palette role), no native `<select>`, and no `mat-select`
+outside a `mat-form-field`. A file that keeps a finding is listed in
+`ALLOWED` in `tools/nx/check-kit-controls.mjs` with its reason; an entry that
+no longer matches fails too.
 
 A single choice among a few options shown side by side is the kit's
 segmented control: a 1px-bordered track with 2px padding and a 10px radius,
@@ -1623,8 +1663,9 @@ toggles, the list/grid switch, the playlist switcher's type filter);
 `segmented-track` and `segment` build it from plain buttons that are tabs
 (the season tabs). In a header row use 26px segments, so the control is
 32px tall like a small button. Unchosen labels use the body colour; the
-muted colour reads about 2.9:1 on the track. The settings theme switcher is
-still a pill switcher of its own.
+muted colour reads about 2.9:1 on the track. The settings rows' segmented
+choices (cover size, guide layout) are the same track built from plain
+buttons.
 
 Custom button-based radio choices use `appRadioGroup` and
 `[appRadioOption]="selected"` from the narrow
@@ -1924,6 +1965,60 @@ then apply the shared 14px/500 normal and 600 selected roles. Category
 consumers must not reset these with a later `font: inherit` shorthand. Different
 content rows retain their own typography and density.
 
+## Scales
+
+`libs/ui/styles/_scales.scss` owns the web app's type, spacing, radius,
+elevation and z-index scales. `custom-properties` emits them once on `html`
+from `apps/web/src/styles.scss`; components read the custom properties and
+never redeclare them. The TV app has its own scale (`apps/tv/src/tokens.css`)
+and shares nothing with this one.
+
+| Scale | Tokens | Values |
+| --- | --- | --- |
+| Type (rem) | `--app-text-2xs` … `--app-text-2xl` | 11, 12, 13, 14, 15, 18, 22px; 11px is the floor |
+| Display | `--app-text-display-sm/md/lg` | 28, 36, 48px |
+| Spacing | `--app-space-0-5` … `--app-space-12` | 4px base (`1` = 4px) plus 2, 6, 10px |
+| Radius | `--app-radius-2xs` … `--app-radius-4xl`, `--app-radius-full` | 2, 4, 6, 8, 10, 12, 14, 16, 20, 999px |
+| Elevation | `--app-elev-1` … `--app-elev-5` | media marks, card hover, menus, select/floating panels, sheets |
+| Z layers | `--app-z-floating/drawer/overlay/popover/drop-target/window-controls` | 900, 950, 1000, 1200, 9999, 10000 |
+
+- Type roles are mixins (`caption`, `label`, `body`, `title`,
+  `section-title`, `heading`, `display`, `mono`); they set size and weight,
+  and line height only when asked, so adopting one does not move a row.
+- `--app-z-overlay` equals the CDK overlay container (1000): an in-page
+  overlay ties with dialogs and menus and loses on DOM order. Only the hover
+  popover, the window drop target and the frameless window controls sit
+  above the CDK. Stacking inside a component keeps small local values.
+- Rings and inset hairlines are borders, not elevation. The theme-tuned
+  `--app-widget-shadow` and `--app-popover-shadow` stay with the palettes.
+- Material shapes read the scale: dialogs `--app-radius-3xl`, menus, selects,
+  form fields and toasts `--app-radius-lg`, menu items and options
+  `--app-radius-sm`; the select and kit menu panels use `--app-elev-4`.
+- Status hues: `--app-status-success`, `-warning`, `-danger`, `-info`,
+  `-live` and `-expiry`, text-grade (4.5:1) on the mode's surfaces and on a
+  10–16% tint of themselves. `status-light` and `status-dark` declare them;
+  the palettes include the pair for their mode, so every preset (High
+  Contrast included) inherits them, and an always-dark surface over video
+  (the playback diagnostic panel) declares the `status-dark` values itself.
+  `--app-danger-text` reads `--app-status-danger`. A status tint is
+  `color-mix(in srgb, var(--app-status-…) <n>%, transparent)`.
+- Text sizes read `--app-text-*`. A size between two steps takes the nearer
+  one, and a tie rounds up (12.5px is `sm`, 13.5px is `md`). Sizes with no
+  step (16px, 20px, `clamp()` heroes), `em` sizes and icon glyph sizes stay
+  literal; the ratchet counts them. Sass size parameters (the kit's size map,
+  `standard-panel-title`, the dashboard rail geometry) pass tokens too; a
+  line box computed from one is a `calc()`.
+- 11px is a hard floor: no literal `font-size`, nor the size in a `font`
+  shorthand, may be below it. Dense labels (badges, kbd hints, EPG ticks) use
+  `--app-text-2xs` and stay small through weight, case and colour.
+- `pnpm run styles:scales:validate` fails on text below the floor, and counts
+  the distinct literal font sizes, radii, z-index values and box-shadows
+  outside the token files, failing if any count grows;
+  `tools/nx/style-scales-baseline.json` only moves down
+  (`pnpm run styles:scales:update` after removing literals).
+- A separate app that renders `libs/ui` components declares the scales in its
+  own global stylesheet (`apps/remote-control-web/src/styles.scss`).
+
 ## Theme Guidance
 
 The built-in catalog and theme-value normalization live in
@@ -2098,8 +2193,11 @@ in `@iptvnator/playlist/shared/util` (`source-display`, `source-format`,
 - **Delete with Undo.** A single delete has no confirmation: the row leaves
   every list at once (`SourceRemovalService.pendingIds`) and the delete runs
   when the four-second Undo window ends. The window is the service's own
-  timer, not the toast's: another message replacing the toast (a refresh
-  finishing elsewhere) does not shorten it. The toast's close button commits
+  timer, not the toast's: it starts once the Undo toast is on screen, and
+  another message replacing the toast (a refresh finishing elsewhere) does
+  not shorten it. If the toast cannot open (its chunk failed to load), the
+  source stays, and a second delete commits the first only once its Undo
+  was on screen (otherwise the first is cancelled). The toast's close button commits
   at once, and quitting within the four seconds keeps the source. Deleting the active source
   switches to the next row; Undo switches back only if no other source was
   chosen since. A desktop Xtream delete brings its row back as "Removing…"

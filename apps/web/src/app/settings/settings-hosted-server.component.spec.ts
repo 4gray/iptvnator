@@ -163,9 +163,9 @@ describe('hosted server settings', () => {
 
     it('selects a server mode from the cards', () => {
         const picker = root.querySelector('[data-test-id="hosted-access-method"]')!;
-        const cards = picker.querySelectorAll<HTMLInputElement>('input[type="radio"]');
+        const cards = picker.querySelectorAll<HTMLButtonElement>('[role="radio"]');
         expect(cards).toHaveLength(3);
-        expect(cards[0].checked).toBe(true);
+        expect(cards[0].getAttribute('aria-checked')).toBe('true');
         cards[2].click();
         fixture.detectChanges();
         expect(component.mode()).toBe('cloudflare');

@@ -8,7 +8,7 @@ import {
     CategoryEditorComponent,
     CategoryEditorRow,
 } from '@iptvnator/portal/shared/ui';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TranslateModule } from '@ngx-translate/core';
 import { ParentalLockService, PlaylistsService } from '@iptvnator/services';
 import {
@@ -21,7 +21,7 @@ describe('StalkerCategoryLockDialogComponent', () => {
     let component: StalkerCategoryLockDialogComponent;
     let editor: CategoryEditorComponent<CategoryEditorRow>;
     const dispatch = jest.fn();
-    const snackBar = { open: jest.fn() };
+    const snackBar = { open: jest.fn().mockResolvedValue(null) };
     const playlists = { updateStalkerCategoryVisibility: jest.fn() };
     const dialogRef = { close: jest.fn() };
     const parentalLock = {
@@ -57,7 +57,7 @@ describe('StalkerCategoryLockDialogComponent', () => {
                 { provide: MatDialogRef, useValue: dialogRef },
                 { provide: MAT_DIALOG_DATA, useValue: data },
                 { provide: ParentalLockService, useValue: parentalLock },
-                { provide: MatSnackBar, useValue: snackBar },
+                { provide: LazySnackBar, useValue: snackBar },
                 { provide: PlaylistsService, useValue: playlists },
                 { provide: Store, useValue: { dispatch } },
             ],

@@ -2,7 +2,7 @@ import { Location } from '@angular/common';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatIcon } from '@angular/material/icon';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
@@ -270,9 +270,9 @@ export async function configureSerialDetailsTestBed(
                 useValue: stubs.seriesResumeTarget,
             },
             {
-                provide: MatSnackBar,
+                provide: LazySnackBar,
                 useValue: {
-                    open: jest.fn(),
+                    open: jest.fn().mockResolvedValue(null),
                 },
             },
             {

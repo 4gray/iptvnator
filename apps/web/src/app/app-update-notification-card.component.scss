@@ -12,7 +12,7 @@
     );
     width: 320px;
     max-width: calc(100vw - 40px);
-    z-index: 901;
+    z-index: calc(var(--app-z-floating) + 1);
 }
 
 .app-update-notification__header {
@@ -42,7 +42,7 @@
     display: grid;
     gap: 10px;
     padding: 12px;
-    font-size: 13px;
+    font-size: var(--app-text-sm);
     line-height: 1.4;
     overflow-wrap: anywhere;
 

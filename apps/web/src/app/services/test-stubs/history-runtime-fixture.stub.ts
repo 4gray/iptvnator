@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { of } from 'rxjs';
@@ -171,6 +172,7 @@ export async function historyRuntimeFixture(native = true, enabled = false) {
         getAllCategories: jest.fn(async () => [{ id: 7, locked: false }]),
     };
     const refresh = jest.fn(async (): Promise<void> => undefined);
+    const sourceState = signal('connected');
     const dispatch = jest.fn();
     const capabilities = {
         isElectron: native,
@@ -189,7 +191,10 @@ export async function historyRuntimeFixture(native = true, enabled = false) {
                         of(id === playlist._id ? playlist : portal),
                 },
             },
-            { provide: SourceSyncService, useValue: { refresh } },
+            {
+                provide: SourceSyncService,
+                useValue: { refresh, state: sourceState },
+            },
             {
                 provide: ParentalLockService,
                 useValue: {
@@ -215,6 +220,7 @@ export async function historyRuntimeFixture(native = true, enabled = false) {
         portal,
         recent,
         refresh,
+        sourceState,
         dispatch,
         capabilities,
         offline: (value: boolean) => {

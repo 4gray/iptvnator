@@ -27,7 +27,8 @@ function fixture(
     favorites: StalkerPortalItem[],
     order: string[] | undefined,
     native = false,
-    storage: UserDataStorage = localStorage
+    storage: UserDataStorage = localStorage,
+    syncActive = true
 ) {
     const document = {
         _id: 'synthetic-source',
@@ -35,13 +36,18 @@ function fixture(
         macAddress: 'synthetic-mac',
         favorites,
     };
-    const encoded = JSON.stringify(order ?? []);
+    let encoded = JSON.stringify(order ?? []);
     if (order) storage.setItem(orderKey, encoded);
     const original = window.electron;
     Object.defineProperty(window, 'electron', {
         configurable: true,
         writable: true,
-        value: { dbGetAppState: async () => encoded },
+        value: {
+            dbGetAppState: async () => encoded,
+            dbSetAppState: async (_key: string, value: string) => {
+                encoded = value;
+            },
+        },
     });
     TestBed.configureTestingModule({
         providers: [
@@ -54,7 +60,7 @@ function fixture(
             {
                 provide: FAVORITES_PLAYLIST_BRIDGE,
                 useValue: {
-                    active: () => true,
+                    active: () => syncActive,
                     project: async (value: unknown) => value,
                 },
             },
@@ -107,6 +113,7 @@ function fixture(
     });
     return {
         service: TestBed.inject(UnifiedFavoritesDataService),
+        readOrder: () => (native ? encoded : storage.getItem(orderKey)),
         restore: () => {
             window.electron = original;
             storage.removeItem(orderKey);
@@ -184,9 +191,7 @@ describe('legacy global Stalker favorite order', () => {
                     saved[1],
                     typedUid(favorites[0]),
                 ]);
-                expect(JSON.parse(localStorage.getItem(orderKey)!)).toEqual(
-                    saved
-                );
+                expect(f.readOrder()).toBe(JSON.stringify(saved));
             } finally {
                 f.restore();
             }
@@ -211,4 +216,58 @@ describe('legacy global Stalker favorite order', () => {
             f.restore();
         }
     });
+    it.each([false, true])(
+        'preserves the standalone placement of a legacy same-ID group (native=%s)',
+        async (native) => {
+            const favorites: StalkerPortalItem[] = [
+                { id: '42', category_id: '11', favoriteContentType: 'radio' },
+                { id: '9', category_id: 'itv' },
+                { id: '42', category_id: '12', favoriteContentType: 'itv' },
+                { id: '42', category_id: 'vod' },
+            ];
+            const saved = [
+                'stalker::synthetic-source::42',
+                'xtream::synthetic-xtream::movie:42',
+                'stalker::synthetic-source::9',
+            ];
+            const f = fixture(favorites, saved, native, localStorage, false);
+            try {
+                const rows = await f.service.getFavorites('all');
+                expect(rows.map(({ uid }) => uid)).toEqual([
+                    typedUid(favorites[0]),
+                    typedUid(favorites[2]),
+                    typedUid(favorites[3]),
+                    saved[1],
+                    typedUid(favorites[1]),
+                ]);
+                expect(
+                    rows.slice(0, 3).map(({ contentType }) => contentType)
+                ).toEqual(['live', 'live', 'movie']);
+                expect(rows[0].radio).toBe('true');
+                expect(f.readOrder()).toBe(JSON.stringify(saved));
+
+                const reordered = [...rows].reverse();
+                await f.service.reorder(reordered, { scope: 'all' });
+                expect(
+                    (await f.service.getFavorites('all')).map(({ uid }) => uid)
+                ).toEqual(reordered.map(({ uid }) => uid));
+
+                // Playback retains the row by UID across a collection refresh.
+                favorites.splice(3, 1);
+                favorites.splice(2, 1);
+                expect(
+                    (await f.service.getFavorites('all')).map(({ uid }) => uid)
+                ).toEqual([reordered[0].uid, saved[1], rows[0].uid]);
+
+                favorites.push({ id: '42', favoriteContentType: 'itv' });
+                expect(
+                    (await f.service.getFavorites('all')).find(
+                        ({ radio }) => radio === 'true'
+                    )?.uid
+                ).toBe(rows[0].uid);
+            } finally {
+                f.restore();
+            }
+        }
+    );
 });

@@ -7,13 +7,14 @@ import {
     signal,
 } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { TranslateService } from '@ngx-translate/core';
+import { NotificationService } from '@iptvnator/services/notifications';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import {
     DatabaseService,
+    editPwaXtreamVisibility,
     ParentalLockService,
     RuntimeCapabilitiesService,
+    USER_DATA_STORAGE,
     XCategoryFromDb,
 } from '@iptvnator/services';
 import { createLogger } from '@iptvnator/portal/shared/util';
@@ -40,7 +41,6 @@ interface CategoryWithSelection extends CategoryEditorRow {
         <app-category-editor
             [(categories)]="categories"
             subtitle="DIALOGS.XTREAM_CATEGORIES"
-            [supportsVisibility]="supportsVisibility"
             [showLocks]="showLocks()"
             [isLoading]="isLoading()"
             [isSaving]="isSaving()"
@@ -55,13 +55,9 @@ export class CategoryManagementDialogComponent implements OnInit {
     private readonly dataSource = inject(XTREAM_DATA_SOURCE);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly parentalLock = inject(ParentalLockService);
-    /**
-     * Hide/show is SQLite-backed and Electron-only; the PWA data source lists
-     * its raw categories so the lock toggles still have candidates there.
-     */
-    readonly supportsVisibility = this.runtime.supportsXtreamSqliteDataSource;
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translate = inject(TranslateService);
+    private readonly userDataStorage = inject(USER_DATA_STORAGE);
+    private initialSelection = new Map<number, boolean>();
+    private readonly notifications = inject(NotificationService);
     private readonly dialogRef = inject(
         MatDialogRef<CategoryManagementDialogComponent>
     );
@@ -105,6 +101,12 @@ export class CategoryManagementDialogComponent implements OnInit {
             // column is only its SQLite mirror.
             const lockedIds = new Set(
                 this.parentalLock.lockedXtreamIds(this.data.playlistId, type)
+            );
+            this.initialSelection = new Map(
+                allCategories.map((category) => [
+                    category.xtream_id,
+                    !category.hidden,
+                ])
             );
             this.categories.set(
                 allCategories.map((c) => ({
@@ -166,17 +168,13 @@ export class CategoryManagementDialogComponent implements OnInit {
                 await this.saveVisibility(categories);
             } catch (error) {
                 this.logger.error('Error saving category visibility', error);
-                this.showSaveFailure(
-                    this.translate.instant(
-                        'XTREAM.CATEGORY_MANAGEMENT.SAVE_FAILED'
-                    )
+                this.notifications.error(
+                    'XTREAM.CATEGORY_MANAGEMENT.SAVE_FAILED'
                 );
                 return;
             }
             if (!(await this.saveLocks(categories))) {
-                this.showSaveFailure(
-                    this.translate.instant('PARENTAL_LOCK.SAVE_FAILED')
-                );
+                this.notifications.error('PARENTAL_LOCK.SAVE_FAILED');
                 return;
             }
             this.dialogRef.close(true);
@@ -188,7 +186,24 @@ export class CategoryManagementDialogComponent implements OnInit {
     private async saveVisibility(
         categories: CategoryWithSelection[]
     ): Promise<void> {
-        if (!this.supportsVisibility) {
+        if (!this.runtime.supportsXtreamSqliteDataSource) {
+            const changes = new Map(
+                categories
+                    .filter(
+                        (row) =>
+                            row.selected !==
+                            this.initialSelection.get(row.providerId)
+                    )
+                    .map((row) => [row.providerId, row.selected])
+            );
+            editPwaXtreamVisibility(
+                this.userDataStorage,
+                this.data.playlistId,
+                this.getDbType(),
+                changes
+            );
+            for (const [id, selected] of changes)
+                this.initialSelection.set(id, selected);
             return;
         }
         const toHide = categories.filter((c) => !c.selected).map((c) => c.id);
@@ -239,12 +254,6 @@ export class CategoryManagementDialogComponent implements OnInit {
             this.logger.error('Error saving category locks', error);
             return false;
         }
-    }
-
-    private showSaveFailure(message: string): void {
-        this.snackBar.open(message, this.translate.instant('CLOSE'), {
-            duration: 3000,
-        });
     }
 
     cancel(): void {

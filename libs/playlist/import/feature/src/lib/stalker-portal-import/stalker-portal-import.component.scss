@@ -21,6 +21,6 @@ form {
 .derive-device-ids__note {
     margin: 4px 0 0;
     color: var(--mat-sys-on-surface-variant);
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     line-height: 1.45;
 }

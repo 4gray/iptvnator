@@ -78,7 +78,7 @@ describe('theme context extraction', () => {
         );
         for (const name of ['dark', 'mocha', 'night-owl', 'black-oled']) {
             expect(contexts[name]).not.toContain('--app-progress-color:');
-            expect(contexts[name]).not.toContain('--app-success-color:');
+            expect(contexts[name]).not.toContain('--app-status-success:');
         }
     });
 });

@@ -123,7 +123,7 @@ async function expectKitButtons(page: Page): Promise<void> {
         guide.locator('.guide-toolbar__scope .mdc-button__label'),
         guide.locator('.guide-toolbar__toggle'),
     ]) {
-        await expect(label).toHaveCSS('font-size', '12.5px');
+        await expect(label).toHaveCSS('font-size', '13px');
     }
     // No outlined (stroked) Material buttons are left in the guide chrome.
     await expect(

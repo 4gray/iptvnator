@@ -36,7 +36,7 @@ app-settings-about-section {
     display: block;
     margin-top: 4px;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 12px;
+    font-size: var(--app-text-xs);
     color: var(--app-body-color);
     white-space: nowrap;
     overflow: hidden;
@@ -51,7 +51,7 @@ app-settings-about-section {
     display: block;
     margin-top: 4px;
     color: var(--settings-muted);
-    font-size: 12px;
+    font-size: var(--app-text-xs);
 }
 
 .settings-hero__actions {
@@ -66,12 +66,12 @@ app-settings-about-section {
     flex-direction: column;
     gap: 6px;
     color: var(--settings-muted);
-    font-size: 12.5px;
+    font-size: var(--app-text-sm);
     line-height: 1.45;
 
     strong {
         color: var(--app-heading-color);
-        font-size: 13.5px;
+        font-size: var(--app-text-md);
         font-weight: 500;
     }
 
@@ -88,7 +88,7 @@ app-settings-about-section {
     border-radius: 999px;
     background: var(--settings-chip-bg);
     color: var(--settings-chip-fg);
-    font-size: 10.5px;
+    font-size: var(--app-text-2xs);
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -174,13 +174,13 @@ app-settings-about-section {
     min-width: 0;
 
     strong {
-        font-size: 13px;
+        font-size: var(--app-text-sm);
         font-weight: 500;
     }
 
     span {
         color: var(--settings-muted);
-        font-size: 11.5px;
+        font-size: var(--app-text-xs);
         line-height: 1.35;
     }
 }
@@ -198,7 +198,7 @@ app-settings-about-section {
 
     h4 {
         margin: 0;
-        font-size: 13.5px;
+        font-size: var(--app-text-md);
         font-weight: 600;
         color: var(--app-heading-color);
     }
@@ -207,7 +207,7 @@ app-settings-about-section {
         margin: 3px 0 0;
         max-width: 56ch;
         color: var(--settings-muted);
-        font-size: 12.5px;
+        font-size: var(--app-text-sm);
         line-height: 1.5;
     }
 }

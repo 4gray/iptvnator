@@ -1460,8 +1460,8 @@ the index base. Do not ship the Electron frontend build as a PWA deployment.
 
 Settings → Connectivity provides an independent, disabled-by-default favorites consent.
 Connecting a server or enabling progress does not read/upload favorites. One shared
-library belongs to the server; there are no personal accounts or cross-provider
-matches. Membership is scoped by instance, source ID, persisted source incarnation
+library per profile belongs to the server (see [Household profiles](#household-profiles));
+there are no cross-provider matches. Membership is scoped by instance, profile, source ID, persisted source incarnation
 and a typed portable reference. Collection order remains device-local; Recently
 Viewed has its own independent consent below.
 
@@ -1647,8 +1647,8 @@ The same identity-compatibility helper guards both visible projection and export
 
 Settings → Connectivity → Recently viewed enables `history-v1` separately from sources,
 favorites and progress/watched. All clients of an instance share one history
-within each shared source; there are no household accounts or cross-provider
-matches. Connecting or enabling another domain does not authorize history reads
+per profile within each shared source (see [Household profiles](#household-profiles));
+there are no cross-provider matches. Connecting or enabling another domain does not authorize history reads
 or uploads. Initial enable reads shared history and retains the original local
 archive. Older local rows enter the queue only through explicit preview/import.
 
@@ -1745,3 +1745,167 @@ collection page's guarded reload, retaining nested detail/player ownership.
 Mixed-runtime tests are in `history-sync.e2e.ts` and `history-provider-sync.e2e.ts`
 under the isolated source-sync Playwright configuration. Protocol, real multi-tab
 IDB, native CAS and populated historical SQLite schemas have focused regressions.
+
+## Household profiles
+
+`profiles-v1` adds people to a household (#2224). Playlists and sources stay
+shared; personal state is scoped per profile. Phase 1 is the server contract only,
+with no client UI yet.
+
+The activity and favorites addresses carry `scope`, and history scopes carry an
+optional `personalScope`: `'shared'` is the Default profile and `profile:<uuid>`
+is any other. Records written before profiles existed keep their keys byte for
+byte, because `'shared'` was already part of the activity and favorites keys, and
+history adds the scope to its key only for profiles other than Default. No data
+migration runs.
+
+The server-only `server_profiles` table holds the profiles, with `household_id`
+fixed to `default` for now so a household level can be added above profiles later.
+Its key is `(household_id, id)`, so each household can have its own Default row;
+the per-household switch and list revision live in `server_profile_households`.
+The Default profile (`id` `default`) gets a row only once it is renamed,
+recoloured or given a PIN. A household has at most 12 profiles.
+
+Profiles are one household-wide switch, off by default, so every device agrees.
+`GET /v1/profiles` returns `{ enabled, revision, profiles }` and
+`PATCH /v1/profiles` with `{ enabled }` turns them on or off. Turning them on
+makes the existing data the Default profile; turning them off deletes nothing.
+While they are off the server accepts only `'shared'` and answers a `profile:`
+scope with `409 profiles_disabled`, so a device that has not caught up cannot
+write into a profile. Profiles can still be created and edited while the switch
+is off. Whether a device asks who is watching on start-up or reuses the last
+profile is a per-device setting and never syncs. `revision` moves on every change
+to the list or the switch, persists across restarts, and is sent as the `ETag`
+(`"profiles-<revision>"`); a `GET` with a matching `If-None-Match` gets `304`, so
+clients can poll cheaply for renames and new profiles.
+
+Authenticated, uncached `/v1/profiles` routes require the verified instance header:
+`GET` lists the Default profile first; `POST` creates one; `PATCH /:id` renames,
+recolours, or sets or clears (`pin: null`) a PIN; `PUT /order` takes every profile
+id once in the new order (Default stays first and may lead the list or be left out;
+`409 profile_order_mismatch` if the list is out of date); `DELETE /:id` removes a profile
+and its activity, favorites and history states and receipts in one transaction;
+`POST /:id/unlock` checks a PIN. PINs are 4 to 8 digits, stored as scrypt hashes
+and never returned. Changing or removing a PIN (`PATCH` with `pin`) and deleting a
+PIN-protected profile take the current PIN as `currentPin` (`403 pin_required` or
+`403 wrong_pin` otherwise). Every wrong PIN, on any of these routes, counts towards
+the same lock: five within 15 minutes lock the profile for 30 seconds
+(`429 pin_locked`), and older failures stop counting. A client can try at most 30
+PINs a minute across all profiles. A new profile is placed last (`sortOrder` is the
+highest plus one) and, unless it picks a colour, gets the first colour no other
+profile uses.
+
+Each profile has a `#rrggbb` colour and may have an `emoji`: a single grapheme
+that contains an emoji, checked on the server with `Intl.Segmenter`
+(`400 invalid_profile_emoji` otherwise; `emoji: null` removes it). There are no
+image uploads.
+
+A profile can be a kids profile (`kids: true`). The server only stores the flag;
+the contract for clients (phase 2) is that while a kids profile is active the app's
+existing parental lock is always on, and leaving the profile asks for the parental
+PIN. A kids profile cannot also have a profile PIN (`400 kids_profile_pin`), so
+there is one lock to explain; the optional profile PIN is for adult profiles. The
+Default profile cannot be a kids profile (`400 default_profile_kids`): it holds the
+shared data that older clients show, and locking it would surprise people on those
+devices.
+
+The PIN is a light lock. It keeps someone from picking another person's profile by
+accident, nothing more: anyone with the server access token can read and write
+every scope, and the server cannot tell which client is in which profile. A kids
+profile is therefore only as strong as the client that enforces it. The access
+token remains the security boundary.
+
+Every activity, favorites and history read or write checks that a `profile:`
+scope names an existing profile, answering `409 profile_missing` otherwise. The
+source item lists and `GET /v1/history/sources/:id` take `?scope=`; without it
+they return the Default profile, as earlier clients expect. The scope is part of
+the activity and favorites `address_key`, so a list reads one key range of the
+source's index rather than the scope out of every stored address.
+
+Two older shared stores do not know about profiles yet:
+
+- `/v1/user-state`: Xtream favorites, recently viewed, collection snapshots and
+  playback positions, one value per namespace and playlist.
+- The whole playlist documents (`/v1/playlists`), which carry the M3U and Stalker
+  `favorites` and `recentlyViewed` arrays.
+
+Both stay household-wide whichever profile is active. Current clients use the three
+sync domains above for this state, so the server leaves these stores as they are;
+what clients do with these fields once profiles are on is an open item for phase 2,
+so that no part of the app quietly stays shared.
+
+### Client contract (phase 2, PR A)
+
+Phase 2 adds the Angular client (web, PWA, Electron, Android `tv-shell/`; the React
+`apps/tv` client is out of scope). The first slice, PR A, is Settings > Profiles
+and the "Who's watching?" picker. It does not yet scope any per-profile state, so
+the whole UI is hidden (see "Hidden switch" below).
+
+**Transport.** `SourceServerRequest` is a closed union, so a caller cannot supply
+a path or header. The operations are `profiles-list` (its `revision` becomes
+`If-None-Match`, and a `304` means unchanged), `profiles-set-enabled`,
+`profiles-order`, `profile-create`, `profile-update`, `profile-delete` and
+`profile-unlock`. The browser routes them in `source-api.ts`; Electron validates
+every one in the main process (`source-sync-profile-route.ts`) before it reaches
+the network. `ProfilesClient` (`@iptvnator/services/profiles`) makes exactly one
+request per call, checks the response body and returns `{ ok, value }` or
+`{ ok: false, error }`, with the server's error codes as a small union plus
+`unavailable`, `offline` and `invalid_response`. Import profile types from
+`@iptvnator/shared/interfaces/profiles`, not the main barrel, to keep
+`initialBytes` down.
+
+**Errors that do not revoke the connection.** `403 pin_required` and
+`403 wrong_pin` are answers about a PIN, not about the access token, so they
+never mark the verified connection as lost. Every other `403` still does. A
+failed request carries no body or message to callers, only the code. `429
+pin_locked` and `pin_rate_limited` carry `retryAfter` in seconds (from the
+`Retry-After` header, `null` when it is missing or invalid), and the UI counts
+down from it. The server lists `Retry-After` in `Access-Control-Expose-Headers`
+on `/v1/profiles`, so a browser on another origin can read it. A `204` (delete)
+has no body and is a success, not a broken response. `5xx` and network errors map to `offline`.
+
+**Per-device preferences.** Two `localStorage` keys per server instance, never
+synced and removed with the site data:
+`iptvnator-server:<instanceId>:profiles-start-v1` (`'ask'` or `'last'`, default
+`'ask'`) and `iptvnator-server:<instanceId>:active-profile-v1` (a profile id).
+A stored id that is not in the current list, or any id while profiles are off,
+resolves to Default. Blocked storage costs only the next launch's last profile: a
+choice still applies for the session.
+
+**Start-up guard.** `profilePickerGuard` runs on `workspace` after
+`serverAccessGuard`. The source connection is restored in `main.ts` before
+Angular bootstraps, so it is known when the guard runs. The guard routes to
+`/profile-picker?returnUrl=...` only when `needsPicker` is true: the UI switch is
+on, a server is connected, the server has `profiles-v1`, profiles are enabled,
+there is more than one profile, and the device is on `'ask'` (or on `'last'` with
+no valid last profile, or a last profile that has a PIN). It asks once per session.
+It never blocks: an error, an offline server or no answer within 1.5 seconds
+(`PROFILES_GUARD_TIMEOUT_MS`) lets the user in as Default. The runtime loads lazily
+and only when the switch is on, so the static code on the start-up path stays
+small. `/profile-picker` itself needs a connected server, and a server that has
+no profiles shows the picker's "continue" state rather than a spinner.
+Settings > Profiles waits for the server's answer before a direct visit to its
+URL can be redirected away: the section counts as available while a connected
+server has not answered.
+
+**Hidden switch.** `PROFILES_UI_ENABLED` (`profiles-ui-enabled.ts`) is `false`.
+While it is, there is no Profiles section, no search entry, no command palette
+entry, no picker route and no `/v1/profiles` request at start-up. Tests flip
+`PROFILES_UI_ENABLED_TOKEN`, never the constant. PR B (per-profile client state)
+removes the constant and the token. `web-e2e/src/profiles-hidden.e2e.ts` pins the
+hidden state against a server that has profiles turned on, and
+`electron-backend-e2e/src/profiles-ipc.e2e.ts` drives every operation through the
+desktop IPC route.
+
+**Kids rules.** Leaving a kids profile (choosing another one in the picker) asks
+for the parental PIN. In Settings, clearing the kids flag and deleting a kids
+profile ask for it too, before the request is sent. The PIN is asked even when a
+parent has already unlocked the app (`ParentalLockService.confirmPin`), and the
+unlock state stays as it was. Forcing the parental lock on
+while a kids profile is active belongs to PR B, because it is per-profile state.
+
+**The PIN is a light lock.** A profile PIN is checked by the server before it is
+changed or removed and before the profile is deleted, and the picker asks for it
+before it opens a profile that has one. It keeps a person from opening another
+person's profile by accident. It is not security: anyone with the access token can
+read every scope. The copy in Settings says so.

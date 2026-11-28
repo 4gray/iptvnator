@@ -480,6 +480,40 @@ describe('history consent, recovery and user actions', () => {
         ).toBe(false);
     });
 
+    it('records the last successful sync time and keeps it across a failed refresh', async () => {
+        const f = await historyRuntimeFixture();
+        expect(f.runtime.lastSync()).toBeNull();
+        await f.runtime.setEnabled(true);
+        const synced = f.runtime.lastSync();
+        expect(synced).toBeInstanceOf(Date);
+        f.refresh.mockRejectedValueOnce(new Error('Synthetic outage'));
+        await f.runtime.refresh();
+        expect(f.runtime.state()).toBe('offline');
+        expect(f.runtime.lastSync()).toBe(synced);
+        let finish!: () => void;
+        f.refresh.mockImplementationOnce(
+            () => new Promise<void>((resolve) => (finish = resolve))
+        );
+        const polling = f.runtime.refresh();
+        await f.runtime.setEnabled(false);
+        finish();
+        await polling;
+        expect(f.runtime.lastSync()).toBe(synced);
+    });
+
+    it('does not record a sync time when the source server could not be reached', async () => {
+        const f = await historyRuntimeFixture();
+        await f.runtime.setEnabled(true);
+        const synced = f.runtime.lastSync();
+        // SourceSyncService catches the outage and reports it through state.
+        f.sourceState.set('offline');
+        await f.runtime.refresh();
+        expect(f.runtime.lastSync()).toBe(synced);
+        f.sourceState.set('connected');
+        await f.runtime.refresh();
+        expect(f.runtime.lastSync()).not.toBe(synced);
+    });
+
     it('ignores a late refresh error after opt-out instead of restoring an offline state', async () => {
         const f = await historyRuntimeFixture();
         await f.runtime.setEnabled(true);

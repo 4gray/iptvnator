@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { SerialDetailsComponent } from './serial-details.component';
 import { SerialDetailsPlaybackService } from './serial-details-playback.service';
 import {
@@ -7,6 +7,15 @@ import {
     createSerialDetailsStubs,
     resetSerialDetailsStubs,
 } from './serial-details.harness';
+
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
+const SUCCESS_TOAST = expect.objectContaining({
+    politeness: 'polite',
+    panelClass: expect.arrayContaining(['app-notification--success']),
+});
 
 describe('SerialDetailsComponent watched toggles', () => {
     let fixture: ComponentFixture<SerialDetailsComponent>;
@@ -76,7 +85,7 @@ describe('SerialDetailsComponent watched toggles', () => {
         const playbackService = fixture.debugElement.injector.get(
             SerialDetailsPlaybackService
         );
-        const snackBar = TestBed.inject(MatSnackBar);
+        const snackBar = TestBed.inject(LazySnackBar);
         const seasonPosition = (
             contentXtreamId: number,
             episodeNumber: number
@@ -124,7 +133,7 @@ describe('SerialDetailsComponent watched toggles', () => {
         expect(snackBar.open).toHaveBeenCalledWith(
             'XTREAM.SEASON_MARKED_WATCHED',
             undefined,
-            { duration: 5000 }
+            SUCCESS_TOAST
         );
         // The catalog badge source must follow the batch.
         expect(loadAllPositions).toHaveBeenCalledWith('xtream-1');
@@ -215,7 +224,7 @@ describe('SerialDetailsComponent watched toggles', () => {
         expect(playbackService.episodePlaybackPositions().has(1001)).toBe(
             false
         );
-        expect(TestBed.inject(MatSnackBar).open).not.toHaveBeenCalled();
+        expect(TestBed.inject(LazySnackBar).open).not.toHaveBeenCalled();
         // The store now belongs to the other playlist — no stale refresh.
         expect(loadAllPositions).not.toHaveBeenCalled();
         expect(playbackService.seasonWatchBatchRunning()).toBe(false);
@@ -233,7 +242,7 @@ describe('SerialDetailsComponent watched toggles', () => {
         const playbackService = fixture.debugElement.injector.get(
             SerialDetailsPlaybackService
         );
-        const snackBar = TestBed.inject(MatSnackBar);
+        const snackBar = TestBed.inject(LazySnackBar);
         await playbackService.handleWatchToggleRequested(
             {
                 seasonKey: '1',
@@ -262,8 +271,8 @@ describe('SerialDetailsComponent watched toggles', () => {
         );
         expect(snackBar.open).toHaveBeenCalledWith(
             'XTREAM.SEASON_WATCH_UPDATE_FAILED',
-            undefined,
-            { duration: 5000 }
+            'CLOSE',
+            ERROR_TOAST
         );
         expect(playbackService.seasonWatchBatchRunning()).toBe(false);
         consoleError.mockRestore();

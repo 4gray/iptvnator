@@ -15,10 +15,13 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
     ChannelListItemComponent,
     DialogShellComponent,
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
 } from '@iptvnator/ui/components';
 import {
     SECOND_STREAM_HISTORY,
@@ -49,6 +52,9 @@ import type { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
         FormsModule,
         MatButtonModule,
         MatIconModule,
+        MatMenuModule,
+        MenuItemRadioCheckDirective,
+        MenuItemRadioDirective,
         TranslatePipe,
         ChannelListItemComponent,
         DialogShellComponent,
@@ -66,6 +72,11 @@ export class SecondStreamPickerComponent {
     readonly sources = signal<SecondStreamSource[]>([]);
     readonly source = signal(this.dialogData.initialPlaylist ?? '');
     readonly historySource = SECOND_STREAM_HISTORY;
+    readonly sourceName = computed(
+        () =>
+            this.sources().find((entry) => entry.id === this.source())?.name ??
+            ''
+    );
     readonly group = signal<string | null>(null);
     readonly search = signal('');
     readonly loading = signal(true);
@@ -191,6 +202,8 @@ export class SecondStreamPickerComponent {
     }
 
     changeSource(id: string): void {
+        // The menu offers the checked source too; picking it keeps the view.
+        if (id === this.source()) return;
         this.vod.reset();
         this.source.set(id);
         this.group.set(null);

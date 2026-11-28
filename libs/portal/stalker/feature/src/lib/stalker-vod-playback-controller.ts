@@ -1,5 +1,5 @@
 import { type WritableSignal, computed, signal } from '@angular/core';
-import type { MatSnackBar } from '@angular/material/snack-bar';
+import type { NotificationService } from '@iptvnator/services/notifications';
 import type { TranslateService } from '@ngx-translate/core';
 import {
     type Logger,
@@ -22,7 +22,7 @@ interface StalkerVodPlaybackControllerConfig {
     selectedVodPosition: WritableSignal<PlaybackPositionData | null>;
     playbackPositions: PortalPlaybackPositions;
     portalPlayer: PortalPlayer;
-    snackBar: MatSnackBar;
+    notifications: NotificationService;
     translateService: TranslateService;
     logger: Logger;
     playbackErrorLogMessage: string;
@@ -117,17 +117,11 @@ export class StalkerVodPlaybackController {
                 this.config.playbackErrorLogMessage,
                 error
             );
-            const errorMessage =
+            this.config.notifications.error(
                 error instanceof Error && error.message === 'nothing_to_play'
-                    ? this.config.translateService.instant(
-                          'PORTALS.CONTENT_NOT_AVAILABLE'
-                      )
-                    : this.config.translateService.instant(
-                          'PORTALS.PLAYBACK_ERROR'
-                      );
-            this.config.snackBar.open(errorMessage, undefined, {
-                duration: 3000,
-            });
+                    ? 'PORTALS.CONTENT_NOT_AVAILABLE'
+                    : 'PORTALS.PLAYBACK_ERROR'
+            );
         } finally {
             this.pendingStart.settle(startId);
         }
@@ -193,13 +187,7 @@ export class StalkerVodPlaybackController {
     }
 
     showCopyNotification(): void {
-        this.config.snackBar.open(
-            this.config.translateService.instant('PORTALS.STREAM_URL_COPIED'),
-            undefined,
-            {
-                duration: 2000,
-            }
-        );
+        this.config.notifications.success('PORTALS.STREAM_URL_COPIED');
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {

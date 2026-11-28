@@ -213,6 +213,7 @@
                         </div>
                         <button
                             mat-icon-button
+                            class="groups-content-header__action"
                             [matMenuTriggerFor]="channelSortMenu"
                             [matTooltip]="
                                 ('WORKSPACE.SORT_LABEL' | translate) +
@@ -227,7 +228,7 @@
                         <button
                             mat-icon-button
                             type="button"
-                            class="groups-sidebar-toggle"
+                            class="groups-content-header__action groups-sidebar-toggle"
                             [attr.aria-label]="
                                 'LAYOUT.HIDE_CHANNELS_LIST' | translate
                             "
@@ -304,6 +305,9 @@
                         [logo]="getLogoForChannel(channel)"
                         [showEpg]="shouldShowEpg()"
                         [showDetailsContextMenu]="true"
+                        [showContextMenuButton]="
+                            folderMenu?.available() ?? false
+                        "
                         [isRadio]="channel?.radio === 'true'"
                         [epgProgram]="
                             $safeNavigationMigration(
@@ -318,9 +322,8 @@
                         [selected]="activeChannelUrl() === channel?.url"
                         [showFavoriteButton]="true"
                         [isFavorite]="
-                            channel?.url
-                                ? favoriteIds().has(channel.url)
-                                : false
+                            favoriteIds().has(channel.url) ||
+                            favoriteIds().has(channel.id)
                         "
                         (clicked)="onChannelClick(channel)"
                         (activated)="onChannelActivate(channel)"
@@ -368,6 +371,8 @@
 }
 
 <app-channel-context-menu
+    [favoriteFolderAction]="folderMenu?.action(contextMenuChannel()) ?? null"
+    (favoriteFolderRequested)="folderMenu?.open(contextMenuChannel(), $event)"
     [showMapEpg]="supportsEpgMapping"
     [showDetails]="true"
     (mapEpg)="openEpgMapping()"

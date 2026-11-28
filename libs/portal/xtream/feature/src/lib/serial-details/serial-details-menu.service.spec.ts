@@ -1,6 +1,6 @@
 import { computed, signal } from '@angular/core';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import type { SeriesQuickStartAction } from '@iptvnator/portal/shared/util';
@@ -22,6 +22,11 @@ import {
     CONNECTION_KEY,
     prepareSourceConnection,
 } from '@iptvnator/services/source-sync/connection';
+
+const ERROR_TOAST = expect.objectContaining({
+    politeness: 'assertive',
+    panelClass: expect.arrayContaining(['app-notification--error']),
+});
 
 function quickStart(
     overrides: Partial<SeriesQuickStartAction> = {}
@@ -73,7 +78,7 @@ describe('SerialDetailsMenuService', () => {
     );
     const startPending = signal(false);
     const openEpisodeExternally = jest.fn().mockResolvedValue(undefined);
-    const openSnackBar = jest.fn();
+    const openSnackBar = jest.fn().mockResolvedValue(null);
     let pageToken: string;
     let service: SerialDetailsMenuService;
 
@@ -122,7 +127,7 @@ describe('SerialDetailsMenuService', () => {
                     useValue: { player: signal(VideoPlayer.MPV) },
                 },
                 { provide: Router, useValue: { navigate: jest.fn() } },
-                { provide: MatSnackBar, useValue: { open: openSnackBar } },
+                { provide: LazySnackBar, useValue: { open: openSnackBar } },
                 {
                     provide: TranslateService,
                     useValue: { instant: (key: string) => key },
@@ -224,8 +229,8 @@ describe('SerialDetailsMenuService', () => {
             );
             expect(openSnackBar).toHaveBeenCalledWith(
                 'PORTALS.PLAYBACK_ERROR',
-                undefined,
-                { duration: 3000 }
+                'CLOSE',
+                ERROR_TOAST
             );
         });
 

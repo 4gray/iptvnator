@@ -18,7 +18,7 @@
         margin: 0 0 10px;
         padding: 0 2px;
         color: var(--app-heading-color, var(--mat-sys-on-surface));
-        font-size: 1.125rem;
+        font-size: var(--app-text-xl);
         font-weight: 600;
         letter-spacing: -0.012em;
         line-height: 1.2;
@@ -161,7 +161,7 @@
         border-radius: 999px;
         background: color-mix(in srgb, var(--mat-sys-error) 16%, transparent);
         color: var(--mat-sys-error);
-        font-size: 0.74rem;
+        font-size: var(--app-text-xs);
         font-variant-numeric: tabular-nums;
         font-weight: 700;
         letter-spacing: 0.04em;
@@ -180,7 +180,7 @@
         align-items: center;
         gap: 5px;
         color: var(--mat-sys-on-tertiary-container);
-        font-size: 0.8rem;
+        font-size: var(--app-text-sm);
         font-weight: 600;
 
         mat-icon {
@@ -196,7 +196,7 @@
         align-items: center;
         gap: 4px 12px;
         color: var(--mat-sys-on-surface-variant);
-        font-size: 0.82rem;
+        font-size: var(--app-text-sm);
     }
 
     &__bytes {

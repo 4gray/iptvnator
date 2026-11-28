@@ -15,7 +15,12 @@ export type WorkspaceShellPageKind =
     | 'unknown';
 
 export type WorkspaceShellContextPanel =
-    'none' | 'sources' | 'settings' | 'category' | 'collection';
+    | 'none'
+    | 'sources'
+    | 'settings'
+    | 'category'
+    | 'collection'
+    | 'favorite-folders';
 
 export interface WorkspacePortalContext {
     provider: PortalProvider;

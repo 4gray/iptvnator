@@ -71,6 +71,7 @@ export interface HostedWorkerRequest {
 export interface HostedWorkerResponse {
     status: number;
     etag?: string;
+    retryAfter?: number;
     body: unknown;
 }
 

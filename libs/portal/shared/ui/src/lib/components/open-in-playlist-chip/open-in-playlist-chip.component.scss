@@ -1,4 +1,4 @@
-@use '../../../../../../../ui/styles/focus-ring';
+@use '../../../../../../../ui/styles/app-controls' as controls;
 
 :host {
     display: inline-flex;
@@ -7,38 +7,20 @@
     max-width: 220px;
 }
 
-/* Same pill geometry as the EPG toolbar's own icon buttons. */
 .open-in-playlist-chip {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    height: 34px;
     min-width: 0;
     max-width: 100%;
-    padding: 0 12px 0 10px;
-    border-radius: 999px;
-    background: var(--app-widget-header-bg);
-    border: 1px solid var(--app-separator);
-    color: color-mix(in srgb, var(--app-on-surface) 82%, transparent);
-    font: inherit;
-    font-size: 12.5px;
-    font-weight: 600;
     cursor: pointer;
+    font: inherit;
+    @include controls.native-secondary-button(sm);
 
     mat-icon {
-        flex: 0 0 auto;
-        font-size: 16px;
-        width: 16px;
-        height: 16px;
-    }
-
-    &:hover {
-        background: var(--app-card-hover-bg);
-        color: var(--app-on-surface);
-    }
-
-    &:focus-visible {
-        @include focus-ring.focus-ring-declarations;
+        flex: none;
+        font-size: 14px;
+        width: 1em;
+        height: 1em;
     }
 }
 

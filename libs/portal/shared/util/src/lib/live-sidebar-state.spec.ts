@@ -33,6 +33,7 @@ describe('live sidebar state', () => {
             'live-sidebar-state:m3u',
             'live-sidebar-state:portal',
             'live-sidebar-state:collection',
+            'live-sidebar-state:favorite-folders',
         ]);
         expect(new Set(keys).size).toBe(keys.length);
         expect(keys).not.toContain(LEGACY_LIVE_SIDEBAR_STATE_STORAGE_KEY);
