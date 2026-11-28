@@ -16,10 +16,12 @@ import java.net.ProxySelector;
 import java.net.Socket;
 import java.net.URI;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import okhttp3.Call;
+import okhttp3.ConnectionSpec;
 import okhttp3.Headers;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -27,6 +29,9 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 final class AndroidHttpFetcher extends HttpFetcher {
+    // Match Android's HttpsURLConnection and let the platform choose its enabled TLS settings.
+    private static final ConnectionSpec PLATFORM_TLS = new ConnectionSpec.Builder(ConnectionSpec.MODERN_TLS)
+        .allEnabledCipherSuites().allEnabledTlsVersions().build();
     private final OkHttpClient playlistClient;
 
     AndroidHttpFetcher() {
@@ -34,7 +39,8 @@ final class AndroidHttpFetcher extends HttpFetcher {
     }
 
     AndroidHttpFetcher(OkHttpClient.Builder client) {
-        playlistClient = client.followRedirects(false).followSslRedirects(false).build();
+        playlistClient = client.connectionSpecs(Arrays.asList(PLATFORM_TLS, ConnectionSpec.CLEARTEXT))
+            .followRedirects(false).followSslRedirects(false).build();
     }
 
     @Override protected ProviderResponse openResponse(URL url, Map<String, String> headers, int timeoutMs,

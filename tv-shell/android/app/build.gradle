@@ -96,6 +96,7 @@ tasks.named('preBuild').configure { dependsOn 'buildMedia3Ffmpeg' }
 
 dependencies {
     androidTestImplementation 'androidx.test:runner:1.6.2'
+    androidTestImplementation 'com.squareup.okhttp3:okhttp-tls:4.12.0'
     implementation project(':backend')
     implementation 'com.google.zxing:core:3.5.3'
     hostedTestRuntime 'com.google.zxing:core:3.5.3'
