@@ -19,8 +19,12 @@ import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
 import {
+    classifyNativePlaybackIssue,
+    classifyVhsPlaybackIssue,
+    createPlaybackSourceMetadata,
     PlaybackDiagnosticCode,
     PlaybackDiagnosticSource,
+    type PlaybackDiagnostic,
 } from '@iptvnator/playback/util';
 import {
     StubArtPlayerComponent,
@@ -143,27 +147,28 @@ describe('Android TV playback handoff and recovery', () => {
             '[data-tv-recovery-primary]'
         );
     function report(code: PlaybackDiagnosticCode): void {
+        reportIssue({
+            code,
+            source: PlaybackDiagnosticSource.Hls,
+            sourceUrl: fixture.componentInstance.resolvedPlayback().streamUrl,
+            player: 'videojs',
+            container: 'hls',
+            audioCodecs: [],
+            videoCodecs: [],
+        });
+    }
+    function reportIssue(issue: PlaybackDiagnostic): void {
         const component = fixture.componentInstance;
         const binding = component.activeBinding();
         if (!binding) throw new Error('Expected an active web player');
-        component.handlePlaybackIssue(
-            {
-                code,
-                source: PlaybackDiagnosticSource.Hls,
-                sourceUrl: component.resolvedPlayback().streamUrl,
-                player: 'videojs',
-                container: 'hls',
-                audioCodecs: [],
-                videoCodecs: [],
-            },
-            binding
-        );
+        component.handlePlaybackIssue(issue, binding);
         fixture.detectChanges();
     }
     function replyToExternalCheck(available: boolean, id?: string): void {
         const request = postMessage.mock.calls
             .map(([message]) => JSON.parse(message))
-            .findLast(([command]) => command === 'checkExternalPlayback');
+            .reverse()
+            .find(([command]) => command === 'checkExternalPlayback');
         window.dispatchEvent(
             new CustomEvent('iptvnator:android-external-playback', {
                 detail: { id: id ?? request?.[1], available },
@@ -292,10 +297,45 @@ describe('Android TV playback handoff and recovery', () => {
 
     it('prioritizes reconnect on a network failure', () => {
         report(PlaybackDiagnosticCode.NetworkError);
+        replyToExternalCheck(true);
         expect(primary()).toBe(action('reconnect'));
         expect(action('external')).toBeNull();
         expect(action('builtIn')).toBeTruthy();
     });
+
+    it.each([
+        ['native', classifyNativePlaybackIssue],
+        ['VHS', classifyVhsPlaybackIssue],
+    ] as const)(
+        'offers the external chooser for an unknown HLS failure from %s',
+        (_source, classify) => {
+            Object.assign(window, { iptvnatorAndroidPlaybackEnabled: false });
+            window.dispatchEvent(
+                new Event('iptvnator:android-playback-availability')
+            );
+            const issue = classify(
+                { code: 4 },
+                createPlaybackSourceMetadata({
+                    url: playback.streamUrl,
+                    player: 'videojs',
+                })
+            );
+            expect(issue.code).toBe(PlaybackDiagnosticCode.UnknownPlaybackError);
+            reportIssue(issue);
+            expect(action('external')).toBeNull();
+            replyToExternalCheck(true);
+
+            expect(primary()).toBe(action('retry'));
+            expect(action('builtIn')).toBeNull();
+            expect(action('external')).not.toBeNull();
+            action('external')!.click();
+            expect(JSON.parse(postMessage.mock.lastCall?.[0] as string)).toEqual([
+                'chooseExternalPlayback',
+                playback.streamUrl,
+                playback.title,
+            ]);
+        }
+    );
 
     it('ignores a stale external availability reply for a format error', () => {
         report(PlaybackDiagnosticCode.UnsupportedCodec);

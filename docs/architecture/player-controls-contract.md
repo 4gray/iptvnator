@@ -123,6 +123,8 @@ decode errors and reconnecting for network errors. Recommendations to try a
 different web engine remain available. The native bridge checks the current
 stream against installed `ACTION_VIEW` handlers. The explicit external
 action opens the Android chooser regardless of the saved preferred player.
+Unknown playback errors offer this action as a fallback when Android confirms
+a handler, including HLS failures reported as media error code 4.
 On Android TV the panel centers within the video area and uses the app theme
 for actions and focus. The primary action spans the panel. Secondary actions
 stack in narrow players, and the video area scrolls if the panel is taller.

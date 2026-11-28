@@ -108,7 +108,6 @@ export class PlaybackDiagnosticPanelComponent {
             code === 'unsupported-codec' ||
             code === 'unsupported-container' ||
             code === 'media-decode-error';
-        const browserAccess = code === 'browser-access-error';
         const retry = recovery.returning
             ? 'return'
             : code === 'network-error'
@@ -117,7 +116,10 @@ export class PlaybackDiagnosticPanelComponent {
         if (recovery.opening) return [retry];
         const external =
             recovery.external &&
-            (formatFailure || browserAccess || recovery.bothFailed);
+            (formatFailure ||
+                code === 'browser-access-error' ||
+                code === 'unknown-playback-error' ||
+                recovery.bothFailed);
         if (external && recovery.bothFailed) return ['external', retry];
         if (recovery.builtIn && formatFailure) {
             return external
