@@ -13,6 +13,12 @@ const providerPlot = 'Синтетическое описание из порт�
 const selectedPoster = '/synthetic-alpha.svg';
 const otherPoster = '/synthetic-beta.svg';
 const title = 'Синтетический сериал Альфа (8 серий)';
+const actor = {
+    id: 900502,
+    name: 'Александрина Северодольская',
+    character: 'Хранительница архива (Звездопервооткрывательница)',
+    order: 0,
+};
 
 // Route mocks must stay authoritative across reloads of the production PWA.
 test.use({ serviceWorkers: 'block' });
@@ -116,7 +122,7 @@ test('@tmdb-match persists a manual series match, restores provider metadata and
                 backdrop_path: '/synthetic-backdrop.svg',
                 content_ratings: { results: [] },
                 created_by: [{ id: 900501, name: 'Synthetic Creator Alpha' }],
-                credits: { cast: [], crew: [] },
+                credits: { cast: [actor], crew: [] },
             },
         });
     });
@@ -220,6 +226,27 @@ test('@tmdb-match persists a manual series match, restores provider metadata and
             exact: true,
         })
     ).toBeVisible();
+
+    const cast = page.locator('[data-test-id="detail-cast-crew"]');
+    const card = cast.getByRole('button', { name: new RegExp(actor.name) });
+    await expect(card).toBeVisible();
+    const widths = await cast
+        .locator('.person')
+        .evaluateAll((cards) =>
+            cards.map((item) => item.getBoundingClientRect().width)
+        );
+    expect(widths).toHaveLength(2);
+    expect(widths[1]).toBe(widths[0]);
+    for (const label of [actor.name, actor.character]) {
+        const text = card.getByText(label, { exact: true });
+        const { wraps, fits } = await text.evaluate((element) => ({
+            wraps:
+                element.clientHeight >
+                1.5 * parseFloat(getComputedStyle(element).lineHeight),
+            fits: element.scrollWidth <= element.clientWidth,
+        }));
+        expect({ wraps, fits }, label).toEqual({ wraps: true, fits: true });
+    }
 
     // Recreating the renderer and stores must retain the user's choice.
     await page.reload();

@@ -10,7 +10,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 
 /**
- * Pill naming the playlist a collection's live channel belongs to; clicking
+ * Button naming the playlist a collection's live channel belongs to; clicking
  * it hands the channel off to that playlist. Projected into the EPG panel
  * toolbar (`[epgToolbarAction]`) beside the channel name so the "where is
  * this from" answer sits on the now-playing surface, in the collapsed state
