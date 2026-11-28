@@ -1,4 +1,11 @@
-import { DestroyRef, inject, Injectable, Signal, signal } from '@angular/core';
+import {
+    DestroyRef,
+    inject,
+    Injectable,
+    Injector,
+    Signal,
+    signal,
+} from '@angular/core';
 import {
     buildCollectionUid,
     CollectionContentType,
@@ -7,6 +14,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import type { StalkerPortalItem } from '@iptvnator/shared/interfaces';
 import { stalkerFavoriteReference } from '@iptvnator/shared/interfaces/favorites-sync';
+import { FavoriteChannelFoldersService } from './favorite-channel-folders.service';
 import { createCollectionReloadIndicator } from './collection-reload-indicator';
 import { UnifiedFavoritesDataService } from './unified-favorites-data.service';
 import { UnifiedRecentDataService } from './unified-recent-data.service';
@@ -84,6 +92,7 @@ function stalkerRecentFavoriteUids(
  */
 @Injectable()
 export class UnifiedCollectionDataService {
+    private readonly injector = inject(Injector);
     private readonly favoritesData = inject(UnifiedFavoritesDataService);
     private readonly recentData = inject(UnifiedRecentDataService);
     private readonly reloadIndicator = createCollectionReloadIndicator(
@@ -192,6 +201,7 @@ export class UnifiedCollectionDataService {
         this.allItems.update((items) =>
             items.filter((i) => i.uid !== item.uid)
         );
+        if (mode === 'favorites') await this.releaseAssignments([item]);
     }
 
     async toggleFavorite(item: UnifiedCollectionItem): Promise<void> {
@@ -207,6 +217,7 @@ export class UnifiedCollectionDataService {
             else nextFavoriteUids.add(item.uid);
             return nextFavoriteUids;
         });
+        await this.releaseAssignments([item]);
     }
 
     async reorder(
@@ -225,8 +236,23 @@ export class UnifiedCollectionDataService {
         );
     }
 
-    clearFavorites(items: UnifiedCollectionItem[]): Promise<boolean> {
-        return this.favoritesData.clearFavorites(items);
+    async clearFavorites(items: UnifiedCollectionItem[]): Promise<boolean> {
+        const cleared = await this.favoritesData.clearFavorites(items);
+        if (cleared !== false) await this.releaseAssignments(items);
+        return cleared;
+    }
+
+    private async releaseAssignments(
+        items: UnifiedCollectionItem[]
+    ): Promise<void> {
+        if (!items.some((item) => item.contentType === 'live')) return;
+        try {
+            await this.injector
+                .get(FavoriteChannelFoldersService)
+                .unfile(items);
+        } catch {
+            // The provider has already confirmed the membership change.
+        }
     }
 
     removeRecentItemsBatch(items: UnifiedCollectionItem[]): Promise<boolean> {

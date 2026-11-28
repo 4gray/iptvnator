@@ -7,7 +7,9 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
+import { SettingsSyncStatusComponent } from './settings-sync-status.component';
 import { loadHistoryRuntime } from '../services/history-sync.providers';
 import type {
     HistorySyncRuntime,
@@ -16,9 +18,15 @@ import type {
 @Component({
     selector: 'app-settings-history-section',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatButtonModule, MatCheckboxModule, TranslateModule],
+    imports: [
+        MatButtonModule,
+        MatCheckboxModule,
+        MatIconModule,
+        SettingsSyncStatusComponent,
+        TranslateModule,
+    ],
     templateUrl: './settings-history-section.component.html',
-    styleUrl: './settings-favorites-section.component.scss',
+    styleUrl: './settings-server-section.component.scss',
 })
 export class SettingsHistorySectionComponent {
     readonly runtime = signal<HistorySyncRuntime | null>(null);

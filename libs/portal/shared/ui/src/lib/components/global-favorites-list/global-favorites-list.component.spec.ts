@@ -1,19 +1,26 @@
+import { CdkDrag, CdkDropList } from '@angular/cdk/drag-drop';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
+import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatDialog } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
 import { EMPTY } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
-import { ChannelDetailsDialogComponent } from '@iptvnator/ui/components';
+import {
+    ChannelDetailsDialogComponent,
+    ChannelListItemComponent,
+} from '@iptvnator/ui/components';
 import { UnifiedFavoriteChannel } from '@iptvnator/portal/shared/util';
 import { Channel, EpgProgram } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import type { FavoriteFoldersView } from '../favorite-channel-folders/favorite-folders-view';
 import { GlobalFavoritesListComponent } from './global-favorites-list.component';
 
 describe('GlobalFavoritesListComponent', () => {
     let fixture: ComponentFixture<GlobalFavoritesListComponent>;
-    let dialog: { open: jest.Mock };
+    let dialog: { open: jest.Mock; openDialogs: unknown[] };
+    const doubleClickPlayback = signal(false);
     const getEpgMapping = jest.fn();
     let runtime: {
         supportsEpg: boolean;
@@ -47,7 +54,9 @@ describe('GlobalFavoritesListComponent', () => {
         };
         dialog = {
             open: jest.fn(),
+            openDialogs: [],
         };
+        doubleClickPlayback.set(false);
         getEpgMapping.mockReset().mockResolvedValue(null);
 
         await TestBed.configureTestingModule({
@@ -68,7 +77,7 @@ describe('GlobalFavoritesListComponent', () => {
                 {
                     provide: SettingsStore,
                     useValue: {
-                        openStreamOnDoubleClick: signal(false),
+                        openStreamOnDoubleClick: doubleClickPlayback,
                         resolvedEpgOffsetMinutes: signal(0),
                     },
                 },
@@ -188,6 +197,181 @@ describe('GlobalFavoritesListComponent', () => {
         expect(
             fixture.nativeElement.querySelectorAll('.favorite-button')
         ).toHaveLength(1);
+    });
+
+    function setupFolderList() {
+        const alpha = buildChannel('alpha', 'Alpha');
+        const beta = buildChannel('beta', 'Beta');
+        const selectionMode = signal(false);
+        const view = {
+            folders: signal([{ id: 'news', name: 'News' }]),
+            currentFolder: signal(undefined),
+            headingKey: signal('WORKSPACE.FAVORITE_FOLDERS.ALL_CHANNELS'),
+            visibleCount: signal(2),
+            selectableCount: signal(1),
+            selectedCount: signal(0),
+            selectedUids: signal<ReadonlySet<string>>(new Set()),
+            selectionMode,
+            canFile: (item: UnifiedFavoriteChannel) => item.uid === alpha.uid,
+            canDragToFolder: signal(true),
+            toggleSelected: jest.fn(),
+            finishSelection: jest.fn(() => selectionMode.set(false)),
+            startDrag: jest.fn(),
+            destinationAt: jest.fn().mockReturnValue('news'),
+            clearDrag: jest.fn(),
+            endDrag: jest.fn().mockResolvedValue(undefined),
+            moveOne: jest.fn().mockResolvedValue(undefined),
+        } satisfies Partial<FavoriteFoldersView>;
+        fixture.componentRef.setInput('channels', [alpha, beta]);
+        fixture.componentRef.setInput('folderView', view);
+        fixture.componentRef.setInput('sortMode', 'custom');
+        fixture.detectChanges();
+        return { alpha, beta, view };
+    }
+
+    it('selects only fileable rows without changing playback, then returns to normal activation', () => {
+        const { alpha, beta, view } = setupFolderList();
+        const { channelSelected, playbackRequested } =
+            fixture.componentInstance;
+        const selected = jest.fn();
+        const played = jest.fn();
+        channelSelected.subscribe(selected);
+        playbackRequested.subscribe(played);
+        doubleClickPlayback.set(true);
+        view.selectionMode.set(true);
+        fixture.detectChanges();
+        const [alphaRow, betaRow] = fixture.debugElement
+            .queryAll(By.directive(ChannelListItemComponent))
+            .map(({ injector }) => injector.get(ChannelListItemComponent));
+
+        alphaRow.clicked.emit();
+        alphaRow.keyboardActivated.emit();
+        alphaRow.activated.emit();
+        betaRow.keyboardActivated.emit();
+        expect(view.toggleSelected.mock.calls).toEqual([
+            [alpha.uid],
+            [alpha.uid],
+        ]);
+        expect(selected).not.toHaveBeenCalled();
+        expect(played).not.toHaveBeenCalled();
+
+        const list: HTMLElement =
+            fixture.nativeElement.querySelector('.nav-list');
+        const pressEscape = () =>
+            list.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key: 'Escape',
+                    bubbles: true,
+                    cancelable: true,
+                })
+            );
+        dialog.openDialogs.push({});
+        expect(pressEscape()).toBe(true);
+        expect(view.finishSelection).not.toHaveBeenCalled();
+        dialog.openDialogs.pop();
+        expect(pressEscape()).toBe(false);
+        expect(view.finishSelection).toHaveBeenCalledTimes(1);
+
+        betaRow.clicked.emit();
+        betaRow.activated.emit();
+        expect(selected).toHaveBeenCalledWith(
+            expect.objectContaining({ uid: beta.uid })
+        );
+        expect(played).toHaveBeenCalledWith(
+            expect.objectContaining({ uid: beta.uid })
+        );
+    });
+
+    it('moves the context-menu row and ignores a move without a row', () => {
+        const { alpha, view } = setupFolderList();
+        const component = fixture.componentInstance;
+        expect(component.hasChannelContextMenu(alpha)).toBe(true);
+        component.moveContextMenuChannel();
+        expect(view.moveOne).not.toHaveBeenCalled();
+
+        component.contextMenuChannel.set(component.enrichedChannels()[0]);
+        component.moveContextMenuChannel();
+        expect(view.moveOne).toHaveBeenCalledWith(
+            expect.objectContaining({ uid: alpha.uid })
+        );
+    });
+
+    it('emits manual ordering, sends folder drops to their captured target, and cancels both with Escape', () => {
+        const { alpha, beta, view } = setupFolderList();
+        const component = fixture.componentInstance;
+        const reordered = jest.fn();
+        component.channelsReordered.subscribe(reordered);
+        const rowNode = fixture.debugElement.query(
+            By.directive(ChannelListItemComponent)
+        );
+        const row = rowNode.injector.get(ChannelListItemComponent);
+        const source = rowNode
+            .query(By.directive(CdkDrag))
+            .injector.get(CdkDrag);
+        const list = fixture.debugElement
+            .query(By.directive(CdkDropList))
+            .injector.get(CdkDropList);
+        const pointer = new MouseEvent('mouseup');
+        const drop = {
+            previousIndex: 0,
+            currentIndex: 1,
+            isPointerOverContainer: true,
+            container: list,
+            previousContainer: list,
+            item: source,
+            distance: { x: 0, y: 40 },
+            dropPoint: { x: 20, y: 70 },
+            event: pointer,
+        };
+        list.dropped.emit({ ...drop, currentIndex: 0 });
+        list.dropped.emit({ ...drop, isPointerOverContainer: false });
+        expect(reordered).not.toHaveBeenCalled();
+        list.dropped.emit(drop);
+        expect(reordered).toHaveBeenCalledWith([beta, alpha]);
+
+        fixture.componentRef.setInput('sortMode', 'name-asc');
+        fixture.detectChanges();
+        expect(component.canDragDrop()).toBe(false);
+        expect(component.canDragToFolder()).toBe(true);
+        row.dragStarted.emit();
+        expect(view.startDrag).toHaveBeenCalledWith(
+            expect.objectContaining({ uid: alpha.uid })
+        );
+        row.dragReleased.emit({ source, event: pointer });
+        expect(view.destinationAt).toHaveBeenCalledWith(pointer);
+        row.dragEnded.emit();
+        expect(view.endDrag).toHaveBeenLastCalledWith(
+            expect.objectContaining({ uid: alpha.uid }),
+            'news'
+        );
+
+        fixture.componentRef.setInput('sortMode', 'custom');
+        fixture.detectChanges();
+        row.dragStarted.emit();
+        const escape = new KeyboardEvent('keydown', {
+            key: 'Escape',
+            bubbles: true,
+            cancelable: true,
+        });
+        expect(document.dispatchEvent(escape)).toBe(false);
+        expect(view.clearDrag).toHaveBeenCalledTimes(1);
+        row.dragReleased.emit({ source, event: pointer });
+        list.dropped.emit(drop);
+        row.dragEnded.emit();
+        expect(reordered).toHaveBeenCalledTimes(1);
+        expect(view.destinationAt).toHaveBeenCalledTimes(1);
+        expect(view.endDrag).toHaveBeenLastCalledWith(
+            expect.objectContaining({ uid: alpha.uid }),
+            null
+        );
+        expect(
+            document.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key: 'Escape',
+                    cancelable: true,
+                })
+            )
+        ).toBe(true);
     });
 
     it('renders favorite state from the supplied favorite ids in recent mode', () => {

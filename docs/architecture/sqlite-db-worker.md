@@ -898,6 +898,17 @@ Xtream search now guards against stale async responses:
 This prevents an older worker response from repainting over a newer query or a
 cleared search state.
 
+Global M3U search uses a raw JSON payload prefilter to reduce SQLite LIKE
+work. The worker parses candidate playlists and scores the channel name,
+`tvg.name` and group title. It reads candidates in batches of 5,000, ordered by
+playlist name and ID, until it exhausts the candidates or reaches the same cap on
+scored channels. Matches in stream URLs or other metadata can fill a batch
+without hiding a later result.
+
+Restart Electron with `IPTVNATOR_DISABLE_M3U_BROAD_PREFILTER=1` to use the
+field-wrapped SQL patterns with the same candidate paging. Remove this
+switch within two releases of its introduction.
+
 ### Xtream type-aware content lookup
 
 Xtream UI flows must treat `xtream_id` as only partially unique.

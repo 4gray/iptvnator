@@ -1,34 +1,77 @@
+@if (folderView(); as folders) {
+    <app-favorite-folders-toolbar
+        [view]="folders"
+        (keydown.escape)="onSelectionEscape($event)"
+    />
+}
 <div
     appChannelScrollFocus
     [attr.aria-label]="'HOME.PLAYLISTS.CHANNELS' | translate"
     class="nav-list app-scrollbar"
     cdkDropList
-    [cdkDropListDisabled]="!canDragDrop()"
+    [cdkDropListDisabled]="!canDragDrop() && !canDragToFolder()"
+    [cdkDropListSortingDisabled]="!canDragDrop()"
+    (keydown.escape)="onSelectionEscape($event)"
     (cdkDropListDropped)="onDrop($event)"
 >
     @if (enrichedChannels().length === 0) {
-        <app-state-view
-            size="panel"
-            [variant]="hasSearchTerm() ? 'no-results' : 'empty'"
-            [icon]="hasSearchTerm() ? null : appIcons.favoriteOutline"
-            [heading]="
-                (hasSearchTerm()
-                    ? 'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS'
-                    : 'WORKSPACE.GLOBAL_FAVORITES.EMPTY_TITLE'
-                ) | translate
-            "
-            [description]="
-                (hasSearchTerm()
-                    ? 'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS_HINT'
-                    : 'WORKSPACE.GLOBAL_FAVORITES.EMPTY_HINT'
-                ) | translate
-            "
-        />
+        @let folderFiltered = folderView()?.hasFolderAssignments();
+        @if (folderView()?.currentFolder() && !folderFiltered) {
+            <app-state-view
+                size="panel"
+                variant="empty"
+                icon="folder_open"
+                [heading]="
+                    'WORKSPACE.FAVORITE_FOLDERS.EMPTY_FOLDER' | translate
+                "
+                [actionLabel]="
+                    'WORKSPACE.FAVORITE_FOLDERS.OPEN_UNFILED' | translate
+                "
+                (action)="folderView()?.selectUnfiled()"
+            />
+        } @else {
+            @let noResults = hasSearchTerm() || folderFiltered;
+            <app-state-view
+                size="panel"
+                [variant]="noResults ? 'no-results' : 'empty'"
+                [icon]="noResults ? null : appIcons.favoriteOutline"
+                [heading]="
+                    (noResults
+                        ? 'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS'
+                        : 'WORKSPACE.GLOBAL_FAVORITES.EMPTY_TITLE'
+                    ) | translate
+                "
+                [description]="
+                    (folderFiltered
+                        ? 'WORKSPACE.FAVORITE_FOLDERS.FILTERED_FOLDER_HINT'
+                        : hasSearchTerm()
+                          ? 'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS_HINT'
+                          : 'WORKSPACE.GLOBAL_FAVORITES.EMPTY_HINT'
+                    ) | translate
+                "
+            />
+        }
     }
 
     @for (ch of enrichedChannels(); track trackByUid($index, ch)) {
+        @let showFolderActions =
+            !folderView()?.selectionMode() && !!folderView()?.canFile(ch);
         <app-channel-list-item
-            [isDraggable]="canDragDrop()"
+            [class.stack-actions]="showFolderActions"
+            [isDraggable]="
+                canDragDrop() ||
+                (canDragToFolder() && !!folderView()?.canFile(ch))
+            "
+            [selectionChecked]="
+                folderView()?.selectionMode() && folderView()?.canFile(ch)
+                    ? !!folderView()?.selectedUids()?.has(ch.uid)
+                    : null
+            "
+            (selectionChanged)="folderView()?.toggleSelected(ch.uid)"
+            (dragStarted)="onDragStarted(ch)"
+            (dragMoved)="folderView()?.updateDrag($event.event)"
+            (dragReleased)="onDragReleased($event)"
+            (dragEnded)="onDragEnded(ch)"
             [logo]="ch.logo"
             [name]="ch.name"
             [disabled]="isUnavailable(ch)"
@@ -56,10 +99,13 @@
             [progressPercentage]="ch.progressPercentage"
             [catchupAvailable]="catchupAvailable(ch)"
             [catchupDays]="catchupDays(ch)"
-            [showFavoriteButton]="true"
+            [showFavoriteButton]="!folderView()?.selectionMode()"
             [isFavorite]="isChannelFavorite(ch)"
             [showProgramInfoButton]="true"
-            [showDetailsContextMenu]="hasChannelContextMenu(ch)"
+            [showDetailsContextMenu]="
+                !folderView()?.selectionMode() && hasChannelContextMenu(ch)
+            "
+            [showContextMenuButton]="showFolderActions"
             (clicked)="onChannelClick(ch)"
             (activated)="onChannelActivate(ch)"
             (keyboardActivated)="onPlaybackRequested(ch)"
@@ -80,6 +126,12 @@
         contextMenuCanOpenInPlaylist() ? contextMenuPlaylistName() : null
     "
     [showRemoveFromHistory]="mode() === 'recent'"
+    [favoriteFolderAction]="
+        contextMenuChannel() && folderView()?.canFile(contextMenuChannel()!)
+            ? 'move'
+            : null
+    "
+    (favoriteFolderRequested)="moveContextMenuChannel()"
     (mapEpg)="openEpgMapping()"
     (details)="openChannelDetails()"
     (openInPlaylist)="openContextMenuChannelInPlaylist()"

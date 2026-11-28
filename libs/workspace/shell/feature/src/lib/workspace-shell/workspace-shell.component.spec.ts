@@ -72,6 +72,7 @@ class MockWorkspaceShellHeaderComponent {
     readonly isSettingsRoute = input(false);
     readonly showContextDrawerToggle = input(false);
     readonly isContextDrawerOpen = input(false);
+    readonly isFavoriteFolderDrawer = input(false);
     readonly contextDrawerToggleAriaKey = input('');
     readonly contextDrawerTooltipKey = input('');
     readonly headerSidebarToggle = input<unknown>(null);
@@ -682,6 +683,13 @@ describe('WorkspaceShellComponent', () => {
         );
         jest.runOnlyPendingTimers();
         expect(facade.openGlobalSearch).not.toHaveBeenCalled();
+
+        // A Favorites tab can hide the panel without emitting NavigationEnd.
+        facade.showContextPanel.set(false);
+        fixture.detectChanges();
+        expect(fixture.componentInstance.contextDrawer.isOpen()).toBe(false);
+        expect(header.isContextDrawerOpen()).toBe(false);
+        expect(backdrop()).toBeNull();
 
         jest.runOnlyPendingTimers();
         jest.useRealTimers();

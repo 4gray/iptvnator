@@ -279,6 +279,15 @@
         gap: 2px;
     }
 
+    .channel-list-item:not(.compact) &.action-buttons--with-menu {
+        display: grid;
+        grid-template-columns: repeat(2, auto);
+
+        .context-menu-button {
+            grid-area: 1 / 2;
+        }
+    }
+
     // The kit's 28px square ghost icon buttons, in the row's own colour so
     // they follow a selected row's tint.
     button {
@@ -318,6 +327,36 @@
     .action-buttons button,
     .action-buttons mat-icon {
         color: inherit;
+    }
+}
+
+:host(.stack-actions) .channel-list-item {
+    padding-block: 4px;
+
+    &.compact {
+        height: 66px;
+    }
+
+    .action-buttons--with-menu {
+        display: grid;
+        grid-template-columns: auto auto;
+        gap: 0;
+
+        .favorite-button {
+            grid-area: 1 / 2;
+        }
+
+        .context-menu-button {
+            grid-area: 2 / 2;
+        }
+
+        .program-info-button {
+            grid-area: 1 / 1 / span 2;
+
+            &.slot-empty {
+                display: none;
+            }
+        }
     }
 }
 
@@ -386,7 +425,7 @@
     }
 
     .channel-list-item.compact .channel-logo-shell,
-    .channel-list-item.compact .action-buttons {
+    .channel-list-item.compact .action-buttons:not(.action-buttons--with-menu) {
         display: none;
     }
 

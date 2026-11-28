@@ -45,6 +45,10 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamFavoriteItem,
 } from '@iptvnator/portal/xtream/data-access';
+import {
+    matchStalkerFavoriteRows,
+    stalkerFavoriteRowIdentity,
+} from './stalker-favorite-identity';
 
 const GLOBAL_FAVORITES_ORDER_KEY = 'global-favorites-channel-order-v1';
 
@@ -79,6 +83,14 @@ export class UnifiedFavoritesDataService {
             return this.getPlaylistFavorites(playlistId, portalType);
         }
         return this.getAllFavorites();
+    }
+
+    /** A failed read cannot establish that it is safe to add membership. */
+    getPlaylistFavoritesForMembership(
+        playlistId: string,
+        sourceType: UnifiedCollectionItem['sourceType']
+    ): Promise<UnifiedCollectionItem[]> {
+        return this.getPlaylistFavorites(playlistId, sourceType, true);
     }
 
     async addFavorite(item: UnifiedCollectionItem): Promise<boolean> {
@@ -197,8 +209,14 @@ export class UnifiedFavoritesDataService {
                 item.favoriteId != null
                     ? { favoriteId: item.favoriteId }
                     : await this.xtreamFavoriteContentId(item);
-            if (target != null && current())
-                await electron.dbRemoveFavorite(target, item.playlistId);
+            if (target != null && current()) {
+                const result = await electron.dbRemoveFavorite(
+                    target,
+                    item.playlistId
+                );
+                if (result?.success === false)
+                    throw new Error('Favorite could not be removed');
+            }
             return;
         }
         if (!current() || (item.contentId == null && item.xtreamId == null))
@@ -303,9 +321,20 @@ export class UnifiedFavoritesDataService {
             added_at: new Date().toISOString(),
         };
 
-        await firstValueFrom(
+        const updated = await firstValueFrom(
             this.playlistsService.addPortalFavorite(item.playlistId, favorite)
         );
+        if (updated?.favorites) {
+            this.store.dispatch(
+                PlaylistActions.updatePlaylistMeta({
+                    persist: false,
+                    playlist: {
+                        _id: item.playlistId,
+                        favorites: updated.favorites,
+                    } as PlaylistMeta,
+                })
+            );
+        }
     }
 
     async clearFavorites(items: UnifiedCollectionItem[]): Promise<boolean> {
@@ -354,40 +383,27 @@ export class UnifiedFavoritesDataService {
             options.playlistId &&
             options.portalType === 'stalker'
         ) {
+            const rows = items.filter(
+                (item) =>
+                    item.sourceType === 'stalker' &&
+                    item.playlistId === options.playlistId
+            );
+            const shared = this.favoriteSync.active();
             await firstValueFrom(
                 this.playlistsService.transformPlaylistFavorites(
                     options.playlistId,
                     (current) => {
                         const currentFavorites = current.filter(isStalkerItem);
-                        const favoritesById = new Map(
-                            currentFavorites.map((favorite) => [
-                                this.getStalkerFavoriteId(favorite),
-                                favorite,
-                            ])
+                        const reorderedFavorites = matchStalkerFavoriteRows(
+                            currentFavorites,
+                            rows,
+                            shared
                         );
-                        const reorderedFavorites = items
-                            .map(
-                                (item) =>
-                                    favoritesById.get(
-                                        this.getStalkerFavoriteId(item)
-                                    ) ?? null
-                            )
-                            .filter(
-                                (favorite): favorite is StalkerPortalItem =>
-                                    favorite !== null
-                            );
-                        const reorderedIds = new Set(
-                            reorderedFavorites.map((favorite) =>
-                                this.getStalkerFavoriteId(favorite)
-                            )
-                        );
+                        if (!reorderedFavorites.size) return current;
                         return [
                             ...reorderedFavorites,
                             ...currentFavorites.filter(
-                                (favorite) =>
-                                    !reorderedIds.has(
-                                        this.getStalkerFavoriteId(favorite)
-                                    )
+                                (favorite) => !reorderedFavorites.has(favorite)
                             ),
                             ...current.filter(
                                 (favorite) => !isStalkerItem(favorite)
@@ -491,27 +507,26 @@ export class UnifiedFavoritesDataService {
         items: UnifiedCollectionItem[]
     ): Promise<void> {
         const groupedItems = this.groupItemsByPlaylist(items);
+        const shared = this.favoriteSync.active();
 
         await Promise.all(
             Array.from(groupedItems.entries()).map(
                 async ([playlistId, playlistItems]) => {
-                    const targetIds = new Set(
-                        playlistItems.map((item) =>
-                            this.getStalkerFavoriteId(item)
-                        )
-                    );
-
                     await firstValueFrom(
                         this.playlistsService.transformPlaylistFavorites(
                             playlistId,
-                            (current) =>
-                                current.filter(
+                            (current) => {
+                                const selected = matchStalkerFavoriteRows(
+                                    current.filter(isStalkerItem),
+                                    playlistItems,
+                                    shared
+                                );
+                                return current.filter(
                                     (favorite) =>
                                         !isStalkerItem(favorite) ||
-                                        !targetIds.has(
-                                            this.getStalkerFavoriteId(favorite)
-                                        )
-                                )
+                                        !selected.has(favorite)
+                                );
+                            }
                         )
                     );
                 }
@@ -521,13 +536,14 @@ export class UnifiedFavoritesDataService {
 
     private async getPlaylistFavorites(
         playlistId: string,
-        portalType?: string
+        portalType?: string,
+        strict = false
     ): Promise<UnifiedCollectionItem[]> {
         if (portalType === 'xtream')
-            return this.getXtreamPlaylistFavorites(playlistId);
+            return this.getXtreamPlaylistFavorites(playlistId, strict);
         if (portalType === 'stalker')
-            return this.getStalkerPlaylistFavorites(playlistId);
-        return this.getM3uPlaylistFavorites(playlistId);
+            return this.getStalkerPlaylistFavorites(playlistId, strict);
+        return this.getM3uPlaylistFavorites(playlistId, strict);
     }
 
     private async getM3uFavorites(): Promise<UnifiedCollectionItem[]> {
@@ -542,25 +558,30 @@ export class UnifiedFavoritesDataService {
     }
 
     private async getM3uPlaylistFavorites(
-        id: string
+        id: string,
+        strict: boolean
     ): Promise<UnifiedCollectionItem[]> {
-        const meta = await this.getPlaylistMeta(id);
-        return meta ? this.extractM3uFavorites(meta) : [];
+        const meta = await this.getPlaylistMeta(id, strict);
+        return meta ? this.extractM3uFavorites(meta, strict) : [];
     }
 
     private async extractM3uFavorites(
-        meta: PlaylistMeta
+        meta: PlaylistMeta,
+        strict = false
     ): Promise<UnifiedCollectionItem[]> {
-        if (!meta.favorites?.length) return [];
+        if (!strict && !meta.favorites?.length) return [];
 
         let playlist: PlaylistWithChannels | undefined;
         try {
             playlist = (await firstValueFrom(
                 this.playlistsService.getPlaylistById(meta._id)
             )) as PlaylistWithChannels | undefined;
-        } catch {
+        } catch (error) {
+            if (strict) throw error;
             return [];
         }
+        if (strict && !playlist)
+            throw new Error('Favorite source is unavailable');
         if (playlist) playlist = await this.favoriteSync.project(playlist);
         const favoriteIds = ((playlist?.favorites ?? []) as string[]).map(
             String
@@ -641,13 +662,19 @@ export class UnifiedFavoritesDataService {
     }
 
     private async getXtreamPlaylistFavorites(
-        playlistId: string
+        playlistId: string,
+        strict = false
     ): Promise<UnifiedCollectionItem[]> {
         try {
-            const meta = await this.getPlaylistMeta(playlistId);
+            const meta = await this.getPlaylistMeta(playlistId, strict);
             if (!(await this.xtreamFavoritesBridge(playlistId))) {
-                const rows =
-                    await this.xtreamDataSource.getFavorites(playlistId);
+                const rows = strict
+                    ? await this.xtreamDataSource.getFavorites(
+                          playlistId,
+                          false,
+                          true
+                      )
+                    : await this.xtreamDataSource.getFavorites(playlistId);
                 return this.applyOrder(
                     rows.map((row) => ({
                         ...this.mapXtreamContentItem(
@@ -665,7 +692,9 @@ export class UnifiedFavoritesDataService {
                 );
             }
 
-            const rows = await this.dbService.getFavorites(playlistId);
+            const rows = strict
+                ? await this.dbService.getFavoritesOrThrow(playlistId)
+                : await this.dbService.getFavorites(playlistId);
             return (rows as unknown as XtreamFavoriteRow[]).map((r) => ({
                 ...this.mapXtreamRow(r),
                 playlistId,
@@ -674,7 +703,8 @@ export class UnifiedFavoritesDataService {
                     meta?.xtreamContentTypes
                 ).includes(xtreamContentType(r.type)),
             }));
-        } catch {
+        } catch (error) {
+            if (strict) throw error;
             return [];
         }
     }
@@ -791,41 +821,55 @@ export class UnifiedFavoritesDataService {
     }
 
     private async getStalkerPlaylistFavorites(
-        id: string
+        id: string,
+        strict: boolean
     ): Promise<UnifiedCollectionItem[]> {
-        const meta = await this.getPlaylistMeta(id);
-        return meta ? this.extractStalkerFavorites(meta) : [];
+        const meta = await this.getPlaylistMeta(id, strict);
+        return meta ? this.extractStalkerFavorites(meta, strict) : [];
     }
 
     private async extractStalkerFavorites(
-        meta: PlaylistMeta
+        meta: PlaylistMeta,
+        strict = false
     ): Promise<UnifiedCollectionItem[]> {
-        if (!meta.favorites?.length) return [];
+        if (!strict && !meta.favorites?.length) return [];
         let playlist: Playlist | undefined;
         try {
             await this.playlistsService.preparePortalFavoriteActions();
             playlist = (await firstValueFrom(
                 this.playlistsService.getPlaylistById(meta._id)
             )) as Playlist | undefined;
-        } catch {
+        } catch (error) {
+            if (strict) throw error;
             return [];
         }
+        if (strict && !playlist)
+            throw new Error('Favorite source is unavailable');
         if (playlist) playlist = await this.favoriteSync.project(playlist);
         if (playlist) playlist = this.stalkerMetadata.project(playlist);
         const favs = Array.isArray(playlist?.favorites)
             ? playlist.favorites.filter(isStalkerItem)
             : [];
+        const shared = this.favoriteSync.active();
 
         return favs.map((fav, index) => {
-            const ct = extractStalkerItemType(fav);
-            const isRadio = isStalkerRadioItem(fav);
-            const stalkerId = extractStalkerItemId(fav, meta._id, index);
+            const { kind, providerId, rowId } = stalkerFavoriteRowIdentity(
+                fav,
+                shared
+            );
+            const isRadio = kind === 'radio' || isStalkerRadioItem(fav);
+            const ct =
+                kind === 'live' || isRadio
+                    ? 'live'
+                    : extractStalkerItemType(fav);
+            const stalkerId =
+                providerId ?? extractStalkerItemId(fav, meta._id, index);
             const poster = extractStalkerItemPoster(fav) || null;
             return {
                 uid: buildCollectionUid(
                     'stalker',
                     meta._id,
-                    this.getStalkerFavoriteId(fav) || stalkerId
+                    rowId ?? extractStalkerItemId(fav)
                 ),
                 name:
                     extractStalkerItemTitle(fav) ||
@@ -868,9 +912,13 @@ export class UnifiedFavoritesDataService {
     }
 
     private async getPlaylistMeta(
-        id: string
+        id: string,
+        required = false
     ): Promise<PlaylistMeta | undefined> {
-        return (await this.getAllMeta()).find((p) => p._id === id);
+        const meta = (await this.getAllMeta()).find((p) => p._id === id);
+        if (required && !meta)
+            throw new Error('Favorite source is unavailable');
+        return meta;
     }
 
     private async getSavedOrder(): Promise<string[]> {
@@ -947,23 +995,41 @@ export class UnifiedFavoritesDataService {
             });
         }
         const orderMap = new Map(savedOrder.map((uid, i) => [uid, i]));
+        const shared = this.favoriteSync.active();
         const historicalUid = (item: UnifiedCollectionItem) =>
             item.sourceType === 'stalker' && item.stalkerId
-                ? buildCollectionUid('stalker', item.playlistId, item.stalkerId)
+                ? buildCollectionUid(
+                      'stalker',
+                      item.playlistId,
+                      item.stalkerItem
+                          ? extractStalkerItemId(
+                                item.stalkerItem as StalkerPortalItem
+                            )
+                          : item.stalkerId
+                  )
                 : undefined;
+        const entries = items.map((item) => ({
+            item,
+            historical: historicalUid(item),
+        }));
         const historicalCounts = new Map<string, number>();
-        for (const item of items) {
-            const uid = historicalUid(item);
-            if (uid)
-                historicalCounts.set(uid, (historicalCounts.get(uid) ?? 0) + 1);
+        if (shared) {
+            for (const { historical } of entries) {
+                if (historical)
+                    historicalCounts.set(
+                        historical,
+                        (historicalCounts.get(historical) ?? 0) + 1
+                    );
+            }
         }
         const ordered: UnifiedCollectionItem[] = [];
         const unordered: UnifiedCollectionItem[] = [];
-        for (const item of items) {
-            const historical = historicalUid(item);
+        for (const { item, historical } of entries) {
             const pos =
                 orderMap.get(item.uid) ??
-                (historical && historicalCounts.get(historical) === 1
+                // A standalone legacy UID represented the whole same-ID group.
+                (historical &&
+                (!shared || historicalCounts.get(historical) === 1)
                     ? orderMap.get(historical)
                     : undefined);
             if (pos != null) {
@@ -1020,27 +1086,6 @@ export class UnifiedFavoritesDataService {
         playlist: Pick<PlaylistMeta, 'serverUrl' | 'macAddress'>
     ): boolean {
         return Boolean(playlist.serverUrl) && !playlist.macAddress;
-    }
-
-    private getStalkerFavoriteId(
-        favorite:
-            | Pick<UnifiedCollectionItem, 'stalkerId' | 'uid' | 'stalkerItem'>
-            | StalkerPortalItem
-    ): string {
-        const item = ('uid' in favorite ? favorite.stalkerItem : favorite) as
-            StalkerPortalItem | undefined;
-        const reference =
-            item &&
-            this.favoriteSync.active() &&
-            stalkerFavoriteReference(item);
-        if (reference) return favoriteReferenceKey(reference);
-        if ('uid' in favorite) {
-            return String(
-                favorite.stalkerId ?? favorite.uid.split('::')[2] ?? ''
-            ).trim();
-        }
-
-        return extractStalkerItemId(favorite);
     }
 
     private get electronActivityBridge(): Window['electron'] | undefined {

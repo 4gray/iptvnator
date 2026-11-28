@@ -35,6 +35,7 @@
                         ?.progressPercentage ?? 0
                 "
                 [showDetailsContextMenu]="true"
+                [showContextMenuButton]="folderMenu?.available() ?? false"
                 (clicked)="onChannelClick(channel)"
                 (activated)="onChannelActivate(channel)"
                 (keyboardActivated)="channelPlaybackRequested.emit(channel)"
@@ -67,6 +68,8 @@
 </div>
 
 <app-channel-context-menu
+    [favoriteFolderAction]="folderMenu?.action(contextMenuChannel()) ?? null"
+    (favoriteFolderRequested)="folderMenu?.open(contextMenuChannel(), $event)"
     [showMapEpg]="supportsEpgMapping"
     [showDetails]="true"
     (mapEpg)="openEpgMapping()"

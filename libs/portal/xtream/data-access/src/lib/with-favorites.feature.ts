@@ -5,6 +5,7 @@ import {
     SourceActivityService,
 } from '@iptvnator/services';
 import { NotificationService } from '@iptvnator/services/notifications';
+import { FavoriteChannelMembershipEvents } from '@iptvnator/services/favorites-events';
 import { DestroyRef, inject } from '@angular/core';
 import {
     type ContentMetadataPatch,
@@ -43,7 +44,8 @@ export const withFavorites = function () {
                 runtime = inject(RuntimeCapabilitiesService),
                 // The store exists from startup; NotificationService loads the
                 // snack-bar chunk on the first toast, not at startup.
-                notifications = inject(NotificationService)
+                notifications = inject(NotificationService),
+                favoriteMembership = inject(FavoriteChannelMembershipEvents)
             ) => {
                 const activity = inject(SourceActivityService);
                 const sqlite = () => runtime.supportsXtreamSqliteDataSource;
@@ -184,6 +186,12 @@ export const withFavorites = function () {
                                         playlistId,
                                         backdropUrl
                                     );
+                                if (contentType === 'live' && current())
+                                    favoriteMembership.notify({
+                                        sourceType: 'xtream',
+                                        playlistId,
+                                        xtreamId: normalizedXtreamId,
+                                    });
                             } catch (error) {
                                 nextStatus = currentStatus;
                                 if (activeTarget === targetKey) {

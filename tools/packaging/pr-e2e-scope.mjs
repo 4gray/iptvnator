@@ -9,10 +9,12 @@
  * `--labels-stdin` is passed).
  *
  * Policy:
- * - Docs/plan/agent/website-only PRs skip E2E completely (`run=false`).
+ * - Docs/plan/agent/website-only and unit-test-only PRs (outside `apps/*-e2e/`)
+ *   skip E2E completely (`run=false`).
  * - Any PR with the `cross-platform-e2e` label or touching Electron main,
- *   SQLite/database, web-backend, native/embedded-mpv, root build/dependency
- *   config, E2E harness/workflow files, or unknown root inputs runs the full
+ *   SQLite/database, web-backend, native/embedded-mpv, desktop window/chrome
+ *   shell or shortcut adapters, root build/dependency config, E2E
+ *   harness/workflow files, or unknown root inputs runs the full
  *   cross-platform matrix (`cross-platform=true`).
  * - Pure renderer/UI/portal/library/Web-E2E PRs run Ubuntu Electron E2E and
  *   sharded Web Chromium E2E (`cross-platform=false`); master pushes always
@@ -32,6 +34,14 @@ const E2E_IGNORED_PATTERNS = [
     /^apps\/website\//,
 ];
 
+const E2E_APP_PREFIXES = [
+    'apps/electron-backend-e2e/',
+    'apps/web-e2e/',
+    'apps/tv-e2e/',
+];
+
+const UNIT_TEST_FILE_PATTERN = /\.(spec|test)\.[cm]?[jt]sx?$/;
+
 const CROSS_PLATFORM_PATTERNS = [
     /[\r\n]/,
     /^apps\/electron-backend\//,
@@ -41,7 +51,9 @@ const CROSS_PLATFORM_PATTERNS = [
     /^libs\/shared\/database\//,
     /^libs\/shared\/interfaces\/src\/lib\/(zoom-level\.util|ipc-commands)\.ts$/,
     /^libs\/ui\/components\/src\/lib\/window-controls\//,
-    /^libs\/workspace\/shell\/feature\/src\/lib\/(workspace-shell|workspace-keyboard-shortcuts)\//,
+    /^libs\/workspace\/shell\/feature\/src\/lib\/workspace-keyboard-shortcuts\//,
+    /^libs\/workspace\/shell\/feature\/src\/lib\/workspace-shell\/(workspace-shell\.component\.(ts|html|scss)|services\/workspace-shell\.facade\.ts|traffic-lights-clearance\.directive\.ts)$/,
+    /^libs\/workspace\/shell\/feature\/src\/lib\/workspace-shell\/components\/workspace-shell-(header|rail|rail-links)\//,
     /^tools\/(embedded-mpv|packaging|testing\/electron)\//,
     /^patches\//,
     /^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.nvmrc|nx\.json|tsconfig\.base\.json|electron-builder\.json)$/,
@@ -53,7 +65,7 @@ const PLATFORM_TOKEN_PATTERN =
     /(^|[/._-])(electron|native|embedded-mpv|macos|darwin|win32|windows|traffic-lights|window-controls)([/._-]|$)/i;
 
 const PLATFORM_CONTENT_PATTERN =
-    /\b(isMacOS|isWindows|usesCustomWindowControls|macOsTrafficLights|trafficLights|windowControls|setZoomLevel|getZoomLevel)\b|process\.platform|navigator\.platform|['"](darwin|win32)['"]|app-window-controls/;
+    /\b(isMacOS|isWindows|usesCustomWindowControls|macOsTrafficLights|trafficLights|windowControls|setZoomLevel|getZoomLevel)\b|process\.platform|navigator\.platform|['"](darwin|win32)['"]|app-window-controls|\bapp-region\b/;
 
 const LINUX_ONLY_SAFE_PATTERNS = [
     ...E2E_IGNORED_PATTERNS,
@@ -68,7 +80,13 @@ const LINUX_ONLY_SAFE_PATTERNS = [
 
 export function isIgnoredForE2E(file) {
     if (/[\r\n]/.test(file)) return false;
-    return E2E_IGNORED_PATTERNS.some((pattern) => pattern.test(file));
+    if (E2E_IGNORED_PATTERNS.some((pattern) => pattern.test(file))) {
+        return true;
+    }
+    return (
+        UNIT_TEST_FILE_PATTERN.test(file) &&
+        !E2E_APP_PREFIXES.some((prefix) => file.startsWith(prefix))
+    );
 }
 
 export function needsCrossPlatformE2E(file, content = '') {

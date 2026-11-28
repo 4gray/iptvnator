@@ -1,3 +1,4 @@
+import type { FavoriteFoldersView } from '../favorite-channel-folders/favorite-folders-view';
 import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import {
     ChangeDetectionStrategy,
@@ -101,6 +102,7 @@ import { createUnifiedLiveSelectionView } from './unified-live-selection-view';
 })
 export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     readonly items = input.required<UnifiedCollectionItem[]>();
+    readonly folderView = input<FavoriteFoldersView | null>(null);
     readonly mode = input<'favorites' | 'recent'>('favorites');
     readonly searchTerm = input('');
     readonly autoOpenItem = input<OpenLiveCollectionItemState | null>(null);
@@ -254,7 +256,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     });
 
     private readonly channelRows = createUnifiedLiveChannelRows({
-        items: this.items,
+        items: computed(() => this.folderView()?.folderItems() ?? this.items()),
         searchTerm: this.searchTerm,
         mode: this.mode,
         sortMode: this.sortMode,
@@ -392,10 +394,8 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
 
     onReorder(channels: UnifiedFavoriteChannel[]): void {
         const reordered = channels
-            .map((channel) =>
-                this.items().find((candidate) => candidate.uid === channel.uid)
-            )
-            .filter(Boolean) as UnifiedCollectionItem[];
+            .map((channel) => this.itemFor(channel))
+            .filter((item) => item !== undefined);
         this.reorderItems.emit(reordered);
     }
 

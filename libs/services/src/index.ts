@@ -3,6 +3,7 @@ export * from './lib/catalog-title-match.service';
 export * from './lib/cross-portal-similar.service';
 export * from './lib/data.service';
 export * from './lib/host-connectivity-reset';
+export { withIndexedDbExclusiveAccess } from './lib/indexeddb-exclusive-access';
 export * from './lib/lazy-snack-bar/lazy-snack-bar';
 export * from './lib/notifications/notification.service';
 export * from './lib/database-electron.service';

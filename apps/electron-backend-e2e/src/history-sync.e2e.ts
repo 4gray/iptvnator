@@ -33,7 +33,7 @@ async function settings(page: Page, enabled?: boolean) {
             .setChecked(enabled);
     if (enabled)
         await expect(
-            page.getByTestId('history-sync-settings').getByRole('status')
+            page.getByTestId('history-sync-state')
         ).toContainText(/synchronized|synchronis/i, { timeout: 30000 });
 }
 test('shares confirmed synthetic M3U history and preserves import, ordering, clear and opt-out across runtimes @history @web @electron @persistence', async ({
@@ -229,7 +229,7 @@ test('shares confirmed synthetic M3U history and preserves import, ordering, cle
         ).toBeVisible();
         await settings(page);
         await expect(
-            page.getByTestId('history-sync-settings').getByRole('status')
+            page.getByTestId('history-sync-state')
         ).toContainText('server unavailable');
         blocked = false;
         await page

@@ -491,9 +491,13 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     // =========================================================================
 
     async getFavorites(
-        playlistId: string
+        playlistId: string,
+        _hydrate?: boolean,
+        strict = false
     ): Promise<import('./xtream-data-source.interface').XtreamFavoriteItem[]> {
-        return this.dbService.getFavorites(playlistId);
+        return strict
+            ? this.dbService.getFavoritesOrThrow(playlistId)
+            : this.dbService.getFavorites(playlistId);
     }
 
     async addFavorite(
@@ -512,10 +516,11 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         contentId: XtreamCollectionRef,
         playlistId: string
     ): Promise<void> {
-        await this.dbService.removeFromFavorites(
+        const removed = await this.dbService.removeFromFavorites(
             xtreamCollectionId(contentId),
             playlistId
         );
+        if (!removed) throw new Error('Favorite could not be removed');
     }
 
     async isFavorite(
