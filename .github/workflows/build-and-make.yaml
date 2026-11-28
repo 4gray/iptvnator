@@ -24,6 +24,7 @@ on:
     push:
         branches:
             - master
+            - buffer-tuning
         tags:
             - 'v*.*.*'
         paths-ignore:
@@ -479,19 +480,9 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    # macOS builds - separate runners to avoid native module conflicts
-                    - os: macos
-                      runner: macos-15-intel
-                      arch: x64
-                      embedded_mpv_platform: darwin
-                      embedded_mpv_arch: x64
-                      embedded_mpv_build_runtime: true
-                    - os: macos
-                      runner: macos-latest
-                      arch: arm64
-                      embedded_mpv_platform: darwin
-                      embedded_mpv_arch: arm64
-                      embedded_mpv_build_runtime: true
+                    # Fork build: macOS dropped — this fork has no CSC_/APPLE_*
+                    # signing keys, and the validation step fails fast without
+                    # them, which would block the Windows release.
                     - os: windows
                       runner: windows-2022
                       arch: x64
@@ -1758,6 +1749,8 @@ jobs:
                   VERSION: ${{ steps.package-version.outputs.version }}
                   EVENT_NAME: ${{ github.event_name }}
                   IS_TAG_BUILD: ${{ startsWith(github.ref, 'refs/tags/') }}
+                  IS_FORK: ${{ github.repository != '4gray/iptvnator' }}
+                  RUN_NUMBER: ${{ github.run_number }}
                   PR_NUMBER: ${{ github.event.pull_request.number }}
                   PR_TITLE: ${{ github.event.pull_request.title }}
                   PR_URL: ${{ github.event.pull_request.html_url }}
@@ -1780,6 +1773,15 @@ jobs:
                       # public text. GitHub's generated commit list remains
                       # separate below.
                       BODY="$(node tools/release/extract-changelog-section.mjs --public "${VERSION}")"
+                  elif [ "${IS_FORK}" = "true" ]; then
+                      # Fork mode: every push publishes a public numbered release.
+                      # github.run_number only grows, so the build suffix stays
+                      # monotonic without touching package.json (which would
+                      # break electron-updater's version comparison).
+                      NAME="IPTVnator Windows v${VERSION} (build ${RUN_NUMBER})"
+                      TAG="v${VERSION}-b${RUN_NUMBER}"
+                      BODY="$(printf '📦 Numbered build from `%s` — Windows installer (embedded MPV runtime).\n\nCommit [`%s`](%s/commit/%s) · [workflow run](%s)' \
+                          "${SOURCE_BRANCH}" "${SHORT_SHA}" "${REPO_URL}" "${HEAD_SHA}" "${RUN_URL}")"
                   elif [ "${EVENT_NAME}" = "pull_request" ]; then
                       NAME="v${VERSION} — PR #${PR_NUMBER} @ ${SHORT_SHA} [test]"
                       TAG="test-pr-${PR_NUMBER}"
@@ -1861,8 +1863,12 @@ jobs:
               if: env.NIGHTLY != 'true' && (github.event_name != 'pull_request' || steps.pr-state.outputs.current == 'true')
               uses: softprops/action-gh-release@v3
               with:
-                  draft: true
-                  prerelease: ${{ !startsWith(github.ref, 'refs/tags/') }}
+                  # Forks publish a public, numbered, non-prerelease release
+                  # (release-meta's fork branch names it v<version>-b<run>),
+                  # so each push becomes the new Latest the user can download.
+                  # Upstream keeps the rolling test draft.
+                  draft: ${{ github.repository == '4gray/iptvnator' }}
+                  prerelease: ${{ github.repository == '4gray/iptvnator' && !startsWith(github.ref, 'refs/tags/') }}
                   name: ${{ steps.release-meta.outputs.name }}
                   tag_name: ${{ steps.release-meta.outputs.tag }}
                   target_commitish: ${{ steps.release-meta.outputs.commitish }}
