@@ -197,7 +197,7 @@ for (const provider of ['xtream', 'stalker'] as const)
             await openGlobalFavorites(desktop.mainWindow);
             await expect(
                 desktop.mainWindow.getByRole('heading', {
-                    name: 'No favorites yet',
+                    name: 'No live TV favorites yet',
                     exact: true,
                 })
             ).toBeVisible();
