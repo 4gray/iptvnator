@@ -2464,6 +2464,43 @@ Napi::Value SetAudioTrack(const Napi::CallbackInfo& info)
     return env.Undefined();
 }
 
+[[maybe_unused]] Napi::Value SetVideoFit(const Napi::CallbackInfo& info)
+{
+    Napi::Env env = info.Env();
+    if (info.Length() < 2 || !info[0].IsString() || !info[1].IsString()) {
+        throw Napi::TypeError::New(env, "Expected session id and video fit mode.");
+    }
+    const auto session = getSessionOrThrow(env, info[0].As<Napi::String>().Utf8Value());
+    const std::string mode = info[1].As<Napi::String>().Utf8Value();
+    if (mode != "original" && mode != "crop" && mode != "stretch") {
+        throw Napi::TypeError::New(env, "Invalid video fit mode.");
+    }
+#ifdef __linux__
+    std::string socketPath;
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        socketPath = session->mpvIpcSocketPath;
+    }
+    if (socketPath.empty()) {
+        throw Napi::Error::New(env, "Could not set video fit: mpv IPC socket unavailable.");
+    }
+    const bool aspectAccepted = sendLinuxMpvCommand(socketPath, std::string("{\"command\":[\"set_property\",\"keepaspect\",") +
+        (mode == "stretch" ? "false" : "true") + "]}\n");
+    const bool scanAccepted = sendLinuxMpvCommand(socketPath, std::string("{\"command\":[\"set_property\",\"panscan\",") +
+        (mode == "crop" ? "1" : "0") + "]}\n");
+    if (!aspectAccepted || !scanAccepted) {
+        throw Napi::Error::New(env, "Could not set video fit: mpv IPC socket rejected the command.");
+    }
+#else
+    int keepaspect = mode == "stretch" ? 0 : 1;
+    double panscan = mode == "crop" ? 1.0 : 0.0;
+    const int aspectResult = mpv_set_property_async(session->handle, nextAsyncRequestId(), "keepaspect", MPV_FORMAT_FLAG, &keepaspect);
+    const int scanResult = mpv_set_property_async(session->handle, nextAsyncRequestId(), "panscan", MPV_FORMAT_DOUBLE, &panscan);
+    if (aspectResult < 0 || scanResult < 0) throw Napi::Error::New(env, "Could not set video fit.");
+#endif
+    return env.Undefined();
+}
+
 [[maybe_unused]] Napi::Value SetAspect(const Napi::CallbackInfo& info)
 {
     Napi::Env env = info.Env();
@@ -2794,6 +2831,8 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
     exports.Set("startRecording", Napi::Function::New(env, StartRecording));
     exports.Set("stopRecording", Napi::Function::New(env, StopRecording));
 #endif
+    // Linux sends video fit over the mpv JSON IPC socket, so it is exported everywhere.
+    exports.Set("setVideoFit", Napi::Function::New(env, SetVideoFit));
     exports.Set("getSessionSnapshot", Napi::Function::New(env, GetSessionSnapshot));
     exports.Set("disposeSession", Napi::Function::New(env, DisposeSession));
     return exports;

@@ -1,4 +1,10 @@
 {
+    "PLAYER_VIDEO_FIT": {
+        "TITLE": "Ajuste de vídeo",
+        "ORIGINAL": "Tamanho original",
+        "CROP": "Cortar",
+        "STRETCH": "Esticar"
+    },
     "TWO_STREAMS": {
         "MULTIVIEW": "Visualização múltipla",
         "ADD_STREAM": "Adicionar transmissão",

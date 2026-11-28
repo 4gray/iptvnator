@@ -1,4 +1,10 @@
 {
+    "PLAYER_VIDEO_FIT": {
+        "TITLE": "Videoweergave",
+        "ORIGINAL": "Origineel",
+        "CROP": "Bijsnijden",
+        "STRETCH": "Uitrekken"
+    },
     "TWO_STREAMS": {
         "MULTIVIEW": "Meerdere vensters",
         "ADD_STREAM": "Stream toevoegen",

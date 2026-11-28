@@ -368,6 +368,8 @@ export class EmbeddedMpvSessionController {
     ): Promise<void> => this.commands.setSubtitleStyle(style);
     readonly setSpeed = (speed: number): Promise<void> =>
         this.commands.setSpeed(speed);
+    readonly setVideoFit = (mode: 'original' | 'crop' | 'stretch'): Promise<void> =>
+        this.commands.setVideoFit(mode);
     readonly setAspect = (aspect: string): Promise<void> =>
         this.commands.setAspect(aspect);
     readonly startRecording = (

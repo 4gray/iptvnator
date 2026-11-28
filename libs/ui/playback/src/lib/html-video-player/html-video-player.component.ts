@@ -1,3 +1,4 @@
+import { PlayerVideoFitComponent } from '../player-controls/player-video-fit.component';
 import {
     Component,
     ElementRef,
@@ -68,6 +69,7 @@ const debugHtmlPlayer = createDevLogger('HtmlVideoPlayer');
     templateUrl: './html-video-player.component.html',
     styleUrls: ['./html-video-player.component.scss'],
     imports: [
+        PlayerVideoFitComponent,
         PlayerControlsComponent,
         SeriesPlaybackNavigationControlsComponent,
     ],

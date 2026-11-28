@@ -1,4 +1,10 @@
 {
+    "PLAYER_VIDEO_FIT": {
+        "TITLE": "Масштаб відео",
+        "ORIGINAL": "Оригінал",
+        "CROP": "Обрізати",
+        "STRETCH": "Розтягнути"
+    },
     "TWO_STREAMS": {
         "MULTIVIEW": "Багатовіконний перегляд",
         "ADD_STREAM": "Додати потік",

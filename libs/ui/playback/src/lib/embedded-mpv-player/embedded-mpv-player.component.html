@@ -101,6 +101,7 @@
     @if (isFrameCopyEngine() && isSupported()) {
         <app-player-controls
             [controller]="sharedControls"
+            [videoFit]="videoFitControls()"
             [playerSurface]="playerSurface()"
             [fullscreenTarget]="fullscreenTarget()"
             [mediaTitle]="mediaTitle()"
@@ -456,6 +457,29 @@
                             matTooltipPosition="above"
                         >
                             <mat-icon>speed</mat-icon>
+                        </button>
+                    }
+
+                    @if (videoFitCommand()) {
+                        <button
+                            mat-icon-button
+                            type="button"
+                            class="embedded-mpv-player__control-button"
+                            data-embedded-mpv-menu-button="fit"
+                            data-test-id="player-controls-video-fit"
+                            (click)="toggleFitMenu()"
+                            [attr.aria-expanded]="menus.fitOpen()"
+                            [attr.aria-label]="
+                                ('PLAYER_VIDEO_FIT.TITLE' | translate) +
+                                ': ' +
+                                ('PLAYER_VIDEO_FIT.' +
+                                    videoFitMode().toUpperCase()
+                                    | translate)
+                            "
+                            [matTooltip]="'PLAYER_VIDEO_FIT.TITLE' | translate"
+                            matTooltipPosition="above"
+                        >
+                            <mat-icon>aspect_ratio</mat-icon>
                         </button>
                     }
 

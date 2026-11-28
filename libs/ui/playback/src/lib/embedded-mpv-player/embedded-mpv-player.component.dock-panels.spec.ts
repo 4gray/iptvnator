@@ -6,6 +6,7 @@ import {
     EmbeddedMpvSession,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import { videoFitModes } from '../player-controls/video-fit';
 import { HIDDEN_BOUNDS } from './embedded-mpv-format.utils';
 import { EmbeddedMpvOverlayVisibilityService } from './embedded-mpv-overlay-visibility.service';
 import { EmbeddedMpvPlayerComponent } from './embedded-mpv-player.component';
@@ -16,9 +17,13 @@ import {
 
 @Component({
     imports: [EmbeddedMpvPlayerComponent],
-    template: `<app-embedded-mpv-player [playback]="playback" />`,
+    template: `<app-embedded-mpv-player
+        [playback]="playback"
+        [fullscreenTarget]="stage()"
+    />`,
 })
 class DockPanelsHostComponent {
+    readonly stage = signal<HTMLElement | null>(null);
     playback: ResolvedPortalPlayback = {
         streamUrl: 'https://example.test/movie/42.mp4',
         title: 'Movie',
@@ -250,6 +255,122 @@ describe('EmbeddedMpvPlayerComponent dock panels', () => {
         queryAll('.embedded-mpv-dock-panel__chip')[1].nativeElement.click();
         await fixture.whenStable();
         expect(setAspect).toHaveBeenCalledWith('16:9');
+    });
+
+    it('picks video fit from in-dock chips without a CDK overlay', async () => {
+        const setVideoFit = jest
+            .spyOn(controller, 'setVideoFit')
+            .mockResolvedValue(undefined);
+        controller.support.set({
+            supported: true,
+            platform: 'darwin',
+            engine: 'native',
+            capabilities: {
+                subtitles: true,
+                playbackSpeed: true,
+                aspectOverride: true,
+                videoFit: true,
+                screenshot: false,
+                recording: false,
+            },
+        });
+        fixture.detectChanges();
+        await fixture.whenStable();
+        setVideoFit.mockClear();
+
+        query('[data-embedded-mpv-menu-button="fit"]').nativeElement.click();
+        fixture.detectChanges();
+
+        expect(document.querySelector('.cdk-overlay-backdrop')).toBeNull();
+        expect(boundsProvider()(HOST_STUB)).toEqual(FULL_BOUNDS);
+        const chips = queryAll('.embedded-mpv-dock-panel__chip');
+        expect(chips).toHaveLength(3);
+        expect(chips[0].nativeElement.getAttribute('aria-checked')).toBe(
+            'true'
+        );
+
+        chips[1].nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(setVideoFit).toHaveBeenCalledWith('crop');
+        expect(player.videoFitMode()).toBe('crop');
+        expect(player.menus.fitOpen()).toBe(false);
+        expect(query('.embedded-mpv-player__transport')).not.toBeNull();
+    });
+
+    it('keeps a multiview companion fit separate from the shared fullscreen stage', () => {
+        const stage = document.createElement('div');
+        fixture.componentInstance.stage.set(stage);
+        fixture.detectChanges();
+        player.selectVideoFit('stretch');
+        const companion = TestBed.createComponent(EmbeddedMpvPlayerComponent);
+        companion.componentRef.setInput(
+            'playback',
+            fixture.componentInstance.playback
+        );
+        companion.componentRef.setInput('fullscreenTarget', stage);
+        companion.componentRef.setInput('multiviewSlot', 2);
+        companion.detectChanges();
+
+        expect(companion.componentInstance.videoFitOwner()).not.toBe(stage);
+        expect(companion.componentInstance.videoFitMode()).toBe('original');
+        companion.componentInstance.selectVideoFit('crop');
+        fixture.detectChanges();
+        companion.detectChanges();
+        expect(player.videoFitMode()).toBe('stretch');
+        expect(companion.componentInstance.videoFitMode()).toBe('crop');
+        expect(videoFitModes.get(stage)).toBe('stretch');
+        expect(
+            videoFitModes.get(companion.componentInstance.videoFitOwner()!)
+        ).toBe('crop');
+        companion.destroy();
+
+        const reopened = TestBed.createComponent(EmbeddedMpvPlayerComponent);
+        reopened.componentRef.setInput(
+            'playback',
+            fixture.componentInstance.playback
+        );
+        reopened.componentRef.setInput('fullscreenTarget', stage);
+        reopened.componentRef.setInput('multiviewSlot', 2);
+        reopened.detectChanges();
+        expect(reopened.componentInstance.videoFitMode()).toBe('original');
+        reopened.destroy();
+    });
+
+    it('restores Linux fit only after each playback process becomes ready', () => {
+        const setVideoFit = jest
+            .spyOn(controller, 'setVideoFit')
+            .mockResolvedValue(undefined);
+        controller.support.update(
+            (support) =>
+                support && support.capabilities ? {
+                    ...support,
+                    platform: 'linux',
+                    capabilities: { ...support.capabilities, videoFit: true },
+                } : support
+        );
+        const snapshot = controller.session();
+        if (!snapshot) throw new Error('Expected ready session');
+        controller.session.set({ ...snapshot, status: 'loading' });
+        player.selectVideoFit('stretch');
+        fixture.detectChanges();
+        expect(setVideoFit).not.toHaveBeenCalled();
+
+        controller.session.set({ ...snapshot, status: 'playing' });
+        fixture.detectChanges();
+        expect(setVideoFit).toHaveBeenCalledTimes(1);
+        expect(setVideoFit).toHaveBeenLastCalledWith('stretch');
+        controller.session.set({ ...snapshot, positionSeconds: 31 });
+        fixture.detectChanges();
+        expect(setVideoFit).toHaveBeenCalledTimes(1);
+
+        controller.session.set({ ...snapshot, status: 'loading' });
+        fixture.detectChanges();
+        controller.session.set({ ...snapshot, status: 'playing' });
+        fixture.detectChanges();
+        expect(setVideoFit).toHaveBeenCalledTimes(2);
+        expect(setVideoFit).toHaveBeenLastCalledWith('stretch');
     });
 
     it('expands volume inline without morphing the row', () => {

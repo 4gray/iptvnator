@@ -160,6 +160,14 @@ export class EmbeddedMpvCommandRunner {
         await this.run(id, () => setSpeed(id, speed));
     }
 
+    async setVideoFit(mode: 'original' | 'crop' | 'stretch'): Promise<void> {
+        const id = this.ctx.sessionId();
+        const electron = this.bridge();
+        if (!id || !electron?.setEmbeddedMpvVideoFit) return;
+        const setVideoFit = electron.setEmbeddedMpvVideoFit;
+        await this.run(id, () => setVideoFit(id, mode));
+    }
+
     async setAspect(aspect: string): Promise<void> {
         const id = this.ctx.sessionId();
         const electron = this.bridge();

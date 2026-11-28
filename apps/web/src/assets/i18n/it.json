@@ -1,4 +1,10 @@
 {
+    "PLAYER_VIDEO_FIT": {
+        "TITLE": "Adattamento video",
+        "ORIGINAL": "Originale",
+        "CROP": "Ritaglia",
+        "STRETCH": "Allunga"
+    },
     "TWO_STREAMS": {
         "MULTIVIEW": "Vista multipla",
         "ADD_STREAM": "Aggiungi flusso",

@@ -1,4 +1,10 @@
 {
+    "PLAYER_VIDEO_FIT": {
+        "TITLE": "映像の表示方法",
+        "ORIGINAL": "元の表示",
+        "CROP": "切り抜き",
+        "STRETCH": "引き伸ばし"
+    },
     "TWO_STREAMS": {
         "MULTIVIEW": "マルチビュー",
         "ADD_STREAM": "ストリームを追加",

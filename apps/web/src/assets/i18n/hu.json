@@ -1,4 +1,10 @@
 {
+    "PLAYER_VIDEO_FIT": {
+        "TITLE": "Videó illesztése",
+        "ORIGINAL": "Eredeti",
+        "CROP": "Kivágás",
+        "STRETCH": "Nyújtás"
+    },
     "TWO_STREAMS": {
         "MULTIVIEW": "Többablakos nézet",
         "ADD_STREAM": "Videó hozzáadása",

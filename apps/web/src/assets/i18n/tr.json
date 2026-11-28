@@ -1,4 +1,10 @@
 {
+    "PLAYER_VIDEO_FIT": {
+        "TITLE": "Video sığdırma",
+        "ORIGINAL": "Özgün",
+        "CROP": "Kırp",
+        "STRETCH": "Uzat"
+    },
     "TWO_STREAMS": {
         "MULTIVIEW": "Çoklu görünüm",
         "ADD_STREAM": "Yayın ekle",

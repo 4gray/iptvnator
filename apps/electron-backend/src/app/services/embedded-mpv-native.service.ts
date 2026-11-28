@@ -122,6 +122,7 @@ export interface NativeEmbeddedMpvAddon {
     setSubtitleStyle?(sessionId: string, style: EmbeddedMpvSubtitleStyle): void;
     setSpeed?(sessionId: string, speed: number): void;
     setAspect?(sessionId: string, aspect: string): void;
+    setVideoFit?(sessionId: string, mode: string): void;
     startRecording?(sessionId: string, targetPath: string): void;
     stopRecording?(sessionId: string): void;
     getSessionSnapshot(
@@ -364,6 +365,7 @@ export class EmbeddedMpvNativeService {
                 subtitles: true,
                 playbackSpeed: true,
                 aspectOverride: true,
+                videoFit: true,
                 screenshot: false,
                 recording: true,
                 externalSubtitles: true,
@@ -376,6 +378,7 @@ export class EmbeddedMpvNativeService {
             subtitles: typeof addon?.setSubtitleTrack === 'function',
             playbackSpeed: typeof addon?.setSpeed === 'function',
             aspectOverride: typeof addon?.setAspect === 'function',
+            videoFit: typeof addon?.setVideoFit === 'function',
             screenshot: false,
             recording:
                 typeof addon?.startRecording === 'function' &&
@@ -904,6 +907,19 @@ export class EmbeddedMpvNativeService {
             );
         }
         addon.setSpeed(sessionId, speed);
+        return this.refreshSession(sessionId);
+    }
+
+    setVideoFit(sessionId: string, mode: 'original' | 'crop' | 'stretch'): EmbeddedMpvSession | null {
+        this.assertEmbeddedMpvEnabled();
+        if (!['original', 'crop', 'stretch'].includes(mode)) {
+            throw new Error('Invalid video fit mode.');
+        }
+        const addon = this.getAddon();
+        if (typeof addon.setVideoFit !== 'function') {
+            throw new Error('Embedded MPV addon does not support video fit. Rebuild the native addon.');
+        }
+        addon.setVideoFit(sessionId, mode);
         return this.refreshSession(sessionId);
     }
 

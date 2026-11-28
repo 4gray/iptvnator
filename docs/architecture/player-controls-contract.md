@@ -691,6 +691,26 @@ while at least one group exists. If the last group disappears, settings close.
 - **Colors** follow the color-as-state rule of the dock: cyan means "on",
   violet means "changed", and neutral rows/items read as the default.
 
+### Video fit
+
+The dock's Video fit menu offers Original, Crop and Stretch. Web engines apply
+`object-fit: cover` for Crop and `fill` for Stretch to the current video at
+100% viewport width/height, without changing its aspect-ratio metadata. Original
+restores the exact previous inline properties and priorities. Video.js Tech
+replacement is observed; the menu binds only its own engine shell. Vendor/native
+web controls opt-out gets the same menu as a floating button. Standard PiP uses
+Original while active, then restores the selected fit on return.
+
+Fit is session-local, remembered by fullscreen owner across engine remounts.
+CSS handles resize/fullscreen without monitor-ratio assumptions. Embedded MPV
+uses its own `keepaspect` and `panscan` properties through the fit IPC command:
+Crop enables keepaspect and full panscan; Stretch disables keepaspect; Original
+restores keepaspect and zero panscan. Both frame-copy and native-view expose the
+control; native-view shows it as in-dock chips, because a CDK menu backdrop
+would hide the native video. Older native addons without `setVideoFit` hide it
+until rebuilt. External
+MPV/VLC windows and Android Media3 own separate controls and are not changed.
+
 ### Multiview action
 
 The frame-copy host sets `canOpenMultiview` during regular single-stream

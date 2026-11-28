@@ -1,4 +1,10 @@
 {
+    "PLAYER_VIDEO_FIT": {
+        "TITLE": "ملاءمة الفيديو",
+        "ORIGINAL": "أصلي",
+        "CROP": "اقتصاص",
+        "STRETCH": "تمديد"
+    },
     "TWO_STREAMS": {
         "MULTIVIEW": "العرض المتعدد",
         "ADD_STREAM": "إضافة بث",

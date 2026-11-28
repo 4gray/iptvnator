@@ -1472,6 +1472,10 @@ export interface ElectronBridgeApi {
         sessionId: string,
         speed: number
     ) => Promise<EmbeddedMpvSession | null>;
+    setEmbeddedMpvVideoFit?: (
+        sessionId: string,
+        mode: 'original' | 'crop' | 'stretch'
+    ) => Promise<EmbeddedMpvSession | null>;
     setEmbeddedMpvAspect?: (
         sessionId: string,
         aspect: string

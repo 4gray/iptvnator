@@ -1,5 +1,6 @@
 import { Signal, computed } from '@angular/core';
 import { EmbeddedMpvAudioTrack } from '@iptvnator/shared/interfaces';
+import type { VideoFitMode } from '../player-controls/video-fit';
 import { ASPECT_PRESETS, SPEED_PRESETS } from './embedded-mpv-format.utils';
 import type { EmbeddedMpvMenuState } from './embedded-mpv-ui-state';
 
@@ -7,7 +8,10 @@ export type EmbeddedMpvDockPanelKind =
     | 'audio'
     | 'subtitle'
     | 'speed'
-    | 'aspect';
+    | 'aspect'
+    | 'fit';
+
+const VIDEO_FIT_MODES: readonly VideoFitMode[] = ['original', 'crop', 'stretch'];
 
 export interface EmbeddedMpvDockChip {
     readonly id: string;
@@ -31,6 +35,7 @@ export interface EmbeddedMpvDockPanelDeps {
     readonly selectedSubtitleTrackId: Signal<number | null>;
     readonly playbackSpeed: Signal<number>;
     readonly aspectOverride: Signal<string>;
+    readonly videoFitMode: Signal<VideoFitMode>;
     readonly translateLabel: (key: string) => string;
     readonly audioTrackLabel: (
         track: EmbeddedMpvAudioTrack,
@@ -45,6 +50,7 @@ export interface EmbeddedMpvDockPanelDeps {
     readonly selectSubtitleTrack: (trackId: number) => void;
     readonly selectSpeed: (speed: number) => void;
     readonly selectAspect: (aspect: string) => void;
+    readonly selectVideoFit: (mode: VideoFitMode) => void;
     readonly closePanels: () => void;
     readonly playerRoot: () => HTMLElement | null;
     readonly revealControls: () => void;
@@ -112,6 +118,9 @@ export class EmbeddedMpvDockPanelState {
                 return;
             case 'aspect':
                 this.deps.selectAspect(chipId);
+                return;
+            case 'fit':
+                this.deps.selectVideoFit(chipId as VideoFitMode);
                 return;
         }
     }
@@ -197,6 +206,20 @@ export class EmbeddedMpvDockPanelState {
                     id: preset.value,
                     label: this.deps.aspectLabel(preset.value),
                     selected: preset.value === aspect,
+                })),
+            };
+        }
+        if (menus.fitOpen()) {
+            const fit = this.deps.videoFitMode();
+            return {
+                kind: 'fit',
+                title: this.deps.translateLabel('PLAYER_VIDEO_FIT.TITLE'),
+                chips: VIDEO_FIT_MODES.map((mode) => ({
+                    id: mode,
+                    label: this.deps.translateLabel(
+                        `PLAYER_VIDEO_FIT.${mode.toUpperCase()}`
+                    ),
+                    selected: mode === fit,
                 })),
             };
         }

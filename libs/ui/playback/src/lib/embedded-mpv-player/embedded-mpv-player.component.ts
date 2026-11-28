@@ -1,3 +1,4 @@
+import { videoFitModes, type VideoFitMode } from '../player-controls/video-fit';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -130,6 +131,45 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
      */
     private readonly translationsTick = injectTranslationTick();
     readonly controller = inject(EmbeddedMpvSessionController);
+    private readonly videoFitSessionId = computed(
+        () => this.controller.session()?.id
+    );
+    private readonly videoFitAvailable = computed(
+        () => this.capabilities().videoFit === true
+    );
+    readonly videoFitCommand = computed(() => {
+        if (
+            !this.videoFitSessionId() ||
+            !this.videoFitAvailable() ||
+            !this.videoFitReady()
+        )
+            return null;
+        return (mode: 'original' | 'crop' | 'stretch'): void => {
+            void this.controller.setVideoFit(mode);
+        };
+    });
+    readonly videoFitMode = signal<VideoFitMode>('original');
+    /**
+     * Key for the remembered fit. Multiview players share one fullscreen stage,
+     * so only the primary uses it; companions keep their fit per player root.
+     * ponytail: a companion remount resets to Original; key by slot if that matters.
+     */
+    readonly videoFitOwner = computed(() =>
+        this.multiviewSlot() === 1
+            ? this.fullscreenSurface()
+            : this.playerSurface()
+    );
+    // Linux replaces its MPV process on load; wait until polling confirms IPC readiness.
+    readonly videoFitReady = computed(
+        () =>
+            this.support()?.platform !== 'linux' ||
+            this.session()?.status === 'playing' ||
+            this.session()?.status === 'paused'
+    );
+    readonly videoFitControls = computed(() => ({
+        command: this.videoFitCommand(),
+        owner: this.videoFitOwner(),
+    }));
     readonly sharedControls = inject(EmbeddedMpvControlsAdapter);
     private readonly shortcuts = new EmbeddedMpvShortcuts();
     readonly menus = new EmbeddedMpvMenuState();
@@ -430,6 +470,8 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 void this.selectSubtitleTrack(trackId),
             selectSpeed: (speed) => void this.selectSpeed(speed),
             selectAspect: (aspect) => void this.selectAspect(aspect),
+            videoFitMode: this.videoFitMode,
+            selectVideoFit: (mode) => this.selectVideoFit(mode),
             closePanels: () => this.legacyInteractions.closePopovers(),
             playerRoot: () => this.playerRoot()?.nativeElement ?? null,
             revealControls: () => this.legacyInteractions.revealControls(),
@@ -575,6 +617,24 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         effect(() => {
             this.overlayVisibility.overlayActive();
             this.controller.triggerBoundsSync();
+        });
+
+        effect(() => {
+            const owner = this.videoFitOwner();
+            untracked(() =>
+                this.videoFitMode.set(
+                    (owner && videoFitModes.get(owner)) || 'original'
+                )
+            );
+        });
+
+        effect(() => {
+            // Native dock only; frame-copy forwards through app-player-controls.
+            const command = this.isFrameCopyEngine()
+                ? null
+                : this.videoFitCommand();
+            const mode = this.videoFitMode();
+            if (command) untracked(() => command(mode));
         });
 
         effect(() => {
@@ -790,6 +850,18 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     }
     toggleAspectMenu(): void {
         this.dockPanels.toggle('aspect');
+    }
+    toggleFitMenu(): void {
+        this.dockPanels.toggle('fit');
+    }
+
+    /** Native-view fit picker lives in the dock: a CDK menu would hide MPV. */
+    selectVideoFit(mode: VideoFitMode): void {
+        this.videoFitMode.set(mode);
+        const owner = this.videoFitOwner();
+        if (owner) videoFitModes.set(owner, mode);
+        this.menus.close('fit');
+        this.legacyInteractions.scheduleControlsHide();
     }
 
     async selectAudioTrack(trackId: number): Promise<void> {
