@@ -43,7 +43,7 @@ public class HostedAccessSourceRouteTest extends TestCase {
         String wireBody = "\n\n" + json;
         for (boolean heartbeat : new boolean[]{false, true}) {
             Response.Builder builder = new Response.Builder()
-                .request(new Request.Builder().url(ORIGIN + "/api/parse").build())
+                .request(new Request.Builder().url(ORIGIN + "/library/api/parse").build())
                 .protocol(Protocol.HTTP_1_1).code(200).message("OK")
                 .body(ResponseBody.create(wireBody, null));
             if (heartbeat) builder.header("X-IPTVnator-JSON-Heartbeat", "1");
@@ -72,6 +72,17 @@ public class HostedAccessSourceRouteTest extends TestCase {
                     assertEquals("Hosted heartbeat is too large", error.getMessage());
                 }
             }
+        }
+    }
+
+    public void testXtreamHeartbeatUsesTheOrdinaryResponseBudget() throws Exception {
+        String body = String.join("", java.util.Collections.nCopies(129, "\n")) + "{}";
+        try (Response response = new Response.Builder()
+                .request(new Request.Builder().url(ORIGIN + "/library/api/xtream").build())
+                .protocol(Protocol.HTTP_1_1).code(200).message("OK")
+                .header("X-IPTVnator-JSON-Heartbeat", "1")
+                .body(ResponseBody.create(body, null)).build()) {
+            assertEquals(body, Okio.buffer(Okio.source(HostedApiRequest.responseBody(response))).readUtf8());
         }
     }
 

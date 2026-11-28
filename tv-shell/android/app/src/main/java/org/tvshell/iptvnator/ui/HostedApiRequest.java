@@ -63,7 +63,8 @@ final class HostedApiRequest {
 
     static InputStream responseBody(Response response) throws IOException {
         BufferedSource source = response.body().source();
-        if ("1".equals(response.header("X-IPTVnator-JSON-Heartbeat"))) {
+        if (response.request().url().encodedPath().endsWith("/api/parse")
+                && "1".equals(response.header("X-IPTVnator-JSON-Heartbeat"))) {
             // Bound the heartbeat independently so the JSON keeps its full response budget.
             Timeout timeout = source.timeout();
             boolean hadDeadline = timeout.hasDeadline();

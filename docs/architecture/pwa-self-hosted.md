@@ -146,10 +146,12 @@ before sending response headers. Cloudflare OAuth calls keep a separate
 deadline. In Cloudflare mode, the worker sends JSON whitespace every ten seconds
 while it prepares an Xtream catalog or an opted-in M3U response. The provider
 socket retains its own inactivity timeout. Android skips the leading newlines
-on replies marked with `X-IPTVnator-JSON-Heartbeat`, up to 128 bytes and 15 minutes
-after the bridge starts reading the reply. The JSON still has its full 64 MiB
-response budget. The playlist JSON uses the same encoding with or without a
-heartbeat. Closing the M3U URL import dialog aborts the bridge's download.
+only for `/api/parse` replies marked with `X-IPTVnator-JSON-Heartbeat`, up to
+128 bytes and 15 minutes after the bridge starts reading the reply. Playlist JSON
+keeps its full 64 MiB response budget and uses the same encoding with or without
+a heartbeat. Xtream heartbeats count toward the normal response budget and
+retain the inactivity timeout. Closing the M3U URL import dialog aborts the
+bridge's download.
 
 Android callback, token renewal and playback still require a live Access
 application for end-to-end validation.
