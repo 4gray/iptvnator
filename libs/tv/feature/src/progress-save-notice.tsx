@@ -2,6 +2,8 @@ import { restoreFocus } from '@iptvnator/tv/ui';
 import { useCallback } from 'preact/hooks';
 import type { useProgressSaveNotice } from './use-notice';
 
+export const PROGRESS_SAVE_RETRY_FOCUS = 'progress-save-retry';
+
 export function isProgressSaveNoticeFocused() {
     return !!document.activeElement?.closest('[data-progress-save-notice]');
 }
@@ -38,7 +40,12 @@ export function ProgressSaveNotice({
             data-progress-save-notice
         >
             <span>{notice.message}</span>
-            <button onClick={notice.retry}>Retry saving progress</button>
+            <button
+                data-focus={PROGRESS_SAVE_RETRY_FOCUS}
+                onClick={notice.retry}
+            >
+                Retry saving progress
+            </button>
             <button onClick={notice.dismiss}>Dismiss</button>
         </div>
     );

@@ -97,6 +97,7 @@ export function NativePlayerView({
             <video ref={video} playsInline preload="metadata" />
             {tv.fullscreen && upNext.card ? (
                 <UpNextCard
+                    buttonRef={upNext.buttonRef}
                     card={upNext.card}
                     collapsed={upNext.collapsed}
                     play={upNext.play}

@@ -1,11 +1,12 @@
 import {
+    useCallback,
     useEffect,
     useLayoutEffect,
     useMemo,
     useRef,
     useState,
 } from 'preact/hooks';
-import type { RefObject } from 'preact';
+import type { RefCallback, RefObject } from 'preact';
 import { AutoplayStreak } from '@iptvnator/shared/interfaces';
 import { focusKey, restoreFocus } from '@iptvnator/tv/ui';
 import {
@@ -21,6 +22,7 @@ import {
 } from '@iptvnator/tv/util';
 import type { TvModel } from './use-tv';
 import type { VodSequence } from './use-vod-sequence';
+import { PROGRESS_SAVE_RETRY_FOCUS } from './progress-save-notice';
 
 const FOCUS_KEY = 'player-up-next';
 
@@ -44,7 +46,12 @@ export function useUpNext(
     hidden: boolean,
     revealControls: () => void,
     navigationPending = false
-): { card: Card | undefined; collapsed: boolean; play: () => void } {
+): {
+    card: Card | undefined;
+    collapsed: boolean;
+    play: () => void;
+    buttonRef: RefCallback<HTMLButtonElement>;
+} {
     const [, setTick] = useState(0);
     const [dismissed, setDismissed] = useState<string>();
     const [collapsedKey, setCollapsedKey] = useState<string>();
@@ -73,6 +80,19 @@ export function useUpNext(
     });
     const progressWarning = useRef(false);
     progressWarning.current = !!tv.progressSaveNotice.message;
+    const buttonRef = useCallback((button: HTMLButtonElement | null) => {
+        if (!button) return;
+        return () => {
+            if (progressWarning.current && button === document.activeElement) {
+                restoreFocus(
+                    PROGRESS_SAVE_RETRY_FOCUS,
+                    'player-toggle',
+                    undefined,
+                    () => document.activeElement === document.body
+                );
+            }
+        };
+    }, []);
     const card = progressWarning.current ? undefined : offeredCard;
     const collapsed = !!key && key === collapsedKey;
     const replayPending = tv.replayPending;
@@ -274,14 +294,16 @@ export function useUpNext(
         return () => window.removeEventListener('keydown', keydown, true);
     }, []);
 
-    return { card, collapsed, play: () => void vod.playNext() };
+    return { card, collapsed, play: () => void vod.playNext(), buttonRef };
 }
 
 export function UpNextCard({
+    buttonRef,
     card,
     collapsed,
     play,
 }: {
+    buttonRef: RefCallback<HTMLButtonElement>;
     card: Card;
     collapsed: boolean;
     play: () => void;
@@ -292,6 +314,7 @@ export function UpNextCard({
     const [failedStill, setFailedStill] = useState<string>();
     return (
         <button
+            ref={buttonRef}
             class={`tv-up-next${collapsed ? ' tv-up-next--collapsed' : ''}`}
             data-focus={FOCUS_KEY}
             onClick={play}
