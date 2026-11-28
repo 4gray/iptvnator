@@ -293,6 +293,19 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                     if (this.hls !== hls) return;
                     this.handleHlsManifestParsed(url, data);
                 });
+                hls.on(Hls.Events.LEVEL_LOADED, (_, data) => {
+                    if (this.hls !== hls) return;
+                    const duration =
+                        data.details?.averagetargetduration ??
+                        data.details?.targetduration;
+                    if (typeof duration === 'number') {
+                        adjustLiveSyncForSegmentDuration(
+                            hls,
+                            this.hlsBufferProfile(),
+                            duration
+                        );
+                    }
+                });
                 hls.on(Hls.Events.ERROR, (_, data) => {
                     if (this.hls !== hls) return;
                     this.handleHlsError(url, data);
@@ -365,13 +378,6 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         url: string,
         data: ManifestParsedData
     ): void {
-        if (this.hls && typeof data.details?.avgDuration === 'number') {
-            adjustLiveSyncForSegmentDuration(
-                this.hls,
-                this.hlsBufferProfile(),
-                data.details.avgDuration
-            );
-        }
         emitUnsupportedHlsManifestCodecs(url, data, (issue) =>
             this.playbackIssue.emit(issue)
         );

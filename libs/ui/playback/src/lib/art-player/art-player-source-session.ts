@@ -1,6 +1,10 @@
 import type Artplayer from 'artplayer';
 import type { Option } from 'artplayer';
-import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
+import Hls, {
+    type ErrorData,
+    type LevelLoadedData,
+    type ManifestParsedData,
+} from 'hls.js';
 import mpegts from 'mpegts.js';
 import type { ChannelDrm, Settings } from '@iptvnator/shared/interfaces';
 import {
@@ -72,6 +76,8 @@ export class ArtPlayerSourceSession {
     private hls: Hls | null = null;
     private hlsManifestListener:
         ((event: unknown, data: ManifestParsedData) => void) | null = null;
+    private hlsLevelLoadedListener:
+        ((event: unknown, data: LevelLoadedData) => void) | null = null;
     private hlsErrorListener:
         ((event: unknown, data: ErrorData) => void) | null = null;
     private mpegTsPlayer: mpegts.Player | null = null;
@@ -163,6 +169,21 @@ export class ArtPlayerSourceSession {
                 }
                 this.handleHlsManifestParsed(url, data);
             };
+            this.hlsLevelLoadedListener = (_event, data) => {
+                if (this.destroyed || this.hls !== hls) {
+                    return;
+                }
+                const duration =
+                    data.details?.averagetargetduration ??
+                    data.details?.targetduration;
+                if (typeof duration === 'number') {
+                    adjustLiveSyncForSegmentDuration(
+                        hls,
+                        this.config.hlsBufferProfile ?? 'balanced',
+                        duration
+                    );
+                }
+            };
             this.hlsErrorListener = (_event, data) => {
                 if (this.destroyed || this.hls !== hls) {
                     return;
@@ -170,6 +191,7 @@ export class ArtPlayerSourceSession {
                 this.handleHlsError(url, data);
             };
             hls.on(Hls.Events.MANIFEST_PARSED, this.hlsManifestListener);
+            hls.on(Hls.Events.LEVEL_LOADED, this.hlsLevelLoadedListener);
             hls.on(Hls.Events.ERROR, this.hlsErrorListener);
             hls.attachMedia(video);
             this.bindControlsSource({ kind: 'hls', hls });
@@ -276,6 +298,7 @@ export class ArtPlayerSourceSession {
         const hls = this.hls;
         if (!hls) {
             this.hlsManifestListener = null;
+            this.hlsLevelLoadedListener = null;
             this.hlsErrorListener = null;
             return;
         }
@@ -283,10 +306,14 @@ export class ArtPlayerSourceSession {
         if (this.hlsManifestListener) {
             hls.off(Hls.Events.MANIFEST_PARSED, this.hlsManifestListener);
         }
+        if (this.hlsLevelLoadedListener) {
+            hls.off(Hls.Events.LEVEL_LOADED, this.hlsLevelLoadedListener);
+        }
         if (this.hlsErrorListener) {
             hls.off(Hls.Events.ERROR, this.hlsErrorListener);
         }
         this.hlsManifestListener = null;
+        this.hlsLevelLoadedListener = null;
         this.hlsErrorListener = null;
         hls.destroy();
         this.hls = null;
@@ -314,13 +341,6 @@ export class ArtPlayerSourceSession {
         url: string,
         data: ManifestParsedData
     ): void {
-        if (this.hls && typeof data.details?.avgDuration === 'number') {
-            adjustLiveSyncForSegmentDuration(
-                this.hls,
-                this.config.hlsBufferProfile ?? 'balanced',
-                data.details.avgDuration
-            );
-        }
         const metadata = this.createSourceMetadata(
             url,
             'application/x-mpegURL',
