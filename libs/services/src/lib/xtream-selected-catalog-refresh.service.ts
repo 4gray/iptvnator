@@ -34,6 +34,9 @@ import {
     type FetchedXtreamCatalog,
 } from './xtream-catalog-fetch.service';
 
+export type XtreamStartupRefreshResult =
+    false | { updateDate: number; recoveryFailed?: true };
+
 const STARTUP_REFRESH_SUPERSEDED = Symbol('Xtream startup refresh superseded');
 
 export interface XtreamSelectedCatalogProgress {
@@ -77,7 +80,7 @@ export class XtreamSelectedCatalogRefreshService {
         playlist: PlaylistMeta,
         catalog: FetchedXtreamCatalog,
         readRetainedCategoryIds?: () => Promise<[number, number][]>
-    ): Promise<number | false> {
+    ): Promise<XtreamStartupRefreshResult> {
         return this.replace(playlist, ['live'], undefined, {
             catalog,
             readRetainedCategoryIds,
@@ -92,7 +95,7 @@ export class XtreamSelectedCatalogRefreshService {
             catalog: FetchedXtreamCatalog;
             readRetainedCategoryIds?: () => Promise<[number, number][]>;
         }
-    ): Promise<number | false> {
+    ): Promise<XtreamStartupRefreshResult> {
         if (!types.length) return false;
         const pendingRestore = this.pending.getOrThrow(playlist._id);
         if (startup && pendingRestore) return false;
@@ -161,9 +164,7 @@ export class XtreamSelectedCatalogRefreshService {
             );
             const saved = prepared.state;
             snapshot = this.pending.set(playlist._id, saved);
-            if (!snapshot) {
-                throw new Error('Could not retain source restore state.');
-            }
+            if (!snapshot) throw new Error('Could not retain source recovery.');
             await beginCatalogHistoryRecovery(
                 this.db,
                 playlist._id,
@@ -308,9 +309,8 @@ export class XtreamSelectedCatalogRefreshService {
                     );
                 }
             );
-            if (result === 'consume-failed')
-                throw new Error('Could not finish source restore.');
-            return updateDate;
+            if (result === 'consume-failed') throw new Error('Restore failed.');
+            return updateDate === false ? false : { updateDate };
         } catch (error) {
             let rollbackSucceeded = false;
             if (
@@ -416,6 +416,8 @@ export class XtreamSelectedCatalogRefreshService {
             }
             if (cleanupFailed)
                 throw new Error('Could not clear incomplete catalog cache.');
+            if (!connectionChanged && updateDate !== false)
+                return { updateDate, recoveryFailed: true };
             if (error === STARTUP_REFRESH_SUPERSEDED) return false;
             throw error;
         } finally {

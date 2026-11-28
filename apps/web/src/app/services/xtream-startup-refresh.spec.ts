@@ -21,7 +21,8 @@ it.each([true, false])(
                 {
                     provide: XtreamStartupRefreshService,
                     useValue: {
-                        refreshLive: async () => (replaced ? 42 : false),
+                        refreshLive: async () =>
+                            replaced ? { updateDate: 42 } : false,
                     },
                 },
                 { provide: Store, useValue: { dispatch: () => undefined } },
@@ -54,44 +55,52 @@ it.each([true, false])(
     }
 );
 
-it('continues after an unavailable source and publishes only a saved refresh', async () => {
-    const portal = {
-        ...source,
-        _id: 'synthetic-live',
-        serverUrl: 'https://provider.example',
-        username: 'synthetic-user',
-        password: 'synthetic-password',
-        userAgent: 'Synthetic client',
-    };
-    const refreshLive = jest
-        .fn()
-        .mockRejectedValueOnce(new Error('Offline'))
-        .mockResolvedValue(42);
-    const dispatch = jest.fn();
-    const error = jest.fn();
-    const injector = Injector.create({
-        providers: [
-            {
-                provide: XtreamStartupRefreshService,
-                useValue: { refreshLive },
-            },
-            { provide: Store, useValue: { dispatch } },
-            { provide: NotificationService, useValue: { error } },
-        ],
-    });
-    try {
-        await refreshXtreamPlaylistsOnStartup(injector, [source, portal]);
-        expect(refreshLive.mock.calls).toEqual([[source], [portal]]);
-        expect(dispatch).toHaveBeenCalledWith(
-            expect.objectContaining({ playlistId: portal._id, updateDate: 42 })
-        );
-        expect(error).toHaveBeenCalledWith(
-            'HOME.PLAYLISTS.XTREAM_STARTUP_REFRESH_FAILED'
-        );
-    } finally {
-        injector.destroy();
+it.each([false, true])(
+    'publishes the saved refresh and reports the startup error (recovery error: %s)',
+    async (recoveryFailed) => {
+        const portal = {
+            ...source,
+            _id: 'synthetic-live',
+            serverUrl: 'https://provider.example',
+            username: 'synthetic-user',
+            password: 'synthetic-password',
+            userAgent: 'Synthetic client',
+        };
+        const refreshLive = jest.fn().mockResolvedValue({
+            updateDate: 42,
+            ...(recoveryFailed ? { recoveryFailed: true } : {}),
+        });
+        if (recoveryFailed) refreshLive.mockResolvedValueOnce(false);
+        else refreshLive.mockRejectedValueOnce(new Error('Synthetic offline'));
+        const dispatch = jest.fn();
+        const error = jest.fn();
+        const injector = Injector.create({
+            providers: [
+                {
+                    provide: XtreamStartupRefreshService,
+                    useValue: { refreshLive },
+                },
+                { provide: Store, useValue: { dispatch } },
+                { provide: NotificationService, useValue: { error } },
+            ],
+        });
+        try {
+            await refreshXtreamPlaylistsOnStartup(injector, [source, portal]);
+            expect(refreshLive.mock.calls).toEqual([[source], [portal]]);
+            expect(dispatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    playlistId: portal._id,
+                    updateDate: 42,
+                })
+            );
+            expect(error).toHaveBeenCalledWith(
+                'HOME.PLAYLISTS.XTREAM_STARTUP_REFRESH_FAILED'
+            );
+        } finally {
+            injector.destroy();
+        }
     }
-});
+);
 
 it('does not publish an update superseded before catalog completion', async () => {
     const dispatch = jest.fn();

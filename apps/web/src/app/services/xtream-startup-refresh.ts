@@ -15,8 +15,10 @@ export async function refreshXtreamPlaylistsOnStartup(
 
     for (const source of sources) {
         try {
-            const updateDate = await refresh.refreshLive(source);
-            if (updateDate === false) continue;
+            const result = await refresh.refreshLive(source);
+            if (!result) continue;
+            const { updateDate, recoveryFailed } = result;
+            if (recoveryFailed) failed = true;
 
             window.dispatchEvent(new Event('iptvnator-favorites-changed'));
             window.dispatchEvent(new Event('iptvnator-history-changed'));

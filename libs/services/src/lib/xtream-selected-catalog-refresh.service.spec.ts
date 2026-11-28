@@ -244,7 +244,7 @@ describe('edit-time Xtream catalog refresh', () => {
                 { type: 'live', categories, content: [] },
                 async () => retained
             )
-        ).resolves.toEqual(expect.any(Number));
+        ).resolves.toEqual({ updateDate: 73 });
 
         expect(db.saveXtreamCategories).toHaveBeenCalledWith(
             'p',
@@ -890,6 +890,43 @@ describe('edit-time Xtream catalog refresh', () => {
             'failed'
         );
         expect(pending['applyAndConsume']).not.toHaveBeenCalled();
+    });
+
+    it('returns the retained startup commit if recovery fails', async () => {
+        const optedIn = { ...playlist, autoRefresh: true };
+        readCurrent.mockResolvedValue(optedIn);
+        pending['applyAndConsume'].mockRejectedValue(
+            new Error('Synthetic recovery error')
+        );
+
+        await expect(
+            service.refreshLiveOnStartup(optedIn, {
+                type: 'live',
+                categories: [],
+                content: [],
+            })
+        ).resolves.toEqual({ updateDate: 73, recoveryFailed: true });
+        expect(db.clearXtreamImportCache).not.toHaveBeenCalled();
+        expect(pending['clear']).not.toHaveBeenCalled();
+        expect(release).toHaveBeenCalled();
+    });
+
+    it('discards a committed replacement when recovery detects a changed connection', async () => {
+        const optedIn = { ...playlist, autoRefresh: true };
+        readCurrent.mockResolvedValue(optedIn);
+        pending['applyAndConsume'].mockRejectedValue(
+            new XtreamCatalogConnectionChangedError()
+        );
+
+        await expect(
+            service.refreshLiveOnStartup(optedIn, {
+                type: 'live',
+                categories: [],
+                content: [],
+            })
+        ).rejects.toBeInstanceOf(XtreamCatalogConnectionChangedError);
+        expect(db.clearXtreamImportCache).toHaveBeenCalledWith('p', 'live');
+        expect(pending['clear']).not.toHaveBeenCalled();
     });
 
     it('keeps healthy completed catalogs if only replay fails', async () => {

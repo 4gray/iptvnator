@@ -407,7 +407,9 @@ queue. The worker rechecks the full source condition before committing both.
 A superseded replacement clears its newly written cache and keeps user-state
 recovery for the next catalog load. A successful refresh publishes the
 committed timestamp so an open Xtream view can reread live rows and refresh
-its search without resetting playback. The Electron second-stream picker waits for live replacement before
+its search without resetting playback. A late history recovery error still
+publishes a retained catalog commit and shows the refresh error. The Electron
+second-stream picker waits for live replacement before
 reading a source, Favorites or Recently Viewed. An open live picker can show
 the cached channels during the provider fetch and reloads after the replacement
 commits. It keeps the SQLite category ID for history and the provider category

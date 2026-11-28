@@ -90,6 +90,16 @@ describe('favorite channel assignments in unified collections', () => {
         expect(folders.unfile).toHaveBeenLastCalledWith([live, movie]);
     });
 
+    it('keeps assignments when a delayed mutation was canceled', async () => {
+        favoritesData.removeFavorite.mockResolvedValueOnce(false);
+        await service.toggleFavorite(live);
+        expect(service.favoriteUidSet().has(live.uid)).toBe(true);
+
+        favoritesData.clearFavorites.mockResolvedValueOnce(false);
+        await expect(service.clearFavorites([live])).resolves.toBe(false);
+        expect(folders.unfile).not.toHaveBeenCalled();
+    });
+
     it('preserves channel assignments when removing recent channels or clearing film favorites', async () => {
         await service.removeItem('recent', live);
         expect(recentData.removeRecentItem).toHaveBeenCalledWith(live);

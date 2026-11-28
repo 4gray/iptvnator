@@ -8,7 +8,10 @@ import {
     XtreamCatalogCommitService,
 } from './xtream-catalog-commit.service';
 import { XtreamCatalogFetchService } from './xtream-catalog-fetch.service';
-import { XtreamSelectedCatalogRefreshService } from './xtream-selected-catalog-refresh.service';
+import {
+    XtreamSelectedCatalogRefreshService,
+    type XtreamStartupRefreshResult,
+} from './xtream-selected-catalog-refresh.service';
 
 function parseProviderId(value: unknown): number {
     const id =
@@ -45,7 +48,9 @@ export class XtreamStartupRefreshService {
         );
     }
 
-    async refreshLive(playlist: PlaylistMeta): Promise<number | false> {
+    async refreshLive(
+        playlist: PlaylistMeta
+    ): Promise<XtreamStartupRefreshResult> {
         await this.locks.initialize();
         if (!this.locks.locksReadable()) {
             throw new Error('Could not read parental locks for the refresh.');
@@ -107,7 +112,7 @@ export class XtreamStartupRefreshService {
             }
         );
         if (refreshed !== false) {
-            this.publishedUpdates.set(playlist._id, refreshed);
+            this.publishedUpdates.set(playlist._id, refreshed.updateDate);
             this.removedLiveCategories.set(playlist._id, removed);
             this.activity.notifyLiveCatalogReplacement(playlist._id);
         }

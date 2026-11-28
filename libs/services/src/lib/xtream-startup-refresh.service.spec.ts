@@ -43,7 +43,7 @@ describe('Xtream startup refresh', () => {
             .mockImplementation(
                 async (_source, _catalog, capturePreviousCategories) => {
                     await capturePreviousCategories();
-                    return 42;
+                    return { updateDate: 42 };
                 }
             );
         TestBed.configureTestingModule({
@@ -90,7 +90,7 @@ describe('Xtream startup refresh', () => {
         expect(refresh.refreshLiveOnStartup).not.toHaveBeenCalled();
         expect(replaced).not.toHaveBeenCalled();
         release();
-        await expect(result).resolves.toBe(42);
+        await expect(result).resolves.toEqual({ updateDate: 42 });
         subscription.unsubscribe();
         expect(replaced).toHaveBeenCalledWith(source._id);
         expect(refresh.refreshLiveOnStartup).toHaveBeenCalledWith(
@@ -149,6 +149,19 @@ describe('Xtream startup refresh', () => {
         expect(replaced).not.toHaveBeenCalled();
     });
 
+    it('publishes the committed timestamp and catalog revision after a recovery failure', async () => {
+        refresh.refreshLiveOnStartup.mockResolvedValueOnce({
+            updateDate: 42,
+            recoveryFailed: true,
+        });
+        await expect(service.refreshLive(source)).resolves.toEqual({
+            updateDate: 42,
+            recoveryFailed: true,
+        });
+        expect(service.matchesUpdate(source._id, 42)).toBe(true);
+        expect(activity.liveCatalogRevision(source._id)).toBe(1);
+    });
+
     it('retains live category rows by provider ID and records removed IDs', async () => {
         db.getAllXtreamCategories.mockResolvedValue([
             { id: 11, xtream_id: 4 },
@@ -157,7 +170,7 @@ describe('Xtream startup refresh', () => {
         refresh.refreshLiveOnStartup.mockImplementationOnce(
             async (_source, _catalog, readRetainedCategoryIds) => {
                 expect(await readRetainedCategoryIds()).toEqual([[4, 11]]);
-                return 42;
+                return { updateDate: 42 };
             }
         );
         await service.refreshLive(source);
@@ -225,7 +238,9 @@ describe('Xtream startup refresh', () => {
             { ...categories[0], category_id: ' 00 ' },
         ]);
         fetcher.content.mockResolvedValue([{ ...content[0], category_id: 0 }]);
-        await expect(service.refreshLive(source)).resolves.toBe(42);
+        await expect(service.refreshLive(source)).resolves.toEqual({
+            updateDate: 42,
+        });
     });
 
     it('keeps the saved lineup when the provider returns no live channels', async () => {
@@ -264,7 +279,9 @@ describe('Xtream startup refresh', () => {
 
     it('accepts a decimal stream ID sent as a string', async () => {
         fetcher.content.mockResolvedValue([{ ...content[0], stream_id: '42' }]);
-        await expect(service.refreshLive(source)).resolves.toBe(42);
+        await expect(service.refreshLive(source)).resolves.toEqual({
+            updateDate: 42,
+        });
     });
 
     it('keeps the saved lineup when the provider cannot be reached', async () => {
