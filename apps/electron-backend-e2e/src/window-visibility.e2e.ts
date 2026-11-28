@@ -70,7 +70,7 @@ async function waitUntilShown(app: UnautomatedElectronApp): Promise<void> {
  * Launched without Playwright: its focus emulation pins every page it
  * attaches to as visible (see `electron-unautomated-launch.ts`).
  */
-test.describe('Main window visibility', () => {
+test.describe('Main window visibility', { tag: '@window' }, () => {
     test('@electron reports a hidden window as hidden and a shown one as visible', async ({
         dataDir,
     }) => {

@@ -45,7 +45,7 @@ const movieTitle = 'Synthetic feature 1';
 const seriesTitle = 'Synthetic series 1';
 const episodeTitle = 'Synthetic episode 1';
 
-test('@playback @xtream @stalker @electron second-stream VOD, history and positions', async ({
+test('@playback @xtream @stalker @electron @embedded-mpv second-stream VOD, history and positions', async ({
     dataDir,
     request,
 }, testInfo) => {

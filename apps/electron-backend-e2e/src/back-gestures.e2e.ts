@@ -117,7 +117,7 @@ async function openSeriesList(
     return { listUrl: page.url(), listIndex: await historyIndex(page) };
 }
 
-test.describe('Platform Back gestures', () => {
+test.describe('Platform Back gestures', { tag: '@window' }, () => {
     test('@xtream @electron mouse Back, the Back chord and the window gestures each go back one step', async ({
         dataDir,
         request,

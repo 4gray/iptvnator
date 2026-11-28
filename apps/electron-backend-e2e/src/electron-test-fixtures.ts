@@ -221,6 +221,37 @@ export function buildElectronLaunchArgs(
     return args;
 }
 
+export function buildElectronE2ELaunchArgs(
+    extraArgs: readonly string[] = [],
+    appArgs: readonly string[] = [],
+    entryPoint = electronMainPath
+): string[] {
+    if (
+        process.platform === 'darwin' &&
+        !process.env['CI'] &&
+        process.env['IPTVNATOR_E2E_HIDE_WINDOW'] === '1'
+    ) {
+        const { project, tags } = test.info();
+        if (
+            project.use.headless !== false &&
+            !tags.includes('@window') &&
+            !tags.includes('@embedded-mpv')
+        ) {
+            return buildElectronLaunchArgs(
+                [
+                    '-r',
+                    join(__dirname, 'keep-electron-window-hidden.cjs'),
+                    ...extraArgs,
+                ],
+                appArgs,
+                entryPoint
+            );
+        }
+    }
+
+    return buildElectronLaunchArgs(extraArgs, appArgs, entryPoint);
+}
+
 export async function launchElectronApp(
     dataDir: string,
     options: LaunchElectronAppOptions = {}
@@ -232,7 +263,7 @@ export async function launchElectronApp(
     }
     assertPackagedRendererBuildIsElectronSafe();
 
-    const args = buildElectronLaunchArgs(
+    const args = buildElectronE2ELaunchArgs(
         options.args,
         options.appArgs,
         options.entryPoint

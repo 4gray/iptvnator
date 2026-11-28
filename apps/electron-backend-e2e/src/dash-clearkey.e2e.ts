@@ -400,7 +400,7 @@ async function releasePlaybackRecommendationCapture(
 }
 
 for (const player of ['mpv', 'vlc']) {
-    test(`@electron @dash fullscreen panel keeps DASH inline with ${player} configured`, async ({
+    test(`@electron @dash @window fullscreen panel keeps DASH inline with ${player} configured`, async ({
         dataDir,
     }) => {
         const fixtureServer = await startDashFixtureServer();

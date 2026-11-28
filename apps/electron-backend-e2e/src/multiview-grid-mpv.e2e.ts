@@ -118,7 +118,7 @@ function frameChanged(previous: Buffer, current: Buffer): boolean {
     return changed > current.length / 100;
 }
 
-test('@playback @electron four frame-copy views retain their sessions through grid layout and recovery', async ({
+test('@playback @electron @embedded-mpv four frame-copy views retain their sessions through grid layout and recovery', async ({
     dataDir,
 }, testInfo) => {
     test.setTimeout(120_000);
