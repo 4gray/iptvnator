@@ -20,25 +20,47 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import okhttp3.Call;
+import okhttp3.Headers;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 final class AndroidHttpFetcher extends HttpFetcher {
-    private final OkHttpClient playlistClient = new OkHttpClient.Builder()
-        .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build();
+    private final OkHttpClient playlistClient;
+
+    AndroidHttpFetcher() {
+        this(new OkHttpClient.Builder());
+    }
+
+    AndroidHttpFetcher(OkHttpClient.Builder client) {
+        playlistClient = client.followRedirects(false).followSslRedirects(false).build();
+    }
 
     @Override protected ProviderResponse openResponse(URL url, Map<String, String> headers, int timeoutMs,
                                                       Cancellation cancellation) throws IOException, ProviderException {
         if (cancellation == null) return super.openResponse(url, headers, timeoutMs, null);
-        Request.Builder request = new Request.Builder().url(url);
-        for (Map.Entry<String, String> header : headers.entrySet())
-            request.header(header.getKey(), header.getValue());
+        Headers.Builder outgoing = new Headers.Builder();
+        for (Map.Entry<String, String> header : headers.entrySet()) {
+            String name = header.getKey();
+            String value = header.getValue();
+            if (name.equalsIgnoreCase("User-Agent")) {
+                // Android's URLConnection accepts UTF-8 values while rejecting control characters.
+                for (int i = 0; i < value.length(); i++) {
+                    char character = value.charAt(i);
+                    if ((character < ' ' && character != '\t') || character == '\u007f')
+                        throw new ProviderException("Invalid User-Agent", "ERR_INVALID_CHAR");
+                }
+                outgoing.removeAll(name).addUnsafeNonAscii(name, value);
+            } else {
+                outgoing.set(name, value);
+            }
+        }
+        Request request = new Request.Builder().url(url).headers(outgoing.build()).build();
         Call call = playlistClient.newBuilder()
             .connectTimeout(timeoutMs, TimeUnit.MILLISECONDS)
             .readTimeout(timeoutMs, TimeUnit.MILLISECONDS)
-            .build().newCall(request.build());
+            .build().newCall(request);
         cancellation.attach(call::cancel);
         Response response = call.execute();
         ResponseBody body = response.body();
