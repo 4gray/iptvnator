@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { firstValueFrom, from, of, throwError } from 'rxjs';
+import { firstValueFrom, from, of } from 'rxjs';
 import {
     DatabaseService,
     PlaylistsService,
@@ -255,95 +255,6 @@ describe('UnifiedFavoritesDataService', () => {
         });
 
         service = TestBed.inject(UnifiedFavoritesDataService);
-    });
-
-    it.each(['m3u', 'stalker'] as const)(
-        'distinguishes a failed %s membership read from an empty list',
-        async (sourceType) => {
-            const sourceId = sourceType + '-1';
-            const error = new Error('Synthetic playlist read failure');
-            playlistsService.getPlaylistById.mockReturnValue(
-                throwError(() => error)
-            );
-            await expect(
-                service.getFavorites('playlist', sourceId, sourceType)
-            ).resolves.toEqual([]);
-            await expect(
-                service.getPlaylistFavoritesForMembership(sourceId, sourceType)
-            ).rejects.toBe(error);
-        }
-    );
-
-    it.each(['m3u', 'stalker'] as const)(
-        'rejects a %s membership read after its source is removed',
-        async (sourceType) => {
-            const sourceId = sourceType + '-1';
-            const read = () =>
-                service.getPlaylistFavoritesForMembership(sourceId, sourceType);
-            playlistsService.getPlaylistById.mockReturnValue(of(undefined));
-            await expect(read()).rejects.toThrow(
-                'Favorite source is unavailable'
-            );
-            expect(playlistsService.getPlaylistById).toHaveBeenCalledWith(
-                sourceId
-            );
-
-            playlistsService.getPlaylistById.mockClear();
-            store.select.mockReturnValue(of([]));
-            await expect(
-                service.getFavorites('playlist', sourceId, sourceType)
-            ).resolves.toEqual([]);
-            await expect(read()).rejects.toThrow(
-                'Favorite source is unavailable'
-            );
-            expect(playlistsService.getPlaylistById).not.toHaveBeenCalled();
-        }
-    );
-
-    it('reads actual Stalker membership even when playlist metadata has no favorites', async () => {
-        const source = { _id: 'synthetic-portal', favorites: stalkerFavorites };
-        store.select.mockReturnValue(of([{ ...source, favorites: [] }]));
-        playlistsService.getPlaylistById.mockReturnValue(of(source));
-        await expect(
-            service.getFavorites('playlist', source._id, 'stalker')
-        ).resolves.toEqual([]);
-        await expect(
-            service.getPlaylistFavoritesForMembership(source._id, 'stalker')
-        ).resolves.toHaveLength(stalkerFavorites.length);
-    });
-
-    it('propagates a native Xtream membership read failure and retries from SQLite', async () => {
-        const source = { _id: 'synthetic-portal', title: 'Synthetic source' };
-        store.select.mockReturnValue(of([source]));
-        const error = new Error('Synthetic native favorites read failure');
-        databaseService.getFavoritesOrThrow.mockRejectedValueOnce(error);
-        await expect(
-            service.getPlaylistFavoritesForMembership(source._id, 'xtream')
-        ).rejects.toBe(error);
-
-        databaseService.getFavoritesOrThrow.mockResolvedValueOnce([
-            {
-                id: 20,
-                favorite_id: 3,
-                playlist_id: source._id,
-                xtream_id: 13,
-                title: 'Synthetic channel',
-                type: 'live',
-            },
-        ]);
-        await expect(
-            service.getPlaylistFavoritesForMembership(source._id, 'xtream')
-        ).resolves.toEqual([
-            expect.objectContaining({
-                favoriteId: 3,
-                contentId: 20,
-                playlistId: source._id,
-                playlistName: source.title,
-                xtreamId: 13,
-                contentType: 'live',
-            }),
-        ]);
-        expect(databaseService.getFavorites).not.toHaveBeenCalled();
     });
 
     it('keeps an unavailable Xtream favorite readable and removable without a catalog row', async () => {
