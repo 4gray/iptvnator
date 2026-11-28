@@ -36,7 +36,8 @@ describe('hosted playlist responses', () => {
                     playlistUrl,
                     send
                 );
-                const path = `/parse?targetId=${id}`;
+                const userAgent = 'Synthetic <agent> & compatibility';
+                const path = `/parse?${new URLSearchParams({ targetId: id, userAgent })}`;
                 const signal = AbortSignal.timeout(18_000);
                 const legacy = send(`${backend}${path}`, { signal });
                 const response = await streamTestServer(
@@ -54,6 +55,12 @@ describe('hosted playlist responses', () => {
                 );
                 expect(response.headers['x-content-type-options']).toBe(
                     'nosniff'
+                );
+                expect(response.headers['content-type']).toBe(
+                    'application/json; charset=utf-8'
+                );
+                expect(response.headers['content-security-policy']).toBe(
+                    "sandbox; default-src 'none'"
                 );
                 expect(response.headers['x-iptvnator-json-heartbeat']).toBe(
                     '1'
@@ -76,6 +83,7 @@ describe('hosted playlist responses', () => {
                     oversized
                         ? { status: 413, code: 'PROVIDER_RESPONSE_TOO_LARGE' }
                         : {
+                              userAgent,
                               playlist: {
                                   items: [{ name: 'Synthetic <channel>' }],
                               },

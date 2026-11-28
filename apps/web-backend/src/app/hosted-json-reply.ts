@@ -6,7 +6,13 @@ import type { Response } from 'express';
 export function hostedJsonReply(
     res: Response,
     throughTunnel: boolean,
-    { escapeHtml = true }: { escapeHtml?: boolean } = {}
+    sendCommitted = (body: unknown) =>
+        res.end(
+            JSON.stringify(body)
+                .replace(/</g, '\\u003c')
+                .replace(/>/g, '\\u003e')
+                .replace(/&/g, '\\u0026')
+        )
 ) {
     if (!throughTunnel)
         return (body: unknown, status = 200) => res.status(status).json(body);
@@ -28,14 +34,6 @@ export function hostedJsonReply(
     return (body: unknown, status = 200) => {
         clearInterval(heartbeat);
         if (!res.headersSent) return res.status(status).json(body);
-        const json = JSON.stringify(body);
-        return res.end(
-            escapeHtml
-                ? json
-                      .replace(/</g, '\\u003c')
-                      .replace(/>/g, '\\u003e')
-                      .replace(/&/g, '\\u0026')
-                : json
-        );
+        return sendCommitted(body);
     };
 }

@@ -309,6 +309,9 @@ JSON response through Cloudflare. Registration failures and provider errors that
 arrive before the first heartbeat retain their HTTP status. After a heartbeat,
 the client reads the error status and code from the JSON body. Clients using the
 default request continue to receive the HTTP status with the final JSON.
+The playlist route sets the JSON media type, `nosniff`, and a sandboxed content
+security policy before streaming any bytes. The heartbeat changes only the
+leading whitespace, so it preserves the Android bridge's JSON byte budget.
 
 Server storage adds versioned routes under `/v1`. Source synchronization uses
 the source-specific routes below; the older whole-document/user-state routes

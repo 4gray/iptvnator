@@ -244,12 +244,17 @@ export function createWebBackendApp(
         // request rather than a catalog fan-out, it is usually the direct
         // result of the user asking for it, and it can legitimately run far
         // longer than any portal call.
+        // Commit JSON-only browser handling before a heartbeat can send headers.
+        // The playlist must keep the same JSON bytes for the Android bridge cap.
+        res.set('Content-Type', 'application/json; charset=utf-8');
+        res.set('X-Content-Type-Options', 'nosniff');
+        res.set('Content-Security-Policy', "sandbox; default-src 'none'");
         const reply = hostedJsonReply(
             res,
             options.hostedMode === 'cloudflare' &&
                 req.method === 'GET' &&
                 req.query.keepAlive === '1',
-            { escapeHtml: false }
+            (body) => res.end(JSON.stringify(body))
         );
         const upstream = new AbortController();
         const abortUpstream = () => upstream.abort();
