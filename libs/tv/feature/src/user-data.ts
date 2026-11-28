@@ -40,8 +40,17 @@ export function useUserData(
         repo.current = new UserDataRepository(storage.current, setData);
     const update = (change: (d: UserData) => UserData) =>
         repo.current!.update(change);
+    async function updateProgress(
+        itemId: string,
+        change: (d: UserData) => UserData
+    ) {
+        await update(change);
+        callbacks.current.progressSaveNotice.saved(
+            repo.current?.data.positions[itemId]
+        );
+    }
     const saveWatch = (item: Media, action: WatchAction) =>
-        update((d) => setWatchState(d, item, action));
+        updateProgress(item.id, (d) => setWatchState(d, item, action));
     async function retryStorage() {
         if (loading.current || storageReady) return;
         loading.current = true;
@@ -63,14 +72,10 @@ export function useUserData(
         player.current = new NativePlayer(
             video.current!,
             (p) =>
-                update((d) =>
+                updateProgress(p.item.id, (d) =>
                     d.sources.some((source) => source.id === p.item.sourceId)
                         ? recordProgress(d, p)
                         : d
-                ).then(() =>
-                    callbacks.current.progressSaveNotice.saved(
-                        repo.current?.data.positions[p.item.id]
-                    )
                 ),
             (message) => callbacks.current.report(message),
             () => callbacks.current.tick(),

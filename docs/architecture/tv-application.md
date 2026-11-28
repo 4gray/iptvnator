@@ -370,7 +370,8 @@ A failed switch offers Retry previous channel until the viewer leaves fullscreen
 or chooses another action. The source activation uses the result of the current
 connection attempt even when a progress-save error is already visible. A failed
 progress write retains its own retry when the source switch fails as well. A
-later save for the same title clears the warning once it supersedes the failure.
+later checkpoint or manual watch-state save for the same title clears the
+warning once it supersedes the failure.
 If the warning had focus when it closed, fullscreen returns focus to Play/Pause.
 Modal Back closes its overlay first. Existing Left/drawer, media and system keys
 are unchanged; no Channel +/- hardware support or autoplay is added.

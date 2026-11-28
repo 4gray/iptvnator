@@ -55,7 +55,7 @@ async function editSaved(
         edit
     );
 }
-async function watchMovie(page: Page) {
+async function playMovie(page: Page) {
     await start(page);
     await addSource(page, 'xtream');
     await nav(page, 'Movies');
@@ -68,12 +68,12 @@ async function watchMovie(page: Page) {
                 .evaluate((v: HTMLVideoElement) => v.currentTime)
         )
         .toBeGreaterThan(0.1);
-    await page.keyboard.press('Escape');
 }
 test('TV VOD comfort completed movie never says Resume after historical schema-1 reload', async ({
     page,
 }) => {
-    await watchMovie(page);
+    await playMovie(page);
+    await page.keyboard.press('Escape');
     await editSaved(page, 'complete');
     await page.reload();
     await nav(page, 'Movies');
@@ -84,6 +84,27 @@ test('TV VOD comfort completed movie never says Resume after historical schema-1
     await expect(page.locator('.watch-status').first()).toContainText(
         'Watched'
     );
+});
+
+test('TV VOD comfort clears a failed checkpoint after marking the movie watched', async ({
+    page,
+}) => {
+    await playMovie(page);
+    await page.evaluate(() => {
+        const put = IDBObjectStore.prototype.put;
+        IDBObjectStore.prototype.put = function () {
+            IDBObjectStore.prototype.put = put;
+            throw new DOMException('Synthetic quota', 'QuotaExceededError');
+        };
+    });
+    await page.keyboard.press('Escape');
+    const retry = page.getByRole('button', { name: 'Retry saving progress' });
+    await expect(retry).toBeVisible();
+    await moreAction(page, 'Mark watched');
+    await expect(page.locator('[data-focus="detail-play"]')).toContainText(
+        'Watch again'
+    );
+    await expect(retry).toHaveCount(0);
 });
 
 async function syntheticSeries(page: Page, nextStill?: string) {
@@ -171,7 +192,8 @@ async function endedUnknown(page: Page) {
 test('TV VOD comfort manual marks commit before display, recover from quota and preserve schema-1 data', async ({
     page,
 }) => {
-    await watchMovie(page);
+    await playMovie(page);
+    await page.keyboard.press('Escape');
     await editSaved(page, 'historical');
     await page.reload();
     await nav(page, 'Movies');
